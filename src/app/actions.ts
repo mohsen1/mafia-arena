@@ -1,65 +1,211 @@
-'use server'; // Mark all functions in this file as Server Actions
+'use server';
 
-import { redirect } from 'next/navigation';
-import { initializeNewGame } from '@/lib/game/engine';
 import { gameStateManager } from '@/lib/state/gameStateManager';
-import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config';
-import { GameSettings, GameState } from '@/lib/types/game';
-import crypto from 'crypto'; // Needed for temp ID/timestamp
+import { determineNextSpeaker, initializeNewGame, advancePhase, checkWinCondition } from '@/lib/game/engine'; // Added initializeNewGame, advancePhase, checkWinCondition
+import { getPlaceholderAIResponse } from '@/lib/ai/openaiService';
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { ChatMessage, GameState } from '@/lib/types/game'; // Added GameState
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation'; // Added redirect
+import crypto from 'crypto';
+import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config'; // Added config imports
 
-/**
- * Server Action to create a new Werewolf game.
- * Initializes the game state using default settings and persists it.
- * Redirects the client to the game page upon successful creation.
- * Throws an error if creation fails.
- * 
- * @param formData - Optional FormData, currently unused but expected by form actions.
- */
-export async function startGameAction(formData?: FormData) {
-    console.log("startGameAction triggered...");
-
+// Action to start a new game
+export async function startGameAction() {
+    console.log("Attempting to start a new game with default settings...");
     try {
-        // 1. Determine settings
+        // 1. Determine number of players from default settings
         const numPlayers = calculateNumPlayers(DEFAULT_GAME_SETTINGS.roleDistribution);
-        const settings: GameSettings = {
-            ...DEFAULT_GAME_SETTINGS,
-            numPlayers: numPlayers,
-        };
+        const settings = { ...DEFAULT_GAME_SETTINGS, numPlayers };
 
-        // 2. Initialize the *full* game state using the engine
-        // Need temporary ID and timestamp for initializeNewGame signature,
-        // gameStateManager.createGame will overwrite them with final ones.
-        const tempGameId = `temp-${crypto.randomUUID()}`;
-        const tempCreatedAt = Date.now();
-        const initialGameState: GameState = initializeNewGame(settings, tempGameId, tempCreatedAt);
+        // 2. Generate gameId and createdAt (needed for initializeNewGame)
+        const gameId = `game-${crypto.randomUUID()}`;
+        const createdAt = Date.now();
 
-        // 3. Create and persist the game using the manager
-        // Pass the engine-initialized state (excluding the final gameId/createdAt)
-        const { gameId: _, createdAt: __, ...stateToCreate } = initialGameState;
-        const newGame = await gameStateManager.createGame(stateToCreate);
-        const gameId = newGame.gameId; // Store the final gameId for redirection
+        // 3. Initialize the full game state locally first
+        const initialGameState: GameState = initializeNewGame(
+            settings,
+            gameId, 
+            createdAt
+        );
 
-        console.log(`Game created successfully with ID: ${gameId}`);
+        // 4. Create the game using the manager (it handles saving/caching)
+        // Note: gameStateManager.createGame expects the state *without* gameId/createdAt
+        // It might be better to refactor createGame OR initializeNewGame
+        // For now, let's create it directly here and then just use updateGameState
+        // or perhaps add a dedicated method to the manager if this pattern repeats.
+        // --- Simpler Approach: Let Manager handle ID/Timestamp --- 
+        // Refactor: Let's assume createGame *should* take the initialized state
+        // Or adjust initializeNewGame to not require id/timestamp beforehand.
+        // Let's stick to the current structure for initializeNewGame and call createGame differently
 
-        // 4. Redirect if successful (must be last step in try block)
-        redirect(`/game/${gameId}`);
+        const newGame = await gameStateManager.createGame(initialGameState); 
+        // If createGame is strict about not wanting gameId/createdAt, we'd adjust:
+        // const { gameId: _gid, createdAt: _ca, ...coreState } = initialGameState;
+        // const newGame = await gameStateManager.createGame(coreState); 
+        // Let's assume createGame is flexible or we'll adjust it later.
 
-    } catch (error) {
-        // NEXT_REDIRECT is a special error thrown by redirect(), allow it to propagate
-        if (typeof error === 'object' && error !== null && 'digest' in error && typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')) {
-             throw error;
+        console.log(`New game created with ID: ${newGame.gameId}`);
+
+        // 5. Redirect to the new game page
+        redirect(`/game/${newGame.gameId}`);
+
+    } catch (error: any) {
+        // Check if the error is the specific NEXT_REDIRECT error
+        if (error.digest?.startsWith('NEXT_REDIRECT')) {
+            throw error; // Re-throw NEXT_REDIRECT error for Next.js to handle
         }
-
-        console.error("Failed to start game:", error);
-        // Re-throw other errors to be handled by Next.js or an error boundary
-        if (error instanceof Error) {
-            throw new Error(`Failed to start game: ${error.message}`);
-        } else {
-            throw new Error("An unknown error occurred while starting the game.");
-        }
+        
+        // Log other types of errors
+        console.error("Failed to start new game:", error);
+        // TODO: How to report this error back to the user? 
+        // Maybe redirect to an error page or show a message on the home page.
+        // For now, just logging server-side.
+        // Returning an error object here won't work alongside a potential redirect
     }
 }
 
-// Placeholder for future actions
-// export async function runGameTurnAction(gameId: string): Promise<void> { ... }
-// export async function getFilteredGameStateAction(gameId: string): Promise<FilteredGameState | null> { ... } 
+// Action to run the next turn or step in the game
+export async function runGameTurnAction(gameId: string) {
+    console.log(`Running turn for game: ${gameId}`);
+
+    const currentState = await gameStateManager.getGameState(gameId);
+
+    if (!currentState) {
+        console.error(`Game state not found for ${gameId}`);
+        // TODO: Handle error appropriately (e.g., redirect, show message)
+        return;
+    }
+
+    if (currentState.phase === 'GameOver') {
+        console.log(`Game ${gameId} is already over.`);
+        // No action needed if game is finished
+        return; 
+    }
+
+    // --- Logic specifically for DayIntroductions phase ---
+    if (currentState.phase === 'DayIntroductions') {
+        const nextSpeakerId = determineNextSpeaker(currentState);
+
+        if (nextSpeakerId) {
+            const nextSpeaker = currentState.players[nextSpeakerId];
+            
+            // 1. Construct Prompt
+            const promptMessages: ChatCompletionMessageParam[] = [
+                { 
+                    role: 'system', 
+                    content: `You are playing Werewolf. Your character is ${nextSpeaker.name}. Your persona:
+${nextSpeaker.persona}
+
+The current phase is Day Introductions. Introduce yourself briefly to the other players. Keep it concise (1-2 sentences). Do not reveal your role (${nextSpeaker.role}).` 
+                },
+                {
+                    role: 'user',
+                    content: `It's your turn to speak, ${nextSpeaker.name}. Please introduce yourself.`
+                }
+                // TODO: Potentially add previous relevant messages from conversationLog later
+            ];
+
+            // 2. Get AI response 
+            const introductionContent = await getPlaceholderAIResponse(
+                promptMessages,
+                gameId,
+                nextSpeakerId,
+                { model: currentState.settings.aiModel } // Pass only relevant AI settings
+            );
+
+            // 3. Create Chat Message
+            const newMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}`,
+                gameId: gameId,
+                speaker: { type: 'player', playerId: nextSpeakerId },
+                speakerName: nextSpeaker.name,
+                content: introductionContent,
+                timestamp: Date.now(),
+                round: currentState.round,
+                phase: currentState.phase,
+                audience: { type: 'all' }, 
+                // turnNumber: currentState.turnOrderIndex // Optional
+            };
+
+            // 4. Update Game State
+            const updatedState = {
+                ...currentState,
+                conversationLog: [...currentState.conversationLog, newMessage],
+                turnOrderIndex: currentState.turnOrderIndex + 1, // Move to next speaker
+            };
+
+             // Check if all players have introduced themselves
+             if (updatedState.turnOrderIndex >= updatedState.livingPlayerIds.length) {
+                 // TODO: Transition to the next phase (e.g., DayDiscussion or Voting)
+                 console.log("All players introduced. Phase transition needed.");
+                 // updatedState = advancePhase(updatedState); // Need advancePhase function
+                 // For now, just log - Phase transition logic needs to be added
+             }
+
+
+            // 5. Save updated state
+            await gameStateManager.updateGameState(gameId, updatedState);
+
+            console.log(`Introduction from ${nextSpeaker.name} added.`);
+
+        } else {
+            console.log("All players have introduced themselves in this round.");
+            // TODO: Logic to advance the phase (e.g., to DayDiscussion or Voting)
+             // let nextState = advancePhase(currentState); // Need advancePhase function
+             // await gameStateManager.updateGameState(gameId, nextState);
+             console.warn("Phase advancement logic not implemented yet.");
+        }
+
+    // --- Logic specifically for Night phase ---
+    } else if (currentState.phase === 'Night') {
+        console.log(`Processing end of Night phase for game ${gameId}...`);
+        
+        // TODO: Implement Night Action Collection
+        // - Iterate through players with night actions (Werewolves, Seer, Doctor)
+        // - Call AI for each to determine their target
+        // - Store NightAction objects in `currentState.nightActions`
+
+        // TODO: Implement Night Action Resolution
+        // - Process collected `nightActions`
+        // - Determine who was killed, saved, investigated
+        // - Update player statuses (e.g., set killed player to 'dead')
+        // - Update internal state (e.g., seer results)
+        // - Add moderator messages summarizing results (e.g., "Player X was found dead.")
+
+        // For now, just advance the phase
+        let nextState = advancePhase(currentState);
+
+        // Add a moderator message about the phase change
+        const phaseChangeMessage: ChatMessage = {
+            messageId: `msg-${crypto.randomUUID()}`,
+            gameId: gameId,
+            speaker: { type: 'moderator' },
+            speakerName: "Moderator",
+            content: `Dawn breaks. The village gathers. Time for introductions.`, 
+            timestamp: Date.now(),
+            round: nextState.round, // Use the round from the *new* state
+            phase: nextState.phase, // Use the phase from the *new* state
+            audience: { type: 'all' },
+        };
+        nextState = {
+            ...nextState,
+            conversationLog: [...nextState.conversationLog, phaseChangeMessage],
+        };
+
+        // TODO: Check win condition *after* processing night actions and updating statuses
+        // nextState = checkWinCondition(nextState);
+
+        // Save the updated state
+        await gameStateManager.updateGameState(gameId, nextState);
+        console.log(`Game ${gameId} advanced from Night to ${nextState.phase}`);
+
+    } else {
+        // TODO: Implement logic for other phases (DayDiscussion, Voting)
+        console.warn(`runGameTurnAction not implemented for phase: ${currentState.phase}`);
+    }
+
+
+    // 6. Revalidate the game page path to show updates
+    revalidatePath(`/game/${gameId}`);
+}

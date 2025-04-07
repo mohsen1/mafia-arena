@@ -15,6 +15,7 @@ import path from 'path';
 // --- Load Character Presets from JSON ---
 
 const CHARACTER_DATA_PATH = path.join(process.cwd(), 'data.json');
+const CHARACTER_IMAGES_DIR = path.join(process.cwd(), 'public/images/characters');
 
 /**
  * Loads character presets from the JSON data file.
@@ -87,6 +88,20 @@ function shuffleArray<T>(array: T[]): T[] {
     return array;
 }
 
+/**
+ * Lists available character image filenames.
+ * @returns {string[]} An array of image filenames.
+ */
+function listCharacterImageFiles(): string[] {
+    try {
+        const files = fs.readdirSync(CHARACTER_IMAGES_DIR);
+        return files.filter(file => /\.(png|jpg|jpeg|webp)$/i.test(file)); // Filter for image files
+    } catch (error) {
+        console.error("Failed to list character images:", error);
+        return []; // Return empty array on error
+    }
+}
+
 // --- Game Initialization Logic ---
 
 /**
@@ -110,6 +125,17 @@ export function initializeNewGame(
     if (characterPresets.length < numPlayers) {
         throw new Error(`Not enough character presets (${characterPresets.length}) for the number of players (${numPlayers}).`);
     }
+
+    // Get and validate character images
+    const imageFiles = listCharacterImageFiles();
+    if (imageFiles.length < numPlayers) {
+        console.warn(`Warning: Not enough unique character images (${imageFiles.length}) for the number of players (${numPlayers}). Images may be reused or missing.`);
+        // Pad with empty strings if not enough images
+        while (imageFiles.length < numPlayers) {
+            imageFiles.push(''); // Or handle differently, e.g., assign a default image URL
+        }
+    }
+    const shuffledImageFiles = shuffleArray(imageFiles);
 
     // Validate role distribution
     const totalRoles = Object.values(roleDistribution).reduce((sum, count) => sum + count, 0);
@@ -138,11 +164,14 @@ export function initializeNewGame(
         const playerId = `player-${crypto.randomUUID()}`;
         const preset = selectedPresets[i];
         const role = rolesToAssign[i];
+        const imageUrl = shuffledImageFiles[i] ? `/images/characters/${shuffledImageFiles[i]}` : undefined; // Construct URL
+        
         const player: Player = {
             id: playerId,
             name: preset.name,
             persona: preset.persona,
             role: role,
+            imageUrl: imageUrl, // Assign the image URL
             status: 'alive' as PlayerStatus,
         };
         players[playerId] = player;
@@ -208,16 +237,21 @@ export function advancePhase(currentState: GameState): GameState {
 
     switch (currentState.phase) {
         case 'Night':
-            nextPhase = 'Day';
+            nextPhase = 'DayIntroductions'; // Start with introductions
             // Reset turn order index for the start of Day discussion
             nextTurnOrderIndex = 0; 
-            console.log(`Advancing from Night to Day, Round ${nextRound}`);
+            console.log(`Advancing from Night to DayIntroductions, Round ${nextRound}`);
             break;
-        case 'Day':
+        case 'DayIntroductions': // After introductions, move to discussion
+            nextPhase = 'DayDiscussion'; 
+            nextTurnOrderIndex = 0; // Reset for discussion start
+            console.log(`Advancing from DayIntroductions to DayDiscussion, Round ${nextRound}`);
+            break;
+        case 'DayDiscussion': // After discussion, move to voting
             nextPhase = 'Voting';
              // Reset turn order index or handle voting state specifically
             nextTurnOrderIndex = 0; 
-            console.log(`Advancing from Day to Voting, Round ${nextRound}`);
+            console.log(`Advancing from DayDiscussion to Voting, Round ${nextRound}`);
             break;
         case 'Voting':
             nextPhase = 'Night';
@@ -299,8 +333,8 @@ export function checkWinCondition(currentState: GameState): GameState {
  * @returns The ID of the next player to speak, or null if it's not the Day phase or if the index is out of bounds.
  */
 export function determineNextSpeaker(currentState: GameState): string | null {
-    // Speaking only happens during the Day phase
-    if (currentState.phase !== 'Day') {
+    // Speaking happens during Introduction and Discussion phases
+    if (currentState.phase !== 'DayIntroductions' && currentState.phase !== 'DayDiscussion') {
         return null;
     }
 
@@ -311,7 +345,6 @@ export function determineNextSpeaker(currentState: GameState): string | null {
         return livingPlayerIds[turnOrderIndex];
     }
 
-    // Index is out of bounds (e.g., all players have spoken this round)
-    // The logic handling the game loop should check for this and potentially move to Voting.
+    // Index is out of bounds (e.g., all players have spoken this round/phase)
     return null;
-} 
+}

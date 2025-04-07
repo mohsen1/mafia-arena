@@ -210,12 +210,12 @@ export class GameStateManager {
         // Destructure to separate fields easily
         const { _internalState, players, conversationLog, ...restOfState } = gameState;
 
-        // Filter players: Omit role
+        // Filter players: Omit role. imageUrl is kept automatically.
         const filteredPlayers: Readonly<Record<string, Omit<Player, 'role'>>> = 
             Object.fromEntries(
                 Object.entries(players).map(([id, player]) => {
                     const { role, ...restPlayer } = player;
-                    return [id, restPlayer];
+                    return [id, restPlayer]; // restPlayer includes name, status, persona, imageUrl
                 })
             );
 

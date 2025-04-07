@@ -8,8 +8,9 @@ export type SpeakerType = 'player' | 'moderator';
 
 export type GamePhase =
   | 'Night'
-  | 'Day'
-  | 'Voting' // Explicit voting sub-phase?
+  | 'DayIntroductions' // Players introduce themselves
+  | 'DayDiscussion' // Main discussion phase
+  | 'Voting'
   | 'GameOver';
 
 export type PlayerStatus = 'alive' | 'dead';
@@ -19,6 +20,7 @@ export interface Player {
   readonly name: string;
   readonly role: Role;
   readonly persona: string; // Detailed description for AI
+  readonly imageUrl?: string; // Optional URL for the character image
   status: PlayerStatus;
 }
 
@@ -83,7 +85,7 @@ export interface GameState {
 // Subset of GameState safe to send to the client
 export type FilteredGameState = Omit<GameState, '_internalState' | 'players' | 'conversationLog'> & {
   conversationLog: ReadonlyArray<Omit<ChatMessage, 'audience'> & { speakerName: string }>;
-  players: Readonly<Record<string, Omit<Player, 'role'>>>; // Hide roles of living players
+  players: Readonly<Record<string, Omit<Player, 'role'>>>; // Hide roles, but include imageUrl
 };
 
 
