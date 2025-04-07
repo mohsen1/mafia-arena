@@ -1,4 +1,4 @@
-import { GameState, FilteredGameState, Player, ChatMessage } from '@/lib/types/game';
+import { GameState, FilteredGameState, Player, ChatMessage, Role } from '@/lib/types/game';
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -210,12 +210,23 @@ export class GameStateManager {
         // Destructure to separate fields easily
         const { _internalState, players, conversationLog, ...restOfState } = gameState;
 
-        // Filter players: Omit role. imageUrl is kept automatically.
-        const filteredPlayers: Readonly<Record<string, Omit<Player, 'role'>>> = 
+        // Filter players: Omit persona. Conditionally include role if game is over.
+        const filteredPlayers: FilteredGameState['players'] = 
             Object.fromEntries(
                 Object.entries(players).map(([id, player]) => {
-                    const { role, ...restPlayer } = player;
-                    return [id, restPlayer]; // restPlayer includes name, status, persona, imageUrl
+                    // Destructure persona and role to exclude them initially
+                    const { persona, role, ...restPlayer } = player; 
+                    
+                    // Start with the base player object without persona or the original required role
+                    const playerForClient: FilteredGameState['players'][string] = { ...restPlayer };
+
+                    // If game is over, add the optional role property back
+                    if (gameState.phase === 'GameOver') {
+                        playerForClient.role = role;
+                    }
+                    // If game is not over, playerForClient remains without the role property, satisfying the optional type
+
+                    return [id, playerForClient];
                 })
             );
 

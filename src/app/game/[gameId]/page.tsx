@@ -37,9 +37,13 @@ export default async function GamePage({ params }: GamePageProps) {
                     <span className="text-xl">🏠</span> Home
                 </a>
                 <h2 className="text-xl font-semibold mb-4 text-center sticky top-0 bg-white dark:bg-gray-800 py-2 flex-shrink-0">Players</h2>
-                <div className="grid grid-cols-1 gap-3 flex-grow overflow-y-auto pr-1"> {/* Allow grid inside to scroll */}
+                <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-1"> {/* Allow grid inside to scroll */}
                     {Object.values(players).map(player => (
-                        <PlayerCard key={player.id} player={player} />
+                        <PlayerCard 
+                            key={player.id} 
+                            player={player} 
+                            role={phase === 'GameOver' ? player.role : undefined} // Pass role only if game is over
+                        />
                     ))}
                 </div>
             </aside>

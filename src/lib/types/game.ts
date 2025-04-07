@@ -88,7 +88,7 @@ export interface GameState {
 // Subset of GameState safe to send to the client
 export type FilteredGameState = Omit<GameState, '_internalState' | 'players' | 'conversationLog'> & {
   conversationLog: ReadonlyArray<Omit<ChatMessage, 'audience'> & { speakerName: string }>;
-  players: Readonly<Record<string, Omit<Player, 'role' | 'persona'>>>; // Also hide persona from client
+  players: Readonly<Record<string, Omit<Player, 'persona' | 'role'> & { role?: Role }>>;
 };
 
 
