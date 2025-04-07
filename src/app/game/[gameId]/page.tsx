@@ -2,7 +2,8 @@ import { gameStateManager } from "@/lib/state/gameStateManager";
 import { notFound } from "next/navigation";
 import { Player, FilteredGameState, ChatMessage } from "@/lib/types/game";
 import { runGameTurnAction } from "@/app/actions"; // Import the new action
-import Image from 'next/image'; // Import Next.js Image component
+import { PlayerCard } from "@/components/PlayerCard"; // Import PlayerCard
+import { MessageBubble } from "@/components/MessageBubble"; // Import MessageBubble
 
 // Define props expected by the page component
 interface GamePageProps {
@@ -11,71 +12,14 @@ interface GamePageProps {
     };
 }
 
-// Player Card Component with Dark Mode
-function PlayerCard({ player }: { player: FilteredGameState['players'][string] }) {
-    return (
-        <div className={`p-3 flex flex-col items-center transition-colors duration-200 ${player.status === 'dead' ? 'bg-gray-300 dark:bg-gray-700 opacity-60' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}>
-            {player.imageUrl ? (
-                <Image 
-                    src={player.imageUrl} 
-                    alt={`Image of ${player.name}`}
-                    width={64} // Slightly smaller
-                    height={64}
-                    className="rounded-full mb-2 object-cover border-2 border-gray-300 dark:border-gray-600"
-                />
-            ) : (
-                <div className="w-16 h-16 rounded-full bg-gray-300 dark:bg-gray-600 mb-2 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs">No Image</div>
-            )}
-            <h3 className="text-md font-semibold text-center text-gray-800 dark:text-gray-100">{player.name}</h3>
-            <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">{player.status}</p>
-        </div>
-    );
-}
-
-// Message Component with Dark Mode
-function MessageBubble({ message, players }: { message: Omit<ChatMessage, 'audience'> & { speakerName: string }, players: FilteredGameState['players'] }) {
-    const speakerPlayer = message.speaker.type === 'player' 
-        ? players[message.speaker.playerId] 
-        : null;
-    const speakerImageUrl = speakerPlayer?.imageUrl;
-    const isModerator = message.speaker.type === 'moderator';
-
-    return (
-        <div className={`flex items-start gap-3 p-2 rounded-lg transition-colors duration-200 ${isModerator ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-300 text-sm italic' : 'bg-white dark:bg-gray-700'}`}>
-            {/* Speaker Image */}
-            <div className="flex-shrink-0 mt-1">
-                {speakerImageUrl ? (
-                    <Image 
-                        src={speakerImageUrl}
-                        alt={`Image of ${message.speakerName}`}
-                        width={32} 
-                        height={32}
-                        className="rounded-full object-cover border border-gray-300 dark:border-gray-600"
-                    />
-                ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-400 text-[10px] font-bold">
-                        {isModerator ? 'Mod' : message.speakerName?.substring(0, 1) || 'P'}
-                    </div>
-                )}
-            </div>
-            {/* Message Content */}
-            <div className="flex-grow">
-                <span className={`font-semibold text-gray-900 dark:text-gray-50 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>{message.speakerName}: </span>
-                <span className={`text-gray-800 dark:text-gray-200 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>{message.content}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block text-right opacity-75">R{message.round} {message.phase}</span>
-            </div>
-        </div>
-    );
-}
-
 // The main server component for the game page
 export default async function GamePage({ params }: GamePageProps) {
     // Params await removed as it's generally not needed and caused confusion
-    const { gameId } = params; 
+    const { gameId } = params;
     const gameState = await gameStateManager.getFilteredGameState(gameId);
 
     if (!gameState) {
-        notFound(); 
+        notFound();
     }
 
     const { gameId: stateGameId, title, description, phase, round, players, conversationLog, winner } = gameState;
