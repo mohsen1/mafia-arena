@@ -288,3 +288,124 @@ export type GetAIResponseFunction = (
 *   **API Costs & Rate Limits:** Monitor usage closely. Implement caching where possible (though difficult with dynamic game state). Consider less powerful/cheaper models for certain actions if feasible.
 *   **Scalability (In-Memory/File):** The current approach limits the number of *active* games by server memory and *total* games by disk space/inode limits. File I/O can become a bottleneck.
 *   **Information Control:** Rigorously filtering game state and conversation history before constructing AI prompts and sending data to the client (`FilteredGameState`) is critical for game integrity.
+
+## 10. Implementation Plan
+
+This plan outlines the steps to build the Werewolf AI game based on this design.
+
+Notes:
+
+- we use pnpm as package manager
+- prefer private fields and methods (#something)
+- use JSDoc for comments if you can
+- use TypeScript string literals instead of enums. never use enums 
+
+**Phase 1: Project Setup & Core Types**
+
+1.  Initialize Next.js project with TypeScript.
+2.  Install necessary dependencies (`openai`, `async-retry` if used).
+3.  Define core data structures in TypeScript (`GameState`, `Player`, `Role`, `GamePhase`, `ChatMessage`, etc.) based on Section 6. Ensure strict typing.
+4.  Set up basic project structure (`app/`, `lib/`, `data/`).
+5.  Define `CharacterPreset` data.
+
+**Phase 2: Game State Management (`lib/state/gameStateManager.ts`)**
+
+1.  Implement the `GameStateManager` class/module.
+2.  Implement in-memory cache (`Map<string, GameState>`).
+3.  Implement functions: `createGame`, `getGameState`, `updateGameState`.
+4.  Implement JSON file persistence using `fs/promises` for reading (`loadGameStateFromFile`) and writing (`saveGameStateToFile`). Ensure the `data/games/` directory is created if it doesn't exist.
+5.  Implement asynchronous file writing. Consider simple locking or queuing per `gameId` if concerned about race conditions during rapid updates.
+6.  Implement `listGameIds` by scanning the `data/games/` directory.
+
+**Phase 3: Game Engine Logic - Core Rules (`lib/game/engine.ts`)**
+
+1.  Implement game initialization logic: Assign roles based on `GameSettings`, create `Player` objects with personas, set initial `GameState` properties (round 1, Night phase).
+2.  Implement basic phase transition logic (`advancePhase`).
+3.  Implement win condition checking logic (`checkWinCondition`).
+4.  Implement logic to determine player turn order.
+5.  *Initially, focus on the deterministic state changes without AI interaction.*
+
+**Phase 4: AI Interaction Service (`lib/ai/openaiService.ts`)**
+
+1.  Implement the `AI Agent Service` module.
+2.  Initialize the `openai` SDK client using environment variables (`OPENAI_API_KEY`, `OPENAI_BASE_URL`).
+3.  Implement the core `getAIResponseFunction` or similar wrapper around `openai.chat.completions.create()`.
+4.  Implement basic retry logic for API calls (e.g., using `async-retry` or a manual loop).
+5.  Develop initial prompt construction functions (placeholders or very basic versions).
+
+**Phase 5: Basic Server Actions & Frontend (`app/`, `app/actions.ts`)**
+
+1.  Implement the basic `startGameAction`:
+    *   Generate `gameId`.
+    *   Call `GameEngine` to initialize state.
+    *   Call `GameStateManager` to save the initial state.
+    *   Redirect to the game page.
+2.  Implement `app/page.tsx`:
+    *   Display a "Start New Game" form/button triggering `startGameAction`.
+    *   Fetch and display the list of existing games using `listGameIds` from `GameStateManager`.
+3.  Implement `app/game/[gameId]/page.tsx`:
+    *   Fetch the initial `GameState` for the given `gameId` using a server action (`getFilteredGameStateAction` - initially might return full state).
+    *   Pass the state to a client component.
+4.  Implement `app/game/[gameId]/GameDisplay.tsx` (`"use client"`):
+    *   Basic rendering of game ID, player list (names only initially), current phase, and round.
+
+**Phase 6: Integrating AI into Game Flow**
+
+1.  Enhance `GameEngine` to handle night actions:
+    *   Determine which roles act at night.
+    *   Prepare specific prompts for each acting role (Werewolf kill, Seer investigation, Doctor save).
+    *   Define expected response formats.
+2.  Enhance `GameEngine` to handle day discussion:
+    *   Determine the next speaker based on `turnOrderIndex` and `livingPlayerIds`.
+    *   Prepare prompts for discussion contributions.
+3.  Enhance `GameEngine` to handle voting:
+    *   Prepare prompts for voting.
+    *   Implement vote tallying logic.
+    *   Implement elimination logic.
+4.  Implement/Refine `runGameTurnAction` Server Action:
+    *   Load current `GameState`.
+    *   Use `GameEngine` to determine the required action(s).
+    *   Call `AI Agent Service` with appropriate prompts constructed based on game state and player role/persona/history. Filter history/state based on audience/role.
+    *   Parse AI responses. Handle invalid/failed responses.
+    *   Use `GameEngine` to update `GameState` based on AI actions/dialogue (add messages, record actions/votes, update status, advance phase/turn).
+    *   Save updated `GameState` via `GameStateManager`.
+    *   Call `revalidatePath` for the game page.
+    *   Implement logic to automatically trigger the next turn/step (e.g., recursive call with delay, simple server loop if feasible, or prepare for background jobs).
+5.  Refine `getFilteredGameStateAction` to properly filter sensitive information before sending it to the client as `FilteredGameState`.
+
+**Phase 7: Frontend Polish & Display**
+
+1.  Enhance `GameDisplay.tsx`:
+    *   Render the `conversationLog` correctly, potentially styling moderator/player messages differently.
+    *   Display player status (alive/dead) and potentially revealed roles upon death.
+    *   Clearly indicate the current game phase, round, and whose turn it is (if applicable).
+    *   Show night action results (e.g., who was eliminated).
+    *   Show voting results.
+    *   Display the winner when `GameState.phase` is `GameOver`.
+2.  Implement client-side logic to handle updates triggered by `revalidatePath`.
+
+**Phase 8: Testing, Refinement & Error Handling**
+
+1.  Implement comprehensive logging throughout the application.
+2.  Add robust error handling for API calls, file I/O, and game logic errors.
+3.  Refine AI prompts based on observed gameplay to improve AI behavior, adherence to rules, and persona consistency.
+4.  Write unit tests for `GameEngine`, `GameStateManager`, and utility functions.
+5.  Write integration tests for the core game loop involving Server Actions and AI interaction (might require mocking the AI service).
+6.  Manually test various game scenarios and edge cases.
+7.  Address potential security concerns like prompt injection.
+
+**Phase 9: Deployment**
+
+1.  Configure environment variables for production (API keys, base URLs).
+2.  Set up hosting environment (e.g., Vercel, Node.js server).
+3.  Build the Next.js application (`next build`).
+4.  Deploy the application.
+5.  Monitor logs and performance.
+
+**(Optional Phases - Post MVP)**
+
+*   Implement WebSocket integration for real-time updates.
+*   Migrate persistence to a database.
+*   Integrate voice synthesis (e.g., ElevenLabs).
+*   Implement background job queue for game turn management.
+*   Add more roles and features.
