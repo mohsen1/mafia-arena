@@ -4,7 +4,7 @@ import { gameStateManager } from '@/lib/state/gameStateManager';
 import { determineNextSpeaker, initializeNewGame, advancePhase, checkWinCondition } from '@/lib/game/engine'; // Added initializeNewGame, advancePhase, checkWinCondition
 import { getAIResponse } from '@/lib/ai/openaiService';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { ChatMessage, GameState, NightAction, Player } from '@/lib/types/game'; // Added NightAction, Player
+import { ChatMessage, GameState, NightAction, Player, Vote } from '@/lib/types/game'; // Added Vote
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation'; // Added redirect
 import crypto from 'crypto';
@@ -548,6 +548,146 @@ Keep your response concise (2-4 sentences).`;
         }
     }
     
+    // --- Logic specifically for Voting phase ---
+    else if (currentState.phase === 'Voting') {
+        console.log(`Processing Voting phase for game ${gameId}...`);
+        
+        const livingPlayers = currentState.livingPlayerIds.map(id => currentState.players[id]).filter(p => p.status === 'alive');
+        const collectedVotes: Vote[] = [];
+
+        // Helper to get living player ID by name
+        const getPlayerIdByName = (name: string): string | null => {
+            const lowerCaseName = name.toLowerCase().trim();
+            const player = livingPlayers.find(p => p.name.toLowerCase() === lowerCaseName);
+            return player ? player.id : null;
+        };
+
+        // Collect votes from all living players
+        for (const voter of livingPlayers) {
+            console.log(`Getting vote from ${voter.name}...`);
+            
+            const targetOptions = livingPlayers.filter(p => p.id !== voter.id);
+            if (targetOptions.length === 0) {
+                console.log(`Skipping vote for ${voter.name} (no other living players).`);
+                continue;
+            }
+
+            const systemPrompt = `You are playing a character in a game of Werewolf.
+
+Your Character Details:
+${voter.persona}
+
+Your Character Name: ${voter.name}
+Your Assigned Role (SECRET): ${voter.role}
+
+The current game phase is Voting (Round ${currentState.round}). Discussion is over. It is time to vote to eliminate a player you suspect is a werewolf.
+
+Living Players (You cannot vote for yourself):
+${targetOptions.map(p => `- ${p.name}`).join('\n')}
+
+Consider the discussion and your suspicions. Choose one player from the list above to vote for elimination. Respond ONLY with the exact name of the player you are voting for.`;
+
+            const promptMessages: ChatCompletionMessageParam[] = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `Who do you vote to eliminate, ${voter.name}?` }
+            ];
+
+            let targetName = '';
+            let targetPlayerId: string | null = null;
+            let retries = 2;
+
+            while (retries > 0 && targetPlayerId === null) {
+                try {
+                    targetName = await getAIResponse(
+                        promptMessages,
+                        gameId,
+                        voter.id,
+                        { model: currentState.settings.aiModel, temperature: 0.3 }
+                    );
+                    targetName = targetName.replace(/[^a-zA-Z0-9\s'-]/g, '').trim(); 
+
+                    targetPlayerId = getPlayerIdByName(targetName);
+                    if (!targetPlayerId) {
+                        console.warn(`Invalid vote target name \"${targetName}\" received from ${voter.name}. Retrying... (${retries - 1} left)`);
+                        promptMessages.push({ role: 'assistant', content: targetName });
+                        promptMessages.push({ role: 'user', content: `That name wasn't on the list of living players or was spelled incorrectly. Please look at the list again and respond ONLY with the exact name.` });
+                        retries--;
+                        targetName = ''; 
+                    } else {
+                        if (targetPlayerId === voter.id) {
+                            console.warn(`${voter.name} tried to vote for themselves. Retrying... (${retries - 1} left)`);
+                            promptMessages.push({ role: 'assistant', content: targetName });
+                            promptMessages.push({ role: 'user', content: `You cannot vote for yourself. Please choose another player from the list.` });
+                            retries--;
+                            targetPlayerId = null; 
+                            targetName = '';
+                        } else if (!targetOptions.some(p => p.id === targetPlayerId)) {
+                            console.warn(`Target \"${targetName}\" (${targetPlayerId}) is not a valid target (e.g., dead or typo). Retrying... (${retries - 1} left)`);
+                             promptMessages.push({ role: 'assistant', content: targetName });
+                             promptMessages.push({ role: 'user', content: `That name wasn't on the list of valid targets. Please choose a name exactly as listed.` });
+                             retries--;
+                             targetPlayerId = null; 
+                             targetName = '';
+                        }
+                    }
+                } catch (error) {
+                    console.error(`AI call failed for ${voter.name}'s vote:`, error);
+                    retries = 0; 
+                }
+            }
+
+            if (targetPlayerId) {
+                const finalTargetName = currentState.players[targetPlayerId].name;
+                console.log(`${voter.name} voted for ${finalTargetName} (${targetPlayerId})`);
+                collectedVotes.push({ voterPlayerId: voter.id, targetPlayerId });
+            } else {
+                console.warn(`${voter.name} failed to provide a valid vote after retries. Their vote is abstained.`);
+            }
+        } // End loop through voters
+
+        console.log("Finished collecting votes:", collectedVotes);
+
+        const stateWithVotes = await gameStateManager.getGameState(gameId);
+        if (!stateWithVotes) { console.error(`State disappeared for ${gameId} before saving votes`); return; }
+
+        let stateAfterVoteCollection = {
+            ...stateWithVotes,
+            votes: collectedVotes,
+        };
+        await gameStateManager.updateGameState(gameId, stateAfterVoteCollection);
+        console.log(`State updated with collected votes for ${gameId}.`);
+
+        // ----- Vote Processing & Elimination (Placeholder/Next Step) -----
+        // TODO: Implement Vote Processing Logic
+
+        // --- TEMPORARY: Skip vote processing, advance phase --- 
+        console.warn("Vote PROCESSING logic not implemented yet. Advancing phase.");
+        let stateAfterVoting = { ...stateAfterVoteCollection };
+        let nextState = advancePhase(stateAfterVoting);
+
+        const phaseChangeMessage: ChatMessage = {
+            messageId: `msg-${crypto.randomUUID()}`,
+            gameId: gameId,
+            speaker: { type: 'moderator' },
+            speakerName: "Moderator",
+            content: `The votes are cast. Night falls...`, // Placeholder message
+            timestamp: Date.now(),
+            round: nextState.round,
+            phase: nextState.phase,
+            audience: { type: 'all' },
+        };
+        nextState = {
+            ...nextState,
+            conversationLog: [...nextState.conversationLog, phaseChangeMessage],
+            turnOrderIndex: 0,
+            nightActions: [],
+        };
+
+        await gameStateManager.updateGameState(gameId, nextState);
+        console.log(`Game ${gameId} advanced from Voting to ${nextState.phase}`);
+
+    }
+
     else { // Fallback for other unimplemented phases
         console.warn(`runGameTurnAction not implemented for phase: ${currentState.phase}`);
     }
