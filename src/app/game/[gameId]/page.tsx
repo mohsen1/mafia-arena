@@ -14,8 +14,9 @@ interface GamePageProps {
 
 // The main server component for the game page
 export default async function GamePage({ params }: GamePageProps) {
-    // Params await removed as it's generally not needed and caused confusion
-    const { gameId } = params;
+    // Params must be awaited in async RSCs according to Next.js best practices/errors
+    const awaitedParams = await params;
+    const { gameId } = awaitedParams;
     const gameState = await gameStateManager.getFilteredGameState(gameId);
 
     if (!gameState) {
@@ -75,7 +76,7 @@ export default async function GamePage({ params }: GamePageProps) {
                              className="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition duration-150 ease-in-out"
                              disabled={phase === 'GameOver'}
                          >
-                             {phase === 'DayIntroductions' ? 'Next Introduction' : 
+                             {phase === 'DayIntroductions' ? 'Next' : 
                               phase === 'Night' ? 'Process Night' : 
                               'Run Next Turn'} 
                          </button>

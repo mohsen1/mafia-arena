@@ -4,7 +4,7 @@ import { gameStateManager } from '@/lib/state/gameStateManager';
 import { determineNextSpeaker, initializeNewGame, advancePhase, checkWinCondition } from '@/lib/game/engine'; // Added initializeNewGame, advancePhase, checkWinCondition
 import { getAIResponse } from '@/lib/ai/openaiService';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { ChatMessage, GameState } from '@/lib/types/game'; // Added GameState
+import { ChatMessage, GameState, NightAction, Player } from '@/lib/types/game'; // Added NightAction, Player
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation'; // Added redirect
 import crypto from 'crypto';
@@ -69,18 +69,17 @@ export async function startGameAction() {
 export async function runGameTurnAction(gameId: string) {
     console.log(`Running turn for game: ${gameId}`);
 
-    const currentState = await gameStateManager.getGameState(gameId);
+    // Use let because we might update it after fetching latest state
+    let currentState = await gameStateManager.getGameState(gameId);
 
     if (!currentState) {
         console.error(`Game state not found for ${gameId}`);
-        // TODO: Handle error appropriately (e.g., redirect, show message)
         return;
     }
 
     if (currentState.phase === 'GameOver') {
         console.log(`Game ${gameId} is already over.`);
-        // No action needed if game is finished
-        return; 
+        return;
     }
 
     // --- Logic specifically for DayIntroductions phase ---
@@ -160,31 +159,190 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             console.log(`Introduction from ${nextSpeaker.name} added.`);
 
         } else {
-            console.log("All players have introduced themselves in this round.");
-            // TODO: Logic to advance the phase (e.g., to DayDiscussion or Voting)
-             // let nextState = advancePhase(currentState); // Need advancePhase function
-             // await gameStateManager.updateGameState(gameId, nextState);
-             console.warn("Phase advancement logic not implemented yet.");
+            // All players have introduced themselves. Time to advance the phase.
+            console.log("All players introduced. Advancing phase...");
+            
+            // Fetch the latest state to ensure we are advancing from the correct point
+            const stateBeforePhaseAdvance = await gameStateManager.getGameState(gameId);
+            if (!stateBeforePhaseAdvance) {
+                console.error(`Game state lost before phase advance for ${gameId}`);
+                return; 
+            }
+
+            let nextState = advancePhase(stateBeforePhaseAdvance);
+
+            // Add a moderator message indicating the start of the next phase
+            const phaseChangeMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}`,
+                gameId: gameId,
+                speaker: { type: 'moderator' },
+                speakerName: "Moderator",
+                content: `Introductions are complete. The floor is now open for discussion.`, 
+                timestamp: Date.now(),
+                round: nextState.round, 
+                phase: nextState.phase, 
+                audience: { type: 'all' },
+            };
+            nextState = {
+                ...nextState,
+                conversationLog: [...nextState.conversationLog, phaseChangeMessage],
+                // Reset turn index for the new phase (discussion)
+                turnOrderIndex: 0, 
+            };
+
+            // Save the updated state with the new phase
+            await gameStateManager.updateGameState(gameId, nextState);
+            console.log(`Game ${gameId} advanced from DayIntroductions to ${nextState.phase}`);
         }
 
     // --- Logic specifically for Night phase ---
     } else if (currentState.phase === 'Night') {
-        console.log(`Processing end of Night phase for game ${gameId}...`);
-        
-        // TODO: Implement Night Action Collection
-        // - Iterate through players with night actions (Werewolves, Seer, Doctor)
-        // - Call AI for each to determine their target
-        // - Store NightAction objects in `currentState.nightActions`
+        console.log(`Processing Night phase actions for game ${gameId}...`);
 
+        const livingPlayers = currentState.livingPlayerIds.map(id => currentState.players[id]);
+        const playersWithNightActions = livingPlayers.filter(p =>
+            p.status === 'alive' && (p.role === 'Werewolf' || p.role === 'Seer' || p.role === 'Doctor')
+        );
+
+        const collectedActions: NightAction[] = [];
+
+        // Helper function to find living player ID by name (case-insensitive)
+        const getPlayerIdByName = (name: string): string | null => {
+            const lowerCaseName = name.toLowerCase().trim();
+            // Ensure we only target living players
+            const player = livingPlayers.find(p => p.status === 'alive' && p.name.toLowerCase() === lowerCaseName);
+            return player ? player.id : null;
+        };
+
+        for (const activePlayer of playersWithNightActions) {
+            console.log(`Getting night action for ${activePlayer.name} (${activePlayer.role})...`);
+            let prompt = '';
+            let targetOptions: Player[] = [];
+            const systemPromptBase = `You are playing a character in a game of Werewolf.\n\nYour Character Details:\n${activePlayer.persona}\n\nYour Character Name: ${activePlayer.name}\nYour Assigned Role (SECRET): ${activePlayer.role}\n\nThe current game phase is Night. It is time for you to perform your nightly action.`;
+
+            // Determine valid targets based on role
+            switch (activePlayer.role) {
+                case 'Werewolf':
+                    targetOptions = livingPlayers.filter(p => p.status === 'alive' && p.role !== 'Werewolf');
+                    prompt = `${systemPromptBase}\n\nAs a Werewolf, choose one player from the list below to eliminate tonight. Respond ONLY with the exact name of the player you choose.\n\nLiving Non-Werewolf Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    break;
+                case 'Seer':
+                    targetOptions = livingPlayers.filter(p => p.status === 'alive' && p.id !== activePlayer.id);
+                    prompt = `${systemPromptBase}\n\nAs the Seer, choose one player from the list below to investigate their role (Werewolf or Villager). Respond ONLY with the exact name of the player you choose.\n\nOther Living Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    break;
+                case 'Doctor':
+                    targetOptions = livingPlayers.filter(p => p.status === 'alive');
+                    prompt = `${systemPromptBase}\n\nAs the Doctor, choose one player from the list below to protect from elimination tonight. You may choose yourself. Respond ONLY with the exact name of the player you choose.\n\nLiving Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    break;
+            }
+
+            if (!prompt || targetOptions.length === 0) {
+                console.log(`Skipping action for ${activePlayer.name} (no valid targets or action).`);
+                continue;
+            }
+
+            const promptMessages: ChatCompletionMessageParam[] = [
+                { role: 'system', content: prompt },
+                { role: 'user', content: `Choose your target.` }
+            ];
+
+            let targetName = '';
+            let targetPlayerId: string | null = null;
+            let retries = 2;
+
+            // Retry loop for getting a valid target name from AI
+            while (retries > 0 && targetPlayerId === null) {
+                try {
+                    targetName = await getAIResponse(
+                        promptMessages,
+                        gameId,
+                        activePlayer.id,
+                        { model: currentState.settings.aiModel, temperature: 0.3 }
+                    );
+                    targetName = targetName.replace(/[^a-zA-Z0-9\s'-]/g, '').trim(); // Sanitize name slightly
+
+                    targetPlayerId = getPlayerIdByName(targetName);
+                    if (!targetPlayerId) {
+                        // AI provided an invalid name
+                        console.warn(`Invalid target name \"${targetName}\" received from ${activePlayer.name}. Retrying... (${retries - 1} left)`);
+                        promptMessages.push({ role: 'assistant', content: targetName });
+                        promptMessages.push({ role: 'user', content: `That name wasn't on the list of living players or was spelled incorrectly. Please look at the list again and respond ONLY with the exact name.` });
+                        retries--;
+                        targetName = ''; // Reset for next attempt
+                    } else {
+                        // AI provided a valid player name, now check if it's a valid *target* for the role
+                        if (!targetOptions.some(p => p.id === targetPlayerId)) {
+                            console.warn(`Target \"${targetName}\" (${targetPlayerId}) is not a valid option for ${activePlayer.role}. Retrying... (${retries - 1} left)`);
+                            promptMessages.push({ role: 'assistant', content: targetName });
+                            promptMessages.push({ role: 'user', content: `You cannot target ${targetName} with your ability according to the rules. Please choose a different name from the valid list.` });
+                            retries--;
+                            targetPlayerId = null; // Invalidate targetId, keep targetName for context
+                            targetName = '';
+                        }
+                        // If valid name AND valid target option, the loop will exit
+                    }
+                } catch (error) {
+                    console.error(`AI call failed for ${activePlayer.name}'s night action:`, error);
+                    retries = 0; // Stop retrying on API error
+                }
+            }
+
+            // Add action if a valid target was successfully chosen
+            if (targetPlayerId) {
+                const finalTargetName = currentState.players[targetPlayerId].name; // Get canonical name
+                console.log(`${activePlayer.name} (${activePlayer.role}) targeted ${finalTargetName} (${targetPlayerId})`);
+                let action: NightAction | null = null;
+                switch (activePlayer.role) {
+                    case 'Werewolf':
+                        action = { type: 'werewolf_kill', actingPlayerId: activePlayer.id, targetPlayerId };
+                        break;
+                    case 'Seer':
+                        // Result is determined during resolution phase
+                        action = { type: 'seer_investigation', actingPlayerId: activePlayer.id, targetPlayerId, result: 'Villager' /* Placeholder */ };
+                        break;
+                    case 'Doctor':
+                        action = { type: 'doctor_save', actingPlayerId: activePlayer.id, targetPlayerId };
+                        break;
+                }
+                if (action) {
+                    collectedActions.push(action);
+                }
+            } else {
+                console.warn(`${activePlayer.name} (${activePlayer.role}) failed to provide a valid target after retries.`);
+                // Handle failure case - e.g., player performs no action this night
+            }
+        } // End loop through players with night actions
+
+        console.log("Finished collecting night actions:", collectedActions);
+
+        // Update the state with collected actions before resolving them
+        // Fetch latest state again in case concurrent actions modified it (though unlikely with current model)
+        const stateBeforeResolution = await gameStateManager.getGameState(gameId);
+        if (!stateBeforeResolution) { console.error(`State disappeared for ${gameId} before resolution`); return; }
+
+        let stateWithCollectedActions = {
+            ...stateBeforeResolution,
+            nightActions: collectedActions, // Add the newly collected actions
+        };
+        // Save state with actions collected, allows viewing if resolution fails?
+        await gameStateManager.updateGameState(gameId, stateWithCollectedActions);
+        // Revalidate now might show actions were *collected* but not yet resolved.
+        // Optional: revalidatePath(`/game/${gameId}`);
+        console.log(`State updated with collected night actions for ${gameId}.`);
+
+        // ----- Night Action Resolution (Placeholder/Next Step) -----
         // TODO: Implement Night Action Resolution
-        // - Process collected `nightActions`
-        // - Determine who was killed, saved, investigated
-        // - Update player statuses (e.g., set killed player to 'dead')
-        // - Update internal state (e.g., seer results)
-        // - Add moderator messages summarizing results (e.g., "Player X was found dead.")
+        //  - Process `collectedActions`
+        //  - Determine actual kill (check doctor save vs werewolf kill)
+        //  - Determine seer result (check target's actual role)
+        //  - Update player statuses (set 'dead')
+        //  - Update GameState._internalState.seerResults
+        //  - Generate moderator messages summarizing results (e.g., "A scream pierces the night! ... Player X was found dead.")
 
-        // For now, just advance the phase
-        let nextState = advancePhase(currentState);
+        // --- TEMPORARY: Skip resolution, advance phase --- 
+        console.warn("Night action RESOLUTION logic not implemented yet. Advancing phase.");
+        let stateAfterActions = { ...stateWithCollectedActions }; // Start from state with actions
+        let nextState = advancePhase(stateAfterActions); // Advance phase (e.g., Night -> Day)
 
         // Add a moderator message about the phase change
         const phaseChangeMessage: ChatMessage = {
@@ -192,31 +350,209 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             gameId: gameId,
             speaker: { type: 'moderator' },
             speakerName: "Moderator",
-            content: `Dawn breaks. The village gathers. Time for introductions.`, 
+            content: `Dawn breaks. The village awaits the results of the night...`, // Adjusted message
             timestamp: Date.now(),
-            round: nextState.round, // Use the round from the *new* state
-            phase: nextState.phase, // Use the phase from the *new* state
+            round: nextState.round,
+            phase: nextState.phase,
             audience: { type: 'all' },
         };
         nextState = {
             ...nextState,
             conversationLog: [...nextState.conversationLog, phaseChangeMessage],
+            nightActions: [], // Clear actions after processing (or keep for history?)
+            votes: [], // Clear votes from previous day
         };
 
-        // TODO: Check win condition *after* processing night actions and updating statuses
+        // TODO: Check win condition *after* resolution updates statuses
         // nextState = checkWinCondition(nextState);
 
-        // Save the updated state
+        // Save the final state for the night phase (after phase advance)
         await gameStateManager.updateGameState(gameId, nextState);
         console.log(`Game ${gameId} advanced from Night to ${nextState.phase}`);
 
-    } else {
-        // TODO: Implement logic for other phases (DayDiscussion, Voting)
+    // --- Logic specifically for DayDiscussion phase ---
+    } else if (currentState.phase === 'DayDiscussion') {
+        console.log(`Processing DayDiscussion phase for game ${gameId}...`);
+        const nextSpeakerId = determineNextSpeaker(currentState);
+
+        if (nextSpeakerId) {
+            const nextSpeaker = currentState.players[nextSpeakerId];
+            const thinkingMessageId = `msg-${crypto.randomUUID()}-thinking`;
+
+            console.log(`Getting discussion contribution from ${nextSpeaker.name}...`);
+
+            // 1. Add "Thinking..." message
+            const thinkingMessage: ChatMessage = {
+                messageId: thinkingMessageId,
+                gameId: gameId,
+                speaker: { type: 'player', playerId: nextSpeakerId },
+                speakerName: nextSpeaker.name,
+                content: "", 
+                timestamp: Date.now(),
+                round: currentState.round,
+                phase: currentState.phase,
+                audience: { type: 'all' },
+                isThinking: true,
+            };
+
+            let stateWithThinking = {
+                ...currentState,
+                conversationLog: [...currentState.conversationLog, thinkingMessage],
+            };
+            // Update cache, start background save, revalidate immediately
+            await gameStateManager.updateGameState(gameId, stateWithThinking);
+            revalidatePath(`/game/${gameId}`); 
+            console.log(`Added thinking message for ${nextSpeaker.name} discussion.`);
+
+            // 2. Construct Prompt for Discussion
+            const relevantLog = currentState.conversationLog.filter(
+                msg => msg.round === currentState.round && !msg.isThinking 
+            ).slice(-15);
+            const conversationHistory = relevantLog.map(msg => `${msg.speakerName}: ${msg.content}`).join('\n');
+            const livingPlayerNames = currentState.livingPlayerIds.map(id => currentState.players[id].name);
+
+            const systemPrompt = `You are playing a character in a game of Werewolf.
+
+Your Character Details:
+${nextSpeaker.persona}
+
+Your Character Name: ${nextSpeaker.name}
+Your Assigned Role (SECRET): ${nextSpeaker.role}
+
+The current game phase is Day Discussion (Round ${currentState.round}).
+Living Players: ${livingPlayerNames.join(', ')}
+
+Recent Conversation:
+${conversationHistory || '[No discussion yet this round]'}
+
+It's your turn to speak. Share your thoughts, suspicions, defend yourself, or try to guide the conversation based on your persona and secret role. Speak in the first person.
+Be mindful of what you reveal. Do NOT explicitly state your role (${nextSpeaker.role}) unless you have a strategic reason within the game's context (which is rare for most roles).
+Keep your response concise (2-4 sentences).`;
+
+            const promptMessages: ChatCompletionMessageParam[] = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `Okay ${nextSpeaker.name}, what are your thoughts?` }
+            ];
+
+            // 3. Get AI response
+            let discussionContent = '';
+            let errorMessage = '';
+            try {
+                 discussionContent = await getAIResponse(
+                    promptMessages,
+                    gameId,
+                    nextSpeakerId,
+                    { model: currentState.settings.aiModel, temperature: 0.7 }
+                );
+            } catch (error: any) {
+                console.error(`AI discussion response failed for ${nextSpeakerId}:`, error);
+                errorMessage = "(Seems lost in thought...)"; 
+            }
+
+            // 4. Fetch latest state again before final update
+            let stateAfterThinking = await gameStateManager.getGameState(gameId);
+            if (!stateAfterThinking) {
+                 console.error(`Game state lost after thinking (discussion) for ${gameId}`);
+                 return; 
+            }
+
+            // 5. Create final message
+            const finalMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}`,
+                gameId: gameId,
+                speaker: { type: 'player', playerId: nextSpeakerId },
+                speakerName: nextSpeaker.name,
+                content: errorMessage || discussionContent,
+                timestamp: Date.now(), 
+                round: stateAfterThinking.round,
+                phase: stateAfterThinking.phase,
+                audience: { type: 'all' },
+                isThinking: false, // Explicitly set to false
+            };
+
+            // 6. Update Game State: Remove thinking message, add final, increment turn
+            let finalState = {
+                ...stateAfterThinking,
+                conversationLog: [
+                    ...stateAfterThinking.conversationLog.filter(msg => msg.messageId !== thinkingMessageId),
+                    finalMessage
+                ],
+                turnOrderIndex: stateAfterThinking.turnOrderIndex + 1, 
+            };
+            
+            // 7. Check if discussion round is over (e.g., all living players have spoken once)
+            // If over, transition to Voting phase.
+            const playersSpokenThisRound = finalState.turnOrderIndex;
+            if (playersSpokenThisRound >= finalState.livingPlayerIds.length) {
+                console.log("All living players have spoken this round. Transitioning to Voting...");
+                
+                // Advance to Voting Phase
+                let stateBeforeVote = advancePhase(finalState);
+
+                // Add moderator message for voting start
+                const voteStartMessage: ChatMessage = {
+                    messageId: `msg-${crypto.randomUUID()}`,
+                    gameId: gameId,
+                    speaker: { type: 'moderator' },
+                    speakerName: "Moderator",
+                    content: `Discussion time is over. It is now time to vote for who to eliminate.`, 
+                    timestamp: Date.now(),
+                    round: stateBeforeVote.round, 
+                    phase: stateBeforeVote.phase, 
+                    audience: { type: 'all' },
+                };
+
+                finalState = {
+                    ...stateBeforeVote,
+                    conversationLog: [...stateBeforeVote.conversationLog, voteStartMessage],
+                    turnOrderIndex: 0, // Reset index for voting phase
+                    votes: [], // Clear any previous votes
+                };
+                console.log(`Game ${gameId} advanced to ${finalState.phase} phase.`);
+            } else {
+                 console.log(`Player ${nextSpeaker.name} finished speaking. ${finalState.livingPlayerIds.length - playersSpokenThisRound} players remaining this round.`);
+            }
+
+            // 8. Save final updated state for this turn/phase change
+            await gameStateManager.updateGameState(gameId, finalState);
+            console.log(`DayDiscussion turn processed for ${nextSpeaker.name}. Current index: ${finalState.turnOrderIndex}`);
+
+        } else {
+            // This case should ideally not be reached if the check above handles the transition
+            console.error("Reached unexpected state in DayDiscussion: No next speaker, but phase transition didn't happen.");
+            // Fallback: Force transition to Voting just in case
+            let stateBeforeVote = await gameStateManager.getGameState(gameId);
+            if (stateBeforeVote && stateBeforeVote.phase === 'DayDiscussion') {
+                 console.warn("Forcing phase transition to Voting due to unexpected state.");
+                 let nextState = advancePhase(stateBeforeVote); 
+                 // Add moderator message
+                 const voteStartMessage: ChatMessage = {
+                    messageId: `msg-${crypto.randomUUID()}`,
+                    gameId: gameId,
+                    speaker: { type: 'moderator' },
+                    speakerName: "Moderator",
+                    content: `Discussion time is over. It is now time to vote for who to eliminate.`, 
+                    timestamp: Date.now(),
+                    round: nextState.round, // Use round/phase from the advanced state
+                    phase: nextState.phase, 
+                    audience: { type: 'all' },
+                };
+                 nextState = { 
+                    ...nextState, 
+                    conversationLog: [...nextState.conversationLog, voteStartMessage], 
+                    turnOrderIndex: 0, 
+                    votes: [] 
+                 };
+                 await gameStateManager.updateGameState(gameId, nextState);
+            }
+        }
+    }
+    
+    else { // Fallback for other unimplemented phases
         console.warn(`runGameTurnAction not implemented for phase: ${currentState.phase}`);
     }
 
-
-    // 6. Revalidate the game page path to show updates
+    // Final Revalidation for the entire turn action
     revalidatePath(`/game/${gameId}`);
 }
 

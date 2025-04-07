@@ -41,6 +41,7 @@ export interface ChatMessage {
   readonly phase: GamePhase;
   readonly audience: MessageAudience;
   readonly turnNumber?: number; // Optional: Track speaking order within a round
+  readonly isThinking?: boolean; // Re-add optional flag for loading state
 }
 
 // More specific night action types

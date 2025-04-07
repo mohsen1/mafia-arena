@@ -64,18 +64,17 @@ export default async function Home() {
             </form>
 
             {/* List existing games */}
+            {existingGames.length > 0 && (
             <div className="w-full max-w-2xl mb-8">
                 <h2 className="text-2xl font-semibold mb-4 text-center">Existing Games</h2>
-                {existingGames.length > 0 ? (
+                
                     <ul className="space-y-3">
                         {existingGames.map((game) => (
                            <GameCard key={game.gameId} game={game} />
                         ))}
                     </ul>
-                ) : (
-                    <p className="text-center text-gray-500 dark:text-gray-400 italic">No existing games found. Start a new one!</p>
-                )}
-            </div>
+                </div>
+            )}
         </main>
     );
 }
