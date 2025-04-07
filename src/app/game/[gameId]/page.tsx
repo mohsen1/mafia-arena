@@ -78,14 +78,16 @@ export default async function GamePage({ params }: GamePageProps) {
         notFound(); 
     }
 
-    const { phase, round, players, conversationLog, winner } = gameState;
+    const { gameId: stateGameId, title, description, phase, round, players, conversationLog, winner } = gameState;
     const runTurnForThisGame = runGameTurnAction.bind(null, gameId);
 
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
             {/* Left Column: Player List */}    
             <aside className="w-1/4 lg:w-1/5 h-full overflow-y-auto p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md">
-                 <h2 className="text-xl font-semibold mb-4 text-center sticky top-0 bg-white dark:bg-gray-800 py-2">Players ({Object.keys(players).length})</h2>
+                <a className="text-lg text-gray-500 dark:text-gray-400 mb-2 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200 w-full text-center block items-center gap-2" href="/">
+                    <span className="text-xl">🏠</span> Home
+                </a>
                  <div className="grid grid-cols-1 gap-3">
                      {Object.values(players).map(player => (
                          <PlayerCard key={player.id} player={player} />
@@ -98,9 +100,11 @@ export default async function GamePage({ params }: GamePageProps) {
                 {/* Top Row: Game Info & Actions */}
                 <header className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow flex justify-between items-center flex-shrink-0">
                     <div>
-                        <h1 className="text-2xl font-bold">Werewolf Game</h1>
+                        <h1 className="text-2xl font-bold mb-1">{title || "Werewolf Game"}</h1>
+                        {description && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 italic">{description}</p>
+                        )}
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                            ID: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{gameId}</span> | 
                             Round: <span className="font-semibold">{round}</span> | 
                             Phase: <span className="font-semibold">{phase}</span>
                         </p>

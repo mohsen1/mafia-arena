@@ -64,6 +64,8 @@ export interface GameSettings {
 export interface GameState {
   readonly gameId: string;
   readonly createdAt: number; // Unix timestamp (ms or s)
+  title?: string; // Optional generated title
+  description?: string; // Optional generated description
   readonly settings: GameSettings;
   players: Readonly<Record<string, Player>>; // Map Player ID to Player object
   livingPlayerIds: string[]; // Maintain order for turns
@@ -85,7 +87,7 @@ export interface GameState {
 // Subset of GameState safe to send to the client
 export type FilteredGameState = Omit<GameState, '_internalState' | 'players' | 'conversationLog'> & {
   conversationLog: ReadonlyArray<Omit<ChatMessage, 'audience'> & { speakerName: string }>;
-  players: Readonly<Record<string, Omit<Player, 'role'>>>; // Hide roles, but include imageUrl
+  players: Readonly<Record<string, Omit<Player, 'role' | 'persona'>>>; // Also hide persona from client
 };
 
 

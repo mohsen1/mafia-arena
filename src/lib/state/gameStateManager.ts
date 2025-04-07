@@ -2,6 +2,7 @@ import { GameState, FilteredGameState, Player, ChatMessage } from '@/lib/types/g
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { initializeNewGame } from '@/lib/game/engine'; // Import engine function
 
 const GAMES_DIR = path.join(process.cwd(), 'data', 'games');
 
@@ -92,32 +93,31 @@ export class GameStateManager {
     }
 
     /**
-     * Creates a new game, initializes its state, caches it, and persists it to a file.
+     * Creates a new game, initializes its state using the engine (which now includes AI title generation),
+     * caches it, and persists it to a file.
      *
-     * @param initialPartialState Partial game state, typically including settings.
-     *                           `gameId` and `createdAt` will be generated.
-     * @returns The fully initialized game state.
-     * @throws If creation or saving fails.
+     * @param partialState Requires at least `settings` to initialize the game.
+     * @returns The fully initialized game state, including AI-generated title/desc.
+     * @throws If initialization or saving fails.
      */
-    async createGame(initialState: Omit<GameState, 'gameId' | 'createdAt'>): Promise<GameState> {
+    async createGame(partialState: Pick<GameState, 'settings'>): Promise<GameState> { // Now expects only settings
         const gameId = `game-${crypto.randomUUID()}`;
         const createdAt = Date.now();
 
-        const newGameState: GameState = {
-            ...initialState,
+        // Call the async engine function to initialize the game state, including AI generation
+        const newGameState = await initializeNewGame(
+            partialState.settings,
             gameId,
-            createdAt,
-        };
+            createdAt
+        );
 
         // Add to cache
         this.#gameStates.set(gameId, newGameState);
 
-        // Save to file asynchronously (but wait for the lock to be set)
-        // We don't necessarily need to await the full save here unless critical
-        // for the immediate next step, but saving ensures persistence.
-        await this.#saveGameStateToFile(newGameState); // Await the save
+        // Save to file asynchronously 
+        await this.#saveGameStateToFile(newGameState); 
 
-        console.log(`Game created with ID: ${gameId}`);
+        console.log(`Game created with ID: ${gameId} and Title: "${newGameState.title}"`);
         return newGameState;
     }
 
@@ -246,6 +246,35 @@ export class GameStateManager {
         } else {
             this.#gameStates.clear();
             console.log('Entire game state cache cleared.');
+        }
+    }
+
+    /**
+     * Deletes a game's state file and removes it from the cache.
+     * 
+     * @param gameId The ID of the game to delete.
+     * @returns Promise<boolean> - True if deletion was successful or file didn't exist, false on error.
+     */
+    async deleteGame(gameId: string): Promise<boolean> {
+        const filePath = path.join(GAMES_DIR, `${gameId}.json`);
+        console.log(`Attempting to delete game: ${gameId} at ${filePath}`);
+
+        // Clear from cache regardless of file deletion result
+        this.clearCache(gameId);
+
+        try {
+             // Check if file exists before attempting delete to avoid unnecessary errors
+             await fs.access(filePath); // Throws if file doesn't exist
+             await fs.unlink(filePath); // Delete the file
+             console.log(`Game file deleted successfully: ${gameId}`);
+             return true;
+        } catch (error: any) {
+            if (error.code === 'ENOENT') {
+                console.log(`Game file not found, considered deleted: ${gameId}`);
+                return true; // If file doesn't exist, it's effectively deleted
+            }
+            console.error(`Failed to delete game file ${gameId}:`, error);
+            return false; // Deletion failed
         }
     }
 }

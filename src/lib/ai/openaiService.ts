@@ -80,4 +80,81 @@ export const getAIResponse: GetAIResponseFunction = async (
     }
 };
 
+/**
+ * Calls the AI to generate a thematic title and short description for the game
+ * based on the cast of characters.
+ *
+ * @param players An array of player objects with names and personas.
+ * @param settings AI model settings.
+ * @returns A promise resolving to an object with title and description.
+ * @throws If the API key is missing or the API call fails.
+ */
+export async function getAIGameTitleAndDescription(
+    players: ReadonlyArray<{ name: string; persona: string }>,
+    settings: { model: string; temperature?: number; max_tokens?: number }
+): Promise<{ title: string; description: string }> {
+    if (!openai) {
+        throw new Error("OpenAI client not initialized. Missing OPENAI_API_KEY.");
+    }
+
+    console.log(`Requesting AI game title/description using model ${settings.model}...`);
+
+    const characterDescriptions = players
+        .map(p => `- ${p.name}: ${p.persona.split('\n')[2]?.replace('Appearance: ', '') || 'No description provided.'}`)
+        .join('\n');
+
+    const prompt: ChatCompletionMessageParam[] = [
+        {
+            role: 'system',
+            content: `You are a creative assistant tasked with generating a thematic title and a short, evocative description (1-2 sentences) for a game of Werewolf based on its characters. Respond ONLY in JSON format with keys "title" and "description". Example: {"title": "The Grimstone Gathering", "description": "Shadows lengthen in the village as whispers of a hidden beast turn neighbor against neighbor."}`
+        },
+        {
+            role: 'user',
+            content: `Generate a title and description for a Werewolf game featuring these characters:
+${characterDescriptions}
+
+Respond ONLY with the JSON object.`
+        }
+    ];
+
+    try {
+        const completion = await openai.chat.completions.create({
+            model: settings.model,
+            messages: prompt,
+            temperature: settings.temperature ?? 0.8, 
+            max_tokens: settings.max_tokens ?? 100, // Shorter response needed
+            response_format: { type: "json_object" }, // Request JSON output
+        });
+
+        const responseContent = completion.choices[0]?.message?.content;
+
+        if (!responseContent) {
+            throw new Error('Received empty response content from AI for title/description.');
+        }
+
+        // Parse the JSON response
+        const parsedResponse = JSON.parse(responseContent);
+        if (typeof parsedResponse.title === 'string' && typeof parsedResponse.description === 'string') {
+            console.log("Received AI-generated title and description.");
+            return {
+                 title: parsedResponse.title.trim(),
+                 description: parsedResponse.description.trim()
+             };
+        } else {
+            throw new Error('AI response for title/description was not in the expected JSON format.');
+        }
+
+    } catch (error: any) {
+        console.error(`Error generating AI title/description:`, error?.message || error);
+        // Fallback or re-throw
+        // For now, return a generic fallback to avoid blocking game creation
+        console.warn("Falling back to generic title/description.");
+        return {
+            title: "A Game of Shadows",
+            description: "Suspicion hangs heavy in the air as the villagers seek the threat within."
+        };
+        // Or re-throw: throw new Error(`AI title/description generation failed: ${error?.message || 'Unknown error'}`);
+    }
+}
+
 // --- Placeholder Function Removed --- 

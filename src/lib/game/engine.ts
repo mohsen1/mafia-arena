@@ -11,6 +11,7 @@ import {
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { getAIGameTitleAndDescription } from '@/lib/ai/openaiService';
 
 // --- Load Character Presets from JSON ---
 
@@ -106,19 +107,20 @@ function listCharacterImageFiles(): string[] {
 
 /**
  * Initializes a new game state based on the provided settings.
+ * Generates title/description using AI based on the characters.
+ * This function is now ASYNCHRONOUS.
  *
  * @param settings The game settings defining player count, roles, etc.
  * @param gameId The unique ID for this game.
  * @param createdAt The timestamp when the game was created.
- * @returns The initial GameState object.
- * @throws If the number of presets is less than the number of players.
- * @throws If the role distribution doesn't match the number of players.
+ * @returns Promise<GameState> - A promise resolving to the initial GameState object.
+ * @throws If validation fails or AI generation fails (and no fallback is used).
  */
-export function initializeNewGame(
+export async function initializeNewGame(
     settings: GameSettings,
     gameId: string,
     createdAt: number
-): GameState {
+): Promise<GameState> {
     const { numPlayers, roleDistribution, aiModel } = settings;
 
     // Validate character presets
@@ -156,38 +158,67 @@ export function initializeNewGame(
     const shuffledPresets = shuffleArray([...characterPresets]);
     const selectedPresets = shuffledPresets.slice(0, numPlayers);
 
-    // Create players
-    const players: Record<string, Player> = {};
-    const livingPlayerIds: string[] = [];
-
+    // Create players (Keep persona details for title generation)
+    const playersArray: Player[] = []; 
     for (let i = 0; i < numPlayers; i++) {
         const playerId = `player-${crypto.randomUUID()}`;
         const preset = selectedPresets[i];
         const role = rolesToAssign[i];
-        const imageUrl = shuffledImageFiles[i] ? `/images/characters/${shuffledImageFiles[i]}` : undefined; // Construct URL
+        const imageUrl = shuffledImageFiles[i] ? `/images/characters/${shuffledImageFiles[i]}` : undefined; 
         
         const player: Player = {
             id: playerId,
             name: preset.name,
-            persona: preset.persona,
+            persona: preset.persona, // Keep full persona temporarily
             role: role,
-            imageUrl: imageUrl, // Assign the image URL
-            status: 'alive' as PlayerStatus,
+            imageUrl: imageUrl, 
+            status: 'alive',
         };
-        players[playerId] = player;
-        livingPlayerIds.push(playerId);
+        playersArray.push(player);
     }
 
-    // Initial moderator message (optional)
+    // --- Generate Title/Description using AI ---
+    let title: string | undefined;
+    let description: string | undefined;
+    try {
+        const titleDesc = await getAIGameTitleAndDescription(
+            playersArray.map(p => ({ name: p.name, persona: p.persona })), // Pass necessary info
+            { model: aiModel } // Pass AI settings
+        );
+        title = titleDesc.title;
+        description = titleDesc.description;
+    } catch (aiError) {
+        console.error("AI Title/Description generation failed:", aiError);
+        // Using fallback in getAIGameTitleAndDescription, so we proceed
+        // If it threw, game creation would stop here.
+        // If a fallback is returned by the AI function:
+        const fallback = {
+            title: "A Game of Shadows",
+            description: "Suspicion hangs heavy in the air as the villagers seek the threat within."
+        };
+        title = fallback.title;
+        description = fallback.description;
+    }
+    // --- End AI Generation ---
+
+    // Convert player array to Record for state
+    const players: Record<string, Player> = {};
+    const livingPlayerIds: string[] = [];
+    playersArray.forEach(player => {
+        players[player.id] = player;
+        livingPlayerIds.push(player.id);
+    });
+
+    // Initial moderator message (Adjust if starting phase changes)
     const initialMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}`,
         gameId: gameId,
         speaker: { type: 'moderator' },
         speakerName: "Moderator",
-        content: `Welcome to Werewolf! ${numPlayers} players have gathered. The roles have been assigned. Night falls...`,
+        content: `Welcome to ${title || 'Werewolf'}! ${numPlayers} players have gathered under a cloud of suspicion. Let the introductions begin...`,
         timestamp: Date.now(),
         round: 1,
-        phase: 'Night',
+        phase: 'DayIntroductions', // Start with introductions again
         audience: { type: 'all' },
     };
 
@@ -195,18 +226,18 @@ export function initializeNewGame(
     const initialState: GameState = {
         gameId: gameId,
         createdAt: createdAt,
+        title: title, // Add title
+        description: description, // Add description
         settings: settings,
-        players: players, // Player map
-        livingPlayerIds: livingPlayerIds, // Initial turn order
-        phase: 'Night',
+        players: players, 
+        livingPlayerIds: livingPlayerIds, 
+        phase: 'DayIntroductions', // Start phase
         round: 1,
-        turnOrderIndex: 0, // Start with the first player in the shuffled list for day phase
+        turnOrderIndex: 0, 
         conversationLog: [initialMessage],
         nightActions: [],
         votes: [],
-        // lastEliminatedPlayerId: undefined,
-        // winner: undefined,
-        _internalState: { // Initialize internal state
+        _internalState: { 
             werewolfChatLog: [],
             seerResults: {}
         }

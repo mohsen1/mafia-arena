@@ -23,7 +23,7 @@ export async function startGameAction() {
         const createdAt = Date.now();
 
         // 3. Initialize the full game state locally first
-        const initialGameState: GameState = initializeNewGame(
+        const initialGameState = await initializeNewGame(
             settings,
             gameId, 
             createdAt
@@ -219,3 +219,30 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
     // 6. Revalidate the game page path to show updates
     revalidatePath(`/game/${gameId}`);
 }
+
+/**
+ * Server Action to delete a specific game.
+ * 
+ * @param gameId The ID of the game to delete.
+ * @throws If deletion fails.
+ */
+export async function deleteGameAction(gameId: string): Promise<void> {
+    console.log(`deleteGameAction triggered for ${gameId}`);
+    try {
+        const success = await gameStateManager.deleteGame(gameId);
+        if (!success) {
+            throw new Error("Game state manager failed to delete the game.");
+        }
+        console.log(`Game ${gameId} deleted successfully via action.`);
+    } catch (error: any) {
+        console.error(`Error in deleteGameAction for ${gameId}:`, error);
+        // Re-throw the error to potentially be caught by an error boundary
+        throw new Error(`Failed to delete game ${gameId}: ${error.message || 'Unknown error'}`);
+    }
+
+    // Revalidate the home page path to update the list
+    revalidatePath('/');
+}
+
+// Add empty export for module compatibility if needed
+export {};
