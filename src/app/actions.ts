@@ -2,7 +2,7 @@
 
 import { gameStateManager } from '@/lib/state/gameStateManager';
 import { determineNextSpeaker, initializeNewGame, advancePhase, checkWinCondition } from '@/lib/game/engine'; // Added initializeNewGame, advancePhase, checkWinCondition
-import { getPlaceholderAIResponse } from '@/lib/ai/openaiService';
+import { getAIResponse } from '@/lib/ai/openaiService';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { ChatMessage, GameState } from '@/lib/types/game'; // Added GameState
 import { revalidatePath } from 'next/cache';
@@ -90,28 +90,38 @@ export async function runGameTurnAction(gameId: string) {
         if (nextSpeakerId) {
             const nextSpeaker = currentState.players[nextSpeakerId];
             
-            // 1. Construct Prompt
+            // 1. Construct Prompt using the detailed persona
+            const systemPrompt = `You are playing a character in a game of Werewolf.
+
+Your Character Details:
+${nextSpeaker.persona}
+
+Your Character Name: ${nextSpeaker.name}
+Your Assigned Role (SECRET): ${nextSpeaker.role}
+
+The current game phase is Day Introductions. The villagers have gathered, and it's your turn to speak.
+Your task is to introduce yourself briefly to the other players (1-2 sentences).
+Speak in the first person, embodying the character described in your details.
+Behave according to your personality traits and background.
+CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.role}) or mention the game mechanics (like roles, phases, werewolves) in your introduction. Keep it purely in-character as if meeting the others in the village square under tense circumstances.`;
+
             const promptMessages: ChatCompletionMessageParam[] = [
                 { 
                     role: 'system', 
-                    content: `You are playing Werewolf. Your character is ${nextSpeaker.name}. Your persona:
-${nextSpeaker.persona}
-
-The current phase is Day Introductions. Introduce yourself briefly to the other players. Keep it concise (1-2 sentences). Do not reveal your role (${nextSpeaker.role}).` 
+                    content: systemPrompt
                 },
                 {
                     role: 'user',
-                    content: `It's your turn to speak, ${nextSpeaker.name}. Please introduce yourself.`
+                    content: `Okay ${nextSpeaker.name}, it's your turn. Please introduce yourself to everyone.`
                 }
-                // TODO: Potentially add previous relevant messages from conversationLog later
             ];
 
-            // 2. Get AI response 
-            const introductionContent = await getPlaceholderAIResponse(
+            // 2. Get AI response
+            const introductionContent = await getAIResponse(
                 promptMessages,
                 gameId,
                 nextSpeakerId,
-                { model: currentState.settings.aiModel } // Pass only relevant AI settings
+                { model: currentState.settings.aiModel, temperature: 0.8 } // Slightly higher temp for more character? 
             );
 
             // 3. Create Chat Message

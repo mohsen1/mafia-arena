@@ -1,5 +1,22 @@
+import { OpenAI } from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { GameState } from '@/lib/types/game'; // Import GameState if needed for context
+import { GameState } from '@/lib/types/game'; // Keep if needed for context later
+
+// --- Initialize OpenAI Client ---
+
+const apiKey = process.env.OPENAI_API_KEY;
+const baseURL = process.env.OPENAI_BASE_URL; 
+
+if (!apiKey) {
+    console.warn("Missing OPENAI_API_KEY environment variable. AI features will be disabled.");
+}
+
+const openai = apiKey ? new OpenAI({
+    apiKey: apiKey,
+    baseURL: baseURL, // Will be undefined if not set, which is fine
+}) : null;
+
+// --- AI Interaction Function Definition ---
 
 /**
  * Defines the expected signature for a function that interacts with an AI model 
@@ -7,72 +24,60 @@ import { GameState } from '@/lib/types/game'; // Import GameState if needed for 
  */
 export type GetAIResponseFunction = (
   messages: ChatCompletionMessageParam[],
-  gameId: string,
-  playerId: string,
+  gameId: string, // Keep for logging/context
+  playerId: string, // Keep for logging/context
   settings: { model: string; temperature?: number; max_tokens?: number }
 ) => Promise<string>; // Returns the AI's text response
 
+// --- Real OpenAI Implementation ---
 
 /**
- * Placeholder function simulating an AI response.
- * In a real implementation, this would call the OpenAI API.
+ * Calls the OpenAI-compatible API to get a response for a given prompt.
  * 
  * @param messages The prompt messages for the AI.
- * @param gameId The ID of the current game.
- * @param playerId The ID of the player whose response is needed.
- * @param settings AI model settings.
- * @returns A promise resolving to a simulated AI response string.
+ * @param gameId The ID of the current game (for logging/context).
+ * @param playerId The ID of the player whose response is needed (for logging/context).
+ * @param settings AI model settings (model name, temperature, etc.).
+ * @returns A promise resolving to the AI's text response.
+ * @throws If the API key is missing or the API call fails.
  */
-export const getPlaceholderAIResponse: GetAIResponseFunction = async (
+export const getAIResponse: GetAIResponseFunction = async (
     messages,
     gameId,
     playerId,
     settings
 ) => {
-    console.log(`--- Simulating AI Response for ${playerId} ---`);
-    
-    // Find the system prompt to extract the player name
-    const systemMessage = messages.find(m => m.role === 'system');
-    let playerName = "Player"; // Default name
-    let promptHint = systemMessage?.content?.toString().substring(0, 100) + "..."; // Hint from system prompt
-
-    if (systemMessage?.content && typeof systemMessage.content === 'string') {
-        const nameMatch = systemMessage.content.match(/Your character is ([\w\s"'.-]+)\./); // Match name like "Your character is Willow "Whisper" Fern."
-        if (nameMatch && nameMatch[1]) {
-            playerName = nameMatch[1].trim();
-        }
-    } else {
-        // Fallback: try finding name in the last message if system message failed
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage?.content && typeof lastMessage.content === 'string') {
-            const nameMatch = lastMessage.content.match(/You are (\w+(?: \w+)*)/);
-            if (nameMatch && nameMatch[1]) {
-                playerName = nameMatch[1];
-            }
-        }
-        // If still no name, use the default "Player"
+    if (!openai) {
+        console.error(`[${gameId}|${playerId}] OpenAI client not initialized (missing API key).`);
+        throw new Error("OpenAI client not initialized. Missing OPENAI_API_KEY.");
     }
 
-    // Simulate different responses based on the prompt content (very basic)
-    // *** Remove the playerName prefix from the response content itself ***
-    let simulation = `My name is ${playerName}. It is a pleasure to meet you all, though the circumstances are grim.`;
-    if (messages.some(m => typeof m.content === 'string' && m.content.toLowerCase().includes('introduce yourself'))) {
-        // Response should just be what the player *says*
-        simulation = `Greetings. I am ${playerName}. Let us hope we can find the darkness amongst us quickly.`;
-    } else if (messages.some(m => typeof m.content === 'string' && m.content.toLowerCase().includes('vote'))){
-        simulation = `[${playerName} votes for Player X]`; // Placeholder vote (keep name here for clarity)
-    }
+    console.log(`[${gameId}|${playerId}] Requesting AI response using model ${settings.model}...`);
 
-    console.log(`Prompt Hint: ${promptHint}`);
-    console.log(`Extracted Name: ${playerName}`);
-    console.log(`Simulated Response: ${simulation}`);
-    console.log(`------------------------------------------`);
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-    
-    return simulation;
+    try {
+        const completion = await openai.chat.completions.create({
+            model: settings.model,
+            messages: messages,
+            temperature: settings.temperature ?? 0.7, // Default temperature if not provided
+            max_tokens: settings.max_tokens ?? 150, // Default max tokens
+            // TODO: Add other parameters like top_p, frequency_penalty etc. if needed
+        });
+
+        const responseContent = completion.choices[0]?.message?.content;
+
+        if (!responseContent) {
+            throw new Error('Received empty response content from AI.');
+        }
+
+        console.log(`[${gameId}|${playerId}] Received AI response.`);
+        return responseContent.trim();
+
+    } catch (error: any) {
+        console.error(`[${gameId}|${playerId}] Error calling OpenAI API:`, error?.message || error);
+        // More specific error handling could be added here (e.g., for rate limits)
+        // Re-throw the error to be handled by the calling action
+        throw new Error(`AI API call failed: ${error?.message || 'Unknown error'}`);
+    }
 };
 
-// In the future, replace the placeholder with the real implementation:
-// export const getOpenAIResponse: GetAIResponseFunction = async (...) => { ... } 
+// --- Placeholder Function Removed --- 

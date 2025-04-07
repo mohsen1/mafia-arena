@@ -138,21 +138,12 @@ The application leverages the Next.js App Router paradigm:
 ```typescript
 import { type ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
-// Using string enums for easier debugging/serialization
-export enum Role {
-  Villager = 'Villager',
-  Werewolf = 'Werewolf',
-  Seer = 'Seer',
-  Doctor = 'Doctor',
-  // Moderator is not a role, but a concept for messages
-}
+// Using string literals instead of enums
+export type Role = 'Villager' | 'Werewolf' | 'Seer' | 'Doctor';
 
-export enum GamePhase {
-  Night = 'Night',
-  Day = 'Day',
-  Voting = 'Voting', // Explicit voting sub-phase?
-  GameOver = 'GameOver',
-}
+// Moderator is not a role, but a concept for messages
+
+export type GamePhase = 'Night' | 'Day' | 'Voting' | 'GameOver';
 
 export type PlayerStatus = 'alive' | 'dead';
 
@@ -162,6 +153,7 @@ export interface Player {
   readonly role: Role;
   readonly persona: string; // Detailed description for AI
   status: PlayerStatus;
+  imageUrl?: string; // Optional: URL for character image
 }
 
 // Discriminated union for message audience clarity
@@ -187,7 +179,7 @@ export interface ChatMessage {
 export type NightAction =
   | { type: 'werewolf_kill'; actingPlayerId: string; targetPlayerId: string }
   | { type: 'doctor_save'; actingPlayerId: string; targetPlayerId: string }
-  | { type: 'seer_investigation'; actingPlayerId: string; targetPlayerId: string; result: Role.Werewolf | Role.Villager };
+  | { type: 'seer_investigation'; actingPlayerId: string; targetPlayerId: string; result: 'Werewolf' | 'Villager' }; // Use subset of Role
 
 export interface Vote {
  voterPlayerId: string;
@@ -216,12 +208,12 @@ export interface GameState {
   nightActions: ReadonlyArray<NightAction>;
   votes: ReadonlyArray<Vote>; // Votes cast in the current voting phase
   lastEliminatedPlayerId?: string;
-  winner?: Role.Villager | Role.Werewolf; // Team name
+  winner?: 'Villager' | 'Werewolf'; // Team name (subset of Role)
   // Internal state not sent to client
   _internalState?: {
     // e.g., detailed AI prompts, private werewolf discussions if separated
     werewolfChatLog?: ReadonlyArray<ChatMessage>;
-    seerResults?: Record<string, Role.Werewolf | Role.Villager>; // seerId -> targetId -> result
+    seerResults?: Record<string, 'Werewolf' | 'Villager'>; // seerId -> targetId -> result (subset of Role)
   }
 }
 
@@ -299,6 +291,7 @@ Notes:
 - prefer private fields and methods (#something)
 - use JSDoc for comments if you can
 - use TypeScript string literals instead of enums. never use enums 
+- source files are in src/. `lib` and `app` are in SRC
 
 **Phase 1: Project Setup & Core Types**
 
