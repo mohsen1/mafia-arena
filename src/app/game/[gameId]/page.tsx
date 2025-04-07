@@ -1,6 +1,6 @@
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import { notFound } from "next/navigation";
-import { Player, FilteredGameState } from "@/lib/types/game";
+import { Player, FilteredGameState, ChatMessage } from "@/lib/types/game";
 import { runGameTurnAction } from "@/app/actions"; // Import the new action
 import Image from 'next/image'; // Import Next.js Image component
 
@@ -11,128 +11,138 @@ interface GamePageProps {
     };
 }
 
-// Update PlayerCard props to expect the Player type from FilteredGameState
-// Which includes imageUrl but omits role
+// Player Card Component with Dark Mode
 function PlayerCard({ player }: { player: FilteredGameState['players'][string] }) {
     return (
-        <div className={`p-4 border rounded-lg shadow flex flex-col items-center ${player.status === 'dead' ? 'bg-gray-400 opacity-60' : 'bg-white'}`}>
+        <div className={`p-3 flex flex-col items-center transition-colors duration-200 ${player.status === 'dead' ? 'bg-gray-300 dark:bg-gray-700 opacity-60' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}>
             {player.imageUrl ? (
                 <Image 
                     src={player.imageUrl} 
                     alt={`Image of ${player.name}`}
-                    width={80} // Adjust size as needed
-                    height={80}
-                    className="rounded-full mb-2 object-cover" // Style the image
+                    width={64} // Slightly smaller
+                    height={64}
+                    className="rounded-full mb-2 object-cover border-2 border-gray-300 dark:border-gray-600"
                 />
             ) : (
-                <div className="w-20 h-20 rounded-full bg-gray-300 mb-2 flex items-center justify-center text-gray-500 text-xs">No Image</div> // Placeholder
+                <div className="w-16 h-16 rounded-full bg-gray-300 dark:bg-gray-600 mb-2 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs">No Image</div>
             )}
-            <h3 className="text-lg font-semibold text-center">{player.name}</h3>
-            <p className="text-sm text-gray-600">Status: <span className="font-medium">{player.status}</span></p>
-            {/* Persona is usually long, maybe show on hover or in a modal later */} 
-            {/* <p className="text-xs mt-1 text-gray-500 truncate">{player.persona}</p> */}
+            <h3 className="text-md font-semibold text-center text-gray-800 dark:text-gray-100">{player.name}</h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400">Status: <span className="font-medium">{player.status}</span></p>
+        </div>
+    );
+}
+
+// Message Component with Dark Mode
+function MessageBubble({ message, players }: { message: Omit<ChatMessage, 'audience'> & { speakerName: string }, players: FilteredGameState['players'] }) {
+    const speakerPlayer = message.speaker.type === 'player' 
+        ? players[message.speaker.playerId] 
+        : null;
+    const speakerImageUrl = speakerPlayer?.imageUrl;
+    const isModerator = message.speaker.type === 'moderator';
+
+    return (
+        <div className={`flex items-start gap-3 p-2 rounded-lg transition-colors duration-200 ${isModerator ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-300 text-sm italic' : 'bg-white dark:bg-gray-700'}`}>
+            {/* Speaker Image */}
+            <div className="flex-shrink-0 mt-1">
+                {speakerImageUrl ? (
+                    <Image 
+                        src={speakerImageUrl}
+                        alt={`Image of ${message.speakerName}`}
+                        width={32} 
+                        height={32}
+                        className="rounded-full object-cover border border-gray-300 dark:border-gray-600"
+                    />
+                ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-400 text-[10px] font-bold">
+                        {isModerator ? 'Mod' : message.speakerName?.substring(0, 1) || 'P'}
+                    </div>
+                )}
+            </div>
+            {/* Message Content */}
+            <div className="flex-grow">
+                <span className={`font-semibold text-gray-900 dark:text-gray-50 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>{message.speakerName}: </span>
+                <span className={`text-gray-800 dark:text-gray-200 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>{message.content}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block text-right opacity-75">R{message.round} {message.phase}</span>
+            </div>
         </div>
     );
 }
 
 // The main server component for the game page
 export default async function GamePage({ params }: GamePageProps) {
-    // Explicitly await params if needed, though usually not required
-    await params; // Explicitly await params as suggested by the error
-    const { gameId } = params; // Access gameId after await
+    // Params await removed as it's generally not needed and caused confusion
+    const { gameId } = params; 
     const gameState = await gameStateManager.getFilteredGameState(gameId);
 
-    // Handle game not found
     if (!gameState) {
-        notFound(); // Renders the Next.js 404 page
+        notFound(); 
     }
 
     const { phase, round, players, conversationLog, winner } = gameState;
-
-    // Form action needs to be bound with the gameId
     const runTurnForThisGame = runGameTurnAction.bind(null, gameId);
 
     return (
-        <main className="container mx-auto p-4">
-            <h1 className="text-3xl font-bold mb-4 text-center">Werewolf Game</h1>
-            <div className="text-center mb-6 text-gray-600">
-                <p>Game ID: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{gameId}</span></p>
-                <p>Round: <span className="font-semibold">{round}</span> | Phase: <span className="font-semibold">{phase}</span></p>
-                {winner && (
-                    <p className="text-xl font-bold mt-2 text-green-600">Winner: {winner}!</p>
-                )}
-                 {phase === 'GameOver' && !winner && (
-                     <p className="text-xl font-bold mt-2 text-red-600">Game Over (Winner not determined?)</p>
-                 )}
-            </div>
+        <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+            {/* Left Column: Player List */}    
+            <aside className="w-1/4 lg:w-1/5 h-full overflow-y-auto p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md">
+                 <h2 className="text-xl font-semibold mb-4 text-center sticky top-0 bg-white dark:bg-gray-800 py-2">Players ({Object.keys(players).length})</h2>
+                 <div className="grid grid-cols-1 gap-3">
+                     {Object.values(players).map(player => (
+                         <PlayerCard key={player.id} player={player} />
+                     ))}
+                 </div>
+             </aside>
 
-            {/* Player List Section */}
-            <section className="mb-8">
-                <h2 className="text-2xl font-semibold mb-3">Players ({Object.keys(players).length})</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {Object.values(players).map(player => (
-                        <PlayerCard key={player.id} player={player} />
-                    ))}
-                </div>
-            </section>
+            {/* Right Column: Game Info & Conversation */}
+            <main className="flex-grow flex flex-col h-screen">
+                {/* Top Row: Game Info & Actions */}
+                <header className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow flex justify-between items-center flex-shrink-0">
+                    <div>
+                        <h1 className="text-2xl font-bold">Werewolf Game</h1>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            ID: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{gameId}</span> | 
+                            Round: <span className="font-semibold">{round}</span> | 
+                            Phase: <span className="font-semibold">{phase}</span>
+                        </p>
+                        {winner && (
+                            <p className="text-lg font-bold text-green-600 dark:text-green-400">Winner: {winner}!</p>
+                        )}
+                         {phase === 'GameOver' && !winner && (
+                             <p className="text-lg font-bold text-red-600 dark:text-red-400">Game Over</p>
+                         )}
+                    </div>
+                     {/* Action Button Form */}    
+                     <form action={runTurnForThisGame}>
+                         <button 
+                             type="submit" 
+                             className="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+                             disabled={phase === 'GameOver'}
+                         >
+                             {phase === 'DayIntroductions' ? 'Next Introduction' : 
+                              phase === 'Night' ? 'Process Night' : // Example for night
+                              'Run Next Turn'} 
+                         </button>
+                     </form>
+                </header>
 
-            {/* Conversation Log Section (Basic) */}
-            <section>
-                <h2 className="text-2xl font-semibold mb-3">Conversation Log</h2>
-                <div className="bg-gray-50 p-4 rounded-lg shadow h-96 overflow-y-auto space-y-4">
-                    {conversationLog.length > 0 ? (
-                        conversationLog.map((message, index) => {
-                            // Find the speaker's player data to get the image URL
-                            const speakerPlayer = message.speaker.type === 'player' 
-                                ? players[message.speaker.playerId] 
-                                : null;
-                            const speakerImageUrl = speakerPlayer?.imageUrl;
-                            
-                            return (
-                                <div key={message.messageId || index} className={`flex items-start gap-3 p-2 rounded ${message.speaker.type === 'moderator' ? 'bg-blue-100 text-blue-900 text-sm italic' : 'bg-white'}`}>
-                                    {/* Speaker Image */}
-                                    {speakerImageUrl ? (
-                                        <Image 
-                                            src={speakerImageUrl}
-                                            alt={`Image of ${message.speakerName}`}
-                                            width={40} // Smaller image for log
-                                            height={40}
-                                            className="rounded-full mt-1 object-cover flex-shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-10 h-10 rounded-full bg-gray-300 flex-shrink-0 mt-1 flex items-center justify-center text-gray-500 text-xs">
-                                            {message.speaker.type === 'moderator' ? 'Mod' : 'N/A'}
-                                        </div> // Placeholder
-                                    )}
-                                    {/* Message Content */}
-                                    <div className="flex-grow">
-                                        <span className="font-semibold">{message.speakerName}: </span>
-                                        <span>{message.content}</span>
-                                        <span className="text-xs text-gray-500 block text-right">R{message.round} {message.phase}</span>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    ) : (
-                        <p className="text-gray-500 italic">The conversation log is empty.</p>
-                    )}
-                </div>
-            </section>
-
-            {/* Action Buttons */}
-            <section className="mt-8 flex justify-center">
-                 {/* Add a form to trigger the next turn/action */}
-                 <form action={runTurnForThisGame}>
-                     <button 
-                         type="submit" 
-                         className="px-5 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 disabled:bg-gray-400"
-                         // Disable button if game is over
-                         disabled={phase === 'GameOver'}
-                     >
-                         {phase === 'DayIntroductions' ? 'Next Introduction' : 'Run Next Turn (WIP)'}
-                     </button>
-                 </form>
-            </section>
-        </main>
+                {/* Bottom Row: Conversation Log */}    
+                <section className="flex-grow p-4 overflow-hidden flex flex-col">
+                    <h2 className="text-xl font-semibold mb-3 flex-shrink-0">Conversation Log</h2>
+                     {/* Outer container enables scrolling */}
+                    <div className="flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg shadow-inner">
+                        {/* Inner container reverses flex order */} 
+                        <div className="flex flex-col-reverse gap-3">
+                            {conversationLog.length > 0 ? (
+                                conversationLog.map((message) => (
+                                     <MessageBubble key={message.messageId} message={message} players={players} />
+                                ))
+                            ) : (
+                                <p className="text-gray-500 dark:text-gray-400 italic text-center py-4">The conversation log is empty.</p>
+                            )}
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
     );
 } 
