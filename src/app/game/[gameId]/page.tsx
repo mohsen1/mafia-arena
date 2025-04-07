@@ -27,7 +27,7 @@ function PlayerCard({ player }: { player: FilteredGameState['players'][string] }
                 <div className="w-16 h-16 rounded-full bg-gray-300 dark:bg-gray-600 mb-2 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs">No Image</div>
             )}
             <h3 className="text-md font-semibold text-center text-gray-800 dark:text-gray-100">{player.name}</h3>
-            <p className="text-xs text-gray-600 dark:text-gray-400">Status: <span className="font-medium">{player.status}</span></p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">{player.status}</p>
         </div>
     );
 }
@@ -82,48 +82,57 @@ export default async function GamePage({ params }: GamePageProps) {
     const runTurnForThisGame = runGameTurnAction.bind(null, gameId);
 
     return (
-        <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-            {/* Left Column: Player List */}    
-            <aside className="w-1/4 lg:w-1/5 h-full overflow-y-auto p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md">
+        // Main container: Use CSS Grid
+        <div className="grid grid-cols-[280px_1fr] h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+            
+            {/* Left Column (Sidebar): Player List */}
+            {/* Width is controlled by grid-cols definition above */}
+            <aside className="h-full overflow-y-auto p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md flex flex-col">
                 <a className="text-lg text-gray-500 dark:text-gray-400 mb-2 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200 w-full text-center block items-center gap-2" href="/">
                     <span className="text-xl">🏠</span> Home
                 </a>
-                 <div className="grid grid-cols-1 gap-3">
-                     {Object.values(players).map(player => (
-                         <PlayerCard key={player.id} player={player} />
-                     ))}
-                 </div>
-             </aside>
+                <h2 className="text-xl font-semibold mb-4 text-center sticky top-0 bg-white dark:bg-gray-800 py-2 flex-shrink-0">Players</h2>
+                <div className="grid grid-cols-1 gap-3 flex-grow overflow-y-auto pr-1"> {/* Allow grid inside to scroll */}
+                    {Object.values(players).map(player => (
+                        <PlayerCard key={player.id} player={player} />
+                    ))}
+                </div>
+            </aside>
 
             {/* Right Column: Game Info & Conversation */}
-            <main className="flex-grow flex flex-col h-screen">
+            {/* This column spans the second track (1fr) */}
+            <main className="flex flex-col h-screen overflow-hidden"> {/* Prevent this column from causing page scroll */}
                 {/* Top Row: Game Info & Actions */}
-                <header className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow flex justify-between items-center flex-shrink-0">
-                    <div>
-                        <h1 className="text-2xl font-bold mb-1">{title || "Werewolf Game"}</h1>
+                <header className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow flex justify-between items-center flex-shrink-0 gap-4">
+                    {/* Game Info Group */}    
+                    <div className="flex-grow">
+                        <h1 className="text-2xl font-bold mb-1 truncate">{title || "Werewolf Game"}</h1>
                         {description && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 italic">{description}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1 italic">{description}</p>
                         )}
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                             Round: <span className="font-semibold">{round}</span> | 
-                            Phase: <span className="font-semibold">{phase}</span>
+                            Phase: <span className="font-semibold capitalize">{phase}</span>
                         </p>
-                        {winner && (
-                            <p className="text-lg font-bold text-green-600 dark:text-green-400">Winner: {winner}!</p>
-                        )}
-                         {phase === 'GameOver' && !winner && (
-                             <p className="text-lg font-bold text-red-600 dark:text-red-400">Game Over</p>
-                         )}
+                        {/* Winner Status */}
+                        <div className="mt-1">
+                            {winner && (
+                                <span className="text-lg font-bold text-green-600 dark:text-green-400">Winner: {winner}!</span>
+                            )}
+                            {phase === 'GameOver' && !winner && (
+                                <span className="text-lg font-bold text-red-600 dark:text-red-400">Game Over</span>
+                            )}
+                        </div>
                     </div>
                      {/* Action Button Form */}    
-                     <form action={runTurnForThisGame}>
+                     <form action={runTurnForThisGame} className="flex-shrink-0">
                          <button 
                              type="submit" 
                              className="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition duration-150 ease-in-out"
                              disabled={phase === 'GameOver'}
                          >
                              {phase === 'DayIntroductions' ? 'Next Introduction' : 
-                              phase === 'Night' ? 'Process Night' : // Example for night
+                              phase === 'Night' ? 'Process Night' : 
                               'Run Next Turn'} 
                          </button>
                      </form>
