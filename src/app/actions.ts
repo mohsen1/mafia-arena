@@ -330,43 +330,151 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
         // Optional: revalidatePath(`/game/${gameId}`);
         console.log(`State updated with collected night actions for ${gameId}.`);
 
-        // ----- Night Action Resolution (Placeholder/Next Step) -----
-        // TODO: Implement Night Action Resolution
-        //  - Process `collectedActions`
-        //  - Determine actual kill (check doctor save vs werewolf kill)
-        //  - Determine seer result (check target's actual role)
-        //  - Update player statuses (set 'dead')
-        //  - Update GameState._internalState.seerResults
-        //  - Generate moderator messages summarizing results (e.g., "A scream pierces the night! ... Player X was found dead.")
+        // ----- Night Action Resolution -----
+        let stateAfterResolution = { ...stateWithCollectedActions }; // Start from state with collected actions
+        let moderatorMessages: ChatMessage[] = [];
+        let eliminatedPlayerId: string | null = null;
 
-        // --- TEMPORARY: Skip resolution, advance phase --- 
-        console.warn("Night action RESOLUTION logic not implemented yet. Advancing phase.");
-        let stateAfterActions = { ...stateWithCollectedActions }; // Start from state with actions
-        let nextState = advancePhase(stateAfterActions); // Advance phase (e.g., Night -> Day)
+        // 1. Determine Kill
+        const killAction = stateAfterResolution.nightActions.find(a => a.type === 'werewolf_kill');
+        const saveAction = stateAfterResolution.nightActions.find(a => a.type === 'doctor_save');
+        
+        if (killAction) {
+            const targetId = killAction.targetPlayerId;
+            const targetPlayer = stateAfterResolution.players[targetId];
+            
+            if (saveAction && saveAction.targetPlayerId === targetId) {
+                console.log(`Player ${targetPlayer.name} (${targetId}) was targeted for elimination but saved by the Doctor.`);
+                // No public message needed, maybe internal log?
+            } else {
+                console.log(`Player ${targetPlayer.name} (${targetId}) was eliminated by werewolves.`);
+                eliminatedPlayerId = targetId;
+            }
+        } else {
+            console.log("No werewolf kill action was performed this night.");
+        }
 
-        // Add a moderator message about the phase change
-        const phaseChangeMessage: ChatMessage = {
-            messageId: `msg-${crypto.randomUUID()}`,
+        // 2. Update Player Status & Living IDs if elimination occurred
+        if (eliminatedPlayerId) {
+            const playersCopy = { ...stateAfterResolution.players };
+            playersCopy[eliminatedPlayerId] = { ...playersCopy[eliminatedPlayerId], status: 'dead' };
+            
+            stateAfterResolution = {
+                ...stateAfterResolution,
+                players: playersCopy,
+                livingPlayerIds: stateAfterResolution.livingPlayerIds.filter(id => id !== eliminatedPlayerId),
+                lastEliminatedPlayerId: eliminatedPlayerId
+            };
+        }
+
+        // 3. Determine & Store Seer Result (Internal State)
+        const investigationAction = stateAfterResolution.nightActions.find(a => a.type === 'seer_investigation');
+        if (investigationAction) {
+            const targetId = investigationAction.targetPlayerId;
+            const targetPlayer = stateAfterResolution.players[targetId]; // Get target player from potentially updated state
+            const seerId = investigationAction.actingPlayerId;
+            
+            const result: 'Werewolf' | 'Villager' = targetPlayer.role === 'Werewolf' ? 'Werewolf' : 'Villager';
+            console.log(`Seer (${seerId}) investigated ${targetPlayer.name} (${targetId}) - Result: ${result}`);
+
+            // Update internal state (initialize if needed)
+            const internalState = stateAfterResolution._internalState || {};
+            const seerResults = internalState.seerResults || {};
+            seerResults[`${seerId}-${targetId}-${stateAfterResolution.round}`] = result; // Include round to avoid overwrite if same target
+            
+            stateAfterResolution = {
+                ...stateAfterResolution,
+                _internalState: { 
+                    ...internalState, 
+                    seerResults 
+                }
+            };
+            // Note: No public message about the seer result.
+        }
+
+        // 4. Generate Moderator Message based on elimination
+        let summaryContent = '';
+        if (eliminatedPlayerId) {
+            const eliminatedPlayerName = stateAfterResolution.players[eliminatedPlayerId].name;
+            summaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead.`;
+        } else if (killAction && saveAction && killAction.targetPlayerId === saveAction.targetPlayerId) {
+             summaryContent = "A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.";
+        } else {
+            summaryContent = "The night passes uneventfully.";
+        }
+
+        const summaryMessage: ChatMessage = {
+            messageId: `msg-${crypto.randomUUID()}-night-summary`,
             gameId: gameId,
             speaker: { type: 'moderator' },
             speakerName: "Moderator",
-            content: `Dawn breaks. The village awaits the results of the night...`, // Adjusted message
+            content: summaryContent,
+            timestamp: Date.now(),
+            round: stateAfterResolution.round, // Round before advancing
+            phase: stateAfterResolution.phase, // Still Night phase technically during resolution
+            audience: { type: 'all' },
+        };
+        moderatorMessages.push(summaryMessage);
+
+        stateAfterResolution = {
+            ...stateAfterResolution,
+            conversationLog: [...stateAfterResolution.conversationLog, ...moderatorMessages],
+        };
+
+        // 5. Check Win Condition *after* updating statuses
+        stateAfterResolution = checkWinCondition(stateAfterResolution);
+        if (stateAfterResolution.phase === 'GameOver') {
+             console.log(`Game Over detected after night resolution. Winner: ${stateAfterResolution.winner}`);
+             // Add Game Over message?
+             const gameOverMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}-gameover`,
+                gameId: gameId,
+                speaker: { type: 'moderator' },
+                speakerName: "Moderator",
+                content: `The game is over! The ${stateAfterResolution.winner} team wins!`, 
+                timestamp: Date.now(),
+                round: stateAfterResolution.round, 
+                phase: stateAfterResolution.phase, 
+                audience: { type: 'all' },
+             };
+             stateAfterResolution = {
+                 ...stateAfterResolution,
+                 conversationLog: [...stateAfterResolution.conversationLog, gameOverMessage]
+             };
+             // Skip phase advancement if game is over
+             await gameStateManager.updateGameState(gameId, stateAfterResolution);
+             console.log(`Game ${gameId} ended.`);
+             revalidatePath(`/game/${gameId}`);
+             return; // End the action here if game over
+        }
+
+        // 6. Advance Phase (to DayDiscussion or DayIntroductions)
+        let nextState = advancePhase(stateAfterResolution);
+
+        // Add phase change message *after* advancing
+        const phaseChangeMessage: ChatMessage = {
+            messageId: `msg-${crypto.randomUUID()}-phase-change`,
+            gameId: gameId,
+            speaker: { type: 'moderator' },
+            speakerName: "Moderator",
+            // Message depends on the *next* phase determined by advancePhase
+            content: nextState.phase === 'DayDiscussion' ? `Day ${nextState.round} begins. Discuss what happened and who you suspect.` : `Day ${nextState.round} begins. Time for introductions.`, 
             timestamp: Date.now(),
             round: nextState.round,
             phase: nextState.phase,
             audience: { type: 'all' },
         };
+        
         nextState = {
             ...nextState,
             conversationLog: [...nextState.conversationLog, phaseChangeMessage],
-            nightActions: [], // Clear actions after processing (or keep for history?)
-            votes: [], // Clear votes from previous day
+            // Clear actions/votes *after* processing and phase change
+            nightActions: [], 
+            votes: [], 
+            turnOrderIndex: 0, // Reset turn index for the new phase
         };
 
-        // TODO: Check win condition *after* resolution updates statuses
-        // nextState = checkWinCondition(nextState);
-
-        // Save the final state for the night phase (after phase advance)
+        // 7. Save the final state for the night phase
         await gameStateManager.updateGameState(gameId, nextState);
         console.log(`Game ${gameId} advanced from Night to ${nextState.phase}`);
 

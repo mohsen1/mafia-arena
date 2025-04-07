@@ -73,14 +73,14 @@ export interface GameState {
   phase: GamePhase;
   round: number;
   turnOrderIndex: number; // Index into livingPlayerIds for current turn
-  conversationLog: ReadonlyArray<ChatMessage>;
-  nightActions: ReadonlyArray<NightAction>;
-  votes: ReadonlyArray<Vote>; // Votes cast in the current voting phase
+  conversationLog: ChatMessage[]; // Use mutable array
+  nightActions: NightAction[]; // Use mutable array
+  votes: Vote[]; // Use mutable array
   lastEliminatedPlayerId?: string;
   winner?: 'Villager' | 'Werewolf'; // Use string literals for winner team
   // Internal state not sent to client
   _internalState?: {
-    werewolfChatLog?: ReadonlyArray<ChatMessage>;
+    werewolfChatLog?: ChatMessage[]; // Use mutable array
     seerResults?: Record<string, 'Werewolf' | 'Villager'>; // seerId -> targetId -> result (string literals)
   }
 }

@@ -268,10 +268,11 @@ export function advancePhase(currentState: GameState): GameState {
 
     switch (currentState.phase) {
         case 'Night':
-            nextPhase = 'DayIntroductions'; // Start with introductions
-            // Reset turn order index for the start of Day discussion
+            // If it's the end of the very first night (Round 1), go to introductions.
+            // Otherwise, go directly to discussion.
+            nextPhase = currentState.round === 1 ? 'DayIntroductions' : 'DayDiscussion';
             nextTurnOrderIndex = 0; 
-            console.log(`Advancing from Night to DayIntroductions, Round ${nextRound}`);
+            console.log(`Advancing from Night to ${nextPhase}, Round ${currentState.round}`); // Use current round for logging here
             break;
         case 'DayIntroductions': // After introductions, move to discussion
             nextPhase = 'DayDiscussion'; 
@@ -304,9 +305,10 @@ export function advancePhase(currentState: GameState): GameState {
         phase: nextPhase,
         round: nextRound,
         turnOrderIndex: nextTurnOrderIndex,
-        // Clear actions/votes from the previous phase?
-        nightActions: nextPhase === 'Night' ? currentState.nightActions : [], // Keep night actions if moving TO night? Or clear here? TBD - Let's clear for now
-        votes: nextPhase === 'Voting' ? currentState.votes : [], // Keep votes if moving TO voting? Clear here.
+        // Do NOT clear actions/votes here. They should be processed/cleared
+        // in the main action handler after the phase completes.
+        // nightActions: nextPhase === 'Night' ? currentState.nightActions : [],
+        // votes: nextPhase === 'Voting' ? currentState.votes : [], 
     };
 }
 
