@@ -4,6 +4,7 @@ import { Player, FilteredGameState, ChatMessage } from "@/lib/types/game";
 import { runGameTurnAction } from "@/app/actions"; // Import the new action
 import { PlayerCard } from "@/components/PlayerCard"; // Import PlayerCard
 import { MessageBubble } from "@/components/MessageBubble"; // Import MessageBubble
+import { Home } from "lucide-react"; // Import the Home icon
 
 // Define props expected by the page component
 interface GamePageProps {
@@ -33,10 +34,10 @@ export default async function GamePage({ params }: GamePageProps) {
             {/* Left Column (Sidebar): Player List */}
             {/* Width is controlled by grid-cols definition above */}
             <aside className="h-full overflow-y-auto p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md flex flex-col">
-                <a className="text-lg text-gray-500 dark:text-gray-400 mb-2 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200 w-full text-center block items-center gap-2" href="/">
-                    <span className="text-xl">🏠</span> Home
+                <a className="text-lg text-gray-500 dark:text-gray-400 mb-2 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200 w-full flex items-center gap-2" href="/">
+                    <Home className="h-5 w-5 flex-shrink-0" /> {/* Use Home icon */}
+                    Werewolf AI {/* Updated text */}
                 </a>
-                <h2 className="text-xl font-semibold mb-4 text-center sticky top-0 bg-white dark:bg-gray-800 py-2 flex-shrink-0">Players</h2>
                 <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-1"> {/* Allow grid inside to scroll */}
                     {Object.values(players).map(player => (
                         <PlayerCard 
@@ -60,36 +61,33 @@ export default async function GamePage({ params }: GamePageProps) {
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1 italic">{description}</p>
                         )}
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Round: <span className="font-semibold">{round}</span> | 
-                            Phase: <span className="font-semibold capitalize">{phase}</span>
+                            Round: <span className="font-semibold">{round}</span> | <span className="font-semibold capitalize">{phase}</span>
                         </p>
                         {/* Winner Status */}
                         <div className="mt-1">
                             {winner && (
-                                <span className="text-lg font-bold text-green-600 dark:text-green-400">Winner: {winner}!</span>
+                                <span className="text-lg font-bold text-green-600 dark:text-green-400">{winner} won!</span>
                             )}
                             {phase === 'GameOver' && !winner && (
                                 <span className="text-lg font-bold text-red-600 dark:text-red-400">Game Over</span>
                             )}
                         </div>
                     </div>
-                     {/* Action Button Form */}    
-                     <form action={runTurnForThisGame} className="flex-shrink-0">
-                         <button 
-                             type="submit" 
-                             className="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition duration-150 ease-in-out"
-                             disabled={phase === 'GameOver'}
-                         >
-                             {phase === 'DayIntroductions' ? 'Next' : 
-                              phase === 'Night' ? 'Process Night' : 
-                              'Run Next Turn'} 
-                         </button>
-                     </form>
+                     {/* Action Button Form */}
+                     {phase !== 'GameOver' && (
+                         <form action={runTurnForThisGame} className="flex-shrink-0">
+                             <button
+                                 type="submit"
+                                 className="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+                             >
+                                 Next
+                             </button>
+                         </form>
+                     )}
                 </header>
 
                 {/* Bottom Row: Conversation Log */}    
                 <section className="flex-grow p-4 overflow-hidden flex flex-col">
-                    <h2 className="text-xl font-semibold mb-3 flex-shrink-0">Conversation Log</h2>
                      {/* Outer container enables scrolling */}
                     <div className="flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg shadow-inner">
                         {/* Inner container reverses flex order */} 
