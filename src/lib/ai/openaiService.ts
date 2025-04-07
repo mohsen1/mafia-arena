@@ -1,6 +1,8 @@
 import { OpenAI } from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { GameState } from '@/lib/types/game'; // Keep if needed for context later
+import fs from 'fs';
+import path from 'path';
 
 // --- Initialize OpenAI Client ---
 
@@ -30,6 +32,41 @@ export type GetAIResponseFunction = (
 ) => Promise<string>; // Returns the AI's text response
 
 // --- Real OpenAI Implementation ---
+
+/**
+ * Logs API calls and their results to a markdown file for the specified game.
+ * 
+ * @param gameId The ID of the current game.
+ * @param playerId The ID of the player whose response is needed.
+ * @param apiCallDetails Details of the API call (model, messages, settings).
+ * @param result The result of the API call.
+ */
+async function logAPICall(gameId: string, playerId: string, apiCallDetails: any, result: any) {
+    const logDir = path.join(process.cwd(), 'data');
+    const logFile = path.join(logDir, `${gameId}.md`);
+
+    // Create the data directory if it doesn't exist
+    if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    // Format the log entry
+    const logEntry = `
+## API Call - ${new Date().toISOString()}
+
+**Game ID:** ${gameId}
+**Player ID:** ${playerId}
+**API Call Details:** \`\`\`json
+${JSON.stringify(apiCallDetails, null, 2)}
+\`\`\`
+**Result:** \`\`\`json
+${JSON.stringify(result, null, 2)}
+\`\`\`
+`;
+
+    // Append the log entry to the file
+    fs.appendFileSync(logFile, logEntry);
+}
 
 /**
  * Calls the OpenAI-compatible API to get a response for a given prompt.
@@ -69,10 +106,16 @@ export const getAIResponse: GetAIResponseFunction = async (
             throw new Error('Received empty response content from AI.');
         }
 
+        // Log the API call and result
+        await logAPICall(gameId, playerId, { model: settings.model, messages, settings }, { response: responseContent });
+
         console.log(`[${gameId}|${playerId}] Received AI response.`);
         return responseContent.trim();
 
     } catch (error: any) {
+        // Log the API call and error
+        await logAPICall(gameId, playerId, { model: settings.model, messages, settings }, { error: error.message });
+
         console.error(`[${gameId}|${playerId}] Error calling OpenAI API:`, error?.message || error);
         // More specific error handling could be added here (e.g., for rate limits)
         // Re-throw the error to be handled by the calling action
@@ -135,6 +178,9 @@ Respond ONLY with the JSON object.`
         // Parse the JSON response
         const parsedResponse = JSON.parse(responseContent);
         if (typeof parsedResponse.title === 'string' && typeof parsedResponse.description === 'string') {
+            // Log the API call and result
+            await logAPICall('game_title', 'system', { model: settings.model, prompt, settings }, parsedResponse);
+
             console.log("Received AI-generated title and description.");
             return {
                  title: parsedResponse.title.trim(),
@@ -145,6 +191,9 @@ Respond ONLY with the JSON object.`
         }
 
     } catch (error: any) {
+        // Log the API call and error
+        await logAPICall('game_title', 'system', { model: settings.model, prompt, settings }, { error: error.message });
+
         console.error(`Error generating AI title/description:`, error?.message || error);
         // Fallback or re-throw
         // For now, return a generic fallback to avoid blocking game creation

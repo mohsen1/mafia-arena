@@ -224,15 +224,15 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             switch (activePlayer.role) {
                 case 'Werewolf':
                     targetOptions = livingPlayers.filter(p => p.status === 'alive' && p.role !== 'Werewolf');
-                    prompt = `${systemPromptBase}\n\nAs a Werewolf, choose one player from the list below to eliminate tonight. Respond ONLY with the exact name of the player you choose.\n\nLiving Non-Werewolf Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    prompt = `${systemPromptBase}\n\nAs a Werewolf, choose one player from the list below to eliminate tonight. Respond ONLY with the number corresponding to the player.\n\nLiving Non-Werewolf Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
                     break;
                 case 'Seer':
                     targetOptions = livingPlayers.filter(p => p.status === 'alive' && p.id !== activePlayer.id);
-                    prompt = `${systemPromptBase}\n\nAs the Seer, choose one player from the list below to investigate their role (Werewolf or Villager). Respond ONLY with the exact name of the player you choose.\n\nOther Living Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    prompt = `${systemPromptBase}\n\nAs the Seer, choose one player from the list below to investigate their role (Werewolf or Villager). Respond ONLY with the number corresponding to the player.\n\nOther Living Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
                     break;
                 case 'Doctor':
                     targetOptions = livingPlayers.filter(p => p.status === 'alive');
-                    prompt = `${systemPromptBase}\n\nAs the Doctor, choose one player from the list below to protect from elimination tonight. You may choose yourself. Respond ONLY with the exact name of the player you choose.\n\nLiving Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    prompt = `${systemPromptBase}\n\nAs the Doctor, choose one player from the list below to protect from elimination tonight. You may choose yourself. Respond ONLY with the number corresponding to the player.\n\nLiving Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
                     break;
             }
 
@@ -246,40 +246,34 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
                 { role: 'user', content: `Choose your target.` }
             ];
 
-            let targetName = '';
+            let targetNumberStr = '';
             let targetPlayerId: string | null = null;
             let retries = 2;
 
-            // Retry loop for getting a valid target name from AI
+            // Retry loop for getting a valid target number from AI
             while (retries > 0 && targetPlayerId === null) {
                 try {
-                    targetName = await getAIResponse(
+                    targetNumberStr = await getAIResponse(
                         promptMessages,
                         gameId,
                         activePlayer.id,
                         { model: currentState.settings.aiModel, temperature: 0.3 }
                     );
-                    targetName = targetName.replace(/[^a-zA-Z0-9\s'-]/g, '').trim(); // Sanitize name slightly
+                     // Try to parse the response as a number
+                    const choiceIndex = parseInt(targetNumberStr.trim(), 10) - 1; // Convert to 0-based index
 
-                    targetPlayerId = getPlayerIdByName(targetName);
-                    if (!targetPlayerId) {
-                        // AI provided an invalid name
-                        console.warn(`Invalid target name \"${targetName}\" received from ${activePlayer.name}. Retrying... (${retries - 1} left)`);
-                        promptMessages.push({ role: 'assistant', content: targetName });
-                        promptMessages.push({ role: 'user', content: `That name wasn't on the list of living players or was spelled incorrectly. Please look at the list again and respond ONLY with the exact name.` });
-                        retries--;
-                        targetName = ''; // Reset for next attempt
+                    // Validate the number
+                    if (!isNaN(choiceIndex) && choiceIndex >= 0 && choiceIndex < targetOptions.length) {
+                        // Valid number and within range
+                        targetPlayerId = targetOptions[choiceIndex].id;
+                        // Further validation (e.g., werewolf targeting werewolf) is implicitly handled by targetOptions generation now
                     } else {
-                        // AI provided a valid player name, now check if it's a valid *target* for the role
-                        if (!targetOptions.some(p => p.id === targetPlayerId)) {
-                            console.warn(`Target \"${targetName}\" (${targetPlayerId}) is not a valid option for ${activePlayer.role}. Retrying... (${retries - 1} left)`);
-                            promptMessages.push({ role: 'assistant', content: targetName });
-                            promptMessages.push({ role: 'user', content: `You cannot target ${targetName} with your ability according to the rules. Please choose a different name from the valid list.` });
-                            retries--;
-                            targetPlayerId = null; // Invalidate targetId, keep targetName for context
-                            targetName = '';
-                        }
-                        // If valid name AND valid target option, the loop will exit
+                        // Invalid number or out of range
+                        console.warn(`Invalid night action choice \"${targetNumberStr}\" (parsed as ${choiceIndex + 1}) received from ${activePlayer.name} (${activePlayer.role}). Expected 1-${targetOptions.length}. Retrying... (${retries - 1} left)`);
+                        promptMessages.push({ role: 'assistant', content: targetNumberStr });
+                        promptMessages.push({ role: 'user', content: `That wasn't a valid number from the list (1-${targetOptions.length}). Please respond ONLY with the number corresponding to the player you want to target.` });
+                        retries--;
+                        targetNumberStr = ''; // Reset for logging/context
                     }
                 } catch (error) {
                     console.error(`AI call failed for ${activePlayer.name}'s night action:`, error);
@@ -343,7 +337,10 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             const targetId = killAction.targetPlayerId;
             const targetPlayer = stateAfterResolution.players[targetId];
             
-            if (saveAction && saveAction.targetPlayerId === targetId) {
+            if (targetPlayer?.status !== 'alive') {
+                console.log(`Werewolf target ${targetPlayer?.name || targetId} was already dead. Attack ineffective.`);
+                 // No public message needed
+            } else if (saveAction && saveAction.targetPlayerId === targetId) {
                 console.log(`Player ${targetPlayer.name} (${targetId}) was targeted for elimination but saved by the Doctor.`);
                 // No public message needed, maybe internal log?
             } else {
@@ -351,7 +348,7 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
                 eliminatedPlayerId = targetId;
             }
         } else {
-            console.log("No werewolf kill action was performed this night.");
+            console.log("No werewolf kill action was performed or targeted this night.");
         }
 
         // 2. Update Player Status & Living IDs if elimination occurred
@@ -374,21 +371,26 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             const targetPlayer = stateAfterResolution.players[targetId]; // Get target player from potentially updated state
             const seerId = investigationAction.actingPlayerId;
             
-            const result: 'Werewolf' | 'Villager' = targetPlayer.role === 'Werewolf' ? 'Werewolf' : 'Villager';
-            console.log(`Seer (${seerId}) investigated ${targetPlayer.name} (${targetId}) - Result: ${result}`);
+             if (!targetPlayer || targetPlayer.status !== 'alive') {
+                 console.log(`Seer (${seerId}) investigated ${targetPlayer?.name || targetId}, but they were already dead. No result.`);
+                 // Optionally store 'Dead' or similar? For now, no result stored.
+             } else {
+                const result: 'Werewolf' | 'Villager' = targetPlayer.role === 'Werewolf' ? 'Werewolf' : 'Villager';
+                console.log(`Seer (${seerId}) investigated ${targetPlayer.name} (${targetId}) - Result: ${result}`);
 
-            // Update internal state (initialize if needed)
-            const internalState = stateAfterResolution._internalState || {};
-            const seerResults = internalState.seerResults || {};
-            seerResults[`${seerId}-${targetId}-${stateAfterResolution.round}`] = result; // Include round to avoid overwrite if same target
-            
-            stateAfterResolution = {
-                ...stateAfterResolution,
-                _internalState: { 
-                    ...internalState, 
-                    seerResults 
-                }
-            };
+                // Update internal state (initialize if needed)
+                const internalState = stateAfterResolution._internalState || {};
+                const seerResults = internalState.seerResults || {};
+                seerResults[`${seerId}-${targetId}-${stateAfterResolution.round}`] = result; // Include round to avoid overwrite if same target
+                
+                stateAfterResolution = {
+                    ...stateAfterResolution,
+                    _internalState: { 
+                        ...internalState, 
+                        seerResults 
+                    }
+                };
+             }
             // Note: No public message about the seer result.
         }
 
@@ -396,11 +398,12 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
         let summaryContent = '';
         if (eliminatedPlayerId) {
             const eliminatedPlayerName = stateAfterResolution.players[eliminatedPlayerId].name;
-            summaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead.`;
-        } else if (killAction && saveAction && killAction.targetPlayerId === saveAction.targetPlayerId) {
+            const eliminatedPlayerRole = stateAfterResolution.players[eliminatedPlayerId].role; // Reveal role on night death
+            summaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead. They were a ${eliminatedPlayerRole}.`;
+        } else if (killAction && saveAction && killAction.targetPlayerId === saveAction.targetPlayerId && stateAfterResolution.players[killAction.targetPlayerId]?.status === 'alive') {
              summaryContent = "A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.";
         } else {
-            summaryContent = "The night passes uneventfully.";
+            summaryContent = "The night passes uneventfully. Dawn breaks.";
         }
 
         const summaryMessage: ChatMessage = {
@@ -663,22 +666,21 @@ Keep your response concise (2-4 sentences).`;
         const livingPlayers = currentState.livingPlayerIds.map(id => currentState.players[id]).filter(p => p.status === 'alive');
         const collectedVotes: Vote[] = [];
 
-        // Helper to get living player ID by name
-        const getPlayerIdByName = (name: string): string | null => {
-            const lowerCaseName = name.toLowerCase().trim();
-            const player = livingPlayers.find(p => p.name.toLowerCase() === lowerCaseName);
-            return player ? player.id : null;
-        };
-
         // Collect votes from all living players
         for (const voter of livingPlayers) {
             console.log(`Getting vote from ${voter.name}...`);
             
-            const targetOptions = livingPlayers.filter(p => p.id !== voter.id);
+            // Filter out the voter themselves
+            const targetOptions = livingPlayers.filter(p => p.id !== voter.id); 
             if (targetOptions.length === 0) {
                 console.log(`Skipping vote for ${voter.name} (no other living players).`);
                 continue;
             }
+
+            // Create numbered list for the prompt
+            const numberedTargetList = targetOptions
+                .map((p, index) => `${index + 1}. ${p.name}`)
+                .join('\n');
 
             const systemPrompt = `You are playing a character in a game of Werewolf.
 
@@ -690,53 +692,45 @@ Your Assigned Role (SECRET): ${voter.role}
 
 The current game phase is Voting (Round ${currentState.round}). Discussion is over. It is time to vote to eliminate a player you suspect is a werewolf.
 
-Living Players (You cannot vote for yourself):
-${targetOptions.map(p => `- ${p.name}`).join('\n')}
+Choose one player from the list below to vote for elimination. Respond ONLY with the number corresponding to the player.
 
-Consider the discussion and your suspicions. Choose one player from the list above to vote for elimination. Respond ONLY with the exact name of the player you are voting for.`;
+Available Players:
+${numberedTargetList}
+
+Respond ONLY with the number.`;
 
             const promptMessages: ChatCompletionMessageParam[] = [
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: `Who do you vote to eliminate, ${voter.name}?` }
+                { role: 'user', content: `Who do you vote to eliminate, ${voter.name}? (Respond with the number)` }
             ];
 
-            let targetName = '';
+            let targetNumberStr = '';
             let targetPlayerId: string | null = null;
             let retries = 2;
 
             while (retries > 0 && targetPlayerId === null) {
                 try {
-                    targetName = await getAIResponse(
+                    targetNumberStr = await getAIResponse(
                         promptMessages,
                         gameId,
                         voter.id,
                         { model: currentState.settings.aiModel, temperature: 0.3 }
                     );
-                    targetName = targetName.replace(/[^a-zA-Z0-9\s'-]/g, '').trim(); 
+                     // Try to parse the response as a number
+                    const choiceIndex = parseInt(targetNumberStr.trim(), 10) - 1; // Convert to 0-based index
 
-                    targetPlayerId = getPlayerIdByName(targetName);
-                    if (!targetPlayerId) {
-                        console.warn(`Invalid vote target name \"${targetName}\" received from ${voter.name}. Retrying... (${retries - 1} left)`);
-                        promptMessages.push({ role: 'assistant', content: targetName });
-                        promptMessages.push({ role: 'user', content: `That name wasn't on the list of living players or was spelled incorrectly. Please look at the list again and respond ONLY with the exact name.` });
-                        retries--;
-                        targetName = ''; 
+                    // Validate the number
+                    if (!isNaN(choiceIndex) && choiceIndex >= 0 && choiceIndex < targetOptions.length) {
+                        // Valid number and within range
+                        targetPlayerId = targetOptions[choiceIndex].id;
+                        // No need to check for self-vote here as self is already filtered out
                     } else {
-                        if (targetPlayerId === voter.id) {
-                            console.warn(`${voter.name} tried to vote for themselves. Retrying... (${retries - 1} left)`);
-                            promptMessages.push({ role: 'assistant', content: targetName });
-                            promptMessages.push({ role: 'user', content: `You cannot vote for yourself. Please choose another player from the list.` });
-                            retries--;
-                            targetPlayerId = null; 
-                            targetName = '';
-                        } else if (!targetOptions.some(p => p.id === targetPlayerId)) {
-                            console.warn(`Target \"${targetName}\" (${targetPlayerId}) is not a valid target (e.g., dead or typo). Retrying... (${retries - 1} left)`);
-                             promptMessages.push({ role: 'assistant', content: targetName });
-                             promptMessages.push({ role: 'user', content: `That name wasn't on the list of valid targets. Please choose a name exactly as listed.` });
-                             retries--;
-                             targetPlayerId = null; 
-                             targetName = '';
-                        }
+                        // Invalid number or out of range
+                        console.warn(`Invalid vote choice \"${targetNumberStr}\" (parsed as ${choiceIndex + 1}) received from ${voter.name}. Expected 1-${targetOptions.length}. Retrying... (${retries - 1} left)`);
+                        promptMessages.push({ role: 'assistant', content: targetNumberStr });
+                        promptMessages.push({ role: 'user', content: `That wasn't a valid number from the list (1-${targetOptions.length}). Please respond ONLY with the number corresponding to the player you want to vote for.` });
+                        retries--;
+                        targetNumberStr = ''; // Reset for logging/context if needed
                     }
                 } catch (error) {
                     console.error(`AI call failed for ${voter.name}'s vote:`, error);
@@ -765,30 +759,130 @@ Consider the discussion and your suspicions. Choose one player from the list abo
         await gameStateManager.updateGameState(gameId, stateAfterVoteCollection);
         console.log(`State updated with collected votes for ${gameId}.`);
 
-        // ----- Vote Processing & Elimination (Placeholder/Next Step) -----
-        // TODO: Implement Vote Processing Logic
+        // ----- Vote Processing & Elimination -----
+        console.log("Processing votes...");
+        const voteCounts: { [playerId: string]: number } = {};
+        collectedVotes.forEach(vote => {
+            voteCounts[vote.targetPlayerId] = (voteCounts[vote.targetPlayerId] || 0) + 1;
+        });
 
-        // --- TEMPORARY: Skip vote processing, advance phase --- 
-        console.warn("Vote PROCESSING logic not implemented yet. Advancing phase.");
+        let maxVotes = 0;
+        let playersToEliminate: string[] = [];
+        for (const playerId in voteCounts) {
+            if (voteCounts[playerId] > maxVotes) {
+                maxVotes = voteCounts[playerId];
+                playersToEliminate = [playerId];
+            } else if (voteCounts[playerId] === maxVotes) {
+                playersToEliminate.push(playerId);
+            }
+        }
+
         let stateAfterVoting = { ...stateAfterVoteCollection };
-        let nextState = advancePhase(stateAfterVoting);
+        let eliminatedPlayerId: string | null = null;
+        let voteResultMessage = '';
 
-        const phaseChangeMessage: ChatMessage = {
-            messageId: `msg-${crypto.randomUUID()}`,
+        // Create vote tally message content
+        const voteTallyParts: string[] = [];
+        livingPlayers.forEach(player => {
+            const vote = collectedVotes.find(v => v.voterPlayerId === player.id);
+            if (vote) {
+                const targetName = stateAfterVoting.players[vote.targetPlayerId]?.name || 'Unknown Target';
+                 voteTallyParts.push(`${player.name} voted for ${targetName}`);
+            } else {
+                 voteTallyParts.push(`${player.name} abstained`);
+            }
+        });
+        const voteTallyString = voteTallyParts.join('. ');
+
+        if (playersToEliminate.length === 1 && maxVotes > 0) {
+            // Single player eliminated
+            eliminatedPlayerId = playersToEliminate[0];
+            const eliminatedPlayer = stateAfterVoting.players[eliminatedPlayerId];
+            console.log(`Player ${eliminatedPlayer.name} (${eliminatedPlayerId}) was eliminated by vote.`);
+            
+            voteResultMessage = `The votes are in! ${voteTallyString}. With ${maxVotes} vote(s), ${eliminatedPlayer.name} has been eliminated! Their role was ${eliminatedPlayer.role}. Night falls...`;
+            
+            // Update player status
+            const playersCopy = { ...stateAfterVoting.players };
+            playersCopy[eliminatedPlayerId] = { ...playersCopy[eliminatedPlayerId], status: 'dead' };
+            
+            stateAfterVoting = {
+                ...stateAfterVoting,
+                players: playersCopy,
+                livingPlayerIds: stateAfterVoting.livingPlayerIds.filter(id => id !== eliminatedPlayerId),
+                lastEliminatedPlayerId: eliminatedPlayerId
+            };
+            
+        } else if (playersToEliminate.length > 1) {
+            // Tie vote
+            const tiedNames = playersToEliminate.map(id => stateAfterVoting.players[id]?.name || 'Unknown').join(' and ');
+            console.log(`Vote tied between ${tiedNames}. No one is eliminated.`);
+            voteResultMessage = `The votes are in! ${voteTallyString}. It's a tie between ${tiedNames} with ${maxVotes} vote(s) each! No one is eliminated. Night falls...`;
+            // No status update needed
+            stateAfterVoting = { ...stateAfterVoting, lastEliminatedPlayerId: undefined };
+
+        } else {
+            // No votes cast or only abstentions
+            console.log("No majority vote or no votes cast. No one is eliminated.");
+            voteResultMessage = `The votes are in! ${voteTallyString}. No majority was reached. No one is eliminated. Night falls...`;
+             stateAfterVoting = { ...stateAfterVoting, lastEliminatedPlayerId: undefined };
+        }
+        
+         // Add the vote result message
+         const voteResultMessageObj: ChatMessage = {
+            messageId: `msg-${crypto.randomUUID()}-vote-result`,
             gameId: gameId,
             speaker: { type: 'moderator' },
             speakerName: "Moderator",
-            content: `The votes are cast. Night falls...`, // Placeholder message
+            content: voteResultMessage,
             timestamp: Date.now(),
-            round: nextState.round,
-            phase: nextState.phase,
+            round: stateAfterVoting.round, // Current round
+            phase: stateAfterVoting.phase, // Still Voting phase during result announcement
             audience: { type: 'all' },
+         };
+        
+        stateAfterVoting = {
+             ...stateAfterVoting,
+             conversationLog: [...stateAfterVoting.conversationLog, voteResultMessageObj]
         };
+
+        // Check win condition AFTER elimination
+        stateAfterVoting = checkWinCondition(stateAfterVoting);
+        if (stateAfterVoting.phase === 'GameOver') {
+            console.log(`Game Over detected after vote resolution. Winner: ${stateAfterVoting.winner}`);
+            const gameOverMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}-gameover`,
+                gameId: gameId,
+                speaker: { type: 'moderator' },
+                speakerName: "Moderator",
+                content: `The game is over! The ${stateAfterVoting.winner} team wins!`,
+                timestamp: Date.now(),
+                round: stateAfterVoting.round,
+                phase: stateAfterVoting.phase,
+                audience: { type: 'all' },
+            };
+            stateAfterVoting = {
+                ...stateAfterVoting,
+                conversationLog: [...stateAfterVoting.conversationLog, gameOverMessage]
+            };
+            await gameStateManager.updateGameState(gameId, stateAfterVoting);
+            console.log(`Game ${gameId} ended.`);
+            revalidatePath(`/game/${gameId}`);
+            return; // End action here
+        }
+
+        // If game not over, advance to Night phase
+        let nextState = advancePhase(stateAfterVoting);
+
+        // Message is implicit in the vote result ("Night falls...")
+        // No separate phase change message needed here usually
+
         nextState = {
             ...nextState,
-            conversationLog: [...nextState.conversationLog, phaseChangeMessage],
+            // conversationLog: [...nextState.conversationLog, phaseChangeMessage], // Optional if needed
             turnOrderIndex: 0,
-            nightActions: [],
+            nightActions: [], // Clear actions for the new night
+            // Votes are already processed and stored in stateAfterVoting if needed for history
         };
 
         await gameStateManager.updateGameState(gameId, nextState);
