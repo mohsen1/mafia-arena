@@ -76,6 +76,14 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
 
     const runNextTurnAction = useCallback(async () => {
+        if (gameState?.phase === 'GameOver') {
+            console.log("[Context] Game is over, skipping next turn action trigger.");
+            if (isAutoRunning) {
+                setIsAutoRunning(false);
+            }
+            return;
+        }
+
         if (isLoadingNextTurn) {
              console.log("[Context] Next turn already loading, skipping.");
              return;
@@ -103,7 +111,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
              // Let GameClient handle setting it false when new state arrives
              // setIsLoadingNextTurn(false);
         }
-    }, [isLoadingNextTurn, boundRunGameTurnAction, stopCurrentAudio, currentlyPlayingMessageId]);
+    }, [gameState?.phase, isAutoRunning, isLoadingNextTurn, boundRunGameTurnAction, stopCurrentAudio, currentlyPlayingMessageId]);
 
     // Update context state if initialGameState prop changes (due to server revalidation)
      useEffect(() => {
