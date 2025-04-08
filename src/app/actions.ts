@@ -845,7 +845,7 @@ Respond ONLY with the number.`;
 
             // Format vote results message
             const voteDetails = Object.entries(voteCounts)
-                .map(([targetId, count]) => `- ${stateAfterTally.players[targetId]?.name || 'Unknown'}: ${count} vote(s)`)
+                .map(([targetId, count]) => `- ${stateAfterTally.players[targetId]?.name || 'Unknown'}: ${count} ${count === 1 ? 'vote' : 'votes'}`)
                 .join('\n');
             const votesMessage: ChatMessage = {
                 messageId: `msg-${crypto.randomUUID()}-votes`,

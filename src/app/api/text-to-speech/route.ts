@@ -6,7 +6,7 @@ import { Readable } from 'stream'; // Import the Readable stream module
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 
 // Default voice ID if not specified
-const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // Default ElevenLabs voice
+const DEFAULT_VOICE_ID = "nPczCjzI2devNBz1zQrb"; // Default ElevenLabs voice (Brian)
 
 // Initialize the client (only if API key exists)
 const elevenLabsClient = ELEVENLABS_API_KEY ? new ElevenLabsClient({ apiKey: ELEVENLABS_API_KEY }) : null;
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
          return NextResponse.json({ error: "Invalid JSON format in request body" }, { status: 400 });
     }
     
-    const { text, voice = DEFAULT_VOICE_ID, speakerName } = parsedBody;
+    const { text, voice: requestedVoice, speakerName } = parsedBody;
 
     if (!text) {
       return NextResponse.json({ error: "Text is required in JSON body" }, { status: 400 });
@@ -43,8 +43,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "ElevenLabs API key is not configured" }, { status: 500 });
     }
 
+    // Determine the actual Voice ID to use
+    // If the request explicitly sent 'default', use our defined DEFAULT_VOICE_ID
+    // Otherwise, use the requested voice ID, or fall back to DEFAULT_VOICE_ID if none was sent
+    const voiceIdToUse = requestedVoice === 'default' 
+        ? DEFAULT_VOICE_ID 
+        : (requestedVoice || DEFAULT_VOICE_ID);
+
+    console.log(`[API] Using Voice ID: ${voiceIdToUse} (Requested: ${requestedVoice})`); // Add log
+
     // Make streaming request to ElevenLabs API using the SDK
-    const audioStream = await elevenLabsClient.textToSpeech.convertAsStream(voice, {
+    const audioStream = await elevenLabsClient.textToSpeech.convertAsStream(voiceIdToUse, {
       text, // Use text from parsedBody
       model_id: "eleven_monolingual_v1", // or use your preferred model
       voice_settings: {

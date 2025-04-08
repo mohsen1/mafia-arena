@@ -112,25 +112,76 @@ export const GameProvider: React.FC<GameProviderProps> = ({
          setIsLoadingNextTurn(false); // Assume new state means loading is finished
      }, [initialGameState]);
 
-    // Effect to handle resuming auto-run when toggled to play
+    // Effect to handle resuming/kick-starting auto-run when idle
     useEffect(() => {
         // Check if auto-run is enabled, nothing is currently playing, and not already loading
         if (isAutoRunning && currentlyPlayingMessageId === null && !isLoadingNextTurn) {
              // Check if the game is actually over before trying to run next turn
              if (gameState?.phase !== 'GameOver') {
-                console.log("[Context Effect] AutoRun enabled and idle, triggering next turn.");
-                // Add a small delay to prevent potential rapid loops if state updates are immediate
+                console.log("[Context Effect Idle Check] AutoRun enabled and idle, triggering next turn.");
+                // Add a small delay to prevent potential rapid loops
                 const timeoutId = setTimeout(() => {
-                    runNextTurnAction();
-                }, 100); // Short delay
-                return () => clearTimeout(timeoutId); // Cleanup timeout on dependency change
+                    // Double-check conditions after delay, in case state changed rapidly
+                    if (isAutoRunning && currentlyPlayingMessageId === null && !isLoadingNextTurn && gameState?.phase !== 'GameOver') {
+                       runNextTurnAction();
+                    }
+                }, 150); // Slightly longer delay than before?
+                return () => clearTimeout(timeoutId); // Cleanup timeout
              } else {
-                  console.log("[Context Effect] AutoRun enabled but game is over.");
+                  console.log("[Context Effect Idle Check] AutoRun enabled but game is over.");
                   // Optionally disable auto-run if game is over
                   // setIsAutoRunning(false);
              }
         }
-    }, [isAutoRunning, currentlyPlayingMessageId, isLoadingNextTurn, runNextTurnAction, gameState?.phase]); // Dependencies
+    }, [isAutoRunning, currentlyPlayingMessageId, isLoadingNextTurn, runNextTurnAction, gameState?.phase]); // Dependencies ensure this runs when state becomes idle
+
+    // --- NEW: Function called by MessageBubble when audio ends ---
+    const reportAudioFinished = useCallback((messageId: string) => {
+        console.log(`[Context] Audio finished report for messageId: ${messageId}`);
+
+        // Identify the ID of the absolute latest message in the log
+        const latestLogMessageId = gameState?.conversationLog && gameState.conversationLog.length > 0
+            ? gameState.conversationLog[0].messageId // Log is reversed, [0] is newest
+            : null;
+
+        // Clear the currently playing ID *if* it matches the finished one
+        let wasPlayingThisMessage = false;
+        if (currentlyPlayingMessageId === messageId) {
+            wasPlayingThisMessage = true;
+            setCurrentlyPlayingMessageId(null); // Clear the playing ID
+        }
+        unregisterStopAudio(messageId); // Ensure stop callback is cleared regardless
+
+        // Check if auto-run should proceed *specifically because this audio finished*
+        // We only proceed if auto-running AND the message that just finished WAS the latest one.
+        if (isAutoRunning && wasPlayingThisMessage && messageId === latestLogMessageId && !isLoadingNextTurn) {
+             if (gameState?.phase !== 'GameOver') {
+                console.log(`[Context reportAudioFinished] Autoplay enabled, finished latest message (${messageId}), triggering next turn.`);
+                // Add a slight delay
+                const timeoutId = setTimeout(() => {
+                     // Re-check conditions after delay
+                     if (isAutoRunning && currentlyPlayingMessageId === null && !isLoadingNextTurn && gameState?.phase !== 'GameOver') {
+                         runNextTurnAction();
+                     }
+                }, 500); // Delay before next action after audio
+                 // No cleanup needed for this specific timeout instance
+             } else if (gameState?.phase === 'GameOver') {
+                  console.log(`[Context reportAudioFinished] Autoplay: Game is over.`);
+             }
+        } else {
+             console.log(`[Context reportAudioFinished] Audio finished, but not proceeding (isAutoRunning: ${isAutoRunning}, wasPlayingThis: ${wasPlayingThisMessage}, isLatest: ${messageId === latestLogMessageId}, isLoading: ${isLoadingNextTurn})`);
+        }
+
+    }, [
+        isAutoRunning,
+        isLoadingNextTurn,
+        gameState?.conversationLog, 
+        gameState?.phase,          
+        runNextTurnAction,
+        currentlyPlayingMessageId, // Need current value to compare
+        setCurrentlyPlayingMessageId, 
+        unregisterStopAudio
+    ]);
 
     const value = {
         gameState,

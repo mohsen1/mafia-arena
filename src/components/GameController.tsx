@@ -22,12 +22,12 @@ export default function GameController() {
 
     return (
         <div className="flex items-center gap-3">
+            {isLoadingNextTurn && <Loader className="animate-spin" size={18} /> }
             {/* Pause/Play Button */}
             <button
                 onClick={toggleAutoRun}
-                disabled={isLoadingNextTurn} // Disable toggle while loading next turn
                 type="button" // Important: prevent form submission if inside a form
-                className={`px-3 py-2 cursor-pointer flex items-center gap-1 text-white rounded shadow transition duration-150 ease-in-out disabled:bg-gray-500 disabled:cursor-not-allowed ${
+                className={`px-4 py-2 cursor-pointer flex items-center gap-2 text-white rounded shadow transition duration-150 ease-in-out disabled:bg-gray-500 disabled:cursor-not-allowed ${
                     isAutoRunning
                         ? 'bg-yellow-500 hover:bg-yellow-600'
                         : 'bg-blue-500 hover:bg-blue-600'
@@ -35,7 +35,7 @@ export default function GameController() {
                 title={isAutoRunning ? "Pause Auto-Run" : "Start Auto-Run"}
             >
                 {isAutoRunning ? <Pause size={18} /> : <Play size={18} />}
-                {/* <span>{isAutoRunning ? "Pause" : "Auto"}</span> */}
+                <span>{isAutoRunning ? "Pause" : "Auto"}</span>
             </button>
 
             {/* Next Button */}
@@ -47,8 +47,8 @@ export default function GameController() {
                 type="button" // Changed from submit, assuming manual trigger now
                 className="px-4 py-2 cursor-pointer flex items-center gap-2 bg-green-500 text-white rounded shadow hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-150 ease-in-out"
             >
-                {isLoadingNextTurn ? <Loader className="animate-spin" size={18} /> : <ArrowRight size={18} />}
-                {isLoadingNextTurn ? "Working..." : "Next"}
+                 <ArrowRight size={18} />
+                Next
             </button>
          </div>
     );

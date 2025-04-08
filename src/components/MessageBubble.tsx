@@ -143,7 +143,10 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     }, [message.messageId, currentlyPlayingMessageId, setCurrentlyPlayingMessageId, unregisterStopAudio]);
 
     const playAudio = useCallback(async () => {
-        if (isModerator || audioStatus !== 'idle' || !MediaSource || !MediaSource.isTypeSupported(AUDIO_MIME_TYPE)) {
+        // Remove the check preventing moderator audio
+        // if (isModerator || audioStatus !== 'idle' || !MediaSource || !MediaSource.isTypeSupported(AUDIO_MIME_TYPE)) {
+        // Simplify check: only prevent if not idle or MediaSource unsupported
+         if (audioStatus !== 'idle' || !MediaSource || !MediaSource.isTypeSupported(AUDIO_MIME_TYPE)) {
            return;
         }
         console.log(`[Play ${message.messageId}] Starting playAudio`);
@@ -410,8 +413,8 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                         <span className={`text-gray-800 dark:text-gray-200 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>{message.content}</span>
                         <span className="text-xs text-gray-500 dark:text-gray-400 block text-right opacity-75">R{message.round} {message.phase}</span>
                     </div>
-                    {/* Button: Now controls stopping playback */} 
-                    {!isModerator && (
+                    {/* Button: Now always shown */}
+                    {/* {!isModerator && ( */} 
                         <button 
                             onClick={audioStatus === 'playing' || audioStatus === 'loading' ? () => stopAndCleanup('user_stop') : playAudio}
                             disabled={false}
@@ -423,7 +426,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                             {audioStatus === 'done' && <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />}
                             {audioStatus === 'error' && <span className="h-4 w-4 text-red-500">!</span>} 
                         </button>
-                    )}
+                    {/* )} */}
                 </div>
             </div>
         </div>
