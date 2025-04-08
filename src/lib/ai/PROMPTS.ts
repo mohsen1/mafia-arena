@@ -23,13 +23,13 @@ in a rustic, superstitious village.
 Generate a character profile for the role of **${role}**.${existingCharsContext} 
 
 **Target Language and Culture:** ${language}. Generate details, especially the **characterName**, that fit this cultural context. 
-**Script Requirement:** Write the \`characterName\` **using the native script** for the ${language} language (e.g., Perso-Arabic script for Persian). Do NOT use Latin script unless the target language is English.
+${language !== 'English' ? `**Script Requirement:** Write the \`characterName\` **using the native script** for the ${language} language (e.g., Perso-Arabic script for Persian). Do NOT use Latin script unless the target language is English.` : ''}
 
 CRITICALLY IMPORTANT: Do NOT use any of the names mentioned in the 'Existing Characters' list above for the new character.
 
 Respond ONLY with a valid JSON object adhering to the following structure:
 {
-  "characterName": "[Character Name - MUST BE UNIQUE, NOT FROM LIST ABOVE, written in the NATIVE SCRIPT for ${language}]",
+  "characterName": "[Character Name - MUST BE UNIQUE, NOT FROM LIST ABOVE${language !== 'English' ? ', written in the NATIVE SCRIPT for ' + language : ''}]",
   "roleInCommunity": "[Archetype or Profession]",
   "appearance": "[1-2 sentences describing visual appearance]",
   "background": "[2-3 sentences covering origin, profession, key life events, reputation - make it distinct]",

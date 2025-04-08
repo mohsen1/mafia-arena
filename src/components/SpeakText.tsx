@@ -433,33 +433,11 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     }));
 
     return (
-      <div className={`inline-flex items-center ${className || ''}`}>
-        {/* Button calls handlePlayPause, letting it decide resume/pause/play */}
-        <Button
-          variant="outline"
-          size="icon"
-          className='mr-2 flex-shrink-0' // Prevent button shrinking
-          onClick={() => handlePlayPause()} // Let the handler figure out the action
-          // Disable button if loading, OR if someone else is talking OR if audio is globally disabled
-          disabled={isLoading || !isAudioGloballyEnabled || (!canPlay && !isCurrentlySpeakingThis)}
-          aria-label={isPlaying ? "Pause speaking" : "Speak text"}
-          title={!isAudioGloballyEnabled ? "Audio is disabled" : (isPlaying ? "Pause" : "Play")} // Add title for disabled state
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : isPlaying ? (
-            <PauseIcon className="h-4 w-4" />
-          ) : (
-            <PlayIcon className="h-4 w-4" />
-          )}
-        </Button>
-
+      <div className={className}>
         {/* Render revealed text directly */}
         <span className="text-content min-h-[1em]"> {/* Add min-height to prevent layout shifts */}
           {renderTextContent()}
         </span>
-
-        {error && <p className="text-destructive text-xs ml-2 self-center">Error: {error}</p>}
       </div>
     );
   }

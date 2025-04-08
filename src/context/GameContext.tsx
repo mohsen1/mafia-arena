@@ -53,11 +53,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     boundRunGameTurnAction
 }) => {
     const [gameState, setGameState] = useState<FilteredGameState | null>(initialGameState);
-    const [isAutoRunning, setIsAutoRunning] = useState<boolean>(false); // Default to paused
+    const [isAutoRunning, setIsAutoRunning] = useState<boolean>(false);
     const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
     const stopAudioCallbackRef = useRef<(() => void) | null>(null); // Ref to hold the current stop function
-    // Add global audio state
-    const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] = useState<boolean>(true);
+    const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] = useState<boolean>(false); // Default audio to off
 
     // --- Translation State ---
     const [translations, setTranslations] = useState<Record<string, string>>({});
