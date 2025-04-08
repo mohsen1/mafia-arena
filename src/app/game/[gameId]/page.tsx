@@ -7,16 +7,13 @@ import { notFound } from "next/navigation";
 
 // Define props expected by the page component
 interface GamePageProps {
-    params: {
+    params: Promise<{
         gameId: string;
-    };
+    }>;
 }
 
-// The main server component for the game page
 export default async function GamePage({ params }: GamePageProps) {
-    // Params must be awaited in async RSCs according to Next.js best practices/errors
-    const awaitedParams = await params;
-    const { gameId } = awaitedParams;
+    const { gameId } = await params;
     const gameState = await gameStateManager.getFilteredGameState(gameId);
 
     if (!gameState) {

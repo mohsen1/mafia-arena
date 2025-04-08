@@ -7,9 +7,8 @@ interface ConversationLogProps {
 }
 
 export function ConversationLog({ conversationLog, players }: ConversationLogProps) {
-    // Get the ID of the most recent message
-    const latestMessageId = conversationLog.length > 0 ? conversationLog[0].messageId : null;
-    // Note: Since the log is reversed in the flex container, the first item is the newest
+    // No need to determine latest message for autoplay
+    // const latestMessageId = conversationLog.length > 0 ? conversationLog[0].messageId : null;
 
     return (
         <section className="flex-grow p-4 overflow-hidden flex flex-col">
@@ -23,7 +22,7 @@ export function ConversationLog({ conversationLog, players }: ConversationLogPro
                                 key={message.messageId} 
                                 message={message} 
                                 players={players} 
-                                latestMessageId={latestMessageId} // Pass latest message ID
+                                // latestMessageId={latestMessageId} // Removed prop
                             />
                         ))
                     ) : (
