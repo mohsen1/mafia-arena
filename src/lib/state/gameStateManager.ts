@@ -96,29 +96,26 @@ export class GameStateManager {
      * Creates a new game, initializes its state using the engine (which now includes AI title generation),
      * caches it, and persists it to a file.
      *
-     * @param partialState Requires at least `settings` to initialize the game.
-     * @returns The fully initialized game state, including AI-generated title/desc.
-     * @throws If initialization or saving fails.
+     * @param gameState The fully initialized game state to save.
+     * @returns The saved game state.
+     * @throws If saving fails.
      */
-    async createGame(partialState: Pick<GameState, 'settings'>): Promise<GameState> { // Now expects only settings
-        const gameId = `game-${crypto.randomUUID()}`;
-        const createdAt = Date.now();
+    async createAndSaveGame(gameState: GameState): Promise<GameState> {
+        const gameId = gameState.gameId;
 
-        // Call the async engine function to initialize the game state, including AI generation
-        const newGameState = await initializeNewGame(
-            partialState.settings,
-            gameId,
-            createdAt
-        );
+        // Validate if game ID already exists (optional but good practice)
+        if (this.#gameStates.has(gameId) || (await this.#loadGameStateFromFile(gameId)) !== null) {
+            throw new Error(`Game with ID ${gameId} already exists.`);
+        }
 
         // Add to cache
-        this.#gameStates.set(gameId, newGameState);
+        this.#gameStates.set(gameId, gameState);
 
         // Save to file asynchronously 
-        await this.#saveGameStateToFile(newGameState); 
+        await this.#saveGameStateToFile(gameState);
 
-        console.log(`Game created with ID: ${gameId} and Title: "${newGameState.title}"`);
-        return newGameState;
+        console.log(`Game created and saved with ID: ${gameId} and Title: "${gameState.title}"`);
+        return gameState;
     }
 
     /**

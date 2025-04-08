@@ -3,6 +3,7 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { GameState } from '@/lib/types/game'; // Keep if needed for context later
 import fs from 'fs';
 import path from 'path';
+import { AICharacterProfile, Role } from '@/lib/types/game'; // Import new types
 
 // --- Initialize OpenAI Client ---
 
@@ -28,7 +29,12 @@ export type GetAIResponseFunction = (
   messages: ChatCompletionMessageParam[],
   gameId: string, // Keep for logging/context
   playerId: string, // Keep for logging/context
-  settings: { model: string; temperature?: number; max_tokens?: number }
+  settings: { 
+    model: string; 
+    temperature?: number; 
+    max_tokens?: number;
+    response_format?: { type: "text" | "json_object" }; // <-- Add optional response_format
+  }
 ) => Promise<string>; // Returns the AI's text response
 
 // --- Real OpenAI Implementation ---
@@ -204,6 +210,87 @@ Respond ONLY with the JSON object.`
         };
         // Or re-throw: throw new Error(`AI title/description generation failed: ${error?.message || 'Unknown error'}`);
     }
+}
+
+/**
+ * Generates a character profile using an AI model.
+ * @param role The role the character should have.
+ * @param model The AI model to use.
+ * @returns A generated AICharacterProfile or null if generation fails.
+ */
+export async function generateAICharacterProfile(role: Role, model: string): Promise<AICharacterProfile | null> {
+    console.log(`Requesting AI profile generation for role: ${role} using model: ${model}`);
+    
+    const systemPrompt = `You are an AI assistant designed to create compelling and consistent character profiles for a game of Werewolf set in a rustic, superstitious village.
+Generate a character profile for the role of **${role}**.
+Respond ONLY with a JSON object matching the following structure:
+{
+  "characterName": "string (unique, evocative name)",
+  "appearanceFlavorText": "string (1-2 sentences describing visual appearance)",
+  "backgroundBackstory": "string (2-3 sentences covering origin, profession, key life events, reputation)",
+  "corePersonalityArchetype": "string (e.g., 'The Cynic', 'The Protector', 'The Manipulator')",
+  "keyPersonalityTraitsSummary": "string (1-2 sentences summarizing key traits like suspicion, honesty, confidence)",
+  "motivationsGoals": ["string", "string", "..."] (2-3 motivations as an array of strings)
+}
+
+Ensure the details are appropriate for the assigned role (${role}) and the game's setting. Be creative but maintain consistency. Do NOT include any explanation or text outside the JSON object.`;
+
+    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Generate a character profile for a ${role}.` }
+    ];
+
+    // Declare responseJsonString here, outside the try block, so it's accessible in the catch
+    let responseJsonString: string | undefined;
+
+    try {
+        // Use the existing getAIResponse but expect JSON
+        responseJsonString = await getAIResponse(
+            messages,
+            'character-generation', // Game ID placeholder for logging/context
+            `generate-${role}`,     // Player ID placeholder
+            // Increase max_tokens significantly to ensure full profile generation
+            { model: model, temperature: 0.8, max_tokens: 600, response_format: { type: "json_object" } } 
+        );
+
+        if (!responseJsonString) {
+            throw new Error("AI returned an empty response.");
+        }
+
+        // Parse the JSON response
+        const profile: AICharacterProfile = JSON.parse(responseJsonString);
+        
+        // Basic validation (can add more checks)
+        if (!profile.characterName || !profile.backgroundBackstory || !profile.motivationsGoals) {
+            throw new Error("Generated JSON is missing required fields.");
+        }
+        console.log(`Successfully generated profile for ${profile.characterName} (${role})`);
+        return profile;
+
+    } catch (error: any) {
+        console.error(`Error generating or parsing AI character profile for ${role}:`, error);
+        // Log the raw response if available and it's a parsing error
+        // The responseJsonString variable is now accessible here if the error occurred after assignment
+        if (error instanceof SyntaxError && typeof responseJsonString === 'string') {
+             console.error("Raw AI Response (JSON parse failed):\n", responseJsonString);
+        }
+        return null; // Return null on failure
+    }
+}
+
+/**
+ * Constructs the detailed persona string from the AI profile.
+ * @param profile The generated AICharacterProfile.
+ * @returns A formatted string suitable for the Player.persona field.
+ */
+export function formatPersonaFromProfile(profile: AICharacterProfile): string {
+    return `Name: ${profile.characterName}
+Role in Community: (Inferred from background) ${profile.corePersonalityArchetype}
+Appearance: ${profile.appearanceFlavorText}
+Background: ${profile.backgroundBackstory}
+Personality Archetype: ${profile.corePersonalityArchetype}
+Key Traits: ${profile.keyPersonalityTraitsSummary}
+Motivations: ${profile.motivationsGoals.join(', ')}`;
 }
 
 // --- Placeholder Function Removed --- 

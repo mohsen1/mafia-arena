@@ -1,133 +1,310 @@
 'use client';
 
-import { useState } from 'react';
-import { useFormStatus } from 'react-dom'; // Import useFormStatus
-import { Loader2 } from 'lucide-react';
-import { startGameAction } from '@/app/actions';
-import { DEFAULT_GAME_SETTINGS } from '@/lib/config'; // Import defaults for placeholder
-import { Role } from '@/lib/types/game'; // Import Role type
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Loader2, X, UserPlus, Users, ShieldCheck, HeartPulse, CircleHelp, ServerCrash } from 'lucide-react'; // Added icons
+import { startGameAction, generateCharacterAction } from '@/app/actions'; // Import both actions
+import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
+import { Role, PlayerInitializationData, AICharacterProfile } from '@/lib/types/game'; // Import necessary types
 
-// Props interface for the form
-interface StartGameFormProps {
-    availableModels: string[]; // Add prop for models
+// Use PlayerInitializationData directly, add temporary client ID for list key
+type ConfigCharacter = PlayerInitializationData & { clientId: string };
+
+// Validation result structure (no changes needed here)
+interface ValidationResult {
+    isValid: boolean;
+    message?: string;
+    playerCount: number;
+    roleCounts: Record<Role, number>;
 }
 
-// Separate component for the button to use useFormStatus
-function SubmitButton() {
-  const { pending } = useFormStatus(); // Get pending state from the form
+// --- Validation Logic (update input type) ---
+function validateGameSetup(characters: ConfigCharacter[]): ValidationResult {
+    const playerCount = characters.length;
+    const roleCounts: Record<Role, number> = {
+        Werewolf: 0,
+        Seer: 0,
+        Doctor: 0,
+        Villager: 0,
+    };
+    characters.forEach(c => {
+        roleCounts[c.role]++;
+    });
 
-  return (
-    <button 
-      type="submit" 
-      className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition duration-150 ease-in-out text-lg font-semibold disabled:bg-blue-400 disabled:cursor-not-allowed flex justify-center items-center"
-      disabled={pending} // Disable button when form is pending
-    >
-      {pending ? (
-        <>
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Creating game...
-        </>
-      ) : (
-        'Start New Game'
-      )}
-    </button>
-  );
+    // Rule 1: Minimum Players
+    if (playerCount < 5) { // Adjust minimum as needed
+        return { isValid: false, message: `Requires at least 5 players (currently ${playerCount}).`, playerCount, roleCounts };
+    }
+
+    // Rule 2: Werewolf Count vs Others
+    const nonWerewolves = roleCounts.Villager + roleCounts.Seer + roleCounts.Doctor;
+    if (roleCounts.Werewolf >= nonWerewolves) {
+        return { isValid: false, message: `Too many Werewolves (${roleCounts.Werewolf}) relative to others (${nonWerewolves}). Add more Villagers or special roles.`, playerCount, roleCounts };
+    }
+    
+    // Rule 3: At least one Werewolf
+     if (roleCounts.Werewolf === 0) {
+         return { isValid: false, message: `At least one Werewolf is required.`, playerCount, roleCounts };
+     }
+
+    // Rule 4: Max Special Roles (Standard Setup)
+    if (roleCounts.Seer > 1) {
+        return { isValid: false, message: `Maximum 1 Seer allowed.`, playerCount, roleCounts };
+    }
+    if (roleCounts.Doctor > 1) {
+        return { isValid: false, message: `Maximum 1 Doctor allowed.`, playerCount, roleCounts };
+    }
+
+    // All checks passed
+    return { isValid: true, message: `Ready: ${playerCount} players.`, playerCount, roleCounts };
 }
 
-export default function StartGameForm({ availableModels }: StartGameFormProps) { // Destructure props
-  // No need for isSubmitting state here anymore
+// --- Role Icons (no changes needed) ---
+const RoleIcon = ({ role }: { role: Role }) => {
+    switch (role) {
+        case 'Werewolf': return <CircleHelp className="h-5 w-5 text-red-600" />; // Placeholder
+        case 'Seer': return <ShieldCheck className="h-5 w-5 text-blue-600" />;
+        case 'Doctor': return <HeartPulse className="h-5 w-5 text-green-600" />;
+        case 'Villager': return <Users className="h-5 w-5 text-gray-600" />;
+        default: return null;
+    }
+};
 
-  // Optional: Add state for displaying potential errors from the server action
-  // const [error, setError] = useState<string | null>(null);
+const availableRoles: Role[] = ['Villager', 'Werewolf', 'Seer', 'Doctor'];
+const initialRoles: Role[] = ['Villager', 'Villager', 'Villager', 'Werewolf', 'Seer']; // Default 5 players
 
-  // Define roles to iterate over for form fields
-  const roles: Role[] = ['Werewolf', 'Seer', 'Doctor', 'Villager'];
+export default function StartGameForm() {
+    // State for the list of generated characters
+    const [characters, setCharacters] = useState<ConfigCharacter[]>([]);
+    // State for overall form submission loading
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    // State for initial character loading
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+    // State to track which roles are currently being generated
+    const [generatingRoles, setGeneratingRoles] = useState<Set<string>>(new Set()); // Use role + index as key
+    // State for displaying errors
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    // State for the selected AI model
+    const [selectedModel, setSelectedModel] = useState(DEFAULT_GAME_SETTINGS.aiModel);
 
-  return (
-    // Pass the server action directly to the form's action prop
-    // Next.js will automatically pass FormData
-    <form 
-      action={async (formData) => {
-          // setError(null); // Reset error on new submission
-          try {
-              await startGameAction(formData);
-              // Redirect happens in the action, no client-side handling needed
-          } catch (err) {
-              console.error("Starting game failed:", err);
-              // TODO: Improve error handling - maybe set an error state
-              // setError(err instanceof Error ? err.message : "An unknown error occurred");
-          }
-      }} 
-      className="mb-8 p-6 border rounded-lg shadow-md bg-white max-w-md mx-auto"
-    >
-       <h2 className="text-xl font-semibold mb-4 text-gray-700">Create New Game</h2>
-       
-       {/* AI Model Dropdown */}
-       <div className="mb-4">
-          <label htmlFor="aiModel" className="block text-sm font-medium text-gray-600 mb-1">
-            AI Model
-          </label>
-          <select
-            id="aiModel"
-            name="aiModel" // Name attribute is crucial for FormData
-            // Set default value if the default exists in the fetched list
-            defaultValue={availableModels.includes(DEFAULT_GAME_SETTINGS.aiModel) ? DEFAULT_GAME_SETTINGS.aiModel : ""}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
-            required // Make selection required if desired, or handle default logic better
-          >
-            {/* Optional: Add a default placeholder option */}
-            <option value="" disabled={availableModels.length > 0}>
-              {availableModels.length > 0 ? "-- Select Model --" : "-- No models found --"}
-            </option>
+    // Memoize validation result
+    const validation = useMemo(() => validateGameSetup(characters), [characters]);
+
+    // Function to add a character
+    const addCharacter = useCallback(async (role: Role) => {
+        const generationKey = `${role}-${Date.now()}`; // Unique key for loading state
+        setGeneratingRoles(prev => new Set(prev).add(generationKey));
+        setErrorMsg(null);
+        try {
+            const result = await generateCharacterAction(role, selectedModel);
+            if ('error' in result) {
+                throw new Error(result.error);
+            }
+            setCharacters(prev => [...prev, { ...result, clientId: crypto.randomUUID() }]);
+        } catch (err: any) { 
+            console.error(`Failed to generate ${role}:`, err);
+            setErrorMsg(`Failed to add ${role}: ${err.message}`);
+        } finally {
+            setGeneratingRoles(prev => {
+                const next = new Set(prev);
+                next.delete(generationKey);
+                return next;
+            });
+        }
+    }, [selectedModel]); // Dependency on selectedModel
+
+    // Function to remove a character
+    const removeCharacter = (clientIdToRemove: string) => {
+        setCharacters(prev => prev.filter(c => c.clientId !== clientIdToRemove));
+        setErrorMsg(null); // Clear error when list changes
+    };
+
+    // Effect for initial character load
+    useEffect(() => {
+        let isMounted = true;
+        setIsInitialLoading(true);
+        setErrorMsg(null);
+
+        const loadInitialCharacters = async () => {
+            const initialCharacterPromises = initialRoles.map(role => 
+                generateCharacterAction(role, selectedModel)
+            );
+            try {
+                const results = await Promise.all(initialCharacterPromises);
+                if (isMounted) {
+                    const successfulCharacters = results
+                        .filter((res): res is PlayerInitializationData => !('error' in res))
+                        .map(res => ({ ...res, clientId: crypto.randomUUID() }));
+                    
+                    const errors = results.filter(res => 'error' in res);
+                    if (errors.length > 0) {
+                        setErrorMsg(`Failed to generate some initial characters: ${errors.map(e => (e as any).error).join(', ')}`);
+                    }
+                    setCharacters(successfulCharacters);
+                }
+            } catch (err: any) {
+                 console.error("Failed initial character load:", err);
+                 if (isMounted) {
+                    setErrorMsg(`Error loading initial characters: ${err.message}`);
+                 }
+            } finally {
+                 if (isMounted) {
+                    setIsInitialLoading(false);
+                 }
+            }
+        };
+
+        loadInitialCharacters();
+
+        return () => { isMounted = false; }; // Cleanup function
+    }, [selectedModel]); // Reload if model changes
+
+    // Form submission handler
+    const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!validation.isValid || isSubmitting || isInitialLoading || generatingRoles.size > 0) return;
+
+        setIsSubmitting(true);
+        setErrorMsg(null);
+        try {
+            // Pass the current characters list (without clientId) and model
+            const result = await startGameAction( 
+                characters.map(({ clientId, ...rest }) => rest), // Remove temporary clientId
+                selectedModel 
+            );
+            if (result && 'error' in result) { // Handle error returned from action
+                throw new Error(result.error);
+            }
+            // Redirect happens in the action on success
+        } catch (error: any) {
+            console.error("Starting game failed:", error);
+            setErrorMsg(`Failed to start game: ${error.message}`);
+            setIsSubmitting(false); // Reset loading on error
+        }
+        // Do not reset loading here on success, as redirect should occur
+    };
+
+    // Calculate how many of each role are currently being generated
+    const generatingCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        generatingRoles.forEach(key => {
+            const role = key.split('-')[0]; // Extract role from generation key
+            counts[role] = (counts[role] || 0) + 1;
+        });
+        return counts;
+    }, [generatingRoles]);
+
+    return (
+        <form 
+            onSubmit={handleFormSubmit}
+            className="mb-8 p-6 border rounded-lg shadow-md bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 dark:border-gray-700 max-w-xl mx-auto text-gray-800 dark:text-gray-200"
+        >
+            <h2 className="text-2xl font-bold mb-6 text-gray-700 dark:text-gray-300 text-center">Configure New Game</h2>
             
-            {/* Add default model if not in fetched list (optional) */}
-            {!availableModels.includes(DEFAULT_GAME_SETTINGS.aiModel) && (
-                 <option key={DEFAULT_GAME_SETTINGS.aiModel} value={DEFAULT_GAME_SETTINGS.aiModel}>
-                     {DEFAULT_GAME_SETTINGS.aiModel} (Default)
-                 </option>
-            )}
+            {/* AI Model Selection */}
+            <div className="mb-6">
+                <label htmlFor="aiModel" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    AI Model
+                </label>
+                <select
+                    id="aiModel"
+                    name="aiModel"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)} // Changing model triggers useEffect reload
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 dark:text-gray-200"
+                    required
+                    disabled={isSubmitting || isInitialLoading || generatingRoles.size > 0}
+                >
+                    <option value={DEFAULT_GAME_SETTINGS.aiModel}>{DEFAULT_GAME_SETTINGS.aiModel}</option>
+                    <option value="llama3-70b-8192">llama3-70b-8192</option> 
+                    <option value="llama3-8b-8192">llama3-8b-8192</option> 
+                    <option value="gemma2-9b-it">gemma2-9b-it</option> 
+                    <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option> 
+                </select>
+            </div>
 
-            {/* Map fetched models */}
-            {availableModels.map((modelId) => (
-              <option key={modelId} value={modelId}>
-                {modelId}
-                {modelId === DEFAULT_GAME_SETTINGS.aiModel ? " (Default)" : ""}
-              </option>
-            ))}
-          </select>
-          {availableModels.length === 0 && (
-               <p className="text-xs text-red-500 mt-1">Could not fetch model list. Using default.</p>
-          )}
-       </div>
+            {/* Add Player Buttons */}
+            <div className="mb-4">
+                 <p className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2 text-center">Add Characters</p>
+                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {availableRoles.map(role => (
+                         <button
+                            key={role}
+                            type="button"
+                            onClick={() => addCharacter(role)}
+                            disabled={isSubmitting || isInitialLoading}
+                            className="flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                         >
+                            {generatingCounts[role] > 0 ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <UserPlus className="h-4 w-4"/>
+                            )}
+                             {role} {generatingCounts[role] > 0 ? `(${generatingCounts[role]})` : ''}
+                         </button>
+                    ))}
+                 </div>
+            </div>
+            
+            {/* Current Character List */}
+             <div className="mb-4 min-h-[150px] border rounded-md p-3 bg-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                 <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Current Setup ({validation.playerCount} Players)</h3>
+                 {isInitialLoading ? (
+                     <div className="flex justify-center items-center h-20">
+                         <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                         <span className="ml-2 text-sm text-gray-500">Loading initial characters...</span>
+                     </div>
+                 ) : characters.length === 0 && !isInitialLoading ? (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 italic text-center py-2">Click buttons above to add characters.</p>
+                 ) : (
+                     <ul className="space-y-1.5 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800 pr-1">
+                        {characters.map((char) => (
+                             <li key={char.clientId} className="flex items-center justify-between text-sm bg-white dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600 shadow-sm">
+                                 <span className="flex items-center gap-2 truncate">
+                                     <RoleIcon role={char.role} />
+                                     <span className="font-medium truncate" title={char.profile.characterName}>{char.profile.characterName}</span> 
+                                     <span className="text-gray-500 dark:text-gray-400">({char.role})</span>
+                                 </span>
+                                 <button 
+                                     type="button" 
+                                     onClick={() => removeCharacter(char.clientId)} 
+                                     disabled={isSubmitting || isInitialLoading}
+                                     className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-500 rounded-full focus:outline-none focus:ring-1 focus:ring-red-500 disabled:opacity-50"
+                                     aria-label={`Remove ${char.profile.characterName}`}
+                                 >
+                                     <X className="h-4 w-4" />
+                                 </button>
+                             </li>
+                        ))}
+                     </ul>
+                 )}
+             </div>
 
-       {/* Role Distribution Inputs */}
-       <fieldset className="mb-4 border p-4 rounded-md">
-           <legend className="text-sm font-medium text-gray-600 px-1">Role Counts</legend>
-           <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2">
-               {roles.map((role) => (
-                   <div key={role}>
-                       <label htmlFor={role} className="block text-sm font-medium text-gray-600 mb-1">
-                           {role}s
-                       </label>
-                       <input
-                           type="number"
-                           id={role}
-                           name={role} // Name matches the role key
-                           min="0"
-                           defaultValue={DEFAULT_GAME_SETTINGS.roleDistribution[role]}
-                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                           required // Ensure a value is provided
-                       />
-                   </div>
-               ))}
-           </div>
-            <p className="text-xs text-gray-500 mt-2">Total players will be calculated based on these counts.</p>
-       </fieldset>
+             {/* Status/Error Message Area */}
+            <div className="mb-4 h-10 text-center flex items-center justify-center"> 
+                {errorMsg ? (
+                    <p className="text-xs text-red-600 flex items-center"><ServerCrash className="h-4 w-4 mr-1"/> {errorMsg}</p>
+                ) : !isInitialLoading && !isSubmitting && (
+                    <p className={`text-xs ${validation.isValid ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {validation.message || ''}
+                    </p>
+                )}
+            </div>
 
-       <SubmitButton /> 
-
-       {/* Optional: Display error message */}
-       {/* {error && <p className="mt-2 text-sm text-red-600">{error}</p>} */}
-     </form>
-  );
+            {/* Submit Button */}
+            <button 
+                type="submit" 
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition duration-150 ease-in-out text-lg font-semibold disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex justify-center items-center"
+                disabled={isSubmitting || isInitialLoading || !validation.isValid || generatingRoles.size > 0}
+            >
+                {isSubmitting ? (
+                    <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Creating game...
+                    </>
+                ) : (
+                    'Start New Game'
+                )}
+            </button>
+        </form>
+    );
 } 

@@ -4,86 +4,67 @@ import { gameStateManager } from '@/lib/state/gameStateManager';
 import { determineNextSpeaker, initializeNewGame, advancePhase, checkWinCondition } from '@/lib/game/engine'; // Added initializeNewGame, advancePhase, checkWinCondition
 import { getAIResponse } from '@/lib/ai/openaiService';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { ChatMessage, GameState, NightAction, Player, Vote, Role } from '@/lib/types/game'; // Added Vote and Role
+import { ChatMessage, GameState, NightAction, Player, Vote, Role, GameSettings, PlayerInitializationData, AICharacterProfile } from '@/lib/types/game'; // Added Vote and Role, PlayerInitializationData, AICharacterProfile
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation'; // Added redirect
 import crypto from 'crypto';
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config'; // Added config imports
+import { generateAICharacterProfile, formatPersonaFromProfile, getAIGameTitleAndDescription } from '@/lib/ai/openaiService'; // Import generation utils
 
-// Action to start a new game - Updated to accept FormData
-export async function startGameAction(formData: FormData) { // <-- *** ADD formData PARAMETER HERE ***
-    console.log("Attempting to start a new game...");
+// Define the expected input shape for the action
+interface StartGameConfig {
+    aiModel: string;
+    roleDistribution: Record<Role, number>;
+}
+
+// Action to start a new game - Accepts player list and model
+export async function startGameAction(playerInitDataList: PlayerInitializationData[], aiModel: string) {
+    console.log(`Attempting to start a new game with ${playerInitDataList.length} players using model ${aiModel}`);
     
-    // Extract AI Model
-    const submittedModel = formData.get('aiModel') as string | null;
-    const aiModel = submittedModel?.trim() || DEFAULT_GAME_SETTINGS.aiModel;
-    console.log(`Using AI Model: ${aiModel}`);
-
-    // Extract Role Distribution
-    const roles: Role[] = ['Werewolf', 'Seer', 'Doctor', 'Villager'];
-    const roleDistribution: Record<Role, number> = { ...DEFAULT_GAME_SETTINGS.roleDistribution }; // Start with defaults
-
-    roles.forEach(role => {
-        const countStr = formData.get(role) as string | null;
-        if (countStr) {
-            const count = parseInt(countStr, 10);
-            // Use parsed count if it's a valid non-negative number, otherwise keep default
-            if (!isNaN(count) && count >= 0) { 
-                roleDistribution[role] = count;
-            } else {
-                 console.warn(`Invalid count submitted for ${role}: '${countStr}'. Using default ${roleDistribution[role]}.`);
-            }
-        }
-         // If countStr is null/empty, the default value remains
-    });
-    console.log("Using Role Distribution:", roleDistribution);
-
-    // Perform redirect after successful creation
     let gameIdToRedirect: string | null = null;
     try {
-        // 1. Calculate numPlayers based on the *submitted* distribution
-        const numPlayers = calculateNumPlayers(roleDistribution);
-        console.log(`Calculated number of players: ${numPlayers}`);
-
-        // Validate minimum players (optional but recommended)
-        if (numPlayers < 3) { // Example minimum - adjust as needed
-             throw new Error("A minimum of 3 players is required.");
+        // --- Basic Validation ---
+        if (!playerInitDataList || playerInitDataList.length < 5) {
+             throw new Error("A minimum of 5 players is required.");
         }
-        
-        const settings = { 
-            // Use the extracted/validated settings
-            roleDistribution: roleDistribution,
-            discussionRoundsPerPlayer: DEFAULT_GAME_SETTINGS.discussionRoundsPerPlayer, // Keep default for now
+        // --- End Validation ---
+
+        // --- Construct Settings --- 
+        const numPlayers = playerInitDataList.length;
+        const settings: GameSettings = { 
+            roleDistribution: playerInitDataList.reduce((acc, curr) => {
+                acc[curr.role] = (acc[curr.role] || 0) + 1;
+                return acc;
+            }, {} as Record<Role, number>),
+            discussionRoundsPerPlayer: DEFAULT_GAME_SETTINGS.discussionRoundsPerPlayer,
             aiModel: aiModel, 
             numPlayers: numPlayers
         };
+        // --- End Settings --- 
         
-        // 2. Generate ID/Timestamp
         const gameId = `game-${crypto.randomUUID()}`;
         const createdAt = Date.now();
         
-        // 3. Initialize State
-        const initialGameState = await initializeNewGame(settings, gameId, createdAt);
+        // --- Initialize Game State --- 
+        const initialGameState = await initializeNewGame(settings, gameId, createdAt, playerInitDataList); 
         
-        // 4. Create Game
-        const newGame = await gameStateManager.createGame(initialGameState); 
+        // --- Save Game State --- 
+        const newGame = await gameStateManager.createAndSaveGame(initialGameState); // Use the correct method
         console.log(`New game created with ID: ${newGame.gameId}`);
-        gameIdToRedirect = newGame.gameId; // Store ID for redirect
+        gameIdToRedirect = newGame.gameId;
 
     } catch (error: any) {
-        if (error.digest?.startsWith('NEXT_REDIRECT')) {
-            throw error; 
-        }
+        if (error.digest?.startsWith('NEXT_REDIRECT')) throw error; 
         console.error("Failed to start new game:", error);
-        // Pass the error message back or throw a more specific error
-        throw new Error(`Failed to create the game: ${error.message || 'Unknown error'}`); 
+        // Consider returning the error message to the UI instead of throwing
+        return { error: `Failed to create the game: ${error.message || 'Unknown error'}` }; 
     }
 
-    // 5. Redirect if successful
     if (gameIdToRedirect) {
         redirect(`/game/${gameIdToRedirect}`);
     } else {
-        throw new Error("Game created but failed to get ID for redirect.");
+        // This case might indicate an error occurred but wasn't caught properly
+        return { error: "Game creation failed unexpectedly." };
     }
 }
 
@@ -942,6 +923,27 @@ export async function deleteGameAction(gameId: string): Promise<void> {
 
     // Revalidate the home page path to update the list
     revalidatePath('/');
+}
+
+/**
+ * Server Action to generate a single AI character profile.
+ * Takes a role and AI model, returns the profile or null.
+ */
+export async function generateCharacterAction(
+    role: Role, 
+    aiModel: string
+): Promise<PlayerInitializationData | { error: string }> {
+    console.log(`Generating profile for role: ${role} using model ${aiModel}`);
+    try {
+        const profile = await generateAICharacterProfile(role, aiModel);
+        if (!profile) {
+            throw new Error("AI failed to generate a valid profile.");
+        }
+        return { role, profile };
+    } catch (error: any) {
+        console.error(`Error in generateCharacterAction for ${role}:`, error);
+        return { error: `Failed to generate character: ${error.message || 'Unknown error'}` };
+    }
 }
 
 // Add empty export for module compatibility if needed

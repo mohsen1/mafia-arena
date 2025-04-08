@@ -6,12 +6,13 @@ import {
     PlayerStatus, 
     GamePhase, 
     CharacterPreset,
-    ChatMessage
+    ChatMessage,
+    PlayerInitializationData
 } from '@/lib/types/game';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { getAIGameTitleAndDescription } from '@/lib/ai/openaiService';
+import { getAIGameTitleAndDescription, formatPersonaFromProfile } from '@/lib/ai/openaiService';
 
 // --- Load Character Presets from JSON ---
 
@@ -106,143 +107,75 @@ function listCharacterImageFiles(): string[] {
 // --- Game Initialization Logic ---
 
 /**
- * Initializes a new game state based on the provided settings.
- * Generates title/description using AI based on the characters.
- * This function is now ASYNCHRONOUS.
- *
- * @param settings The game settings defining player count, roles, etc.
- * @param gameId The unique ID for this game.
- * @param createdAt The timestamp when the game was created.
- * @returns Promise<GameState> - A promise resolving to the initial GameState object.
- * @throws If validation fails or AI generation fails (and no fallback is used).
+ * Initializes a new game state with AI-generated players.
  */
 export async function initializeNewGame(
     settings: GameSettings,
     gameId: string,
-    createdAt: number
+    createdAt: number,
+    playerInitData: PlayerInitializationData[] // Accept generated data
 ): Promise<GameState> {
-    const { numPlayers, roleDistribution, aiModel } = settings;
+    console.log(`Initializing game ${gameId} with ${settings.numPlayers} AI-generated players.`);
+    
+    // Shuffle the init data to randomize turn order
+    const shuffledInitData = shuffleArray([...playerInitData]);
 
-    // Validate character presets
-    if (characterPresets.length < numPlayers) {
-        throw new Error(`Not enough character presets (${characterPresets.length}) for the number of players (${numPlayers}).`);
-    }
-
-    // Get and validate character images
-    const imageFiles = listCharacterImageFiles();
-    if (imageFiles.length < numPlayers) {
-        console.warn(`Warning: Not enough unique character images (${imageFiles.length}) for the number of players (${numPlayers}). Images may be reused or missing.`);
-        // Pad with empty strings if not enough images
-        while (imageFiles.length < numPlayers) {
-            imageFiles.push(''); // Or handle differently, e.g., assign a default image URL
-        }
-    }
-    const shuffledImageFiles = shuffleArray(imageFiles);
-
-    // Validate role distribution
-    const totalRoles = Object.values(roleDistribution).reduce((sum, count) => sum + count, 0);
-    if (totalRoles !== numPlayers) {
-        throw new Error(`Role distribution count (${totalRoles}) does not match the number of players (${numPlayers}).`);
-    }
-
-    // Prepare roles based on distribution
-    const rolesToAssign: Role[] = [];
-    for (const [role, count] of Object.entries(roleDistribution)) {
-        for (let i = 0; i < count; i++) {
-            rolesToAssign.push(role as Role);
-        }
-    }
-    shuffleArray(rolesToAssign);
-
-    // Shuffle presets and take the required number
-    const shuffledPresets = shuffleArray([...characterPresets]);
-    const selectedPresets = shuffledPresets.slice(0, numPlayers);
-
-    // Create players (Keep persona details for title generation)
-    const playersArray: Player[] = []; 
-    for (let i = 0; i < numPlayers; i++) {
-        const playerId = `player-${crypto.randomUUID()}`;
-        const preset = selectedPresets[i];
-        const role = rolesToAssign[i];
-        const imageUrl = shuffledImageFiles[i] ? `/images/characters/${shuffledImageFiles[i]}` : undefined; 
-        
-        const player: Player = {
-            id: playerId,
-            name: preset.name,
-            persona: preset.persona, // Keep full persona temporarily
-            role: role,
-            imageUrl: imageUrl, 
-            status: 'alive',
-        };
-        playersArray.push(player);
-    }
-
-    // --- Generate Title/Description using AI ---
-    let title: string | undefined;
-    let description: string | undefined;
-    try {
-        const titleDesc = await getAIGameTitleAndDescription(
-            playersArray.map(p => ({ name: p.name, persona: p.persona })), // Pass necessary info
-            { model: aiModel } // Pass AI settings
-        );
-        title = titleDesc.title;
-        description = titleDesc.description;
-    } catch (aiError) {
-        console.error("AI Title/Description generation failed:", aiError);
-        // Using fallback in getAIGameTitleAndDescription, so we proceed
-        // If it threw, game creation would stop here.
-        // If a fallback is returned by the AI function:
-        const fallback = {
-            title: "A Game of Shadows",
-            description: "Suspicion hangs heavy in the air as the villagers seek the threat within."
-        };
-        title = fallback.title;
-        description = fallback.description;
-    }
-    // --- End AI Generation ---
-
-    // Convert player array to Record for state
     const players: Record<string, Player> = {};
     const livingPlayerIds: string[] = [];
-    playersArray.forEach(player => {
-        players[player.id] = player;
-        livingPlayerIds.push(player.id);
+
+    shuffledInitData.forEach((initData, index) => {
+        const playerId = `player-${crypto.randomUUID()}`;
+        livingPlayerIds.push(playerId);
+        
+        // Format persona string from the profile
+        const persona = formatPersonaFromProfile(initData.profile);
+
+        players[playerId] = {
+            id: playerId,
+            name: initData.profile.characterName, // Access name from profile
+            role: initData.role,
+            persona: persona, // Use formatted persona
+            imageUrl: undefined, // Access imageUrl from profile if it exists: initData.profile.imageUrl
+            status: 'alive',
+        };
+        console.log(`Created player: ${players[playerId].name} (${playerId}) as ${initData.role}`);
     });
 
-    // Initial moderator message (Adjust if starting phase changes)
-    const initialMessage: ChatMessage = {
-        messageId: `msg-${crypto.randomUUID()}`,
-        gameId: gameId,
-        speaker: { type: 'moderator' },
-        speakerName: "Moderator",
-        content: `Welcome to ${title || 'Werewolf'}! ${numPlayers} players have gathered under a cloud of suspicion. Let the introductions begin...`,
-        timestamp: Date.now(),
-        round: 1,
-        phase: 'DayIntroductions', // Start with introductions again
-        audience: { type: 'all' },
-    };
+    // Check if players object is empty (shouldn't happen with validation upstream)
 
-    // Create initial game state
     const initialState: GameState = {
         gameId: gameId,
         createdAt: createdAt,
-        title: title, // Add title
-        description: description, // Add description
         settings: settings,
-        players: players, 
-        livingPlayerIds: livingPlayerIds, 
-        phase: 'DayIntroductions', // Start phase
+        players: players,
+        livingPlayerIds: livingPlayerIds,
+        phase: 'DayIntroductions' as GamePhase, // Start with introductions
         round: 1,
-        turnOrderIndex: 0, 
-        conversationLog: [initialMessage],
+        turnOrderIndex: 0,
+        conversationLog: [
+             {
+                messageId: `msg-${crypto.randomUUID()}-start`,
+                gameId: gameId,
+                speaker: { type: 'moderator' },
+                speakerName: "Moderator",
+                 // TODO: Add game title/description from settings if available later
+                content: `Welcome! ${settings.numPlayers} players have gathered under a cloud of suspicion. Let the introductions begin...`,
+                timestamp: Date.now(),
+                round: 1,
+                phase: 'DayIntroductions' as GamePhase,
+                audience: { type: 'all' },
+            }
+        ],
         nightActions: [],
         votes: [],
-        _internalState: { 
-            werewolfChatLog: [],
-            seerResults: {}
-        }
+        lastEliminatedPlayerId: undefined,
+        winner: undefined,
+         _internalState: {
+             initialProfiles: playerInitData // Ensure this matches the type definition
+         }
     };
 
+    console.log("Game state initialized.");
     return initialState;
 }
 

@@ -62,6 +62,20 @@ export interface GameSettings {
  readonly aiModel: string; // e.g., 'gpt-4o'
 }
 
+export interface AICharacterProfile {
+  readonly characterName: string;
+  readonly appearanceFlavorText: string;
+  readonly backgroundBackstory: string;
+  readonly corePersonalityArchetype: string;
+  readonly keyPersonalityTraitsSummary: string;
+  readonly motivationsGoals: readonly string[];
+}
+
+export interface PlayerInitializationData {
+    readonly role: Role;
+    readonly profile: AICharacterProfile;
+}
+
 export interface GameState {
   readonly gameId: string;
   readonly createdAt: number; // Unix timestamp (ms or s)
@@ -82,6 +96,7 @@ export interface GameState {
   _internalState?: {
     werewolfChatLog?: ChatMessage[]; // Use mutable array
     seerResults?: Record<string, 'Werewolf' | 'Villager'>; // seerId -> targetId -> result (string literals)
+    initialProfiles?: PlayerInitializationData[]; // Add storage for initial profiles
   }
 }
 
