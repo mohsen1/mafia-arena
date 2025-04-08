@@ -53,7 +53,13 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     // Ref to track if playback ended successfully to prevent onerror race condition
     const playbackCompletedRef = useRef<boolean>(false);
     const componentId = useId();
-    const { requestToSpeak, doneSpeaking, currentlySpeakingId, registerForAutoPlay } = useSpokenText();
+    const {
+        requestToSpeak,
+        doneSpeaking,
+        currentlySpeakingId,
+        registerForAutoPlay,
+        isAudioGloballyEnabled
+    } = useSpokenText();
 
     // State for alignment data and current highlight position
     const [alignmentData, setAlignmentData] = useState<AlignmentData | null>(null);
@@ -71,7 +77,8 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
       return acc;
     }, '');
 
-    const canPlay = currentlySpeakingId === null || currentlySpeakingId === componentId;
+    // Check if this component *can* play (permission + global setting)
+    const canPlay = isAudioGloballyEnabled && (currentlySpeakingId === null || currentlySpeakingId === componentId);
     const isCurrentlySpeakingThis = currentlySpeakingId === componentId;
 
     // Function to find the character index based on time
@@ -116,16 +123,23 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
       }
     }, [isPlaying, alignmentData, findCharacterIndexForTime, componentId, hasPlaybackCompleted]);
 
-    // Effect to register for auto-play queue on mount if autoQueue is true
+    // Effect to register for auto-play queue
     useEffect(() => {
-        if (autoQueue) {
-            console.log(`[SpeakText ${componentId}] Registering for auto-play queue.`);
+        // Only register if globally enabled and autoQueue prop is true
+        if (isAudioGloballyEnabled && autoQueue) {
+            console.log(`[SpeakText ${componentId}] Registering for auto-play queue (Audio Enabled).`);
             registerForAutoPlay(componentId);
         }
-        // No cleanup needed for registration
-    }, [autoQueue, registerForAutoPlay, componentId]); // Rerun if props/identity change
+    }, [autoQueue, registerForAutoPlay, componentId, isAudioGloballyEnabled]); // Add dependency
 
     const handlePlayPause = useCallback(async (triggeredExternally = false) => {
+        // Prevent any action if audio is globally disabled
+        if (!isAudioGloballyEnabled) {
+            console.log(`[SpeakText ${componentId}] Audio globally disabled, preventing play/pause.`);
+            setError("Audio is disabled."); // Optional: provide feedback
+            return;
+        }
+
         const currentAudio = audioRef.current;
 
         if (!triggeredExternally && isPlaying && currentAudio) {
@@ -215,17 +229,19 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                     audioRef.current = audioToPlay; // Assign to ref immediately
                     // --- Assign event handlers ONCE ---
                     audioToPlay.onended = () => {
-                        // Success path
-                        if (!audioRef.current || playbackCompletedRef.current) return; // Guard against double calls
+                        if (!audioRef.current || playbackCompletedRef.current) return;
                         console.log(`[SpeakText ${componentId}] Audio ended naturally.`);
-                        playbackCompletedRef.current = true; // Set flag *first*
-                        
+                        playbackCompletedRef.current = true;
                         setIsPlaying(false);
                         setHasPlaybackCompleted(true);
-                        setHighlightedCharIndex(textContent.length - 1); 
+                        setHighlightedCharIndex(textContent.length - 1);
+
+                        // Call the onEnd prop passed from the parent FIRST
+                        onEnd?.(); 
+                        console.log(`[SpeakText ${componentId}] Called onEnd prop.`);
+                        // THEN call context to release the slot
                         doneSpeaking(componentId);
                         console.log(`[SpeakText ${componentId}] Called doneSpeaking via onended.`);
-                        onEnd?.(); 
                         
                         // Delayed cleanup
                         setTimeout(() => {
@@ -326,18 +342,19 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         doneSpeaking,
         textContent,
         voiceId,
-        onEnd // Added onEnd dependency
+        onEnd,
+        isAudioGloballyEnabled // Add dependency
     ]);
 
     // Effect to trigger playback when this component becomes the currentlySpeakingId
     useEffect(() => {
         console.log(`[SpeakText ${componentId}] Current Speaker Check: currentlySpeakingId=${currentlySpeakingId}`);
-        if (currentlySpeakingId === componentId && !isLoading && !isPlaying && !audioRef.current?.src) {
-             // Check !audioRef.current?.src to prevent replay if paused/errored
-            console.log(`[SpeakText ${componentId}] Current Speaker Effect Triggered: Calling handlePlayPause(true).`);
+        // Add check for global audio enabled
+        if (isAudioGloballyEnabled && currentlySpeakingId === componentId && !isLoading && !isPlaying && !audioRef.current?.src) {
+            console.log(`[SpeakText ${componentId}] Current Speaker Effect Triggered (Audio Enabled): Calling handlePlayPause(true).`);
             handlePlayPause(true); // Trigger playback internally
         }
-    }, [currentlySpeakingId, componentId, isLoading, isPlaying, handlePlayPause]);
+    }, [currentlySpeakingId, componentId, isLoading, isPlaying, handlePlayPause, isAudioGloballyEnabled]); // Add dependency
 
     // Effect to cleanup audio element, context state
     useEffect(() => {
@@ -423,9 +440,10 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
           size="icon"
           className='mr-2 flex-shrink-0' // Prevent button shrinking
           onClick={() => handlePlayPause()} // Let the handler figure out the action
-          // Disable button if loading, or if someone else is talking (and it's not this component)
-          disabled={isLoading || (!canPlay && !isCurrentlySpeakingThis)}
+          // Disable button if loading, OR if someone else is talking OR if audio is globally disabled
+          disabled={isLoading || !isAudioGloballyEnabled || (!canPlay && !isCurrentlySpeakingThis)}
           aria-label={isPlaying ? "Pause speaking" : "Speak text"}
+          title={!isAudioGloballyEnabled ? "Audio is disabled" : (isPlaying ? "Pause" : "Play")} // Add title for disabled state
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />

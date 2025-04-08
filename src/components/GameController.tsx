@@ -7,9 +7,13 @@ import {
   Pause,
   SkipForward,
   Loader2,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
 import { Button } from "@/components/ui/button"; // Import Button
+import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
+import { Label } from "@/components/ui/label"; // Import Label
 
 export default function GameController() {
   const {
@@ -18,6 +22,9 @@ export default function GameController() {
     runNextTurnAction,
     isLoadingNextTurn,
     t, // Get t function from context
+    // Get global audio state and toggle function
+    isAudioGloballyEnabled,
+    toggleAudioGloballyEnabled,
   } = useGameContext();
 
   const handleNextClick = () => {
@@ -83,6 +90,24 @@ export default function GameController() {
           )}
         </Button>
       </div>
+
+      {/* Row 2: Audio Toggle Checkbox */}
+      <div className="flex items-center space-x-2 rtl:space-x-reverse">
+          <Checkbox 
+              id="audio-toggle"
+              checked={isAudioGloballyEnabled}
+              onCheckedChange={() => toggleAudioGloballyEnabled()} 
+          />
+          <Label 
+              htmlFor="audio-toggle" 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-1"
+          >
+              {isAudioGloballyEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              {t('EnableAudioLabel', 'Enable Audio')}
+          </Label>
+      </div>
+
+      {/* Row 3: Loading Indicator (Conditional) */}
       <div
         className={`flex items-center gap-2 ${
           isLoadingNextTurn ? "block" : "hidden"

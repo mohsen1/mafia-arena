@@ -11,6 +11,7 @@ interface SpokenTextContextType {
   // Subscriptions might be less relevant now, but keep for potential other uses
   subscribeOnDoneSpeaking: (callback: OnDoneSpeakingCallback) => void;
   unsubscribeOnDoneSpeaking: (callback: OnDoneSpeakingCallback) => void;
+  isAudioGloballyEnabled: boolean;
 }
 
 const SpokenTextContext = createContext<SpokenTextContextType | undefined>(undefined);
@@ -20,11 +21,19 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
   const [queueVersion, setQueueVersion] = useState(0);
   const playbackQueueRef = useRef<string[]>([]);
   const subscribersRef = useRef<Set<OnDoneSpeakingCallback>>(new Set());
+  const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] = useState<boolean>(true);
 
   // Internal function to start the next item in the queue if possible
   const playNextInQueue = useCallback(() => {
-    // Check if the slot is free AND the queue has items
-    // This check should be reliable now as it's called from useEffect after state updates
+    // Check if audio is enabled globally before proceeding
+    if (!isAudioGloballyEnabled) {
+        console.log("[SpokenTextContext] Audio is globally disabled, not playing next in queue.");
+        // Optionally, clear the queue if audio is disabled?
+        // playbackQueueRef.current = [];
+        // setQueueVersion(v => v + 1);
+        return; 
+    }
+
     if (currentlySpeakingId === null && playbackQueueRef.current.length > 0) {
       const nextId = playbackQueueRef.current.shift(); // Dequeue
       if (nextId) {
@@ -36,18 +45,24 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
     } else {
          console.log(`[SpokenTextContext] playNextInQueue check failed (current: ${currentlySpeakingId}, queue: ${playbackQueueRef.current.length})`);
     }
-  }, [currentlySpeakingId]); // Add currentlySpeakingId back as dependency
+  }, [currentlySpeakingId, isAudioGloballyEnabled]); // Add isAudioGloballyEnabled dependency
 
-  // Effect to kick off the queue once on initial provider mount OR when speaker becomes null
+  // Effect to kick off the queue
   useEffect(() => {
     console.log(`[SpokenTextContext] Effect check. Speaker ID: ${currentlySpeakingId}, Queue size: ${playbackQueueRef.current.length}, Version: ${queueVersion}`);
-    if (currentlySpeakingId === null && playbackQueueRef.current.length > 0) {
-        console.log("[SpokenTextContext] Speaker is null & queue not empty, attempting to play next.");
+    // Add audio enabled check here too
+    if (isAudioGloballyEnabled && currentlySpeakingId === null && playbackQueueRef.current.length > 0) {
+        console.log("[SpokenTextContext] Speaker is null & queue not empty & audio enabled, attempting to play next.");
         playNextInQueue();
     }
-  }, [currentlySpeakingId, playNextInQueue, queueVersion]); // Add queueVersion dependency
+  }, [currentlySpeakingId, playNextInQueue, queueVersion, isAudioGloballyEnabled]); // Add dependency
 
   const registerForAutoPlay = useCallback((id: string) => {
+    // If audio is globally disabled, don't even queue it
+    if (!isAudioGloballyEnabled) {
+        console.log(`[SpokenTextContext] Audio disabled, ignoring registration for ${id}.`);
+        return;
+    }
     // Only add to queue, do not trigger playback here
     if (!playbackQueueRef.current.includes(id)) {
         playbackQueueRef.current.push(id);
@@ -57,11 +72,15 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
     } else {
         console.log(`[SpokenTextContext] ${id} already registered, ignoring.`);
     }
-  // No dependencies needed
-  }, []);
+  }, [isAudioGloballyEnabled]); // Add dependency
 
   // Manual request check
   const requestToSpeak = useCallback((id: string) => {
+    // If audio is globally disabled, deny the request
+    if (!isAudioGloballyEnabled) {
+        console.log(`[SpokenTextContext] Audio disabled, denying manual speak request for ${id}.`);
+        return false;
+    }
     if (currentlySpeakingId === null) {
       setCurrentlySpeakingId(id);
       console.log(`[SpokenTextContext] Granted manual speak request to ${id}.`);
@@ -69,7 +88,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
     }
     console.log(`[SpokenTextContext] Denied manual speak request to ${id}, ${currentlySpeakingId} is speaking.`);
     return false;
-  }, [currentlySpeakingId]);
+  }, [currentlySpeakingId, isAudioGloballyEnabled]); // Add dependency
 
   const doneSpeaking = useCallback((id: string) => {
     if (currentlySpeakingId === id) {
@@ -82,7 +101,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
           try { callback(id); } catch (error) { console.error("[SpokenTextContext] Error in subscriber callback:", error); }
       });
 
-      // Schedule playNextInQueue as a microtask AFTER setting state to null
+      // Schedule playNextInQueue - it will internally check if audio is enabled
       Promise.resolve().then(() => {
            console.log(`[SpokenTextContext] Microtask: Attempting playNextInQueue after ${id} finished.`);
            playNextInQueue();
@@ -91,8 +110,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
     } else {
          console.warn(`[SpokenTextContext] doneSpeaking called by ${id}, but ${currentlySpeakingId ?? 'null'} is the current speaker. Ignoring.`);
     }
-  // Add playNextInQueue back to dependencies
-  }, [currentlySpeakingId, playNextInQueue]);
+  }, [currentlySpeakingId, playNextInQueue]); // playNextInQueue already depends on isAudioGloballyEnabled
 
   const subscribeOnDoneSpeaking = useCallback((callback: OnDoneSpeakingCallback) => {
     subscribersRef.current.add(callback);
@@ -111,7 +129,8 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
       doneSpeaking,
       registerForAutoPlay,
       subscribeOnDoneSpeaking,
-      unsubscribeOnDoneSpeaking
+      unsubscribeOnDoneSpeaking,
+      isAudioGloballyEnabled
     }}>
       {children}
     </SpokenTextContext.Provider>

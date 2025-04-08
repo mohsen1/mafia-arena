@@ -15,7 +15,8 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, players }: MessageBubbleProps) {
     // Get necessary context functions and state
     const {
-        t // Keep t function from context
+        t, // Keep t function from context
+        reportAudioFinished // Get the function to report audio finish
     } = useGameContext();
 
     const speakerPlayer = message.speaker.type === 'player'
@@ -25,6 +26,11 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     const imageUrl = isModerator 
         ? '/images/characters/mod.png' 
         : speakerPlayer?.imageUrl;
+
+    // Callback for when SpeakText finishes
+    const handleAudioEnd = () => {
+        reportAudioFinished(message.messageId); 
+    };
 
     return (
         <div className={`flex items-start gap-3 p-2 rounded-lg transition-colors duration-200 `}>
@@ -50,8 +56,13 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                 <span className={`font-semibold text-gray-900 dark:text-gray-500 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>
                     {isModerator ? t('ModeratorLabel', 'Moderator') : message.speakerName}:
                 </span>
-                {/* Use SpeakText for the message content */}
-                <SpeakText voiceId={speakerPlayer?.voiceId} className="mt-1">
+                {/* Use SpeakText for the message content, pass onEnd */}
+                <SpeakText 
+                    voiceId={speakerPlayer?.voiceId} 
+                    className="mt-1" 
+                    autoQueue 
+                    onEnd={handleAudioEnd} // Pass the callback
+                >
                     {message.content}
                 </SpeakText>
                 {/* Timestamp (moved below SpeakText) */}

@@ -8,13 +8,12 @@ import {
 } from '@/lib/translation/languages';
 import { getOrGenerateTranslationsAction } from '@/app/actions';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useSpokenText } from './SpokenTextContext'; // Import useSpokenText
 
 // Define the shape of the context state
 interface GameContextState {
     gameState: FilteredGameState | null;
     setGameState: Dispatch<SetStateAction<FilteredGameState | null>>;
-    currentlyPlayingMessageId: string | null;
-    setCurrentlyPlayingMessageId: Dispatch<SetStateAction<string | null>>;
     isAutoRunning: boolean;
     toggleAutoRun: () => void;
     isLoadingNextTurn: boolean;
@@ -28,6 +27,11 @@ interface GameContextState {
     isTranslationLoading: boolean;
     translationError: string | null;
     t: (phraseKey: string, fallback?: string) => string;
+    // Add global audio state
+    isAudioGloballyEnabled: boolean;
+    toggleAudioGloballyEnabled: () => void;
+    // Add the missing function type
+    reportAudioFinished: (messageId: string) => void;
 }
 
 // Create the context with a default undefined value
@@ -49,10 +53,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     boundRunGameTurnAction
 }) => {
     const [gameState, setGameState] = useState<FilteredGameState | null>(initialGameState);
-    const [currentlyPlayingMessageId, setCurrentlyPlayingMessageId] = useState<string | null>(null);
     const [isAutoRunning, setIsAutoRunning] = useState<boolean>(false); // Default to paused
     const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
     const stopAudioCallbackRef = useRef<(() => void) | null>(null); // Ref to hold the current stop function
+    // Add global audio state
+    const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] = useState<boolean>(true);
 
     // --- Translation State ---
     const [translations, setTranslations] = useState<Record<string, string>>({});
@@ -60,6 +65,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     const [translationError, setTranslationError] = useState<string | null>(null);
     const gameLanguage = gameState?.language || 'English'; // Default to English if state is null
     // --- End Translation State ---
+
+    // Get currently speaking ID from SpokenTextContext
+    const { currentlySpeakingId: spokenTextCurrentlySpeakingId } = useSpokenText();
+
+    // --- Ref to track the latest spoken text ID --- 
+    const spokenTextIdRef = useRef<string | null>(spokenTextCurrentlySpeakingId);
+    useEffect(() => {
+        spokenTextIdRef.current = spokenTextCurrentlySpeakingId;
+    }, [spokenTextCurrentlySpeakingId]);
+    // --- End Ref --- 
 
     // --- Translation Loading Effect ---
     useEffect(() => {
@@ -110,10 +125,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
     // Function for MessageBubble to register its stop function
     const registerStopAudio = useCallback((messageId: string, stopFn: () => void) => {
-        if (messageId === currentlyPlayingMessageId) {
+        if (messageId === spokenTextCurrentlySpeakingId) {
             stopAudioCallbackRef.current = stopFn;
         }
-    }, [currentlyPlayingMessageId]);
+    }, [spokenTextCurrentlySpeakingId]);
 
     // Function to be called by MessageBubble to clear the stop function
     const unregisterStopAudio = useCallback((messageId: string) => {
@@ -123,25 +138,27 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
 
     const stopCurrentAudio = useCallback(() => {
-        console.log("[Context] Attempting to stop current audio");
+        console.log("[Context] Attempting to stop current audio via registered callback");
         stopAudioCallbackRef.current?.(); // Call the registered stop function
-        setCurrentlyPlayingMessageId(null); // Clear playing state
+        // No need to clear playing message ID here, let reportAudioFinished or unregister handle it?
+        // Let's keep it for now, ensures state consistency if stop is called mid-play
         stopAudioCallbackRef.current = null; // Clear the callback ref
     }, []);
 
-    const toggleAutoRun = useCallback(() => {
-        setIsAutoRunning(prev => {
-            const newState = !prev;
-            console.log("[Context] Toggle AutoRun:", newState);
-            if (!newState && currentlyPlayingMessageId) {
-                // If pausing and audio is playing, stop it
+    // Toggle global audio enabled state
+    const toggleAudioGloballyEnabled = useCallback(() => {
+         setIsAudioGloballyEnabled(prev => {
+             const newState = !prev;
+             console.log(`[Context] Global audio ${newState ? 'enabled' : 'disabled'}.`);
+             // If disabling audio, stop any currently playing sound
+             if (!newState) {
                  stopCurrentAudio();
-            }
-            return newState;
-        });
-    }, [currentlyPlayingMessageId, stopCurrentAudio]);
+             }
+             return newState;
+         });
+    }, [stopCurrentAudio]);
 
-
+    // --- Moved runNextTurnAction definition UP --- 
     const runNextTurnAction = useCallback(async () => {
         if (gameState?.phase === 'GameOver') {
             console.log("[Context] Game is over, skipping next turn action trigger.");
@@ -157,28 +174,57 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         }
          console.log("[Context] Running next turn action...");
         
-        // Stop any currently playing audio before proceeding
-        if (currentlyPlayingMessageId) {
+        if (isAudioGloballyEnabled && spokenTextCurrentlySpeakingId) {
              stopCurrentAudio();
         }
 
         setIsLoadingNextTurn(true);
         try {
-            // We don't directly await server actions here, revalidation handles update
             await boundRunGameTurnAction();
-            // Revalidation should trigger a state update via the GameClient useEffect
-            // We might set loading false optimistically or wait for state update
-            // Let's set it false after triggering, UI should update on revalidation
              console.log("[Context] Next turn action triggered.");
         } catch (error) {
             console.error("[Context] Error running next turn action:", error);
-             // Handle error state if needed
-        } finally {
-             // Setting false here might be too early if revalidation takes time
-             // Let GameClient handle setting it false when new state arrives
-             // setIsLoadingNextTurn(false);
         }
-    }, [gameState?.phase, isAutoRunning, isLoadingNextTurn, boundRunGameTurnAction, stopCurrentAudio, currentlyPlayingMessageId]);
+    }, [
+        gameState?.phase,
+        isAutoRunning,
+        isLoadingNextTurn,
+        boundRunGameTurnAction,
+        stopCurrentAudio,
+        spokenTextCurrentlySpeakingId,
+        isAudioGloballyEnabled
+    ]);
+    // --- End moved runNextTurnAction --- 
+
+    const toggleAutoRun = useCallback(() => {
+        setIsAutoRunning(prev => {
+            const newState = !prev;
+            console.log("[Context] Toggle AutoRun:", newState);
+            if (!newState && spokenTextCurrentlySpeakingId) {
+                console.log(`[Context toggleAutoRun] Pausing auto-run, stopping audio for ${spokenTextCurrentlySpeakingId}`);
+                stopCurrentAudio();
+            } 
+            
+            if (newState && isAudioGloballyEnabled && spokenTextCurrentlySpeakingId === null && !isLoadingNextTurn && gameState?.phase !== 'GameOver') {
+                console.log("[Context toggleAutoRun] Kicking off first turn for autoplay with audio enabled.");
+                setTimeout(() => runNextTurnAction(), 0); 
+            }
+
+            if (newState && !isAudioGloballyEnabled && !isLoadingNextTurn && gameState?.phase !== 'GameOver') {
+                console.log("[Context toggleAutoRun] Kicking off first turn for autoplay with audio disabled.");
+                setTimeout(() => runNextTurnAction(), 0);
+            }
+
+            return newState;
+        });
+    }, [
+        stopCurrentAudio, 
+        isAudioGloballyEnabled,
+        isLoadingNextTurn,     
+        gameState?.phase,      
+        runNextTurnAction,      
+        spokenTextCurrentlySpeakingId
+    ]);
 
     // Update context state if initialGameState prop changes (due to server revalidation)
      useEffect(() => {
@@ -187,82 +233,75 @@ export const GameProvider: React.FC<GameProviderProps> = ({
          setIsLoadingNextTurn(false); // Assume new state means loading is finished
      }, [initialGameState]);
 
-    // Effect to handle resuming/kick-starting auto-run when idle
+    // Effect to handle AUTOPLAY when IDLE (conditions depend on audio setting)
     useEffect(() => {
-        // Check if auto-run is enabled, nothing is currently playing, and not already loading
-        if (isAutoRunning && currentlyPlayingMessageId === null && !isLoadingNextTurn) {
-             // Check if the game is actually over before trying to run next turn
+        // Condition 1: AutoRun ON, Audio OFF, Idle -> Run Next
+        if (isAutoRunning && !isAudioGloballyEnabled && spokenTextCurrentlySpeakingId === null && !isLoadingNextTurn) {
              if (gameState?.phase !== 'GameOver') {
-                console.log("[Context Effect Idle Check] AutoRun enabled and idle, triggering next turn.");
-                // Add a small delay to prevent potential rapid loops
+                console.log("[Context Effect Idle Check] AutoRun ON, Audio OFF, Idle -> Triggering next turn.");
                 const timeoutId = setTimeout(() => {
-                    // Double-check conditions after delay, in case state changed rapidly
-                    if (isAutoRunning && currentlyPlayingMessageId === null && !isLoadingNextTurn && gameState?.phase !== 'GameOver') {
+                    // Double-check conditions after delay
+                    if (isAutoRunning && !isAudioGloballyEnabled && spokenTextCurrentlySpeakingId === null && !isLoadingNextTurn && gameState?.phase !== 'GameOver') {
                        runNextTurnAction();
                     }
-                }, 150); // Slightly longer delay than before?
-                return () => clearTimeout(timeoutId); // Cleanup timeout
+                }, 150); // Delay for audio disabled case
+                return () => clearTimeout(timeoutId);
              } else {
-                  console.log("[Context Effect Idle Check] AutoRun enabled but game is over.");
-                  // Optionally disable auto-run if game is over
-                  // setIsAutoRunning(false);
+                  console.log("[Context Effect Idle Check] AutoRun ON, Audio OFF, but game is over.");
              }
+        } else {
+            // If Audio is ON, this effect should NOT trigger the next turn.
+            // That responsibility shifts to reportAudioFinished.
+            // Log if needed for debugging, but no action here for the audio ON case.
+            // console.log(`[Context Effect Idle Check] Conditions not met for idle trigger (AutoRun: ${isAutoRunning}, AudioEnabled: ${isAudioGloballyEnabled}, PlayingID: ${currentlyPlayingMessageId}, Loading: ${isLoadingNextTurn})`);
         }
-    }, [isAutoRunning, currentlyPlayingMessageId, isLoadingNextTurn, runNextTurnAction, gameState?.phase]); // Dependencies ensure this runs when state becomes idle
+        // Dependencies: Check all conditions used
+    }, [isAutoRunning, isAudioGloballyEnabled, spokenTextCurrentlySpeakingId, isLoadingNextTurn, runNextTurnAction, gameState?.phase]);
 
-    // --- NEW: Function called by MessageBubble when audio ends ---
+    // Function called by MessageBubble (via SpeakText onEnd) when audio finishes
     const reportAudioFinished = useCallback((messageId: string) => {
         console.log(`[Context] Audio finished report for messageId: ${messageId}`);
 
-        // Identify the ID of the absolute latest message in the log
-        const latestLogMessageId = gameState?.conversationLog && gameState.conversationLog.length > 0
-            ? gameState.conversationLog[0].messageId // Log is reversed, [0] is newest
-            : null;
+        const latestLogMessageId = gameState?.conversationLog?.[0]?.messageId;
 
-        // Clear the currently playing ID *if* it matches the finished one
-        let wasPlayingThisMessage = false;
-        if (currentlyPlayingMessageId === messageId) {
-            wasPlayingThisMessage = true;
-            setCurrentlyPlayingMessageId(null); // Clear the playing ID
-        }
-        unregisterStopAudio(messageId); // Ensure stop callback is cleared regardless
+        unregisterStopAudio(messageId); 
 
-        // Check if auto-run should proceed *specifically because this audio finished*
-        // We only proceed if auto-running AND the message that just finished WAS the latest one.
-        if (isAutoRunning && wasPlayingThisMessage && messageId === latestLogMessageId && !isLoadingNextTurn) {
+        if (isAutoRunning && isAudioGloballyEnabled && messageId === latestLogMessageId && !isLoadingNextTurn) {
              if (gameState?.phase !== 'GameOver') {
-                console.log(`[Context reportAudioFinished] Autoplay enabled, finished latest message (${messageId}), triggering next turn.`);
-                // Add a slight delay
+                console.log(`[Context reportAudioFinished] AutoRun ON, Audio ON, Finished latest message (${messageId}), scheduling next turn check.`);
                 const timeoutId = setTimeout(() => {
-                     // Re-check conditions after delay
-                     if (isAutoRunning && currentlyPlayingMessageId === null && !isLoadingNextTurn && gameState?.phase !== 'GameOver') {
+                     // Re-check conditions using the REF for the speaking ID
+                     if (isAutoRunning && isAudioGloballyEnabled && spokenTextIdRef.current === null && !isLoadingNextTurn && gameState?.phase !== 'GameOver') {
+                         console.log('[Context reportAudioFinished] Running next turn after delay.');
                          runNextTurnAction();
+                     } else {
+                         // Log using the ref value for clarity
+                         console.log(`[Context reportAudioFinished] Conditions no longer met after delay (AutoRun: ${isAutoRunning}, AudioOn: ${isAudioGloballyEnabled}, SpeakingIDRef: ${spokenTextIdRef.current}, Loading: ${isLoadingNextTurn}, Phase: ${gameState?.phase})`);
                      }
-                }, 500); // Delay before next action after audio
-                 // No cleanup needed for this specific timeout instance
-             } else if (gameState?.phase === 'GameOver') {
-                  console.log(`[Context reportAudioFinished] Autoplay: Game is over.`);
+                }, 500); 
+             } else {
+                  console.log(`[Context reportAudioFinished] AutoRun ON, Audio ON: Game is over.`);
              }
         } else {
-             console.log(`[Context reportAudioFinished] Audio finished, but not proceeding (isAutoRunning: ${isAutoRunning}, wasPlayingThis: ${wasPlayingThisMessage}, isLatest: ${messageId === latestLogMessageId}, isLoading: ${isLoadingNextTurn})`);
+             console.log(`[Context reportAudioFinished] Audio finished, but not proceeding to next turn (isAutoRunning: ${isAutoRunning}, isAudioEnabled: ${isAudioGloballyEnabled}, messageId: ${messageId}, isLatest: ${messageId === latestLogMessageId}, isLoading: ${isLoadingNextTurn})`);
         }
 
     }, [
         isAutoRunning,
         isLoadingNextTurn,
-        gameState?.conversationLog, 
-        gameState?.phase,          
+        gameState?.conversationLog,
+        gameState?.phase,
         runNextTurnAction,
-        currentlyPlayingMessageId, // Need current value to compare
-        setCurrentlyPlayingMessageId, 
-        unregisterStopAudio
+        unregisterStopAudio,
+        isAudioGloballyEnabled, 
+        // We don't strictly need spokenTextCurrentlySpeakingId here anymore because we use the ref inside the timeout,
+        // but keeping it won't hurt and might be useful if the outer logic changes.
+        spokenTextCurrentlySpeakingId 
     ]);
 
     const value: GameContextState = {
         gameState,
         setGameState, // Provide setter if direct manipulation is needed, though usually avoid
-        currentlyPlayingMessageId,
-        setCurrentlyPlayingMessageId,
         isAutoRunning,
         toggleAutoRun,
         isLoadingNextTurn,
@@ -277,6 +316,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         isTranslationLoading,
         translationError,
         t, 
+        // Add global audio state and toggle
+        isAudioGloballyEnabled,
+        toggleAudioGloballyEnabled,
+        // Add the missing function
+        reportAudioFinished,
     };
 
     return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
@@ -288,6 +332,8 @@ export const useGameContext = (): GameContextState => {
     if (context === undefined) {
         throw new Error('useGameContext must be used within a GameProvider');
     }
+    // Ensure GameProvider is wrapped by SpokenTextProvider
+    // We could add a check here in development if needed
     return context;
 };
 

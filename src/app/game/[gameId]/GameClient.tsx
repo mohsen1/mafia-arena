@@ -27,7 +27,6 @@ function GameLayout() {
   const textDirection = gameState.language === "Persian" ? "rtl" : "ltr";
 
   return (
-    <SpokenTextProvider>
       <div className="grid grid-cols-[280px_1fr] h-screen" dir={textDirection}>
         {/* Left Column (Sidebar): Player List */}
         <GameSidebar />
@@ -41,7 +40,6 @@ function GameLayout() {
           <ConversationLog />
         </main>
       </div>
-    </SpokenTextProvider>
   );
 }
 
@@ -51,6 +49,7 @@ export default function GameClient({
   boundRunGameTurnAction,
 }: GameClientProps) {
   return (
+    <SpokenTextProvider>
     <GameProvider
       initialGameState={initialGameState}
       gameId={gameId}
@@ -58,5 +57,6 @@ export default function GameClient({
     >
       <GameLayout />
     </GameProvider>
+    </SpokenTextProvider>
   );
 }
