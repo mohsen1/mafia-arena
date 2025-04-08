@@ -25,6 +25,7 @@ export function PlayerCard({
   const altTextTemplate = t('PlayerImageAlt', `Image of {name}`);
   // Replace the placeholder with the actual player name
   const altText = altTextTemplate.replace("{name}", player.name);
+  
 
   return (
     <div
