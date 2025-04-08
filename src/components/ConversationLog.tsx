@@ -1,16 +1,16 @@
 import { MessageBubble } from "@/components/MessageBubble";
-import { useGameContext } from "@/context/GameContext"; // Import context hook
+import { useGameContext } from "@/context/GameContext"; 
 
-export function ConversationLog() { // Remove props
-    const { gameState } = useGameContext(); // Use context
+export function ConversationLog() { 
+    const { gameState } = useGameContext(); 
 
     if (!gameState) return null;
     const { conversationLog, players } = gameState;
 
     return (
-        <section className="flex-grow p-4 overflow-hidden flex flex-col">
+        <section className="flex-grow overflow-hidden flex flex-col">
             {/* Outer container enables scrolling */}
-            <div className="flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg shadow-inner">
+            <div className="flex-grow overflow-y-auto p-3">
                 {/* Inner container reverses flex order */}
                 <div className="flex flex-col-reverse gap-3">
                     {conversationLog.length > 0 ? (

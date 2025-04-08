@@ -4,6 +4,7 @@ import { deleteGameAction } from '@/app/actions';
 import { FilteredGameState } from '@/lib/types/game';
 import StartGameForm from '@/components/StartGameForm'; 
 import { getGroqModels } from '@/lib/groq/api';
+import { Button } from '@/components/ui/button';
 
 // Component for displaying a single game card in the list
 function GameCard({ game }: { game: FilteredGameState }) {
@@ -11,9 +12,9 @@ function GameCard({ game }: { game: FilteredGameState }) {
     const deleteThisGame = deleteGameAction.bind(null, game.gameId);
 
     return (
-        <li className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700 flex justify-between items-start gap-4">
+        <li className="flex justify-between items-start gap-4">
             <div className="flex-grow">
-                <h3 className="text-lg font-semibold mb-1 text-blue-700 dark:text-blue-400">
+                <h3 className="text-lg font-semibold mb-1">
                     <Link href={`/game/${game.gameId}`} className="hover:underline">
                         {game.title || `Game ${game.gameId.substring(0, 8)}...`}
                     </Link>
@@ -28,13 +29,14 @@ function GameCard({ game }: { game: FilteredGameState }) {
             </div>
             {/* Delete Button Form */}    
             <form action={deleteThisGame} className="flex-shrink-0">
-                 <button 
+                 <Button
                      type="submit" 
-                     className="px-3 py-1 bg-red-600 text-white text-xs rounded shadow hover:bg-red-700 disabled:bg-gray-400 transition duration-150 ease-in-out"
+                     variant="outline"
+                     size="sm"
                      // Optional: Add confirmation later
                  >
                      Delete
-                 </button>
+                 </Button>
              </form>
         </li>
     );
@@ -55,7 +57,7 @@ export default async function Home() {
     const existingGames = gameStatesResults.filter((state): state is FilteredGameState => state !== null);
 
     return (
-        <main className="container mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        <main className=" mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen">
             <h1 className="text-4xl font-bold mt-8 mb-6 text-center">Werewolf AI</h1>
 
             {/* Pass the fetched models to the form */}

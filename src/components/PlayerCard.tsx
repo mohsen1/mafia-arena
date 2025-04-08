@@ -5,7 +5,7 @@ import { Role } from '@/lib/types/game'; // Assuming Role type exists
 // Player Card Component with Dark Mode
 export function PlayerCard({ player, role }: { player: FilteredGameState['players'][string]; role?: Role }) {
     return (
-        <div className={`p-2 flex items-center transition-colors duration-200 ${player.status === 'dead' ? 'bg-gray-300 dark:bg-gray-700 opacity-60' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}>
+        <div className={`p-2 flex items-center transition-colors duration-200 ${player.status === 'dead' ? 'opacity-25' : ''}`}>
             {player.imageUrl ? (
                 <Image
                     src={player.imageUrl}

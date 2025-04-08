@@ -1,11 +1,19 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Loader2, X, UserPlus, Users, ShieldCheck, HeartPulse, CircleHelp, ServerCrash } from 'lucide-react'; // Added icons
-import { startGameAction, generateCharacterAction } from '@/app/actions'; // Import both actions
+import { generateCharacterAction, startGameAction } from '@/app/actions'; // Import both actions
 import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
-import { Role, PlayerInitializationData, AICharacterProfile } from '@/lib/types/game'; // Import necessary types
+import { PlayerInitializationData, Role } from '@/lib/types/game'; // Import necessary types
+import { Loader2, ServerCrash, UserPlus, Users, X } from 'lucide-react'; // Added icons
 import Image from 'next/image'; // Import Next.js Image component
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button'; // Import the Button component
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from "@/components/ui/select"; // Import Select components
 
 // Update ConfigCharacter to include imageUrl
 interface ConfigCharacter extends PlayerInitializationData {
@@ -67,16 +75,7 @@ function validateGameSetup(characters: ConfigCharacter[]): ValidationResult {
     return { isValid: true, message: `Ready: ${playerCount} players.`, playerCount, roleCounts };
 }
 
-// --- Role Icons (no changes needed) ---
-const RoleIcon = ({ role }: { role: Role }) => {
-    switch (role) {
-        case 'Werewolf': return <CircleHelp className="h-5 w-5 text-red-600" />; // Placeholder
-        case 'Seer': return <ShieldCheck className="h-5 w-5 text-blue-600" />;
-        case 'Doctor': return <HeartPulse className="h-5 w-5 text-green-600" />;
-        case 'Villager': return <Users className="h-5 w-5 text-gray-600" />;
-        default: return null;
-    }
-};
+
 
 const availableRoles: Role[] = ['Villager', 'Werewolf', 'Seer', 'Doctor'];
 
@@ -240,7 +239,7 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
     return (
         <form 
             onSubmit={handleFormSubmit}
-            className="mb-8 p-6 border rounded-lg shadow-md bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 dark:border-gray-700 max-w-xl mx-auto text-gray-800 dark:text-gray-200"
+            className="mb-8 p-6 "
         >
             <h2 className="text-2xl font-bold mb-6 text-gray-700 dark:text-gray-300 text-center">Configure New Game</h2>
             
@@ -249,24 +248,26 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
                 <label htmlFor="aiModel" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                     AI Model
                 </label>
-                <select
-                    id="aiModel"
-                    name="aiModel"
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 dark:text-gray-200"
-                    required
+                <Select 
+                    value={selectedModel} 
+                    onValueChange={setSelectedModel} // Use onValueChange
+                    required 
                     disabled={isSubmitting || isInitialLoading || generatingRoles.size > 0 || availableModels.length === 0}
                 >
-                    {availableModels.length === 0 ? (
-                        <option value="" disabled>Loading models...</option>
-                    ) : (
-                        availableModels.map(modelId => (
-                            <option key={modelId} value={modelId}>{modelId}</option>
-                        ))
-                    )}
-                </select>
-                 {availableModels.length === 0 && (
+                     <SelectTrigger className="w-full" id="aiModel"> 
+                         <SelectValue placeholder="Select an AI model" />
+                     </SelectTrigger>
+                     <SelectContent>
+                        {availableModels.length === 0 ? (
+                             <SelectItem value="loading" disabled>Loading models...</SelectItem> // Placeholder item
+                        ) : (
+                            availableModels.map(modelId => (
+                                 <SelectItem key={modelId} value={modelId}>{modelId}</SelectItem>
+                            ))
+                        )}
+                    </SelectContent>
+                </Select>
+                 {availableModels.length === 0 && !isInitialLoading && ( // Only show if not initial loading
                       <p className="text-xs text-yellow-600 mt-1">Could not load models. Using default.</p>
                   )}
             </div>
@@ -276,12 +277,13 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
                  <p className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2 text-center">Add Characters</p>
                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {availableRoles.map(role => (
-                         <button
+                         <Button // Changed to Button component
                             key={role}
                             type="button"
                             onClick={() => addCharacter(role)}
                             disabled={isSubmitting || isInitialLoading}
-                            className="h-10 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            variant="outline" // Added variant
+                            className="h-10 flex items-center justify-center gap-2" // Adjusted className
                          >
                             {generatingCounts[role] > 0 ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -289,13 +291,13 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
                                 <UserPlus className="h-4 w-4"/>
                             )}
                              {role}
-                         </button>
+                         </Button>
                     ))}
                  </div>
             </div>
             
             {/* Current Character List */}
-             <div className="mb-4 min-h-[150px] border rounded-md p-3 bg-gray-100 dark:bg-gray-800 dark:border-gray-700">
+             <div className="mb-4 min-h-[150px] p-4">
                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Current Setup ({validation.playerCount} Players)</h3>
                  {isInitialLoading ? (
                      <div className="flex justify-center items-center h-20">
@@ -323,19 +325,20 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
                                               <Users className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                                          </div>
                                      )}
-                                     <RoleIcon role={char.role} />
                                      <span className="font-medium truncate" title={char.profile.characterName}>{char.profile.characterName}</span> 
                                      <span className="text-gray-500 dark:text-gray-400">({char.role})</span>
                                  </span>
-                                 <button 
+                                 <Button // Changed to Button component
                                      type="button" 
                                      onClick={() => removeCharacter(char.clientId)} 
                                      disabled={isSubmitting || isInitialLoading}
-                                     className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-500 rounded-full focus:outline-none focus:ring-1 focus:ring-red-500 disabled:opacity-50"
+                                     variant="ghost" // Added variant
+                                     size="icon" // Added size
+                                     className="p-0.5 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-500" // Adjusted className
                                      aria-label={`Remove ${char.profile.characterName}`}
                                  >
                                      <X className="h-4 w-4" />
-                                 </button>
+                                 </Button>
                              </li>
                         ))}
                      </ul>
@@ -354,9 +357,10 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
             </div>
 
             {/* Submit Button */}
-            <button 
+            <Button // Changed to Button component
                 type="submit" 
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition duration-150 ease-in-out text-lg font-semibold disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex justify-center items-center"
+                className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer" // Adjusted className
+                size="lg" // Added size
                 disabled={isSubmitting || isInitialLoading || !validation.isValid || generatingRoles.size > 0}
             >
                 {isSubmitting ? (
@@ -367,7 +371,7 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
                 ) : (
                     'Start New Game'
                 )}
-            </button>
+            </Button>
         </form>
     );
 } 

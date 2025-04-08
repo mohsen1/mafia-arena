@@ -5,6 +5,7 @@ import { FilteredGameState, ChatMessage } from "@/lib/types/game";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Volume, CheckCircle, Loader2 } from 'lucide-react';
 import { useGameContext } from '@/context/GameContext'; // Import context hook
+import { Button } from "./ui/button"; // Import Button
 
 // Define the props
 interface MessageBubbleProps {
@@ -388,7 +389,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
      }, [stopAndCleanup, message.messageId]); 
     
     return (
-        <div className={`flex items-start gap-3 p-2 rounded-lg transition-colors duration-200 ${isModerator ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-300 text-sm italic' : 'bg-white dark:bg-gray-700'}`}>
+        <div className={`flex items-start gap-3 p-2 rounded-lg transition-colors duration-200 `}>
             {/* Speaker Image */} 
              <div className="flex-shrink-0 mt-1">
                  {imageUrl ? (
@@ -415,17 +416,19 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                     </div>
                     {/* Button: Now always shown */}
                     {/* {!isModerator && ( */} 
-                        <button 
+                        <Button // Changed to Button component
                             onClick={audioStatus === 'playing' || audioStatus === 'loading' ? () => stopAndCleanup('user_stop') : playAudio}
                             disabled={false}
-                            className="flex-shrink-0 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
+                            variant="ghost" // Added variant
+                            size="icon" // Added size
+                            className="flex-shrink-0 ml-2" // Adjusted className
                             aria-label={audioStatus === 'playing' || audioStatus === 'loading' ? "Stop reading" : "Read message aloud"}
                         >
                             {audioStatus === 'idle' && <Volume className="h-4 w-4 text-gray-500 dark:text-gray-400" />} 
                             {(audioStatus === 'loading' || audioStatus === 'playing') && <Loader2 className="h-4 w-4 text-blue-500 dark:text-blue-400 animate-spin" />}
                             {audioStatus === 'done' && <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />}
                             {audioStatus === 'error' && <span className="h-4 w-4 text-red-500">!</span>} 
-                        </button>
+                        </Button>
                     {/* )} */}
                 </div>
             </div>
