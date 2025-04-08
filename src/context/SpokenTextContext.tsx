@@ -8,7 +8,6 @@ interface SpokenTextContextType {
   requestToSpeak: (id: string) => boolean; // Can component `id` play now? (manual trigger check)
   doneSpeaking: (id: string) => void;
   registerForAutoPlay: (id: string) => void; // Add component `id` to the auto-play queue
-  deregister: (id: string) => void; // Add deregister function
   // Subscriptions might be less relevant now, but keep for potential other uses
   subscribeOnDoneSpeaking: (callback: OnDoneSpeakingCallback) => void;
   unsubscribeOnDoneSpeaking: (callback: OnDoneSpeakingCallback) => void;
@@ -18,6 +17,7 @@ const SpokenTextContext = createContext<SpokenTextContextType | undefined>(undef
 
 export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState<string | null>(null);
+  const [queueVersion, setQueueVersion] = useState(0);
   const playbackQueueRef = useRef<string[]>([]);
   const subscribersRef = useRef<Set<OnDoneSpeakingCallback>>(new Set());
 
@@ -40,35 +40,24 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
 
   // Effect to kick off the queue once on initial provider mount OR when speaker becomes null
   useEffect(() => {
-    console.log(`[SpokenTextContext] Speaker ID changed to: ${currentlySpeakingId}. Queue size: ${playbackQueueRef.current.length}`);
-    // If the slot just became free AND there are items waiting, play the next one.
+    console.log(`[SpokenTextContext] Effect check. Speaker ID: ${currentlySpeakingId}, Queue size: ${playbackQueueRef.current.length}, Version: ${queueVersion}`);
     if (currentlySpeakingId === null && playbackQueueRef.current.length > 0) {
-        console.log("[SpokenTextContext] Speaker is null, attempting to play next from queue.");
+        console.log("[SpokenTextContext] Speaker is null & queue not empty, attempting to play next.");
         playNextInQueue();
     }
-    // If it runs on mount (currentlySpeakingId is initially null) it will also kick off queue.
-  }, [currentlySpeakingId, playNextInQueue]); // Runs when currentlySpeakingId changes
+  }, [currentlySpeakingId, playNextInQueue, queueVersion]); // Add queueVersion dependency
 
   const registerForAutoPlay = useCallback((id: string) => {
     // Only add to queue, do not trigger playback here
     if (!playbackQueueRef.current.includes(id)) {
         playbackQueueRef.current.push(id);
         console.log(`[SpokenTextContext] Registered ${id}. Queue: [${playbackQueueRef.current.join(', ')}]`);
+        // Increment version to trigger effect check
+        setQueueVersion(v => v + 1);
     } else {
         console.log(`[SpokenTextContext] ${id} already registered, ignoring.`);
     }
-  }, []);
-
-  // Add deregister function
-  const deregister = useCallback((id: string) => {
-    const initialLength = playbackQueueRef.current.length;
-    playbackQueueRef.current = playbackQueueRef.current.filter(itemId => itemId !== id);
-    if (playbackQueueRef.current.length < initialLength) {
-        console.log(`[SpokenTextContext] Deregistered ${id}. Queue: [${playbackQueueRef.current.join(', ')}]`);
-    } else {
-        // This might happen if it was already dequeued or never registered properly
-        console.log(`[SpokenTextContext] Attempted to deregister ${id}, but it was not found in queue.`);
-    }
+  // No dependencies needed
   }, []);
 
   // Manual request check
@@ -85,7 +74,6 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
   const doneSpeaking = useCallback((id: string) => {
     if (currentlySpeakingId === id) {
       console.log(`[SpokenTextContext] ${id} reported done speaking. Setting speaker to null.`);
-      // JUST set the state to null. The useEffect watching currentlySpeakingId will handle playing next.
       setCurrentlySpeakingId(null);
 
       // Notify subscribers (optional)
@@ -94,11 +82,17 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
           try { callback(id); } catch (error) { console.error("[SpokenTextContext] Error in subscriber callback:", error); }
       });
 
+      // Schedule playNextInQueue as a microtask AFTER setting state to null
+      Promise.resolve().then(() => {
+           console.log(`[SpokenTextContext] Microtask: Attempting playNextInQueue after ${id} finished.`);
+           playNextInQueue();
+      });
+
     } else {
          console.warn(`[SpokenTextContext] doneSpeaking called by ${id}, but ${currentlySpeakingId ?? 'null'} is the current speaker. Ignoring.`);
     }
-  // Remove playNextInQueue dependency here, it's handled by the effect
-  }, [currentlySpeakingId]);
+  // Add playNextInQueue back to dependencies
+  }, [currentlySpeakingId, playNextInQueue]);
 
   const subscribeOnDoneSpeaking = useCallback((callback: OnDoneSpeakingCallback) => {
     subscribersRef.current.add(callback);
@@ -116,7 +110,6 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({ children
       requestToSpeak,
       doneSpeaking,
       registerForAutoPlay,
-      deregister,
       subscribeOnDoneSpeaking,
       unsubscribeOnDoneSpeaking
     }}>

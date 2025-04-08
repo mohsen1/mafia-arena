@@ -53,7 +53,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     // Ref to track if playback ended successfully to prevent onerror race condition
     const playbackCompletedRef = useRef<boolean>(false);
     const componentId = useId();
-    const { requestToSpeak, doneSpeaking, currentlySpeakingId, registerForAutoPlay, deregister } = useSpokenText();
+    const { requestToSpeak, doneSpeaking, currentlySpeakingId, registerForAutoPlay } = useSpokenText();
 
     // State for alignment data and current highlight position
     const [alignmentData, setAlignmentData] = useState<AlignmentData | null>(null);
@@ -339,18 +339,16 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         }
     }, [currentlySpeakingId, componentId, isLoading, isPlaying, handlePlayPause]);
 
-    // Effect to cleanup audio element, context state, and registration
+    // Effect to cleanup audio element, context state
     useEffect(() => {
-        const audio = audioRef.current; // Capture ref value at effect setup
-        const currentId = componentId; // Capture componentId
-        // Capture speaking state AT RENDER TIME for cleanup logic
+        const audio = audioRef.current;
+        const currentId = componentId;
         const wasSpeakingAtRender = currentlySpeakingId === currentId;
         console.log(`[SpeakText ${currentId}] Cleanup Effect Setup. wasSpeakingAtRender: ${wasSpeakingAtRender}`);
 
         return () => {
             console.log(`[SpeakText ${currentId}] Cleanup Effect Run. wasSpeakingAtRender: ${wasSpeakingAtRender}`);
-            // Deregister from the queue regardless
-            deregister(currentId);
+            // REMOVED: deregister call
 
             if (audio) {
                 audio.pause();
@@ -376,8 +374,8 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                  console.log(`[SpeakText ${currentId}] Skipping doneSpeaking on unmount because it was not the active speaker.`);
             }
         };
-    // Update dependencies for cleanup
-    }, [componentId, currentlySpeakingId, doneSpeaking, deregister]);
+    // Remove deregister from dependencies
+    }, [componentId, currentlySpeakingId, doneSpeaking]);
 
     // Helper function to convert Base64 to Blob
     function base64ToBlob(base64: string, contentType = 'audio/mpeg'): Blob {
