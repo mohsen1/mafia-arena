@@ -67,11 +67,12 @@ export interface AICharacterProfile {
   readonly characterName: string;
   readonly gender: 'male' | 'female';
   readonly ageCategory: 'young' | 'old';
-  readonly appearanceFlavorText: string;
-  readonly backgroundBackstory: string;
-  readonly corePersonalityArchetype: string;
-  readonly keyPersonalityTraitsSummary: string;
-  readonly motivationsGoals: readonly string[];
+  readonly roleInCommunity: string;
+  readonly appearance: string;
+  readonly background: string;
+  readonly personalityArchetype: string;
+  readonly keyTraits: string;
+  readonly motivations: readonly string[];
 }
 
 export interface PlayerInitializationData {

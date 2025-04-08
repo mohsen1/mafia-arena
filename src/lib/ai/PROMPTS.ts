@@ -18,24 +18,24 @@ export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (role: string, existi
 in a rustic, superstitious village.
 Generate a character profile for the role of **${role}**.${existingCharsContext}
 
-Respond ONLY with the character profile text, formatted EXACTLY like this example (including the labels):
-
-Name: [Character Name]
-Role in Community: [Archetype or Profession]
-Appearance: [1-2 sentences describing visual appearance]
-Background: [2-3 sentences covering origin, profession, key life events, reputation - make it distinct]
-Personality Archetype: [e.g., The Cynic, The Protector - try to vary from existing]
-Key Traits: [1-2 sentences summarizing key traits like suspicion, honesty, confidence - aim for diversity]
-Motivations: [List 2-3 motivations, comma-separated]
-
-Gender: [male or female] 
-Age Category: [young or old]
+Respond ONLY with a valid JSON object adhering to the following structure:
+{
+  "characterName": "[Character Name]",
+  "roleInCommunity": "[Archetype or Profession]",
+  "appearance": "[1-2 sentences describing visual appearance]",
+  "background": "[2-3 sentences covering origin, profession, key life events, reputation - make it distinct]",
+  "personalityArchetype": "[e.g., The Cynic, The Protector - try to vary from existing, consider archetypes prone to suspicion or argument]",
+  "keyTraits": "[1-2 sentences summarizing key traits like suspicion, honesty, confidence - aim for diversity, consider traits that drive interaction/conflict]",
+  "motivations": ["[Motivation 1]", "[Motivation 2]", "[Motivation 3]"],
+  "gender": "[male or female]",
+  "ageCategory": "[young or old]"
+}
 
 Ensure the details are appropriate for the assigned role (${role}) and the game's setting.
 Be creative but maintain consistency.
 CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${role}) or mention the game mechanics 
-(like roles, phases, werewolves) in your introduction. Keep it purely in-character as if meeting 
-the others in the village square under tense circumstances.`;
+(like roles, phases, werewolves) in the profile fields. Keep it purely in-character.
+Output ONLY the JSON object.`;
 
 // --- Game Turn Prompts ---
 
@@ -56,12 +56,13 @@ Your Character Name: ${characterName}
 Your Assigned Role (SECRET): ${role}
 
 The current game phase is Day Introductions. The villagers have gathered, and it's your turn to speak.
-Your task is to introduce yourself briefly to the other players (1-2 sentences, maximum 30 words).
-Speak in the first person, embodying the character described in your details.
-Behave according to your personality traits and background.
-CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${role}) or mention the game mechanics 
-(like roles, phases, werewolves) in your introduction. Keep it purely in-character as if meeting 
-the others in the village square under tense circumstances.`;
+Your task is to introduce yourself briefly (1-2 sentences, maximum 30 words).
+Speak in the FIRST PERSON, embodying your character. Use an INFORMAL, conversational tone.
+Hint at your personality or maybe a pre-existing suspicion if it fits your character.
+Make it sound like a real villager talking, not a formal announcement.
+
+CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${role}) or mention game mechanics 
+(like roles, phases, werewolves). Keep it purely in-character under tense circumstances.`;
 
 /**
  * Generates the base system prompt for night actions.
@@ -79,7 +80,8 @@ ${persona}
 Your Character Name: ${characterName}
 Your Assigned Role (SECRET): ${role}
 
-The current game phase is Night. It is time for you to perform your nightly action.`;
+The current game phase is Night. It is time for you to perform your nightly action.
+Think about who seemed suspicious during the day's discussions (if any). Use your instincts and role.`;
 
 /**
  * Generates the system prompt for a Werewolf choosing a target.
@@ -91,7 +93,7 @@ export const NIGHT_ACTION_WEREWOLF_PROMPT = (
 ) => 
 `${NIGHT_ACTION_BASE_PROMPT(persona, characterName, 'Werewolf')}
 
-As a Werewolf, choose one player from the list below to eliminate tonight. 
+As a Werewolf, choose one player from the list below to eliminate tonight. Consider who might be a threat or who drew suspicion today.
 Respond ONLY with the number corresponding to the player.
 
 Living Non-Werewolf Players:
@@ -107,7 +109,7 @@ export const NIGHT_ACTION_SEER_PROMPT = (
 ) => 
 `${NIGHT_ACTION_BASE_PROMPT(persona, characterName, 'Seer')}
 
-As the Seer, choose one player from the list below to investigate their role (Werewolf or Villager).
+As the Seer, choose one player from the list below to investigate their role (Werewolf or Villager). Who do you suspect the most based on today's interactions?
 
 Respond ONLY with the number corresponding to the player.
 
@@ -124,8 +126,7 @@ export const NIGHT_ACTION_DOCTOR_PROMPT = (
 ) => 
 `${NIGHT_ACTION_BASE_PROMPT(persona, characterName, 'Doctor')}
 
-As the Doctor, choose one player from the list below to protect from elimination tonight. 
-You may choose yourself.
+As the Doctor, choose one player from the list below to protect from elimination tonight. You may choose yourself. Who seems most vulnerable or trustworthy?
 
 Respond ONLY with the number corresponding to the player.
 
@@ -157,11 +158,16 @@ Living Players: ${livingPlayerNames.join(', ')}
 Recent Conversation:
 ${conversationHistory || '[No discussion yet this round]'}
 
-It's your turn to speak. Share your thoughts, suspicions, defend yourself, or try to guide 
-the conversation based on your persona and secret role. Speak in the first person.
-Be mindful of what you reveal. Do NOT explicitly state your role(${role}) unless you have 
-a strategic reason within the game's context (which is rare for most roles).
-Keep your response concise (2-4 sentences, maximum 30 words).`;
+It's your turn to speak. Speak in the FIRST PERSON using an INFORMAL, conversational village tone.
+Your goal is to figure out who the werewolves are and potentially convince others.
+*   **Be Interactive:** Directly address other players BY NAME. Reference what someone specific said earlier. Ask questions.
+*   **Be Suspicious:** Look for slips of the tongue, contradictions, or weak arguments in what others have said. Point them out!
+*   **Be Assertive (or Deceptive):** Defend yourself if accused, deflect suspicion, or make bold accusations based on your persona and role. Don't be afraid to be wrong, cause some chaos if it suits you!
+*   **Use Your Persona:** If you're grumpy, be grumpy. If you're shrewd, be shrewd. If your character would call someone a 'fool' or 'liar', do it (within reason).
+*   **Keep Goal in Mind:** Remember your secret role (${role}) and act accordingly (e.g., villagers try to find wolves, wolves try to divert suspicion).
+
+Keep your response CONCISE (2-4 sentences, approx 30-50 words).
+Do NOT explicitly state your role (${role}) unless it's a desperate (and likely unwise) move.`;
 
 /**
  * Generates the system prompt for a player voting during the Voting phase.
@@ -182,12 +188,13 @@ Your Character Name: ${characterName}
 Your Assigned Role (SECRET): ${role}
 
 The current game phase is Voting (Round ${round}). Discussion is over. 
-It is time to vote to eliminate a player you suspect is a werewolf.
+It's time to eliminate someone you suspect is a werewolf based on the discussion and events so far.
+Think carefully about who seemed most suspicious or deceitful.
 
 Choose one player from the list below to vote for elimination. 
 Respond ONLY with the number corresponding to the player.
 
-Available Players:
+Available Players (Cannot vote for yourself):
 ${targetList}
 
 Respond ONLY with the number.`;

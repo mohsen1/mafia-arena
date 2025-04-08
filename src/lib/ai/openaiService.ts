@@ -279,8 +279,11 @@ export async function generateAICharacterProfile(
         const profile: AICharacterProfile = JSON.parse(cleanedJsonString);
         
         // Basic validation (can add more checks)
-        if (!profile.characterName || !profile.backgroundBackstory || !profile.motivationsGoals || !profile.gender || !profile.ageCategory) {
-            throw new Error("Generated JSON is missing required fields (including gender/ageCategory).");
+        // Use the keys defined in the prompt's JSON structure
+        if (!profile.characterName || !profile.roleInCommunity || !profile.appearance || !profile.background || 
+            !profile.personalityArchetype || !profile.keyTraits || !profile.motivations || 
+            !profile.gender || !profile.ageCategory) {
+            throw new Error("Generated JSON is missing required fields.");
         }
         console.log(`Successfully generated profile for ${profile.characterName} (${role})`);
         return profile;
@@ -302,12 +305,13 @@ export async function generateAICharacterProfile(
  * @returns A formatted string suitable for the Player.persona field.
  */
 export function formatPersonaFromProfile(profile: AICharacterProfile): string {
+    // Use the keys from the defined JSON structure
     return `Name: ${profile.characterName}
-Role in Community: (Inferred from background) ${profile.corePersonalityArchetype}
-Appearance: ${profile.appearanceFlavorText}
-Background: ${profile.backgroundBackstory}
-Personality Archetype: ${profile.corePersonalityArchetype}
-Key Traits: ${profile.keyPersonalityTraitsSummary}
-Motivations: ${profile.motivationsGoals.join(', ')}`;
+Role in Community: ${profile.roleInCommunity}
+Appearance: ${profile.appearance}
+Background: ${profile.background}
+Personality Archetype: ${profile.personalityArchetype}
+Key Traits: ${profile.keyTraits}
+Motivations: ${profile.motivations.join(', ')}`;
 }
 

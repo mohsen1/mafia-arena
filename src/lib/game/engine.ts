@@ -1,18 +1,14 @@
+import { formatPersonaFromProfile, getAIGameTitleAndDescription } from '@/lib/ai/openaiService';
 import {
-    GameState, 
-    GameSettings, 
-    Player, 
-    Role, 
-    PlayerStatus, 
-    GamePhase, 
-    CharacterPreset,
-    ChatMessage,
+    GamePhase,
+    GameSettings,
+    GameState,
+    Player,
     PlayerInitializationData
 } from '@/lib/types/game';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { getAIGameTitleAndDescription, formatPersonaFromProfile } from '@/lib/ai/openaiService';
 
 // --- Constants ---
 const CHARACTER_IMAGES_DIR = path.join(process.cwd(), 'public', 'images', 'characters'); // Define image directory path
