@@ -20,6 +20,7 @@ export interface Player {
   readonly name: string;
   readonly role: Role;
   readonly persona: string; // Detailed description for AI
+  readonly aiModel: string; // The AI model used for this player
   readonly imageUrl?: string; // Optional URL for the character image
   readonly voiceId?: string; // Optional ElevenLabs voice ID
   status: PlayerStatus;
@@ -60,7 +61,6 @@ export interface GameSettings {
  readonly numPlayers: number; // Maybe derive from roles?
  readonly roleDistribution: Readonly<Record<Role, number>>;
  readonly discussionRoundsPerPlayer: number;
- readonly aiModel: string; // e.g., 'gpt-4o'
 }
 
 export interface AICharacterProfile {
@@ -78,6 +78,9 @@ export interface AICharacterProfile {
 export interface PlayerInitializationData {
     readonly role: Role;
     readonly profile: AICharacterProfile;
+    readonly aiModel: string; // Model for this player
+    readonly imageUrl?: string | null; // Added imageUrl
+    readonly voiceId?: string; // Added voiceId
 }
 
 export interface GameState {

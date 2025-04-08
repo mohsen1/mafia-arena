@@ -4,11 +4,13 @@ import {
     GameSettings,
     GameState,
     Player,
-    PlayerInitializationData
+    PlayerInitializationData,
+    AICharacterProfile
 } from '@/lib/types/game';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
 
 // --- Constants ---
 const CHARACTER_IMAGES_DIR = path.join(process.cwd(), 'public', 'images', 'characters'); // Define image directory path
@@ -71,11 +73,12 @@ export async function initializeNewGame(
             name: initData.profile.characterName,
             role: initData.role,
             persona: persona,
-            imageUrl: initData.imageUrl ?? undefined, // Use the imageUrl
-            voiceId: initData.voiceId, // Store the assigned voiceId
+            aiModel: initData.aiModel,
+            imageUrl: initData.imageUrl ?? undefined,
+            voiceId: initData.voiceId,
             status: 'alive',
         };
-        console.log(`Created player: ${players[playerId].name} (${playerId}) as ${initData.role} [Image: ${initData.imageUrl || 'None'}, Voice: ${initData.voiceId || 'Default'}]`);
+        console.log(`Created player: ${players[playerId].name} (${playerId}) as ${initData.role} [Model: ${initData.aiModel}, Image: ${initData.imageUrl || 'None'}, Voice: ${initData.voiceId || 'Default'}]`);
     });
 
     // Ensure livingPlayerIds maintains the shuffled order
@@ -92,9 +95,15 @@ export async function initializeNewGame(
         // Potentially fallback to Object.keys(players) but that loses intended shuffle order
     }
 
-    // Get AI Title and Description
+    // Get AI Title and Description - Use the default model from config
+    console.log(`Using model ${DEFAULT_GAME_SETTINGS.aiModel} for game title/description generation.`);
     const playerDetailsForTitle = Object.values(players).map(p => ({ name: p.name, persona: p.persona }));
-    const { title, description } = await getAIGameTitleAndDescription(playerDetailsForTitle, { model: settings.aiModel });
+    // Explicitly define the settings object for the API call
+    const titleGenSettings: { model: string; temperature?: number } = {
+         model: DEFAULT_GAME_SETTINGS.aiModel,
+         // temperature: 0.8 // Optionally set temperature if needed
+    };
+    const { title, description } = await getAIGameTitleAndDescription(playerDetailsForTitle, titleGenSettings);
 
     const initialState: GameState = {
         gameId: gameId,
@@ -127,8 +136,8 @@ export async function initializeNewGame(
          _internalState: {
              initialProfiles: playerInitData.map(data => ({
                  role: data.role,
-                 profile: data.profile
-                 // Don't need to store voiceId or imageUrl in _internalState
+                 profile: data.profile,
+                 aiModel: data.aiModel
              }))
          }
     };

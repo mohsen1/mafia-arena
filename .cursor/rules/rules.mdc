@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Never use dark: css classes. Rely on CSS variables set in tailwind for dark mode

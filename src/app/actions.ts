@@ -51,6 +51,7 @@ interface StartGameConfig {
 type GenerateCharacterResult = PlayerInitializationData & {
   imageUrl?: string | null;
   voiceId?: string;
+  aiModel: string;
 };
 
 // Helper function to fetch ElevenLabs voices
@@ -80,13 +81,12 @@ async function getElevenLabsVoices(): Promise<
   }
 }
 
-// Action to start a new game - Accepts player list (now including imageUrl) and model
+// Action to start a new game - Accepts player list (now including imageUrl)
 export async function startGameAction(
-  playerInitDataList: GenerateCharacterResult[],
-  aiModel: string
+  playerInitDataList: GenerateCharacterResult[]
 ) {
   console.log(
-    `Attempting to start a new game with ${playerInitDataList.length} players using model ${aiModel}`
+    `Attempting to start a new game with ${playerInitDataList.length} players...`
   );
 
   let gameIdToRedirect: string | null = null;
@@ -124,7 +124,6 @@ export async function startGameAction(
       }, {} as Record<Role, number>),
       discussionRoundsPerPlayer:
         DEFAULT_GAME_SETTINGS.discussionRoundsPerPlayer,
-      aiModel: aiModel,
       numPlayers: numPlayers,
     };
     // --- End Settings ---
@@ -184,6 +183,13 @@ export async function runGameTurnAction(gameId: string) {
     if (nextSpeakerId) {
       const nextSpeaker = currentState.players[nextSpeakerId];
 
+      // Check if player object exists and has the aiModel property
+      if (!nextSpeaker || !nextSpeaker.aiModel) {
+         console.error(`Player ${nextSpeakerId} or their aiModel not found in game state.`);
+         // Handle the error appropriately, maybe skip turn or use a default model
+         return; // Or throw error
+      }
+      
       // 1. Construct Prompt using the detailed persona
       // --- Add logic to get previous introductions & recent events --- 
       const prevMessages = currentState.conversationLog.filter(
@@ -225,12 +231,12 @@ export async function runGameTurnAction(gameId: string) {
         },
       ];
 
-      // 2. Get AI response
+      // 2. Get AI response - Use the player's specific model
       const rawIntroductionContent = await getAIResponse(
         promptMessages,
         gameId,
         nextSpeakerId,
-        { model: currentState.settings.aiModel, temperature: 0.8 }
+        { model: nextSpeaker.aiModel, temperature: 0.8 }
       );
 
       const introductionContent = cleanAIResponse(rawIntroductionContent); // Clean
@@ -340,6 +346,13 @@ export async function runGameTurnAction(gameId: string) {
     };
 
     for (const activePlayer of playersWithNightActions) {
+      // Check if player object exists and has the aiModel property
+      if (!activePlayer || !activePlayer.aiModel) {
+         console.error(`Active player ${activePlayer?.id} or their aiModel not found in game state.`);
+         // Handle the error appropriately
+         continue; // Skip this player's action
+      }
+      
       console.log(
         `Getting night action/preference for ${activePlayer.name} (${activePlayer.role})...`
       );
@@ -407,7 +420,7 @@ export async function runGameTurnAction(gameId: string) {
             promptMessages,
             gameId,
             activePlayer.id,
-            { model: currentState.settings.aiModel, temperature: 0.3 }
+            { model: activePlayer.aiModel, temperature: 0.3 }
           );
           // --- Enhanced Parsing Start ---
           const cleanedResponse = cleanAIResponse(rawResponse);
@@ -818,6 +831,14 @@ export async function runGameTurnAction(gameId: string) {
 
     if (nextSpeakerId) {
       const nextSpeaker = currentState.players[nextSpeakerId];
+
+      // Check if player object exists and has the aiModel property
+      if (!nextSpeaker || !nextSpeaker.aiModel) {
+         console.error(`Next speaker ${nextSpeakerId} or their aiModel not found in game state.`);
+         // Handle the error appropriately
+         return; // Or skip turn
+      }
+      
       const thinkingMessageId = `msg-${crypto.randomUUID()}-thinking`;
 
       console.log(
@@ -893,7 +914,7 @@ export async function runGameTurnAction(gameId: string) {
           promptMessages,
           gameId,
           nextSpeakerId,
-          { model: currentState.settings.aiModel, temperature: 0.7 }
+          { model: nextSpeaker.aiModel, temperature: 0.7 }
         );
       } catch (error: any) {
         console.error(
@@ -1082,7 +1103,7 @@ export async function runGameTurnAction(gameId: string) {
             promptMessages,
             gameId,
             voter.id,
-            { model: currentState.settings.aiModel, temperature: 0.3 }
+            { model: voter.aiModel, temperature: 0.3 }
           );
           // --- Enhanced Parsing Start ---
           const cleanedResponse = cleanAIResponse(rawResponse);
@@ -1496,6 +1517,7 @@ export async function generateCharacterAction(
     const result: GenerateCharacterResult = {
       role: role,
       profile: profile,
+      aiModel: aiModel,
       imageUrl: imageUrl,
       // voiceId is assigned later in startGameAction
     };

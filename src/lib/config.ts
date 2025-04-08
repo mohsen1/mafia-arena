@@ -1,7 +1,7 @@
 import { GameSettings, Role } from "@/lib/types/game";
 
 // Define some default settings for creating a new game
-export const DEFAULT_GAME_SETTINGS: Omit<GameSettings, 'numPlayers'> = {
+export const DEFAULT_GAME_SETTINGS = {
     roleDistribution: {
         'Werewolf': 2,
         'Seer': 1,
