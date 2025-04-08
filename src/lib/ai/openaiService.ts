@@ -4,6 +4,7 @@ import { GameState } from '@/lib/types/game'; // Keep if needed for context late
 import fs from 'fs';
 import path from 'path';
 import { AICharacterProfile, Role } from '@/lib/types/game'; // Import new types
+import { cleanAIResponse, extractJSONFromText } from '../utils/stringUtils'; // Import cleaning utilities
 
 // --- Initialize OpenAI Client ---
 
@@ -107,7 +108,7 @@ export const getAIResponse: GetAIResponseFunction = async (
             model: settings.model,
             messages: messages,
             temperature: settings.temperature ?? 0.7, // Default temperature if not provided
-            max_tokens: settings.max_tokens ?? 150, // Default max tokens
+            max_tokens: settings.max_tokens ?? 120_000, // Increased default max tokens for thinking
             // TODO: Add other parameters like top_p, frequency_penalty etc. if needed
         });
 
@@ -117,11 +118,14 @@ export const getAIResponse: GetAIResponseFunction = async (
             throw new Error('Received empty response content from AI.');
         }
 
+        // Clean response to remove thinking blocks
+        const cleanedContent = cleanAIResponse(responseContent);
+
         // Log the API call and result
-        await logAPICall(gameId, playerId, { model: settings.model, messages, settings }, { response: responseContent });
+        await logAPICall(gameId, playerId, { model: settings.model, messages, settings }, { response: cleanedContent });
 
         console.log(`[${gameId}|${playerId}] Received AI response.`);
-        return responseContent.trim();
+        return cleanedContent.trim();
 
     } catch (error: any) {
         // Log the API call and error
@@ -280,25 +284,9 @@ Ensure the details are appropriate for the assigned role (${role}) and the game'
         }
 
         // --- Clean the response --- 
-        // 1. Remove <think>...</think> blocks (using newline-compatible regex)
-        const thoughtlessString = responseJsonString.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-        if (thoughtlessString.length !== responseJsonString.length) {
-            console.log("Removed <think> blocks.");
-        }
-
-        // 2. Extract JSON object from potential surrounding text/markdown
-        const firstBrace = thoughtlessString.indexOf('{');
-        const lastBrace = thoughtlessString.lastIndexOf('}');
-        let cleanedJsonString = thoughtlessString;
-
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            cleanedJsonString = thoughtlessString.substring(firstBrace, lastBrace + 1);
-            if (cleanedJsonString.length !== thoughtlessString.length) {
-                 console.log("Extracted JSON content between braces.");
-            }
-        } else {
-            console.warn("Could not find expected JSON braces after cleaning. Attempting to parse cleaned string anyway.");
-        }
+        // Use utility function to clean the response and extract JSON
+        const cleanedContent = cleanAIResponse(responseJsonString);
+        const cleanedJsonString = extractJSONFromText(cleanedContent);
 
         // Parse the cleaned JSON response string
         const profile: AICharacterProfile = JSON.parse(cleanedJsonString);

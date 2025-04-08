@@ -13,6 +13,7 @@ import { generateAICharacterProfile, formatPersonaFromProfile, getAIGameTitleAnd
 import { selectCharacterImage } from '@/lib/utils/imageUtils'; // Import image utility
 import retry from 'async-retry'; // Import async-retry
 import type { Options as RetryOptions } from 'async-retry'; // Import types for options
+import { cleanAIResponse } from '../lib/utils/stringUtils'; // Import cleaning utility
 
 // Define the expected input shape for the action
 interface StartGameConfig {
@@ -108,7 +109,7 @@ Your Character Name: ${nextSpeaker.name}
 Your Assigned Role (SECRET): ${nextSpeaker.role}
 
 The current game phase is Day Introductions. The villagers have gathered, and it's your turn to speak.
-Your task is to introduce yourself briefly to the other players (1-2 sentences).
+Your task is to introduce yourself briefly to the other players (1-2 sentences, maximum 30 words).
 Speak in the first person, embodying the character described in your details.
 Behave according to your personality traits and background.
 CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.role}) or mention the game mechanics (like roles, phases, werewolves) in your introduction. Keep it purely in-character as if meeting the others in the village square under tense circumstances.`;
@@ -125,12 +126,14 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             ];
 
             // 2. Get AI response
-            const introductionContent = await getAIResponse(
+            const rawIntroductionContent = await getAIResponse(
                 promptMessages,
                 gameId,
                 nextSpeakerId,
-                { model: currentState.settings.aiModel, temperature: 0.8 } // Slightly higher temp for more character? 
+                { model: currentState.settings.aiModel, temperature: 0.8, max_tokens: 800 } // Increased tokens for thinking
             );
+
+            const introductionContent = cleanAIResponse(rawIntroductionContent); // Clean
 
             // 3. Create Chat Message
             const newMessage: ChatMessage = {
@@ -262,13 +265,13 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             // Retry loop for getting a valid target number from AI
             while (retries > 0 && targetPlayerId === null) {
                 try {
-                    targetNumberStr = await getAIResponse(
+                    const rawTargetNumberStr = await getAIResponse(
                         promptMessages,
                         gameId,
                         activePlayer.id,
-                        { model: currentState.settings.aiModel, temperature: 0.3 }
+                        { model: currentState.settings.aiModel, temperature: 0.3, max_tokens: 50 }
                     );
-                     // Try to parse the response as a number
+                    targetNumberStr = cleanAIResponse(rawTargetNumberStr); // Clean
                     const choiceIndex = parseInt(targetNumberStr.trim(), 10) - 1; // Convert to 0-based index
 
                     // Validate the number
@@ -278,7 +281,7 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
                         // Further validation (e.g., werewolf targeting werewolf) is implicitly handled by targetOptions generation now
                     } else {
                         // Invalid number or out of range
-                        console.warn(`Invalid night action choice \"${targetNumberStr}\" (parsed as ${choiceIndex + 1}) received from ${activePlayer.name} (${activePlayer.role}). Expected 1-${targetOptions.length}. Retrying... (${retries - 1} left)`);
+                        console.warn(`Invalid night action choice "${targetNumberStr}" (parsed as ${choiceIndex + 1}) received from ${activePlayer.name} (${activePlayer.role}). Expected 1-${targetOptions.length}. Retrying... (${retries - 1} left)`);
                         promptMessages.push({ role: 'assistant', content: targetNumberStr });
                         promptMessages.push({ role: 'user', content: `That wasn't a valid number from the list (1-${targetOptions.length}). Please respond ONLY with the number corresponding to the player you want to target.` });
                         retries--;
@@ -547,7 +550,7 @@ ${conversationHistory || '[No discussion yet this round]'}
 
 It's your turn to speak. Share your thoughts, suspicions, defend yourself, or try to guide the conversation based on your persona and secret role. Speak in the first person.
 Be mindful of what you reveal. Do NOT explicitly state your role (${nextSpeaker.role}) unless you have a strategic reason within the game's context (which is rare for most roles).
-Keep your response concise (2-4 sentences).`;
+Keep your response concise (2-4 sentences, maximum 30 words).`;
 
             const promptMessages: ChatCompletionMessageParam[] = [
                 { role: 'system', content: systemPrompt },
@@ -555,19 +558,21 @@ Keep your response concise (2-4 sentences).`;
             ];
 
             // 3. Get AI response
-            let discussionContent = '';
+            let rawDiscussionContent = '';
             let errorMessage = '';
             try {
-                 discussionContent = await getAIResponse(
+                 rawDiscussionContent = await getAIResponse(
                     promptMessages,
                     gameId,
                     nextSpeakerId,
-                    { model: currentState.settings.aiModel, temperature: 0.7 }
+                    { model: currentState.settings.aiModel, temperature: 0.7, max_tokens: 800 } // Increased tokens for thinking
                 );
             } catch (error: any) {
                 console.error(`AI discussion response failed for ${nextSpeakerId}:`, error);
                 errorMessage = "(Seems lost in thought...)"; 
             }
+
+            const discussionContent = errorMessage || cleanAIResponse(rawDiscussionContent); // Clean
 
             // 4. Fetch latest state again before final update
             let stateAfterThinking = await gameStateManager.getGameState(gameId);
@@ -577,12 +582,15 @@ Keep your response concise (2-4 sentences).`;
             }
 
             // 5. Create final message
+            // Log the content right before creating the message object
+            console.log(`[${gameId}|${nextSpeakerId}] Final discussion content before state update:`, discussionContent);
+            
             const finalMessage: ChatMessage = {
                 messageId: `msg-${crypto.randomUUID()}`,
                 gameId: gameId,
                 speaker: { type: 'player', playerId: nextSpeakerId },
                 speakerName: nextSpeaker.name,
-                content: errorMessage || discussionContent,
+                content: discussionContent,
                 timestamp: Date.now(), 
                 round: stateAfterThinking.round,
                 phase: stateAfterThinking.phase,
@@ -719,13 +727,13 @@ Respond ONLY with the number.`;
 
             while (retries > 0 && targetPlayerId === null) {
                 try {
-                    targetNumberStr = await getAIResponse(
+                    const rawTargetNumberStr = await getAIResponse(
                         promptMessages,
                         gameId,
                         voter.id,
-                        { model: currentState.settings.aiModel, temperature: 0.3 }
+                        { model: currentState.settings.aiModel, temperature: 0.3, max_tokens: 50 }
                     );
-                     // Try to parse the response as a number
+                    targetNumberStr = cleanAIResponse(rawTargetNumberStr); // Clean
                     const choiceIndex = parseInt(targetNumberStr.trim(), 10) - 1; // Convert to 0-based index
 
                     // Validate the number
@@ -735,7 +743,7 @@ Respond ONLY with the number.`;
                         // No need to check for self-vote here as self is already filtered out
                     } else {
                         // Invalid number or out of range
-                        console.warn(`Invalid vote choice \"${targetNumberStr}\" (parsed as ${choiceIndex + 1}) received from ${voter.name}. Expected 1-${targetOptions.length}. Retrying... (${retries - 1} left)`);
+                        console.warn(`Invalid vote choice "${targetNumberStr}" (parsed as ${choiceIndex + 1}) received from ${voter.name}. Expected 1-${targetOptions.length}. Retrying... (${retries - 1} left)`);
                         promptMessages.push({ role: 'assistant', content: targetNumberStr });
                         promptMessages.push({ role: 'user', content: `That wasn't a valid number from the list (1-${targetOptions.length}). Please respond ONLY with the number corresponding to the player you want to vote for.` });
                         retries--;
