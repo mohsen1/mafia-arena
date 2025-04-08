@@ -1,4 +1,6 @@
 import { type ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+// Import language type
+import { SupportedLanguage } from "@/hooks/useGameConfig";
 
 // Use string literal unions instead of enums
 export type Role = 'Villager' | 'Werewolf' | 'Seer' | 'Doctor';
@@ -83,22 +85,44 @@ export interface PlayerInitializationData {
     readonly voiceId?: string; // Added voiceId
 }
 
+// Define Win Condition Type
+export type WinConditionOutcome = 'Villager Win' | 'Werewolf Win' | 'Tie';
+export type WinCondition = {
+    outcome: WinConditionOutcome;
+    message: string; // e.g., "The Villagers have eliminated all Werewolves!"
+};
+
+// Define Player Perspective Type
+// Information specific to the player receiving the FilteredGameState
+export interface PlayerPerspective {
+    role: Role; // Player's own role
+    // Add other private info here, e.g., seer results for the seer
+    seerResults?: Record<string, 'Werewolf' | 'Villager'>; // targetId -> result for *this* seer
+}
+
 export interface GameState {
   readonly gameId: string;
   readonly createdAt: number; // Unix timestamp (ms or s)
+  readonly updatedAt: number;
   title?: string; // Optional generated title
   description?: string; // Optional generated description
   readonly settings: GameSettings;
   players: Readonly<Record<string, Player>>; // Map Player ID to Player object
   livingPlayerIds: string[]; // Maintain order for turns
+  deadPlayerIds: string[]; // List of IDs
+  turnOrder: string[]; // Order for phases like DayIntroductions
+  turnOrderIndex: number; // Current position in turnOrder
   phase: GamePhase;
   round: number;
-  turnOrderIndex: number; // Index into livingPlayerIds for current turn
   conversationLog: ChatMessage[]; // Use mutable array
-  nightActions: NightAction[]; // Use mutable array
   votes: Vote[]; // Use mutable array
-  lastEliminatedPlayerId?: string;
-  winner?: 'Villager' | 'Werewolf'; // Use string literals for winner team
+  lastEliminatedPlayerId: string | null; // Track who was last eliminated (day or night)
+  nightActions: NightAction[]; // Use mutable array
+  lastWerewolfTargetId: string | null; // Tracks the target even if saved
+  lastDoctorSaveId: string | null; // Track successful save
+  lastSeerTargetId: string | null; // Track seer's target
+  winCondition: WinCondition | null;
+  language: SupportedLanguage; // <-- Add language field
   // Internal state not sent to client
   _internalState?: {
     werewolfChatLog?: ChatMessage[]; // Use mutable array
@@ -111,6 +135,9 @@ export interface GameState {
 export type FilteredGameState = Omit<GameState, '_internalState' | 'players' | 'conversationLog'> & {
   conversationLog: ReadonlyArray<Omit<ChatMessage, 'audience'> & { speakerName: string }>;
   players: Readonly<Record<string, Omit<Player, 'persona' | 'role'> & { role?: Role, voiceId?: string }>>;
+  playerPerspective?: PlayerPerspective; // <-- Use defined type
+  title?: string; // Add optional title
+  description?: string; // Add optional description
 };
 
 

@@ -1,5 +1,13 @@
 import { FilteredGameState } from '@/lib/types/game';
 import React, { createContext, useState, useContext, useCallback, ReactNode, Dispatch, SetStateAction, useRef, useEffect } from 'react';
+// Import translation utilities and types
+import { 
+    mapLanguageNameToCode, 
+    LanguageCode, 
+    LanguageName 
+} from '@/lib/translation/languages';
+import { getOrGenerateTranslationsAction } from '@/app/actions';
+import { useTranslation } from '@/hooks/useTranslation';
 
 // Define the shape of the context state
 interface GameContextState {
@@ -15,6 +23,11 @@ interface GameContextState {
     stopCurrentAudio: () => void; // Function to stop whatever MessageBubble is playing
     registerStopAudio: (messageId: string, stopFn: () => void) => void;
     unregisterStopAudio: (messageId: string) => void;
+    // Add translation state and function
+    translations: Record<string, string>;
+    isTranslationLoading: boolean;
+    translationError: string | null;
+    t: (phraseKey: string, fallback?: string) => string;
 }
 
 // Create the context with a default undefined value
@@ -40,6 +53,60 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     const [isAutoRunning, setIsAutoRunning] = useState<boolean>(false); // Default to paused
     const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
     const stopAudioCallbackRef = useRef<(() => void) | null>(null); // Ref to hold the current stop function
+
+    // --- Translation State ---
+    const [translations, setTranslations] = useState<Record<string, string>>({});
+    const [isTranslationLoading, setIsTranslationLoading] = useState<boolean>(true);
+    const [translationError, setTranslationError] = useState<string | null>(null);
+    const gameLanguage = gameState?.language || 'English'; // Default to English if state is null
+    // --- End Translation State ---
+
+    // --- Translation Loading Effect ---
+    useEffect(() => {
+        const loadTranslations = async () => {
+            // Reset error, get code from game state language
+            setTranslationError(null);
+            const langCode = mapLanguageNameToCode(gameLanguage as LanguageName); // Assert type
+
+            if (!langCode) {
+                console.error(`[GameContext] Invalid language in game state: ${gameLanguage}`);
+                setTranslationError(`Invalid game language: ${gameLanguage}`);
+                setTranslations({});
+                setIsTranslationLoading(false);
+                return;
+            }
+
+            console.log(`[GameContext] Language is ${gameLanguage} (${langCode}), loading translations...`);
+            setIsTranslationLoading(true);
+            try {
+                // Call server action
+                const loadedTranslations = await getOrGenerateTranslationsAction(langCode);
+                setTranslations(loadedTranslations);
+                console.log(`[GameContext] Translations loaded for ${gameLanguage}.`);
+            } catch (error: any) {
+                console.error(`[GameContext] Failed loading translations for ${gameLanguage}:`, error);
+                setTranslationError(`Failed loading translations: ${error.message}`);
+                setTranslations({}); 
+            } finally {
+                setIsTranslationLoading(false);
+            }
+        };
+        
+        // Only load if gameState is available
+        if (gameState) {
+            loadTranslations();
+        }
+        // Rerun if gameLanguage changes (e.g., initial load or state update)
+    }, [gameLanguage, gameState]); // Depend on gameLanguage derived from gameState
+    // --- End Translation Loading Effect ---
+
+    // Instantiate translation hook *within* the provider
+    const { t } = useTranslation({
+         translations: translations, 
+         // Pass loading/error state if needed by consumers, but t works regardless
+         // isLoading: isTranslationLoading,
+         // error: translationError
+    });
 
     // Function for MessageBubble to register its stop function
     const registerStopAudio = useCallback((messageId: string, stopFn: () => void) => {
@@ -191,7 +258,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         unregisterStopAudio
     ]);
 
-    const value = {
+    const value: GameContextState = {
         gameState,
         setGameState, // Provide setter if direct manipulation is needed, though usually avoid
         currentlyPlayingMessageId,
@@ -205,6 +272,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         // Expose registration functions for MessageBubble
         registerStopAudio,
         unregisterStopAudio,
+        // Expose translation state and t function
+        translations,
+        isTranslationLoading,
+        translationError,
+        t, 
     };
 
     return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

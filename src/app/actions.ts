@@ -1,6 +1,8 @@
 "use server";
 
+import { SupportedLanguage } from "@/hooks/useGameConfig";
 import { generateAICharacterProfile, getAIResponse } from "@/lib/ai/openaiService";
+import { GENERATE_UI_TRANSLATION_PROMPT } from "@/lib/ai/PROMPTS";
 import { DEFAULT_GAME_SETTINGS } from "@/lib/config"; // Added config imports
 import {
     advancePhase,
@@ -9,6 +11,13 @@ import {
     initializeNewGame,
 } from "@/lib/game/engine"; // Added initializeNewGame, advancePhase, checkWinCondition
 import { gameStateManager } from "@/lib/state/gameStateManager";
+import dictionaryDataJson from '@/lib/translation/dictionary.json'; // Import the source dictionary
+import {
+    DictionaryData,
+    LanguageCode,
+    supportedLanguagesMap,
+    TranslationEntry // Assuming these types are defined correctly in languages.ts or elsewhere
+} from "@/lib/translation/languages";
 import {
     AICharacterProfile,
     ChatMessage,
@@ -20,12 +29,12 @@ import {
     Vote
 } from "@/lib/types/game"; // Added Vote and Role, PlayerInitializationData, AICharacterProfile
 import { selectCharacterImage } from "@/lib/utils/imageUtils"; // Import image utility
-import type { Options as RetryOptions } from "async-retry"; // Import types for options
-import retry from "async-retry"; // Import async-retry
 import crypto from "crypto";
+import fs from "fs/promises"; // OK to use fs in server actions
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation"; // Added redirect
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import path from "path";
 import {
     DAY_DISCUSSION_PROMPT,
     DAY_INTRODUCTION_PROMPT,
@@ -81,12 +90,13 @@ async function getElevenLabsVoices(): Promise<
   }
 }
 
-// Action to start a new game - Accepts player list (now including imageUrl)
+// Action to start a new game - Accepts player list and language
 export async function startGameAction(
-  playerInitDataList: GenerateCharacterResult[]
+  playerInitDataList: GenerateCharacterResult[],
+  language: SupportedLanguage
 ) {
   console.log(
-    `Attempting to start a new game with ${playerInitDataList.length} players...`
+    `Attempting to start a new game with ${playerInitDataList.length} players in ${language}...`
   );
 
   let gameIdToRedirect: string | null = null;
@@ -137,7 +147,8 @@ export async function startGameAction(
       settings,
       gameId,
       createdAt,
-      playersWithVoicesAssigned
+      playersWithVoicesAssigned,
+      language
     );
 
     // --- Save Game State ---
@@ -171,10 +182,46 @@ export async function runGameTurnAction(gameId: string) {
     return;
   }
 
+  // Get language from state
+  const language = currentState.language;
+  const languageInstruction = `\n\nIMPORTANT: Respond ONLY in ${language}.`;
+
   if (currentState.phase === "GameOver") {
     console.log(`Game ${gameId} is already over.`);
     return;
   }
+
+  // --- Add Initial Welcome Message if needed ---
+  // Check if it's the very start of the game (before first turn)
+  if (
+    currentState.round === 1 &&
+    currentState.phase === "DayIntroductions" &&
+    currentState.turnOrderIndex === 0 &&
+    currentState.conversationLog.length === 0 // Ensure it hasn't been added already
+  ) {
+      const originalWelcomeMsg = `Welcome to "${currentState.title || 'Werewolf AI'}"! ${currentState.livingPlayerIds.length} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.`;
+      const translatedWelcomeMsg = await translateText(originalWelcomeMsg, language);
+      const welcomeMessage: ChatMessage = {
+           messageId: `msg-${crypto.randomUUID()}-init`,
+           gameId: gameId,
+           speaker: { type: "moderator" },
+           speakerName: "Moderator",
+           content: translatedWelcomeMsg,
+           timestamp: Date.now() - 1000, // Slightly before first action
+           round: currentState.round,
+           phase: currentState.phase,
+           audience: { type: "all" },
+       };
+       // Add message and update state *before* proceeding
+       currentState = {
+           ...currentState,
+           conversationLog: [welcomeMessage],
+           updatedAt: Date.now()
+       };
+       await gameStateManager.updateGameState(gameId, currentState);
+       console.log(`[${gameId}] Added translated welcome message.`);
+  }
+  // --- End Initial Welcome Message ---
 
   // --- Logic specifically for DayIntroductions phase ---
   if (currentState.phase === "DayIntroductions") {
@@ -227,7 +274,7 @@ export async function runGameTurnAction(gameId: string) {
         },
         {
           role: "user",
-          content: `Okay ${nextSpeaker.name}, it's your turn. Please introduce yourself to everyone.`,
+          content: `Okay ${nextSpeaker.name}, it's your turn. Please introduce yourself to everyone.${languageInstruction}`,
         },
       ];
 
@@ -290,12 +337,16 @@ export async function runGameTurnAction(gameId: string) {
       let nextState = advancePhase(stateBeforePhaseAdvance);
 
       // Add a moderator message indicating the start of the next phase
+      // --- Translate Moderator Message --- 
+      const originalIntroCompleteMsg = `Introductions are complete. The floor is now open for discussion.`;
+      const translatedIntroCompleteMsg = await translateText(originalIntroCompleteMsg, language);
+      // --- End Translation ---
       const phaseChangeMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}`,
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: `Introductions are complete. The floor is now open for discussion.`,
+        content: translatedIntroCompleteMsg, // Use translated message
         timestamp: Date.now(),
         round: nextState.round,
         phase: nextState.phase,
@@ -406,7 +457,7 @@ export async function runGameTurnAction(gameId: string) {
 
       const promptMessages: ChatCompletionMessageParam[] = [
         { role: "system", content: prompt },
-        { role: "user", content: `Choose your target.` }, // Simplified user prompt
+        { role: "user", content: `Choose your target.${languageInstruction}` }, 
       ];
 
       let targetNumberStr = "";
@@ -466,7 +517,7 @@ export async function runGameTurnAction(gameId: string) {
             });
             promptMessages.push({
               role: "user",
-              content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).`,
+              content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).${languageInstruction}`,
             });
             retries--;
             targetNumberStr = ""; // Reset for logging/context if needed
@@ -482,7 +533,7 @@ export async function runGameTurnAction(gameId: string) {
 
       // Add action/preference if a valid target was successfully chosen
       if (targetPlayerId) {
-        const finalTargetName = currentState.players[targetPlayerId].name; // Get canonical name
+        const finalTargetName = currentState.players[targetPlayerId].name;
 
         switch (activePlayer.role) {
           case "Werewolf":
@@ -718,13 +769,14 @@ export async function runGameTurnAction(gameId: string) {
     }
 
     // 4. Generate Moderator Message based on elimination
-    let summaryContent = "";
+    // --- Translate Moderator Messages --- 
+    let originalSummaryContent = "";
     if (eliminatedPlayerId) {
       const eliminatedPlayerName =
         stateAfterResolution.players[eliminatedPlayerId].name;
       const eliminatedPlayerRole =
         stateAfterResolution.players[eliminatedPlayerId].role; // Reveal role on night death
-      summaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead. They were a ${eliminatedPlayerRole}.`;
+      originalSummaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead. They were a ${eliminatedPlayerRole}.`;
     } else if (
       killAction &&
       saveAction &&
@@ -732,11 +784,13 @@ export async function runGameTurnAction(gameId: string) {
       stateAfterResolution.players[killAction.targetPlayerId]?.status ===
         "alive"
     ) {
-      summaryContent =
+      originalSummaryContent =
         "A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.";
     } else {
-      summaryContent = "The night passes uneventfully. Dawn breaks.";
+      originalSummaryContent = "The night passes uneventfully. Dawn breaks.";
     }
+    const summaryContent = await translateText(originalSummaryContent, language);
+    // --- End Translation ---
 
     const summaryMessage: ChatMessage = {
       messageId: `msg-${crypto.randomUUID()}-night-summary`,
@@ -760,25 +814,32 @@ export async function runGameTurnAction(gameId: string) {
     };
 
     // 5. Check Win Condition *after* updating statuses
-    stateAfterResolution = checkWinCondition(stateAfterResolution);
-    if (stateAfterResolution.phase === "GameOver") {
+    const winResultNight = checkWinCondition(stateAfterResolution);
+    if (winResultNight) {
       console.log(
-        `Game Over detected after night resolution. Winner: ${stateAfterResolution.winner}`
+        `Game Over detected after night resolution. Outcome: ${winResultNight.outcome}`
       );
-      // Add Game Over message?
+      // Add Game Over message using the win condition details
+      // --- Translate Game Over Message ---
+      const originalGameOverMsg = winResultNight.message;
+      const translatedGameOverMsg = await translateText(originalGameOverMsg, language);
+      // --- End Translation ---
       const gameOverMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}-gameover`,
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: `The game is over! The ${stateAfterResolution.winner} team wins!`,
+        // Use the message from the win condition object
+        content: translatedGameOverMsg, // Use translated message
         timestamp: Date.now(),
         round: stateAfterResolution.round,
-        phase: stateAfterResolution.phase,
+        phase: "GameOver", // Set phase directly
         audience: { type: "all" },
       };
       stateAfterResolution = {
         ...stateAfterResolution,
+        phase: "GameOver", // Update phase
+        winCondition: winResultNight, // Store the win condition object
         conversationLog: [
           ...stateAfterResolution.conversationLog,
           gameOverMessage,
@@ -795,16 +856,19 @@ export async function runGameTurnAction(gameId: string) {
     let nextState = advancePhase(stateAfterResolution);
 
     // Add phase change message *after* advancing
+    // --- Translate Moderator Message --- 
+    const originalPhaseChangeMsg = nextState.phase === "DayDiscussion"
+          ? `Day ${nextState.round} begins. Discuss what happened and who you suspect.`
+          : `Day ${nextState.round} begins. Time for introductions.`;
+    const translatedPhaseChangeMsg = await translateText(originalPhaseChangeMsg, language);
+    // --- End Translation ---
     const phaseChangeMessage: ChatMessage = {
       messageId: `msg-${crypto.randomUUID()}-phase-change`,
       gameId: gameId,
       speaker: { type: "moderator" },
       speakerName: "Moderator",
       // Message depends on the *next* phase determined by advancePhase
-      content:
-        nextState.phase === "DayDiscussion"
-          ? `Day ${nextState.round} begins. Discuss what happened and who you suspect.`
-          : `Day ${nextState.round} begins. Time for introductions.`,
+      content: translatedPhaseChangeMsg, // Use translated message
       timestamp: Date.now(),
       round: nextState.round,
       phase: nextState.phase,
@@ -902,7 +966,7 @@ export async function runGameTurnAction(gameId: string) {
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `Okay ${nextSpeaker.name}, what are your thoughts?`,
+          content: `Okay ${nextSpeaker.name}, what are your thoughts?${languageInstruction}`,
         },
       ];
 
@@ -980,12 +1044,16 @@ export async function runGameTurnAction(gameId: string) {
         let stateBeforeVote = advancePhase(finalState);
 
         // Add moderator message for voting start
+        // --- Translate Moderator Message --- 
+        const originalVoteStartMsg = `Discussion time is over. It is now time to vote for who to eliminate.`;
+        const translatedVoteStartMsg = await translateText(originalVoteStartMsg, language);
+        // --- End Translation ---
         const voteStartMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: `Discussion time is over. It is now time to vote for who to eliminate.`,
+          content: translatedVoteStartMsg,
           timestamp: Date.now(),
           round: stateBeforeVote.round,
           phase: stateBeforeVote.phase,
@@ -1016,37 +1084,42 @@ export async function runGameTurnAction(gameId: string) {
         `DayDiscussion turn processed for ${nextSpeaker.name}. Current index: ${finalState.turnOrderIndex}`
       );
     } else {
-      // This case should ideally not be reached if the check above handles the transition
-      console.error(
-        "Reached unexpected state in DayDiscussion: No next speaker, but phase transition didn't happen."
-      );
-      // Fallback: Force transition to Voting just in case
-      let stateBeforeVote = await gameStateManager.getGameState(gameId);
-      if (stateBeforeVote && stateBeforeVote.phase === "DayDiscussion") {
-        console.warn(
-          "Forcing phase transition to Voting due to unexpected state."
-        );
-        let nextState = advancePhase(stateBeforeVote);
-        // Add moderator message
-        const voteStartMessage: ChatMessage = {
-          messageId: `msg-${crypto.randomUUID()}`,
-          gameId: gameId,
-          speaker: { type: "moderator" },
-          speakerName: "Moderator",
-          content: `Discussion time is over. It is now time to vote for who to eliminate.`,
-          timestamp: Date.now(),
-          round: nextState.round, // Use round/phase from the advanced state
-          phase: nextState.phase,
-          audience: { type: "all" },
-        };
-        nextState = {
-          ...nextState,
-          conversationLog: [...nextState.conversationLog, voteStartMessage],
-          turnOrderIndex: 0,
-          votes: [],
-        };
-        await gameStateManager.updateGameState(gameId, nextState);
+      // All players have spoken in discussion. Time to advance to Voting.
+      console.log("All players discussed. Advancing phase to Voting...");
+
+      // Fetch the latest state before advancing
+      const stateBeforeVote = await gameStateManager.getGameState(gameId);
+      if (!stateBeforeVote) {
+         console.error(`Game state lost before advancing to Voting for ${gameId}`);
+         return;
       }
+
+      let nextState = advancePhase(stateBeforeVote);
+
+      // Add moderator message for voting start
+      // --- Translate Moderator Message --- 
+      const originalVoteStartMsg = `Discussion time is over. It is now time to vote for who to eliminate.`;
+      const translatedVoteStartMsg = await translateText(originalVoteStartMsg, language);
+      // --- End Translation ---
+      const voteStartMessage: ChatMessage = {
+        messageId: `msg-${crypto.randomUUID()}`,
+        gameId: gameId,
+        speaker: { type: "moderator" },
+        speakerName: "Moderator",
+        content: translatedVoteStartMsg,
+        timestamp: Date.now(),
+        round: stateBeforeVote.round,
+        phase: stateBeforeVote.phase,
+        audience: { type: "all" },
+      };
+      nextState = {
+        ...nextState,
+        conversationLog: [...nextState.conversationLog, voteStartMessage],
+      };
+
+      // Save the updated state with the new phase
+      await gameStateManager.updateGameState(gameId, nextState);
+      console.log(`Game ${gameId} advanced from DayDiscussion to Voting.`);
     }
   }
 
@@ -1089,7 +1162,7 @@ export async function runGameTurnAction(gameId: string) {
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `Who do you vote to eliminate, ${voter.name}? (Respond with the number)`,
+          content: `Who do you vote to eliminate, ${voter.name}? (Respond with the number)${languageInstruction}`,
         },
       ];
 
@@ -1149,7 +1222,7 @@ export async function runGameTurnAction(gameId: string) {
             });
             promptMessages.push({
               role: "user",
-              content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).`,
+              content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).${languageInstruction}`,
             });
             retries--;
             targetNumberStr = ""; // Reset for logging/context if needed
@@ -1224,7 +1297,8 @@ export async function runGameTurnAction(gameId: string) {
       );
 
       // Format vote results message
-      const voteDetails = Object.entries(voteCounts)
+      // --- Translate Vote Results --- 
+      const originalVoteDetails = Object.entries(voteCounts)
         .map(
           ([targetId, count]) =>
             `- ${
@@ -1232,12 +1306,15 @@ export async function runGameTurnAction(gameId: string) {
             }: ${count} ${count === 1 ? "vote" : "votes"}`
         )
         .join("\n");
+      const originalVotesMsgContent = `The votes are in!\n${originalVoteDetails}`;
+      const translatedVotesMsgContent = await translateText(originalVotesMsgContent, language);
+      // --- End Translation ---
       const votesMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}-votes`,
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: `The votes are in!\n${voteDetails}`,
+        content: translatedVotesMsgContent, // Use translated message
         timestamp: Date.now(),
         round: stateAfterTally.round,
         phase: stateAfterTally.phase,
@@ -1254,12 +1331,16 @@ export async function runGameTurnAction(gameId: string) {
         console.log(
           `Player ${eliminatedPlayer?.name} (${dayEliminatedPlayerId}) received the most votes (${maxVotes}) and will be eliminated.`
         );
+        // --- Translate Elimination Message --- 
+        const originalEliminationMsg = `With ${maxVotes} votes, ${eliminatedPlayer?.name} has been eliminated by the village. They were a ${eliminatedPlayer?.role}.`;
+        const translatedEliminationMsg = await translateText(originalEliminationMsg, language);
+        // --- End Translation ---
         const eliminationMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-elimination`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: `With ${maxVotes} votes, ${eliminatedPlayer?.name} has been eliminated by the village. They were a ${eliminatedPlayer?.role}.`, // Reveal role on day death
+          content: translatedEliminationMsg, // Use translated message
           timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
@@ -1281,12 +1362,16 @@ export async function runGameTurnAction(gameId: string) {
         const tiedPlayerNames = playersWithMaxVotes
           .map((id) => stateAfterTally.players[id]?.name || "Unknown")
           .join(" and ");
+        // --- Translate Tie Message ---
+        const originalTieMsg = `The vote is tied between ${tiedPlayerNames}! No one is eliminated today.`;
+        const translatedTieMsg = await translateText(originalTieMsg, language);
+        // --- End Translation ---
         const tieMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-tie`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: `The vote is tied between ${tiedPlayerNames}! No one is eliminated today.`,
+          content: translatedTieMsg, // Use translated message
           timestamp: Date.now() + 1,
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
@@ -1301,12 +1386,16 @@ export async function runGameTurnAction(gameId: string) {
         );
         // No elimination message needed here if it's covered by the 'no votes' logic below.
         dayEliminatedPlayerId = null; // Ensure no elimination
+        // --- Translate No Votes Message --- 
+        const originalNoVotesMsg = `No votes were cast. The village remains undecided.`;
+        const translatedNoVotesMsg = await translateText(originalNoVotesMsg, language);
+        // --- End Translation ---
         const noVotesMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-novotes`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: `No votes were cast. The village remains undecided.`,
+          content: translatedNoVotesMsg, // Use translated message
           timestamp: Date.now(),
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
@@ -1345,24 +1434,32 @@ export async function runGameTurnAction(gameId: string) {
       };
 
       // Check Win Condition *after* vote resolution
-      stateAfterTally = checkWinCondition(stateAfterTally);
-      if (stateAfterTally.phase === "GameOver") {
+      const winResultVote = checkWinCondition(stateAfterTally);
+      if (winResultVote) {
         console.log(
-          `Game Over detected after vote resolution. Winner: ${stateAfterTally.winner}`
+          `Game Over detected after vote resolution. Outcome: ${winResultVote.outcome}`
         );
+        // Add Game Over message using the win condition details
+        // --- Translate Game Over Message ---
+        const originalGameOverVoteMsg = winResultVote.message;
+        const translatedGameOverVoteMsg = await translateText(originalGameOverVoteMsg, language);
+        // --- End Translation ---
         const gameOverMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-gameover-vote`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: `The game is over! The ${stateAfterTally.winner} team wins!`,
+          // Use the message from the win condition object
+          content: translatedGameOverVoteMsg, // Use translated message
           timestamp: Date.now(),
           round: stateAfterTally.round,
-          phase: stateAfterTally.phase,
+          phase: "GameOver", // Set phase directly
           audience: { type: "all" },
         };
         stateAfterTally = {
           ...stateAfterTally,
+          phase: "GameOver", // Update phase
+          winCondition: winResultVote, // Store the win condition object
           conversationLog: [
             ...stateAfterTally.conversationLog,
             gameOverMessage,
@@ -1379,12 +1476,16 @@ export async function runGameTurnAction(gameId: string) {
       let nextState = advancePhase(stateAfterTally);
 
       // Add phase change message
+      // --- Translate Night Start Message --- 
+      const originalNightStartMsg = `The sun sets. Night ${nextState.round} falls upon the village. Close your eyes...`;
+      const translatedNightStartMsg = await translateText(originalNightStartMsg, language);
+      // --- End Translation ---
       const nightStartMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}-night-start`,
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: `The sun sets. Night ${nextState.round} falls upon the village. Close your eyes...`,
+        content: translatedNightStartMsg, // Use translated message
         timestamp: Date.now(),
         round: nextState.round,
         phase: nextState.phase,
@@ -1448,89 +1549,171 @@ export async function deleteGameAction(gameId: string): Promise<void> {
  */
 export async function generateCharacterAction(
   role: Role,
-  aiModel: string,
-  existingProfiles: AICharacterProfile[]
+  model: string,
+  language: SupportedLanguage,
+  existingProfiles?: AICharacterProfile[]
 ): Promise<GenerateCharacterResult | { error: string }> {
-  console.log(
-    `Generating character profile for role: ${role} using model ${aiModel}`
-  );
-
-  // Define retry options
-  const retryOptions: RetryOptions = {
-    retries: 2, // Try the initial attempt + 2 retries
-    minTimeout: 500, // Start with 500ms delay
-    factor: 2, // Double the delay each time
-    onRetry: (error: unknown, attempt) => {
-      // Correct type for onRetry error
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.warn(
-        `Attempt ${attempt} failed for role ${role}: ${errorMessage}. Retrying...`
-      );
-    },
-  };
-
+  console.log(`generateCharacterAction called for role: ${role}, model: ${model}, lang: ${language}`);
   try {
-    // Wrap the AI call with retry logic
-    const profile: AICharacterProfile | null = await retry(
-      async (bail, attempt) => {
-        try {
-          // Pass existing profiles to the generation function
-          return await generateAICharacterProfile(
-            role,
-            aiModel,
-            existingProfiles
-          );
-        } catch (error: any) {
-          // Don't retry on non-transient errors (e.g., bad request, auth error)
-          if (error.status && error.status >= 400 && error.status < 500) {
-            bail(
-              new Error(
-                `Non-retryable error (${error.status}): ${error.message}`
-              )
-            );
-            return null; // Return null, bail will throw
-          }
-          // Otherwise, throw to trigger retry
-          throw error;
-        }
-      },
-      retryOptions
-    );
-
-    if (!profile || !profile.characterName) {
-      throw new Error("Generated profile was incomplete after retries.");
+    // Pass parameters in the correct order
+    const profile = await generateAICharacterProfile(role, model, language, existingProfiles);
+    if (!profile) {
+      throw new Error("AI profile generation returned null.");
     }
 
-    // Select an image based on the generated profile
-    // Pass required arguments to selectCharacterImage
-    const imageUrl = await selectCharacterImage(
-      profile.gender,
-      profile.ageCategory
-    );
+    // Select image after profile generation
+    const imageUrl = await selectCharacterImage(profile.gender, profile.ageCategory);
 
-    console.log(
-      `Successfully generated profile for ${profile.characterName} (${role}), Image: ${imageUrl}`
-    );
-
-    // Combine profile, role, and image URL for the result
+    // Return the combined result
     const result: GenerateCharacterResult = {
       role: role,
       profile: profile,
-      aiModel: aiModel,
-      imageUrl: imageUrl,
-      // voiceId is assigned later in startGameAction
+      aiModel: model, // Pass model through
+      imageUrl: imageUrl ?? undefined,
+      // voiceId will be assigned later in startGameAction
     };
     return result;
+
   } catch (error: any) {
     console.error(
-      `Failed to generate character profile for role ${role} after retries:`,
-      error
+      `Error in generateCharacterAction for role ${role}:`, error
     );
-    return {
-      error: `Failed to generate character: ${
-        error.message || "Unknown error"
-      }`,
-    };
+    return { error: error.message || "Failed to generate character profile." };
   }
+}
+
+// --- Helper Function for Translation (using AI) --- 
+async function translateText(text: string, targetLanguage: SupportedLanguage): Promise<string> {
+    // Avoid translation if already in the target language (basic check)
+    if (targetLanguage === 'English') { // Assuming English is the base
+        return text;
+    }
+    if (!text) return ""; // Handle empty strings
+
+    console.log(`[Translate] Requesting translation to ${targetLanguage} for: "${text.substring(0, 50)}..."`);
+
+    try {
+        // Simple prompt for translation
+        const messages: ChatCompletionMessageParam[] = [
+            { role: "system", content: `You are a helpful translation assistant. Translate the user's text accurately into ${targetLanguage}. Respond ONLY with the translated text, nothing else.` },
+            { role: "user", content: text },
+        ];
+        
+        // Use specified model for this helper function
+        const translation = await getAIResponse(messages, 'translation-task', 'translator', {
+            model: 'llama-3.3-70b-versatile', // Explicitly use llama-3.3-70b-versatile
+            temperature: 0.1, 
+        });
+
+        console.log(`[Translate] Received: "${translation.substring(0, 50)}..."`);
+        return cleanAIResponse(translation); // Clean potential extra formatting
+    } catch (error) {
+        console.error(`[Translate] Error translating to ${targetLanguage}:`, error);
+        return text; // Fallback to original text on error
+    }
+}
+
+// --- Translation Caching/Generation Action --- 
+
+const dictionary: DictionaryData = dictionaryDataJson;
+const CACHE_DIR = path.join(process.cwd(), 'data', 'translations');
+
+/**
+ * Server action to get translations for a language, using cache or generating via LLM.
+ */
+export async function getOrGenerateTranslationsAction(
+    targetLangCode: LanguageCode
+): Promise<Record<string, string>> {
+    
+    // Handle English separately - read directly from imported JSON
+    if (targetLangCode === 'en') {
+        console.log("[Action:getTranslations] Requested 'en', loading from source dictionary...");
+        const englishMap: Record<string, string> = {};
+        (dictionary.en || []).forEach((item: TranslationEntry) => { englishMap[item.phrase] = item.translation; });
+        return englishMap;
+    }
+
+    const cacheFilePath = path.join(CACHE_DIR, `${targetLangCode}.json`);
+    const targetLanguageName = supportedLanguagesMap[targetLangCode];
+
+    try {
+        // 1. Try reading from cache
+        console.log(`[Action:getTranslations] Checking cache: ${cacheFilePath}`);
+        const cachedData = await fs.readFile(cacheFilePath, 'utf-8');
+        console.log(`[Action:getTranslations] Cache HIT for ${targetLanguageName}.`);
+        return JSON.parse(cachedData) as Record<string, string>;
+    } catch (error: any) {
+        if (error.code === 'ENOENT') {
+            // 2. Cache MISS - Generate using LLM
+            console.log(`[Action:getTranslations] Cache MISS for ${targetLanguageName}. Generating...`);
+            try {
+                const englishDictionary = dictionary.en;
+                if (!englishDictionary || englishDictionary.length === 0) {
+                    throw new Error("Source English dictionary ('en') is missing or empty.");
+                }
+
+                const systemPrompt = GENERATE_UI_TRANSLATION_PROMPT(targetLanguageName);
+                const userMessage = JSON.stringify(englishDictionary, null, 2);
+                const messages: ChatCompletionMessageParam[] = [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userMessage },
+                ];
+
+                // --- LLM Call --- 
+                const aiResponse = await getAIResponse(messages, `translation-gen-${targetLangCode}`, 'translator', {
+                    model: 'llama-3.3-70b-versatile', // Explicitly use llama-3.3-70b-versatile
+                    temperature: 0.2,
+                });
+                const cleanedResponse = cleanAIResponse(aiResponse);
+                let translatedArray: TranslationEntry[];
+                try {
+                    translatedArray = JSON.parse(cleanedResponse);
+                    if (!Array.isArray(translatedArray)) throw new Error("LLM response is not an array.");
+                    // Add more validation if needed
+                } catch (parseError: any) {
+                    console.error("[Action:getTranslations] Failed to parse LLM response:", cleanedResponse);
+                    throw new Error(`Failed to parse LLM translation response: ${parseError.message}`);
+                }
+                // --- End LLM Call & Parse --- 
+
+                const translationMap: Record<string, string> = {};
+                const originalPhrases = new Set(englishDictionary.map((item: TranslationEntry) => item.phrase));
+                for (const item of translatedArray) {
+                    if (originalPhrases.has(item.phrase)) {
+                        translationMap[item.phrase] = item.translation;
+                    } else {
+                        console.warn(`[Action:getTranslations] LLM returned unknown phrase "${item.phrase}", skipping.`);
+                    }
+                }
+                // Check for missing keys
+                 const missingKeys = englishDictionary.filter((item: TranslationEntry) => !(item.phrase in translationMap));
+                 if (missingKeys.length > 0) {
+                     console.warn(`[Action:getTranslations] LLM translation missed ${missingKeys.length} phrases: ${missingKeys.map((k: TranslationEntry)=>k.phrase).join(', ')}`);
+                 }
+
+                console.log(`[Action:getTranslations] Successfully generated translations for ${targetLanguageName}.`);
+
+                // 3. Write to cache (inside the generation block)
+                try {
+                    await fs.mkdir(CACHE_DIR, { recursive: true }); 
+                    await fs.writeFile(cacheFilePath, JSON.stringify(translationMap, null, 2));
+                    console.log(`[Action:getTranslations] Wrote generated translations to cache: ${cacheFilePath}`);
+                } catch (writeError: any) {
+                    console.error(`[Action:getTranslations] FAILED to write cache file ${cacheFilePath}:`, writeError);
+                    // Still return generated data even if caching fails
+                }
+
+                return translationMap;
+
+            } catch (generationError: any) {
+                console.error(`[Action:getTranslations] FAILED to generate translations for ${targetLanguageName}:`, generationError);
+                // Throw a new error to avoid exposing internal details potentially
+                throw new Error(`Failed to generate translations for ${targetLanguageName}.`); 
+            }
+        } else {
+            // Other file system error (permissions, etc.)
+            console.error(`[Action:getTranslations] Error reading cache file ${cacheFilePath}:`, error);
+            throw new Error(`Failed to read translation cache for ${targetLanguageName}.`);
+        }
+    }
 }

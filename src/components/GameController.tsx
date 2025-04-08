@@ -1,15 +1,16 @@
 'use client';
 
-import { Loader, ArrowRight, Play, Pause } from "lucide-react";
+import { Loader, ArrowRight, Play, Pause, SkipForward, Loader2 } from "lucide-react";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
-import { Button } from "./ui/button"; // Import Button
+import { Button } from "@/components/ui/button"; // Import Button
 
 export default function GameController() {
     const {
         isAutoRunning,
         toggleAutoRun,
         runNextTurnAction,
-        isLoadingNextTurn
+        isLoadingNextTurn,
+        t // Get t function from context
     } = useGameContext();
 
     const handleNextClick = () => {
@@ -28,12 +29,23 @@ export default function GameController() {
             {/* Pause/Play Button */}
             <Button
                 onClick={toggleAutoRun}
-                type="button" // Important: prevent form submission if inside a form
-                variant={isAutoRunning ? "secondary" : "default"}
-                title={isAutoRunning ? "Pause Auto-Run" : "Start Auto-Run"}
+                disabled={isLoadingNextTurn} // Only disable if actively loading next turn
+                variant="outline"
+                size="icon"
+                className="w-9 h-9" // Make icon button square
+                aria-label={isAutoRunning ? t('PauseButton', "Pause Auto-Run") : t('ResumeButton', "Resume Auto-Run")} // Translate aria-label based on state
             >
-                {isAutoRunning ? <Pause size={18} /> : <Play size={18} />}
-                <span>{isAutoRunning ? "Pause" : "Auto"}</span>
+                {isAutoRunning ? (
+                    // Wrap icon in span with title for tooltip
+                    <span title={t('PauseButton', "Pause")}>
+                        <Pause className="h-4 w-4 rtl:-scale-x-100" />
+                    </span>
+                ) : (
+                    // Wrap icon in span with title for tooltip
+                    <span title={t('ResumeButton', "Resume")}>
+                        <Play className="h-4 w-4 rtl:-scale-x-100" />
+                    </span>
+                )}
             </Button>
 
             {/* Next Button */}
@@ -44,9 +56,19 @@ export default function GameController() {
                 disabled={isLoadingNextTurn || isAutoRunning} // Disable if loading OR auto-running
                 type="button" // Changed from submit, assuming manual trigger now
                 variant="default"
+                size="sm"
+                className="px-4 py-2"
+                aria-label={t('NextTurnButton', "Next Turn")} // Translate aria-label
             >
-                 <ArrowRight size={18} />
-                Next
+                {isLoadingNextTurn ? (
+                     <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                     <>
+                         <SkipForward className="h-4 w-4 mr-1 rtl:-scale-x-100" />
+                         {/* Translate button text */}
+                         {t('NextTurnButton', 'Next')}
+                     </>
+                 )}
             </Button>
          </div>
          <div className={`flex items-center gap-2 ${isLoadingNextTurn ? 'block' : 'hidden'}`}>

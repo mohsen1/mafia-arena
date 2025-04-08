@@ -2,26 +2,46 @@ import { PlayerCard } from "@/components/PlayerCard";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
 import { Home } from "lucide-react";
 
-export function GameSidebar() { // Remove props
-    const { gameState } = useGameContext(); // Use context
+export function GameSidebar() {
+    const { gameState, t } = useGameContext(); 
 
-    if (!gameState) return null; // Handle loading state
-    const { players, phase } = gameState;
+    if (!gameState) return null;
+
+    // Remove playerPerspective for now, as requestingPlayerId isn't available
+    const { players, livingPlayerIds, deadPlayerIds } = gameState;
+
+    const livingPlayers = livingPlayerIds.map(id => players[id]);
+    const deadPlayers = deadPlayerIds.map(id => players[id]);
 
     return (
-        <aside className="h-full overflow-y-auto p-4 border-rflex flex-col">
-            <a className="text-lg text-gray-500 dark:text-gray-400 mb-2 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200 w-full flex items-center gap-2" href="/">
-                <Home className="h-5 w-5 flex-shrink-0" />
-                Werewolf AI
-            </a>
-            <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-1">
-                {Object.values(players).map(player => (
-                    <PlayerCard 
-                        key={player.id} 
-                        player={player} 
-                        role={phase === 'GameOver' ? player.role : undefined}
-                    />
-                ))}
+        <aside className="bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen">
+            <h2 className="text-lg font-semibold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                {t('PlayersLabel', 'Players')} ({livingPlayerIds.length})
+            </h2>
+            <div className="flex-grow p-2 overflow-y-auto">
+                <div className="space-y-1">
+                    {livingPlayers.map(player => (
+                        <PlayerCard
+                            key={player.id}
+                            player={player}
+                            // Don't pass role for living players for now
+                            // role={...}
+                        />
+                    ))}
+                     {deadPlayers.length > 0 && (
+                         <>
+                            <hr className="my-2 border-gray-300 dark:border-gray-600" />
+                             {deadPlayers.map(player => (
+                                 <PlayerCard
+                                     key={player.id}
+                                     player={player}
+                                     // Show role for dead players (as before)
+                                     role={player.role} 
+                                 />
+                             ))}
+                         </>
+                     )}
+                </div>
             </div>
         </aside>
     );

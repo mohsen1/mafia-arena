@@ -37,7 +37,8 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
         currentlyPlayingMessageId,
         setCurrentlyPlayingMessageId,
         registerStopAudio, // Function to register stop callback
-        unregisterStopAudio // Function to unregister stop callback
+        unregisterStopAudio, // Function to unregister stop callback
+        t // Add t function from context
     } = useGameContext();
 
     const speakerPlayer = message.speaker.type === 'player'
@@ -375,7 +376,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     }, [
         isModerator, audioStatus, speakerPlayer, message.content, message.speakerName,
         appendChunk, stopAndCleanup, message.messageId, setCurrentlyPlayingMessageId,
-        isAutoRunning, runNextTurnAction, registerStopAudio, unregisterStopAudio // Add context dependencies
+        isAutoRunning, runNextTurnAction, registerStopAudio, unregisterStopAudio, t // Add context dependencies
     ]);
 
     // Unmount Effect (Keep this for resource cleanup)
@@ -410,7 +411,10 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
             <div className="flex-grow">
                 <div className="flex justify-between items-start">
                     <div className="flex-grow">
-                        <span className={`font-semibold text-gray-900 dark:text-gray-50 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>{message.speakerName}: </span>
+                        {/* Conditionally translate Moderator name */}
+                        <span className={`font-semibold text-gray-900 dark:text-gray-500 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>
+                            {isModerator ? t('ModeratorLabel', 'Moderator') : message.speakerName}:
+                        </span>
                         <span className={`text-gray-800 dark:text-gray-200 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>{message.content}</span>
                         <span className="text-xs text-gray-500 dark:text-gray-400 block text-right opacity-75">R{message.round} {message.phase}</span>
                     </div>

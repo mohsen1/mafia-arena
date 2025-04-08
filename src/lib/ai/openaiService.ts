@@ -1,14 +1,14 @@
-import { AICharacterProfile, Role } from '@/lib/types/game'; 
-import fs from 'fs';
+import { AICharacterProfile, Role } from '@/lib/types/game';
 import { OpenAI } from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import path from 'path';
-import { cleanAIResponse, extractJSONFromText } from '../utils/stringUtils'; 
+import { cleanAIResponse, extractJSONFromText } from "@/lib/utils/stringUtils";
 import { 
     GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT, 
     GENERATE_TITLE_AND_DESCRIPTION_USER_PROMPT, 
     GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT
 } from './PROMPTS';
+import { SupportedLanguage } from "@/hooks/useGameConfig";
+import { GAME_TITLE_DESCRIPTION_PROMPT } from "./PROMPTS";
 
 // --- Initialize OpenAI Client ---
 
@@ -49,41 +49,6 @@ export type GetAIResponseFunction = (
 // --- Real OpenAI Implementation ---
 
 /**
- * Logs API calls and their results to a markdown file for the specified game.
- * 
- * @param gameId The ID of the current game.
- * @param playerId The ID of the player whose response is needed.
- * @param apiCallDetails Details of the API call (model, messages, settings).
- * @param result The result of the API call.
- */
-async function logAPICall(gameId: string, playerId: string, apiCallDetails: any, result: any) {
-    const logDir = path.join(process.cwd(), 'data');
-    const logFile = path.join(logDir, `${gameId}.md`);
-
-    // Create the data directory if it doesn't exist
-    if (!fs.existsSync(logDir)) {
-        fs.mkdirSync(logDir, { recursive: true });
-    }
-
-    // Format the log entry
-    const logEntry = `
-## API Call - ${new Date().toISOString()}
-
-**Game ID:** ${gameId}
-**Player ID:** ${playerId}
-**API Call Details:** \`\`\`json
-${JSON.stringify(apiCallDetails, null, 2)}
-\`\`\`
-**Result:** \`\`\`json
-${JSON.stringify(result, null, 2)}
-\`\`\`
-`;
-
-    // Append the log entry to the file
-    fs.appendFileSync(logFile, logEntry);
-}
-
-/**
  * Calls the OpenAI-compatible API to get a response for a given prompt.
  * 
  * @param messages The prompt messages for the AI.
@@ -100,137 +65,146 @@ export const getAIResponse: GetAIResponseFunction = async (
     settings
 ) => {
     if (!openai) {
-        console.error(`[${gameId}|${playerId}] OpenAI client not initialized (missing API key).`);
         throw new Error("OpenAI client not initialized. Missing OPENAI_API_KEY.");
     }
+    console.log(
+        `[AI Request - ${gameId}|${playerId}] Calling model ${settings.model} (Temp: ${settings.temperature ?? 'default'})...`
+    );
 
-    console.log(`[${gameId}|${playerId}] Requesting AI response using model ${settings.model}...`);
-
+    const requestDetails = { settings, messages }; // For logging
     try {
         const completion = await openai.chat.completions.create({
             model: settings.model,
             messages: messages,
-            temperature: settings.temperature ?? 0.7, // Default temperature if not provided
+            temperature: settings.temperature ?? 0.7,
+            response_format: settings.response_format, // Pass response format if provided
         });
 
         const responseContent = completion.choices[0]?.message?.content;
-
         if (!responseContent) {
-            throw new Error('Received empty response content from AI.');
+            throw new Error("Received empty response content from AI.");
         }
 
-        // Clean response to remove thinking blocks
-        const cleanedContent = cleanAIResponse(responseContent);
-
-        // Log the API call and result
-        await logAPICall(gameId, playerId, { model: settings.model, messages, settings }, { response: cleanedContent });
-
-        console.log(`[${gameId}|${playerId}] Received AI response.`);
-        return cleanedContent.trim();
+        // Remove logging call
+        // await logAPICall(gameId, playerId, requestDetails, { content: responseContent }); 
+        console.log(
+            `[AI Response - ${gameId}|${playerId}] Received content (length: ${responseContent.length}).`
+        );
+        return responseContent;
 
     } catch (error: any) {
-        // Log the API call and error
-        await logAPICall(gameId, playerId, { model: settings.model, messages, settings }, { error: error.message });
-
-        console.error(`[${gameId}|${playerId}] Error calling OpenAI API:`, error?.message || error);
-        // More specific error handling could be added here (e.g., for rate limits)
-        // Re-throw the error to be handled by the calling action
-        throw new Error(`AI API call failed: ${error?.message || 'Unknown error'}`);
+        console.error(
+            `[AI Error - ${gameId}|${playerId}] Failed AI call for model ${settings.model}:`,
+            error?.message || error
+        );
+        // Remove logging call
+        // await logAPICall(gameId, playerId, requestDetails, { error: error?.message || 'Unknown Error' }); 
+        throw error; // Re-throw the error to be handled by the caller
     }
 };
 
 /**
- * Calls the AI to generate a thematic title and short description for the game
- * based on the cast of characters.
- *
- * @param players An array of player objects with names and personas.
- * @param settings AI model settings.
- * @returns A promise resolving to an object with title and description.
- * @throws If the API key is missing or the API call fails.
+ * Generates a game title and description based on player details using AI.
  */
 export async function getAIGameTitleAndDescription(
-    players: ReadonlyArray<{ name: string; persona: string }>,
-    settings: { model: string; temperature?: number }
+  playerDetails: { name: string; persona: string }[],
+  settings: { model: string; temperature?: number },
+  language: SupportedLanguage
 ): Promise<{ title: string; description: string }> {
-    if (!openai) {
-        throw new Error("OpenAI client not initialized. Missing OPENAI_API_KEY.");
+  console.log(`Generating title/description in ${language} using model: ${settings.model}`);
+
+  // Add null check for openai client
+  if (!openai) {
+      console.error("OpenAI client not initialized. Missing OPENAI_API_KEY.");
+       // Return default values if client is not available
+       return {
+           title: "Werewolf Game (Config Error)",
+           description: "OpenAI API key not configured.",
+       };
+  }
+
+  // Use the imported prompt generator function, passing the language
+  const systemPrompt = GAME_TITLE_DESCRIPTION_PROMPT(playerDetails, language);
+
+  const messages: ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: "Generate the title and description based on the characters provided." },
+  ];
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: settings.model,
+      messages: messages,
+      temperature: settings.temperature ?? 0.7, // Default temperature if not provided
+      max_tokens: 150, // Adjust as needed
+      // Ensure response format is JSON if the prompt specifies it
+      // response_format: { type: "json_object" }, // Uncomment if prompt demands JSON
+    });
+
+    const rawContent = response.choices[0]?.message?.content;
+    if (!rawContent) {
+      throw new Error("AI response content was empty.");
     }
 
-    console.log(`Requesting AI game title/description using model ${settings.model}...`);
+    const cleanedContent = cleanAIResponse(rawContent);
 
-    const characterDescriptions = players
-        .map(p => `- ${p.name}: ${p.persona.split('\n')[2]?.replace('Appearance: ', '') || 'No description provided.'}`)
-        .join('\n');
+    // --- Attempt to parse the response --- 
+    // Flexible parsing: Look for Title: ... Description: ... pattern
+    // Removed 's' flag, use [\s\S] to match any character including newline
+    const titleMatch = cleanedContent.match(/Title:([\s\S]*?)Description:/);
+    const descriptionMatch = cleanedContent.match(/Description:([\s\S]*)/);
 
-    const prompt: ChatCompletionMessageParam[] = [
-        {
-            role: 'system',
-            content: GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT
-        },
-        {
-            role: 'user',
-            content: GENERATE_TITLE_AND_DESCRIPTION_USER_PROMPT(characterDescriptions)
-        }
-    ];
+    const title = titleMatch?.[1]?.trim() || "Werewolf Game"; // Fallback title
+    const description = descriptionMatch?.[1]?.trim() || "A game of deception and deduction."; // Fallback desc
 
+    console.log("Generated Title:", title);
+    console.log("Generated Description:", description);
+
+    // Simple JSON parsing (if prompt guarantees JSON)
+    /*
     try {
-        const completion = await openai.chat.completions.create({
-            model: settings.model,
-            messages: prompt,
-            temperature: settings.temperature ?? 0.8, 
-            response_format: { type: "json_object" }, // Request JSON output
-        });
-
-        const responseContent = completion.choices[0]?.message?.content;
-
-        if (!responseContent) {
-            throw new Error('Received empty response content from AI for title/description.');
-        }
-
-        // Parse the JSON response
-        const parsedResponse = JSON.parse(responseContent);
-        if (typeof parsedResponse.title === 'string' && typeof parsedResponse.description === 'string') {
-            // Log the API call and result
-            await logAPICall('game_title', 'system', { model: settings.model, prompt, settings }, parsedResponse);
-
-            console.log("Received AI-generated title and description.");
-            return {
-                 title: parsedResponse.title.trim(),
-                 description: parsedResponse.description.trim()
-             };
-        } else {
-            throw new Error('AI response for title/description was not in the expected JSON format.');
-        }
-
-    } catch (error: any) {
-        // Log the API call and error
-        await logAPICall('game_title', 'system', { model: settings.model, prompt, settings }, { error: error.message });
-
-        console.error(`Error generating AI title/description:`, error?.message || error);
-        // Fallback or re-throw
-        // For now, return a generic fallback to avoid blocking game creation
-        console.warn("Falling back to generic title/description.");
-        return {
-            title: "A Game of Shadows",
-            description: "Suspicion hangs heavy in the air as the villagers seek the threat within."
-        };
-        // Or re-throw: throw new Error(`AI title/description generation failed: ${error?.message || 'Unknown error'}`);
+      const parsed = JSON.parse(cleanedContent);
+      if (typeof parsed.title === 'string' && typeof parsed.description === 'string') {
+        return { title: parsed.title, description: parsed.description };
+      } else {
+         throw new Error("Parsed JSON response did not contain title/description strings.");
+      }
+    } catch (parseError) {
+       console.error("Failed to parse title/description response:", parseError);
+       console.error("Raw response was:", cleanedContent); // Log raw response on error
+        // Fallback to basic extraction or defaults
+        const title = cleanedContent.split('\n')[0] || "Werewolf Game";
+        const description = cleanedContent.split('\n')[1] || "A game of deception...";
+        return { title, description };
     }
+    */
+    return { title, description };
+
+  } catch (error) {
+    console.error("Error getting AI title/description:", error);
+    // Return default values on error
+    return {
+      title: "Werewolf Game (Error)",
+      description: "Failed to generate title/description.",
+    };
+  }
 }
 
 /**
  * Generates a character profile using an AI model, aiming for diversity based on existing profiles.
  * @param role The role the character should have.
  * @param model The AI model to use.
+ * @param language The language of the character profile.
  * @param existingProfiles Optional array of already generated profiles to ensure diversity.
  * @returns A generated AICharacterProfile or null if generation fails.
  */
 export async function generateAICharacterProfile(
     role: Role, 
     model: string, 
+    language: SupportedLanguage,
     existingProfiles?: AICharacterProfile[] // Add optional parameter
 ): Promise<AICharacterProfile | null> {
-    console.log(`Requesting AI profile generation for role: ${role} using model: ${model}${existingProfiles && existingProfiles.length > 0 ? ` (considering ${existingProfiles.length} existing profiles)` : ''}`);
+    console.log(`Requesting AI profile generation for role: ${role} in ${language} using model: ${model}${existingProfiles && existingProfiles.length > 0 ? ` (considering ${existingProfiles.length} existing profiles)` : ''}`);
     
     // Construct context about existing characters, focusing on names for uniqueness check
     let existingCharsContext = ''
@@ -244,8 +218,8 @@ export async function generateAICharacterProfile(
         ).join('\n');
     }
 
-    // Use the imported prompt function
-    const systemPrompt = GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT(role, existingCharsContext);
+    // Use the imported prompt function, passing language
+    const systemPrompt = GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT(role, existingCharsContext, language);
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },

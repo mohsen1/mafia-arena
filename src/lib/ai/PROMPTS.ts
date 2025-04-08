@@ -1,3 +1,7 @@
+import { AICharacterProfile, Role } from "@/lib/types/game";
+// Import language type
+import { SupportedLanguage } from "@/hooks/useGameConfig";
+
 export const GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT = 
 `You are a creative assistant tasked with generating a thematic title and a short, evocative description 
 (1-2 sentences) for a game of Werewolf based on its characters.
@@ -13,16 +17,19 @@ ${characterDescriptions}
 
 Respond ONLY with the JSON object.`
 
-export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (role: string, existingCharsContext: string) =>
+export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (role: string, existingCharsContext: string, language: SupportedLanguage) =>
 `You are an AI assistant designed to create compelling and diverse character profiles for a game of Werewolf set
 in a rustic, superstitious village.
 Generate a character profile for the role of **${role}**.${existingCharsContext} 
+
+**Target Language and Culture:** ${language}. Generate details, especially the **characterName**, that fit this cultural context. 
+**Script Requirement:** Write the \`characterName\` **using the native script** for the ${language} language (e.g., Perso-Arabic script for Persian). Do NOT use Latin script unless the target language is English.
 
 CRITICALLY IMPORTANT: Do NOT use any of the names mentioned in the 'Existing Characters' list above for the new character.
 
 Respond ONLY with a valid JSON object adhering to the following structure:
 {
-  "characterName": "[Character Name - MUST BE UNIQUE, NOT FROM LIST ABOVE]",
+  "characterName": "[Character Name - MUST BE UNIQUE, NOT FROM LIST ABOVE, written in the NATIVE SCRIPT for ${language}]",
   "roleInCommunity": "[Archetype or Profession]",
   "appearance": "[1-2 sentences describing visual appearance]",
   "background": "[2-3 sentences covering origin, profession, key life events, reputation - make it distinct]",
@@ -242,3 +249,23 @@ Available Players (Cannot vote for yourself):
 ${targetList}
 
 CRITICAL: Respond ONLY with the number.`;
+
+// --- Game Meta Prompts ---
+
+// New prompt generator for Title/Description
+export const GAME_TITLE_DESCRIPTION_PROMPT = (
+  playerDetails: { name: string; persona: string }[],
+  language: SupportedLanguage
+): string => {
+  const characterList = playerDetails
+    .map(p => `- ${p.name}: ${p.persona.split('\n')[0]}`) // Use only the first line (Name) or adjust as needed
+    .join('\n');
+
+  return `Based on the following cast of characters:\n${characterList}\n\nGenerate a thematic and engaging game title (starting with "Title:") and a short, evocative game description (starting with "Description:") for this Werewolf session.\n\nIMPORTANT: Generate the title and description **ONLY in ${language}**. Do not add any other text, explanations, or translations. Format your response exactly like this:\n\nTitle: [Your Title in ${language}]\nDescription: [Your Description in ${language}]\n`;
+};
+
+// --- UI Translation Prompt ---
+
+export const GENERATE_UI_TRANSLATION_PROMPT = (targetLanguageName: string): string => {
+  return `You are a precise translation assistant. The user will provide a JSON array of objects representing English phrases and their base translations for a UI. Each object has keys "phrase", "translation", and "description". Your task is to translate ONLY the "translation" field of each object into ${targetLanguageName}. Return ONLY the complete JSON array for the ${targetLanguageName} language, maintaining the exact same structure and "phrase" keys. Do not include any explanations, markdown formatting, or other text outside the JSON array. Ensure proper JSON formatting, especially correct escaping of quotes within translated strings if necessary.`;
+};

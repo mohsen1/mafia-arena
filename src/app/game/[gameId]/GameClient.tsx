@@ -22,8 +22,11 @@ function GameLayout() {
         return <div>Loading game state...</div>; // Or some loading indicator
     }
 
+    // Determine text direction based on language
+    const textDirection = gameState.language === 'Persian' ? 'rtl' : 'ltr';
+
     return (
-        <div className="grid grid-cols-[280px_1fr] h-screen">
+        <div className="grid grid-cols-[280px_1fr] h-screen" dir={textDirection}>
             {/* Left Column (Sidebar): Player List */}
             <GameSidebar />
 

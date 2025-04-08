@@ -5,15 +5,17 @@ import {
     GameState,
     Player,
     PlayerInitializationData,
-    AICharacterProfile
+    AICharacterProfile,
+    Role,
+    Vote,
+    WinCondition
 } from '@/lib/types/game';
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
+import { selectCharacterImage } from "@/lib/utils/imageUtils";
+import { SupportedLanguage } from "@/hooks/useGameConfig";
 
 // --- Constants ---
-const CHARACTER_IMAGES_DIR = path.join(process.cwd(), 'public', 'images', 'characters'); // Define image directory path
 
 // --- Utility Functions ---
 
@@ -31,20 +33,6 @@ function shuffleArray<T>(array: T[]): T[] {
     return array;
 }
 
-/**
- * Lists available character image filenames.
- * @returns {string[]} An array of image filenames.
- */
-function listCharacterImageFiles(): string[] {
-    try {
-        const files = fs.readdirSync(CHARACTER_IMAGES_DIR);
-        return files.filter(file => /\.(png|jpg|jpeg|webp)$/i.test(file)); // Filter for image files
-    } catch (error) {
-        console.error("Failed to list character images:", error);
-        return []; // Return empty array on error
-    }
-}
-
 // --- Game Initialization Logic ---
 
 /**
@@ -54,46 +42,86 @@ export async function initializeNewGame(
     settings: GameSettings,
     gameId: string,
     createdAt: number,
-    // Expect player data including optional imageUrl and voiceId
-    playerInitData: (PlayerInitializationData & { imageUrl?: string | null, voiceId?: string })[] 
+    playerInitDataList: (PlayerInitializationData & { imageUrl?: string | null, voiceId?: string, aiModel: string })[],
+    language: SupportedLanguage
 ): Promise<GameState> {
-    console.log(`Initializing game ${gameId} with ${settings.numPlayers} players.`);
+    console.log(
+        `Initializing game ${gameId} with ${playerInitDataList.length} players. Settings:`, settings,
+        `Language: ${language}`
+    );
     
-    const shuffledInitData = shuffleArray([...playerInitData]);
-
     const players: Record<string, Player> = {};
-    
-    // Create players directly, using the provided imageUrl and voiceId
-    shuffledInitData.forEach((initData) => {
-        const playerId = `player-${crypto.randomUUID()}`;
-        const persona = formatPersonaFromProfile(initData.profile);
+    const livingPlayerIds: string[] = [];
 
-        players[playerId] = {
+    for (const initData of playerInitDataList) {
+        const playerId = `player-${crypto.randomUUID().substring(0, 8)}`;
+        // Prioritize pre-generated image, await fallback selection
+        const imageUrlFromSelection = initData.imageUrl ?? await selectCharacterImage(initData.profile?.gender, initData.profile?.ageCategory);
+        // Assign final URL (null becomes undefined)
+        const finalImageUrl = imageUrlFromSelection ?? undefined;
+
+        // Basic validation: Check if profile exists
+        if (!initData.profile) {
+            console.error(`Initialization failed: Missing profile data for a player.`);
+            throw new Error('Missing player profile data during initialization.');
+        }
+        if (!initData.aiModel) {
+            console.error(`Initialization failed: Missing aiModel for a player.`);
+            throw new Error('Missing player AI model during initialization.');
+        }
+
+        const newPlayer: Player = {
             id: playerId,
             name: initData.profile.characterName,
             role: initData.role,
-            persona: persona,
+            persona: `Name: ${initData.profile.characterName}
+Role: ${initData.role}
+Gender: ${initData.profile.gender}
+Age: ${initData.profile.ageCategory}
+Role in Community: ${initData.profile.roleInCommunity}
+Appearance: ${initData.profile.appearance}
+Background: ${initData.profile.background}
+Personality: ${initData.profile.personalityArchetype}
+Key Traits: ${initData.profile.keyTraits}
+Motivations: ${initData.profile.motivations.join(", ")}`,
+            status: "alive",
             aiModel: initData.aiModel,
-            imageUrl: initData.imageUrl ?? undefined,
+            imageUrl: finalImageUrl,
             voiceId: initData.voiceId,
-            status: 'alive',
         };
-        console.log(`Created player: ${players[playerId].name} (${playerId}) as ${initData.role} [Model: ${initData.aiModel}, Image: ${initData.imageUrl || 'None'}, Voice: ${initData.voiceId || 'Default'}]`);
-    });
-
-    // Ensure livingPlayerIds maintains the shuffled order
-    const finalLivingPlayerIds = shuffledInitData.map(initData => {
-        // Find the player ID created for this initData entry
-        const createdPlayer = Object.values(players).find(p => 
-            p.name === initData.profile.characterName && p.role === initData.role
-        );
-        return createdPlayer?.id;
-    }).filter((id): id is string => !!id);
-    
-    if (finalLivingPlayerIds.length !== shuffledInitData.length) {
-        console.warn("Mismatch between initial data and created player IDs during final ordering.");
-        // Potentially fallback to Object.keys(players) but that loses intended shuffle order
+        players[playerId] = newPlayer;
+        livingPlayerIds.push(playerId);
     }
+
+    // --- Shuffle Player Order for Initial Turn ---
+    const shuffledPlayerIds = shuffleArray([...livingPlayerIds]);
+
+    // --- Initial Game State ---
+    const initialGameState: GameState = {
+        gameId,
+        createdAt,
+        updatedAt: createdAt,
+        phase: "DayIntroductions",
+        round: 1,
+        players,
+        livingPlayerIds: shuffledPlayerIds,
+        deadPlayerIds: [],
+        turnOrder: [...shuffledPlayerIds],
+        turnOrderIndex: 0,
+        settings,
+        conversationLog: [],
+        votes: [],
+        nightActions: [],
+        lastEliminatedPlayerId: null,
+        lastWerewolfTargetId: null,
+        lastDoctorSaveId: null,
+        lastSeerTargetId: null,
+        winCondition: null,
+        language: language,
+        _internalState: {
+            initialProfiles: playerInitDataList.map(({ profile, role, aiModel, imageUrl, voiceId }) => ({ profile, role, aiModel, imageUrl, voiceId }))
+        },
+    };
 
     // Get AI Title and Description - Use the default model from config
     console.log(`Using model ${DEFAULT_GAME_SETTINGS.aiModel} for game title/description generation.`);
@@ -103,47 +131,13 @@ export async function initializeNewGame(
          model: DEFAULT_GAME_SETTINGS.aiModel,
          // temperature: 0.8 // Optionally set temperature if needed
     };
-    const { title, description } = await getAIGameTitleAndDescription(playerDetailsForTitle, titleGenSettings);
+    const { title, description } = await getAIGameTitleAndDescription(playerDetailsForTitle, titleGenSettings, language);
 
-    const initialState: GameState = {
-        gameId: gameId,
-        createdAt: createdAt,
-        title: title, 
-        description: description, 
-        settings: settings,
-        players: players,
-        livingPlayerIds: finalLivingPlayerIds, 
-        phase: 'DayIntroductions',
-        round: 1,
-        turnOrderIndex: 0,
-        conversationLog: [
-            {
-                messageId: `msg-${crypto.randomUUID()}-start`,
-                gameId: gameId,
-                speaker: { type: 'moderator' },
-                speakerName: "Moderator",
-                content: `Welcome to "${title || 'the village'}"! ${settings.numPlayers} players have gathered under a cloud of suspicion. Let the introductions begin...`,
-                timestamp: Date.now(),
-                round: 1,
-                phase: 'DayIntroductions',
-                audience: { type: 'all' },
-            }
-        ],
-        nightActions: [],
-        votes: [],
-        lastEliminatedPlayerId: undefined,
-        winner: undefined,
-         _internalState: {
-             initialProfiles: playerInitData.map(data => ({
-                 role: data.role,
-                 profile: data.profile,
-                 aiModel: data.aiModel
-             }))
-         }
-    };
-    
-    console.log("Game state initialized.");
-    return initialState;
+    initialGameState.title = title;
+    initialGameState.description = description;
+
+    console.log(`Game ${gameId} initialized successfully.`);
+    return initialGameState;
 }
 
 // --- Phase Transition Logic ---
@@ -163,39 +157,34 @@ export function advancePhase(currentState: GameState): GameState {
 
     let nextPhase: GamePhase;
     let nextRound = currentState.round;
-    let nextTurnOrderIndex = currentState.turnOrderIndex; // Usually reset at phase change
-    // TODO: Add logic for adding moderator messages about phase changes?
+    let nextTurnOrderIndex = 0; // Reset index for the start of the new phase
 
     switch (currentState.phase) {
         case 'Night':
             // If it's the end of the very first night (Round 1), go to introductions.
             // Otherwise, go directly to discussion.
-            nextPhase = currentState.round === 1 ? 'DayIntroductions' : 'DayDiscussion';
-            nextTurnOrderIndex = 0; 
-            console.log(`Advancing from Night to ${nextPhase}, Round ${currentState.round}`); // Use current round for logging here
+            nextPhase = currentState.round === 0 ? 'DayIntroductions' : 'DayDiscussion';
+            console.log(`Advancing from Night to ${nextPhase}, Round ${nextRound}`);
             break;
         case 'DayIntroductions': // After introductions, move to discussion
             nextPhase = 'DayDiscussion'; 
-            nextTurnOrderIndex = 0; // Reset for discussion start
             console.log(`Advancing from DayIntroductions to DayDiscussion, Round ${nextRound}`);
             break;
         case 'DayDiscussion': // After discussion, move to voting
             nextPhase = 'Voting';
-             // Reset turn order index or handle voting state specifically
-            nextTurnOrderIndex = 0; 
             console.log(`Advancing from DayDiscussion to Voting, Round ${nextRound}`);
             break;
-        case 'Voting':
+        case 'Voting': // After voting, move to night, start next round
             nextPhase = 'Night';
-            nextRound++; // Increment round when moving from Voting back to Night
-            // Reset turn order index for the start of Night actions
-            nextTurnOrderIndex = 0; 
+            nextRound++; 
             console.log(`Advancing from Voting to Night, starting Round ${nextRound}`);
             break;
         // Should not happen if called correctly, but good practice:
         default:
              console.warn(`Unexpected current phase: ${currentState.phase}. Staying in current phase.`);
+             // Attempt to recover or throw an error? For now, stay in phase.
              nextPhase = currentState.phase;
+             nextTurnOrderIndex = currentState.turnOrderIndex; // Keep current index
              break;
     }
 
@@ -205,10 +194,13 @@ export function advancePhase(currentState: GameState): GameState {
         phase: nextPhase,
         round: nextRound,
         turnOrderIndex: nextTurnOrderIndex,
-        // Do NOT clear actions/votes here. They should be processed/cleared
-        // in the main action handler after the phase completes.
-        // nightActions: nextPhase === 'Night' ? currentState.nightActions : [],
-        // votes: nextPhase === 'Voting' ? currentState.votes : [], 
+        // Clear transient state from the previous phase
+        votes: [], 
+        nightActions: [],
+        lastEliminatedPlayerId: currentState.phase === 'Voting' ? currentState.lastEliminatedPlayerId : null, // Preserve elimination from vote
+        lastWerewolfTargetId: currentState.phase === 'Night' ? currentState.lastWerewolfTargetId : null, // Preserve night target
+        lastDoctorSaveId: currentState.phase === 'Night' ? currentState.lastDoctorSaveId : null, // Preserve night save
+        lastSeerTargetId: currentState.phase === 'Night' ? currentState.lastSeerTargetId : null, // Preserve night seer target
     };
 }
 
@@ -218,64 +210,68 @@ export function advancePhase(currentState: GameState): GameState {
  * Checks if the game has reached a win condition for either faction.
  * - Werewolves win if their numbers are >= non-werewolves.
  * - Villagers win if all werewolves are eliminated.
- * If a win condition is met, updates the game state phase to GameOver and sets the winner.
+ * If a win condition is met, returns the win condition details.
  *
- * @param currentState The current state of the game.
- * @returns A new GameState object, potentially updated with GameOver status and winner, or the original state if no win condition is met.
+ * @param state The current state of the game.
+ * @returns A WinCondition object if a win condition is met, otherwise null.
  */
-export function checkWinCondition(currentState: GameState): GameState {
-    // Don't check if already over
-    if (currentState.phase === 'GameOver') {
-        return currentState;
-    }
+export function checkWinCondition(state: GameState): WinCondition | null {
+  const livingPlayers = state.livingPlayerIds.map(id => state.players[id]);
+  const livingWerewolves = livingPlayers.filter(p => p.role === 'Werewolf');
+  const livingVillagers = livingPlayers.filter(p => p.role !== 'Werewolf'); // Villagers, Seer, Doctor
 
-    const livingPlayers = currentState.livingPlayerIds.map(id => currentState.players[id]);
-    const livingWerewolves = livingPlayers.filter(p => p.role === 'Werewolf' && p.status === 'alive').length;
-    const livingNonWerewolves = livingPlayers.filter(p => p.role !== 'Werewolf' && p.status === 'alive').length;
+  if (livingWerewolves.length === 0) {
+    // Villagers win
+    return {
+        outcome: 'Villager Win',
+        message: "All Werewolves have been eliminated! The Villagers are victorious!"
+    };
+  } else if (livingVillagers.length === 0) {
+    // Werewolves win (everyone else is a werewolf)
+     return {
+        outcome: 'Werewolf Win',
+        message: "Only Werewolves remain! The Werewolves have taken over the village!"
+     };
+  } else if (livingWerewolves.length >= livingVillagers.length) {
+    // Werewolves win (cannot be outvoted)
+    return {
+        outcome: 'Werewolf Win',
+        message: "The Werewolves now equal or outnumber the Villagers! The Werewolves win!"
+    };
+  }
 
-    let winner: 'Werewolf' | 'Villager' | undefined = undefined;
-
-    if (livingWerewolves === 0) {
-        winner = 'Villager';
-        console.log("Win Condition Met: All Werewolves eliminated. Villagers win!");
-    } else if (livingWerewolves >= livingNonWerewolves) {
-        winner = 'Werewolf';
-        console.log("Win Condition Met: Werewolves equal or outnumber Villagers. Werewolves win!");
-    }
-
-    // If a winner is determined, update the state
-    if (winner) {
-        return {
-            ...currentState,
-            phase: 'GameOver',
-            winner: winner,
-        };
-    }
-
-    // No win condition met, return the state unchanged
-    return currentState;
+  // Game continues
+  return null;
 }
 
 // --- Turn Order Logic ---
 
 /**
- * Determines the ID of the next player scheduled to speak during the Day phase.
- * Uses the livingPlayerIds array and the turnOrderIndex from the game state.
+ * Determines the ID of the next player scheduled to speak based on the current phase and turn index.
  *
  * @param currentState The current state of the game.
- * @returns The ID of the next player to speak, or null if it's not the Day phase or if the index is out of bounds.
+ * @returns The ID of the next player to speak, or null if the phase doesn't involve speaking turns or if all players have spoken.
  */
 export function determineNextSpeaker(currentState: GameState): string | null {
-    // Speaking happens during Introduction and Discussion phases
+    // Speaking happens during Introduction and Discussion phases using the turnOrder array
     if (currentState.phase !== 'DayIntroductions' && currentState.phase !== 'DayDiscussion') {
         return null;
     }
 
-    const { livingPlayerIds, turnOrderIndex } = currentState;
+    const { turnOrder, turnOrderIndex } = currentState;
 
-    // Check if the index is valid for the living players array
-    if (turnOrderIndex >= 0 && turnOrderIndex < livingPlayerIds.length) {
-        return livingPlayerIds[turnOrderIndex];
+    // Check if the index is valid within the turn order array
+    if (turnOrderIndex >= 0 && turnOrderIndex < turnOrder.length) {
+        const nextSpeakerId = turnOrder[turnOrderIndex];
+        // Ensure the speaker is actually still alive
+        if (currentState.livingPlayerIds.includes(nextSpeakerId)) {
+            return nextSpeakerId;
+        } else {
+            console.warn(`Next speaker in turnOrder (${nextSpeakerId}) is not in livingPlayerIds. Skipping.`);
+            // TODO: Ideally, advance index until a living player is found, or handle phase end.
+            // For now, returning null indicates an issue or end of available speakers.
+            return null;
+        }
     }
 
     // Index is out of bounds (e.g., all players have spoken this round/phase)
