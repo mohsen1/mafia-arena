@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { gameStateManager } from '@/lib/state/gameStateManager';
-import { startGameAction, deleteGameAction } from '@/app/actions'; // Import the server action
-import { FilteredGameState } from '@/lib/types/game'; // Import type
+import { deleteGameAction } from '@/app/actions';   
+import { FilteredGameState } from '@/lib/types/game';
+import StartGameForm from '@/components/StartGameForm'; 
 
 // Component for displaying a single game card in the list
 function GameCard({ game }: { game: FilteredGameState }) {
@@ -53,15 +54,7 @@ export default async function Home() {
         <main className="container mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
             <h1 className="text-4xl font-bold mt-8 mb-6 text-center">Werewolf AI</h1>
 
-            {/* Form to start a new game */}
-            <form action={startGameAction} className="mb-8">
-                <button 
-                    type="submit" 
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition duration-150 ease-in-out text-lg font-semibold"
-                >
-                    Start New Game
-                </button>
-            </form>
+            <StartGameForm />
 
             {/* List existing games */}
             {existingGames.length > 0 && (

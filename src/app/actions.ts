@@ -4,64 +4,86 @@ import { gameStateManager } from '@/lib/state/gameStateManager';
 import { determineNextSpeaker, initializeNewGame, advancePhase, checkWinCondition } from '@/lib/game/engine'; // Added initializeNewGame, advancePhase, checkWinCondition
 import { getAIResponse } from '@/lib/ai/openaiService';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { ChatMessage, GameState, NightAction, Player, Vote } from '@/lib/types/game'; // Added Vote
+import { ChatMessage, GameState, NightAction, Player, Vote, Role } from '@/lib/types/game'; // Added Vote and Role
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation'; // Added redirect
 import crypto from 'crypto';
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config'; // Added config imports
 
-// Action to start a new game
-export async function startGameAction() {
-    console.log("Attempting to start a new game with default settings...");
+// Action to start a new game - Updated to accept FormData
+export async function startGameAction(formData: FormData) { // <-- *** ADD formData PARAMETER HERE ***
+    console.log("Attempting to start a new game...");
+    
+    // Extract AI Model
+    const submittedModel = formData.get('aiModel') as string | null;
+    const aiModel = submittedModel?.trim() || DEFAULT_GAME_SETTINGS.aiModel;
+    console.log(`Using AI Model: ${aiModel}`);
+
+    // Extract Role Distribution
+    const roles: Role[] = ['Werewolf', 'Seer', 'Doctor', 'Villager'];
+    const roleDistribution: Record<Role, number> = { ...DEFAULT_GAME_SETTINGS.roleDistribution }; // Start with defaults
+
+    roles.forEach(role => {
+        const countStr = formData.get(role) as string | null;
+        if (countStr) {
+            const count = parseInt(countStr, 10);
+            // Use parsed count if it's a valid non-negative number, otherwise keep default
+            if (!isNaN(count) && count >= 0) { 
+                roleDistribution[role] = count;
+            } else {
+                 console.warn(`Invalid count submitted for ${role}: '${countStr}'. Using default ${roleDistribution[role]}.`);
+            }
+        }
+         // If countStr is null/empty, the default value remains
+    });
+    console.log("Using Role Distribution:", roleDistribution);
+
+    // Perform redirect after successful creation
+    let gameIdToRedirect: string | null = null;
     try {
-        // 1. Determine number of players from default settings
-        const numPlayers = calculateNumPlayers(DEFAULT_GAME_SETTINGS.roleDistribution);
-        const settings = { ...DEFAULT_GAME_SETTINGS, numPlayers };
+        // 1. Calculate numPlayers based on the *submitted* distribution
+        const numPlayers = calculateNumPlayers(roleDistribution);
+        console.log(`Calculated number of players: ${numPlayers}`);
 
-        // 2. Generate gameId and createdAt (needed for initializeNewGame)
-        const gameId = `game-${crypto.randomUUID()}`;
-        const createdAt = Date.now();
-
-        // 3. Initialize the full game state locally first
-        const initialGameState = await initializeNewGame(
-            settings,
-            gameId, 
-            createdAt
-        );
-
-        // 4. Create the game using the manager (it handles saving/caching)
-        // Note: gameStateManager.createGame expects the state *without* gameId/createdAt
-        // It might be better to refactor createGame OR initializeNewGame
-        // For now, let's create it directly here and then just use updateGameState
-        // or perhaps add a dedicated method to the manager if this pattern repeats.
-        // --- Simpler Approach: Let Manager handle ID/Timestamp --- 
-        // Refactor: Let's assume createGame *should* take the initialized state
-        // Or adjust initializeNewGame to not require id/timestamp beforehand.
-        // Let's stick to the current structure for initializeNewGame and call createGame differently
-
-        const newGame = await gameStateManager.createGame(initialGameState); 
-        // If createGame is strict about not wanting gameId/createdAt, we'd adjust:
-        // const { gameId: _gid, createdAt: _ca, ...coreState } = initialGameState;
-        // const newGame = await gameStateManager.createGame(coreState); 
-        // Let's assume createGame is flexible or we'll adjust it later.
-
-        console.log(`New game created with ID: ${newGame.gameId}`);
-
-        // 5. Redirect to the new game page
-        redirect(`/game/${newGame.gameId}`);
-
-    } catch (error: any) {
-        // Check if the error is the specific NEXT_REDIRECT error
-        if (error.digest?.startsWith('NEXT_REDIRECT')) {
-            throw error; // Re-throw NEXT_REDIRECT error for Next.js to handle
+        // Validate minimum players (optional but recommended)
+        if (numPlayers < 3) { // Example minimum - adjust as needed
+             throw new Error("A minimum of 3 players is required.");
         }
         
-        // Log other types of errors
+        const settings = { 
+            // Use the extracted/validated settings
+            roleDistribution: roleDistribution,
+            discussionRoundsPerPlayer: DEFAULT_GAME_SETTINGS.discussionRoundsPerPlayer, // Keep default for now
+            aiModel: aiModel, 
+            numPlayers: numPlayers
+        };
+        
+        // 2. Generate ID/Timestamp
+        const gameId = `game-${crypto.randomUUID()}`;
+        const createdAt = Date.now();
+        
+        // 3. Initialize State
+        const initialGameState = await initializeNewGame(settings, gameId, createdAt);
+        
+        // 4. Create Game
+        const newGame = await gameStateManager.createGame(initialGameState); 
+        console.log(`New game created with ID: ${newGame.gameId}`);
+        gameIdToRedirect = newGame.gameId; // Store ID for redirect
+
+    } catch (error: any) {
+        if (error.digest?.startsWith('NEXT_REDIRECT')) {
+            throw error; 
+        }
         console.error("Failed to start new game:", error);
-        // TODO: How to report this error back to the user? 
-        // Maybe redirect to an error page or show a message on the home page.
-        // For now, just logging server-side.
-        // Returning an error object here won't work alongside a potential redirect
+        // Pass the error message back or throw a more specific error
+        throw new Error(`Failed to create the game: ${error.message || 'Unknown error'}`); 
+    }
+
+    // 5. Redirect if successful
+    if (gameIdToRedirect) {
+        redirect(`/game/${gameIdToRedirect}`);
+    } else {
+        throw new Error("Game created but failed to get ID for redirect.");
     }
 }
 
