@@ -7,6 +7,11 @@ import { startGameAction } from '@/app/actions';
 import { DEFAULT_GAME_SETTINGS } from '@/lib/config'; // Import defaults for placeholder
 import { Role } from '@/lib/types/game'; // Import Role type
 
+// Props interface for the form
+interface StartGameFormProps {
+    availableModels: string[]; // Add prop for models
+}
+
 // Separate component for the button to use useFormStatus
 function SubmitButton() {
   const { pending } = useFormStatus(); // Get pending state from the form
@@ -29,7 +34,7 @@ function SubmitButton() {
   );
 }
 
-export default function StartGameForm() {
+export default function StartGameForm({ availableModels }: StartGameFormProps) { // Destructure props
   // No need for isSubmitting state here anymore
 
   // Optional: Add state for displaying potential errors from the server action
@@ -57,19 +62,42 @@ export default function StartGameForm() {
     >
        <h2 className="text-xl font-semibold mb-4 text-gray-700">Create New Game</h2>
        
+       {/* AI Model Dropdown */}
        <div className="mb-4">
           <label htmlFor="aiModel" className="block text-sm font-medium text-gray-600 mb-1">
-            AI Model Name
+            AI Model
           </label>
-          <input
-            type="text"
+          <select
             id="aiModel"
-            name="aiModel" 
-            placeholder={`Default: ${DEFAULT_GAME_SETTINGS.aiModel}`}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-            // Disabled state is now handled by useFormStatus in SubmitButton
-          />
-          <p className="text-xs text-gray-500 mt-1">Leave blank for default.</p>
+            name="aiModel" // Name attribute is crucial for FormData
+            // Set default value if the default exists in the fetched list
+            defaultValue={availableModels.includes(DEFAULT_GAME_SETTINGS.aiModel) ? DEFAULT_GAME_SETTINGS.aiModel : ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
+            required // Make selection required if desired, or handle default logic better
+          >
+            {/* Optional: Add a default placeholder option */}
+            <option value="" disabled={availableModels.length > 0}>
+              {availableModels.length > 0 ? "-- Select Model --" : "-- No models found --"}
+            </option>
+            
+            {/* Add default model if not in fetched list (optional) */}
+            {!availableModels.includes(DEFAULT_GAME_SETTINGS.aiModel) && (
+                 <option key={DEFAULT_GAME_SETTINGS.aiModel} value={DEFAULT_GAME_SETTINGS.aiModel}>
+                     {DEFAULT_GAME_SETTINGS.aiModel} (Default)
+                 </option>
+            )}
+
+            {/* Map fetched models */}
+            {availableModels.map((modelId) => (
+              <option key={modelId} value={modelId}>
+                {modelId}
+                {modelId === DEFAULT_GAME_SETTINGS.aiModel ? " (Default)" : ""}
+              </option>
+            ))}
+          </select>
+          {availableModels.length === 0 && (
+               <p className="text-xs text-red-500 mt-1">Could not fetch model list. Using default.</p>
+          )}
        </div>
 
        {/* Role Distribution Inputs */}

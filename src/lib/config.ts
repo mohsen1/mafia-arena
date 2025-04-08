@@ -9,7 +9,7 @@ export const DEFAULT_GAME_SETTINGS: Omit<GameSettings, 'numPlayers'> = {
         'Villager': 5,
     },
     discussionRoundsPerPlayer: 1, // TBD how to implement discussion rounds fully
-    aiModel: process.env.OPENAI_MODEL || 'gpt-4o', // Default model
+    aiModel: process.env.OPENAI_MODEL || 'gemma2-9b-it', // Default model
 };
 
 /**

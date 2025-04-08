@@ -3,6 +3,7 @@ import { gameStateManager } from '@/lib/state/gameStateManager';
 import { deleteGameAction } from '@/app/actions';   
 import { FilteredGameState } from '@/lib/types/game';
 import StartGameForm from '@/components/StartGameForm'; 
+import { getGroqModels } from '@/lib/groq/api';
 
 // Component for displaying a single game card in the list
 function GameCard({ game }: { game: FilteredGameState }) {
@@ -40,6 +41,9 @@ function GameCard({ game }: { game: FilteredGameState }) {
 }
 
 export default async function Home() {
+    // Fetch the list of models server-side
+    const availableModels = await getGroqModels(); 
+
     // Fetch game IDs first
     const gameIds = await gameStateManager.listGameIds();
 
@@ -54,7 +58,7 @@ export default async function Home() {
         <main className="container mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
             <h1 className="text-4xl font-bold mt-8 mb-6 text-center">Werewolf AI</h1>
 
-            <StartGameForm />
+            <StartGameForm availableModels={availableModels} />
 
             {/* List existing games */}
             {existingGames.length > 0 && (
