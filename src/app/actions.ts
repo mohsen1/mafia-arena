@@ -11,6 +11,8 @@ import crypto from 'crypto';
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config'; // Added config imports
 import { generateAICharacterProfile, formatPersonaFromProfile, getAIGameTitleAndDescription } from '@/lib/ai/openaiService'; // Import generation utils
 import { selectCharacterImage } from '@/lib/utils/imageUtils'; // Import image utility
+import retry from 'async-retry'; // Import async-retry
+import type { Options as RetryOptions } from 'async-retry'; // Import types for options
 
 // Define the expected input shape for the action
 interface StartGameConfig {
@@ -930,29 +932,55 @@ export async function deleteGameAction(gameId: string): Promise<void> {
 }
 
 /**
- * Server Action to generate a single AI character profile AND select an image.
+ * Server Action to generate a single AI character profile AND select an image,
+ * aiming for diversity based on already existing characters.
+ * Uses async-retry for robust generation.
  * Returns the profile, role, and selected imageUrl or null.
  */
 export async function generateCharacterAction(
     role: Role, 
-    aiModel: string
-): Promise<GenerateCharacterResult | { error: string }> { // Update return type
-    console.log(`Generating profile and selecting image for role: ${role} using model ${aiModel}`);
+    aiModel: string,
+    existingProfiles: AICharacterProfile[] 
+): Promise<GenerateCharacterResult | { error: string }> { 
+    
+    console.log(`Attempting to generate profile for role: ${role} (using async-retry)`);
+
     try {
-        // 1. Generate Profile
-        const profile = await generateAICharacterProfile(role, aiModel);
-        if (!profile) {
-            throw new Error("AI failed to generate a valid profile.");
-        }
-        
-        // 2. Select Image based on generated profile
-        const imageUrl = await selectCharacterImage(profile.gender, profile.ageCategory);
-        
-        // 3. Return combined data
-        return { role, profile, imageUrl };
+        // Define retry options with types
+        const retryOptions: RetryOptions = {
+            retries: 2, // Total attempts = retries + 1 = 3
+            minTimeout: 100, 
+            factor: 1.5, 
+            onRetry: (error: unknown, attempt: number) => { // Add types here
+                console.warn(` > Retrying attempt ${attempt} for ${role} due to error: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        };
+
+        const result = await retry(
+            async (bail: (e: Error) => void, attempt: number) => { // Add types here
+                console.log(` > Attempt ${attempt} for ${role}...`);
+                
+                // 1. Generate Profile
+                const profile = await generateAICharacterProfile(role, aiModel, existingProfiles);
+                if (!profile) {
+                    throw new Error("AI failed to generate a valid profile.");
+                }
+                
+                // 2. Select Image 
+                const imageUrl = await selectCharacterImage(profile.gender, profile.ageCategory);
+                
+                // 3. Success! Return combined data
+                console.log(` > Successfully generated ${profile.characterName} (${role}) on attempt ${attempt}.`);
+                // Explicitly type the return to match the expected Promise<GenerateCharacterResult>
+                return { role, profile, imageUrl } as GenerateCharacterResult;
+            },
+            retryOptions // Pass the typed options object
+        );
+        return result;
+
     } catch (error: any) {
-        console.error(`Error in generateCharacterAction for ${role}:`, error);
-        return { error: `Failed to generate character: ${error.message || 'Unknown error'}` };
+        console.error(`Failed to generate character for ${role} after all retries:`, error);
+        return { error: `Failed to generate character after retries: ${error?.message || 'Unknown error'}` };
     }
 }
 

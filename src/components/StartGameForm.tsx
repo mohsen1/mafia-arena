@@ -98,16 +98,16 @@ export default function StartGameForm() {
         const generationKey = `${role}-${Date.now()}`;
         setGeneratingRoles(prev => new Set(prev).add(generationKey));
         setErrorMsg(null);
+        // Extract current profiles to send as context
+        const currentProfiles = characters.map(c => c.profile);
         try {
-            // generateCharacterAction now returns imageUrl
-            const result = await generateCharacterAction(role, selectedModel);
+            // Pass currentProfiles to the action
+            const result = await generateCharacterAction(role, selectedModel, currentProfiles);
             if ('error' in result) {
                 throw new Error(result.error);
             }
-            // Add the full result (including imageUrl) to state
             setCharacters(prev => [...prev, { ...result, clientId: crypto.randomUUID() }]);
         } catch (err: any) { 
-            console.error(`Failed to generate ${role}:`, err);
             setErrorMsg(`Failed to add ${role}: ${err.message}`);
         } finally {
             setGeneratingRoles(prev => {
@@ -116,7 +116,7 @@ export default function StartGameForm() {
                 return next;
             });
         }
-    }, [selectedModel]);
+    }, [selectedModel, characters]);
 
     // Function to remove a character
     const removeCharacter = (clientIdToRemove: string) => {
@@ -129,42 +129,55 @@ export default function StartGameForm() {
         let isMounted = true;
         setIsInitialLoading(true);
         setErrorMsg(null);
-        setCharacters([]); // Clear existing characters when model changes
+        setCharacters([]); 
 
         const loadInitialCharacters = async () => {
-            const initialCharacterPromises = initialRoles.map(role => 
-                generateCharacterAction(role, selectedModel) // Action now returns imageUrl
-            );
+            let loadedChars: ConfigCharacter[] = [];
             try {
-                const results = await Promise.all(initialCharacterPromises);
-                if (isMounted) {
-                    const successfulCharacters = results
-                        // Filter results and type assertion needs to match the new return type
-                        .filter((res): res is (PlayerInitializationData & { imageUrl?: string | null }) => !('error' in res))
-                        .map(res => ({ ...res, clientId: crypto.randomUUID() }));
+                for (const role of initialRoles) {
+                    if (!isMounted) break; // Stop if component unmounted
+                    const generationKey = `${role}-initial-${loadedChars.length}`;
+                    setGeneratingRoles(prev => new Set(prev).add(generationKey));
                     
-                    const errors = results.filter(res => 'error' in res);
-                    if (errors.length > 0) {
-                        setErrorMsg(`Failed to generate some initial characters: ${errors.map(e => (e as any).error).join(', ')}`);
+                    // Pass profiles loaded so far as context
+                    const currentProfiles = loadedChars.map(c => c.profile);
+                    const result = await generateCharacterAction(role, selectedModel, currentProfiles);
+                    
+                    setGeneratingRoles(prev => {
+                        const next = new Set(prev);
+                        next.delete(generationKey);
+                        return next;
+                    });
+
+                    if ('error' in result) {
+                        console.warn(`Failed to generate initial ${role}: ${result.error}`);
+                        // Optionally add placeholder or skip?
+                        setErrorMsg(prev => prev ? `${prev}, ${role}` : `Failed: ${role}`);
+                    } else {
+                         const newChar = { ...result, clientId: crypto.randomUUID() };
+                         loadedChars = [...loadedChars, newChar]; // Add to temporary list
+                         if (isMounted) {
+                            setCharacters(prev => [...prev, newChar]); // Update state incrementally
+                         }
                     }
-                    setCharacters(successfulCharacters);
                 }
-            } catch (err: any) {
-                 console.error("Failed initial character load:", err);
+            } catch (err: any) { // Catch errors during the loop/awaits
+                 console.error("Error during initial character load loop:", err);
                  if (isMounted) {
                     setErrorMsg(`Error loading initial characters: ${err.message}`);
                  }
             } finally {
                  if (isMounted) {
                     setIsInitialLoading(false);
+                    setGeneratingRoles(new Set()); // Clear all initial generation keys
                  }
             }
         };
 
         loadInitialCharacters();
 
-        return () => { isMounted = false; }; // Cleanup function
-    }, [selectedModel]); // Reload if model changes
+        return () => { isMounted = false; };
+    }, [selectedModel]);
 
     // Form submission handler
     const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

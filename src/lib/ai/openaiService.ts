@@ -213,29 +213,44 @@ Respond ONLY with the JSON object.`
 }
 
 /**
- * Generates a character profile using an AI model.
+ * Generates a character profile using an AI model, aiming for diversity based on existing profiles.
  * @param role The role the character should have.
  * @param model The AI model to use.
+ * @param existingProfiles Optional array of already generated profiles to ensure diversity.
  * @returns A generated AICharacterProfile or null if generation fails.
  */
-export async function generateAICharacterProfile(role: Role, model: string): Promise<AICharacterProfile | null> {
-    console.log(`Requesting AI profile generation for role: ${role} using model: ${model}`);
+export async function generateAICharacterProfile(
+    role: Role, 
+    model: string, 
+    existingProfiles?: AICharacterProfile[] // Add optional parameter
+): Promise<AICharacterProfile | null> {
+    console.log(`Requesting AI profile generation for role: ${role} using model: ${model}${existingProfiles && existingProfiles.length > 0 ? ` (considering ${existingProfiles.length} existing profiles)` : ''}`);
     
-    const systemPrompt = `You are an AI assistant designed to create compelling and consistent character profiles for a game of Werewolf set in a rustic, superstitious village.
-Generate a character profile for the role of **${role}**.
+    // Construct context about existing characters
+    let existingCharsContext = ''
+    if (existingProfiles && existingProfiles.length > 0) {
+        existingCharsContext = '\n\nExisting Characters in the group (for diversity context - create someone different!):\n';
+        existingCharsContext += existingProfiles.map((p, i) => 
+            `- ${p.characterName} (${p.gender}, ${p.ageCategory}, ${p.corePersonalityArchetype}): ${p.keyPersonalityTraitsSummary}`
+        ).join('\n');
+    }
+
+    const systemPrompt = `You are an AI assistant designed to create compelling and diverse character profiles for a game of Werewolf set in a rustic, superstitious village.
+Generate a character profile for the role of **${role}**.${existingCharsContext}
+
 Respond ONLY with a JSON object matching the following structure:
 {
-  "characterName": "string (unique, evocative name)",
+  "characterName": "string (unique, evocative name, distinct from existing if provided)",
   "gender": "string ('male' or 'female')",
   "ageCategory": "string ('young' or 'old')",
   "appearanceFlavorText": "string (1-2 sentences describing visual appearance)",
-  "backgroundBackstory": "string (2-3 sentences covering origin, profession, key life events, reputation)",
-  "corePersonalityArchetype": "string (e.g., 'The Cynic', 'The Protector', 'The Manipulator')",
-  "keyPersonalityTraitsSummary": "string (1-2 sentences summarizing key traits like suspicion, honesty, confidence)",
+  "backgroundBackstory": "string (2-3 sentences covering origin, profession, key life events, reputation - make it distinct)",
+  "corePersonalityArchetype": "string (e.g., 'The Cynic', 'The Protector', 'The Manipulator' - try to vary from existing)",
+  "keyPersonalityTraitsSummary": "string (1-2 sentences summarizing key traits like suspicion, honesty, confidence - aim for diversity)",
   "motivationsGoals": ["string", "string", "..."] (2-3 motivations as an array of strings)
 }
 
-Ensure the details are appropriate for the assigned role (${role}) and the game's setting. Be creative but maintain consistency. Do NOT include any explanation or text outside the JSON object.`;
+Ensure the details are appropriate for the assigned role (${role}) and the game's setting. Be creative but maintain consistency. CRITICALLY IMPORTANT: Make the generated character distinct from the existing characters listed above, especially in name, archetype, and background. Do NOT include any explanation or text outside the JSON object.`;
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
