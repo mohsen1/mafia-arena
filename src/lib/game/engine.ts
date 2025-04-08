@@ -110,7 +110,7 @@ export async function initializeNewGame(
         round: 1,
         turnOrderIndex: 0,
         conversationLog: [
-             {
+            {
                 messageId: `msg-${crypto.randomUUID()}-start`,
                 gameId: gameId,
                 speaker: { type: 'moderator' },
@@ -134,19 +134,6 @@ export async function initializeNewGame(
          }
     };
     
-     // Add initial welcome message using the title
-    initialState.conversationLog.push({
-        messageId: `msg-${crypto.randomUUID()}-start`,
-        gameId: gameId,
-        speaker: { type: 'moderator' },
-        speakerName: "Moderator",
-        content: `Welcome to "${title || 'the village'}"! ${settings.numPlayers} players have gathered under a cloud of suspicion. Let the introductions begin...`,
-        timestamp: Date.now(),
-        round: 1,
-        phase: 'DayIntroductions',
-        audience: { type: 'all' },
-    });
-
     console.log("Game state initialized.");
     return initialState;
 }

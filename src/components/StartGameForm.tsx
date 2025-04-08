@@ -250,14 +250,14 @@ export default function StartGameForm() {
                             type="button"
                             onClick={() => addCharacter(role)}
                             disabled={isSubmitting || isInitialLoading}
-                            className="flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="h-10 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                          >
                             {generatingCounts[role] > 0 ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                                 <UserPlus className="h-4 w-4"/>
                             )}
-                             {role} {generatingCounts[role] > 0 ? `(${generatingCounts[role]})` : ''}
+                             {role}
                          </button>
                     ))}
                  </div>
