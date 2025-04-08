@@ -56,7 +56,8 @@ export async function initializeNewGame(
     settings: GameSettings,
     gameId: string,
     createdAt: number,
-    playerInitData: (PlayerInitializationData & { imageUrl?: string | null })[] // Expect imageUrl in input
+    // Expect player data including optional imageUrl and voiceId
+    playerInitData: (PlayerInitializationData & { imageUrl?: string | null, voiceId?: string })[] 
 ): Promise<GameState> {
     console.log(`Initializing game ${gameId} with ${settings.numPlayers} players.`);
     
@@ -64,7 +65,7 @@ export async function initializeNewGame(
 
     const players: Record<string, Player> = {};
     
-    // Create players directly, using the provided imageUrl
+    // Create players directly, using the provided imageUrl and voiceId
     shuffledInitData.forEach((initData) => {
         const playerId = `player-${crypto.randomUUID()}`;
         const persona = formatPersonaFromProfile(initData.profile);
@@ -74,10 +75,11 @@ export async function initializeNewGame(
             name: initData.profile.characterName,
             role: initData.role,
             persona: persona,
-            imageUrl: initData.imageUrl ?? undefined, // Use the imageUrl passed from the form
+            imageUrl: initData.imageUrl ?? undefined, // Use the imageUrl
+            voiceId: initData.voiceId, // Store the assigned voiceId
             status: 'alive',
         };
-        console.log(`Created player: ${players[playerId].name} (${playerId}) as ${initData.role} [Image: ${initData.imageUrl || 'None'}]`);
+        console.log(`Created player: ${players[playerId].name} (${playerId}) as ${initData.role} [Image: ${initData.imageUrl || 'None'}, Voice: ${initData.voiceId || 'Default'}]`);
     });
 
     // Ensure livingPlayerIds maintains the shuffled order
@@ -130,6 +132,7 @@ export async function initializeNewGame(
              initialProfiles: playerInitData.map(data => ({
                  role: data.role,
                  profile: data.profile
+                 // Don't need to store voiceId or imageUrl in _internalState
              }))
          }
     };

@@ -21,6 +21,7 @@ export interface Player {
   readonly role: Role;
   readonly persona: string; // Detailed description for AI
   readonly imageUrl?: string; // Optional URL for the character image
+  readonly voiceId?: string; // Optional ElevenLabs voice ID
   status: PlayerStatus;
 }
 
@@ -105,7 +106,7 @@ export interface GameState {
 // Subset of GameState safe to send to the client
 export type FilteredGameState = Omit<GameState, '_internalState' | 'players' | 'conversationLog'> & {
   conversationLog: ReadonlyArray<Omit<ChatMessage, 'audience'> & { speakerName: string }>;
-  players: Readonly<Record<string, Omit<Player, 'persona' | 'role'> & { role?: Role }>>;
+  players: Readonly<Record<string, Omit<Player, 'persona' | 'role'> & { role?: Role, voiceId?: string }>>;
 };
 
 

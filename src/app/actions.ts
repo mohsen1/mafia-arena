@@ -15,6 +15,10 @@ import retry from 'async-retry'; // Import async-retry
 import type { Options as RetryOptions } from 'async-retry'; // Import types for options
 import { cleanAIResponse } from '../lib/utils/stringUtils'; // Import cleaning utility
 
+// ElevenLabs configuration
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1";
+
 // Define the expected input shape for the action
 interface StartGameConfig {
     aiModel: string;
@@ -22,7 +26,31 @@ interface StartGameConfig {
 }
 
 // Extend the expected return type for generateCharacterAction
-type GenerateCharacterResult = PlayerInitializationData & { imageUrl?: string | null };
+// Add voiceId here as well, although assigned later
+type GenerateCharacterResult = PlayerInitializationData & { imageUrl?: string | null, voiceId?: string };
+
+// Helper function to fetch ElevenLabs voices
+async function getElevenLabsVoices(): Promise<{ voice_id: string, name: string, category: string }[]> {
+    if (!ELEVENLABS_API_KEY) {
+        console.warn('ElevenLabs API key not configured. Skipping voice fetching.');
+        return [];
+    }
+    try {
+        const response = await fetch(`${ELEVENLABS_API_URL}/voices`, {
+            headers: {
+                'xi-api-key': ELEVENLABS_API_KEY,
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ElevenLabs voices: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data.voices || [];
+    } catch (error) {
+        console.error("Error fetching ElevenLabs voices:", error);
+        return [];
+    }
+}
 
 // Action to start a new game - Accepts player list (now including imageUrl) and model
 export async function startGameAction(playerInitDataList: GenerateCharacterResult[], aiModel: string) {
@@ -36,10 +64,25 @@ export async function startGameAction(playerInitDataList: GenerateCharacterResul
         }
         // --- End Validation ---
 
+        // --- Fetch Voices --- 
+        const availableVoices = await getElevenLabsVoices();
+        const usableVoices = availableVoices.filter(v => v.category === 'premade'); // Use only premade voices
+        let voiceIndex = 0;
+
+        // --- Assign Voices to Init Data (before passing to initializeNewGame) ---
+        const playersWithVoicesAssigned = playerInitDataList.map(playerInit => {
+            let assignedVoiceId: string | undefined = undefined;
+            if (usableVoices.length > 0) {
+                assignedVoiceId = usableVoices[voiceIndex % usableVoices.length].voice_id;
+                voiceIndex++;
+            }
+            return { ...playerInit, voiceId: assignedVoiceId }; 
+        });
+
         // --- Construct Settings --- 
-        const numPlayers = playerInitDataList.length;
+        const numPlayers = playersWithVoicesAssigned.length;
         const settings: GameSettings = { 
-            roleDistribution: playerInitDataList.reduce((acc, curr) => {
+            roleDistribution: playersWithVoicesAssigned.reduce((acc, curr) => {
                 acc[curr.role] = (acc[curr.role] || 0) + 1;
                 return acc;
             }, {} as Record<Role, number>),
@@ -53,7 +96,8 @@ export async function startGameAction(playerInitDataList: GenerateCharacterResul
         const createdAt = Date.now();
         
         // --- Initialize Game State --- 
-        const initialGameState = await initializeNewGame(settings, gameId, createdAt, playerInitDataList); 
+        // Pass player data with voice IDs assigned to initializeNewGame
+        const initialGameState = await initializeNewGame(settings, gameId, createdAt, playersWithVoicesAssigned); 
         
         // --- Save Game State --- 
         const newGame = await gameStateManager.createAndSaveGame(initialGameState); // Use the correct method
@@ -63,14 +107,12 @@ export async function startGameAction(playerInitDataList: GenerateCharacterResul
     } catch (error: any) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) throw error; 
         console.error("Failed to start new game:", error);
-        // Consider returning the error message to the UI instead of throwing
         return { error: `Failed to create the game: ${error.message || 'Unknown error'}` }; 
     }
 
     if (gameIdToRedirect) {
         redirect(`/game/${gameIdToRedirect}`);
     } else {
-        // This case might indicate an error occurred but wasn't caught properly
         return { error: "Game creation failed unexpectedly." };
     }
 }
@@ -751,246 +793,290 @@ Respond ONLY with the number.`;
                     }
                 } catch (error) {
                     console.error(`AI call failed for ${voter.name}'s vote:`, error);
-                    retries = 0; 
+                    retries = 0; // Stop retrying on API error
                 }
             }
 
+            // Add the vote if a valid target was selected
             if (targetPlayerId) {
-                const finalTargetName = currentState.players[targetPlayerId].name;
+                const finalTargetName = currentState.players[targetPlayerId].name; // Get canonical name
                 console.log(`${voter.name} voted for ${finalTargetName} (${targetPlayerId})`);
                 collectedVotes.push({ voterPlayerId: voter.id, targetPlayerId });
             } else {
-                console.warn(`${voter.name} failed to provide a valid vote after retries. Their vote is abstained.`);
+                console.warn(`${voter.name} failed to provide a valid vote target after retries.`);
+                // Handle failure - e.g., abstention or random vote? For now, just log.
             }
-        } // End loop through voters
+        } // End loop collecting votes
 
         console.log("Finished collecting votes:", collectedVotes);
 
-        const stateWithVotes = await gameStateManager.getGameState(gameId);
-        if (!stateWithVotes) { console.error(`State disappeared for ${gameId} before saving votes`); return; }
+        // Fetch latest state before tallying
+        const stateBeforeTally = await gameStateManager.getGameState(gameId);
+        if (!stateBeforeTally) { console.error(`State disappeared for ${gameId} before tallying`); return; }
 
-        let stateAfterVoteCollection = {
-            ...stateWithVotes,
+        let stateWithVotes = {
+            ...stateBeforeTally,
             votes: collectedVotes,
         };
-        await gameStateManager.updateGameState(gameId, stateAfterVoteCollection);
-        console.log(`State updated with collected votes for ${gameId}.`);
 
-        // ----- Vote Processing & Elimination -----
-        console.log("Processing votes...");
-        const voteCounts: { [playerId: string]: number } = {};
-        collectedVotes.forEach(vote => {
-            voteCounts[vote.targetPlayerId] = (voteCounts[vote.targetPlayerId] || 0) + 1;
-        });
+        // --- Vote Tally and Resolution ---
+        let stateAfterTally = { ...stateWithVotes };
+        let voteModeratorMessages: ChatMessage[] = [];
+        let dayEliminatedPlayerId: string | null = null;
 
-        let maxVotes = 0;
-        let playersToEliminate: string[] = [];
-        for (const playerId in voteCounts) {
-            if (voteCounts[playerId] > maxVotes) {
-                maxVotes = voteCounts[playerId];
-                playersToEliminate = [playerId];
-            } else if (voteCounts[playerId] === maxVotes) {
-                playersToEliminate.push(playerId);
+        if (stateAfterTally.votes.length > 0) {
+            const voteCounts: Record<string, number> = {};
+            stateAfterTally.votes.forEach(vote => {
+                voteCounts[vote.targetPlayerId] = (voteCounts[vote.targetPlayerId] || 0) + 1;
+            });
+
+            console.log("Vote Counts:", voteCounts);
+
+            let maxVotes = 0;
+            let playersWithMaxVotes: string[] = [];
+            for (const playerId in voteCounts) {
+                if (voteCounts[playerId] > maxVotes) {
+                    maxVotes = voteCounts[playerId];
+                    playersWithMaxVotes = [playerId];
+                } else if (voteCounts[playerId] === maxVotes) {
+                    playersWithMaxVotes.push(playerId);
+                }
             }
-        }
 
-        let stateAfterVoting = { ...stateAfterVoteCollection };
-        let eliminatedPlayerId: string | null = null;
-        let voteResultMessage = '';
-
-        // Create vote tally message content
-        const voteTallyParts: string[] = [];
-        livingPlayers.forEach(player => {
-            const vote = collectedVotes.find(v => v.voterPlayerId === player.id);
-            if (vote) {
-                const targetName = stateAfterVoting.players[vote.targetPlayerId]?.name || 'Unknown Target';
-                 voteTallyParts.push(`${player.name} voted for ${targetName}`);
-            } else {
-                 voteTallyParts.push(`${player.name} abstained`);
-            }
-        });
-        const voteTallyString = voteTallyParts.join('. ');
-
-        if (playersToEliminate.length === 1 && maxVotes > 0) {
-            // Single player eliminated
-            eliminatedPlayerId = playersToEliminate[0];
-            const eliminatedPlayer = stateAfterVoting.players[eliminatedPlayerId];
-            console.log(`Player ${eliminatedPlayer.name} (${eliminatedPlayerId}) was eliminated by vote.`);
-            
-            voteResultMessage = `The votes are in! ${voteTallyString}. With ${maxVotes} vote(s), ${eliminatedPlayer.name} has been eliminated! Their role was ${eliminatedPlayer.role}. Night falls...`;
-            
-            // Update player status
-            const playersCopy = { ...stateAfterVoting.players };
-            playersCopy[eliminatedPlayerId] = { ...playersCopy[eliminatedPlayerId], status: 'dead' };
-            
-            stateAfterVoting = {
-                ...stateAfterVoting,
-                players: playersCopy,
-                livingPlayerIds: stateAfterVoting.livingPlayerIds.filter(id => id !== eliminatedPlayerId),
-                lastEliminatedPlayerId: eliminatedPlayerId
-            };
-            
-        } else if (playersToEliminate.length > 1) {
-            // Tie vote
-            const tiedNames = playersToEliminate.map(id => stateAfterVoting.players[id]?.name || 'Unknown').join(' and ');
-            console.log(`Vote tied between ${tiedNames}. No one is eliminated.`);
-            voteResultMessage = `The votes are in! ${voteTallyString}. It's a tie between ${tiedNames} with ${maxVotes} vote(s) each! No one is eliminated. Night falls...`;
-            // No status update needed
-            stateAfterVoting = { ...stateAfterVoting, lastEliminatedPlayerId: undefined };
-
-        } else {
-            // No votes cast or only abstentions
-            console.log("No majority vote or no votes cast. No one is eliminated.");
-            voteResultMessage = `The votes are in! ${voteTallyString}. No majority was reached. No one is eliminated. Night falls...`;
-             stateAfterVoting = { ...stateAfterVoting, lastEliminatedPlayerId: undefined };
-        }
-        
-         // Add the vote result message
-         const voteResultMessageObj: ChatMessage = {
-            messageId: `msg-${crypto.randomUUID()}-vote-result`,
-            gameId: gameId,
-            speaker: { type: 'moderator' },
-            speakerName: "Moderator",
-            content: voteResultMessage,
-            timestamp: Date.now(),
-            round: stateAfterVoting.round, // Current round
-            phase: stateAfterVoting.phase, // Still Voting phase during result announcement
-            audience: { type: 'all' },
-         };
-        
-        stateAfterVoting = {
-             ...stateAfterVoting,
-             conversationLog: [...stateAfterVoting.conversationLog, voteResultMessageObj]
-        };
-
-        // Check win condition AFTER elimination
-        stateAfterVoting = checkWinCondition(stateAfterVoting);
-        if (stateAfterVoting.phase === 'GameOver') {
-            console.log(`Game Over detected after vote resolution. Winner: ${stateAfterVoting.winner}`);
-            const gameOverMessage: ChatMessage = {
-                messageId: `msg-${crypto.randomUUID()}-gameover`,
+            // Format vote results message
+            const voteDetails = Object.entries(voteCounts)
+                .map(([targetId, count]) => `- ${stateAfterTally.players[targetId]?.name || 'Unknown'}: ${count} vote(s)`)
+                .join('\n');
+            const votesMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}-votes`,
                 gameId: gameId,
                 speaker: { type: 'moderator' },
                 speakerName: "Moderator",
-                content: `The game is over! The ${stateAfterVoting.winner} team wins!`,
+                content: `The votes are in!\n${voteDetails}`,
                 timestamp: Date.now(),
-                round: stateAfterVoting.round,
-                phase: stateAfterVoting.phase,
+                round: stateAfterTally.round,
+                phase: stateAfterTally.phase,
                 audience: { type: 'all' },
             };
-            stateAfterVoting = {
-                ...stateAfterVoting,
-                conversationLog: [...stateAfterVoting.conversationLog, gameOverMessage]
+            voteModeratorMessages.push(votesMessage);
+
+            if (playersWithMaxVotes.length === 1) {
+                // Clear winner
+                dayEliminatedPlayerId = playersWithMaxVotes[0];
+                const eliminatedPlayer = stateAfterTally.players[dayEliminatedPlayerId];
+                console.log(`Player ${eliminatedPlayer?.name} (${dayEliminatedPlayerId}) received the most votes (${maxVotes}) and will be eliminated.`);
+                const eliminationMessage: ChatMessage = {
+                    messageId: `msg-${crypto.randomUUID()}-elimination`,
+                    gameId: gameId,
+                    speaker: { type: 'moderator' },
+                    speakerName: "Moderator",
+                    content: `With ${maxVotes} votes, ${eliminatedPlayer?.name} has been eliminated by the village. They were a ${eliminatedPlayer?.role}.`, // Reveal role on day death
+                    timestamp: Date.now() + 1, // Ensure it appears after vote counts
+                    round: stateAfterTally.round,
+                    phase: stateAfterTally.phase,
+                    audience: { type: 'all' },
+                };
+                voteModeratorMessages.push(eliminationMessage);
+
+            } else {
+                // Tie
+                console.log(`Vote resulted in a tie between ${playersWithMaxVotes.length} players with ${maxVotes} votes each.`);
+                const tiedPlayerNames = playersWithMaxVotes.map(id => stateAfterTally.players[id]?.name || 'Unknown').join(' and ');
+                 const tieMessage: ChatMessage = {
+                    messageId: `msg-${crypto.randomUUID()}-tie`,
+                    gameId: gameId,
+                    speaker: { type: 'moderator' },
+                    speakerName: "Moderator",
+                    content: `The vote is tied between ${tiedPlayerNames}! No one is eliminated today.`, 
+                    timestamp: Date.now() + 1, 
+                    round: stateAfterTally.round,
+                    phase: stateAfterTally.phase,
+                    audience: { type: 'all' },
+                };
+                voteModeratorMessages.push(tieMessage);
+            }
+        } else {
+            // No votes cast (e.g., only 1 player left?)
+             console.log("No votes were cast in this round.");
+             const noVotesMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}-novotes`,
+                gameId: gameId,
+                speaker: { type: 'moderator' },
+                speakerName: "Moderator",
+                content: `No votes were cast. The village remains undecided.`, 
+                timestamp: Date.now(),
+                round: stateAfterTally.round,
+                phase: stateAfterTally.phase,
+                audience: { type: 'all' },
             };
-            await gameStateManager.updateGameState(gameId, stateAfterVoting);
-            console.log(`Game ${gameId} ended.`);
-            revalidatePath(`/game/${gameId}`);
-            return; // End action here
+             voteModeratorMessages.push(noVotesMessage);
         }
 
-        // If game not over, advance to Night phase
-        let nextState = advancePhase(stateAfterVoting);
+        // Update player status if elimination occurred
+        if (dayEliminatedPlayerId) {
+            const playersCopy = { ...stateAfterTally.players };
+            playersCopy[dayEliminatedPlayerId] = { ...playersCopy[dayEliminatedPlayerId], status: 'dead' };
+            
+            stateAfterTally = {
+                ...stateAfterTally,
+                players: playersCopy,
+                livingPlayerIds: stateAfterTally.livingPlayerIds.filter(id => id !== dayEliminatedPlayerId),
+                lastEliminatedPlayerId: dayEliminatedPlayerId,
+            };
+        }
 
-        // Message is implicit in the vote result ("Night falls...")
-        // No separate phase change message needed here usually
+         stateAfterTally = {
+             ...stateAfterTally,
+             conversationLog: [...stateAfterTally.conversationLog, ...voteModeratorMessages],
+         };
+
+        // Check Win Condition *after* vote resolution
+        stateAfterTally = checkWinCondition(stateAfterTally);
+        if (stateAfterTally.phase === 'GameOver') {
+            console.log(`Game Over detected after vote resolution. Winner: ${stateAfterTally.winner}`);
+             const gameOverMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}-gameover-vote`,
+                gameId: gameId,
+                speaker: { type: 'moderator' },
+                speakerName: "Moderator",
+                content: `The game is over! The ${stateAfterTally.winner} team wins!`, 
+                timestamp: Date.now(),
+                round: stateAfterTally.round, 
+                phase: stateAfterTally.phase, 
+                audience: { type: 'all' },
+             };
+             stateAfterTally = {
+                 ...stateAfterTally,
+                 conversationLog: [...stateAfterTally.conversationLog, gameOverMessage]
+             };
+             // Save final game over state
+             await gameStateManager.updateGameState(gameId, stateAfterTally);
+             console.log(`Game ${gameId} ended after voting.`);
+             revalidatePath(`/game/${gameId}`);
+             return; // End action
+        }
+
+        // Advance Phase (to Night)
+        let nextState = advancePhase(stateAfterTally);
+
+        // Add phase change message
+        const nightStartMessage: ChatMessage = {
+            messageId: `msg-${crypto.randomUUID()}-night-start`,
+            gameId: gameId,
+            speaker: { type: 'moderator' },
+            speakerName: "Moderator",
+            content: `The sun sets. Night ${nextState.round} falls upon the village. Close your eyes...`, 
+            timestamp: Date.now(),
+            round: nextState.round,
+            phase: nextState.phase,
+            audience: { type: 'all' },
+        };
 
         nextState = {
             ...nextState,
-            // conversationLog: [...nextState.conversationLog, phaseChangeMessage], // Optional if needed
-            turnOrderIndex: 0,
-            nightActions: [], // Clear actions for the new night
-            // Votes are already processed and stored in stateAfterVoting if needed for history
+            conversationLog: [...nextState.conversationLog, nightStartMessage],
+            // Clear actions/votes for the new night phase
+            nightActions: [], 
+            votes: [], 
+            turnOrderIndex: 0, // Reset index (though not strictly needed for Night)
         };
 
+        // Save the final state for the voting phase transition
         await gameStateManager.updateGameState(gameId, nextState);
         console.log(`Game ${gameId} advanced from Voting to ${nextState.phase}`);
+    } 
 
-    }
-
-    else { // Fallback for other unimplemented phases
-        console.warn(`runGameTurnAction not implemented for phase: ${currentState.phase}`);
-    }
-
-    // Final Revalidation for the entire turn action
+    // --- Generic Revalidation --- 
+    // Revalidate the path to ensure the UI updates with the latest state changes
     revalidatePath(`/game/${gameId}`);
+    console.log(`Path revalidated for game ${gameId}`);
 }
 
+// --- Game Deletion Action --- 
+
 /**
- * Server Action to delete a specific game.
- * 
+ * Deletes a game state file.
  * @param gameId The ID of the game to delete.
- * @throws If deletion fails.
  */
 export async function deleteGameAction(gameId: string): Promise<void> {
     console.log(`Attempting to delete game: ${gameId}`);
     try {
-        const deleted = await gameStateManager.deleteGame(gameId);
-        if (deleted) {
-            console.log(`Game ${gameId} deleted successfully.`);
-        } else {
-            console.warn(`Game ${gameId} deletion reported failure, but may have succeeded (e.g., file not found).`);
-        }
-    } catch (error: any) {
+        await gameStateManager.deleteGame(gameId);
+        console.log(`Game ${gameId} deleted successfully.`);
+        revalidatePath('/'); // Revalidate the home page (or wherever games are listed)
+    } catch (error) {
         console.error(`Failed to delete game ${gameId}:`, error);
-        // Optionally re-throw or return error details
-        throw new Error(`Failed to delete game: ${error.message}`);
+        // Rethrow or handle as appropriate for your UI
+        throw new Error(`Could not delete game ${gameId}.`);
     }
-    // Revalidate the home page to update the list of games
-    revalidatePath('/');
 }
 
+// --- Character Generation Action --- 
+
 /**
- * Server Action to generate a single AI character profile AND select an image,
- * aiming for diversity based on already existing characters.
- * Uses async-retry for robust generation.
- * Returns the profile, role, and selected imageUrl or null.
+ * Action to generate a single AI character profile based on a role.
+ * Uses async-retry to handle potential API flakiness.
+ * @param role The role for the character.
+ * @param aiModel The AI model to use.
+ * @param existingProfiles Profiles already generated in this session, to encourage variety.
+ * @returns A promise resolving to the generated character profile or an error object.
  */
 export async function generateCharacterAction(
     role: Role, 
     aiModel: string,
     existingProfiles: AICharacterProfile[] 
 ): Promise<GenerateCharacterResult | { error: string }> { 
-    
-    console.log(`Attempting to generate profile for role: ${role} (using async-retry)`);
+    console.log(`Generating character profile for role: ${role} using model ${aiModel}`);
+
+    // Define retry options
+    const retryOptions: RetryOptions = {
+        retries: 2, // Try the initial attempt + 2 retries
+        minTimeout: 500, // Start with 500ms delay
+        factor: 2, // Double the delay each time
+        onRetry: (error: unknown, attempt) => { // Correct type for onRetry error
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.warn(`Attempt ${attempt} failed for role ${role}: ${errorMessage}. Retrying...`);
+        }
+    };
 
     try {
-        // Define retry options with types
-        const retryOptions: RetryOptions = {
-            retries: 2, // Total attempts = retries + 1 = 3
-            minTimeout: 100, 
-            factor: 1.5, 
-            onRetry: (error: unknown, attempt: number) => { // Add types here
-                console.warn(` > Retrying attempt ${attempt} for ${role} due to error: ${error instanceof Error ? error.message : String(error)}`);
-            }
-        };
-
-        const result = await retry(
-            async (bail: (e: Error) => void, attempt: number) => { // Add types here
-                console.log(` > Attempt ${attempt} for ${role}...`);
-                
-                // 1. Generate Profile
-                const profile = await generateAICharacterProfile(role, aiModel, existingProfiles);
-                if (!profile) {
-                    throw new Error("AI failed to generate a valid profile.");
+        // Wrap the AI call with retry logic
+        const profile: AICharacterProfile | null = await retry(async (bail, attempt) => {
+            try {
+                // Pass existing profiles to the generation function
+                return await generateAICharacterProfile(role, aiModel, existingProfiles);
+            } catch (error: any) {
+                // Don't retry on non-transient errors (e.g., bad request, auth error)
+                if (error.status && error.status >= 400 && error.status < 500) {
+                    bail(new Error(`Non-retryable error (${error.status}): ${error.message}`));
+                    return null; // Return null, bail will throw
                 }
-                
-                // 2. Select Image 
-                const imageUrl = await selectCharacterImage(profile.gender, profile.ageCategory);
-                
-                // 3. Success! Return combined data
-                console.log(` > Successfully generated ${profile.characterName} (${role}) on attempt ${attempt}.`);
-                // Explicitly type the return to match the expected Promise<GenerateCharacterResult>
-                return { role, profile, imageUrl } as GenerateCharacterResult;
-            },
-            retryOptions // Pass the typed options object
-        );
+                // Otherwise, throw to trigger retry
+                throw error;
+            }
+        }, retryOptions);
+
+        if (!profile || !profile.characterName) {
+            throw new Error("Generated profile was incomplete after retries.");
+        }
+
+        // Select an image based on the generated profile
+        // Pass required arguments to selectCharacterImage
+        const imageUrl = await selectCharacterImage(profile.gender, profile.ageCategory);
+
+        console.log(`Successfully generated profile for ${profile.characterName} (${role}), Image: ${imageUrl}`);
+        
+        // Combine profile, role, and image URL for the result
+        const result: GenerateCharacterResult = {
+            role: role,
+            profile: profile,
+            imageUrl: imageUrl,
+            // voiceId is assigned later in startGameAction
+        };
         return result;
 
     } catch (error: any) {
-        console.error(`Failed to generate character for ${role} after all retries:`, error);
-        return { error: `Failed to generate character after retries: ${error?.message || 'Unknown error'}` };
+        console.error(`Failed to generate character profile for role ${role} after retries:`, error);
+        return { error: `Failed to generate character: ${error.message || 'Unknown error'}` };
     }
 }
-
-// Add empty export for module compatibility if needed
-export {};
