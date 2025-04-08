@@ -42,7 +42,6 @@ export type GetAIResponseFunction = (
   settings: { 
     model: string; 
     temperature?: number; 
-    max_tokens?: number;
     response_format?: { type: "text" | "json_object" }; // <-- Add optional response_format
   }
 ) => Promise<string>; // Returns the AI's text response
@@ -112,8 +111,6 @@ export const getAIResponse: GetAIResponseFunction = async (
             model: settings.model,
             messages: messages,
             temperature: settings.temperature ?? 0.7, // Default temperature if not provided
-            max_tokens: settings.max_tokens ?? 120_000, // Increased default max tokens for thinking
-            // TODO: Add other parameters like top_p, frequency_penalty etc. if needed
         });
 
         const responseContent = completion.choices[0]?.message?.content;
@@ -153,7 +150,7 @@ export const getAIResponse: GetAIResponseFunction = async (
  */
 export async function getAIGameTitleAndDescription(
     players: ReadonlyArray<{ name: string; persona: string }>,
-    settings: { model: string; temperature?: number; max_tokens?: number }
+    settings: { model: string; temperature?: number }
 ): Promise<{ title: string; description: string }> {
     if (!openai) {
         throw new Error("OpenAI client not initialized. Missing OPENAI_API_KEY.");
@@ -181,7 +178,6 @@ export async function getAIGameTitleAndDescription(
             model: settings.model,
             messages: prompt,
             temperature: settings.temperature ?? 0.8, 
-            max_tokens: settings.max_tokens ?? 100, // Shorter response needed
             response_format: { type: "json_object" }, // Request JSON output
         });
 
@@ -236,12 +232,15 @@ export async function generateAICharacterProfile(
 ): Promise<AICharacterProfile | null> {
     console.log(`Requesting AI profile generation for role: ${role} using model: ${model}${existingProfiles && existingProfiles.length > 0 ? ` (considering ${existingProfiles.length} existing profiles)` : ''}`);
     
-    // Construct context about existing characters
+    // Construct context about existing characters, focusing on names for uniqueness check
     let existingCharsContext = ''
     if (existingProfiles && existingProfiles.length > 0) {
-        existingCharsContext = '\n\nExisting Characters in the group (for diversity context - create someone different!):\n';
+        const existingNames = existingProfiles.map(p => p.characterName).join(', ');
+        existingCharsContext = `\n\nExisting Characters in the group 
+        (IMPORTANT: DO NOT REUSE THESE NAMES, CREATE A UNIQUE CHARACTER, DO NOT USE THE FIRST OR LAST NAMES IN THIS LIST): ${existingNames}\n`;
+        // Optionally add more details back if needed for diversity, but keep names prominent
         existingCharsContext += existingProfiles.map((p, i) => 
-            `- ${p.characterName} (${p.gender}, ${p.ageCategory}, ${p.corePersonalityArchetype}): ${p.keyPersonalityTraitsSummary}`
+            `- ${p.characterName} (${p.gender}, ${p.ageCategory}, ${p.personalityArchetype})`
         ).join('\n');
     }
 
@@ -262,8 +261,7 @@ export async function generateAICharacterProfile(
             messages,
             'character-generation', // Game ID placeholder for logging/context
             `generate-${role}`,     // Player ID placeholder
-            // Increase max_tokens further
-            { model: model, temperature: 0.8, max_tokens: 2000, response_format: { type: "json_object" } } 
+            { model: model, temperature: 0.8, response_format: { type: "json_object" } } 
         );
 
         if (!responseJsonString) {

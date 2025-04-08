@@ -122,5 +122,5 @@ export type GetAIResponseFunction = (
   messages: ChatCompletionMessageParam[],
   gameId: string,
   playerId: string,
-  settings: { model: string; temperature?: number; max_tokens?: number }
+  settings: { model: string; temperature?: number }
 ) => Promise<string>; 

@@ -16,11 +16,13 @@ Respond ONLY with the JSON object.`
 export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (role: string, existingCharsContext: string) =>
 `You are an AI assistant designed to create compelling and diverse character profiles for a game of Werewolf set
 in a rustic, superstitious village.
-Generate a character profile for the role of **${role}**.${existingCharsContext}
+Generate a character profile for the role of **${role}**.${existingCharsContext} 
+
+CRITICALLY IMPORTANT: Do NOT use any of the names mentioned in the 'Existing Characters' list above for the new character.
 
 Respond ONLY with a valid JSON object adhering to the following structure:
 {
-  "characterName": "[Character Name]",
+  "characterName": "[Character Name - MUST BE UNIQUE, NOT FROM LIST ABOVE]",
   "roleInCommunity": "[Archetype or Profession]",
   "appearance": "[1-2 sentences describing visual appearance]",
   "background": "[2-3 sentences covering origin, profession, key life events, reputation - make it distinct]",
@@ -45,7 +47,9 @@ Output ONLY the JSON object.`;
 export const DAY_INTRODUCTION_PROMPT = (
     persona: string,
     characterName: string, 
-    role: string
+    role: string,
+    previousIntroductions: string,
+    recentModeratorMessages: string
 ) => 
 `You are playing a character in a game of Werewolf.
 
@@ -56,9 +60,16 @@ Your Character Name: ${characterName}
 Your Assigned Role (SECRET): ${role}
 
 The current game phase is Day Introductions. The villagers have gathered, and it's your turn to speak.
+
+**Recent Events (Moderator Announcements):**
+${recentModeratorMessages || "[No major events announced recently.]"}
+
+**Who Spoke Before You:**
+${previousIntroductions || "[You are the first to speak]"}
+
 Your task is to introduce yourself briefly (1-2 sentences, maximum 30 words).
 Speak in the FIRST PERSON, embodying your character. Use an INFORMAL, conversational tone.
-Hint at your personality or maybe a pre-existing suspicion if it fits your character.
+Hint at your personality or maybe react to the **Recent Events** or someone who **Spoke Before You** if it fits your character.
 Make it sound like a real villager talking, not a formal announcement.
 
 CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${role}) or mention game mechanics 
@@ -98,7 +109,7 @@ You gather silently with your fellow werewolves: ${fellowWerewolfNames.join(', '
 It's time to decide who to eliminate tonight. Discussing silently amongst yourselves (or deciding alone if you are the last), indicate your *preferred* target from the list below.
 The pack will act based on the majority preference (if a clear majority exists).
 
-Respond ONLY with the number corresponding to the player you want to vote to eliminate.
+CRITICAL: Respond ONLY with the single number corresponding to the player you want to vote to eliminate. Do NOT include any other text, formatting, explanations, or reasoning.
 
 Living Non-Werewolf Players:
 ${targetNames.map((name, index) => `${index + 1}. ${name}`).join('\n')}`;
@@ -115,7 +126,7 @@ export const NIGHT_ACTION_SEER_PROMPT = (
 
 As the Seer, choose one player from the list below to investigate their role (Werewolf or Villager). Who do you suspect the most based on today's interactions?
 
-Respond ONLY with the number corresponding to the player.
+CRITICAL: Respond ONLY with the single number corresponding to the player. Do NOT include any other text, formatting, explanations, or reasoning.
 
 Other Living Players:
 ${targetNames.map((name, index) => `${index + 1}. ${name}`).join('\n')}`;
@@ -132,7 +143,7 @@ export const NIGHT_ACTION_DOCTOR_PROMPT = (
 
 As the Doctor, choose one player from the list below to protect from elimination tonight. You may choose yourself. Who seems most vulnerable or trustworthy?
 
-Respond ONLY with the number corresponding to the player.
+CRITICAL: Respond ONLY with the single number corresponding to the player. Do NOT include any other text, formatting, explanations, or reasoning.
 
 Living Players:
 ${targetNames.map((name, index) => `${index + 1}. ${name}`).join('\n')}`;
@@ -183,14 +194,14 @@ Your Assigned Role (SECRET): ${role}
 The current game phase is Day Discussion (Round ${round}).
 Living Players: ${livingPlayerNames.join(', ')}
 
-Recent Conversation:
-${conversationHistory || '[No discussion yet this round]'}
+**Recent Conversation & Events:** 
+${conversationHistory || '[No discussion yet this round]'} 
 
 It's your turn to speak. Speak in the FIRST PERSON using an INFORMAL, conversational village tone.
 Your goal is to figure out who the werewolves are and potentially convince others (or deceive them if you are a werewolf!).
 
 **General Guidelines:**
-*   **Be Interactive:** Directly address other players BY NAME. Reference what someone specific said earlier. Ask questions.
+*   **Be Interactive:** Directly address other players BY NAME. Reference what someone specific said earlier (including **Moderator Announcements** within the conversation history). Ask questions.
 *   **Be Suspicious (or Sow Suspicion):** Look for slips of the tongue, contradictions, or weak arguments. Point them out! If you're a wolf, create suspicion around others.
 *   **Be Assertive (or Deceptive):** Defend yourself if accused, deflect suspicion, or make bold accusations based on your persona and role. Don't be afraid to be wrong (or to lie!).
 *   **Use Your Persona:** If you're grumpy, be grumpy. If you're shrewd, be shrewd. If your character would call someone a 'fool' or 'liar', do it (within reason).
@@ -225,9 +236,9 @@ It's time to eliminate someone you suspect is a werewolf based on the discussion
 Think carefully about who seemed most suspicious or deceitful.
 
 Choose one player from the list below to vote for elimination. 
-Respond ONLY with the number corresponding to the player.
+CRITICAL: Respond ONLY with the single number corresponding to the player. Do NOT include any other text, formatting, explanations, or reasoning.
 
 Available Players (Cannot vote for yourself):
 ${targetList}
 
-Respond ONLY with the number.`;
+CRITICAL: Respond ONLY with the number.`;

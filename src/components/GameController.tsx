@@ -21,8 +21,9 @@ export default function GameController() {
     };
 
     return (
+        <div className="flex flex-col gap-4 items-start justify-start">
         <div className="flex items-center gap-3">
-            {isLoadingNextTurn && <Loader className="animate-spin" size={18} /> }
+            {/* status */}
             {/* Pause/Play Button */}
             <button
                 onClick={toggleAutoRun}
@@ -51,5 +52,9 @@ export default function GameController() {
                 Next
             </button>
          </div>
+         <div className={`flex items-center gap-2 ${isLoadingNextTurn ? 'block' : 'hidden'}`}>
+                <Loader className="animate-spin" size={18} />
+            </div>
+        </div>
     );
 }
