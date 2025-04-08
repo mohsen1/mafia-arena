@@ -79,7 +79,6 @@ const RoleIcon = ({ role }: { role: Role }) => {
 };
 
 const availableRoles: Role[] = ['Villager', 'Werewolf', 'Seer', 'Doctor'];
-const initialRoles: Role[] = ['Villager', 'Villager', 'Villager', 'Werewolf', 'Seer']; // Default 5 players
 
 export default function StartGameForm({ availableModels }: StartGameFormProps) { // Destructure props
     // State for the list of generated characters
@@ -139,6 +138,20 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
 
     // Effect for initial character load
     useEffect(() => {
+        // Derive initial roles from the imported config
+        const dynamicInitialRoles: Role[] = Object.entries(DEFAULT_GAME_SETTINGS.roleDistribution)
+            .flatMap(([role, count]) => Array(count).fill(role as Role));
+
+        // Shuffle the derived roles for better initial randomness
+        function shuffleArray<T>(array: T[]): T[] {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+        const shuffledInitialRoles = shuffleArray(dynamicInitialRoles);
+
         let isMounted = true;
         setIsInitialLoading(true);
         setErrorMsg(null);
@@ -147,7 +160,8 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
         const loadInitialCharacters = async () => {
             let loadedChars: ConfigCharacter[] = [];
             try {
-                for (const role of initialRoles) {
+                 // Iterate over the derived and shuffled roles
+                 for (const role of shuffledInitialRoles) {
                     if (!isMounted) break; // Stop if component unmounted
                     const generationKey = `${role}-initial-${loadedChars.length}`;
                     setGeneratingRoles(prev => new Set(prev).add(generationKey));
@@ -164,7 +178,6 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
 
                     if ('error' in result) {
                         console.warn(`Failed to generate initial ${role}: ${result.error}`);
-                        // Optionally add placeholder or skip?
                         setErrorMsg(prev => prev ? `${prev}, ${role}` : `Failed: ${role}`);
                     } else {
                          const newChar = { ...result, clientId: crypto.randomUUID() };

@@ -257,8 +257,11 @@ export async function runGameTurnAction(gameId: string) {
         const playersWithNightActions = livingPlayers.filter(p =>
             p.status === 'alive' && (p.role === 'Werewolf' || p.role === 'Seer' || p.role === 'Doctor')
         );
+        const livingWerewolfIds = livingPlayers.filter(p => p.role === 'Werewolf').map(p => p.id);
 
-        const collectedActions: NightAction[] = [];
+        // Store individual actions/preferences temporarily
+        const collectedIndividualActions: NightAction[] = []; 
+        const werewolfPreferences: Record<string, string> = {}; // voterId -> targetId
 
         // Helper function to find living player ID by name (case-insensitive)
         const getPlayerIdByName = (name: string): string | null => {
@@ -269,18 +272,23 @@ export async function runGameTurnAction(gameId: string) {
         };
 
         for (const activePlayer of playersWithNightActions) {
-            console.log(`Getting night action for ${activePlayer.name} (${activePlayer.role})...`);
+            console.log(`Getting night action/preference for ${activePlayer.name} (${activePlayer.role})...`);
             let prompt = '';
             let targetOptions: Player[] = [];
-            const systemPromptBase = `You are playing a character in a game of Werewolf.\n\nYour Character Details:\n${activePlayer.persona}\n\nYour Character Name: ${activePlayer.name}\nYour Assigned Role (SECRET): ${activePlayer.role}\n\nThe current game phase is Night. It is time for you to perform your nightly action.`;
+            // Remove the systemPromptBase as it's incorporated into the specific prompt functions now
 
             // Determine valid targets based on role
             switch (activePlayer.role) {
                 case 'Werewolf':
                     targetOptions = livingPlayers.filter(p => p.status === 'alive' && p.role !== 'Werewolf');
+                    const fellowNames = livingWerewolfIds
+                        .filter(id => id !== activePlayer.id) // Exclude self
+                        .map(id => currentState.players[id].name); // Get names
+
                     prompt = NIGHT_ACTION_WEREWOLF_PROMPT(
                         activePlayer.persona,
                         activePlayer.name,
+                        fellowNames,
                         targetOptions.map(p => p.name)
                     );
                     break;
@@ -303,13 +311,13 @@ export async function runGameTurnAction(gameId: string) {
             }
 
             if (!prompt || targetOptions.length === 0) {
-                console.log(`Skipping action for ${activePlayer.name} (no valid targets or action).`);
+                console.log(`Skipping action/preference for ${activePlayer.name} (no valid targets or action).`);
                 continue;
             }
 
             const promptMessages: ChatCompletionMessageParam[] = [
                 { role: 'system', content: prompt },
-                { role: 'user', content: `Choose your target.` }
+                { role: 'user', content: `Choose your target.` } // Simplified user prompt
             ];
 
             let targetNumberStr = '';
@@ -330,68 +338,123 @@ export async function runGameTurnAction(gameId: string) {
 
                     // Validate the number
                     if (!isNaN(choiceIndex) && choiceIndex >= 0 && choiceIndex < targetOptions.length) {
-                        // Valid number and within range
                         targetPlayerId = targetOptions[choiceIndex].id;
-                        // Further validation (e.g., werewolf targeting werewolf) is implicitly handled by targetOptions generation now
                     } else {
-                        // Invalid number or out of range
-                        console.warn(`Invalid night action choice "${targetNumberStr}" (parsed as ${choiceIndex + 1}) received from ${activePlayer.name} (${activePlayer.role}). Expected 1-${targetOptions.length}. Retrying... (${retries - 1} left)`);
+                        console.warn(`Invalid night choice "${targetNumberStr}" (parsed as ${choiceIndex + 1}) from ${activePlayer.name} (${activePlayer.role}). Expected 1-${targetOptions.length}. Retrying... (${retries - 1} left)`);
                         promptMessages.push({ role: 'assistant', content: targetNumberStr });
-                        promptMessages.push({ role: 'user', content: `That wasn't a valid number from the list (1-${targetOptions.length}). Please respond ONLY with the number corresponding to the player you want to target.` });
+                        promptMessages.push({ role: 'user', content: `That wasn't a valid number from the list (1-${targetOptions.length}). Please respond ONLY with the number.` });
                         retries--;
                         targetNumberStr = ''; // Reset for logging/context
                     }
                 } catch (error) {
-                    console.error(`AI call failed for ${activePlayer.name}'s night action:`, error);
+                    console.error(`AI call failed for ${activePlayer.name}'s night action/preference:`, error);
                     retries = 0; // Stop retrying on API error
                 }
             }
 
-            // Add action if a valid target was successfully chosen
+            // Add action/preference if a valid target was successfully chosen
             if (targetPlayerId) {
                 const finalTargetName = currentState.players[targetPlayerId].name; // Get canonical name
-                console.log(`${activePlayer.name} (${activePlayer.role}) targeted ${finalTargetName} (${targetPlayerId})`);
-                let action: NightAction | null = null;
+                
                 switch (activePlayer.role) {
                     case 'Werewolf':
-                        action = { type: 'werewolf_kill', actingPlayerId: activePlayer.id, targetPlayerId };
+                        // Store preference instead of creating action immediately
+                        console.log(`${activePlayer.name} (Werewolf) indicated preference for ${finalTargetName} (${targetPlayerId})`);
+                        werewolfPreferences[activePlayer.id] = targetPlayerId;
                         break;
                     case 'Seer':
-                        // Result is determined during resolution phase
-                        action = { type: 'seer_investigation', actingPlayerId: activePlayer.id, targetPlayerId, result: 'Villager' /* Placeholder */ };
+                        console.log(`${activePlayer.name} (Seer) targeted ${finalTargetName} (${targetPlayerId}) for investigation`);
+                        collectedIndividualActions.push({ type: 'seer_investigation', actingPlayerId: activePlayer.id, targetPlayerId, result: 'Villager' /* Placeholder */ });
                         break;
                     case 'Doctor':
-                        action = { type: 'doctor_save', actingPlayerId: activePlayer.id, targetPlayerId };
+                        console.log(`${activePlayer.name} (Doctor) targeted ${finalTargetName} (${targetPlayerId}) for protection`);
+                        collectedIndividualActions.push({ type: 'doctor_save', actingPlayerId: activePlayer.id, targetPlayerId });
                         break;
-                }
-                if (action) {
-                    collectedActions.push(action);
                 }
             } else {
                 console.warn(`${activePlayer.name} (${activePlayer.role}) failed to provide a valid target after retries.`);
-                // Handle failure case - e.g., player performs no action this night
+                // Handle failure case - e.g., player performs no action/preference this night
             }
         } // End loop through players with night actions
 
-        console.log("Finished collecting night actions:", collectedActions);
+        console.log("Finished collecting individual night actions/preferences.");
+        console.log("Werewolf Preferences:", werewolfPreferences);
+        console.log("Other Actions:", collectedIndividualActions);
+
+        // --- Tally Werewolf Preferences and Determine Pack Action --- 
+        const finalNightActions: NightAction[] = [...collectedIndividualActions]; // Start with Seer/Doctor actions
+        let packTargetId: string | null = null;
+
+        if (Object.keys(werewolfPreferences).length > 0) {
+            const targetVoteCounts: Record<string, number> = {};
+            let maxVotes = 0;
+            let targetsWithMaxVotes: string[] = [];
+
+            // Tally votes
+            Object.values(werewolfPreferences).forEach(targetId => {
+                targetVoteCounts[targetId] = (targetVoteCounts[targetId] || 0) + 1;
+            });
+
+            console.log("Werewolf Target Vote Counts:", targetVoteCounts);
+
+            // Find max votes and target(s)
+            for (const targetId in targetVoteCounts) {
+                if (targetVoteCounts[targetId] > maxVotes) {
+                    maxVotes = targetVoteCounts[targetId];
+                    targetsWithMaxVotes = [targetId];
+                } else if (targetVoteCounts[targetId] === maxVotes) {
+                    targetsWithMaxVotes.push(targetId);
+                }
+            }
+
+            // Determine final target based on votes
+            if (targetsWithMaxVotes.length === 1) {
+                // Clear winner
+                packTargetId = targetsWithMaxVotes[0];
+                const packTargetName = currentState.players[packTargetId]?.name;
+                console.log(`Werewolf pack agreed to target ${packTargetName} (${packTargetId}) with ${maxVotes} votes.`);
+                 // Find a representative werewolf ID for the action (e.g., the first living one)
+                const representativeWolfId = livingWerewolfIds[0]; 
+                if (representativeWolfId) {
+                     finalNightActions.push({ 
+                        type: 'werewolf_kill', 
+                        actingPlayerId: representativeWolfId, 
+                        targetPlayerId: packTargetId 
+                    });
+                } else {
+                     console.error("Could not find a representative werewolf ID to assign the kill action.");
+                }
+            } else if (targetsWithMaxVotes.length > 1) {
+                // Tie
+                const tiedNames = targetsWithMaxVotes.map(id => currentState.players[id]?.name).join(' and ');
+                console.log(`Werewolf vote resulted in a tie between ${tiedNames} (${maxVotes} votes each). No pack kill tonight.`);
+                // No kill action added
+            } else {
+                // No votes cast (shouldn't happen if werewolfPreferences has keys, but safety check)
+                 console.log("No werewolf preferences were successfully cast.");
+            }
+        } else {
+            console.log("No living werewolves or no preferences submitted.");
+        }
+        // --- End Werewolf Voting Logic ---
+
+        console.log("Final Night Actions for Resolution:", finalNightActions);
 
         // Update the state with collected actions before resolving them
-        // Fetch latest state again in case concurrent actions modified it (though unlikely with current model)
+        // Fetch latest state again in case concurrent actions modified it
         const stateBeforeResolution = await gameStateManager.getGameState(gameId);
         if (!stateBeforeResolution) { console.error(`State disappeared for ${gameId} before resolution`); return; }
 
         let stateWithCollectedActions = {
             ...stateBeforeResolution,
-            nightActions: collectedActions, // Add the newly collected actions
+            nightActions: finalNightActions, // Use the final combined actions
         };
-        // Save state with actions collected, allows viewing if resolution fails?
+        // Save state with actions collected
         await gameStateManager.updateGameState(gameId, stateWithCollectedActions);
-        // Revalidate now might show actions were *collected* but not yet resolved.
-        // Optional: revalidatePath(`/game/${gameId}`);
-        console.log(`State updated with collected night actions for ${gameId}.`);
+        console.log(`State updated with final night actions for ${gameId}.`);
 
         // ----- Night Action Resolution -----
-        let stateAfterResolution = { ...stateWithCollectedActions }; // Start from state with collected actions
+        let stateAfterResolution = { ...stateWithCollectedActions }; 
         let moderatorMessages: ChatMessage[] = [];
         let eliminatedPlayerId: string | null = null;
 
