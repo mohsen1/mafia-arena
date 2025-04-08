@@ -1,48 +1,46 @@
 import { PlayerCard } from "@/components/PlayerCard";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
-import { Home } from "lucide-react";
+import {  HouseIcon, } from "lucide-react";
+import Link from "next/link";
 
 export function GameSidebar() {
-    const { gameState, t } = useGameContext(); 
+  const { gameState, t } = useGameContext();
 
-    if (!gameState) return null;
+  if (!gameState) return null;
 
-    // Remove playerPerspective for now, as requestingPlayerId isn't available
-    const { players, livingPlayerIds, deadPlayerIds } = gameState;
+  // Get all players and dead player IDs
+  const { players, deadPlayerIds } = gameState;
+  const allPlayers = Object.values(players); // Get array of all player objects
 
-    const livingPlayers = livingPlayerIds.map(id => players[id]);
-    const deadPlayers = deadPlayerIds.map(id => players[id]);
-
-    return (
-        <aside className="bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen">
-            <h2 className="text-lg font-semibold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                {t('PlayersLabel', 'Players')} ({livingPlayerIds.length})
-            </h2>
-            <div className="flex-grow p-2 overflow-y-auto">
-                <div className="space-y-1">
-                    {livingPlayers.map(player => (
-                        <PlayerCard
-                            key={player.id}
-                            player={player}
-                            // Don't pass role for living players for now
-                            // role={...}
-                        />
-                    ))}
-                     {deadPlayers.length > 0 && (
-                         <>
-                            <hr className="my-2 border-gray-300 dark:border-gray-600" />
-                             {deadPlayers.map(player => (
-                                 <PlayerCard
-                                     key={player.id}
-                                     player={player}
-                                     // Show role for dead players (as before)
-                                     role={player.role} 
-                                 />
-                             ))}
-                         </>
-                     )}
-                </div>
-            </div>
-        </aside>
-    );
-} 
+  return (
+    <aside className="flex flex-col h-screen">
+      <h2 className="text-lg font-semibold p-3 ">
+        <Link
+          href="/"
+          className="flex items-center gap-2"
+          aria-label={t("Werewolves AI", "Werewolves AI")}
+        >
+          {/* Display total player count */}
+          <span className="flex items-center gap-2">
+            <HouseIcon className="w-9 h-9" />
+            {t("Werewolves AI", "Werewolves AI")}
+          </span>
+        </Link>
+      </h2>
+      <div className="flex-grow p-2 overflow-y-auto">
+        <div className="space-y-1">
+          {/* Map over all players */}
+          {allPlayers.map((player) => (
+            <PlayerCard
+              key={player.id}
+              player={player}
+              // Conditionally pass role only if player is dead
+              role={deadPlayerIds.includes(player.id) ? player.role : undefined}
+            />
+          ))}
+          {/* Remove separate rendering for living/dead players */}
+        </div>
+      </div>
+    </aside>
+  );
+}
