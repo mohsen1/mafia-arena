@@ -126,4 +126,22 @@ export type GetAIResponseFunction = (
   gameId: string,
   playerId: string,
   settings: { model: string; temperature?: number }
-) => Promise<string>; 
+) => Promise<string>;
+
+// Add 'export'
+export interface ConfigCharacterSlot {
+    clientId: string;
+    aiModel: string;
+    roleSelection: Role; // Or Role | 'Auto' if you revert
+    assignedRole?: Role;
+    profile?: AICharacterProfile;
+    imageUrl?: string | null;
+    isGenerated: boolean;
+    generationError?: string;
+}
+
+// Add 'export'
+export interface ValidationResult {
+    isValid: boolean;
+    message?: string;
+} 
