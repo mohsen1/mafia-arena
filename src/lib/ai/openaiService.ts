@@ -14,9 +14,14 @@ if (!apiKey) {
     console.warn("Missing OPENAI_API_KEY environment variable. AI features will be disabled.");
 }
 
+// Set a longer timeout (e.g., 30 seconds = 30000ms)
+const TIMEOUT_MS = 30000; 
+
 const openai = apiKey ? new OpenAI({
     apiKey: apiKey,
     baseURL: baseURL, // Will be undefined if not set, which is fine
+    timeout: TIMEOUT_MS, // Add explicit timeout
+    // httpAgent: new Agent({ timeout: TIMEOUT_MS }), // Consider if using httpAgent
 }) : null;
 
 // --- AI Interaction Function Definition ---
@@ -266,16 +271,37 @@ Ensure the details are appropriate for the assigned role (${role}) and the game'
             messages,
             'character-generation', // Game ID placeholder for logging/context
             `generate-${role}`,     // Player ID placeholder
-            // Increase max_tokens significantly to ensure full profile generation
-            { model: model, temperature: 0.8, max_tokens: 600, response_format: { type: "json_object" } } 
+            // Increase max_tokens further
+            { model: model, temperature: 0.8, max_tokens: 2000, response_format: { type: "json_object" } } 
         );
 
         if (!responseJsonString) {
             throw new Error("AI returned an empty response.");
         }
 
-        // Parse the JSON response
-        const profile: AICharacterProfile = JSON.parse(responseJsonString);
+        // --- Clean the response --- 
+        // 1. Remove <think>...</think> blocks (using newline-compatible regex)
+        const thoughtlessString = responseJsonString.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        if (thoughtlessString.length !== responseJsonString.length) {
+            console.log("Removed <think> blocks.");
+        }
+
+        // 2. Extract JSON object from potential surrounding text/markdown
+        const firstBrace = thoughtlessString.indexOf('{');
+        const lastBrace = thoughtlessString.lastIndexOf('}');
+        let cleanedJsonString = thoughtlessString;
+
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            cleanedJsonString = thoughtlessString.substring(firstBrace, lastBrace + 1);
+            if (cleanedJsonString.length !== thoughtlessString.length) {
+                 console.log("Extracted JSON content between braces.");
+            }
+        } else {
+            console.warn("Could not find expected JSON braces after cleaning. Attempting to parse cleaned string anyway.");
+        }
+
+        // Parse the cleaned JSON response string
+        const profile: AICharacterProfile = JSON.parse(cleanedJsonString);
         
         // Basic validation (can add more checks)
         if (!profile.characterName || !profile.backgroundBackstory || !profile.motivationsGoals || !profile.gender || !profile.ageCategory) {

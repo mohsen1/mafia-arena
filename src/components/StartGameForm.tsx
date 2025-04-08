@@ -21,6 +21,11 @@ interface ValidationResult {
     roleCounts: Record<Role, number>;
 }
 
+// Define props for the component
+interface StartGameFormProps {
+    availableModels: string[]; // Prop for fetched model IDs
+}
+
 // --- Validation Logic (update input type) ---
 function validateGameSetup(characters: ConfigCharacter[]): ValidationResult {
     const playerCount = characters.length;
@@ -76,7 +81,7 @@ const RoleIcon = ({ role }: { role: Role }) => {
 const availableRoles: Role[] = ['Villager', 'Werewolf', 'Seer', 'Doctor'];
 const initialRoles: Role[] = ['Villager', 'Villager', 'Villager', 'Werewolf', 'Seer']; // Default 5 players
 
-export default function StartGameForm() {
+export default function StartGameForm({ availableModels }: StartGameFormProps) { // Destructure props
     // State for the list of generated characters
     const [characters, setCharacters] = useState<ConfigCharacter[]>([]);
     // State for overall form submission loading
@@ -88,7 +93,15 @@ export default function StartGameForm() {
     // State for displaying errors
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     // State for the selected AI model
-    const [selectedModel, setSelectedModel] = useState(DEFAULT_GAME_SETTINGS.aiModel);
+    const [selectedModel, setSelectedModel] = useState(() => {
+        // Use the default from settings only if availableModels is empty or doesn't contain it
+        const defaultModel = DEFAULT_GAME_SETTINGS.aiModel;
+        if (availableModels && availableModels.length > 0) {
+            // Prefer the default if it's in the list, otherwise take the first available
+            return availableModels.includes(defaultModel) ? defaultModel : availableModels[0];
+        } 
+        return defaultModel; // Fallback if no models fetched
+    });
 
     // Memoize validation result
     const validation = useMemo(() => validateGameSetup(characters), [characters]);
@@ -177,7 +190,7 @@ export default function StartGameForm() {
         loadInitialCharacters();
 
         return () => { isMounted = false; };
-    }, [selectedModel]);
+    }, [selectedModel, availableModels]); // Add availableModels dependency
 
     // Form submission handler
     const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -218,7 +231,7 @@ export default function StartGameForm() {
         >
             <h2 className="text-2xl font-bold mb-6 text-gray-700 dark:text-gray-300 text-center">Configure New Game</h2>
             
-            {/* AI Model Selection */}
+            {/* AI Model Selection - Use availableModels prop */}
             <div className="mb-6">
                 <label htmlFor="aiModel" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                     AI Model
@@ -227,17 +240,22 @@ export default function StartGameForm() {
                     id="aiModel"
                     name="aiModel"
                     value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)} // Changing model triggers useEffect reload
+                    onChange={(e) => setSelectedModel(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 dark:text-gray-200"
                     required
-                    disabled={isSubmitting || isInitialLoading || generatingRoles.size > 0}
+                    disabled={isSubmitting || isInitialLoading || generatingRoles.size > 0 || availableModels.length === 0}
                 >
-                    <option value={DEFAULT_GAME_SETTINGS.aiModel}>{DEFAULT_GAME_SETTINGS.aiModel}</option>
-                    <option value="llama3-70b-8192">llama3-70b-8192</option> 
-                    <option value="llama3-8b-8192">llama3-8b-8192</option> 
-                    <option value="gemma2-9b-it">gemma2-9b-it</option> 
-                    <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option> 
+                    {availableModels.length === 0 ? (
+                        <option value="" disabled>Loading models...</option>
+                    ) : (
+                        availableModels.map(modelId => (
+                            <option key={modelId} value={modelId}>{modelId}</option>
+                        ))
+                    )}
                 </select>
+                 {availableModels.length === 0 && (
+                      <p className="text-xs text-yellow-600 mt-1">Could not load models. Using default.</p>
+                  )}
             </div>
 
             {/* Add Player Buttons */}

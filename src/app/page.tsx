@@ -58,7 +58,8 @@ export default async function Home() {
         <main className="container mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
             <h1 className="text-4xl font-bold mt-8 mb-6 text-center">Werewolf AI</h1>
 
-            <StartGameForm />
+            {/* Pass the fetched models to the form */}
+            <StartGameForm availableModels={availableModels} />
 
             {/* List existing games */}
             {existingGames.length > 0 && (

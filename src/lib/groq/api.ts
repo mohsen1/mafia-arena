@@ -10,42 +10,51 @@ interface GroqModelListResponse {
 
 /**
  * Fetches the list of available models from the Groq API.
- * Uses React cache for server-side deduplication during rendering.
- * IMPORTANT: This function should only be called from Server Components or Server Actions.
+ * Requires the GROQ_API_KEY environment variable to be set.
+ * 
+ * @returns {Promise<string[]>} A promise resolving to an array of model IDs.
+ * @throws If the API key is missing or the fetch request fails.
  */
-export const getGroqModels = cache(async (): Promise<string[]> => {
+export async function getGroqModels(): Promise<string[]> {
     const apiKey = process.env.GROQ_API_KEY;
+    const groqApiUrl = 'https://api.groq.com/openai/v1/models';
+
     if (!apiKey) {
-        console.error("GROQ_API_KEY is not set in environment variables.");
-        return []; 
+        console.error('Missing GROQ_API_KEY environment variable.');
+        // Return an empty list or a default list if preferred when key is missing
+        // throw new Error('Missing GROQ_API_KEY environment variable.');
+        return []; // Return empty list for now
     }
 
-    const url = 'https://api.groq.com/openai/v1/models'; 
-
     try {
-        console.log("Fetching models from Groq API...");
-        const response = await fetch(url, {
+        const response = await fetch(groqApiUrl, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            // next: { revalidate: 3600 } // Optional: revalidate hourly
+                'Content-Type': 'application/json'
+            }
         });
 
         if (!response.ok) {
             const errorBody = await response.text();
-            console.error(`Error fetching Groq models: ${response.status} ${response.statusText}`, errorBody);
-            return []; 
+            throw new Error(`Groq API request failed with status ${response.status}: ${errorBody}`);
         }
 
-        const data: GroqModelListResponse = await response.json();
-        
-        const modelIds = data.data.map(model => model.id).sort(); 
-        return modelIds;
+        const data = await response.json();
 
-    } catch (error) {
-        console.error("Network or parsing error fetching Groq models:", error);
-        return []; 
+        // Extract model IDs from the response data structure
+        if (data && Array.isArray(data.data)) {
+            const modelIds: string[] = data.data.map((model: any) => model.id).filter((id: any) => typeof id === 'string');
+            console.log(`Fetched ${modelIds.length} models from Groq.`);
+            return modelIds;
+        } else {
+            throw new Error('Unexpected response format from Groq API');
+        }
+
+    } catch (error: any) {
+        console.error('Failed to fetch models from Groq:', error);
+        // Return empty list on error or re-throw
+        // throw new Error(`Failed to fetch models: ${error.message}`);
+        return []; // Return empty list on error
     }
-});
+}
