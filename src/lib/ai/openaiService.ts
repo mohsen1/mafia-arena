@@ -226,6 +226,8 @@ Generate a character profile for the role of **${role}**.
 Respond ONLY with a JSON object matching the following structure:
 {
   "characterName": "string (unique, evocative name)",
+  "gender": "string ('male' or 'female')",
+  "ageCategory": "string ('young' or 'old')",
   "appearanceFlavorText": "string (1-2 sentences describing visual appearance)",
   "backgroundBackstory": "string (2-3 sentences covering origin, profession, key life events, reputation)",
   "corePersonalityArchetype": "string (e.g., 'The Cynic', 'The Protector', 'The Manipulator')",
@@ -261,8 +263,8 @@ Ensure the details are appropriate for the assigned role (${role}) and the game'
         const profile: AICharacterProfile = JSON.parse(responseJsonString);
         
         // Basic validation (can add more checks)
-        if (!profile.characterName || !profile.backgroundBackstory || !profile.motivationsGoals) {
-            throw new Error("Generated JSON is missing required fields.");
+        if (!profile.characterName || !profile.backgroundBackstory || !profile.motivationsGoals || !profile.gender || !profile.ageCategory) {
+            throw new Error("Generated JSON is missing required fields (including gender/ageCategory).");
         }
         console.log(`Successfully generated profile for ${profile.characterName} (${role})`);
         return profile;

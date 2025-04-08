@@ -64,6 +64,8 @@ export interface GameSettings {
 
 export interface AICharacterProfile {
   readonly characterName: string;
+  readonly gender: 'male' | 'female';
+  readonly ageCategory: 'young' | 'old';
   readonly appearanceFlavorText: string;
   readonly backgroundBackstory: string;
   readonly corePersonalityArchetype: string;

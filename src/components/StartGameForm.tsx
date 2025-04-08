@@ -5,9 +5,13 @@ import { Loader2, X, UserPlus, Users, ShieldCheck, HeartPulse, CircleHelp, Serve
 import { startGameAction, generateCharacterAction } from '@/app/actions'; // Import both actions
 import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
 import { Role, PlayerInitializationData, AICharacterProfile } from '@/lib/types/game'; // Import necessary types
+import Image from 'next/image'; // Import Next.js Image component
 
-// Use PlayerInitializationData directly, add temporary client ID for list key
-type ConfigCharacter = PlayerInitializationData & { clientId: string };
+// Update ConfigCharacter to include imageUrl
+interface ConfigCharacter extends PlayerInitializationData {
+    clientId: string;
+    imageUrl?: string | null; // Store the selected image URL here
+}
 
 // Validation result structure (no changes needed here)
 interface ValidationResult {
@@ -91,14 +95,16 @@ export default function StartGameForm() {
 
     // Function to add a character
     const addCharacter = useCallback(async (role: Role) => {
-        const generationKey = `${role}-${Date.now()}`; // Unique key for loading state
+        const generationKey = `${role}-${Date.now()}`;
         setGeneratingRoles(prev => new Set(prev).add(generationKey));
         setErrorMsg(null);
         try {
+            // generateCharacterAction now returns imageUrl
             const result = await generateCharacterAction(role, selectedModel);
             if ('error' in result) {
                 throw new Error(result.error);
             }
+            // Add the full result (including imageUrl) to state
             setCharacters(prev => [...prev, { ...result, clientId: crypto.randomUUID() }]);
         } catch (err: any) { 
             console.error(`Failed to generate ${role}:`, err);
@@ -110,7 +116,7 @@ export default function StartGameForm() {
                 return next;
             });
         }
-    }, [selectedModel]); // Dependency on selectedModel
+    }, [selectedModel]);
 
     // Function to remove a character
     const removeCharacter = (clientIdToRemove: string) => {
@@ -123,16 +129,18 @@ export default function StartGameForm() {
         let isMounted = true;
         setIsInitialLoading(true);
         setErrorMsg(null);
+        setCharacters([]); // Clear existing characters when model changes
 
         const loadInitialCharacters = async () => {
             const initialCharacterPromises = initialRoles.map(role => 
-                generateCharacterAction(role, selectedModel)
+                generateCharacterAction(role, selectedModel) // Action now returns imageUrl
             );
             try {
                 const results = await Promise.all(initialCharacterPromises);
                 if (isMounted) {
                     const successfulCharacters = results
-                        .filter((res): res is PlayerInitializationData => !('error' in res))
+                        // Filter results and type assertion needs to match the new return type
+                        .filter((res): res is (PlayerInitializationData & { imageUrl?: string | null }) => !('error' in res))
                         .map(res => ({ ...res, clientId: crypto.randomUUID() }));
                     
                     const errors = results.filter(res => 'error' in res);
@@ -166,21 +174,18 @@ export default function StartGameForm() {
         setIsSubmitting(true);
         setErrorMsg(null);
         try {
-            // Pass the current characters list (without clientId) and model
-            const result = await startGameAction( 
-                characters.map(({ clientId, ...rest }) => rest), // Remove temporary clientId
-                selectedModel 
-            );
-            if (result && 'error' in result) { // Handle error returned from action
+            // Prepare data for startGameAction, keeping imageUrl
+            const charactersToSubmit = characters.map(({ clientId, ...rest }) => rest);
+                                        
+            const result = await startGameAction(charactersToSubmit, selectedModel);
+            if (result && 'error' in result) {
                 throw new Error(result.error);
             }
-            // Redirect happens in the action on success
         } catch (error: any) {
             console.error("Starting game failed:", error);
             setErrorMsg(`Failed to start game: ${error.message}`);
-            setIsSubmitting(false); // Reset loading on error
+            setIsSubmitting(false);
         }
-        // Do not reset loading here on success, as redirect should occur
     };
 
     // Calculate how many of each role are currently being generated
@@ -260,6 +265,20 @@ export default function StartGameForm() {
                         {characters.map((char) => (
                              <li key={char.clientId} className="flex items-center justify-between text-sm bg-white dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600 shadow-sm">
                                  <span className="flex items-center gap-2 truncate">
+                                     {/* Display Character Image using char.imageUrl */}
+                                     {char.imageUrl ? (
+                                         <Image 
+                                             src={char.imageUrl} 
+                                             alt={char.profile.characterName}
+                                             width={32} 
+                                             height={32} 
+                                             className="rounded-full object-cover w-8 h-8" 
+                                         />
+                                     ) : (
+                                         <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                                              <Users className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                         </div>
+                                     )}
                                      <RoleIcon role={char.role} />
                                      <span className="font-medium truncate" title={char.profile.characterName}>{char.profile.characterName}</span> 
                                      <span className="text-gray-500 dark:text-gray-400">({char.role})</span>

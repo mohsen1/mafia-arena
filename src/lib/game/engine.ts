@@ -14,65 +14,8 @@ import fs from 'fs';
 import path from 'path';
 import { getAIGameTitleAndDescription, formatPersonaFromProfile } from '@/lib/ai/openaiService';
 
-// --- Load Character Presets from JSON ---
-
-const CHARACTER_DATA_PATH = path.join(process.cwd(), 'data.json');
-const CHARACTER_IMAGES_DIR = path.join(process.cwd(), 'public/images/characters');
-
-/**
- * Loads character presets from the JSON data file.
- * @returns {ReadonlyArray<CharacterPreset>} An array of character presets.
- * @throws If the data file cannot be read or parsed.
- */
-function loadCharacterPresets(): ReadonlyArray<CharacterPreset> {
-    try {
-        const jsonData = fs.readFileSync(CHARACTER_DATA_PATH, 'utf-8');
-        const charactersData: any[] = JSON.parse(jsonData);
-
-        const presets = charactersData.map(char => {
-            // Validate essential fields exist
-            if (!char.characterName || 
-                !char.appearanceFlavorText || 
-                !char.corePersonalityArchetype || 
-                !char.keyPersonalityTraits ||
-                !char.motivationsGoals ||
-                !char.backgroundBackstory?.professionRoleInCommunity
-            ) {
-                console.warn('Character data missing required fields for persona construction:', char.characterName || '(Unknown Name)');
-                return null; // Skip invalid entries
-            }
-
-            // Construct a richer persona string
-            const personaParts = [
-                `Name: ${char.characterName}`,
-                `Role in Community: ${char.backgroundBackstory.professionRoleInCommunity}`,
-                `Appearance: ${char.appearanceFlavorText}`,
-                `Personality Archetype: ${char.corePersonalityArchetype}`,
-                `Key Traits: ${char.keyPersonalityTraits.communicationStyle}, Confidence ${char.keyPersonalityTraits.confidence}/10, Suspicion ${char.keyPersonalityTraits.suspicion}/10, Honesty ${char.keyPersonalityTraits.honestyDeceptiveness}/10.`,
-                `Motivations: ${char.motivationsGoals.slice(0, 2).join(', ')}.` // Take first two motivations
-            ];
-            const persona = personaParts.join(' \n'); // Join parts into a single string with newlines
-
-            return {
-                name: char.characterName as string,
-                persona: persona, 
-            };
-        }).filter((preset): preset is CharacterPreset => preset !== null);
-        
-        if (presets.length !== charactersData.length) {
-            console.warn(`Loaded ${presets.length} presets, but found ${charactersData.length} entries in data.json. Some entries might be invalid.`);
-        }
-        console.log(`Loaded ${presets.length} character presets.`);
-        return presets;
-    } catch (error) {
-        console.error("Failed to load character presets from data.json:", error);
-        // Fallback to an empty array or throw an error, depending on desired behavior
-        // Throwing error to make the issue explicit during startup
-        throw new Error("Could not load character presets.");
-    }
-}
-
-export const characterPresets: ReadonlyArray<CharacterPreset> = loadCharacterPresets();
+// --- Constants ---
+const CHARACTER_IMAGES_DIR = path.join(process.cwd(), 'public', 'images', 'characters'); // Define image directory path
 
 // --- Utility Functions ---
 
@@ -107,49 +50,63 @@ function listCharacterImageFiles(): string[] {
 // --- Game Initialization Logic ---
 
 /**
- * Initializes a new game state with AI-generated players.
+ * Initializes a new game state with AI-generated players and selected images.
  */
 export async function initializeNewGame(
     settings: GameSettings,
     gameId: string,
     createdAt: number,
-    playerInitData: PlayerInitializationData[] // Accept generated data
+    playerInitData: (PlayerInitializationData & { imageUrl?: string | null })[] // Expect imageUrl in input
 ): Promise<GameState> {
-    console.log(`Initializing game ${gameId} with ${settings.numPlayers} AI-generated players.`);
+    console.log(`Initializing game ${gameId} with ${settings.numPlayers} players.`);
     
-    // Shuffle the init data to randomize turn order
     const shuffledInitData = shuffleArray([...playerInitData]);
 
     const players: Record<string, Player> = {};
-    const livingPlayerIds: string[] = [];
-
-    shuffledInitData.forEach((initData, index) => {
+    
+    // Create players directly, using the provided imageUrl
+    shuffledInitData.forEach((initData) => {
         const playerId = `player-${crypto.randomUUID()}`;
-        livingPlayerIds.push(playerId);
-        
-        // Format persona string from the profile
         const persona = formatPersonaFromProfile(initData.profile);
 
         players[playerId] = {
             id: playerId,
-            name: initData.profile.characterName, // Access name from profile
+            name: initData.profile.characterName,
             role: initData.role,
-            persona: persona, // Use formatted persona
-            imageUrl: undefined, // Access imageUrl from profile if it exists: initData.profile.imageUrl
+            persona: persona,
+            imageUrl: initData.imageUrl ?? undefined, // Use the imageUrl passed from the form
             status: 'alive',
         };
-        console.log(`Created player: ${players[playerId].name} (${playerId}) as ${initData.role}`);
+        console.log(`Created player: ${players[playerId].name} (${playerId}) as ${initData.role} [Image: ${initData.imageUrl || 'None'}]`);
     });
 
-    // Check if players object is empty (shouldn't happen with validation upstream)
+    // Ensure livingPlayerIds maintains the shuffled order
+    const finalLivingPlayerIds = shuffledInitData.map(initData => {
+        // Find the player ID created for this initData entry
+        const createdPlayer = Object.values(players).find(p => 
+            p.name === initData.profile.characterName && p.role === initData.role
+        );
+        return createdPlayer?.id;
+    }).filter((id): id is string => !!id);
+    
+    if (finalLivingPlayerIds.length !== shuffledInitData.length) {
+        console.warn("Mismatch between initial data and created player IDs during final ordering.");
+        // Potentially fallback to Object.keys(players) but that loses intended shuffle order
+    }
+
+    // Get AI Title and Description
+    const playerDetailsForTitle = Object.values(players).map(p => ({ name: p.name, persona: p.persona }));
+    const { title, description } = await getAIGameTitleAndDescription(playerDetailsForTitle, { model: settings.aiModel });
 
     const initialState: GameState = {
         gameId: gameId,
         createdAt: createdAt,
+        title: title, 
+        description: description, 
         settings: settings,
         players: players,
-        livingPlayerIds: livingPlayerIds,
-        phase: 'DayIntroductions' as GamePhase, // Start with introductions
+        livingPlayerIds: finalLivingPlayerIds, 
+        phase: 'DayIntroductions',
         round: 1,
         turnOrderIndex: 0,
         conversationLog: [
@@ -158,11 +115,10 @@ export async function initializeNewGame(
                 gameId: gameId,
                 speaker: { type: 'moderator' },
                 speakerName: "Moderator",
-                 // TODO: Add game title/description from settings if available later
-                content: `Welcome! ${settings.numPlayers} players have gathered under a cloud of suspicion. Let the introductions begin...`,
+                content: `Welcome to "${title || 'the village'}"! ${settings.numPlayers} players have gathered under a cloud of suspicion. Let the introductions begin...`,
                 timestamp: Date.now(),
                 round: 1,
-                phase: 'DayIntroductions' as GamePhase,
+                phase: 'DayIntroductions',
                 audience: { type: 'all' },
             }
         ],
@@ -171,9 +127,25 @@ export async function initializeNewGame(
         lastEliminatedPlayerId: undefined,
         winner: undefined,
          _internalState: {
-             initialProfiles: playerInitData // Ensure this matches the type definition
+             initialProfiles: playerInitData.map(data => ({
+                 role: data.role,
+                 profile: data.profile
+             }))
          }
     };
+    
+     // Add initial welcome message using the title
+    initialState.conversationLog.push({
+        messageId: `msg-${crypto.randomUUID()}-start`,
+        gameId: gameId,
+        speaker: { type: 'moderator' },
+        speakerName: "Moderator",
+        content: `Welcome to "${title || 'the village'}"! ${settings.numPlayers} players have gathered under a cloud of suspicion. Let the introductions begin...`,
+        timestamp: Date.now(),
+        round: 1,
+        phase: 'DayIntroductions',
+        audience: { type: 'all' },
+    });
 
     console.log("Game state initialized.");
     return initialState;

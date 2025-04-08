@@ -10,6 +10,7 @@ import { redirect } from 'next/navigation'; // Added redirect
 import crypto from 'crypto';
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config'; // Added config imports
 import { generateAICharacterProfile, formatPersonaFromProfile, getAIGameTitleAndDescription } from '@/lib/ai/openaiService'; // Import generation utils
+import { selectCharacterImage } from '@/lib/utils/imageUtils'; // Import image utility
 
 // Define the expected input shape for the action
 interface StartGameConfig {
@@ -17,8 +18,11 @@ interface StartGameConfig {
     roleDistribution: Record<Role, number>;
 }
 
-// Action to start a new game - Accepts player list and model
-export async function startGameAction(playerInitDataList: PlayerInitializationData[], aiModel: string) {
+// Extend the expected return type for generateCharacterAction
+type GenerateCharacterResult = PlayerInitializationData & { imageUrl?: string | null };
+
+// Action to start a new game - Accepts player list (now including imageUrl) and model
+export async function startGameAction(playerInitDataList: GenerateCharacterResult[], aiModel: string) {
     console.log(`Attempting to start a new game with ${playerInitDataList.length} players using model ${aiModel}`);
     
     let gameIdToRedirect: string | null = null;
@@ -908,38 +912,44 @@ Respond ONLY with the number.`;
  * @throws If deletion fails.
  */
 export async function deleteGameAction(gameId: string): Promise<void> {
-    console.log(`deleteGameAction triggered for ${gameId}`);
+    console.log(`Attempting to delete game: ${gameId}`);
     try {
-        const success = await gameStateManager.deleteGame(gameId);
-        if (!success) {
-            throw new Error("Game state manager failed to delete the game.");
+        const deleted = await gameStateManager.deleteGame(gameId);
+        if (deleted) {
+            console.log(`Game ${gameId} deleted successfully.`);
+        } else {
+            console.warn(`Game ${gameId} deletion reported failure, but may have succeeded (e.g., file not found).`);
         }
-        console.log(`Game ${gameId} deleted successfully via action.`);
     } catch (error: any) {
-        console.error(`Error in deleteGameAction for ${gameId}:`, error);
-        // Re-throw the error to potentially be caught by an error boundary
-        throw new Error(`Failed to delete game ${gameId}: ${error.message || 'Unknown error'}`);
+        console.error(`Failed to delete game ${gameId}:`, error);
+        // Optionally re-throw or return error details
+        throw new Error(`Failed to delete game: ${error.message}`);
     }
-
-    // Revalidate the home page path to update the list
+    // Revalidate the home page to update the list of games
     revalidatePath('/');
 }
 
 /**
- * Server Action to generate a single AI character profile.
- * Takes a role and AI model, returns the profile or null.
+ * Server Action to generate a single AI character profile AND select an image.
+ * Returns the profile, role, and selected imageUrl or null.
  */
 export async function generateCharacterAction(
     role: Role, 
     aiModel: string
-): Promise<PlayerInitializationData | { error: string }> {
-    console.log(`Generating profile for role: ${role} using model ${aiModel}`);
+): Promise<GenerateCharacterResult | { error: string }> { // Update return type
+    console.log(`Generating profile and selecting image for role: ${role} using model ${aiModel}`);
     try {
+        // 1. Generate Profile
         const profile = await generateAICharacterProfile(role, aiModel);
         if (!profile) {
             throw new Error("AI failed to generate a valid profile.");
         }
-        return { role, profile };
+        
+        // 2. Select Image based on generated profile
+        const imageUrl = await selectCharacterImage(profile.gender, profile.ageCategory);
+        
+        // 3. Return combined data
+        return { role, profile, imageUrl };
     } catch (error: any) {
         console.error(`Error in generateCharacterAction for ${role}:`, error);
         return { error: `Failed to generate character: ${error.message || 'Unknown error'}` };
