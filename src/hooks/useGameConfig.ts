@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { ConfigCharacterSlot, Role, PlayerInitializationData } from '@/lib/types/game';
+import { ConfigCharacterSlot, Role, PlayerInitializationData, AICharacterProfile } from '@/lib/types/game';
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config';
 import { generateCharacterAction, startGameAction } from '@/app/actions';
 import { validateGameConfiguration, validateGeneratedGameSetup } from '@/lib/validators/gameConfigValidator';
@@ -13,6 +13,7 @@ export function useGameConfig(availableModels: string[]) {
         return preferred;
     }, [availableModels]);
 
+    const [globalModelSelection, setGlobalModelSelection] = useState<string>(defaultModel);
     const [characterSlots, setCharacterSlots] = useState<ConfigCharacterSlot[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -22,7 +23,11 @@ export function useGameConfig(availableModels: string[]) {
     const [isPostGenValid, setIsPostGenValid] = useState<boolean | null>(null);
 
     useEffect(() => {
-        if (initialSlotsSet || availableModels.length === 0) return;
+        setGlobalModelSelection(defaultModel);
+    }, [defaultModel]);
+
+    useEffect(() => {
+        if (initialSlotsSet || availableModels.length === 0 || !globalModelSelection) return;
 
         const defaultNumPlayersFromConfig = calculateNumPlayers(DEFAULT_GAME_SETTINGS.roleDistribution);
         const initialPlayerCount = Math.max(5, defaultNumPlayersFromConfig);
@@ -39,7 +44,7 @@ export function useGameConfig(availableModels: string[]) {
             const roleSelection = index < defaultRoles.length ? defaultRoles[index] : 'Villager';
             return {
                 clientId: crypto.randomUUID(),
-                aiModel: defaultModel,
+                aiModel: globalModelSelection,
                 roleSelection: roleSelection,
                 isGenerated: false,
             };
@@ -47,7 +52,7 @@ export function useGameConfig(availableModels: string[]) {
 
         setCharacterSlots(initialSlots);
         setInitialSlotsSet(true);
-    }, [availableModels, defaultModel, initialSlotsSet]);
+    }, [availableModels, globalModelSelection, initialSlotsSet]);
 
     const configValidation = useMemo(() => validateGameConfiguration(characterSlots), [characterSlots]);
     const canAttemptStart = configValidation.isValid && !isSubmitting;
@@ -57,8 +62,6 @@ export function useGameConfig(availableModels: string[]) {
         setErrorMsg(null);
         setPostGenValidationMsg(null);
         setIsPostGenValid(null);
-        // Maybe keep info message if generation was just triggered?
-        // setInfoMsg("Configure roles and models.");
     }, []);
 
     const resetSlotGeneration = (slot: ConfigCharacterSlot): ConfigCharacterSlot => ({
@@ -75,13 +78,13 @@ export function useGameConfig(availableModels: string[]) {
             ...prev,
             {
                 clientId: crypto.randomUUID(),
-                aiModel: defaultModel,
-                roleSelection: 'Villager', // Default new slots to Villager
+                aiModel: globalModelSelection,
+                roleSelection: 'Villager',
                 isGenerated: false,
             }
         ]);
         resetPostGenState();
-    }, [defaultModel, resetPostGenState]);
+    }, [globalModelSelection, resetPostGenState]);
 
     const removePlayerSlot = useCallback((clientIdToRemove: string) => {
         setCharacterSlots(prev => prev.filter(c => c.clientId !== clientIdToRemove));
@@ -97,6 +100,14 @@ export function useGameConfig(availableModels: string[]) {
         resetPostGenState();
     }, [resetPostGenState]);
 
+    const updateAllModels = useCallback((newModel: string) => {
+        setGlobalModelSelection(newModel);
+        setCharacterSlots(prev => prev.map(slot =>
+             resetSlotGeneration({ ...slot, aiModel: newModel })
+        ));
+        resetPostGenState();
+    }, [resetPostGenState]);
+
     const updateSlotRole = useCallback((clientId: string, newRole: Role) => {
         setCharacterSlots(prev => prev.map(slot =>
             slot.clientId === clientId
@@ -107,7 +118,7 @@ export function useGameConfig(availableModels: string[]) {
     }, [resetPostGenState]);
 
     const handleGenerateAndStartGame = useCallback(async () => {
-        if (!configValidation.isValid) return; // Re-check validity
+        if (!configValidation.isValid) return;
 
         setIsSubmitting(true);
         setErrorMsg(null);
@@ -116,14 +127,14 @@ export function useGameConfig(availableModels: string[]) {
         setIsPostGenValid(null);
 
         const slotsToGenerate = characterSlots.map(resetSlotGeneration);
-        setCharacterSlots(slotsToGenerate); // Update state immediately to show reset
+        setCharacterSlots(slotsToGenerate);
 
         const generationPromises = slotsToGenerate.map(async (slot) => {
             const finalRole = slot.roleSelection;
             try {
                  const result = await generateCharacterAction(finalRole, slot.aiModel, []);
                  if ('error' in result) throw new Error(result.error);
-                 return { ...slot, assignedRole: finalRole, profile: result.profile, imageUrl: result.imageUrl, isGenerated: true, generationError: undefined };
+                 return { ...slot, assignedRole: finalRole, profile: result.profile as AICharacterProfile, imageUrl: result.imageUrl, isGenerated: true, generationError: undefined };
             } catch (err: any) {
                 return { ...slot, assignedRole: finalRole, isGenerated: false, generationError: err.message || 'Unknown generation error' };
             }
@@ -131,17 +142,16 @@ export function useGameConfig(availableModels: string[]) {
 
         const results = await Promise.allSettled(generationPromises);
 
-        let updatedSlots = [...slotsToGenerate]; // Start with the reset slots
+        let updatedSlots = [...slotsToGenerate];
         results.forEach((settledResult, index) => {
             if (settledResult.status === 'fulfilled') {
-                 updatedSlots[index] = settledResult.value; // Replace with fulfilled result
-             } else { // Handle potential rejection (though caught inside promise)
+                 updatedSlots[index] = settledResult.value;
+             } else {
                  console.error("Unexpected promise rejection:", settledResult.reason);
-                 // The error should be captured in the slot object already by the inner catch
                  setErrorMsg(prev => prev ? `${prev}, Unexpected error` : 'An unexpected error occurred during generation.');
              }
          });
-        setCharacterSlots(updatedSlots); // Update state with generation results
+        setCharacterSlots(updatedSlots);
 
         const finalValidation = validateGeneratedGameSetup(updatedSlots);
         setPostGenValidationMsg(finalValidation.message ?? null);
@@ -174,14 +184,13 @@ export function useGameConfig(availableModels: string[]) {
             if (result && 'error' in result) throw new Error(result.error);
 
             setInfoMsg("Game started successfully!");
-            // Keep isSubmitting true as page will likely navigate away
         } catch (error: any) {
             console.error("Starting game failed:", error);
             setErrorMsg(`Failed to start game: ${error.message}`);
-            setIsSubmitting(false); // Allow retry on failure
+            setIsSubmitting(false);
             setInfoMsg(null);
         }
-    }, [characterSlots, configValidation.isValid]); // Add dependencies
+    }, [characterSlots, configValidation.isValid]);
 
     return {
         characterSlots,
@@ -194,9 +203,11 @@ export function useGameConfig(availableModels: string[]) {
         configValidation,
         canAttemptStart,
         totalSlots,
+        globalModelSelection,
         addPlayerSlot,
         removePlayerSlot,
         updateSlotModel,
+        updateAllModels,
         updateSlotRole,
         handleGenerateAndStartGame,
     };

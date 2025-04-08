@@ -3,6 +3,13 @@
 import { CharacterSlotItem } from '@/components/CharacterSlotItem'; // Import the item component
 import { Button } from '@/components/ui/button';
 import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from "@/components/ui/select"; // Import Select components
 import { useGameConfig } from '@/hooks/useGameConfig'; // Import the custom hook
 import { Role } from '@/lib/types/game'; // Simplified imports
 import { AlertTriangle, CheckCircle2, Loader2, Settings2, Trash2, UserPlus } from 'lucide-react';
@@ -27,9 +34,11 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
         configValidation,
         canAttemptStart,
         totalSlots,
+        globalModelSelection, // <-- Get global model
         addPlayerSlot,
         removePlayerSlot,
         updateSlotModel,
+        updateAllModels, // <-- Get handler for all models
         updateSlotRole,
         handleGenerateAndStartGame,
     } = useGameConfig(availableModels); // Use the hook
@@ -39,30 +48,49 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
             <h2 className="text-2xl font-bold mb-6 text-gray-700 dark:text-gray-300 text-center">Configure New Game</h2>
 
             {/* Player Count Adjustment */}
-             <div className="mb-6 flex items-center justify-center gap-4">
-                  <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">Players:</Label>
-                  <span className="text-lg font-semibold text-gray-800 dark:text-gray-200 w-10 text-center">{totalSlots}</span>
-                  <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={addPlayerSlot}
-                      disabled={isSubmitting}
-                      aria-label="Add player slot"
-                  >
-                      <UserPlus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
+             <div className="mb-4 flex items-center justify-center gap-4"> {/* Reduced bottom margin */}
+                 <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">Players:</Label>
+                 <span className="text-lg font-semibold text-gray-800 dark:text-gray-200 w-10 text-center">{totalSlots}</span>
+                 <Button
+                      type="button" variant="outline" size="icon"
+                      onClick={addPlayerSlot} disabled={isSubmitting}
+                     aria-label="Add player slot"
+                  > <UserPlus className="h-4 w-4" /> </Button>
+                 <Button
+                      type="button" variant="outline" size="icon"
                       onClick={() => totalSlots > 0 && removePlayerSlot(characterSlots[characterSlots.length - 1].clientId)}
                       disabled={isSubmitting || totalSlots <= 5}
-                      aria-label="Remove last player slot"
-                  >
-                       <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
+                     aria-label="Remove last player slot"
+                  > <Trash2 className="h-4 w-4 text-red-500" /> </Button>
              </div>
+
+             {/* Global Model Selector */}
+             <div className="mb-6 flex items-center justify-center gap-2">
+                 <Label htmlFor="global-model-select" className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                     Global AI Model:
+                 </Label>
+                 <Select
+                    value={globalModelSelection}
+                    onValueChange={updateAllModels} // Use the new handler
+                    disabled={isSubmitting || availableModels.length === 0}
+                 >
+                    <SelectTrigger id="global-model-select" className="w-full max-w-xs text-sm h-9">
+                        <SelectValue placeholder="Select global model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableModels.length === 0 && !initialSlotsSet ? ( // Show loading only before initial set
+                            <SelectItem value="loading" disabled>Loading...</SelectItem>
+                        ) : (
+                            availableModels.map(modelId => (
+                                <SelectItem key={modelId} value={modelId} className="text-sm">{modelId}</SelectItem>
+                            ))
+                        )}
+                        {availableModels.length === 0 && initialSlotsSet && ( // Show message if still no models after init
+                             <SelectItem value="no-models" disabled>No models available</SelectItem>
+                        )}
+                    </SelectContent>
+                 </Select>
+            </div>
 
             {/* Character Slot List & Configuration */}
             <div className="mb-4 p-4 border border-gray-200 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-750 min-h-[200px]">
@@ -99,9 +127,9 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
                   )}
             </div>
 
-             {/* Status/Error Message Area */}
+                 {/* Status/Error Message Area */}
              <div className="h-10 text-center flex items-center justify-center px-2 mt-4 mb-2 text-sm">
-                  {errorMsg ? (
+                     {errorMsg ? (
                       <p className="text-red-600 dark:text-red-400 flex items-center gap-1"><AlertTriangle className="h-4 w-4"/> {errorMsg}</p>
                   ) : isSubmitting ? (
                       <p className="text-blue-600 dark:text-blue-400 flex items-center gap-1"><Loader2 className="h-4 w-4 animate-spin"/> {infoMsg || 'Processing...'}</p>
@@ -117,27 +145,27 @@ export default function StartGameForm({ availableModels }: StartGameFormProps) {
                   ) : (
                        <p className="text-gray-500 dark:text-gray-400 italic">Configure player slots, roles, and models.</p>
                   )}
-             </div>
+                </div>
 
 
             {/* Generate & Start Game Button */}
-            <Button
+                 <Button
                 type="button"
                 onClick={handleGenerateAndStartGame}
-                className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer"
-                size="lg"
+                     className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer"
+                     size="lg"
                 disabled={!canAttemptStart}
                 aria-label="Generate characters and start new game"
-            >
-                {isSubmitting ? (
-                    <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                 >
+                     {isSubmitting ? (
+                         <>
+                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                          {infoMsg && infoMsg.startsWith("Generating") ? 'Generating...' : 'Starting...'}
-                    </>
-                ) : (
+                         </>
+                     ) : (
                     'Generate & Start Game'
-                )}
-            </Button>
-        </div>
+                     )}
+                 </Button>
+            </div>
     );
 } 
