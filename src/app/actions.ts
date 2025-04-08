@@ -14,6 +14,14 @@ import { selectCharacterImage } from '@/lib/utils/imageUtils'; // Import image u
 import retry from 'async-retry'; // Import async-retry
 import type { Options as RetryOptions } from 'async-retry'; // Import types for options
 import { cleanAIResponse } from '../lib/utils/stringUtils'; // Import cleaning utility
+import { 
+    DAY_INTRODUCTION_PROMPT, 
+    NIGHT_ACTION_WEREWOLF_PROMPT, 
+    NIGHT_ACTION_SEER_PROMPT, 
+    NIGHT_ACTION_DOCTOR_PROMPT,
+    DAY_DISCUSSION_PROMPT,
+    VOTING_PROMPT
+} from '../lib/ai/PROMPTS'; // Import game turn prompts
 
 // ElevenLabs configuration
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -142,19 +150,11 @@ export async function runGameTurnAction(gameId: string) {
             const nextSpeaker = currentState.players[nextSpeakerId];
             
             // 1. Construct Prompt using the detailed persona
-            const systemPrompt = `You are playing a character in a game of Werewolf.
-
-Your Character Details:
-${nextSpeaker.persona}
-
-Your Character Name: ${nextSpeaker.name}
-Your Assigned Role (SECRET): ${nextSpeaker.role}
-
-The current game phase is Day Introductions. The villagers have gathered, and it's your turn to speak.
-Your task is to introduce yourself briefly to the other players (1-2 sentences, maximum 30 words).
-Speak in the first person, embodying the character described in your details.
-Behave according to your personality traits and background.
-CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.role}) or mention the game mechanics (like roles, phases, werewolves) in your introduction. Keep it purely in-character as if meeting the others in the village square under tense circumstances.`;
+            const systemPrompt = DAY_INTRODUCTION_PROMPT(
+                nextSpeaker.persona,
+                nextSpeaker.name,
+                nextSpeaker.role
+            );
 
             const promptMessages: ChatCompletionMessageParam[] = [
                 { 
@@ -278,15 +278,27 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             switch (activePlayer.role) {
                 case 'Werewolf':
                     targetOptions = livingPlayers.filter(p => p.status === 'alive' && p.role !== 'Werewolf');
-                    prompt = `${systemPromptBase}\n\nAs a Werewolf, choose one player from the list below to eliminate tonight. Respond ONLY with the number corresponding to the player.\n\nLiving Non-Werewolf Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    prompt = NIGHT_ACTION_WEREWOLF_PROMPT(
+                        activePlayer.persona,
+                        activePlayer.name,
+                        targetOptions.map(p => p.name)
+                    );
                     break;
                 case 'Seer':
                     targetOptions = livingPlayers.filter(p => p.status === 'alive' && p.id !== activePlayer.id);
-                    prompt = `${systemPromptBase}\n\nAs the Seer, choose one player from the list below to investigate their role (Werewolf or Villager). Respond ONLY with the number corresponding to the player.\n\nOther Living Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    prompt = NIGHT_ACTION_SEER_PROMPT(
+                        activePlayer.persona,
+                        activePlayer.name,
+                        targetOptions.map(p => p.name)
+                    );
                     break;
                 case 'Doctor':
                     targetOptions = livingPlayers.filter(p => p.status === 'alive');
-                    prompt = `${systemPromptBase}\n\nAs the Doctor, choose one player from the list below to protect from elimination tonight. You may choose yourself. Respond ONLY with the number corresponding to the player.\n\nLiving Players:\n${targetOptions.map(p => `- ${p.name}`).join('\n')}`;
+                    prompt = NIGHT_ACTION_DOCTOR_PROMPT(
+                        activePlayer.persona,
+                        activePlayer.name,
+                        targetOptions.map(p => p.name)
+                    );
                     break;
             }
 
@@ -576,23 +588,14 @@ CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${nextSpeaker.rol
             const conversationHistory = relevantLog.map(msg => `${msg.speakerName}: ${msg.content}`).join('\n');
             const livingPlayerNames = currentState.livingPlayerIds.map(id => currentState.players[id].name);
 
-            const systemPrompt = `You are playing a character in a game of Werewolf.
-
-Your Character Details:
-${nextSpeaker.persona}
-
-Your Character Name: ${nextSpeaker.name}
-Your Assigned Role (SECRET): ${nextSpeaker.role}
-
-The current game phase is Day Discussion (Round ${currentState.round}).
-Living Players: ${livingPlayerNames.join(', ')}
-
-Recent Conversation:
-${conversationHistory || '[No discussion yet this round]'}
-
-It's your turn to speak. Share your thoughts, suspicions, defend yourself, or try to guide the conversation based on your persona and secret role. Speak in the first person.
-Be mindful of what you reveal. Do NOT explicitly state your role (${nextSpeaker.role}) unless you have a strategic reason within the game's context (which is rare for most roles).
-Keep your response concise (2-4 sentences, maximum 30 words).`;
+            const systemPrompt = DAY_DISCUSSION_PROMPT(
+                nextSpeaker.persona,
+                nextSpeaker.name,
+                nextSpeaker.role,
+                currentState.round,
+                livingPlayerNames,
+                conversationHistory
+            );
 
             const promptMessages: ChatCompletionMessageParam[] = [
                 { role: 'system', content: systemPrompt },
@@ -741,22 +744,13 @@ Keep your response concise (2-4 sentences, maximum 30 words).`;
                 .map((p, index) => `${index + 1}. ${p.name}`)
                 .join('\n');
 
-            const systemPrompt = `You are playing a character in a game of Werewolf.
-
-Your Character Details:
-${voter.persona}
-
-Your Character Name: ${voter.name}
-Your Assigned Role (SECRET): ${voter.role}
-
-The current game phase is Voting (Round ${currentState.round}). Discussion is over. It is time to vote to eliminate a player you suspect is a werewolf.
-
-Choose one player from the list below to vote for elimination. Respond ONLY with the number corresponding to the player.
-
-Available Players:
-${numberedTargetList}
-
-Respond ONLY with the number.`;
+            const systemPrompt = VOTING_PROMPT(
+                voter.persona,
+                voter.name,
+                voter.role,
+                currentState.round,
+                numberedTargetList
+            );
 
             const promptMessages: ChatCompletionMessageParam[] = [
                 { role: 'system', content: systemPrompt },

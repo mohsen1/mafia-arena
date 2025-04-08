@@ -1,10 +1,14 @@
+import { AICharacterProfile, Role } from '@/lib/types/game'; 
+import fs from 'fs';
 import { OpenAI } from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { GameState } from '@/lib/types/game'; // Keep if needed for context later
-import fs from 'fs';
 import path from 'path';
-import { AICharacterProfile, Role } from '@/lib/types/game'; // Import new types
-import { cleanAIResponse, extractJSONFromText } from '../utils/stringUtils'; // Import cleaning utilities
+import { cleanAIResponse, extractJSONFromText } from '../utils/stringUtils'; 
+import { 
+    GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT, 
+    GENERATE_TITLE_AND_DESCRIPTION_USER_PROMPT, 
+    GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT
+} from './PROMPTS';
 
 // --- Initialize OpenAI Client ---
 
@@ -16,7 +20,7 @@ if (!apiKey) {
 }
 
 // Set a longer timeout (e.g., 30 seconds = 30000ms)
-const TIMEOUT_MS = 30000; 
+const TIMEOUT_MS = 30_000; 
 
 const openai = apiKey ? new OpenAI({
     apiKey: apiKey,
@@ -164,14 +168,11 @@ export async function getAIGameTitleAndDescription(
     const prompt: ChatCompletionMessageParam[] = [
         {
             role: 'system',
-            content: `You are a creative assistant tasked with generating a thematic title and a short, evocative description (1-2 sentences) for a game of Werewolf based on its characters. Respond ONLY in JSON format with keys "title" and "description". Example: {"title": "The Grimstone Gathering", "description": "Shadows lengthen in the village as whispers of a hidden beast turn neighbor against neighbor."}`
+            content: GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT
         },
         {
             role: 'user',
-            content: `Generate a title and description for a Werewolf game featuring these characters:
-${characterDescriptions}
-
-Respond ONLY with the JSON object.`
+            content: GENERATE_TITLE_AND_DESCRIPTION_USER_PROMPT(characterDescriptions)
         }
     ];
 
@@ -244,22 +245,8 @@ export async function generateAICharacterProfile(
         ).join('\n');
     }
 
-    const systemPrompt = `You are an AI assistant designed to create compelling and diverse character profiles for a game of Werewolf set in a rustic, superstitious village.
-Generate a character profile for the role of **${role}**.${existingCharsContext}
-
-Respond ONLY with a JSON object matching the following structure:
-{
-  "characterName": "string (unique, evocative name, distinct from existing if provided)",
-  "gender": "string ('male' or 'female')",
-  "ageCategory": "string ('young' or 'old')",
-  "appearanceFlavorText": "string (1-2 sentences describing visual appearance)",
-  "backgroundBackstory": "string (2-3 sentences covering origin, profession, key life events, reputation - make it distinct)",
-  "corePersonalityArchetype": "string (e.g., 'The Cynic', 'The Protector', 'The Manipulator' - try to vary from existing)",
-  "keyPersonalityTraitsSummary": "string (1-2 sentences summarizing key traits like suspicion, honesty, confidence - aim for diversity)",
-  "motivationsGoals": ["string", "string", "..."] (2-3 motivations as an array of strings)
-}
-
-Ensure the details are appropriate for the assigned role (${role}) and the game's setting. Be creative but maintain consistency. CRITICALLY IMPORTANT: Make the generated character distinct from the existing characters listed above, especially in name, archetype, and background. Do NOT include any explanation or text outside the JSON object.`;
+    // Use the imported prompt function
+    const systemPrompt = GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT(role, existingCharsContext);
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
@@ -324,4 +311,3 @@ Key Traits: ${profile.keyPersonalityTraitsSummary}
 Motivations: ${profile.motivationsGoals.join(', ')}`;
 }
 
-// --- Placeholder Function Removed --- 
