@@ -1,50 +1,32 @@
-import { runGameTurnAction } from "@/app/actions"; // Import the new action
-import { ConversationLog } from "@/components/ConversationLog";
-import { GameHeader } from "@/components/GameHeader";
-import { GameSidebar } from "@/components/GameSidebar";
+import { runGameTurnAction } from "@/app/actions";
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import { notFound } from "next/navigation";
+import GameClient from "./GameClient"; // Import the client component
 
-// Define props expected by the page component
 interface GamePageProps {
-    params: Promise<{
+    params: { // Params are sync in app router
         gameId: string;
-    }>;
+    };
 }
 
 export default async function GamePage({ params }: GamePageProps) {
-    const { gameId } = await params;
+    // No need to await params directly
+    const { gameId } = params;
     const gameState = await gameStateManager.getFilteredGameState(gameId);
 
     if (!gameState) {
         notFound();
     }
 
-    const { title, description, phase, round, players, conversationLog, winner } = gameState;
-    const runTurnForThisGame = runGameTurnAction.bind(null, gameId);
+    // Bind the action here on the server
+    const boundRunGameTurnAction = runGameTurnAction.bind(null, gameId);
 
     return (
-        // Main container: Use CSS Grid
-        <div className="grid grid-cols-[280px_1fr] h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-            {/* Left Column (Sidebar): Player List */}
-            <GameSidebar players={players} phase={phase} />
-
-            {/* Right Column: Game Info & Conversation */}
-            <main className="flex flex-col h-screen overflow-hidden">
-                {/* Top Row: Game Info & Actions */}
-                <GameHeader 
-                    title={title || "Werewolf Game"}
-                    description={description}
-                    phase={phase}
-                    round={round}
-                    winner={winner}
-                    onRunTurn={runTurnForThisGame}
-                />
-
-                {/* Bottom Row: Conversation Log */}
-                <ConversationLog conversationLog={conversationLog} players={players} />
-            </main>
-        </div>
+       <GameClient
+           initialGameState={gameState}
+           gameId={gameId}
+           boundRunGameTurnAction={boundRunGameTurnAction}
+        />
     );
 } 
 

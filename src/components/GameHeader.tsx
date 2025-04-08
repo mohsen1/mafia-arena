@@ -1,19 +1,15 @@
-import NextButton from "@/components/NextButton";
-import { FilteredGameState } from "@/lib/types/game";
+import GameController from "@/components/GameController";
+import { useGameContext } from "@/context/GameContext"; // Import context hook
 
-interface GameHeaderProps {
-    title: string;
-    description?: string;
-    phase: FilteredGameState['phase'];
-    round: number;
-    winner?: string;
-    onRunTurn: () => void;
-}
+export function GameHeader() { // Remove props
+    const { gameState } = useGameContext(); // Use context
 
-export function GameHeader({ title, description, phase, round, winner, onRunTurn }: GameHeaderProps) {
+    if (!gameState) return null;
+    const { title, description, phase, round, winner } = gameState;
+
     return (
         <header className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow flex justify-between items-center flex-shrink-0 gap-4">
-            {/* Game Info Group */}    
+            {/* Game Info Group */}
             <div className="flex-grow">
                 <h1 className="text-2xl font-bold mb-1 truncate">{title || "Werewolf Game"}</h1>
                 {description && (
@@ -32,12 +28,10 @@ export function GameHeader({ title, description, phase, round, winner, onRunTurn
                     )}
                 </div>
             </div>
-            {/* Action Button Form */}
-            {phase !== 'GameOver' && (
-                <form action={onRunTurn} className="flex-shrink-0">
-                    <NextButton />
-                </form>
-            )}
+            {/* Action Buttons */}
+             {phase !== 'GameOver' && (
+                 <GameController /> // Use the new controller
+             )}
         </header>
     );
 } 

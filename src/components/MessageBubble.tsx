@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { FilteredGameState, ChatMessage } from "@/lib/types/game";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Volume, CheckCircle, Loader2 } from 'lucide-react';
+import { useGameContext } from '@/context/GameContext'; // Import context hook
 
 // Define the props
 interface MessageBubbleProps {
@@ -27,6 +28,16 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     const streamEnded = useRef(false);
     const stopReadingRef = useRef(false);
     const cleanupScheduled = useRef(false); // Prevent duplicate cleanup calls
+
+    // Get context functions and state
+    const {
+        isAutoRunning,
+        runNextTurnAction,
+        currentlyPlayingMessageId,
+        setCurrentlyPlayingMessageId,
+        registerStopAudio, // Function to register stop callback
+        unregisterStopAudio // Function to unregister stop callback
+    } = useGameContext();
 
     const speakerPlayer = message.speaker.type === 'player'
         ? players[message.speaker.playerId]
@@ -123,7 +134,13 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
         setAudioStatus('idle'); 
         // Allow cleanup to run again later if needed (e.g., component reused)
          requestAnimationFrame(() => { cleanupScheduled.current = false; }); 
-    }, [message.messageId]);
+
+        // Clear global playing state if this message was the one playing
+        if (currentlyPlayingMessageId === message.messageId) {
+            setCurrentlyPlayingMessageId(null);
+             unregisterStopAudio(message.messageId); // Unregister stop function
+        }
+    }, [message.messageId, currentlyPlayingMessageId, setCurrentlyPlayingMessageId, unregisterStopAudio]);
 
     const playAudio = useCallback(async () => {
         if (isModerator || audioStatus !== 'idle' || !MediaSource || !MediaSource.isTypeSupported(AUDIO_MIME_TYPE)) {
@@ -351,7 +368,11 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                  URL.revokeObjectURL(audioURL);
              }
         }
-    }, [isModerator, audioStatus, speakerPlayer, message.content, message.speakerName, appendChunk, stopAndCleanup, message.messageId]);
+    }, [
+        isModerator, audioStatus, speakerPlayer, message.content, message.speakerName,
+        appendChunk, stopAndCleanup, message.messageId, setCurrentlyPlayingMessageId,
+        isAutoRunning, runNextTurnAction, registerStopAudio, unregisterStopAudio // Add context dependencies
+    ]);
 
     // Unmount Effect (Keep this for resource cleanup)
      useEffect(() => {       
