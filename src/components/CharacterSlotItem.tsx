@@ -11,14 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import {
-  Users,
-  ServerCrash,
-  Bot,
-  X,
-  Loader2,
-  AlertTriangle,
-} from "lucide-react";
+import { Users, ServerCrash, Bot, X, Loader2 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface CharacterSlotItemProps {
@@ -51,7 +44,7 @@ export function CharacterSlotItem({
   return (
     <li
       key={slot.clientId}
-      className={`p-4 rounded-lg transition-all duration-300 ease-in-out flex flex-col gap-3 ${slot.generationError ? "bg-destructive/10 border border-destructive/50" : "bg-card"}`}
+      className={`p-4  border rounded-lg transition-all duration-300 ease-in-out flex flex-col gap-3 ${slot.generationError ? "bg-destructive/10 border border-destructive/50" : "bg-card"}`}
     >
       {/* Top section: Status/Generated Info & Remove Button */}
       <div className="flex items-center justify-between gap-3">

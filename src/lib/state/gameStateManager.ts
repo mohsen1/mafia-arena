@@ -1,4 +1,8 @@
-import type { ChatMessage, FilteredGameState, GameState } from "@/lib/types/game";
+import type {
+  ChatMessage,
+  FilteredGameState,
+  GameState,
+} from "@/lib/types/game";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -238,14 +242,14 @@ export class GameStateManager {
     }
 
     // Destructure to separate fields easily
-    const { _internalState, players, conversationLog, ...restOfState } =
+    const { /* _internalState, */ players, conversationLog, ...restOfState } =
       gameState;
 
     // Filter players: Omit persona. Conditionally include role if game is over or player is dead.
     const filteredPlayers: FilteredGameState["players"] = Object.fromEntries(
       Object.entries(players).map(([id, player]) => {
         // Destructure persona and role to exclude them initially
-        const { persona, role, ...restPlayer } = player;
+        const { /* persona, */ role, ...restPlayer } = player;
 
         // Start with the base player object without persona or the original required role
         const playerForClient: FilteredGameState["players"][string] = {
@@ -266,7 +270,7 @@ export class GameStateManager {
     const filteredLog: ReadonlyArray<
       Omit<ChatMessage, "audience"> & { speakerName: string }
     > = conversationLog.map((msg) => {
-      const { audience, ...restMsg } = msg;
+      const { /* audience, */ ...restMsg } = msg;
       const speakerName =
         msg.speakerName ||
         (msg.speaker.type === "moderator" ? "Moderator" : "Unknown");

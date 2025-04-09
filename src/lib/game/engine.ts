@@ -1,21 +1,15 @@
 import { getAIGameTitleAndDescription } from "@/lib/ai/openaiService";
 import type {
-  ChatMessage,
+  GameState,
   GamePhase,
   GameSettings,
-  GameState,
-  NightAction,
+  WinCondition,
   Player,
   PlayerInitializationData,
-  Role,
-  SpeakerType,
-  Vote,
-  WinCondition,
 } from "@/lib/types/game";
 import crypto from "node:crypto";
 import { DEFAULT_GAME_SETTINGS } from "@/lib/config";
 import { selectCharacterImage } from "@/lib/utils/imageUtils";
-import { mapLanguageNameToCode } from "@/lib/translation/languages";
 import type { LanguageName } from "@/lib/translation/languages";
 
 // --- Constants ---

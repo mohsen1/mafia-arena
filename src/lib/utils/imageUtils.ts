@@ -1,5 +1,5 @@
-import path from "path";
-import { promises as fs } from "fs";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 const BASE_IMAGE_PATH = path.join(
   process.cwd(),
@@ -33,9 +33,15 @@ async function initializeImageCache(): Promise<void> {
         // Filter for image files (e.g., png, jpg)
         imageCache[key] = files.filter((f) => f.match(/\.(png|jpe?g|webp)$/i));
         console.log(`Cached ${imageCache[key].length} images for ${key}`);
-      } catch (error: any) {
-        // If directory doesn't exist (ENOENT), log a warning but continue
-        if (error.code === "ENOENT") {
+      } catch (error) {
+        // Check if it's an error object with a code property
+        if (
+          error instanceof Error &&
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ) {
           console.warn(`Image directory not found, skipping cache: ${dirPath}`);
           imageCache[key] = [];
         } else {

@@ -5,7 +5,7 @@ import { GameHeader } from "@/components/GameHeader";
 import { GameSidebar } from "@/components/GameSidebar";
 import { GameProvider, useGameContext } from "@/context/GameContext";
 import { SpokenTextProvider } from "@/context/SpokenTextContext";
-import { FilteredGameState } from "@/lib/types/game";
+import type { FilteredGameState } from "@/lib/types/game";
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
@@ -44,14 +44,12 @@ function GameLayout() {
 
 export default function GameClient({
   initialGameState,
-  gameId,
   boundRunGameTurnAction,
 }: GameClientProps) {
   return (
     <SpokenTextProvider>
       <GameProvider
         initialGameState={initialGameState}
-        gameId={gameId}
         boundRunGameTurnAction={boundRunGameTurnAction}
       >
         <GameLayout />

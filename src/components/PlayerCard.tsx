@@ -1,7 +1,12 @@
 import Image from "next/image";
-import type { FilteredGameState, PlayerStatus, Role } from "@/lib/types/game";
-// Removed: import type { Player } from '@/lib/types/game';
+import type { FilteredGameState } from "@/lib/types/game";
+// import { Player, /* PlayerStatus, Role */ } from "@/lib/types/game";
+// import { Bot, User, Skull } from "lucide-react";
+// import { cn } from "@/lib/utils";
 import { useGameContext } from "@/context/GameContext";
+// import { useTranslation } from "@/hooks/useTranslation";
+// import { motion } from "framer-motion";
+// import { getContrastColor } from "@/lib/utils/colorUtils";
 
 // Define the props for PlayerCard using the type from FilteredGameState
 type FilteredPlayer = FilteredGameState["players"][string];

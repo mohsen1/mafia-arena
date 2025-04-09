@@ -1,13 +1,15 @@
 "use client";
 
+import React from "react";
 import {
-  Loader,
   Play,
   Pause,
   SkipForward,
-  Loader2,
+  // AlertCircle,
+  // Loader2,
   Volume2,
   VolumeX,
+  Loader,
 } from "lucide-react";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
 import { Button } from "@/components/ui/button"; // Import Button

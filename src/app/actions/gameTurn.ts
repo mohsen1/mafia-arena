@@ -23,7 +23,6 @@ import type {
   Player,
   Vote,
   AIMessageLogEntry,
-  GamePhase,
   Role,
   GameState,
 } from "@/lib/types/game";
@@ -31,10 +30,8 @@ import { cleanAIResponse } from "@/lib/utils/stringUtils";
 import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { LanguageName } from "@/lib/translation/languages";
-import type {
-  TranslationEntry,
-} from "@/lib/translation/languages"; // Import for type checking keys
+import type {} from // TranslationEntry, // Removed unused import
+"@/lib/translation/languages"; // Import for type checking keys
 
 // Helper function to get a placeholder string for missing player names
 const getPlayerName = (
@@ -859,11 +856,6 @@ export async function runGameTurnAction(gameId: string) {
     let stateAfterResolution = { ...gamePhaseState };
     const moderatorMessages: ChatMessage[] = [];
     let eliminatedPlayerId: string | null = null;
-    let finalSeerResult: {
-      seerId: string;
-      targetId: string;
-      result: "Werewolf" | "Villager";
-    } | null = null;
     let actualKillTargetId: string | null = null;
     let actualSaveTargetId: string | null = null;
     let actualSeerTargetId: string | null = null;
@@ -952,7 +944,6 @@ export async function runGameTurnAction(gameId: string) {
         // Determine the actual result based on the target's role
         const result: "Werewolf" | "Villager" =
           targetPlayer.role === "Werewolf" ? "Werewolf" : "Villager";
-        finalSeerResult = { seerId, targetId, result }; // Store for internal state
         console.log(
           `Seer (${seerId}) investigated ${targetPlayer.name} (${targetId}) - Result: ${result}`,
         );
@@ -1728,7 +1719,6 @@ export async function runGameTurnAction(gameId: string) {
         console.log("[Vote Tally Debug] Entering ELIMINATION branch."); // Log branch
         // Clear winner
         dayEliminatedPlayerId = playersWithMaxVotes[0];
-        const eliminatedPlayer = stateAfterTally.players[dayEliminatedPlayerId];
         const eliminatedPlayerName = getPlayerName(
           stateAfterTally,
           dayEliminatedPlayerId,

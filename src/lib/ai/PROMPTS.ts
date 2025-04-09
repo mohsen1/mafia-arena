@@ -1,4 +1,4 @@
-import dedent from 'dedent'
+import dedent from "dedent";
 import type { LanguageName } from "@/lib/translation/languages";
 import type { Role } from "@/lib/types/game";
 
@@ -342,7 +342,9 @@ export const GAME_TITLE_DESCRIPTION_PROMPT = (
 
 // --- UI Translation Prompt ---
 
-export const GENERATE_UI_TRANSLATION_PROMPT = (targetLanguage: LanguageName) => {
+export const GENERATE_UI_TRANSLATION_PROMPT = (
+  targetLanguage: LanguageName,
+) => {
   return dedent`You are a precise translation assistant.
   The user will provide a JSON array of objects
   representing English phrases and their base translations for a UI.

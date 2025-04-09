@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-// import { ElevenLabsClient } from 'elevenlabs'; // Bypassing SDK for direct fetch
-// import { Readable } from 'stream'; // Not needed for direct fetch response streaming
+import { NextResponse } from "next/server";
+// import { Ratelimit } from "@upstash/ratelimit"; // Removed
+// import { kv } from "@vercel/kv"; // Removed
+import type { NextRequest } from "next/server";
 
 console.log("ELEVENLABS_API_KEY loaded:", !!process.env.ELEVENLABS_API_KEY);
 
@@ -8,128 +9,183 @@ console.log("ELEVENLABS_API_KEY loaded:", !!process.env.ELEVENLABS_API_KEY);
 //   apiKey: process.env.ELEVENLABS_API_KEY,
 // });
 
-const DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // Rachel
-const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
+// const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // Removed unused variable
+// const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1"; // Removed unused variable
 
-export async function POST(request: NextRequest) {
+// Define an interface for the expected request body
+interface SpeakRequestBody {
+  text: string;
+  voiceId: string;
+  stability?: number;
+  similarity?: number;
+}
+
+export async function POST(req: NextRequest) {
+  console.log("*** /api/speak POST request received ***");
+
+  // --- Removed Rate Limiting Logic --- 
+  // const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "127.0.0.1";
+  // const { success, pending, limit, /* reset, */ remaining } =
+  //   await ratelimit.limit(`ratelimit_speak_${ip}`);
+  // await pending;
+  // console.log(`Rate Limit Status for ${ip}: ${remaining}/${limit} remaining.`);
+  // if (!success) {
+  //   console.warn(`Rate limit exceeded for IP: ${ip}`);
+  //   return NextResponse.json(
+  //     { error: "Rate limit exceeded. Please try again later." },
+  //     { status: 429 },
+  //   );
+  // }
+  // --- End Removed Rate Limiting Logic ---
+
+  let body: SpeakRequestBody;
   try {
-    // Check if timestamps are requested
-    const {
-      text,
-      voice_id = DEFAULT_VOICE_ID,
-      model_id = "eleven_multilingual_v2",
-      with_timestamps = false,
-    } = await request.json();
-    console.log(
-      `API Request - Text: "${text.substring(0, 50)}...", Voice: ${voice_id}, Model: ${model_id}, Timestamps: ${with_timestamps}`,
-    );
+    // Parse the request body
+    body = await req.json();
+    console.log("Request Body:", body); // Log the received body
 
-    const apiKey = process.env.ELEVENLABS_API_KEY;
-
-    if (!text) {
-      console.error("Error: Text is required");
-      return NextResponse.json({ error: "Text is required" }, { status: 400 });
+    // Validate input
+    const validation = validateInput(body);
+    if (!validation.success) {
+      console.error("Input validation failed:", validation.error);
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+
+    // Add explicit check for data to satisfy TypeScript
+    if (!validation.data) {
+      console.error("Validation succeeded but data is missing.");
+      return NextResponse.json({ error: "Internal validation error" }, { status: 500 });
+    }
+
+    const { text, voiceId, stability, similarity } = validation.data;
+
+    // --- Check for API Key before making the call ---
+    const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
-      console.error("Error: ElevenLabs API key not configured on server");
+      console.error("Missing ELEVENLABS_API_KEY environment variable.");
       return NextResponse.json(
-        { error: "ElevenLabs API key not configured" },
-        { status: 500 },
+        { error: "TTS service is not configured." },
+        { status: 503 }, // Service Unavailable
       );
     }
+    // --- End API Key Check ---
 
-    // Determine the correct endpoint URL based on the with_timestamps flag
-    const endpointPath = with_timestamps
-      ? `/text-to-speech/${voice_id}/with-timestamps`
-      : `/text-to-speech/${voice_id}/stream`;
-    const url = `${ELEVENLABS_API_BASE}${endpointPath}`;
-
-    console.log(`Calling ElevenLabs API: POST ${url}`);
-
-    const headers = new Headers();
-    headers.append("Content-Type", "application/json");
-    headers.append("xi-api-key", apiKey);
-    // Accept different content types based on the endpoint
-    headers.append(
-      "Accept",
-      with_timestamps ? "application/json" : "audio/mpeg",
+    // Fetch from ElevenLabs API
+    console.log(
+      `Fetching TTS from ElevenLabs: voiceId=${voiceId}, stability=${stability}, similarity=${similarity}`,
+    );
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "audio/mpeg",
+          "Content-Type": "application/json",
+          "xi-api-key": apiKey, // Use the validated key
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: "eleven_multilingual_v2", // Or your desired model
+          voice_settings: {
+            stability: stability,
+            similarity_boost: similarity,
+          },
+        }),
+      },
     );
 
-    const body = JSON.stringify({
-      text: text,
-      model_id: model_id,
-      // voice_settings can be added here if needed
-    });
+    console.log(`ElevenLabs API Response Status: ${response.status}`);
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: headers,
-      body: body,
-    });
-
-    console.log(`ElevenLabs API response status: ${response.status}`);
-
+    // Check if the request was successful
     if (!response.ok) {
-      let errorText = `ElevenLabs API Error: ${response.status} ${response.statusText}`;
-      try {
-        // Try to parse error JSON from ElevenLabs, common for non-200 responses
-        const errorData = await response.json();
-        errorText =
-          errorData.detail?.message ||
-          JSON.stringify(errorData.detail) ||
-          errorText;
-      } catch (e) {
-        // If error response is not JSON, read as text
-        try {
-          errorText = await response.text();
-        } catch (readError) {
-          console.error("Failed to read error response body", readError);
-        }
-      }
-      console.error("!!! ElevenLabs API Error:", errorText);
+      const errorText = await response.text();
+      console.error(
+        `ElevenLabs API Error (${response.status}): ${errorText.slice(0, 500)}...`,
+      ); // Log truncated error
       return NextResponse.json(
-        { error: errorText },
+        { error: `ElevenLabs API error: ${response.statusText}` }, // Provide a user-friendly error
         { status: response.status },
       );
     }
 
-    // --- Handle Response based on endpoint ---
+    // Get the readable stream from the response body
+    const audioStream = response.body;
 
-    if (with_timestamps) {
-      // For the timestamp endpoint, return the full JSON response
-      console.log(
-        "Received JSON with audio_base64 and alignment from ElevenLabs.",
+    if (!audioStream) {
+      console.error("No audio stream received from ElevenLabs API.");
+      return NextResponse.json(
+        { error: "No audio stream received" },
+        { status: 500 },
       );
-      const data = await response.json();
-      return NextResponse.json(data); // Forward the JSON data to the client
-    } else {
-      // For the streaming endpoint, return the audio stream directly
-      if (!response.body) {
-        console.error(
-          "Error: Response body from ElevenLabs streaming API is null",
-        );
-        return NextResponse.json(
-          { error: "Received empty response body from upstream API" },
-          { status: 500 },
-        );
-      }
-      console.log(
-        "Received stream from ElevenLabs API. Returning NextResponse...",
-      );
-      return new NextResponse(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: {
-          "Content-Type": response.headers.get("content-type") || "audio/mpeg",
-        },
-      });
     }
-  } catch (error: any) {
+
+    console.log("Successfully received audio stream. Streaming response...");
+    // Return the stream directly
+    return new Response(audioStream, {
+      headers: {
+        "Content-Type": "audio/mpeg",
+      },
+    });
+  } catch (error) {
     // Catch potential fetch errors or errors during response processing
     console.error("!!! Error in /api/speak handler:", error);
+    let errorMessage = "An unknown error occurred";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    // Removed unused variable 'e' and cleaned up comments
     return NextResponse.json(
-      { error: error.message || "Failed to process speech request" },
+      { error: errorMessage || "Failed to process speech request" },
       { status: 500 },
     );
   }
+}
+
+// Helper function to validate input
+function validateInput(body: unknown): {
+  success: boolean;
+  data?: SpeakRequestBody;
+  error?: string;
+} {
+  // Type check for body
+  if (typeof body !== "object" || body === null) {
+    return { success: false, error: "Request body must be an object." };
+  }
+
+  // Assert body as a potential candidate for SpeakRequestBody
+  const potentialBody = body as Partial<SpeakRequestBody>;
+
+  if (
+    typeof potentialBody.text !== "string" ||
+    potentialBody.text.trim() === ""
+  ) {
+    return { success: false, error: "Invalid input: text is required." };
+  }
+  if (
+    typeof potentialBody.voiceId !== "string" ||
+    potentialBody.voiceId.trim() === ""
+  ) {
+    return { success: false, error: "Invalid input: voiceId is required." };
+  }
+
+  const stability =
+    typeof potentialBody.stability === "number" ? potentialBody.stability : 0.5; // Default stability
+  const similarity =
+    typeof potentialBody.similarity === "number"
+      ? potentialBody.similarity
+      : 0.75; // Default similarity
+
+  // Clamp values to valid ranges (example)
+  const clampedStability = Math.max(0, Math.min(1, stability));
+  const clampedSimilarity = Math.max(0, Math.min(1, similarity));
+
+  return {
+    success: true,
+    data: {
+      text: potentialBody.text,
+      voiceId: potentialBody.voiceId,
+      stability: clampedStability,
+      similarity: clampedSimilarity,
+    },
+  };
 }

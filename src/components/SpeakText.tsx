@@ -25,8 +25,9 @@ import React, {
 } from "react";
 import type { ReactNode } from "react"; // Import ReactNode as type
 import { useSpokenText } from "@/context/SpokenTextContext";
-import { Button } from "@/components/ui/button"; // Assuming you use shadcn/ui
-import { PlayIcon, PauseIcon, Loader2 } from "lucide-react"; // Use lucide-react icons
+// import { Button } from "@/components/ui/button"; // Removed unused import
+// import { PlayIcon, PauseIcon, Loader2 } from "lucide-react"; // Removed unused imports
+// import { useIsVisible } from "@/hooks/useIsVisible"; // Removed incorrect import
 
 // Define type for alignment data based on API response
 interface AlignmentData {
@@ -57,7 +58,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
   ({ children, voiceId, className, onEnd, autoQueue = false }, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     // Ref to track if playback ended successfully to prevent onerror race condition
     const playbackCompletedRef = useRef<boolean>(false);
@@ -96,7 +96,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     const canPlay =
       isAudioGloballyEnabled &&
       (currentlySpeakingId === null || currentlySpeakingId === componentId);
-    const isCurrentlySpeakingThis = currentlySpeakingId === componentId;
+    // const isCurrentlySpeakingThis = currentlySpeakingId === componentId;
 
     // Function to find the character index based on time
     const findCharacterIndexForTime = useCallback(
@@ -169,7 +169,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
           console.log(
             `[SpeakText ${componentId}] Audio globally disabled, preventing play/pause.`,
           );
-          setError("Audio is disabled."); // Optional: provide feedback
           return;
         }
 
@@ -187,7 +186,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         console.log(
           `[SpeakText ${componentId}] handlePlayPause called. isPlaying (state): ${isPlaying}, canPlay: ${canPlay}, triggeredExternally: ${triggeredExternally}`,
         );
-        setError(null);
         // Reset completion flag on new play attempt
         playbackCompletedRef.current = false;
         setHighlightedCharIndex(-1);
@@ -207,7 +205,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
               console.log(
                 `[SpeakText ${componentId}] Speak permission denied by context.`,
               );
-              setError("Another audio is currently playing.");
               setIsLoading(false); // Ensure loading is reset
               return; // Don't proceed if permission denied
             }
@@ -218,7 +215,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
             console.log(
               `[SpeakText ${componentId}] Cannot play, context reports busy.`,
             );
-            setError("Another audio is currently playing.");
             setIsLoading(false); // Ensure loading is reset
             return; // Don't proceed if context is busy
           }
@@ -266,7 +262,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
               try {
                 const errorData = await response.json();
                 errorText = errorData.error || errorText;
-              } catch (e) {
+              } catch {
                 /* ignore */
               }
               console.error(
@@ -340,7 +336,8 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                   }
                 }, 0);
               };
-              audioToPlay.onerror = (e) => {
+              audioToPlay.onerror = (event) => {
+                // Ensure 'e' is renamed to 'event'
                 // Failure path - Check flag first!
                 if (!audioRef.current || playbackCompletedRef.current) {
                   console.warn(
@@ -350,9 +347,9 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                 }
                 console.error(
                   `[SpeakText ${componentId}] Audio playback error event:`,
-                  e,
+                  event,
                 );
-                setError("Audio playback failed.");
+                // setError("Audio playback failed."); // Commented out assignment to unused 'error'
                 setIsPlaying(false);
                 setIsLoading(false);
                 setHighlightedCharIndex(-1);
@@ -425,15 +422,10 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
           }
         } catch (err) {
           // Use unknown type and check within block
-          let errorMessage = "Failed to process audio.";
-          if (err instanceof Error) {
-            errorMessage = err.message;
-          }
           console.error(
             `[SpeakText ${componentId}] Error in handlePlayPause catch block:`,
             err,
           );
-          setError(errorMessage);
           setIsPlaying(false);
           setHasPlaybackCompleted(false);
           // Ensure context is released on error only if we successfully acquired it

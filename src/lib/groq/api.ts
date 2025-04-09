@@ -1,11 +1,11 @@
-import { cache } from "react";
+// import { cache } from "react"; // Removed unused import
+// import Groq from "groq-sdk"; // Removed unused import
+import type {} from // ModelListResponse as GroqModelListResponse, // Removed unused import
+"groq-sdk/resources/models";
 
 interface GroqModel {
   id: string;
-}
-
-interface GroqModelListResponse {
-  data: GroqModel[];
+  // Add other known properties if available
 }
 
 /**
@@ -47,15 +47,21 @@ export async function getGroqModels(): Promise<string[]> {
     // Extract model IDs from the response data structure
     if (data && Array.isArray(data.data)) {
       const modelIds: string[] = data.data
-        .map((model: any) => model.id)
-        .filter((id: any) => typeof id === "string");
+        .map((model: GroqModel) => model.id)
+        .filter(
+          (id: string | undefined): id is string => typeof id === "string",
+        );
       console.log(`Fetched ${modelIds.length} models from Groq.`);
       return modelIds;
-    } else {
-      throw new Error("Unexpected response format from Groq API");
     }
-  } catch (error: any) {
-    console.error("Failed to fetch models from Groq:", error);
+    // If we reach here, the format was unexpected
+    throw new Error("Unexpected response format from Groq API");
+  } catch (error) {
+    let errorMessage = "Failed to fetch models from Groq.";
+    if (error instanceof Error) {
+      errorMessage += ` ${error.message}`;
+    }
+    console.error(errorMessage, error);
     // Return empty list on error or re-throw
     // throw new Error(`Failed to fetch models: ${error.message}`);
     return []; // Return empty list on error

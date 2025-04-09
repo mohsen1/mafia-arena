@@ -1,9 +1,7 @@
 "use server";
 
 import { getAIResponse } from "@/lib/ai/openaiService";
-import {
-  GENERATE_UI_TRANSLATION_PROMPT,
-} from "@/lib/ai/PROMPTS";
+import { GENERATE_UI_TRANSLATION_PROMPT } from "@/lib/ai/PROMPTS";
 import dictionaryDataJson from "@/lib/translation/dictionary.json";
 import { supportedLanguagesInfo } from "@/lib/translation/languages";
 import type {
@@ -46,7 +44,10 @@ export async function translateText(
   try {
     // Simple prompt for translation
     const messages: ChatCompletionMessageParam[] = [
-      { role: "user", content: `Translate the following text accurately into ${targetLanguageName}. Respond ONLY with the translated text, nothing else: ${text}` },
+      {
+        role: "user",
+        content: `Translate the following text accurately into ${targetLanguageName}. Respond ONLY with the translated text, nothing else: ${text}`,
+      },
     ];
 
     // Use specified model for this helper function
@@ -63,7 +64,10 @@ export async function translateText(
     console.log(`[Translate] Received: "${translation.substring(0, 50)}..."`);
     return cleanAIResponse(translation); // Clean potential extra formatting
   } catch (error) {
-    console.error(`[Translate] Error translating to ${targetLanguageName}:`, error);
+    console.error(
+      `[Translate] Error translating to ${targetLanguageName}:`,
+      error,
+    );
     return text; // Fallback to original text on error
   }
 }
@@ -121,51 +125,63 @@ export async function getOrGenerateTranslationsAction(
           );
         }
 
-        // --- Check if dictionary.json has all translations --- 
+        // --- Check if dictionary.json has all translations ---
         const preExistingTranslations = dictionary[targetLangCode];
         if (preExistingTranslations && preExistingTranslations.length > 0) {
-           const englishPhrases = new Set(englishDictionary.map(item => item.phrase));
-           const preExistingPhrases = new Set(preExistingTranslations.map(item => item.phrase));
-           const allPhrasesFound = [...englishPhrases].every(phrase => preExistingPhrases.has(phrase));
+          const englishPhrases = new Set(
+            englishDictionary.map((item) => item.phrase),
+          );
+          const preExistingPhrases = new Set(
+            preExistingTranslations.map((item) => item.phrase),
+          );
+          const allPhrasesFound = [...englishPhrases].every((phrase) =>
+            preExistingPhrases.has(phrase),
+          );
 
-           if(allPhrasesFound) {
-              console.log(`[Action:getTranslations] All ${englishPhrases.size} required phrases found in dictionary.json for ${targetLangCode}. Skipping AI generation.`);
-              const translationMap: Record<string, string> = {};
-              for (const entry of preExistingTranslations) {
-                // Only include entries that correspond to the current English dictionary
-                if (englishPhrases.has(entry.phrase)) {
-                   translationMap[entry.phrase] = entry.translation;
-                }
+          if (allPhrasesFound) {
+            console.log(
+              `[Action:getTranslations] All ${englishPhrases.size} required phrases found in dictionary.json for ${targetLangCode}. Skipping AI generation.`,
+            );
+            const translationMap: Record<string, string> = {};
+            for (const entry of preExistingTranslations) {
+              // Only include entries that correspond to the current English dictionary
+              if (englishPhrases.has(entry.phrase)) {
+                translationMap[entry.phrase] = entry.translation;
               }
+            }
 
-                // Write to cache (same logic as after AI gen)
-               try {
-                 await fs.mkdir(CACHE_DIR, { recursive: true });
-                 await fs.writeFile(
-                   cacheFilePath,
-                   JSON.stringify(translationMap, null, 2),
-                 );
-                 console.log(
-                   `[Action:getTranslations] Wrote dictionary-based translations to cache: ${cacheFilePath}`,
-                 );
-               } catch (writeError: unknown) {
-                 const message =
-                   writeError instanceof Error
-                     ? writeError.message
-                     : String(writeError);
-                 console.error(
-                   `[Action:getTranslations] FAILED to write dictionary-based cache file ${cacheFilePath}:`,
-                   message,
-                 );
-               }
-               return translationMap;
-           }
-           console.log(`[Action:getTranslations] Dictionary incomplete for ${targetLangCode}. Proceeding with AI generation.`);
+            // Write to cache (same logic as after AI gen)
+            try {
+              await fs.mkdir(CACHE_DIR, { recursive: true });
+              await fs.writeFile(
+                cacheFilePath,
+                JSON.stringify(translationMap, null, 2),
+              );
+              console.log(
+                `[Action:getTranslations] Wrote dictionary-based translations to cache: ${cacheFilePath}`,
+              );
+            } catch (writeError: unknown) {
+              const message =
+                writeError instanceof Error
+                  ? writeError.message
+                  : String(writeError);
+              console.error(
+                `[Action:getTranslations] FAILED to write dictionary-based cache file ${cacheFilePath}:`,
+                message,
+              );
+            }
+            return translationMap;
+          }
+          console.log(
+            `[Action:getTranslations] Dictionary incomplete for ${targetLangCode}. Proceeding with AI generation.`,
+          );
         }
-         // --- End dictionary check --- 
+        // --- End dictionary check ---
 
-        // --- If dictionary incomplete or empty, proceed with AI --- 
-        console.log(`[Action:getTranslations] Generating translations via AI for ${targetLanguageName}...`);
+        // --- If dictionary incomplete or empty, proceed with AI ---
+        console.log(
+          `[Action:getTranslations] Generating translations via AI for ${targetLanguageName}...`,
+        );
 
         const systemPrompt = GENERATE_UI_TRANSLATION_PROMPT(targetLanguageName);
         const userMessage = JSON.stringify(englishDictionary, null, 2);
@@ -237,7 +253,7 @@ export async function getOrGenerateTranslationsAction(
                     `[Action:getTranslations] Overwriting AI translation for "${entry.phrase}" with dictionary version.`,
                   );
                 } else {
-                   console.log(
+                  console.log(
                     `[Action:getTranslations] Adding dictionary translation for "${entry.phrase}" (was missing from AI).`,
                   );
                 }
@@ -327,7 +343,6 @@ export async function addMissingEnglishPhrase(
   phraseKey: string,
   fallbackTranslation: string,
 ): Promise<{ success: boolean; message?: string }> {
-
   // Basic validation
   if (!phraseKey || !fallbackTranslation) {
     console.warn(
@@ -391,6 +406,9 @@ export async function addMissingEnglishPhrase(
       `[Action:addMissingPhrase] FAILED to update dictionary for key "${phraseKey}":`,
       message,
     );
-    return { success: false, message: `Failed to update dictionary: ${message}` };
+    return {
+      success: false,
+      message: `Failed to update dictionary: ${message}`,
+    };
   }
 }

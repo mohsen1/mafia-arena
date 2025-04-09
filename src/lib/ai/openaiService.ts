@@ -3,8 +3,6 @@ import { OpenAI } from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { cleanAIResponse, extractJSONFromText } from "@/lib/utils/stringUtils";
 import {
-  GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT,
-  GENERATE_TITLE_AND_DESCRIPTION_USER_PROMPT,
   GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT,
   GAME_TITLE_DESCRIPTION_PROMPT,
 } from "./PROMPTS";

@@ -8,20 +8,16 @@ import {
   useRef,
   useEffect,
 } from "react";
-import type {
-  Dispatch,
-  SetStateAction,
-  ReactNode,
-} from "react";
+import type { Dispatch, SetStateAction, ReactNode } from "react";
 // Import translation utilities and types
 import type { LanguageCode, LanguageName } from "@/lib/translation/languages";
-import {
-  mapLanguageNameToCode,
-} from "@/lib/translation/languages";
+import { mapLanguageNameToCode } from "@/lib/translation/languages";
 import { getOrGenerateTranslationsAction } from "@/app/actions/index";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
 import { supportedLanguagesInfo } from "@/lib/translation/languages";
+// Import GameState, ChatMessage, Player
+// import { GameState, ChatMessage, Player } from "@/lib/types/game";
 
 // Define the shape of the context state
 interface GameContextState {
@@ -54,7 +50,6 @@ const GameContext = createContext<GameContextState | undefined>(undefined);
 interface GameProviderProps {
   children: ReactNode;
   initialGameState: FilteredGameState;
-  gameId: string;
   boundRunGameTurnAction: () => Promise<void>; // Pre-bound server action
 }
 
@@ -62,7 +57,6 @@ interface GameProviderProps {
 export const GameProvider: React.FC<GameProviderProps> = ({
   children,
   initialGameState,
-  gameId,
   boundRunGameTurnAction,
 }) => {
   const [gameState, setGameState] = useState<FilteredGameState | null>(
@@ -112,7 +106,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
           console.warn(
             "[GameContext] Attempting to load English translations as fallback.",
           );
-          const fallbackTranslations = await getOrGenerateTranslationsAction("en");
+          const fallbackTranslations =
+            await getOrGenerateTranslationsAction("en");
           setTranslations(fallbackTranslations);
         } catch (fallbackError) {
           console.error(
@@ -130,7 +125,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       }
 
       // Use derived name for logging using the map directly
-      const targetLanguageName = supportedLanguagesInfo[gameLanguageCode]?.name; 
+      const targetLanguageName = supportedLanguagesInfo[gameLanguageCode]?.name;
       console.log(
         `[GameContext] Language is ${targetLanguageName} (${gameLanguageCode}), loading translations...`,
       );
@@ -139,7 +134,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         const loadedTranslations =
           await getOrGenerateTranslationsAction(gameLanguageCode);
         setTranslations(loadedTranslations);
-        console.log(`[GameContext] Translations loaded for ${targetLanguageName}.`);
+        console.log(
+          `[GameContext] Translations loaded for ${targetLanguageName}.`,
+        );
       } catch (error: unknown) {
         console.error(
           `[GameContext] Failed loading translations for ${targetLanguageName}:`,
@@ -180,10 +177,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   );
 
   // Function to be called by MessageBubble to clear the stop function
-  const unregisterStopAudio = useCallback((messageId: string) => {
-    // Optional: Check messageId if needed, but generally clearing is fine
-    stopAudioCallbackRef.current = null;
-  }, []);
+  const unregisterStopAudio = useCallback(
+    (/* messageId: string */) => {
+      // Optional: Check messageId if needed, but generally clearing is fine
+      stopAudioCallbackRef.current = null;
+    },
+    [],
+  );
 
   const stopCurrentAudio = useCallback(() => {
     console.log(
@@ -349,7 +349,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
       const latestLogMessageId = gameState?.conversationLog?.[0]?.messageId;
 
-      unregisterStopAudio(messageId);
+      unregisterStopAudio(/* messageId: string */);
 
       if (
         isAutoRunning &&
@@ -361,7 +361,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
           console.log(
             `[Context reportAudioFinished] AutoRun ON, Audio ON, Finished latest message (${messageId}), scheduling next turn check.`,
           );
-          const timeoutId = setTimeout(() => {
+          setTimeout(() => {
             // Re-check conditions using the REF for the speaking ID
             if (
               isAutoRunning &&
@@ -383,7 +383,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
           }, 500);
         } else {
           console.log(
-            '[Context reportAudioFinished] AutoRun ON, Audio ON: Game is over.'
+            "[Context reportAudioFinished] AutoRun ON, Audio ON: Game is over.",
           );
         }
       } else {

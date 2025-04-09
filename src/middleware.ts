@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
-  const lang = url.searchParams.get('lang');
+  const lang = url.searchParams.get("lang");
 
   // Clone the request headers
   const requestHeaders = new Headers(request.headers);
@@ -30,7 +30,5 @@ export function middleware(request: NextRequest) {
 
 // Config remains the same
 export const config = {
-  matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
-}; 
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};

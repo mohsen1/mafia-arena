@@ -1,4 +1,3 @@
-import type { LinkProps } from "next/link";
 import Link from "next/link";
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import {
@@ -11,12 +10,7 @@ import { getGroqModels } from "@/lib/groq/api";
 import { Button } from "@/components/ui/button";
 import { headers } from "next/headers";
 import type { LanguageCode } from "@/lib/translation/languages";
-import {
-  availableLanguageCodes,
-  mapLanguageNameToCode,
-  getLanguageInfoByCode,
-  supportedLanguagesInfo,
-} from "@/lib/translation/languages";
+import { availableLanguageCodes } from "@/lib/translation/languages";
 import { format } from "date-fns";
 
 // Pass translations object to GameCard instead of t function

@@ -35,7 +35,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
   const [queueVersion, setQueueVersion] = useState(0);
   const playbackQueueRef = useRef<string[]>([]);
   const subscribersRef = useRef<Set<OnDoneSpeakingCallback>>(new Set());
-  const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] =
+  const [isAudioGloballyEnabled /*, setIsAudioGloballyEnabled */] =
     useState<boolean>(true);
 
   // Internal function to start the next item in the queue if possible

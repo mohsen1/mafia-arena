@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
-import Image from "next/image";
 import type { FilteredGameState, ChatMessage } from "@/lib/types/game";
-import { useGameContext } from "@/context/GameContext"; // Import context hook
-import { SpeakText } from "@/components/SpeakText"; // Import SpeakText
-import { useTranslation } from "@/hooks/useTranslation";
+import { useGameContext } from "@/context/GameContext";
+import { SpeakText } from "@/components/SpeakText";
+import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
+import { Bot, User, Volume2 } from "lucide-react";
+import { useSpokenText } from "@/context/SpokenTextContext";
+import Image from "next/image";
 
 // Define the props
 interface MessageBubbleProps {
@@ -15,72 +17,130 @@ interface MessageBubbleProps {
 
 // Message Component with Dark Mode
 export function MessageBubble({ message, players }: MessageBubbleProps) {
-  // Get necessary context functions and state
-  const {
-    t, // Keep t function from context
-    reportAudioFinished, // Get the function to report audio finish
-    isAudioGloballyEnabled, // Get global audio state
-  } = useGameContext();
+  const { reportAudioFinished, isAudioGloballyEnabled } = useGameContext();
+  const { doneSpeaking: spokenTextReportAudioFinished } = useSpokenText();
 
+  // Determine the speaker
+  const isModerator = message.speaker.type === "moderator";
   const speakerPlayer =
     message.speaker.type === "player"
       ? players[message.speaker.playerId]
       : null;
-  const isModerator = message.speaker.type === "moderator";
-  const imageUrl = isModerator
-    ? "/images/characters/mod.png"
-    : speakerPlayer?.imageUrl;
+  // Assume player is human if they exist and DON'T have an aiModel property
+  const isHuman =
+    message.speaker.type === "player" &&
+    !!speakerPlayer &&
+    !speakerPlayer.aiModel;
+  // Assume player is bot if they exist and DO have an aiModel property
+  const isBot = message.speaker.type === "player" && !!speakerPlayer?.aiModel;
+
+  const imageUrl = speakerPlayer?.imageUrl;
 
   // Callback for when SpeakText finishes
   const handleAudioEnd = () => {
     reportAudioFinished(message.messageId);
+    spokenTextReportAudioFinished(message.messageId);
   };
 
+  const { resolvedTheme } = useTheme();
+
+  // iMessage-like styling
+  const bubbleClasses = cn(
+    "mb-2 flex max-w-[85%] flex-col rounded-2xl px-4 py-2",
+    {
+      "self-end bg-blue-500 text-white": isHuman,
+      "self-end bg-secondary text-secondary-foreground": isModerator,
+      "self-start bg-muted text-muted-foreground": isBot && !isModerator,
+    },
+  );
+
+  const IconComponent = isModerator ? Volume2 : Bot;
+
+  // Container for image + bubble
+  const containerClasses = cn("flex items-start gap-2 mb-4", {
+    "justify-end": isHuman || isModerator,
+    "justify-start": !isHuman && !isModerator,
+  });
+
+  const textContent = message.content;
+
   return (
-    <div className="flex items-start gap-3 p-2 rounded-lg transition-colors duration-200">
-      {/* Speaker Image */}
-      <div className="flex-shrink-0 mt-1">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={`Image of ${message.speakerName}`}
-            width={32}
-            height={32}
-            className="rounded-full object-cover border border-border"
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-[10px] font-bold">
-            {message.speakerName?.substring(0, 1) || "P"}
-          </div>
-        )}
-      </div>
-      {/* Message Content */}
-      <div className="flex-grow">
-        {/* Speaker Name */}
-        <span
-          className={`font-semibold text-foreground ${isModerator ? "text-primary" : ""}`}
-        >
-          {isModerator ? t("ModeratorLabel", "Moderator") : message.speakerName}
-          :
-        </span>
-        {/* Conditionally render SpeakText or plain text based on isAudioGloballyEnabled */}
-        {isAudioGloballyEnabled ? (
-          <SpeakText
-            voiceId={speakerPlayer?.voiceId}
-            className="mt-1"
-            autoQueue
-            onEnd={handleAudioEnd} // Pass the callback
+    <div className={containerClasses}>
+      {!isHuman && !isModerator && (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden flex-shrink-0">
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={message.speakerName}
+              width={32}
+              height={32}
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+              <Bot size={18} />
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={bubbleClasses}>
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={cn(
+              "text-xs font-semibold opacity-80",
+              isHuman
+                ? "text-blue-100"
+                : isModerator
+                  ? "text-secondary-foreground"
+                  : "text-muted-foreground",
+            )}
           >
-            {message.content}
-          </SpeakText>
-        ) : (
-          <div className="mt-1">{message.content}</div>
-        )}
-        {/* Timestamp (moved below SpeakText) */}
-        <span className="text-xs text-muted-foreground block text-right opacity-75 mt-1">
-          R{message.round} {message.phase}
-        </span>
+            {message.speakerName}
+          </span>
+          {!isHuman && isAudioGloballyEnabled && (
+            <SpeakText
+              voiceId={
+                message.speaker.type === "player" && speakerPlayer
+                  ? speakerPlayer.voiceId
+                  : undefined
+              }
+              className="text-xs"
+              autoQueue
+              onEnd={handleAudioEnd}
+            >
+              {textContent}
+            </SpeakText>
+          )}
+        </div>
+        <p className="text-sm whitespace-pre-wrap">{textContent}</p>
       </div>
+
+      {(isHuman || isModerator) && (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden flex-shrink-0">
+          {isModerator ? (
+            <Image
+              src="/images/characters/mod.png"
+              alt="Moderator"
+              width={32}
+              height={32}
+              className="object-cover"
+            />
+          ) : imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={message.speakerName}
+              width={32}
+              height={32}
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-primary text-primary-foreground">
+              <User size={18} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

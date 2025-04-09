@@ -44,7 +44,7 @@ export function useTranslation({
         !addedKeysRef.current.has(phraseKey) // Check if already attempted
       ) {
         console.warn(
-          `[Translation] Missing source (${'en'}) key: "${phraseKey}". Attempting to add with fallback: "${fallback}"`,
+          `[Translation] Missing source (${"en"}) key: "${phraseKey}". Attempting to add with fallback: "${fallback}"`,
         );
         addedKeysRef.current.add(phraseKey); // Mark as attempted
 
@@ -69,7 +69,9 @@ export function useTranslation({
           });
       } else if (fallback === undefined) {
         // 3. Log warning if key is missing and no fallback provided
-        console.warn(`[Translation] Missing translation for key: "${phraseKey}"`);
+        console.warn(
+          `[Translation] Missing translation for key: "${phraseKey}"`,
+        );
       }
 
       // 4. Return fallback if provided, otherwise return the key itself

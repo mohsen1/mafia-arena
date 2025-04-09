@@ -39,7 +39,9 @@ export type MessageAudience =
 export interface ChatMessage {
   readonly messageId: string;
   readonly gameId: string;
-  readonly speaker: { type: "player"; playerId: string } | { type: "moderator" };
+  readonly speaker:
+    | { type: "player"; playerId: string }
+    | { type: "moderator" };
   readonly speakerName: string; // Denormalized for easier display
   content: string; // Original English content / Fallback
   phraseKey?: string; // Key for dictionary lookup (should match a phrase in dictionary.json)
@@ -101,19 +103,6 @@ export interface PlayerPerspective {
   role: Role; // Player's own role
   // Add other private info here, e.g., seer results for the seer
   seerResults?: Record<string, "Werewolf" | "Villager">; // targetId -> result for *this* seer
-}
-
-// Base type for player data, shared between human and AI
-interface BasePlayer {
-  id: string;
-  name: string;
-  isAlive: boolean;
-  role: Role;
-  persona: string; // Detailed persona/background used for AI prompting
-  // Optional fields for AI players
-  aiModel?: string; // Model used for this AI player (e.g., 'gpt-4', 'claude-3')
-  // Optional field for profile generation context (transient)
-  profile?: AICharacterProfile | null;
 }
 
 /**

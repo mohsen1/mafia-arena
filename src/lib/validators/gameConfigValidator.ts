@@ -1,4 +1,8 @@
-import { ConfigCharacterSlot, ValidationResult, Role } from "@/lib/types/game"; // Assuming types are moved or accessible
+import type {
+  ConfigCharacterSlot,
+  Role,
+  ValidationResult,
+} from "@/lib/types/game";
 
 // Validates the configuration *before* generation attempt
 export function validateGameConfiguration(
@@ -69,7 +73,7 @@ export function validateGeneratedGameSetup(
       isValid: false,
       message: `Resolve ${errors.length} generation error(s) before starting.`,
       playerCount,
-      roleCounts: {} as any,
+      roleCounts: {} as Record<Role, number>,
     };
   }
 
@@ -79,14 +83,14 @@ export function validateGeneratedGameSetup(
         isValid: false,
         message: `Requires at least 5 players (currently ${allSlotsCount}).`,
         playerCount,
-        roleCounts: {} as any,
+        roleCounts: {} as Record<Role, number>,
       };
     }
     return {
       isValid: false,
       message: `Need at least 5 successfully generated players (only ${playerCount} generated). Check for errors.`,
       playerCount,
-      roleCounts: {} as any,
+      roleCounts: {} as Record<Role, number>,
     };
   }
 

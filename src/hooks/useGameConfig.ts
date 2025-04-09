@@ -1,10 +1,6 @@
-import {
-  generateCharacterAction,
-  startGameAction,
-} from "@/app/actions/index";
+import { generateCharacterAction, startGameAction } from "@/app/actions/index";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
 import {
-
   supportedLanguagesInfo,
   type LanguageCode,
 } from "@/lib/translation/languages";
@@ -58,7 +54,8 @@ export function useGameConfig(availableModels: string[]) {
     [],
   );
   // Initialize state with the code derived from the URL
-  const [selectedLanguage, setSelectedLanguage] = useState<LanguageCode>(initialLangCode);
+  const [selectedLanguage, setSelectedLanguage] =
+    useState<LanguageCode>(initialLangCode);
   const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -69,7 +66,7 @@ export function useGameConfig(availableModels: string[]) {
     string | null
   >(null);
   const [isPostGenValid, setIsPostGenValid] = useState<boolean | null>(null);
-  const [isLoadingNextTurn, setIsLoadingNextTurn] = useState(false);
+  const [isLoadingNextTurn /*, setIsLoadingNextTurn */] = useState(false);
 
   const resetPostGenState = useCallback(() => {
     setErrorMsg(null);
@@ -237,7 +234,7 @@ export function useGameConfig(availableModels: string[]) {
 
   const handleGenerateAndStartGame = useCallback(async () => {
     // Guard against double submission
-    if (!configValidation.isValid || isSubmitting) return; 
+    if (!configValidation.isValid || isSubmitting) return;
 
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -258,7 +255,9 @@ export function useGameConfig(availableModels: string[]) {
         const slot = slotsToGenerate[i];
         const originalIndex = i;
 
-        setInfoMsg(`GeneratingCharacterInfo_${i + 1}_${slotsToGenerate.length}`); // Update info message per character
+        setInfoMsg(
+          `GeneratingCharacterInfo_${i + 1}_${slotsToGenerate.length}`,
+        ); // Update info message per character
 
         const finalRole = slot.roleSelection;
         let generatedResult: ConfigCharacterSlot;
@@ -306,7 +305,7 @@ export function useGameConfig(availableModels: string[]) {
           };
           setErrorMsg((prev) =>
             prev ? `${prev}, ${errorMessage}` : errorMessage,
-          ); 
+          );
         }
 
         updatedSlots[originalIndex] = generatedResult;
@@ -323,7 +322,7 @@ export function useGameConfig(availableModels: string[]) {
         setErrorMsg("GenerationInvalidSetupError");
         setInfoMsg(null);
         // Need to set isSubmitting false here because we are returning early
-        setIsSubmitting(false); 
+        setIsSubmitting(false);
         return; // Exit if validation fails
       }
 
@@ -349,17 +348,15 @@ export function useGameConfig(availableModels: string[]) {
             slot.persona !== undefined, // Ensure persona exists
         )
         // Destructure only fields available on ConfigCharacterSlot here
-        .map(
-          ({ profile, assignedRole, aiModel, imageUrl, persona }) => ({
-            // Construct the object expected by startGameAction
-            role: assignedRole,
-            profile: profile,
-            aiModel: aiModel,
-            imageUrl: imageUrl,
-            // voiceId is added within startGameAction
-            persona: persona, // Include persona
-          }),
-        );
+        .map(({ profile, assignedRole, aiModel, imageUrl, persona }) => ({
+          // Construct the object expected by startGameAction
+          role: assignedRole,
+          profile: profile,
+          aiModel: aiModel,
+          imageUrl: imageUrl,
+          // voiceId is added within startGameAction
+          persona: persona, // Include persona
+        }));
 
       if (charactersToSubmit.length < 5) {
         throw new Error("InternalNotEnoughPlayersError");
@@ -368,33 +365,34 @@ export function useGameConfig(availableModels: string[]) {
       const result = await startGameAction(
         charactersToSubmit,
         selectedLanguage,
-      ); 
+      );
 
       // If startGameAction returned an error object instead of redirecting/throwing
-      if (result && "error" in result) { 
+      if (result && "error" in result) {
         throw new Error(result.error);
       }
-      
-      // If we somehow reach here without an error or redirect exception:
-      console.warn("startGameAction completed without expected error or redirect. Resetting state.");
-      setInfoMsg("GameStartedSuccessInfo"); // Indicate success 
-      setIsSubmitting(false); // Explicitly reset state as a safeguard
 
-    } catch (error: unknown) { 
+      // If we somehow reach here without an error or redirect exception:
+      console.warn(
+        "startGameAction completed without expected error or redirect. Resetting state.",
+      );
+      setInfoMsg("GameStartedSuccessInfo"); // Indicate success
+      setIsSubmitting(false); // Explicitly reset state as a safeguard
+    } catch (error: unknown) {
       console.error("Error during game generation or start:", error);
       const errorMessage =
         error instanceof Error ? error.message : "StartGameFailedError";
-      
+
       // IMPORTANT: Re-throw redirect errors so Next.js handles them
-      if (errorMessage.includes('NEXT_REDIRECT')) {
-         throw error; 
+      if (errorMessage.includes("NEXT_REDIRECT")) {
+        throw error;
       }
-      
+
       // Handle other errors
       setErrorMsg(errorMessage);
       setIsSubmitting(false); // Reset state on error
       setInfoMsg(null);
-    } 
+    }
     // Removed finally block - state reset is handled within try/catch now
   }, [
     characterSlots,

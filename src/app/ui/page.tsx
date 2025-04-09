@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
-import { SpeakText, SpeakTextHandle } from "@/components/SpeakText";
-import { SpokenTextProvider, useSpokenText } from "@/context/SpokenTextContext";
+import React, { useState /*, useRef, useEffect */ } from "react";
+import { SpeakText /*, SpeakTextHandle */ } from "@/components/SpeakText";
+import {
+  SpokenTextProvider /*, useSpokenText */,
+} from "@/context/SpokenTextContext";
 import { Button } from "@/components/ui/button";
 
 export default function UI() {
@@ -68,13 +70,15 @@ function PlayMultipleSpeak() {
           <div key={index}>
             {" "}
             {/* Key moved to the wrapper div */}
-            <SpeakText
-              // Removed ref and onEnd
-              autoQueue={true} // Tell component to register itself with the context queue
-              className="text-card-foreground"
-            >
-              {text}
-            </SpeakText>
+            <SpokenTextProvider>
+              <SpeakText
+                // Removed ref and onEnd
+                autoQueue={true} // Tell component to register itself with the context queue
+                className="text-card-foreground"
+              >
+                {text}
+              </SpeakText>
+            </SpokenTextProvider>
           </div>
         ))}
     </div>
