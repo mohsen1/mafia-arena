@@ -223,7 +223,7 @@ export function useGameConfig(availableModels: string[]) {
     if (newLangCode) {
       router.push(`/?lang=${newLangCode}`, { scroll: false });
     } else {
-      router.push(`/`, { scroll: false }); // Go back to default if something weird happens
+      router.push("/", { scroll: false }); // Go back to default if something weird happens
     }
     // No need to reset slots on language change anymore
   }, [router]);
@@ -252,7 +252,8 @@ export function useGameConfig(availableModels: string[]) {
       );
 
       // Use key or English string for batch info
-      setInfoMsg(`GeneratingBatchInfo_${i / batchSize + 1}`); // e.g., GeneratingBatchInfo_1
+      // Use a consistent translation key for batch generation status
+      setInfoMsg("GeneratingBatchInfo"); // Replaced dynamic string with a key
 
       const generationPromises = batch.map(async (slot) => {
         const finalRole = slot.roleSelection;

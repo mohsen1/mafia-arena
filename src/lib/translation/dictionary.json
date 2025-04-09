@@ -156,6 +156,11 @@
       "description": "Button text to generate characters and start."
     },
     {
+      "phrase": "GeneratingBatchInfo_1",
+      "translation": "GeneratingBatchInfo_1",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingButtonLabel",
       "translation": "Generating...",
       "description": "Text on the start button during character generation."
@@ -236,6 +241,11 @@
       "description": "The game moderator label shown in messages."
     },
     {
+      "phrase": "NEXT_REDIRECT",
+      "translation": "NEXT_REDIRECT",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "NextTurnButton",
       "translation": "Next",
       "description": "Button to advance to the next turn/step."
@@ -299,6 +309,11 @@
       "phrase": "PlayerSlotPendingLabel",
       "translation": "Player Slot",
       "description": "Label indicating a slot is for a player (not AI)."
+    },
+    {
+      "phrase": "PlayerStatusAlive",
+      "translation": "alive",
+      "description": "Auto-added from fallback"
     },
     {
       "phrase": "PlayerStatusDead",
@@ -479,6 +494,11 @@
       "phrase": "WerewolfRequired",
       "translation": "At least one Werewolf is required.",
       "description": "Validation error: no werewolf role assigned."
+    },
+    {
+      "phrase": "Werewolves AI",
+      "translation": "Werewolves AI",
+      "description": "Auto-added from fallback"
     }
   ],
   "fa": [

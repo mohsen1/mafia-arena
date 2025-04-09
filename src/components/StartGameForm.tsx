@@ -284,52 +284,54 @@ export default function StartGameForm({
           )}
         </Button>
       </div>
-      {/* Character Slot List & Configuration */}
-      <div className="my-4 p-4 rounded-md min-h-[200px]">
-        <h3 className="text-lg font-medium text-foreground mb-3 text-center flex items-center justify-center gap-2">
-          <Settings2 className="h-5 w-5" />{" "}
-          {t("CharacterSetupLabel", "Character Setup")}
-        </h3>
-        {!initialSlotsSet && availableModels.length > 0 && (
-          <div className="flex justify-center items-center h-20 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin mr-2" />{" "}
-            {t("LoadingSetupLabel", "Loading setup...")}
-          </div>
-        )}
-        {availableModels.length === 0 && !initialSlotsSet && (
-          <p className="text-center text-sm text-warning">
-            {t("WaitingForModelsLabel", "Waiting for available AI models...")}
-          </p>
-        )}
+      {/* Character Slot List & Configuration - Conditionally hide when submitting */}
+      {!isSubmitting && (
+        <div className="my-4 p-4 rounded-md min-h-[200px]">
+          <h3 className="text-lg font-medium text-foreground mb-3 text-center flex items-center justify-center gap-2">
+            <Settings2 className="h-5 w-5" />{" "}
+            {t("CharacterSetupLabel", "Character Setup")}
+          </h3>
+          {!initialSlotsSet && availableModels.length > 0 && (
+            <div className="flex justify-center items-center h-20 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />{" "}
+              {t("LoadingSetupLabel", "Loading setup...")}
+            </div>
+          )}
+          {availableModels.length === 0 && !initialSlotsSet && (
+            <p className="text-center text-sm text-warning">
+              {t("WaitingForModelsLabel", "Waiting for available AI models...")}
+            </p>
+          )}
 
-        {initialSlotsSet && characterSlots.length > 0 && (
-          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pr-2">
-            {characterSlots.map((slot, index) => (
-              <CharacterSlotItem
-                key={slot.clientId}
-                slot={slot}
-                index={index}
-                availableModels={availableModels}
-                availableRoles={availableRolesForSelection}
-                isSubmitting={isLoading}
-                canRemove={characterSlots.length > 5}
-                onUpdateRole={updateSlotRole}
-                onUpdateModel={updateSlotModel}
-                onRemove={removePlayerSlot}
-                translations={translations}
-              />
-            ))}
-          </ul>
-        )}
-        {initialSlotsSet && characterSlots.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground italic py-4">
-            {t(
-              "AddPlayerSlotsPrompt",
-              "Use the '+' button to add player slots (minimum 5).",
-            )}
-          </p>
-        )}
-      </div>
+          {initialSlotsSet && characterSlots.length > 0 && (
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pr-2">
+              {characterSlots.map((slot, index) => (
+                <CharacterSlotItem
+                  key={slot.clientId}
+                  slot={slot}
+                  index={index}
+                  availableModels={availableModels}
+                  availableRoles={availableRolesForSelection}
+                  isSubmitting={isLoading}
+                  canRemove={characterSlots.length > 5}
+                  onUpdateRole={updateSlotRole}
+                  onUpdateModel={updateSlotModel}
+                  onRemove={removePlayerSlot}
+                  translations={translations}
+                />
+              ))}
+            </ul>
+          )}
+          {initialSlotsSet && characterSlots.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground italic py-4">
+              {t(
+                "AddPlayerSlotsPrompt",
+                "Use the '+' button to add player slots (minimum 5).",
+              )}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Status/Error Message Area - Use t function */}
       <div className="h-10 text-center flex items-center justify-center px-2 mt-4 mb-2 text-sm">
