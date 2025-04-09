@@ -1,6 +1,6 @@
-import { ChatMessage, FilteredGameState, GameState } from "@/lib/types/game";
-import { promises as fs } from "fs";
-import path from "path";
+import type { ChatMessage, FilteredGameState, GameState } from "@/lib/types/game";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 const GAMES_DIR = path.join(process.cwd(), "data", "games");
 
@@ -45,8 +45,15 @@ export class GameStateManager {
       const data = await fs.readFile(filePath, "utf-8");
       // TODO: Add validation here (e.g., using Zod) to ensure data matches GameState
       return JSON.parse(data) as GameState;
-    } catch (error: any) {
-      if (error.code === "ENOENT") {
+    } catch (error: unknown) {
+      // Check if it's an error object with a code property
+      if (
+        error instanceof Error &&
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         return null; // File not found
       }
       console.error(`Failed to load game state ${gameId} from file:`, error);
@@ -131,7 +138,12 @@ export class GameStateManager {
   async getGameState(gameId: string): Promise<GameState | null> {
     // Check cache first
     if (this.#gameStates.has(gameId)) {
-      return this.#gameStates.get(gameId)!;
+      // The .has check guarantees the key exists, so the get will succeed.
+      // The non-null assertion ! is disallowed by lint, but we know it's safe.
+      // Casting might be needed if TS doesn't infer correctly, but try direct return first.
+      // Map.get returns T | undefined. We need T | null for the function signature.
+      const cachedState = this.#gameStates.get(gameId);
+      return cachedState ?? null; // Provide null if undefined is returned
     }
 
     // If not in cache, try loading from file
@@ -173,7 +185,13 @@ export class GameStateManager {
       console.warn(
         `Updating game ${gameId} with state object that has mismatched gameId ${newState.gameId}. Overwriting.`,
       );
-      newState = { ...newState, gameId: gameId };
+      // Avoid reassigning parameter
+      const stateToSave = { ...newState, gameId: gameId };
+      // Update cache with the corrected state
+      this.#gameStates.set(gameId, stateToSave);
+      // Save the corrected state to file
+      await this.#saveGameStateToFile(stateToSave);
+      return stateToSave;
     }
 
     // Update cache
@@ -223,7 +241,7 @@ export class GameStateManager {
     const { _internalState, players, conversationLog, ...restOfState } =
       gameState;
 
-    // Filter players: Omit persona. Conditionally include role if game is over.
+    // Filter players: Omit persona. Conditionally include role if game is over or player is dead.
     const filteredPlayers: FilteredGameState["players"] = Object.fromEntries(
       Object.entries(players).map(([id, player]) => {
         // Destructure persona and role to exclude them initially
@@ -234,11 +252,11 @@ export class GameStateManager {
           ...restPlayer,
         };
 
-        // If game is over, add the optional role property back
-        if (gameState.phase === "GameOver") {
+        // If game is over OR the player is dead, add the optional role property back
+        if (gameState.phase === "GameOver" || player.status === "dead") {
           playerForClient.role = role;
         }
-        // If game is not over, playerForClient remains without the role property, satisfying the optional type
+        // If game is not over and player is alive, playerForClient remains without the role property, satisfying the optional type
 
         return [id, playerForClient];
       }),
@@ -298,8 +316,15 @@ export class GameStateManager {
       await fs.unlink(filePath); // Delete the file
       console.log(`Game file deleted successfully: ${gameId}`);
       return true;
-    } catch (error: any) {
-      if (error.code === "ENOENT") {
+    } catch (error: unknown) {
+      // Check if it's an error object with a code property
+      if (
+        error instanceof Error &&
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         console.log(`Game file not found, considered deleted: ${gameId}`);
         return true; // If file doesn't exist, it's effectively deleted
       }

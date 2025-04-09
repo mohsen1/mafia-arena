@@ -34,7 +34,6 @@ export function GameSidebar() {
             <PlayerCard
               key={player.id}
               player={player}
-              status={player.status}
             />
           ))}
           {/* Remove separate rendering for living/dead players */}

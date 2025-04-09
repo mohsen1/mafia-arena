@@ -8,28 +8,28 @@ type FilteredPlayer = FilteredGameState["players"][string];
 
 interface PlayerCardProps {
   player: FilteredPlayer; // Use the filtered type
-  status: PlayerStatus;
-  role?: Role;
+  // Removed status prop as it seems redundant with player.status
 }
 
 // Player Card Component with Dark Mode
-export function PlayerCard({ player, status, role }: PlayerCardProps) {
+export function PlayerCard({ player }: PlayerCardProps) {
   const { t, gameState } = useGameContext();
 
-  // Determine player role visibility based on game phase
-  const showRole = gameState?.phase === "GameOver";
-  // Determine voice ID based on game phase or player data
-  const voiceId = showRole ? player.voiceId : undefined; // Example: only show voiceId if role is visible
+  // Determine player role visibility based on game phase or if player is dead
+  const showRole = gameState?.phase === "GameOver" || player.status === "dead";
 
   // Construct metadata string based on visibility
-  let metadataString = `Status: ${t(`PlayerStatus${status.charAt(0).toUpperCase() + status.slice(1)}`, status)}`;
-  if (showRole && role) {
-    metadataString += ` | Role: ${t(role, role)}`;
+  // Use player.status for the status display
+  const meta = [];
+  meta.push(player.status);
+  if (showRole && player.role) {
+    meta.push(player.role);
   }
+  meta.push(player.aiModel);
 
-  const metadata = [];
-  metadata.push(player.aiModel);
-  metadataString = metadata.join(" • ");
+  // Filter metadata based on availability
+  const metadata = meta.filter(Boolean); // Ensure only non-empty values are added
+  const metadataString = metadata.join(" • ");
 
   // Get the translated alt text template
   const altTextTemplate = t("PlayerImageAltText", "Image of {{name}}");
