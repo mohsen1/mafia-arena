@@ -65,11 +65,11 @@ export async function initializeNewGame(
 
         // Basic validation: Check if profile exists
         if (!initData.profile) {
-            console.error(`Initialization failed: Missing profile data for a player.`);
+            console.error('Initialization failed: Missing profile data for a player.');
             throw new Error('Missing player profile data during initialization.');
         }
         if (!initData.aiModel) {
-            console.error(`Initialization failed: Missing aiModel for a player.`);
+            console.error('Initialization failed: Missing aiModel for a player.');
             throw new Error('Missing player AI model during initialization.');
         }
 
@@ -115,6 +115,7 @@ export async function initializeNewGame(
         _internalState: {
             initialProfiles: playerInitDataList.map(({ profile, role, aiModel, imageUrl, voiceId }) => ({ profile, role, aiModel, imageUrl, voiceId }))
         },
+        aiMessageLog: [],
     };
 
     // Get AI Title and Description - Use the default model from config
@@ -220,14 +221,16 @@ export function checkWinCondition(state: GameState): WinCondition | null {
         outcome: 'Villager Win',
         message: "All Werewolves have been eliminated! The Villagers are victorious!"
     };
-  } else if (livingVillagers.length === 0) {
-    // Werewolves win (everyone else is a werewolf)
+  }
+  // Werewolves win (everyone else is a werewolf)
+  if (livingVillagers.length === 0) {
      return {
         outcome: 'Werewolf Win',
         message: "Only Werewolves remain! The Werewolves have taken over the village!"
      };
-  } else if (livingWerewolves.length >= livingVillagers.length) {
-    // Werewolves win (cannot be outvoted)
+  }
+  // Werewolves win (cannot be outvoted)
+  if (livingWerewolves.length >= livingVillagers.length) {
     return {
         outcome: 'Werewolf Win',
         message: "The Werewolves now equal or outnumber the Villagers! The Werewolves win!"
@@ -260,12 +263,11 @@ export function determineNextSpeaker(currentState: GameState): string | null {
         // Ensure the speaker is actually still alive
         if (currentState.livingPlayerIds.includes(nextSpeakerId)) {
             return nextSpeakerId;
-        } else {
-            console.warn(`Next speaker in turnOrder (${nextSpeakerId}) is not in livingPlayerIds. Skipping.`);
-            // TODO: Ideally, advance index until a living player is found, or handle phase end.
-            // For now, returning null indicates an issue or end of available speakers.
-            return null;
         }
+        console.warn(`Next speaker in turnOrder (${nextSpeakerId}) is not in livingPlayerIds. Skipping.`);
+        // TODO: Ideally, advance index until a living player is found, or handle phase end.
+        // For now, returning null indicates an issue or end of available speakers.
+        return null;
     }
 
     // Index is out of bounds (e.g., all players have spoken this round/phase)

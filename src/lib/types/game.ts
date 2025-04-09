@@ -95,6 +95,37 @@ export interface PlayerPerspective {
     seerResults?: Record<string, 'Werewolf' | 'Villager'>; // targetId -> result for *this* seer
 }
 
+// Base type for player data, shared between human and AI
+interface BasePlayer {
+  id: string;
+  name: string;
+  isAlive: boolean;
+  role: Role;
+  persona: string; // Detailed persona/background used for AI prompting
+  // Optional fields for AI players
+  aiModel?: string; // Model used for this AI player (e.g., 'gpt-4', 'claude-3')
+  // Optional field for profile generation context (transient)
+  profile?: AICharacterProfile | null; 
+}
+
+/**
+ * Represents a single entry in the AI interaction log.
+ */
+export interface AIMessageLogEntry {
+  timestamp: number;
+  gameId: string;
+  playerId: string; // The ID of the player whose AI is responding (or 'moderator' for game-level calls)
+  model: string;
+  promptMessages: ChatCompletionMessageParam[]; // The messages sent *to* the AI
+  responseContent: string | null; // The content received *from* the AI (null if error)
+  error?: string; // Store error message if the AI call failed
+  phase: GamePhase; // Game phase when the interaction occurred
+  round: number; // Game round when the interaction occurred
+}
+
+/**
+ * Represents the overall state of a single game.
+ */
 export interface GameState {
   readonly gameId: string;
   readonly createdAt: number; // Unix timestamp (ms or s)
@@ -109,15 +140,16 @@ export interface GameState {
   turnOrderIndex: number; // Current position in turnOrder
   phase: GamePhase;
   round: number;
-  conversationLog: ChatMessage[]; // Use mutable array
-  votes: Vote[]; // Use mutable array
+  conversationLog: ChatMessage[]; // Chronological log of all spoken messages
+  votes: Vote[]; // Votes cast in the current voting phase
   lastEliminatedPlayerId: string | null; // Track who was last eliminated (day or night)
-  nightActions: NightAction[]; // Use mutable array
+  nightActions: NightAction[]; // Actions taken during the night phase
   lastWerewolfTargetId: string | null; // Tracks the target even if saved
   lastDoctorSaveId: string | null; // Track successful save
   lastSeerTargetId: string | null; // Track seer's target
   winCondition: WinCondition | null;
   language: SupportedLanguage; // <-- Add language field
+  aiMessageLog: AIMessageLogEntry[]; // Log of AI prompts and responses
   // Internal state not sent to client
   _internalState?: {
     werewolfChatLog?: ChatMessage[]; // Use mutable array

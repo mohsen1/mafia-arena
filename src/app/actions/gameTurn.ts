@@ -16,16 +16,17 @@ import {
   determineNextSpeaker,
 } from "@/lib/game/engine";
 import { gameStateManager } from "@/lib/state/gameStateManager";
-import {
+import type {
   ChatMessage,
   NightAction,
   Player,
   Vote,
+  AIMessageLogEntry
 } from "@/lib/types/game";
 import { cleanAIResponse } from "@/lib/utils/stringUtils";
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { translateText } from "./translation";
 
 // Action to run the next turn or step in the game
@@ -151,14 +152,61 @@ export async function runGameTurnAction(gameId: string) {
       ];
 
       // 2. Get AI response - Use the player's specific model
-      const rawIntroductionContent = await getAIResponse(
-        promptMessages,
-        gameId,
-        nextSpeakerId,
-        { model: nextSpeaker.aiModel, temperature: 0.8 }
-      );
+      let rawIntroductionContent = "";
+      let aiError: Error | null = null;
+      const aiModel = nextSpeaker.aiModel;
+      const aiSettings = { model: aiModel, temperature: 0.8 };
 
+      try {
+        rawIntroductionContent = await getAIResponse(
+          promptMessages,
+          gameId,
+          nextSpeakerId,
+          aiSettings
+        );
+      } catch (error) {
+        console.error(`AI call failed for ${nextSpeakerId} introduction:`, error);
+        aiError = error instanceof Error ? error : new Error(String(error));
+        rawIntroductionContent = "(Seems lost in thought...)"; // Default message on error
+      }
+
+      // Log the AI interaction
+      const logEntry: AIMessageLogEntry = {
+        timestamp: Date.now(),
+        gameId,
+        playerId: nextSpeakerId,
+        model: aiModel,
+        promptMessages,
+        responseContent: aiError ? null : rawIntroductionContent,
+        error: aiError ? aiError.message : undefined,
+        phase: currentState.phase,
+        round: currentState.round,
+      };
+
+      // Fetch latest state *before* updating log to avoid race conditions
+      let stateBeforeLogUpdate = await gameStateManager.getGameState(gameId);
+      if (!stateBeforeLogUpdate) {
+        console.error(`Game state lost before logging AI intro for ${gameId}`);
+        return; // Or handle error appropriately
+      }
+      
+      // Update state with the log entry
+      stateBeforeLogUpdate = {
+          ...stateBeforeLogUpdate,
+          aiMessageLog: [...(stateBeforeLogUpdate.aiMessageLog || []), logEntry],
+          updatedAt: Date.now(),
+      };
+      await gameStateManager.updateGameState(gameId, stateBeforeLogUpdate);
+      
+      // Now, process the response and update the conversation log
       const introductionContent = cleanAIResponse(rawIntroductionContent); // Clean
+
+      // Fetch latest state *again* before adding chat message
+      const stateBeforeChatUpdate = await gameStateManager.getGameState(gameId);
+       if (!stateBeforeChatUpdate) {
+        console.error('Game state lost before adding intro chat for ${gameId}');
+        return; // Or handle error appropriately
+      }
 
       // 3. Create Chat Message
       const newMessage: ChatMessage = {
@@ -210,7 +258,7 @@ export async function runGameTurnAction(gameId: string) {
 
       // Add a moderator message indicating the start of the next phase
       // --- Translate Moderator Message --- 
-      const originalIntroCompleteMsg = `Introductions are complete. The floor is now open for discussion.`;
+      const originalIntroCompleteMsg = 'Introductions are complete. The floor is now open for discussion.';
       const translatedIntroCompleteMsg = await translateText(
         originalIntroCompleteMsg,
         language
@@ -290,7 +338,7 @@ export async function runGameTurnAction(gameId: string) {
 
       // Determine valid targets based on role
       switch (activePlayer.role) {
-        case "Werewolf":
+        case "Werewolf": {
           targetOptions = livingPlayers.filter(
             (p) => p.status === "alive" && p.role !== "Werewolf"
           );
@@ -305,6 +353,7 @@ export async function runGameTurnAction(gameId: string) {
             targetOptions.map((p) => p.name)
           );
           break;
+        }
         case "Seer":
           targetOptions = livingPlayers.filter(
             (p) => p.status === "alive" && p.id !== activePlayer.id
@@ -340,15 +389,22 @@ export async function runGameTurnAction(gameId: string) {
       let targetNumberStr = "";
       let targetPlayerId: string | null = null;
       let retries = 2;
+      const aiModelNight = activePlayer.aiModel;
+      const aiSettingsNight = { model: aiModelNight, temperature: 0.3 };
+      const latestPromptMessages = [...promptMessages]; // Copy for logging
+      let rawResponse = "";
+      let aiErrorNight: Error | null = null;
 
       // Retry loop for getting a valid target number from AI
       while (retries > 0 && targetPlayerId === null) {
+        aiErrorNight = null; // Reset error for this attempt
+        rawResponse = ""; // Reset response
         try {
-          const rawResponse = await getAIResponse(
-            promptMessages,
+          rawResponse = await getAIResponse(
+            latestPromptMessages, // Use potentially updated prompts in loop
             gameId,
             activePlayer.id,
-            { model: activePlayer.aiModel, temperature: 0.3 }
+            aiSettingsNight
           );
           // --- Enhanced Parsing Start ---
           const cleanedResponse = cleanAIResponse(rawResponse);
@@ -357,10 +413,10 @@ export async function runGameTurnAction(gameId: string) {
           const extractedNumberStr = match ? match[0] : null;
 
           if (extractedNumberStr) {
-            const choiceIndex = parseInt(extractedNumberStr, 10) - 1;
+            const choiceIndex = Number.parseInt(extractedNumberStr, 10) - 1;
             // Validate the extracted number
             if (
-              !isNaN(choiceIndex) &&
+              !Number.isNaN(choiceIndex) &&
               choiceIndex >= 0 &&
               choiceIndex < targetOptions.length
             ) {
@@ -375,7 +431,7 @@ export async function runGameTurnAction(gameId: string) {
                   retries - 1
                 } left)`
               );
-              targetNumberStr = cleanedResponse; // Keep original cleaned response for retry context
+              targetNumberStr = cleanedResponse;
             }
           } else {
             console.warn(
@@ -383,28 +439,79 @@ export async function runGameTurnAction(gameId: string) {
                 activePlayer.name
               }. Retrying... (${retries - 1} left)`
             );
-            targetNumberStr = cleanedResponse; // Keep original cleaned response for retry context
+            targetNumberStr = cleanedResponse;
           }
           // --- Enhanced Parsing End ---
 
-          if (targetPlayerId === null && retries > 0) {
-            promptMessages.push({
-              role: "assistant",
-              content: targetNumberStr,
+          if (targetPlayerId === null && retries > 0 && !aiErrorNight) {
+            latestPromptMessages.push({
+                role: "assistant",
+                content: targetNumberStr, // The invalid response we just logged
             });
-            promptMessages.push({
-              role: "user",
-              content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).${languageInstruction}`,
+            latestPromptMessages.push({
+                role: "user",
+                content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).${languageInstruction}`,
             });
             retries--;
             targetNumberStr = ""; // Reset for logging/context if needed
-          }
+        } else if (aiErrorNight) {
+            // If there was an API error, retries are already 0, loop will terminate.
+        } else {
+            // Successfully parsed, loop will terminate.
+        }
         } catch (error) {
           console.error(
             `AI call failed for ${activePlayer.name}'s night action/preference:`,
             error
           );
+          aiErrorNight = error instanceof Error ? error : new Error(String(error));
           retries = 0; // Stop retrying on API error
+        }
+        
+        // Log the AI interaction attempt (inside the loop)
+        const logEntryNight: AIMessageLogEntry = {
+            timestamp: Date.now(),
+            gameId,
+            playerId: activePlayer.id,
+            model: aiModelNight,
+            promptMessages: [...latestPromptMessages], // Log the prompts *for this attempt*
+            responseContent: aiErrorNight ? null : rawResponse,
+            error: aiErrorNight ? aiErrorNight.message : undefined,
+            phase: currentState.phase,
+            round: currentState.round,
+        };
+        
+        // Fetch latest state and update log immediately
+        let stateForNightLog = await gameStateManager.getGameState(gameId);
+        if (!stateForNightLog) {
+            console.error(`Game state lost during night AI log for ${gameId}`);
+            break; // Exit loop if state is lost
+        }
+        stateForNightLog = {
+            ...stateForNightLog,
+            aiMessageLog: [...(stateForNightLog.aiMessageLog || []), logEntryNight],
+             updatedAt: Date.now(),
+        };
+        await gameStateManager.updateGameState(gameId, stateForNightLog);
+        // --- Important: Refresh currentState if needed, though maybe not strictly required here
+        // currentState = stateForNightLog; // Could cause issues if loop logic depends on pre-loop state?
+
+        // Add assistant/user messages for retry *after* logging the failed attempt
+         if (targetPlayerId === null && retries > 0 && !aiErrorNight) {
+            latestPromptMessages.push({
+                role: "assistant",
+                content: targetNumberStr, // The invalid response we just logged
+            });
+            latestPromptMessages.push({
+                role: "user",
+                content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).${languageInstruction}`,
+            });
+            retries--;
+            targetNumberStr = ""; // Reset for logging/context if needed
+        } else if (aiErrorNight) {
+            // Loop will terminate.
+        } else {
+            // Successfully parsed, loop will terminate.
         }
       }
 
@@ -464,9 +571,9 @@ export async function runGameTurnAction(gameId: string) {
       let targetsWithMaxVotes: string[] = [];
 
       // Tally votes
-      Object.values(werewolfPreferences).forEach((targetId) => {
+      for (const targetId of Object.values(werewolfPreferences)) {
         targetVoteCounts[targetId] = (targetVoteCounts[targetId] || 0) + 1;
-      });
+      }
 
       console.log("Werewolf Target Vote Counts:", targetVoteCounts);
 
@@ -485,7 +592,7 @@ export async function runGameTurnAction(gameId: string) {
         )}`
       );
       console.log(
-        `[Vote Tally Debug] voteCounts used for summary:`,
+        '[Vote Tally Debug] voteCounts used for summary:',
         targetVoteCounts
       );
 
@@ -538,7 +645,7 @@ export async function runGameTurnAction(gameId: string) {
       return;
     }
 
-    let stateWithCollectedActions = {
+    const stateWithCollectedActions = {
       ...stateBeforeResolution,
       nightActions: finalNightActions, // Use the final combined actions
     };
@@ -548,7 +655,7 @@ export async function runGameTurnAction(gameId: string) {
 
     // ----- Night Action Resolution -----
     let stateAfterResolution = { ...stateWithCollectedActions };
-    let moderatorMessages: ChatMessage[] = [];
+    const moderatorMessages: ChatMessage[] = [];
     let eliminatedPlayerId: string | null = null;
 
     // 1. Determine Kill
@@ -809,7 +916,7 @@ export async function runGameTurnAction(gameId: string) {
         isThinking: true,
       };
 
-      let stateWithThinking = {
+      const stateWithThinking = {
         ...currentState,
         conversationLog: [...currentState.conversationLog, thinkingMessage],
       };
@@ -829,9 +936,8 @@ export async function runGameTurnAction(gameId: string) {
         .map((msg) => {
           if (msg.speaker.type === "moderator") {
             return `**Moderator:** ${msg.content}`;
-          } else {
-            return `${msg.speakerName}: ${msg.content}`;
           }
+          return `${msg.speakerName}: ${msg.content}`;
         })
         .join("\n");
 
@@ -859,26 +965,59 @@ export async function runGameTurnAction(gameId: string) {
       // 3. Get AI response
       let rawDiscussionContent = "";
       let errorMessage = "";
+      let aiErrorDiscussion: Error | null = null;
+      const aiModelDiscussion = nextSpeaker.aiModel;
+      const aiSettingsDiscussion = { model: aiModelDiscussion, temperature: 0.7 };
+
       try {
         rawDiscussionContent = await getAIResponse(
           promptMessages,
           gameId,
           nextSpeakerId,
-          { model: nextSpeaker.aiModel, temperature: 0.7 }
+          aiSettingsDiscussion
         );
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(
           `AI discussion response failed for ${nextSpeakerId}:`,
           error
         );
+        aiErrorDiscussion = error instanceof Error ? error : new Error(String(error));
         errorMessage = "(Seems lost in thought...)";
+        rawDiscussionContent = errorMessage; // Ensure raw content reflects error state
+      }
+
+       // Log the AI interaction
+      const logEntryDiscussion: AIMessageLogEntry = {
+        timestamp: Date.now(),
+        gameId,
+        playerId: nextSpeakerId,
+        model: aiModelDiscussion,
+        promptMessages,
+        responseContent: aiErrorDiscussion ? null : rawDiscussionContent,
+        error: aiErrorDiscussion ? aiErrorDiscussion.message : undefined,
+        phase: currentState.phase, // Use phase from *before* AI call
+        round: currentState.round, // Use round from *before* AI call
+      };
+
+      // Fetch latest state *before* updating log
+      let stateBeforeDiscLog = await gameStateManager.getGameState(gameId);
+      if (!stateBeforeDiscLog) {
+        console.error(`Game state lost before logging AI discussion for ${gameId}`);
+        // Decide how to handle - skip logging? return?
+      } else {
+           stateBeforeDiscLog = {
+              ...stateBeforeDiscLog,
+              aiMessageLog: [...(stateBeforeDiscLog.aiMessageLog || []), logEntryDiscussion],
+              updatedAt: Date.now(),
+          };
+          await gameStateManager.updateGameState(gameId, stateBeforeDiscLog);
       }
 
       const discussionContent =
         errorMessage || cleanAIResponse(rawDiscussionContent); // Clean
 
       // 4. Fetch latest state again before final update
-      let stateAfterThinking = await gameStateManager.getGameState(gameId);
+      const stateAfterThinking = await gameStateManager.getGameState(gameId);
       if (!stateAfterThinking) {
         console.error(
           `Game state lost after thinking (discussion) for ${gameId}`
@@ -927,11 +1066,11 @@ export async function runGameTurnAction(gameId: string) {
         );
 
         // Advance to Voting Phase
-        let stateBeforeVote = advancePhase(finalState);
+        const stateBeforeVote = advancePhase(finalState);
 
         // Add moderator message for voting start
         // --- Translate Moderator Message --- 
-        const originalVoteStartMsg = `Discussion time is over. It is now time to vote for who to eliminate.`;
+        const originalVoteStartMsg = 'Discussion time is over. It is now time to vote for who to eliminate.';
         const translatedVoteStartMsg = await translateText(
           originalVoteStartMsg,
           language
@@ -989,7 +1128,7 @@ export async function runGameTurnAction(gameId: string) {
 
       // Add moderator message for voting start
       // --- Translate Moderator Message --- 
-      const originalVoteStartMsg = `Discussion time is over. It is now time to vote for who to eliminate.`;
+      const originalVoteStartMsg = 'Discussion time is over. It is now time to vote for who to eliminate.';
       const translatedVoteStartMsg = await translateText(
         originalVoteStartMsg,
         language
@@ -1063,26 +1202,33 @@ export async function runGameTurnAction(gameId: string) {
       let targetNumberStr = "";
       let targetPlayerId: string | null = null;
       let retries = 2;
+      const aiModelVote = voter.aiModel;
+      const aiSettingsVote = { model: aiModelVote, temperature: 0.3 };
+      const latestPromptMessagesVote = [...promptMessages]; // Copy for logging
+      let rawResponseVote = "";
+      let aiErrorVote: Error | null = null;
 
       while (retries > 0 && targetPlayerId === null) {
+        aiErrorVote = null; // Reset error
+        rawResponseVote = ""; // Reset response
         try {
-          const rawResponse = await getAIResponse(
-            promptMessages,
+          rawResponseVote = await getAIResponse(
+            latestPromptMessagesVote, // Use potentially updated prompts
             gameId,
             voter.id,
-            { model: voter.aiModel, temperature: 0.3 }
+            aiSettingsVote
           );
           // --- Enhanced Parsing Start ---
-          const cleanedResponse = cleanAIResponse(rawResponse);
+          const cleanedResponse = cleanAIResponse(rawResponseVote);
           // Attempt to extract the first sequence of digits
           const match = cleanedResponse.match(/\d+/);
           const extractedNumberStr = match ? match[0] : null;
 
           if (extractedNumberStr) {
-            const choiceIndex = parseInt(extractedNumberStr, 10) - 1;
+            const choiceIndex = Number.parseInt(extractedNumberStr, 10) - 1;
             // Validate the extracted number
             if (
-              !isNaN(choiceIndex) &&
+              !Number.isNaN(choiceIndex) &&
               choiceIndex >= 0 &&
               choiceIndex < targetOptions.length
             ) {
@@ -1109,21 +1255,70 @@ export async function runGameTurnAction(gameId: string) {
           }
           // --- Enhanced Parsing End ---
 
-          if (targetPlayerId === null && retries > 0) {
-            promptMessages.push({
-              role: "assistant",
-              content: targetNumberStr,
+          if (targetPlayerId === null && retries > 0 && !aiErrorVote) {
+            latestPromptMessagesVote.push({
+                role: "assistant",
+                content: targetNumberStr, // The invalid response we just logged
             });
-            promptMessages.push({
-              role: "user",
-              content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).${languageInstruction}`,
+            latestPromptMessagesVote.push({
+                role: "user",
+                content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).${languageInstruction}`,
             });
             retries--;
             targetNumberStr = ""; // Reset for logging/context if needed
-          }
+        } else if (aiErrorVote) {
+            // Loop will terminate.
+        } else {
+            // Successfully parsed, loop will terminate.
+        }
         } catch (error) {
           console.error(`AI call failed for ${voter.name}'s vote:`, error);
+          aiErrorVote = error instanceof Error ? error : new Error(String(error));
           retries = 0; // Stop retrying on API error
+        }
+        
+        // Log the AI interaction attempt (inside the loop)
+        const logEntryVote: AIMessageLogEntry = {
+            timestamp: Date.now(),
+            gameId,
+            playerId: voter.id,
+            model: aiModelVote,
+            promptMessages: [...latestPromptMessagesVote], // Log the prompts *for this attempt*
+            responseContent: aiErrorVote ? null : rawResponseVote,
+            error: aiErrorVote ? aiErrorVote.message : undefined,
+            phase: currentState.phase,
+            round: currentState.round,
+        };
+        
+        // Fetch latest state and update log immediately
+        let stateForVoteLog = await gameStateManager.getGameState(gameId);
+        if (!stateForVoteLog) {
+            console.error(`Game state lost during vote AI log for ${gameId}`);
+            break; // Exit loop if state is lost
+        }
+        stateForVoteLog = {
+            ...stateForVoteLog,
+            aiMessageLog: [...(stateForVoteLog.aiMessageLog || []), logEntryVote],
+            updatedAt: Date.now(),
+        };
+        await gameStateManager.updateGameState(gameId, stateForVoteLog);
+
+        // Add assistant/user messages for retry *after* logging the failed attempt
+         if (targetPlayerId === null && retries > 0 && !aiErrorVote) {
+            latestPromptMessagesVote.push({
+                role: "assistant",
+                content: targetNumberStr, // The invalid response we just logged
+            });
+            latestPromptMessagesVote.push({
+                role: "user",
+                content: `Invalid input. Respond ONLY with a single number from the list (1-${targetOptions.length}).${languageInstruction}`,
+            });
+            retries--;
+            targetNumberStr = ""; // Reset for logging/context if needed
+        } else if (aiErrorVote) {
+            // Loop will terminate.
+        } else {
+            // Successfully parsed, loop will terminate.
         }
       }
 
@@ -1151,22 +1346,22 @@ export async function runGameTurnAction(gameId: string) {
       return;
     }
 
-    let stateWithVotes = {
+    const stateWithVotes = {
       ...stateBeforeTally,
       votes: collectedVotes,
     };
 
     // --- Vote Tally and Resolution ---
     let stateAfterTally = { ...stateWithVotes };
-    let voteModeratorMessages: ChatMessage[] = [];
+    const voteModeratorMessages: ChatMessage[] = [];
     let dayEliminatedPlayerId: string | null = null;
 
     if (stateAfterTally.votes.length > 0) {
       const voteCounts: Record<string, number> = {};
-      stateAfterTally.votes.forEach((vote) => {
+      for (const vote of stateAfterTally.votes) {
         voteCounts[vote.targetPlayerId] =
           (voteCounts[vote.targetPlayerId] || 0) + 1;
-      });
+      }
 
       console.log("Vote Counts:", voteCounts);
 
@@ -1186,7 +1381,7 @@ export async function runGameTurnAction(gameId: string) {
         )}`
       );
       console.log(
-        `[Vote Tally Debug] voteCounts used for summary:`,
+        '[Vote Tally Debug] voteCounts used for summary:',
         voteCounts
       );
 
@@ -1287,7 +1482,7 @@ export async function runGameTurnAction(gameId: string) {
         // No elimination message needed here if it's covered by the 'no votes' logic below.
         dayEliminatedPlayerId = null; // Ensure no elimination
         // --- Translate No Votes Message --- 
-        const originalNoVotesMsg = `No votes were cast. The village remains undecided.`;
+        const originalNoVotesMsg = 'No votes were cast. The village remains undecided.';
         const translatedNoVotesMsg = await translateText(
           originalNoVotesMsg,
           language
