@@ -226,14 +226,14 @@ export default function StartGameForm({
       <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse">
         <Label
           htmlFor="language-select"
-          className="text-sm font-medium text-muted-foreground whitespace-nowrap"
+          className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[160px]"
         >
           {t("GameLanguageLabel", "Game Language")}:
         </Label>
         <Select
-          value={selectedLanguage} 
+          value={selectedLanguage}
           onValueChange={(value) => {
-            updateLanguage(value as LanguageName); // Cast to the imported type
+            updateLanguage(value);
           }}
           disabled={isLoading}
         >
@@ -241,10 +241,9 @@ export default function StartGameForm({
             <SelectValue placeholder={t("SelectLanguagePlaceholder", "Select language")} />
           </SelectTrigger>
           <SelectContent>
-            {/* Use the imported array */} 
             {Object.values(supportedLanguagesInfo).map((lang) => (
               <SelectItem key={lang.code} value={lang.code} className="text-sm">
-                {lang.name}
+                {lang.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -255,7 +254,7 @@ export default function StartGameForm({
       <div className="mb-6 flex items-center justify-center gap-3">
         <Label
           htmlFor="audio-toggle"
-          className="text-sm font-medium text-muted-foreground whitespace-nowrap"
+          className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[160px]"
         >
           {t("EnableAudioLabel", "Enable Audio")}:
         </Label>

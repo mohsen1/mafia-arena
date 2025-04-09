@@ -3,7 +3,11 @@ import {
   startGameAction,
 } from "@/app/actions/index";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
-import { type LanguageName, mapLanguageNameToCode, supportedLanguagesInfo } from "@/lib/translation/languages";
+import {
+
+  supportedLanguagesInfo,
+  type LanguageCode,
+} from "@/lib/translation/languages";
 import type {
   AICharacterProfile,
   ConfigCharacterSlot,
@@ -23,17 +27,19 @@ export function useGameConfig(availableModels: string[]) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Determine initial language from URL or default
-  const initialLangName = useMemo(() => {
+  // Determine initial language CODE from URL or default
+  const initialLangCode = useMemo(() => {
     const langCodeFromUrl = searchParams.get("lang");
-    const matchingLang = Object.values(supportedLanguagesInfo).find(
-      (lang) => lang.code === langCodeFromUrl,
-    );
-    const langToUse = matchingLang?.name || "English";
+    if (langCodeFromUrl && langCodeFromUrl in supportedLanguagesInfo) {
+      console.log(
+        `[useGameConfig] Initial language code from URL: ${langCodeFromUrl}`,
+      );
+      return langCodeFromUrl as LanguageCode;
+    }
     console.log(
-      `[useGameConfig] Initial language name determined: ${langToUse} (from URL code: ${langCodeFromUrl})`,
+      `[useGameConfig] No valid language code in URL, defaulting to 'en'.`,
     );
-    return langToUse;
+    return "en" as LanguageCode;
   }, [searchParams]);
 
   const defaultModel = useMemo(() => {
@@ -51,8 +57,8 @@ export function useGameConfig(availableModels: string[]) {
   const [characterSlots, setCharacterSlots] = useState<ConfigCharacterSlot[]>(
     [],
   );
-  const [selectedLanguage, setSelectedLanguage] =
-    useState<LanguageName>(initialLangName);
+  // Initialize state with the code derived from the URL
+  const [selectedLanguage, setSelectedLanguage] = useState<LanguageCode>(initialLangCode);
   const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -63,8 +69,7 @@ export function useGameConfig(availableModels: string[]) {
     string | null
   >(null);
   const [isPostGenValid, setIsPostGenValid] = useState<boolean | null>(null);
-
-  // Removed translation state and effect
+  const [isLoadingNextTurn, setIsLoadingNextTurn] = useState(false);
 
   const resetPostGenState = useCallback(() => {
     setErrorMsg(null);
@@ -88,6 +93,13 @@ export function useGameConfig(availableModels: string[]) {
   useEffect(() => {
     setGlobalModelSelection(defaultModel);
   }, [defaultModel]);
+
+  // Effect to sync state if the derived initial code changes after mount
+  // This ensures the state updates if the URL param changes causing a re-render
+  // without a full remount of this specific component instance.
+  useEffect(() => {
+    setSelectedLanguage(initialLangCode);
+  }, [initialLangCode]);
 
   useEffect(() => {
     if (
@@ -205,21 +217,23 @@ export function useGameConfig(availableModels: string[]) {
 
   // Update language: navigate to new URL with lang param
   const updateLanguage = useCallback(
-    (newLanguage: LanguageName) => {
-      if (Object.keys(supportedLanguagesInfo).includes(newLanguage)) {
-        setSelectedLanguage(newLanguage); // Update local state for immediate UI feedback
-        const newLangCode = mapLanguageNameToCode(newLanguage);
-        if (newLangCode) {
-          console.log(
-            `[useGameConfig] updateLanguage called with ${newLanguage}. Pushing lang code: ${newLangCode}`,
-          );
-          // Use router to navigate, triggering server refetch
-          router.push(`/?lang=${newLangCode}`, { scroll: false });
-        }
+    (newLangCode: string) => {
+      // Validate if the new code is a key in supportedLanguagesInfo
+      if (newLangCode in supportedLanguagesInfo) {
+        // setSelectedLanguage(newLangCode as LanguageCode); // Don't set state directly
+        console.log(
+          `[useGameConfig] updateLanguage called with code: ${newLangCode}. Pushing to router.`,
+        );
+        // Use router to navigate, triggering server refetch and hook re-initialization
+        router.push(`/?lang=${newLangCode}`, { scroll: false });
+      } else {
+        console.warn(
+          `[useGameConfig] Attempted to set invalid language code: ${newLangCode}`,
+        );
       }
     },
-    [router],
-  ); // Add router dependency
+    [router], // Add router dependency
+  );
 
   const handleGenerateAndStartGame = useCallback(async () => {
     // Guard against double submission
@@ -444,7 +458,7 @@ export function useGameConfig(availableModels: string[]) {
     globalModelSelection,
     selectedLanguage,
     isAudioEnabled,
-    isLoadingNextTurn: false,
+    isLoadingNextTurn,
     addPlayerSlot,
     removePlayerSlot,
     updateSlotModel,
