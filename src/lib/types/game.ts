@@ -37,14 +37,14 @@ export type MessageAudience =
   | { type: "player"; playerId: string }; // For Seer results, private messages?
 
 export interface ChatMessage {
-  readonly messageId: string; // e.g., uuid
+  readonly messageId: string;
   readonly gameId: string;
-  readonly speaker:
-    | { type: "player"; playerId: string }
-    | { type: "moderator" };
-  readonly speakerName: string; // Denormalized name for display
-  readonly content: string;
-  readonly timestamp: number; // Unix timestamp (ms or s)
+  readonly speaker: { type: "player"; playerId: string } | { type: "moderator" };
+  readonly speakerName: string; // Denormalized for easier display
+  content: string; // Original English content / Fallback
+  phraseKey?: string; // Key for dictionary lookup (should match a phrase in dictionary.json)
+  placeholders?: Record<string, string | number>; // Values for placeholders in translation
+  readonly timestamp: number;
   readonly round: number;
   readonly phase: GamePhase;
   readonly audience: MessageAudience;

@@ -23,12 +23,36 @@ import type {
   Player,
   Vote,
   AIMessageLogEntry,
+  GamePhase,
+  Role,
+  GameState,
 } from "@/lib/types/game";
 import { cleanAIResponse } from "@/lib/utils/stringUtils";
 import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { translateText } from "./translation";
+import { LanguageName } from "@/lib/translation/languages";
+import type {
+  TranslationEntry,
+} from "@/lib/translation/languages"; // Import for type checking keys
+
+// Helper function to get a placeholder string for missing player names
+const getPlayerName = (
+  state: GameState,
+  playerId: string | null | undefined,
+): string => {
+  if (!playerId) return "Unknown";
+  return state.players[playerId]?.name || "Unknown";
+};
+
+// Helper function to get a placeholder string for missing player roles
+const getPlayerRole = (
+  state: GameState,
+  playerId: string | null | undefined,
+): Role | "Unknown Role" => {
+  if (!playerId) return "Unknown Role";
+  return state.players[playerId]?.role || "Unknown Role";
+};
 
 // Action to run the next turn or step in the game
 export async function runGameTurnAction(gameId: string) {
@@ -63,16 +87,12 @@ export async function runGameTurnAction(gameId: string) {
     const originalWelcomeMsg = `Welcome to "${
       currentState.title || "Werewolf AI"
     }"! ${currentState.livingPlayerIds.length} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.`;
-    const translatedWelcomeMsg = await translateText(
-      originalWelcomeMsg,
-      language,
-    );
     const welcomeMessage: ChatMessage = {
       messageId: `msg-${crypto.randomUUID()}-init`,
       gameId: gameId,
       speaker: { type: "moderator" },
       speakerName: "Moderator",
-      content: translatedWelcomeMsg,
+      content: originalWelcomeMsg,
       timestamp: Date.now() - 1000, // Slightly before first action
       round: currentState.round,
       phase: currentState.phase,
@@ -278,17 +298,13 @@ export async function runGameTurnAction(gameId: string) {
       // --- Translate Moderator Message ---
       const originalIntroCompleteMsg =
         "Introductions are complete. The floor is now open for discussion.";
-      const translatedIntroCompleteMsg = await translateText(
-        originalIntroCompleteMsg,
-        language,
-      );
       // --- End Translation ---
       const phaseChangeMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}`,
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: translatedIntroCompleteMsg, // Use translated message
+        content: originalIntroCompleteMsg, // Use translated message
         timestamp: Date.now(),
         round: nextState.round,
         phase: nextState.phase,
@@ -808,17 +824,15 @@ export async function runGameTurnAction(gameId: string) {
     // No results revealed here.
     // --- Translate Message ---
     const originalNightEndMsg = `Night ${stateBeforeAdvance.round} ends. Actions have been taken...`;
-    const translatedNightEndMsg = await translateText(
-      originalNightEndMsg,
-      language,
-    );
     // --- End Translation ---
     const nightEndMessage: ChatMessage = {
       messageId: `msg-${crypto.randomUUID()}-night-end`,
       gameId: gameId,
       speaker: { type: "moderator" },
       speakerName: "Moderator",
-      content: translatedNightEndMsg,
+      content: originalNightEndMsg, // Fallback content
+      phraseKey: "NightEndMessage", // <-- Use phrase key
+      placeholders: { round: stateBeforeAdvance.round }, // <-- Add placeholders
       timestamp: Date.now(),
       round: nextState.round,
       phase: nextState.phase, // Should be ResolveNight
@@ -971,12 +985,22 @@ export async function runGameTurnAction(gameId: string) {
 
     // 5. Generate Moderator Summary Message
     let originalSummaryContent = "";
+    let summaryPhraseKey:
+      | keyof typeof import("@/lib/translation/dictionary.json")["en"][number]["phrase"]
+      | undefined = undefined;
+    let summaryPlaceholders: Record<string, string | number> = {};
+
     if (eliminatedPlayerId) {
       const eliminatedPlayerName =
         stateAfterResolution.players[eliminatedPlayerId].name;
       const eliminatedPlayerRole =
         stateAfterResolution.players[eliminatedPlayerId].role; // Reveal role on night death
       originalSummaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead. They were a ${eliminatedPlayerRole}.`;
+      summaryPhraseKey = "NightSummaryElimination";
+      summaryPlaceholders = {
+        playerName: eliminatedPlayerName,
+        playerRole: eliminatedPlayerRole,
+      };
     } else if (
       killAction &&
       saveAction &&
@@ -987,20 +1011,22 @@ export async function runGameTurnAction(gameId: string) {
     ) {
       originalSummaryContent =
         "A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.";
+      summaryPhraseKey = "NightSummarySaved";
+      summaryPlaceholders = {};
     } else {
       originalSummaryContent = "The night passes uneventfully. Dawn breaks.";
+      summaryPhraseKey = "NightSummaryPeaceful";
+      summaryPlaceholders = {};
     }
-    const summaryContent = await translateText(
-      originalSummaryContent,
-      language,
-    );
 
     const summaryMessage: ChatMessage = {
       messageId: `msg-${crypto.randomUUID()}-night-summary`,
       gameId: gameId,
       speaker: { type: "moderator" },
       speakerName: "Moderator",
-      content: summaryContent,
+      content: originalSummaryContent, // Fallback content
+      phraseKey: summaryPhraseKey, // <-- Use phrase key
+      placeholders: summaryPlaceholders, // <-- Add placeholders
       timestamp: Date.now(),
       round: stateAfterResolution.round, // Use round from the state being resolved
       phase: stateAfterResolution.phase, // Still ResolveNight phase technically
@@ -1024,16 +1050,20 @@ export async function runGameTurnAction(gameId: string) {
         `Game Over detected after night resolution. Outcome: ${winResultNight.outcome}`,
       );
       const originalGameOverMsg = winResultNight.message;
-      const translatedGameOverMsg = await translateText(
-        originalGameOverMsg,
-        language,
-      );
+      // --- Replace Translation ---
+      // const translatedGameOverMsg = await translateText(
+      //   originalGameOverMsg,
+      //   language,
+      // );
+      // --- End Replace Translation ---
       const gameOverMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}-gameover-night`,
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: translatedGameOverMsg,
+        content: originalGameOverMsg, // Fallback content (assuming winResultNight.message is suitable)
+        phraseKey: "GameOverMessage", // <-- Use phrase key
+        placeholders: { outcomeMessage: originalGameOverMsg }, // <-- Add placeholder
         timestamp: Date.now(),
         round: stateAfterResolution.round,
         phase: "GameOver",
@@ -1061,43 +1091,54 @@ export async function runGameTurnAction(gameId: string) {
 
     // 8. Add Moderator Message for the *Start* of the NEXT Phase
     let originalPhaseStartMsg = "";
-    if (nextState.phase === "WerewolfChat") {
-      originalPhaseStartMsg = "The werewolves gather to discuss their plans...";
+    let phaseStartPhraseKey:
+      | keyof typeof import("@/lib/translation/dictionary.json")["en"][number]["phrase"]
+      | undefined = undefined;
+    let phaseStartPlaceholders: Record<string, string | number> = {};
+
+    if (nextState.phase === "DayIntroductions") {
+      originalPhaseStartMsg = `Welcome to "${nextState.title || "the game"}"! ${nextState.livingPlayerIds.length} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.`;
+      phaseStartPhraseKey = "WelcomeMessage";
+      phaseStartPlaceholders = {
+        gameTitle: nextState.title || "the game",
+        playerCount: nextState.livingPlayerIds.length,
+      };
     } else if (nextState.phase === "DayDiscussion") {
       originalPhaseStartMsg = `Day ${nextState.round} begins. Discuss what happened and who you suspect.`;
-    } else if (nextState.phase === "DayIntroductions") {
-      // This case should ideally only happen if round 0 night ends, which isn't standard werewolf
-      originalPhaseStartMsg = `Day ${nextState.round} begins. Time for introductions.`;
-    } else {
-      // Fallback/Error case
-      console.warn(`Unexpected phase after ResolveNight: ${nextState.phase}`);
-      originalPhaseStartMsg = `Moving to the next phase: ${nextState.phase}`;
+      phaseStartPhraseKey = "DayStartDiscussionMessage";
+      phaseStartPlaceholders = { round: nextState.round };
+    } else if (nextState.phase === "Night") {
+      originalPhaseStartMsg = `The sun sets. Night ${nextState.round} falls upon the village. Close your eyes...`;
+      phaseStartPhraseKey = "NightStartMessage";
+      phaseStartPlaceholders = { round: nextState.round };
     }
 
-    const translatedPhaseStartMsg = await translateText(
-      originalPhaseStartMsg,
-      language,
-    );
-    const phaseStartMessage: ChatMessage = {
-      messageId: `msg-${crypto.randomUUID()}-phase-start`,
-      gameId: gameId,
-      speaker: { type: "moderator" },
-      speakerName: "Moderator",
-      content: translatedPhaseStartMsg,
-      timestamp: Date.now(),
-      round: nextState.round,
-      phase: nextState.phase, // The phase we are *entering*
-      audience: { type: "all" },
-    };
-
-    // Update state with the phase start message and clear night actions
-    nextState = {
-      ...nextState,
-      conversationLog: [...nextState.conversationLog, phaseStartMessage],
-      nightActions: [], // Clear actions now that they are resolved
-      turnOrderIndex: 0, // Reset turn index for the new phase (if applicable)
-      updatedAt: Date.now(),
-    };
+    if (phaseStartPhraseKey) {
+      // --- Replace Translation ---
+      // const translatedPhaseStartMsg = await translateText(
+      //   originalPhaseStartMsg,
+      //   language,
+      // );
+      // --- End Replace Translation ---
+      const phaseStartMessage: ChatMessage = {
+        messageId: `msg-${crypto.randomUUID()}-phasestart`,
+        gameId: gameId,
+        speaker: { type: "moderator" },
+        speakerName: "Moderator",
+        content: originalPhaseStartMsg, // Fallback content
+        phraseKey: phaseStartPhraseKey, // <-- Use phrase key
+        placeholders: phaseStartPlaceholders, // <-- Add placeholders
+        timestamp: Date.now(),
+        round: nextState.round,
+        phase: nextState.phase,
+        audience: { type: "all" },
+      };
+      // Add message to the *next* state's log
+      nextState = {
+        ...nextState,
+        conversationLog: [...nextState.conversationLog, phaseStartMessage],
+      };
+    }
 
     // 9. Save the final state for the ResolveNight transition
     await gameStateManager.updateGameState(gameId, nextState);
@@ -1310,16 +1351,12 @@ export async function runGameTurnAction(gameId: string) {
         // Add moderator message for voting start
         const originalVoteStartMsg =
           "Discussion time is over. It is now time to vote for who to eliminate.";
-        const translatedVoteStartMsg = await translateText(
-          originalVoteStartMsg,
-          language,
-        );
         const voteStartMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-vote-start`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: translatedVoteStartMsg,
+          content: originalVoteStartMsg,
           timestamp: Date.now(),
           round: stateBeforeVote.round,
           phase: stateBeforeVote.phase, // Should be 'Voting'
@@ -1392,16 +1429,12 @@ export async function runGameTurnAction(gameId: string) {
         // Add moderator message for voting start
         const originalVoteStartMsg =
           "Discussion time is over. It is now time to vote for who to eliminate.";
-        const translatedVoteStartMsg = await translateText(
-          originalVoteStartMsg,
-          language,
-        );
         const voteStartMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-vote-start-alt`, // Different ID for debugging
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: translatedVoteStartMsg,
+          content: originalVoteStartMsg,
           timestamp: Date.now(),
           round: nextState.round,
           phase: nextState.phase, // Should be 'Voting'
@@ -1665,33 +1698,34 @@ export async function runGameTurnAction(gameId: string) {
       );
 
       // Format vote results message
-      // --- Translate Vote Results ---
-      const originalVoteDetails = Object.entries(voteCounts)
-        .map(
-          ([targetId, count]) =>
-            `- ${
-              stateAfterTally.players[targetId]?.name || "Unknown"
-            }: ${count} ${count === 1 ? "vote" : "votes"}`,
-        )
-        .join("\n");
-      const originalVotesMsgContent = `The votes are in!\n${originalVoteDetails}`;
-      const translatedVotesMsgContent = await translateText(
-        originalVotesMsgContent,
-        language,
-      );
-      // --- End Translation ---
-      const votesMessage: ChatMessage = {
-        messageId: `msg-${crypto.randomUUID()}-votes`,
+      let voteDetails = "";
+      for (const [targetId, count] of Object.entries(voteCounts)) {
+        const targetName = getPlayerName(stateAfterTally, targetId);
+        voteDetails += `- ${targetName}: ${count} ${count === 1 ? "vote" : "votes"}\n`;
+      }
+
+      // Add vote counts message
+      const originalVoteResultsMsg = `The votes are in!\n${voteDetails}`;
+      // --- Replace Translation ---
+      // const translatedVoteResultsMsg = await translateText(
+      //   originalVoteResultsMsg,
+      //   language,
+      // );
+      // --- End Replace Translation ---
+      const voteResultsMessage: ChatMessage = {
+        messageId: `msg-${crypto.randomUUID()}-voteresults`,
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: translatedVotesMsgContent, // Use translated message
+        content: originalVoteResultsMsg, // Fallback content
+        phraseKey: "VoteResultsMessage", // <-- Use phrase key
+        placeholders: { voteDetails: voteDetails }, // <-- Add placeholder
         timestamp: Date.now(),
         round: stateAfterTally.round,
         phase: stateAfterTally.phase,
         audience: { type: "all" },
       };
-      voteModeratorMessages.push(votesMessage);
+      voteModeratorMessages.push(voteResultsMessage);
 
       // **** DECISION LOGIC ****
       if (playersWithMaxVotes.length === 1) {
@@ -1699,22 +1733,37 @@ export async function runGameTurnAction(gameId: string) {
         // Clear winner
         dayEliminatedPlayerId = playersWithMaxVotes[0];
         const eliminatedPlayer = stateAfterTally.players[dayEliminatedPlayerId];
+        const eliminatedPlayerName = getPlayerName(
+          stateAfterTally,
+          dayEliminatedPlayerId,
+        );
+        const eliminatedPlayerRole = getPlayerRole(
+          stateAfterTally,
+          dayEliminatedPlayerId,
+        );
         console.log(
-          `Player ${eliminatedPlayer?.name} (${dayEliminatedPlayerId}) received the most votes (${maxVotes}) and will be eliminated.`,
+          `Player ${eliminatedPlayerName} (${dayEliminatedPlayerId}) received the most votes (${maxVotes}) and will be eliminated.`,
         );
         // --- Translate Elimination Message ---
-        const originalEliminationMsg = `With ${maxVotes} votes, ${eliminatedPlayer?.name} has been eliminated by the village. They were a ${eliminatedPlayer?.role}.`;
-        const translatedEliminationMsg = await translateText(
-          originalEliminationMsg,
-          language,
-        );
+        const originalEliminationMsg = `With ${maxVotes} votes, ${eliminatedPlayerName} has been eliminated by the village. They were a ${eliminatedPlayerRole}.`;
+        // --- Replace Translation ---
+        // const translatedEliminationMsg = await translateText(
+        //   originalEliminationMsg,
+        //   language,
+        // );
         // --- End Translation ---
         const eliminationMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-elimination`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: translatedEliminationMsg, // Use translated message
+          content: originalEliminationMsg, // Fallback content
+          phraseKey: "VoteEliminationMessage", // <-- Use phrase key
+          placeholders: {
+            voteCount: maxVotes,
+            playerName: eliminatedPlayerName,
+            playerRole: eliminatedPlayerRole,
+          }, // <-- Add placeholders
           timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
@@ -1722,37 +1771,34 @@ export async function runGameTurnAction(gameId: string) {
         };
         voteModeratorMessages.push(eliminationMessage);
       } else if (playersWithMaxVotes.length > 1) {
-        // Explicit check for TIE
-        console.log("[Vote Tally Debug] Entering TIE branch."); // Log branch
         // Tie
-        console.log(
-          `Vote resulted in a tie between ${playersWithMaxVotes.length} players with ${maxVotes} votes each.`,
-        );
-        console.log(
-          `[Vote Tally Debug] Tied Players for message: ${playersWithMaxVotes.join(
-            ", ",
-          )}`,
-        );
+        console.log("[Vote Tally Debug] Entering TIE branch."); // Log branch
+        dayEliminatedPlayerId = null;
         const tiedPlayerNames = playersWithMaxVotes
-          .map((id) => stateAfterTally.players[id]?.name || "Unknown")
-          .join(" and ");
+          .map((id) => getPlayerName(stateAfterTally, id))
+          .join(", ");
+        console.log(
+          `Vote tied between ${tiedPlayerNames} with ${maxVotes} votes each. No one eliminated.`,
+        );
         // --- Translate Tie Message ---
         const originalTieMsg = `The vote is tied between ${tiedPlayerNames}! No one is eliminated today.`;
-        const translatedTieMsg = await translateText(originalTieMsg, language);
+        // --- Replace Translation ---
+        // const translatedTieMsg = await translateText(originalTieMsg, language);
         // --- End Translation ---
         const tieMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-tie`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: translatedTieMsg, // Use translated message
-          timestamp: Date.now() + 1,
+          content: originalTieMsg, // Fallback content
+          phraseKey: "VoteTieMessage", // <-- Use phrase key
+          placeholders: { tiedPlayerNames: tiedPlayerNames }, // <-- Add placeholder
+          timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
           audience: { type: "all" },
         };
         voteModeratorMessages.push(tieMessage);
-        dayEliminatedPlayerId = null; // Ensure no elimination on tie
       } else {
         // Handle cases like zero votes or unexpected scenarios
         console.log(
@@ -1763,17 +1809,20 @@ export async function runGameTurnAction(gameId: string) {
         // --- Translate No Votes Message ---
         const originalNoVotesMsg =
           "No votes were cast. The village remains undecided.";
-        const translatedNoVotesMsg = await translateText(
-          originalNoVotesMsg,
-          language,
-        );
+        // --- Replace Translation ---
+        // const translatedNoVotesMsg = await translateText(
+        //   originalNoVotesMsg,
+        //   language,
+        // );
         // --- End Translation ---
         const noVotesMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-novotes`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: translatedNoVotesMsg, // Use translated message
+          content: originalNoVotesMsg, // Fallback content
+          phraseKey: "VoteNoVotesMessage", // <-- Use phrase key
+          placeholders: {}, // <-- Add placeholders
           timestamp: Date.now(),
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
@@ -1823,18 +1872,21 @@ export async function runGameTurnAction(gameId: string) {
         );
         // Add Game Over message using the win condition details
         // --- Translate Game Over Message ---
-        const originalGameOverVoteMsg = winResultVote.message;
-        const translatedGameOverVoteMsg = await translateText(
-          originalGameOverVoteMsg,
-          language,
-        );
-        // --- End Translation ---
+        const originalGameOverMsg = winResultVote.message;
+        // --- Replace Translation ---
+        // const translatedGameOverMsg = await translateText(
+        //   originalGameOverMsg,
+        //   language,
+        // );
+        // --- End Replace Translation ---
         const gameOverMessage: ChatMessage = {
           messageId: `msg-${crypto.randomUUID()}-gameover-vote`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
-          content: translatedGameOverVoteMsg,
+          content: originalGameOverMsg, // Fallback content
+          phraseKey: "GameOverMessage", // <-- Use phrase key
+          placeholders: { outcomeMessage: originalGameOverMsg }, // <-- Add placeholder
           timestamp: Date.now(),
           round: stateAfterTally.round,
           phase: "GameOver",
@@ -1863,17 +1915,13 @@ export async function runGameTurnAction(gameId: string) {
       // Add phase change message
       // --- Translate Night Start Message ---
       const originalNightStartMsg = `The sun sets. Night ${nextState.round} falls upon the village. Close your eyes...`;
-      const translatedNightStartMsg = await translateText(
-        originalNightStartMsg,
-        language,
-      );
       // --- End Translation ---
       const nightStartMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}-night-start`,
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: translatedNightStartMsg,
+        content: originalNightStartMsg,
         timestamp: Date.now(),
         round: nextState.round,
         phase: nextState.phase,

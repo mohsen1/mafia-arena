@@ -358,13 +358,6 @@ export const GENERATE_UI_TRANSLATION_PROMPT = (targetLanguage: LanguageName) => 
 };
 
 /**
- * Generates the system prompt for the simple text translation helper.
- */
-export const TRANSLATE_TEXT_SYSTEM_PROMPT = (language: LanguageName) =>
-  dedent`You are a helpful translation assistant. Translate the user's text accurately into ${language}.
-  Respond ONLY with the translated text, nothing else.`;
-
-/**
  * Generates the system prompt for the Werewolf Chat phase.
  * @param persona The AI's character persona.
  * @param playerName The AI's character name.

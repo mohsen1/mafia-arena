@@ -251,13 +251,33 @@
       "description": "Text on the start button during character generation."
     },
     {
+      "phrase": "GeneratingCharacterInfo_1_11",
+      "translation": "GeneratingCharacterInfo_1_11",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingCharacterInfo_1_16",
       "translation": "GeneratingCharacterInfo_1_16",
       "description": "Auto-added from fallback"
     },
     {
+      "phrase": "GeneratingCharacterInfo_1_9",
+      "translation": "GeneratingCharacterInfo_1_9",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_10_11",
+      "translation": "GeneratingCharacterInfo_10_11",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingCharacterInfo_10_16",
       "translation": "GeneratingCharacterInfo_10_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_11_11",
+      "translation": "GeneratingCharacterInfo_11_11",
       "description": "Auto-added from fallback"
     },
     {
@@ -291,8 +311,23 @@
       "description": "Auto-added from fallback"
     },
     {
+      "phrase": "GeneratingCharacterInfo_2_11",
+      "translation": "GeneratingCharacterInfo_2_11",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingCharacterInfo_2_16",
       "translation": "GeneratingCharacterInfo_2_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_2_9",
+      "translation": "GeneratingCharacterInfo_2_9",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_3_11",
+      "translation": "GeneratingCharacterInfo_3_11",
       "description": "Auto-added from fallback"
     },
     {
@@ -301,8 +336,28 @@
       "description": "Auto-added from fallback"
     },
     {
+      "phrase": "GeneratingCharacterInfo_3_9",
+      "translation": "GeneratingCharacterInfo_3_9",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_4_11",
+      "translation": "GeneratingCharacterInfo_4_11",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingCharacterInfo_4_16",
       "translation": "GeneratingCharacterInfo_4_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_4_9",
+      "translation": "GeneratingCharacterInfo_4_9",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_5_11",
+      "translation": "GeneratingCharacterInfo_5_11",
       "description": "Auto-added from fallback"
     },
     {
@@ -311,8 +366,28 @@
       "description": "Auto-added from fallback"
     },
     {
+      "phrase": "GeneratingCharacterInfo_5_9",
+      "translation": "GeneratingCharacterInfo_5_9",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_6_11",
+      "translation": "GeneratingCharacterInfo_6_11",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingCharacterInfo_6_16",
       "translation": "GeneratingCharacterInfo_6_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_6_9",
+      "translation": "GeneratingCharacterInfo_6_9",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_7_11",
+      "translation": "GeneratingCharacterInfo_7_11",
       "description": "Auto-added from fallback"
     },
     {
@@ -321,13 +396,38 @@
       "description": "Auto-added from fallback"
     },
     {
+      "phrase": "GeneratingCharacterInfo_7_9",
+      "translation": "GeneratingCharacterInfo_7_9",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_8_11",
+      "translation": "GeneratingCharacterInfo_8_11",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingCharacterInfo_8_16",
       "translation": "GeneratingCharacterInfo_8_16",
       "description": "Auto-added from fallback"
     },
     {
+      "phrase": "GeneratingCharacterInfo_8_9",
+      "translation": "GeneratingCharacterInfo_8_9",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_9_11",
+      "translation": "GeneratingCharacterInfo_9_11",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingCharacterInfo_9_16",
       "translation": "GeneratingCharacterInfo_9_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_9_9",
+      "translation": "GeneratingCharacterInfo_9_9",
       "description": "Auto-added from fallback"
     },
     {

@@ -3,7 +3,6 @@
 import { getAIResponse } from "@/lib/ai/openaiService";
 import {
   GENERATE_UI_TRANSLATION_PROMPT,
-  TRANSLATE_TEXT_SYSTEM_PROMPT,
 } from "@/lib/ai/PROMPTS";
 import dictionaryDataJson from "@/lib/translation/dictionary.json";
 import { supportedLanguagesInfo } from "@/lib/translation/languages";
@@ -47,8 +46,7 @@ export async function translateText(
   try {
     // Simple prompt for translation
     const messages: ChatCompletionMessageParam[] = [
-      { role: "system", content: TRANSLATE_TEXT_SYSTEM_PROMPT(targetLanguageName) },
-      { role: "user", content: text },
+      { role: "user", content: `Translate the following text accurately into ${targetLanguageName}. Respond ONLY with the translated text, nothing else: ${text}` },
     ];
 
     // Use specified model for this helper function
