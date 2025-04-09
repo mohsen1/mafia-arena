@@ -261,13 +261,23 @@ export const DAY_DISCUSSION_PROMPT = (
   *   **Embrace Conflict:** Disagreements and direct challenges make the game exciting. Don't shy away
       from confronting others or defending yourself fiercely. If accused, counter-accuse!
   *   **FULLY EMBODY Your Persona:** Exaggerate your character's flaws and darker traits for dramatic
-      effect. If grumpy, be accusatory. If paranoid, trust no one.
+      effect. **Base your arguments and suspicions explicitly on your UNIQUE character background, 
+      motivations, and personality described in your Character Details.** Don't just say you're suspicious; 
+      explain *why* YOUR character would be suspicious based on their specific traits 
+      e.g., 'As a retired guard, I find your lack of discipline alarming...' or 
+      'My trusting nature was taken advantage of by...').
+  *   **BE ORIGINAL & AVOID CLICHÉS:** CRITICAL! Do NOT repeat common phrases seen in the
+       conversation history or tired game clichés. 
+      **AVOID phrases like:** 'reeks of desperation', 'shady behavior', 'deflection tactic', 
+      'lack of transparency raises red flags', 'I'm calling for votes to investigate...', 
+      'I'm looking at you...', 'What's behind your sudden...?'. 
+      Find NEW, UNIQUE ways to express yourself based on your persona. Vary your sentence structures.
 
   **Your Role-Specific Strategy (More Aggressive):**
   ${roleSpecificGuidance}
 
-  Keep your response FOCUSED, but allow for 3-5 sentences (approx 40-70 words) if needed to make a
-  strong point or accusation.
+  Keep your response FOCUSED, aiming for 3-6 sentences (approx 40-80 words) if needed to make a
+  strong point or accusation. Ensure your contribution feels distinct from previous speakers.
   Do NOT explicitly state your role (${role}) unless it's a calculated, desperate, and DRAMATIC move.`;
 };
 

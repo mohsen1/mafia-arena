@@ -47,6 +47,7 @@ export type GetAIResponseFunction = (
     model: string;
     temperature?: number;
     max_tokens?: number;
+    presence_penalty?: number;
     response_format?: { type: "text" | "json_object" }; // <-- Add optional response_format
   },
 ) => Promise<string>; // Returns the AI's text response
@@ -80,6 +81,7 @@ export const getAIResponse: GetAIResponseFunction = async (
     const completion = await openai.chat.completions.create({
       model: settings.model,
       messages: messages,
+      presence_penalty: settings.presence_penalty ?? 0.5,
       max_tokens: settings.max_tokens ?? 5000,
       temperature: settings.temperature ?? 0.7,
       response_format: settings.response_format, // Pass response format if provided

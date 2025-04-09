@@ -60,7 +60,6 @@ export type NightAction =
       type: "seer_investigation";
       actingPlayerId: string;
       targetPlayerId: string;
-      result: "Werewolf" | "Villager";
     }; // Use string literals for result
 
 export interface Vote {

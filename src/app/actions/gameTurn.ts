@@ -690,7 +690,6 @@ export async function runGameTurnAction(gameId: string) {
               type: "seer_investigation",
               actingPlayerId: activePlayer.id,
               targetPlayerId,
-              result: "Villager" /* Placeholder, will be resolved later */,
             });
             break;
           case "Doctor":
@@ -1198,6 +1197,7 @@ export async function runGameTurnAction(gameId: string) {
       const aiSettingsDiscussion = {
         model: aiModelDiscussion,
         temperature: 0.9,
+        presence_penalty: 0.85,
       };
 
       try {

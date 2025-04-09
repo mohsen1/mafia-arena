@@ -250,110 +250,71 @@ export function useGameConfig(availableModels: string[]) {
 
     const generatedProfiles: AICharacterProfile[] = [];
     const updatedSlots = [...slotsToGenerate];
-    const batchSize = 10;
-    let finalValidation: ValidationResult | null = null; // Initialize validation result
+    let finalValidation: ValidationResult | null = null;
 
     try {
-      for (let i = 0; i < slotsToGenerate.length; i += batchSize) {
-        const batch = slotsToGenerate.slice(i, i + batchSize);
-        const batchIndices = Array.from(
-          { length: batch.length },
-          (_, k) => i + k,
-        );
+      // Generate sequentially instead of in parallel batches
+      for (let i = 0; i < slotsToGenerate.length; i++) {
+        const slot = slotsToGenerate[i];
+        const originalIndex = i;
 
-        // Use key or English string for batch info
-        setInfoMsg(`GeneratingBatchInfo_${i / batchSize + 1}`); // e.g., GeneratingBatchInfo_1
+        setInfoMsg(`GeneratingCharacterInfo_${i + 1}_${slotsToGenerate.length}`); // Update info message per character
 
-        const generationPromises = batch.map(async (slot) => {
-          const finalRole = slot.roleSelection;
-          try {
-            // Pass current generatedProfiles to the action
-            // generateCharacterAction returns GenerateCharacterResult (flat structure + persona)
-            const result = await generateCharacterAction(
-              finalRole,
-              slot.aiModel,
-              selectedLanguage,
-              generatedProfiles,
-            );
-            if ("error" in result) throw new Error(result.error);
-            // result now contains profile fields directly + persona
-            // Store the structured profile and the persona in the slot
-            return {
-              ...slot, // Keep clientId, aiModel, roleSelection
-              assignedRole: finalRole,
-              profile: {
-                // Reconstruct profile object from flat result fields
-                characterName: result.characterName,
-                gender: result.gender,
-                ageCategory: result.ageCategory,
-                shortBio: result.shortBio,
-              },
-              persona: result.persona, // Store the generated persona
-              imageUrl: result.imageUrl,
-              isGenerated: true,
-              generationError: undefined,
-            };
-          } catch (err: unknown) {
-            // Type err as unknown
-            const errorMessage =
-              err instanceof Error
-                ? err.message
-                : "GenerationError";
-            // Store error, keep assignedRole attempt
-            return {
-              ...slot,
-              assignedRole: finalRole,
-              isGenerated: false,
-              generationError: errorMessage,
-              profile: undefined,
-              persona: undefined,
-            };
+        const finalRole = slot.roleSelection;
+        let generatedResult: ConfigCharacterSlot;
+
+        try {
+          // Pass the *current* state of generatedProfiles
+          const result = await generateCharacterAction(
+            finalRole,
+            slot.aiModel,
+            selectedLanguage,
+            [...generatedProfiles], // Pass a copy of the current list
+          );
+
+          if ("error" in result) throw new Error(result.error);
+
+          generatedResult = {
+            ...slot,
+            assignedRole: finalRole,
+            profile: {
+              characterName: result.characterName,
+              gender: result.gender,
+              ageCategory: result.ageCategory,
+              shortBio: result.shortBio,
+            },
+            persona: result.persona,
+            imageUrl: result.imageUrl,
+            isGenerated: true,
+            generationError: undefined,
+          };
+
+          // Add the newly generated profile to the list for the *next* iteration
+          if (generatedResult.profile) {
+            generatedProfiles.push(generatedResult.profile);
           }
-        });
+        } catch (err: unknown) {
+          const errorMessage =
+            err instanceof Error ? err.message : "GenerationError";
+          generatedResult = {
+            ...slot,
+            assignedRole: finalRole,
+            isGenerated: false,
+            generationError: errorMessage,
+            profile: undefined,
+            persona: undefined,
+          };
+          setErrorMsg((prev) =>
+            prev ? `${prev}, ${errorMessage}` : errorMessage,
+          ); 
+        }
 
-        const results = await Promise.allSettled(generationPromises);
-
-        results.forEach((settledResult, batchIndex) => {
-          const originalIndex = batchIndices[batchIndex];
-          if (settledResult.status === "fulfilled") {
-            const fulfilledValue = settledResult.value;
-            updatedSlots[originalIndex] = fulfilledValue;
-            // Add successfully generated profile to the list for subsequent calls
-            // We need the full profile structure here (AICharacterProfile)
-            if (fulfilledValue.isGenerated && fulfilledValue.profile) {
-              // Pass the structured profile, not the whole slot
-              generatedProfiles.push(fulfilledValue.profile);
-            }
-          } else {
-            console.error(
-              "Unexpected promise rejection:",
-              settledResult.reason,
-            );
-            const errorText = "UnexpectedGenerationError";
-            // Type reason as unknown and extract message safely
-            const reasonMessage =
-              settledResult.reason instanceof Error
-                ? settledResult.reason.message
-                : errorText;
-            setErrorMsg((prev) =>
-              prev ? `${prev}, ${errorText}` : errorText,
-            );
-            // Ensure the slot reflects the failure state even on rejection
-            updatedSlots[originalIndex] = {
-              ...slotsToGenerate[originalIndex], // Start from the reset state
-              assignedRole:
-                slotsToGenerate[originalIndex].roleSelection, // Keep assigned role attempt
-              isGenerated: false,
-              generationError: reasonMessage, // Use extracted message
-            };
-          }
-        });
-
-        // Update the main characterSlots state after each batch for UI feedback
+        updatedSlots[originalIndex] = generatedResult;
+        // Update UI after each character generation
         setCharacterSlots([...updatedSlots]);
       }
 
-      // Final validation after all batches
+      // Final validation after all characters are processed
       finalValidation = validateGeneratedGameSetup(updatedSlots); // Assign to outer scope variable
       setPostGenValidationMsg(finalValidation.message ?? null);
       setIsPostGenValid(finalValidation.isValid);

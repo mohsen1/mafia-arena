@@ -16,6 +16,81 @@
       "description": "Prompt shown when no player slots are configured."
     },
     {
+      "phrase": "AI profile generation returned null.",
+      "translation": "AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "translation": "AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null., AI profile generation returned null.",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "CharacterSetupLabel",
       "translation": "Character Setup",
       "description": "Header for character configuration section."
@@ -166,9 +241,94 @@
       "description": "Auto-added from fallback"
     },
     {
+      "phrase": "GeneratingBatchInfo_2",
+      "translation": "GeneratingBatchInfo_2",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingButtonLabel",
       "translation": "Generating...",
       "description": "Text on the start button during character generation."
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_1_16",
+      "translation": "GeneratingCharacterInfo_1_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_10_16",
+      "translation": "GeneratingCharacterInfo_10_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_11_16",
+      "translation": "GeneratingCharacterInfo_11_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_12_16",
+      "translation": "GeneratingCharacterInfo_12_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_13_16",
+      "translation": "GeneratingCharacterInfo_13_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_14_16",
+      "translation": "GeneratingCharacterInfo_14_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_15_16",
+      "translation": "GeneratingCharacterInfo_15_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_16_16",
+      "translation": "GeneratingCharacterInfo_16_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_2_16",
+      "translation": "GeneratingCharacterInfo_2_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_3_16",
+      "translation": "GeneratingCharacterInfo_3_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_4_16",
+      "translation": "GeneratingCharacterInfo_4_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_5_16",
+      "translation": "GeneratingCharacterInfo_5_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_6_16",
+      "translation": "GeneratingCharacterInfo_6_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_7_16",
+      "translation": "GeneratingCharacterInfo_7_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_8_16",
+      "translation": "GeneratingCharacterInfo_8_16",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "GeneratingCharacterInfo_9_16",
+      "translation": "GeneratingCharacterInfo_9_16",
+      "description": "Auto-added from fallback"
     },
     {
       "phrase": "GeneratingCharactersInfo",
