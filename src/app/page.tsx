@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { gameStateManager } from '@/lib/state/gameStateManager';
-import { deleteGameAction, getOrGenerateTranslationsAction } from '@/app/actions';   
+import { deleteGameAction, getOrGenerateTranslationsAction } from '@/app/actions/index';   
 import { FilteredGameState } from '@/lib/types/game';
 import StartGameForm from '@/components/StartGameForm';
 import { getGroqModels } from '@/lib/groq/api';

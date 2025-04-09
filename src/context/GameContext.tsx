@@ -6,7 +6,7 @@ import {
     LanguageCode, 
     LanguageName 
 } from '@/lib/translation/languages';
-import { getOrGenerateTranslationsAction } from '@/app/actions';
+import { getOrGenerateTranslationsAction } from '@/app/actions/index';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSpokenText } from './SpokenTextContext'; // Import useSpokenText
 

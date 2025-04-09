@@ -1,8 +1,6 @@
-import { GameState, FilteredGameState, Player, ChatMessage, Role } from '@/lib/types/game';
+import { ChatMessage, FilteredGameState, GameState } from '@/lib/types/game';
 import { promises as fs } from 'fs';
 import path from 'path';
-import crypto from 'crypto';
-import { initializeNewGame } from '@/lib/game/engine'; // Import engine function
 
 const GAMES_DIR = path.join(process.cwd(), 'data', 'games');
 

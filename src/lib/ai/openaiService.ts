@@ -271,19 +271,3 @@ export async function generateAICharacterProfile(
     }
 }
 
-/**
- * Constructs the detailed persona string from the AI profile.
- * @param profile The generated AICharacterProfile.
- * @returns A formatted string suitable for the Player.persona field.
- */
-export function formatPersonaFromProfile(profile: AICharacterProfile): string {
-    // Use the keys from the defined JSON structure
-    return `Name: ${profile.characterName}
-Role in Community: ${profile.roleInCommunity}
-Appearance: ${profile.appearance}
-Background: ${profile.background}
-Personality Archetype: ${profile.personalityArchetype}
-Key Traits: ${profile.keyTraits}
-Motivations: ${profile.motivations.join(', ')}`;
-}
-

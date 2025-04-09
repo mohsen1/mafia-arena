@@ -1,13 +1,10 @@
-import { formatPersonaFromProfile, getAIGameTitleAndDescription } from '@/lib/ai/openaiService';
+import { getAIGameTitleAndDescription } from '@/lib/ai/openaiService';
 import {
     GamePhase,
     GameSettings,
     GameState,
     Player,
     PlayerInitializationData,
-    AICharacterProfile,
-    Role,
-    Vote,
     WinCondition
 } from '@/lib/types/game';
 import crypto from 'crypto';

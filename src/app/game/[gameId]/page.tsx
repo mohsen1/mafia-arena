@@ -1,4 +1,4 @@
-import { runGameTurnAction } from "@/app/actions";
+import { runGameTurnAction } from "@/app/actions/index";
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import { notFound } from "next/navigation";
 import GameClient from "./GameClient"; // Import the client component

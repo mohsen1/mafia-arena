@@ -1,11 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ConfigCharacterSlot, Role, PlayerInitializationData, AICharacterProfile } from '@/lib/types/game';
+import { generateCharacterAction, startGameAction } from '@/app/actions/index';
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config';
-import { generateCharacterAction, startGameAction } from '@/app/actions';
+import { mapLanguageNameToCode } from '@/lib/translation/languages';
+import { AICharacterProfile, ConfigCharacterSlot, PlayerInitializationData, Role } from '@/lib/types/game';
 import { validateGameConfiguration, validateGeneratedGameSetup } from '@/lib/validators/gameConfigValidator';
-import { mapLanguageNameToCode, LanguageCode } from '@/lib/translation/languages';
-import { getOrGenerateTranslationsAction } from '@/app/actions';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 // Define supported languages
 export const supportedLanguages = ['English', 'Persian', 'German'] as const;
