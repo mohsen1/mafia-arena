@@ -1,19 +1,19 @@
 "use server";
 
-import { SupportedLanguage } from "@/hooks/useGameConfig";
+import type { SupportedLanguage } from "@/hooks/useGameConfig";
 import { getAIResponse } from "@/lib/ai/openaiService";
-import { GENERATE_UI_TRANSLATION_PROMPT } from "@/lib/ai/PROMPTS";
+import { GENERATE_UI_TRANSLATION_PROMPT, TRANSLATE_TEXT_SYSTEM_PROMPT } from "@/lib/ai/PROMPTS";
 import dictionaryDataJson from '@/lib/translation/dictionary.json';
-import {
+import { supportedLanguagesMap } from "@/lib/translation/languages";
+import type {
     DictionaryData,
     LanguageCode,
-    supportedLanguagesMap,
     TranslationEntry
 } from "@/lib/translation/languages";
 import { cleanAIResponse } from "@/lib/utils/stringUtils";
-import fs from "fs/promises";
-import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import path from "path";
+import fs from "node:fs/promises";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import path from "node:path";
 
 // --- Helper Function for Translation (using AI) --- 
 export async function translateText(text: string, targetLanguage: SupportedLanguage): Promise<string> {
@@ -28,7 +28,7 @@ export async function translateText(text: string, targetLanguage: SupportedLangu
     try {
         // Simple prompt for translation
         const messages: ChatCompletionMessageParam[] = [
-            { role: "system", content: `You are a helpful translation assistant. Translate the user's text accurately into ${targetLanguage}. Respond ONLY with the translated text, nothing else.` },
+            { role: "system", content: TRANSLATE_TEXT_SYSTEM_PROMPT(targetLanguage) },
             { role: "user", content: text },
         ];
         
@@ -62,7 +62,9 @@ export async function getOrGenerateTranslationsAction(
     if (targetLangCode === 'en') {
         console.log("[Action:getTranslations] Requested 'en', loading from source dictionary...");
         const englishMap: Record<string, string> = {};
-        (dictionary.en || []).forEach((item: TranslationEntry) => { englishMap[item.phrase] = item.translation; });
+        for (const item of (dictionary.en || [])) {
+             englishMap[item.phrase] = item.translation;
+        }
         return englishMap;
     }
 
@@ -75,8 +77,8 @@ export async function getOrGenerateTranslationsAction(
         const cachedData = await fs.readFile(cacheFilePath, 'utf-8');
         console.log(`[Action:getTranslations] Cache HIT for ${targetLanguageName}.`);
         return JSON.parse(cachedData) as Record<string, string>;
-    } catch (error: any) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
             // 2. Cache MISS - Generate using LLM
             console.log(`[Action:getTranslations] Cache MISS for ${targetLanguageName}. Generating...`);
             try {
@@ -100,12 +102,13 @@ export async function getOrGenerateTranslationsAction(
                 const cleanedResponse = cleanAIResponse(aiResponse);
                 let translatedArray: TranslationEntry[];
                 try {
-                    translatedArray = JSON.parse(cleanedResponse);
-                    if (!Array.isArray(translatedArray)) throw new Error("LLM response is not an array.");
-                    // Add more validation if needed
-                } catch (parseError: any) {
+                    const parsedResponse = JSON.parse(cleanedResponse);
+                    if (!Array.isArray(parsedResponse)) throw new Error("LLM response is not an array.");
+                    translatedArray = parsedResponse as TranslationEntry[];
+                } catch (parseError: unknown) {
                     console.error("[Action:getTranslations] Failed to parse LLM response:", cleanedResponse);
-                    throw new Error(`Failed to parse LLM translation response: ${parseError.message}`);
+                    const message = parseError instanceof Error ? parseError.message : String(parseError);
+                    throw new Error(`Failed to parse LLM translation response: ${message}`);
                 }
                 // --- End LLM Call & Parse --- 
 
@@ -131,21 +134,24 @@ export async function getOrGenerateTranslationsAction(
                     await fs.mkdir(CACHE_DIR, { recursive: true }); 
                     await fs.writeFile(cacheFilePath, JSON.stringify(translationMap, null, 2));
                     console.log(`[Action:getTranslations] Wrote generated translations to cache: ${cacheFilePath}`);
-                } catch (writeError: any) {
-                    console.error(`[Action:getTranslations] FAILED to write cache file ${cacheFilePath}:`, writeError);
+                } catch (writeError: unknown) {
+                    const message = writeError instanceof Error ? writeError.message : String(writeError);
+                    console.error(`[Action:getTranslations] FAILED to write cache file ${cacheFilePath}:`, message);
                     // Still return generated data even if caching fails
                 }
 
                 return translationMap;
 
-            } catch (generationError: any) {
-                console.error(`[Action:getTranslations] FAILED to generate translations for ${targetLanguageName}:`, generationError);
+            } catch (generationError: unknown) {
+                const message = generationError instanceof Error ? generationError.message : String(generationError);
+                console.error(`[Action:getTranslations] FAILED to generate translations for ${targetLanguageName}:`, message);
                 // Throw a new error to avoid exposing internal details potentially
                 throw new Error(`Failed to generate translations for ${targetLanguageName}.`); 
             }
         } else {
             // Other file system error (permissions, etc.)
-            console.error(`[Action:getTranslations] Error reading cache file ${cacheFilePath}:`, error);
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`[Action:getTranslations] Error reading cache file ${cacheFilePath}:`, message);
             throw new Error(`Failed to read translation cache for ${targetLanguageName}.`);
         }
     }

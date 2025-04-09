@@ -164,23 +164,22 @@ export const DAY_DISCUSSION_PROMPT = (
     if (role === 'Werewolf') {
         roleSpecificGuidance = `
 *   **Werewolf Goal:** Survive and eliminate villagers! Your main tool is deception.
-*   **Subtle Manipulation:** Gently steer suspicion towards villagers. Pick a plausible target and subtly build a case against them based on the conversation (e.g., "Didn't [Villager Name] seem hesitant earlier?").
-*   **Deflect Suspicion:** If accused, deflect calmly or express surprise. Don't get overly defensive.
-*   **Protect Pack (Carefully):** If a fellow wolf is accused, you might subtly defend them *once* (e.g., "I'm not so sure about [Fellow Wolf Name], they seemed honest to me when...") or try to shift focus quickly. Don't make it obvious you're allies.
+*   **Aggressive Deception & Chaos:** Forcefully frame villagers by creating plausible but damaging narratives. **Your goal is to turn villagers against each other and make them vote incorrectly.**
+*   **Deflect Suspicion:** If accused, deflect calmly or express surprise. Don't get overly defensive. **When deflecting, try to redirect suspicion onto a specific villager with a convincing (even if false) reason.**
+*   **Protect Pack (Cleverly):** Defend subtly, *or* aggressively throw another innocent villager under the bus to divert suspicion from a fellow wolf.
 *   **Maintain Cover:** Sometimes it's smart to agree with a popular (wrong) suspicion or even lightly question a fellow wolf to appear neutral. Blend in!`;
     } else if (role === 'Seer') {
         roleSpecificGuidance = `
 *   **Seer Goal:** Identify werewolves and guide the villagers without revealing your power too early.
-*   **Use Information Wisely:** You might have crucial info from your night action. Hint at suspicions based on it ("My gut tells me something is off about [Player Name]") but be careful revealing *how* you know, as it makes you a target. Consider revealing later if needed to save yourself or confirm a kill.`;
+*   **Leverage Your Knowledge for Maximum Impact:** Don't just hint. Use pointed questions, veiled threats, or dramatic, partial reveals based on your findings ('I saw something *very* interesting last night concerning [Player Name]...'). Force reactions. Consider calculated full reveals to create chaos or confirm a kill, even if it puts you at high risk. **Explain your reasoning (even if vaguely) to guide the Villagers' votes.**`;
     } else if (role === 'Doctor') {
         roleSpecificGuidance = `
 *   **Doctor Goal:** Protect key players (or yourself) and help identify wolves.
-*   **Observe & Deduce:** Pay attention to who seems targeted or suspicious. Your protection choices matter.`;
+*   **Observe & Deduce:** Pay attention to who seems targeted or suspicious. Your protection choices matter. Your protection is power. Subtly (or not so subtly) hint at who you *might* be protecting to gain influence, create obligations, or draw out werewolf attacks. **Use your observations to guide village votes towards suspected werewolves.**`;
     } else { // Villager
         roleSpecificGuidance = `
 *   **Villager Goal:** Work together to find and eliminate the werewolves.
-*   **Analyze & Accuse:** Listen carefully, look for inconsistencies. Voice your suspicions and reasoning clearly. Ask probing questions.
-*   **Remember Defenses:** Pay close attention to who defends whom. If someone defends a player who is later revealed as a werewolf, that defender becomes highly suspicious!`;
+*   **Interrogate & Accuse Ferociously:** Don't just listen, actively INTERROGATE players. Demand detailed explanations for votes and statements. Share your suspicions and reasoning clearly. **Your goal is to build consensus among villagers to correctly identify and vote out a werewolf.** Form alliances, but be quick to turn on anyone who seems even slightly suspicious. Loyalty is secondary to survival.`;
     }
 
     return `You are playing a character in a game of Werewolf.
@@ -197,20 +196,22 @@ Living Players: ${livingPlayerNames.join(', ')}
 **Recent Conversation & Events:** 
 ${conversationHistory || '[No discussion yet this round]'} 
 
-It's your turn to speak. Speak in the FIRST PERSON using an INFORMAL, conversational village tone.
-Your goal is to figure out who the werewolves are and potentially convince others (or deceive them if you are a werewolf!).
+It's your turn to speak. Speak in the FIRST PERSON with PASSION and CONVICTION. Embrace the tension. Don't be afraid to show frustration, anger, suspicion, or even panic directly. Make your statements impactful.
+Your goal is to figure out who the werewolves are AND SURVIVE, potentially convincing others (or deceiving them if you are a werewolf!). **Influence the upcoming vote through your statements!**
 
 **General Guidelines:**
-*   **Be Interactive:** Directly address other players BY NAME. Reference what someone specific said earlier (including **Moderator Announcements** within the conversation history). Ask questions.
-*   **Be Suspicious (or Sow Suspicion):** Look for slips of the tongue, contradictions, or weak arguments. Point them out! If you're a wolf, create suspicion around others.
-*   **Be Assertive (or Deceptive):** Defend yourself if accused, deflect suspicion, or make bold accusations based on your persona and role. Don't be afraid to be wrong (or to lie!).
-*   **Use Your Persona:** If you're grumpy, be grumpy. If you're shrewd, be shrewd. If your character would call someone a 'fool' or 'liar', do it (within reason).
+*   **Be Interactive & Confrontational:** Directly address other players BY NAME. Reference specific things they said. Challenge them directly!
+*   **Hunt for Weakness:** Actively HUNT for inconsistencies, contradictions, and weak arguments. Call players out DIRECTLY and AGGRESSIVELY. ACCUSE forcefully. Demand answers.
+*   **State Your Case & Call for Votes:** Clearly explain *why* you suspect someone (or why someone is innocent). Don't be afraid to explicitly suggest who others should vote for based on your reasoning (e.g., 'Based on this, I believe we must vote for [Player Name]').
+*   **Be Bold & Deceptive:** Make FIRM accusations, even if not 100% certain. Lie convincingly if you must. Hesitation is death. Making bold (even wrong) accusations or telling convincing lies is better than being passive.
+*   **Embrace Conflict:** Disagreements and direct challenges make the game exciting. Don't shy away from confronting others or defending yourself fiercely. If accused, counter-accuse!
+*   **FULLY EMBODY Your Persona:** Exaggerate your character's flaws and darker traits for dramatic effect. If grumpy, be accusatory. If paranoid, trust no one.
 
-**Your Role-Specific Strategy:**
+**Your Role-Specific Strategy (More Aggressive):**
 ${roleSpecificGuidance}
 
-Keep your response CONCISE (2-4 sentences, approx 30-50 words).
-Do NOT explicitly state your role (${role}) unless it's a calculated, desperate move.`;
+Keep your response FOCUSED, but allow for 3-5 sentences (approx 40-70 words) if needed to make a strong point or accusation.
+Do NOT explicitly state your role (${role}) unless it's a calculated, desperate, and DRAMATIC move.`;
 };
 
 /**
@@ -221,7 +222,8 @@ export const VOTING_PROMPT = (
     characterName: string,
     role: string,
     round: number,
-    targetList: string // Already formatted numbered list
+    targetList: string, // Already formatted numbered list
+    conversationHistory: string // Added history
 ) =>
 `You are playing a character in a game of Werewolf.
 
@@ -233,7 +235,11 @@ Your Assigned Role (SECRET): ${role}
 
 The current game phase is Voting (Round ${round}). Discussion is over. 
 It's time to eliminate someone you suspect is a werewolf based on the discussion and events so far.
-Think carefully about who seemed most suspicious or deceitful.
+
+**Summary of Today's Discussion:**
+${conversationHistory || '[No discussion occurred this round, or first round vote]'}
+
+Think carefully about who seemed most suspicious or deceitful based on the discussion.
 
 Choose one player from the list below to vote for elimination. 
 CRITICAL: Respond ONLY with the single number corresponding to the player. Do NOT include any other text, formatting, explanations, or reasoning.
@@ -262,3 +268,9 @@ export const GAME_TITLE_DESCRIPTION_PROMPT = (
 export const GENERATE_UI_TRANSLATION_PROMPT = (targetLanguageName: string): string => {
   return `You are a precise translation assistant. The user will provide a JSON array of objects representing English phrases and their base translations for a UI. Each object has keys "phrase", "translation", and "description". Your task is to translate ONLY the "translation" field of each object into ${targetLanguageName}. Return ONLY the complete JSON array for the ${targetLanguageName} language, maintaining the exact same structure and "phrase" keys. Do not include any explanations, markdown formatting, or other text outside the JSON array. Ensure proper JSON formatting, especially correct escaping of quotes within translated strings if necessary.`;
 };
+
+/**
+ * Generates the system prompt for the simple text translation helper.
+ */
+export const TRANSLATE_TEXT_SYSTEM_PROMPT = (targetLanguage: SupportedLanguage): string => 
+  `You are a helpful translation assistant. Translate the user's text accurately into ${targetLanguage}. Respond ONLY with the translated text, nothing else.`;

@@ -14,6 +14,7 @@ import {
   advancePhase,
   checkWinCondition,
   determineNextSpeaker,
+  calculateTotalDiscussionTurns,
 } from "@/lib/game/engine";
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import type {
@@ -1055,36 +1056,36 @@ export async function runGameTurnAction(gameId: string) {
           finalMessage,
         ],
         turnOrderIndex: stateAfterThinking.turnOrderIndex + 1,
+        updatedAt: Date.now(),
       };
 
-      // 7. Check if discussion round is over (e.g., all living players have spoken once)
-      // If over, transition to Voting phase.
-      const playersSpokenThisRound = finalState.turnOrderIndex;
-      if (playersSpokenThisRound >= finalState.livingPlayerIds.length) {
+      // 7. Check if discussion phase is over
+      const totalTurnsTaken = finalState.turnOrderIndex;
+      const totalExpectedTurns = calculateTotalDiscussionTurns(finalState); // Use helper from engine
+
+      if (totalTurnsTaken >= totalExpectedTurns) {
         console.log(
-          "All living players have spoken this round. Transitioning to Voting..."
+          `All ${totalExpectedTurns} discussion turns completed. Transitioning to Voting...`
         );
 
         // Advance to Voting Phase
-        const stateBeforeVote = advancePhase(finalState);
+        const stateBeforeVote = advancePhase(finalState); // advancePhase resets turnOrderIndex
 
         // Add moderator message for voting start
-        // --- Translate Moderator Message --- 
         const originalVoteStartMsg = 'Discussion time is over. It is now time to vote for who to eliminate.';
         const translatedVoteStartMsg = await translateText(
           originalVoteStartMsg,
           language
         );
-        // --- End Translation ---
         const voteStartMessage: ChatMessage = {
-          messageId: `msg-${crypto.randomUUID()}`,
+          messageId: `msg-${crypto.randomUUID()}-vote-start`,
           gameId: gameId,
           speaker: { type: "moderator" },
           speakerName: "Moderator",
           content: translatedVoteStartMsg,
           timestamp: Date.now(),
           round: stateBeforeVote.round,
-          phase: stateBeforeVote.phase,
+          phase: stateBeforeVote.phase, // Should be 'Voting'
           audience: { type: "all" },
         };
 
@@ -1094,65 +1095,80 @@ export async function runGameTurnAction(gameId: string) {
             ...stateBeforeVote.conversationLog,
             voteStartMessage,
           ],
-          turnOrderIndex: 0, // Reset index for voting phase
-          votes: [], // Clear any previous votes
+          // turnOrderIndex is already reset by advancePhase
+          votes: [], // Clear any previous votes from other phases potentially
         };
         console.log(`Game ${gameId} advanced to ${finalState.phase} phase.`);
       } else {
-        console.log(
-          `Player ${nextSpeaker.name} finished speaking. ${
-            finalState.livingPlayerIds.length - playersSpokenThisRound
-          } players remaining this round.`
-        );
+         // Discussion continues
+         // Calculate the effective index within the living players for the *next* turn
+         const nextEffectiveIndex = totalTurnsTaken % finalState.livingPlayerIds.length;
+         const nextSpeakerId = finalState.livingPlayerIds[nextEffectiveIndex];
+         const nextSpeakerName = finalState.players[nextSpeakerId]?.name || 'Next Player';
+         const remainingTurns = totalExpectedTurns - totalTurnsTaken;
+
+         console.log(
+          `Player ${nextSpeaker.name} finished speaking. Turn ${totalTurnsTaken}/${totalExpectedTurns}. Next up: ${nextSpeakerName}. (${remainingTurns} turns remaining)`
+         );
       }
 
       // 8. Save final updated state for this turn/phase change
       await gameStateManager.updateGameState(gameId, finalState);
       console.log(
-        `DayDiscussion turn processed for ${nextSpeaker.name}. Current index: ${finalState.turnOrderIndex}`
+        `DayDiscussion turn processed for ${nextSpeaker.name}. Total turns taken: ${finalState.turnOrderIndex}`
       );
-    } else {
-      // All players have spoken in discussion. Time to advance to Voting.
-      console.log("All players discussed. Advancing phase to Voting...");
+    } else { // determineNextSpeaker returned null
+        // This case should now only happen if determineNextSpeaker correctly identifies
+        // that all expected discussion turns are complete. We advance the phase.
 
-      // Fetch the latest state before advancing
-      const stateBeforeVote = await gameStateManager.getGameState(gameId);
-      if (!stateBeforeVote) {
-        console.error(
-          `Game state lost before advancing to Voting for ${gameId}`
-        );
-        return;
-      }
+        // Safety check: Ensure the phase is still DayDiscussion before advancing
+        if (currentState.phase !== 'DayDiscussion') {
+             console.warn(`Attempted to advance from non-discussion phase (${currentState.phase}) when nextSpeaker was null. Aborting advance.`);
+             // Revalidate and exit? Or trust the initial check? For now, just log.
+        } else {
+            console.log("All expected discussion turns completed (determineNextSpeaker returned null). Advancing phase to Voting...");
 
-      let nextState = advancePhase(stateBeforeVote);
+            // Fetch the latest state before advancing (paranoid check)
+            const stateBeforeVote = await gameStateManager.getGameState(gameId);
+            if (!stateBeforeVote) {
+                console.error(`Game state lost before advancing to Voting (null speaker case) for ${gameId}`);
+                return;
+            }
+            if (stateBeforeVote.phase !== 'DayDiscussion') {
+                 console.warn(`State phase changed to ${stateBeforeVote.phase} before advancing from null speaker case. Aborting.`);
+                 return;
+            }
 
-      // Add moderator message for voting start
-      // --- Translate Moderator Message --- 
-      const originalVoteStartMsg = 'Discussion time is over. It is now time to vote for who to eliminate.';
-      const translatedVoteStartMsg = await translateText(
-        originalVoteStartMsg,
-        language
-      );
-      // --- End Translation ---
-      const voteStartMessage: ChatMessage = {
-        messageId: `msg-${crypto.randomUUID()}`,
-        gameId: gameId,
-        speaker: { type: "moderator" },
-        speakerName: "Moderator",
-        content: translatedVoteStartMsg,
-        timestamp: Date.now(),
-        round: stateBeforeVote.round,
-        phase: stateBeforeVote.phase,
-        audience: { type: "all" },
-      };
-      nextState = {
-        ...nextState,
-        conversationLog: [...nextState.conversationLog, voteStartMessage],
-      };
 
-      // Save the updated state with the new phase
-      await gameStateManager.updateGameState(gameId, nextState);
-      console.log(`Game ${gameId} advanced from DayDiscussion to Voting.`);
+            let nextState = advancePhase(stateBeforeVote); // advancePhase resets turnOrderIndex
+
+            // Add moderator message for voting start
+            const originalVoteStartMsg = 'Discussion time is over. It is now time to vote for who to eliminate.';
+            const translatedVoteStartMsg = await translateText(
+                originalVoteStartMsg,
+                language
+            );
+            const voteStartMessage: ChatMessage = {
+                messageId: `msg-${crypto.randomUUID()}-vote-start-alt`, // Different ID for debugging
+                gameId: gameId,
+                speaker: { type: "moderator" },
+                speakerName: "Moderator",
+                content: translatedVoteStartMsg,
+                timestamp: Date.now(),
+                round: nextState.round,
+                phase: nextState.phase, // Should be 'Voting'
+                audience: { type: "all" },
+            };
+            nextState = {
+                ...nextState,
+                conversationLog: [...nextState.conversationLog, voteStartMessage],
+                 votes: [], // Ensure votes are cleared
+            };
+
+            // Save the updated state with the new phase
+            await gameStateManager.updateGameState(gameId, nextState);
+            console.log(`Game ${gameId} advanced from DayDiscussion to Voting (null speaker case).`);
+        }
     }
   }
 
@@ -1183,12 +1199,23 @@ export async function runGameTurnAction(gameId: string) {
         .map((p, index) => `${index + 1}. ${p.name}`)
         .join("\n");
 
+      // --- Extract relevant conversation history for the prompt ---
+      const relevantHistory = currentState.conversationLog
+        .filter(
+          (msg) =>
+            msg.phase === "DayDiscussion" && msg.round === currentState.round
+        )
+        .map((msg) => `${msg.speakerName}: ${msg.content}`)
+        .join("\n");
+      // --- End history extraction ---
+
       const systemPrompt = VOTING_PROMPT(
         voter.persona,
         voter.name,
         voter.role,
         currentState.round,
-        numberedTargetList
+        numberedTargetList,
+        relevantHistory // Pass the extracted history
       );
 
       const promptMessages: ChatCompletionMessageParam[] = [

@@ -153,25 +153,37 @@ export function advancePhase(currentState: GameState): GameState {
     let nextPhase: GamePhase;
     let nextRound = currentState.round;
     let nextTurnOrderIndex = 0; // Reset index for the start of the new phase
+    let nextTurnOrder = [...currentState.turnOrder]; // Default to current order
 
     switch (currentState.phase) {
         case 'Night':
             // If it's the end of the very first night (Round 1), go to introductions.
             // Otherwise, go directly to discussion.
             nextPhase = currentState.round === 0 ? 'DayIntroductions' : 'DayDiscussion';
+            if (nextPhase === 'DayDiscussion') {
+                // Shuffle living players for the new day's discussion order
+                nextTurnOrder = shuffleArray([...currentState.livingPlayerIds]);
+                console.log(`Shuffled turn order for Day ${nextRound} Discussion:`, nextTurnOrder);
+            }
             console.log(`Advancing from Night to ${nextPhase}, Round ${nextRound}`);
             break;
         case 'DayIntroductions': // After introductions, move to discussion
-            nextPhase = 'DayDiscussion'; 
+            nextPhase = 'DayDiscussion';
+            // Shuffle living players for the first discussion round
+            nextTurnOrder = shuffleArray([...currentState.livingPlayerIds]);
+            console.log(`Shuffled turn order for Day ${nextRound} Discussion (post-intro):`, nextTurnOrder);
             console.log(`Advancing from DayIntroductions to DayDiscussion, Round ${nextRound}`);
             break;
         case 'DayDiscussion': // After discussion, move to voting
             nextPhase = 'Voting';
+            // Voting phase doesn't use turn order in the same way, keep existing order for potential future use?
+            // Or clear it? For now, keep it.
             console.log(`Advancing from DayDiscussion to Voting, Round ${nextRound}`);
             break;
         case 'Voting': // After voting, move to night, start next round
             nextPhase = 'Night';
-            nextRound++; 
+            nextRound++;
+            // Night phase doesn't use turn order, keep existing order.
             console.log(`Advancing from Voting to Night, starting Round ${nextRound}`);
             break;
         // Should not happen if called correctly, but good practice:
@@ -180,6 +192,7 @@ export function advancePhase(currentState: GameState): GameState {
              // Attempt to recover or throw an error? For now, stay in phase.
              nextPhase = currentState.phase;
              nextTurnOrderIndex = currentState.turnOrderIndex; // Keep current index
+             nextTurnOrder = currentState.turnOrder; // Keep current order
              break;
     }
 
@@ -188,9 +201,10 @@ export function advancePhase(currentState: GameState): GameState {
         ...currentState,
         phase: nextPhase,
         round: nextRound,
+        turnOrder: nextTurnOrder, // Use the potentially shuffled order
         turnOrderIndex: nextTurnOrderIndex,
         // Clear transient state from the previous phase
-        votes: [], 
+        votes: [],
         nightActions: [],
         lastEliminatedPlayerId: currentState.phase === 'Voting' ? currentState.lastEliminatedPlayerId : null, // Preserve elimination from vote
         lastWerewolfTargetId: currentState.phase === 'Night' ? currentState.lastWerewolfTargetId : null, // Preserve night target
@@ -244,10 +258,22 @@ export function checkWinCondition(state: GameState): WinCondition | null {
 // --- Turn Order Logic ---
 
 /**
- * Determines the ID of the next player scheduled to speak based on the current phase and turn index.
+ * Calculates the total number of turns expected in the current discussion round.
  *
  * @param currentState The current state of the game.
- * @returns The ID of the next player to speak, or null if the phase doesn't involve speaking turns or if all players have spoken.
+ * @returns The total number of expected discussion turns for the round.
+ */
+export function calculateTotalDiscussionTurns(currentState: GameState): number {
+    const discussionRoundsPerPlayer = currentState.settings.discussionRoundsPerPlayer || 1;
+    return currentState.livingPlayerIds.length * discussionRoundsPerPlayer;
+}
+
+/**
+ * Determines the ID of the next player scheduled to speak based on the current phase and turn index,
+ * considering the number of discussion rounds per player.
+ *
+ * @param currentState The current state of the game.
+ * @returns The ID of the next player to speak, or null if the phase doesn't involve speaking turns or if all discussion turns are complete.
  */
 export function determineNextSpeaker(currentState: GameState): string | null {
     // Speaking happens during Introduction and Discussion phases using the turnOrder array
