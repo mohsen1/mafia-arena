@@ -18,13 +18,13 @@ import React, {
   useState,
   useRef,
   useEffect,
-  ReactNode,
   useId,
   useCallback,
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { useSpokenText } from "@/context/SpokenTextContext"; // Corrected path
+import type { ReactNode } from "react"; // Import ReactNode as type
+import { useSpokenText } from "@/context/SpokenTextContext";
 import { Button } from "@/components/ui/button"; // Assuming you use shadcn/ui
 import { PlayIcon, PauseIcon, Loader2 } from "lucide-react"; // Use lucide-react icons
 
@@ -120,30 +120,31 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     // Effect to handle audio time updates for highlighting
     useEffect(() => {
       const audio = audioRef.current;
-      if (isPlaying && audio && alignmentData) {
-        const handleTimeUpdate = () => {
-          if (!audioRef.current) return; // Guard against race condition on unmount
-          const index = findCharacterIndexForTime(audioRef.current.currentTime);
-          setHighlightedCharIndex(index);
-        };
-
-        audio.addEventListener("timeupdate", handleTimeUpdate);
-        console.log(`[SpeakText ${componentId}] Added timeupdate listener.`);
-
-        // Cleanup listener
-        return () => {
-          // Check if audio still exists before removing listener
-          audio?.removeEventListener("timeupdate", handleTimeUpdate);
-          console.log(
-            `[SpeakText ${componentId}] Removed timeupdate listener.`
-          );
-        };
-      } else {
+      if (!isPlaying || !audio || !alignmentData) {
         // Reset index if not playing, *unless* playback has completed successfully
         if (!hasPlaybackCompleted) {
           setHighlightedCharIndex(-1);
         }
+        return; // Exit early if not playing or required data is missing
       }
+
+      const handleTimeUpdate = () => {
+        if (!audioRef.current) return; // Guard against race condition on unmount
+        const index = findCharacterIndexForTime(audioRef.current.currentTime);
+        setHighlightedCharIndex(index);
+      };
+
+      audio.addEventListener("timeupdate", handleTimeUpdate);
+      console.log(`[SpeakText ${componentId}] Added timeupdate listener.`);
+
+      // Cleanup listener
+      return () => {
+        // Check if audio still exists before removing listener
+        audio?.removeEventListener("timeupdate", handleTimeUpdate);
+        console.log(
+          `[SpeakText ${componentId}] Removed timeupdate listener.`
+        );
+      };
     }, [
       isPlaying,
       alignmentData,
@@ -232,9 +233,8 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         setIsLoading(true);
         try {
           if (
-            currentAudio &&
-            currentAudio.paused &&
-            currentAudio.src &&
+            currentAudio?.paused && // Optional chaining
+            currentAudio?.src && // Optional chaining
             !triggeredExternally
           ) {
             console.log(`[SpeakText ${componentId}] Resuming paused audio.`);
@@ -329,9 +329,8 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                 // Delayed cleanup
                 setTimeout(() => {
                   if (audioRef.current) {
-                    // Check ref hasn't been nulled by unmount
                     const endedAudioUrl = audioRef.current.src;
-                    if (endedAudioUrl && endedAudioUrl.startsWith("blob:")) {
+                    if (endedAudioUrl?.startsWith("blob:")) { // Optional chaining
                       URL.revokeObjectURL(endedAudioUrl);
                       console.log(
                         `[SpeakText ${componentId}] Revoked blob URL on ended (delayed).`
@@ -366,8 +365,8 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                 );
 
                 // Perform cleanup *after* state updates
-                const errorAudioUrl = audioRef.current.src;
-                if (errorAudioUrl && errorAudioUrl.startsWith("blob:")) {
+                const errorAudioUrl = audioRef.current?.src; // Optional chaining
+                if (errorAudioUrl?.startsWith("blob:")) { // Optional chaining
                   URL.revokeObjectURL(errorAudioUrl);
                   console.log(
                     `[SpeakText ${componentId}] Revoked blob URL on error.`
@@ -403,10 +402,9 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
             }
 
             // Clean up previous blob URL if it exists and differs from the new one
-            const previousSrc = audioToPlay.src;
+            const previousSrc = audioToPlay?.src; // Optional chaining
             if (
-              previousSrc &&
-              previousSrc.startsWith("blob:") &&
+              previousSrc?.startsWith("blob:") && // Optional chaining
               previousSrc !== audioUrl
             ) {
               URL.revokeObjectURL(previousSrc);
@@ -425,12 +423,16 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
             setIsPlaying(true); // Set state after play() is invoked
             console.log(`[SpeakText ${componentId}] Playback initiated.`);
           }
-        } catch (err: any) {
+        } catch (err) { // Use unknown type and check within block
+          let errorMessage = "Failed to process audio.";
+          if (err instanceof Error) {
+            errorMessage = err.message;
+          }
           console.error(
             `[SpeakText ${componentId}] Error in handlePlayPause catch block:`,
             err
           );
-          setError(err.message || "Failed to process audio.");
+          setError(errorMessage);
           setIsPlaying(false);
           setHasPlaybackCompleted(false);
           // Ensure context is released on error only if we successfully acquired it
@@ -507,7 +509,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         if (audio) {
           audio.pause();
           const src = audio.src;
-          if (src && src.startsWith("blob:")) {
+          if (src?.startsWith("blob:")) { // Optional chaining
             URL.revokeObjectURL(src);
           }
           audio.onended = null;

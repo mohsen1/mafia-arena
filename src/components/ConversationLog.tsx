@@ -15,7 +15,7 @@ export function ConversationLog() {
 
     return (
         // Revert to simple div with overflow for scrolling
-        <div className="flex-grow bg-gray-50 dark:bg-gray-900 p-4 overflow-y-auto">
+        <div className="flex-grow bg-background p-4 overflow-y-auto">
             <div className="space-y-4">
                 {displayLog.length > 0 ? (
                     displayLog.map((message) => (
@@ -24,7 +24,7 @@ export function ConversationLog() {
                     ))
                 ) : (
                     // Use t() for empty message
-                    <p className="text-gray-500 dark:text-gray-400 italic text-center py-4">
+                    <p className="text-muted-foreground italic text-center py-4">
                         {t('EmptyConversationLog', 'The conversation log is empty.')}
                     </p>
                 )}

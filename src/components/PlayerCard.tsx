@@ -1,30 +1,43 @@
 import Image from "next/image";
-import { FilteredGameState } from "@/lib/types/game";
-import { Role } from "@/lib/types/game"; // Assuming Role type exists
-// Import the context hook to get the t function
+import type { FilteredGameState, PlayerStatus, Role } from "@/lib/types/game";
+// Removed: import type { Player } from '@/lib/types/game';
 import { useGameContext } from "@/context/GameContext";
 
-// Player Card Component with Dark Mode
-export function PlayerCard({
-  player,
-  role,
-}: {
-  player: FilteredGameState["players"][string];
+// Define the props for PlayerCard using the type from FilteredGameState
+type FilteredPlayer = FilteredGameState['players'][string];
+
+interface PlayerCardProps {
+  player: FilteredPlayer; // Use the filtered type
+  status: PlayerStatus;
   role?: Role;
-}) {
-  // Get t function from context
-  const { t } = useGameContext();
+}
+
+// Player Card Component with Dark Mode
+export function PlayerCard({ player, status, role }: PlayerCardProps) {
+  const { t, gameState } = useGameContext();
+
+  // Determine player role visibility based on game phase
+  const showRole = gameState?.phase === 'GameOver';
+  // Determine voice ID based on game phase or player data
+  const voiceId = showRole ? player.voiceId : undefined; // Example: only show voiceId if role is visible
+
+  // Construct metadata string based on visibility
+  let metadataString = `Status: ${t(`PlayerStatus${status.charAt(0).toUpperCase() + status.slice(1)}`, status)}`;
+  if (showRole && role) {
+    metadataString += ` | Role: ${t(role, role)}`;
+  }
 
   const metadata = [];
-  if (role) metadata.push(t(role, role));
-  if (player.status === "dead") metadata.push(t('PlayerStatusDead', 'Dead'));
   metadata.push(player.aiModel);
-  const metadataString = metadata.join(" • ");
+  metadataString = metadata.join(" • ");
 
   // Get the translated alt text template
-  const altTextTemplate = t('PlayerImageAlt', `Image of {name}`);
-  // Replace the placeholder with the actual player name
-  const altText = altTextTemplate.replace("{name}", player.name);
+  const altTextTemplate = t(
+    'PlayerImageAltText', 
+    "Image of {{name}}"
+  );
+  // Format the alt text
+  const altText = altTextTemplate.replace("{{name}}", player.name);
   
 
   return (
@@ -39,18 +52,18 @@ export function PlayerCard({
           alt={altText}
           width={48} // Smaller size
           height={48}
-          className="rounded-full me-3 object-cover border-2 border-gray-300 dark:border-gray-600 flex-shrink-0" 
+          className="rounded-full me-3 object-cover border-2 border-border flex-shrink-0" 
         />
       ) : (
-        <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 me-3 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs flex-shrink-0">
+        <div className="w-12 h-12 rounded-full bg-muted me-3 flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">
           {player.name.substring(0, 2)}
         </div>
       )}
       <div className="flex-grow">
-        <h3 className="text-md font-semibold text-gray-800 dark:text-gray-100 truncate">
+        <h3 className="text-md font-semibold text-foreground truncate">
           {player.name}
         </h3>
-        <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">
+        <p className="text-xs text-muted-foreground capitalize">
           {metadataString}
         </p>
       </div>

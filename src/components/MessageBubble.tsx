@@ -1,9 +1,11 @@
 'use client';
 
+import React from 'react';
 import Image from 'next/image';
-import { FilteredGameState, ChatMessage } from "@/lib/types/game";
+import type { FilteredGameState, ChatMessage } from "@/lib/types/game";
 import { useGameContext } from '@/context/GameContext'; // Import context hook
-import { SpeakText } from './SpeakText'; // Import SpeakText
+import { SpeakText } from '@/components/SpeakText'; // Import SpeakText
+import { useTranslation } from '@/hooks/useTranslation';
 
 // Define the props
 interface MessageBubbleProps {
@@ -33,7 +35,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     };
 
     return (
-        <div className={`flex items-start gap-3 p-2 rounded-lg transition-colors duration-200 `}>
+        <div className="flex items-start gap-3 p-2 rounded-lg transition-colors duration-200">
             {/* Speaker Image */} 
              <div className="flex-shrink-0 mt-1">
                  {imageUrl ? (
@@ -42,10 +44,10 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                          alt={`Image of ${message.speakerName}`}
                          width={32}
                          height={32}
-                         className="rounded-full object-cover border border-gray-300 dark:border-gray-600"
+                         className="rounded-full object-cover border border-border"
                      />
                  ) : (
-                     <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-400 text-[10px] font-bold">
+                     <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-[10px] font-bold">
                          {message.speakerName?.substring(0, 1) || 'P'} 
                      </div>
                  )}
@@ -53,7 +55,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
             {/* Message Content */} 
             <div className="flex-grow">
                 {/* Speaker Name */}
-                <span className={`font-semibold text-gray-900 dark:text-gray-500 ${isModerator ? 'text-blue-800 dark:text-blue-200' : ''}`}>
+                <span className={`font-semibold text-foreground ${isModerator ? 'text-primary' : ''}`}>
                     {isModerator ? t('ModeratorLabel', 'Moderator') : message.speakerName}:
                 </span>
                 {/* Use SpeakText for the message content, pass onEnd */}
@@ -66,7 +68,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                     {message.content}
                 </SpeakText>
                 {/* Timestamp (moved below SpeakText) */}
-                <span className="text-xs text-gray-500 dark:text-gray-400 block text-right opacity-75 mt-1">
+                <span className="text-xs text-muted-foreground block text-right opacity-75 mt-1">
                     R{message.round} {message.phase}
                 </span>
             </div>

@@ -1,16 +1,18 @@
-import Link from 'next/link';
+import type { LinkProps } from "next/link";
+import Link from "next/link";
 import { gameStateManager } from '@/lib/state/gameStateManager';
-import { deleteGameAction, getOrGenerateTranslationsAction } from '@/app/actions/index';   
-import { FilteredGameState } from '@/lib/types/game';
+import { deleteGameAction, getOrGenerateTranslationsAction } from '@/app/actions/index';
+import type { FilteredGameState } from '@/lib/types/game';
 import StartGameForm from '@/components/StartGameForm';
 import { getGroqModels } from '@/lib/groq/api';
 import { Button } from '@/components/ui/button';
 import { headers } from 'next/headers';
-import { LanguageCode, supportedLanguagesMap } from '@/lib/translation/languages';
+import type { LanguageCode } from '@/lib/translation/languages';
+import { supportedLanguagesMap } from '@/lib/translation/languages';
+import { format } from "date-fns";
 
 // Pass translations object to GameCard instead of t function
 function GameCard({ game, translations }: { game: FilteredGameState, translations: Record<string, string> }) {
-    // Simple lookup function within GameCard
     const t = (key: string, fallback: string) => translations[key] || fallback;
     const deleteThisGame = deleteGameAction.bind(null, game.gameId);
 
@@ -23,16 +25,18 @@ function GameCard({ game, translations }: { game: FilteredGameState, translation
                     </Link>
                 </h3>
                 {game.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-2">{game.description}</p>
+                    <p className="text-sm text-muted-foreground italic mb-2">{game.description}</p>
                 )}
-                <p className="text-xs text-gray-500 dark:text-gray-500">
+                <p className="text-xs text-muted-foreground">
                     {t('GamePhaseLabel', 'Phase')}: <span className="font-medium capitalize">{t(`GamePhase${game.phase}`, game.phase)}</span> | 
-                    {t('RoundLabel', 'Round')}: <span className="font-medium">{game.round}</span>
+                    {t('RoundLabel', 'Round')}: <span className="font-medium">{game.round}</span> | 
+                    {t('PlayersLabel', 'Players')}: <span className="font-medium">{Object.keys(game.players).length}</span> | 
+                    {t('CreatedLabel', 'Created')}: <span className="font-medium">{format(new Date(game.createdAt), "PPpp")}</span>
                 </p>
             </div>
             <form action={deleteThisGame} className="flex-shrink-0">
                  <Button
-                     type="submit" 
+                     type="submit"
                      variant="outline"
                      size="sm"
                  >
@@ -45,8 +49,8 @@ function GameCard({ game, translations }: { game: FilteredGameState, translation
 
 // Define a standard PageProps type structure
 interface PageProps {
-    params: Promise<  { [key: string]: string }>;
-    searchParams: Promise< { [key: string]: string | string[] | undefined }>
+    params: { [key: string]: string };
+    searchParams: { [key: string]: string | string[] | undefined }
 }
 
 // Use the defined PageProps type for the Home component
@@ -56,30 +60,27 @@ export default async function Home({ searchParams }: PageProps) {
     const acceptLanguage = headersList.get('accept-language');
     
     // Prioritize lang query param, then header, then default
-    const langFromParam = (await searchParams)?.lang;
+    const langFromParam = searchParams?.lang;
     const potentialLangCodeFromHeader = acceptLanguage?.split(',')[0].split(';')[0].split('-')[0];
     const potentialLangCode = typeof langFromParam === 'string' ? langFromParam : (potentialLangCodeFromHeader || 'en');
     
     // Validate the potential language code using the keys of the map
-    const validatedLangCode: LanguageCode = Object.keys(supportedLanguagesMap).includes(potentialLangCode)
+    const validatedLangCode = (Object.keys(supportedLanguagesMap) as LanguageCode[]).includes(potentialLangCode as LanguageCode)
         ? potentialLangCode as LanguageCode 
         : 'en'; // Default to 'en' if not supported
     
     let translations: Record<string, string> = {};
     try {
-        // Use the validated code
         translations = await getOrGenerateTranslationsAction(validatedLangCode);
-        console.log(`[Home Page] Loaded translations for: ${validatedLangCode}`); // Log loaded language
+        console.log(`[Home Page] Loaded translations for: ${validatedLangCode}`);
     } catch (error) {
-        // Log error with the *validated* code used
         console.error(`[Home Page] Failed to load translations for ${validatedLangCode}:`, error);
-        // Fallback logic remains the same, trying 'en'
         if (validatedLangCode !== 'en') { 
             try {
                  translations = await getOrGenerateTranslationsAction('en');
-                 console.log(`[Home Page] Loaded fallback English translations.`);
+                 console.log("[Home Page] Loaded fallback English translations.");
             } catch (fallbackError) {
-                 console.error(`[Home Page] Failed to load fallback English translations:`, fallbackError);
+                 console.error("[Home Page] Failed to load fallback English translations:", fallbackError);
             }
         }
     }
@@ -91,15 +92,13 @@ export default async function Home({ searchParams }: PageProps) {
     const gameStatesResults = await Promise.all(gameStatesPromises);
     const existingGames = gameStatesResults.filter((state): state is FilteredGameState => state !== null);
 
-    // Use translations directly for server component text
-    const werewolfAITitle = translations['WerewolfAITitle'] || 'Werewolf AI';
-    const existingGamesHeading = translations['ExistingGamesHeading'] || 'Existing Games';
+    const werewolfAITitle = translations.WerewolfAITitle || 'Werewolf AI';
+    const existingGamesHeading = translations.ExistingGamesHeading || 'Existing Games';
 
     return (
         <main className=" mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen">
             <h1 className="text-4xl font-bold mt-8 mb-6 text-center">{werewolfAITitle}</h1>
 
-            {/* Pass translations object */}
             <StartGameForm availableModels={availableModels} translations={translations} />
 
             {existingGames.length > 0 && (

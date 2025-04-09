@@ -1,23 +1,24 @@
 'use client'; // Ensure this is a client component
 
+import React from 'react';
+import type { ConfigCharacterSlot, Role } from '@/lib/types/game';
 import Image from 'next/image';
-import { ConfigCharacterSlot, Role } from '@/lib/types/game';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
-import { Users, ServerCrash, Bot, X } from 'lucide-react';
+import { Users, ServerCrash, Bot, X, Loader2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface CharacterSlotItemProps {
     slot: ConfigCharacterSlot;
     index: number;
     availableModels: string[];
-    availableRoles: Role[]; // Pass available roles
+    availableRoles: Role[];
     isSubmitting: boolean;
-    canRemove: boolean; // Control remove button visibility
+    canRemove: boolean;
     onUpdateRole: (clientId: string, newRole: Role) => void;
     onUpdateModel: (clientId: string, newModel: string) => void;
     onRemove: (clientId: string) => void;
-    translations: Record<string, string>; // Accept translations prop
+    translations: Record<string, string>;
 }
 
 export function CharacterSlotItem({
@@ -30,12 +31,12 @@ export function CharacterSlotItem({
     onUpdateRole,
     onUpdateModel,
     onRemove,
-    translations // Destructure translations prop
+    translations
 }: CharacterSlotItemProps) {
     const { t } = useTranslation({ translations });
 
     return (
-        <li key={slot.clientId} className={`p-4 rounded-lg transition-all duration-300 ease-in-out flex flex-col gap-3 ${slot.generationError ? 'bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700' : 'bg-white dark:bg-gray-700'}`}>
+        <li key={slot.clientId} className={`p-4 rounded-lg transition-all duration-300 ease-in-out flex flex-col gap-3 ${slot.generationError ? 'bg-destructive/10 border border-destructive/50' : 'bg-card'}`}>
             {/* Top section: Status/Generated Info & Remove Button */}
             <div className="flex items-center justify-between gap-3">
                 {/* Left side: Status/Generated Info */}
@@ -45,29 +46,28 @@ export function CharacterSlotItem({
                             {slot.imageUrl ? (
                                 <Image src={slot.imageUrl} alt={slot.profile?.characterName || 'Character'} width={40} height={40} className="rounded-full object-cover w-10 h-10 flex-shrink-0" />
                             ) : (
-                                <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
-                                    <Users className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                                    <Users className="h-5 w-5 text-muted-foreground" />
                                 </div>
                             )}
                             <div className="truncate min-w-0">
-                                <span className="font-medium truncate block text-sm text-gray-800 dark:text-gray-100" title={slot.profile?.characterName}>
+                                <span className="font-medium truncate block text-sm text-foreground" title={slot.profile?.characterName}>
                                     {slot.profile?.characterName || t('UnnamedCharacterLabel', 'Unnamed')}
                                 </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">({t(slot.assignedRole || 'RoleUnknown', slot.assignedRole || 'Unknown')})</span>
+                                <span className="text-xs text-muted-foreground">({t(slot.assignedRole || 'RoleUnknown', slot.assignedRole || 'Unknown')})</span>
                             </div>
                         </>
                     ) : slot.generationError ? (
-                         <div className="flex items-center text-red-600 dark:text-red-400 text-sm flex-grow">
+                         <div className="flex items-center text-destructive text-sm flex-grow">
                               <ServerCrash className="h-4 w-4 mr-2 flex-shrink-0"/>
                               <span className="truncate" title={slot.generationError}>{t('GenerationErrorPrefix', 'Error')}: {slot.generationError}</span>
                          </div>
                      ) : (
-                        // Display Placeholder before generation - Removed Slot # and Role text
-                        <div className="flex items-center text-gray-500 dark:text-gray-400 flex-grow">
-                            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                        // Display Placeholder before generation - Use muted
+                        <div className="flex items-center text-muted-foreground flex-grow">
+                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                                  <Bot className="h-5 w-5" />
                             </div>
-                            {/* Removed redundant text: Slot #{index + 1} ({t(slot.roleSelection, slot.roleSelection)}) */}
                              <span className="ml-2 text-sm italic">{t('PlayerSlotPendingLabel', 'Player Slot')}</span>
                         </div>
                     )}
@@ -81,10 +81,10 @@ export function CharacterSlotItem({
                        size="icon"
                        onClick={() => onRemove(slot.clientId)}
                        disabled={isSubmitting}
-                       className="p-1 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-500 h-9 w-9 flex-shrink-0"
-                       aria-label={t('RemovePlayerSlotAriaLabel', 'Remove player slot') + ` ${index + 1}`} // Keep index for aria-label clarity
+                       className="p-1 text-muted-foreground hover:text-destructive h-9 w-9 flex-shrink-0"
+                       aria-label={`${t('RemovePlayerSlotAriaLabel', 'Remove player slot')} ${index + 1}`}
                      >
-                       <X className="h-4 w-4" />
+                       {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-5 w-5" />}
                    </Button>
                )}
             </div>

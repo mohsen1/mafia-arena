@@ -34,8 +34,7 @@ export function GameSidebar() {
             <PlayerCard
               key={player.id}
               player={player}
-              // Conditionally pass role only if player is dead
-              role={deadPlayerIds.includes(player.id) ? player.role : undefined}
+              status={player.status}
             />
           ))}
           {/* Remove separate rendering for living/dead players */}

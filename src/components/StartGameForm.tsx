@@ -11,14 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"; // Import Select components
 import { Switch } from "@/components/ui/switch"; // Import Switch component
+import type { SupportedLanguage } from "@/hooks/useGameConfig"; // Use import type
 import {
-  SupportedLanguage,
   supportedLanguages,
   useGameConfig,
-} from "@/hooks/useGameConfig"; // Import the custom hook
+} from "@/hooks/useGameConfig";
 import { useTranslation } from "@/hooks/useTranslation";
-import { mapLanguageNameToCode } from "@/lib/translation/languages"; // Need this
-import { Role } from "@/lib/types/game"; // Simplified imports
+import { mapLanguageNameToCode } from "@/lib/translation/languages";
+import type { Role } from "@/lib/types/game"; // Use import type
 import {
   AlertTriangle,
   CheckCircle2,
@@ -109,25 +109,25 @@ export default function StartGameForm({
   }, [selectedLanguage]);
 
   return (
-    <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg relative">
+    <div className="mb-8 p-6 bg-card rounded-lg relative">
       {/* Display loading indicator (submission or translation loading) */}
       {(isLoading || isTLoading) && (
-        <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center z-10">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
 
-      <h2 className="text-2xl font-bold mb-6 text-gray-700 dark:text-gray-300 text-center">
+      <h2 className="text-2xl font-bold mb-6 text-foreground text-center">
         {t("ConfigureNewGameTitle", "Configure New Game")}
       </h2>
 
       {/* Player Count Adjustment - Use Formatter */}
       <div className="mb-4 flex items-center justify-center gap-4">
-        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">
+        <Label className="text-sm font-medium text-muted-foreground">
           {t("PlayersLabel", "Players")}:
         </Label>
         {/* Format the totalSlots number */}
-        <span className="text-lg font-semibold text-gray-800 dark:text-gray-200 w-10 text-center">
+        <span className="text-lg font-semibold text-foreground w-10 text-center">
           {numberFormatter.format(totalSlots)}
         </span>
         <Button
@@ -159,7 +159,7 @@ export default function StartGameForm({
       <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse">
         <Label
           htmlFor="global-model-select"
-          className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap"
+          className="text-sm font-medium text-muted-foreground whitespace-nowrap"
         >
           {t("GlobalAIModelLabel", "Global AI Model")}:
         </Label>
@@ -204,7 +204,7 @@ export default function StartGameForm({
       <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse">
         <Label
           htmlFor="language-select"
-          className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap"
+          className="text-sm font-medium text-muted-foreground whitespace-nowrap"
         >
           {t("GameLanguageLabel", "Game Language")}:
         </Label>
@@ -235,7 +235,7 @@ export default function StartGameForm({
       <div className="mb-6 flex items-center justify-center gap-3 rtl:flex-row-reverse">
         <Label
           htmlFor="audio-toggle"
-          className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap"
+          className="text-sm font-medium text-muted-foreground whitespace-nowrap"
         >
           {t("EnableAudioLabel", "Enable Audio")}:
         </Label>
@@ -272,25 +272,25 @@ export default function StartGameForm({
       </Button>
 
       {/* Character Slot List & Configuration */}
-      <div className="my-4 p-4 rounded-md bg-gray-50 dark:bg-gray-750 min-h-[200px]">
-        <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3 text-center flex items-center justify-center gap-2">
+      <div className="my-4 p-4 rounded-md bg-muted min-h-[200px]">
+        <h3 className="text-lg font-medium text-foreground mb-3 text-center flex items-center justify-center gap-2">
           <Settings2 className="h-5 w-5" />{" "}
           {t("CharacterSetupLabel", "Character Setup")}
         </h3>
         {!initialSlotsSet && availableModels.length > 0 && (
-          <div className="flex justify-center items-center h-20 text-gray-500 dark:text-gray-400">
+          <div className="flex justify-center items-center h-20 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin mr-2" />{" "}
             {t("LoadingSetupLabel", "Loading setup...")}
           </div>
         )}
         {availableModels.length === 0 && !initialSlotsSet && (
-          <p className="text-center text-sm text-yellow-600 dark:text-yellow-500">
+          <p className="text-center text-sm text-warning">
             {t("WaitingForModelsLabel", "Waiting for available AI models...")}
           </p>
         )}
 
         {initialSlotsSet && characterSlots.length > 0 && (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800 pr-2">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pr-2">
             {characterSlots.map((slot, index) => (
               <CharacterSlotItem
                 key={slot.clientId}
@@ -309,7 +309,7 @@ export default function StartGameForm({
           </ul>
         )}
         {initialSlotsSet && characterSlots.length === 0 && (
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400 italic py-4">
+          <p className="text-center text-sm text-muted-foreground italic py-4">
             {t(
               "AddPlayerSlotsPrompt",
               "Use the '+' button to add player slots (minimum 5)."
@@ -321,11 +321,11 @@ export default function StartGameForm({
       {/* Status/Error Message Area - Use t function */}
       <div className="h-10 text-center flex items-center justify-center px-2 mt-4 mb-2 text-sm">
         {errorMsg ? (
-          <p className="text-red-600 dark:text-red-400 flex items-center gap-1">
+          <p className="text-destructive flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" /> {t(errorMsg, errorMsg)}
           </p> // Attempt to translate error, fallback to original
         ) : isSubmitting ? (
-          <p className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
+          <p className="text-primary flex items-center gap-1">
             <Loader2 className="h-4 w-4 animate-spin" />{" "}
             {t(infoMsg || "ProcessingLabel", infoMsg || "Processing...")}
           </p> // Translate info message
@@ -333,10 +333,10 @@ export default function StartGameForm({
           <p
             className={`flex items-center gap-1 ${
               isPostGenValid === true
-                ? "text-green-600 dark:text-green-400"
+                ? "text-success"
                 : isPostGenValid === false
-                ? "text-yellow-600 dark:text-yellow-400"
-                : "text-gray-500 dark:text-gray-400"
+                ? "text-warning"
+                : "text-muted-foreground"
             }`}
           >
             {isPostGenValid === true ? (
@@ -348,21 +348,20 @@ export default function StartGameForm({
             {/* Translate post-gen validation msg */}
           </p>
         ) : configValidation.isValid ? (
-          <p className="text-green-600 dark:text-green-400 flex items-center gap-1">
+          <p className="text-success flex items-center gap-1">
             <CheckCircle2 className="h-4 w-4" />{" "}
-            {t("ConfigLooksGood_Prefix", "Configuration looks good") +
-              ` (${numberFormatter.format(totalSlots)} ${t(
-                "PlayersCount_Suffix",
-                "players"
-              )}).`}
+            {`${t("ConfigLooksGood_Prefix", "Configuration looks good")} ${t(
+              "ConfigLooksGood_Suffix",
+              "(Ready to Generate & Start)"
+            )}`}
           </p>
         ) : initialSlotsSet ? (
-          <p className="text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+          <p className="text-warning flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" />{" "}
             {t("ConfigInvalid", configValidation.message || "")}
           </p>
         ) : (
-          <p className="text-gray-500 dark:text-gray-400 italic">
+          <p className="text-muted-foreground italic">
             {t(
               "InitialConfigPrompt",
               "Configure player slots, roles, and models."
