@@ -12,7 +12,7 @@ export type GamePhase =
   | "Night"
   | "ResolveNight" // Process night actions (kills, saves, investigations)
   | "WerewolfChat"
-  | "DayIntroductions" // Players introduce themselves
+  | "Day Introductions" // Players introduce themselves
   | "DayDiscussion" // Main discussion phase
   | "Voting"
   | "GameOver";
@@ -133,7 +133,7 @@ export interface GameState {
   players: Readonly<Record<string, Player>>; // Map Player ID to Player object
   livingPlayerIds: string[]; // Maintain order for turns
   deadPlayerIds: string[]; // List of IDs
-  turnOrder: string[]; // Order for phases like DayIntroductions
+  turnOrder: string[]; // Order for phases like Day Introductions
   turnOrderIndex: number; // Current position in turnOrder
   phase: GamePhase;
   round: number;

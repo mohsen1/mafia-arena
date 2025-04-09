@@ -57,7 +57,7 @@ export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (
 // --- Game Turn Prompts ---
 
 /**
- * Generates the system prompt for a player's introduction during the DayIntroductions phase.
+ * Generates the system prompt for a player's introduction during the Day Introductions phase.
  */
 export const DAY_INTRODUCTION_PROMPT = (
   persona: string,

@@ -76,7 +76,7 @@ export async function runGameTurnAction(gameId: string) {
   // Check if it's the very start of the game (before first turn)
   if (
     currentState.round === 1 &&
-    currentState.phase === "DayIntroductions" &&
+    currentState.phase === "Day Introductions" &&
     currentState.turnOrderIndex === 0 &&
     currentState.conversationLog.length === 0 // Ensure it hasn't been added already
   ) {
@@ -122,8 +122,8 @@ export async function runGameTurnAction(gameId: string) {
   }
   // --- End Initial Welcome Message ---
 
-  // --- Logic specifically for DayIntroductions phase ---
-  if (currentState.phase === "DayIntroductions") {
+  // --- Logic specifically for Day Introductions phase ---
+  if (currentState.phase === "Day Introductions") {
     // Assign to block-scoped const for this phase's logic
     const gamePhaseState = currentState;
     const nextSpeakerId = determineNextSpeaker(gamePhaseState);
@@ -145,7 +145,7 @@ export async function runGameTurnAction(gameId: string) {
       const prevMessages = gamePhaseState.conversationLog.filter(
         (msg) =>
           // Get messages from the current round's introduction phase
-          (msg.phase === "DayIntroductions" &&
+          (msg.phase === "Day Introductions" &&
             msg.round === gamePhaseState.round &&
             !msg.isThinking) ||
           // OR get recent moderator messages from previous phases/rounds
@@ -324,7 +324,7 @@ export async function runGameTurnAction(gameId: string) {
       // Save the updated state with the new phase
       await gameStateManager.updateGameState(gameId, nextState);
       console.log(
-        `Game ${gameId} advanced from DayIntroductions to ${nextState.phase}`,
+        `Game ${gameId} advanced from Day Introductions to ${nextState.phase}`,
       );
     }
 
@@ -1082,7 +1082,7 @@ export async function runGameTurnAction(gameId: string) {
       return; // End the action here if game over
     }
 
-    // 7. If game not over, Advance Phase (to WerewolfChat, DayDiscussion, or DayIntroductions)
+    // 7. If game not over, Advance Phase (to WerewolfChat, DayDiscussion, or Day Introductions)
     let nextState = advancePhase(stateAfterResolution);
 
     // 8. Add Moderator Message for the *Start* of the NEXT Phase
@@ -1090,7 +1090,7 @@ export async function runGameTurnAction(gameId: string) {
     let phaseStartPhraseKey: string | undefined = undefined;
     let phaseStartPlaceholders: Record<string, string | number> = {};
 
-    if (nextState.phase === "DayIntroductions") {
+    if (nextState.phase === "Day Introductions") {
       originalPhaseStartMsg = `Welcome to "${nextState.title || "the game"}"! ${nextState.livingPlayerIds.length} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.`;
       phaseStartPhraseKey = "WelcomeMessage";
       phaseStartPlaceholders = {

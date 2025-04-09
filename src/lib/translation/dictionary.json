@@ -20,7 +20,6 @@
       "translation": "AI profile generation returned null.",
       "description": "Auto-added from fallback"
     },
-    
     {
       "phrase": "CharacterSetupLabel",
       "translation": "Character Setup",
@@ -33,8 +32,8 @@
     },
     {
       "phrase": "ConfigLooksGood",
-      "translation": "Configuration looks good ({playerCount} players).",
-      "description": "Validation message when config is valid. Placeholder: {playerCount}"
+      "translation": "Configuration looks good ({{playerCount}} players).",
+      "description": "Validation message when config is valid. Placeholder: {{playerCount}}"
     },
     {
       "phrase": "ConfigLooksGood_Prefix",
@@ -63,13 +62,13 @@
     },
     {
       "phrase": "DayStartDiscussionMessage",
-      "translation": "Day {round} begins. Discuss what happened and who you suspect.",
-      "description": "Message at the start of the day discussion phase. Placeholder: {round}"
+      "translation": "Day {{round}} begins. Discuss what happened and who you suspect.",
+      "description": "Message at the start of the day discussion phase. Placeholder: {{round}}"
     },
     {
       "phrase": "DayStartIntroductionMessage",
-      "translation": "Day {round} begins. Time for introductions.",
-      "description": "Message at the start of the day introduction phase (should only be round 1). Placeholder: {round}"
+      "translation": "Day {{round}} begins. Time for introductions.",
+      "description": "Message at the start of the day introduction phase (should only be round 1). Placeholder: {{round}}"
     },
     {
       "phrase": "DefaultGameTitle",
@@ -113,8 +112,8 @@
     },
     {
       "phrase": "GameOverMessage",
-      "translation": "The game is over! {outcomeMessage}",
-      "description": "Container message for game over, usually followed by win condition message. Placeholder: {outcomeMessage}"
+      "translation": "The game is over! {{outcomeMessage}}",
+      "description": "Container message for game over, usually followed by win condition message. Placeholder: {{outcomeMessage}}"
     },
     {
       "phrase": "GameOverStatus",
@@ -127,7 +126,7 @@
       "description": "The discussion phase."
     },
     {
-      "phrase": "GamePhaseDayIntroductions",
+      "phrase": "GamePhaseDay Introductions",
       "translation": "Day Introductions",
       "description": "The introduction phase."
     },
@@ -183,8 +182,8 @@
     },
     {
       "phrase": "GeneratingCharacterInfo",
-      "translation": "Generating character info {count} of {total}...",
-      "description": "Info message during character generation showing progress. Placeholders: {count}, {total}"
+      "translation": "Generating character info {{count}} of {{total}}...",
+      "description": "Info message during character generation showing progress. Placeholders: {{count}}, {{total}}"
     },
     {
       "phrase": "GeneratingCharactersInfo",
@@ -218,8 +217,8 @@
     },
     {
       "phrase": "InternalNotEnoughPlayersError",
-      "translation": "Internal Error: Not enough valid players ({playerCount}) after filtering.",
-      "description": "Internal error if filtering generated players results in too few. Placeholder: {playerCount}"
+      "translation": "Internal Error: Not enough valid players ({{playerCount}}) after filtering.",
+      "description": "Internal error if filtering generated players results in too few. Placeholder: {{playerCount}}"
     },
     {
       "phrase": "IntroCompleteMessage",
@@ -272,14 +271,19 @@
       "description": "Button to advance to the next turn/step."
     },
     {
+      "phrase": "NightEndMessage",
+      "translation": "Night {{round}} ends. Actions have been taken...",
+      "description": "Moderator message when night actions are complete, before resolution. Placeholder: {{round}}"
+    },
+    {
       "phrase": "NightStartMessage",
-      "translation": "The sun sets. Night {round} falls upon the village. Close your eyes...",
-      "description": "Message when voting ends and the night phase begins. Placeholder: {round}"
+      "translation": "The sun sets. Night {{round}} falls upon the village. Close your eyes...",
+      "description": "Message when voting ends and the night phase begins. Placeholder: {{round}}"
     },
     {
       "phrase": "NightSummaryElimination",
-      "translation": "A scream pierces the night! The villagers gather in the morning to find {playerName} dead. They were a {playerRole}.",
-      "description": "Moderator message when a player is killed at night. Placeholders: {playerName}, {playerRole}"
+      "translation": "A scream pierces the night! The villagers gather in the morning to find {{playerName}} dead. They were a {{playerRole}}.",
+      "description": "Moderator message when a player is killed at night. Placeholders: {{playerName}}, {{playerRole}}"
     },
     {
       "phrase": "NightSummaryPeaceful",
@@ -313,8 +317,8 @@
     },
     {
       "phrase": "PlayerImageAlt",
-      "translation": "Image of {name}",
-      "description": "Alt text for player avatar image. {name} is a placeholder."
+      "translation": "Image of {{name}}",
+      "description": "Alt text for player avatar image. Placeholder: {{name}}"
     },
     {
       "phrase": "PlayerImageAltText",
@@ -428,8 +432,8 @@
     },
     {
       "phrase": "StartGameFailedError",
-      "translation": "Failed to start game: {errorMessage}",
-      "description": "Error message when the final game start action fails. Placeholder: {errorMessage}"
+      "translation": "Failed to start game: {{errorMessage}}",
+      "description": "Error message when the final game start action fails. Placeholder: {{errorMessage}}"
     },
     {
       "phrase": "StartingButtonLabel",
@@ -468,8 +472,8 @@
     },
     {
       "phrase": "VoteEliminationMessage",
-      "translation": "With {voteCount} votes, {playerName} has been eliminated by the village. They were a {playerRole}.",
-      "description": "Message when a player is eliminated by vote. Placeholders: {voteCount}, {playerName}, {playerRole}"
+      "translation": "With {{voteCount}} votes, {{playerName}} has been eliminated by the village. They were a {{playerRole}}.",
+      "description": "Message when a player is eliminated by vote. Placeholders: {{voteCount}}, {{playerName}}, {{playerRole}}"
     },
     {
       "phrase": "VoteNoVotesMessage",
@@ -478,8 +482,8 @@
     },
     {
       "phrase": "VoteResultsMessage",
-      "translation": "The votes are in!\n{voteDetails}",
-      "description": "Message announcing the vote counts. Placeholder: {voteDetails} (multiline list)"
+      "translation": "The votes are in!\n{{voteDetails}}",
+      "description": "Message announcing the vote counts. Placeholder: {{voteDetails}} (multiline list)"
     },
     {
       "phrase": "VoteStartMessage",
@@ -488,8 +492,8 @@
     },
     {
       "phrase": "VoteTieMessage",
-      "translation": "The vote is tied between {tiedPlayerNames}! No one is eliminated today.",
-      "description": "Message when the vote results in a tie. Placeholder: {tiedPlayerNames}"
+      "translation": "The vote is tied between {{tiedPlayerNames}}! No one is eliminated today.",
+      "description": "Message when the vote results in a tie. Placeholder: {{tiedPlayerNames}}"
     },
     {
       "phrase": "WaitingForModelsLabel",
@@ -498,8 +502,8 @@
     },
     {
       "phrase": "WelcomeMessage",
-      "translation": "Welcome to \"{gameTitle}\"! {playerCount} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.",
-      "description": "Initial game welcome message. Placeholders: {gameTitle}, {playerCount}"
+      "translation": "Welcome to \"{{gameTitle}}\"! {{playerCount}} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.",
+      "description": "Initial game welcome message. Placeholders: {{gameTitle}}, {{playerCount}}"
     },
     {
       "phrase": "Werewolf",

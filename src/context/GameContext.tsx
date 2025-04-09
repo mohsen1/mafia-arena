@@ -10,12 +10,13 @@ import {
 } from "react";
 import type { Dispatch, SetStateAction, ReactNode } from "react";
 // Import translation utilities and types
-import type { LanguageCode, LanguageName } from "@/lib/translation/languages";
-import { mapLanguageNameToCode } from "@/lib/translation/languages";
-import { getOrGenerateTranslationsAction } from "@/app/actions/index";
-import { useTranslation } from "@/hooks/useTranslation";
+// import type { LanguageCode, LanguageName } from "@/lib/translation/languages";
+// import { mapLanguageNameToCode } from "@/lib/translation/languages";
+// import { getOrGenerateTranslationsAction } from "@/app/actions/index";
+// Import the standard hook
+import { useTranslation } from "react-i18next";
 import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
-import { supportedLanguagesInfo } from "@/lib/translation/languages";
+import type { TFunction } from "i18next"; // Import TFunction directly
 // Import GameState, ChatMessage, Player
 // import { GameState, ChatMessage, Player } from "@/lib/types/game";
 
@@ -31,11 +32,11 @@ interface GameContextState {
   stopCurrentAudio: () => void; // Function to stop whatever MessageBubble is playing
   registerStopAudio: (messageId: string, stopFn: () => void) => void;
   unregisterStopAudio: (messageId: string) => void;
-  // Add translation state and function
-  translations: Record<string, string>;
-  isTranslationLoading: boolean;
-  translationError: string | null;
-  t: (phraseKey: string, fallback?: string) => string;
+  // Remove custom translation state fields
+  // translations: Record<string, string>;
+  // isTranslationLoading: boolean;
+  // translationError: string | null;
+  t: TFunction; // Use imported TFunction type
   // Add global audio state
   isAudioGloballyEnabled: boolean;
   toggleAudioGloballyEnabled: () => void;
@@ -68,17 +69,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] =
     useState<boolean>(false); // Default audio to off
 
-  // --- Translation State ---
-  const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [isTranslationLoading, setIsTranslationLoading] =
-    useState<boolean>(true);
-  const [translationError, setTranslationError] = useState<string | null>(null);
-  // Determine language and code (ensure robust handling for null gameState)
-  const gameLanguageName: LanguageName | null =
-    (gameState?.language as LanguageName) || null;
-  const gameLanguageCode: LanguageCode | null =
-    (gameLanguageName ? mapLanguageNameToCode(gameLanguageName) : null) || null;
-  // --- End Translation State ---
+  // --- Use standard useTranslation hook ---
+  // Assuming the namespace used in the provider is 'translation'
+  const { t, i18n } = useTranslation('translation');
+  // --- End standard hook usage ---
 
   // Get currently speaking ID from SpokenTextContext
   const { currentlySpeakingId: spokenTextCurrentlySpeakingId } =
@@ -91,80 +85,15 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   }, [spokenTextCurrentlySpeakingId]);
   // --- End Ref ---
 
-  // --- Translation Loading Effect ---
-  useEffect(() => {
-    const loadTranslations = async () => {
-      setTranslationError(null);
-      // Use the derived code
-      if (!gameLanguageCode) {
-        console.error(
-          `[GameContext] Cannot load translations: Language code is null (derived from: ${gameLanguageName})`,
-        );
-        // Decide default behavior: Empty translations or load English?
-        // Loading English might be safer.
-        try {
-          console.warn(
-            "[GameContext] Attempting to load English translations as fallback.",
-          );
-          const fallbackTranslations =
-            await getOrGenerateTranslationsAction("en");
-          setTranslations(fallbackTranslations);
-        } catch (fallbackError) {
-          console.error(
-            "[GameContext] Failed loading fallback English translations:",
-            fallbackError,
-          );
-          setTranslationError(
-            `Invalid game language and failed to load fallback: ${gameLanguageName}`,
-          );
-          setTranslations({});
-        } finally {
-          setIsTranslationLoading(false);
-        }
-        return;
-      }
+  // --- REMOVED Translation Loading Effect ---
+  // useEffect(() => { ... loadTranslations ... }, [gameLanguageCode, gameLanguageName, i18n]);
+  // --- End REMOVED Translation Loading Effect ---
 
-      // Use derived name for logging using the map directly
-      const targetLanguageName = supportedLanguagesInfo[gameLanguageCode]?.name;
-      console.log(
-        `[GameContext] Language is ${targetLanguageName} (${gameLanguageCode}), loading translations...`,
-      );
-      setIsTranslationLoading(true);
-      try {
-        const loadedTranslations =
-          await getOrGenerateTranslationsAction(gameLanguageCode);
-        setTranslations(loadedTranslations);
-        console.log(
-          `[GameContext] Translations loaded for ${targetLanguageName}.`,
-        );
-      } catch (error: unknown) {
-        console.error(
-          `[GameContext] Failed loading translations for ${targetLanguageName}:`,
-          error,
-        );
-        // Extract error message safely
-        const message =
-          error instanceof Error ? error.message : "An unknown error occurred";
-        setTranslationError(`Failed loading translations: ${message}`);
-        setTranslations({});
-      } finally {
-        setIsTranslationLoading(false);
-      }
-    };
-
-    // Load when code is available (derived from gameState)
-    // If gameState is null initially, this effect might run when it becomes non-null
-    loadTranslations();
-    // Depend on the language code derived from gameState
-  }, [gameLanguageCode, gameLanguageName]);
-  // --- End Translation Loading Effect ---
-
-  // Instantiate translation hook *within* the provider
-  const { t } = useTranslation({
-    translations: translations,
-    // Pass the flag based on the current language code
-    isSourceLanguage: gameLanguageCode === "en",
-  });
+  // Instantiate translation hook *within* the provider -- REMOVED
+  // const { t } = useTranslation({
+  //   translations: translations,
+  //   isSourceLanguage: gameLanguageCode === "en",
+  // });
 
   // Function for MessageBubble to register its stop function
   const registerStopAudio = useCallback(
@@ -415,10 +344,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     // Expose registration functions for MessageBubble
     registerStopAudio,
     unregisterStopAudio,
-    // Expose translation state and t function
-    translations,
-    isTranslationLoading,
-    translationError,
+    // Expose standard t function from react-i18next
     t,
     // Add global audio state and toggle
     isAudioGloballyEnabled,

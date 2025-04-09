@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Users, ServerCrash, Bot, X, Loader2 } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "react-i18next";
 
 interface CharacterSlotItemProps {
   slot: ConfigCharacterSlot;
@@ -24,7 +24,6 @@ interface CharacterSlotItemProps {
   onUpdateRole: (clientId: string, newRole: Role) => void;
   onUpdateModel: (clientId: string, newModel: string) => void;
   onRemove: (clientId: string) => void;
-  translations: Record<string, string>;
 }
 
 export function CharacterSlotItem({
@@ -37,9 +36,12 @@ export function CharacterSlotItem({
   onUpdateRole,
   onUpdateModel,
   onRemove,
-  translations,
 }: CharacterSlotItemProps) {
-  const { t } = useTranslation({ translations });
+  const { t } = useTranslation('translation');
+
+  const handleRemoveClick = () => {
+    onRemove(slot.clientId);
+  };
 
   return (
     <li
@@ -98,7 +100,7 @@ export function CharacterSlotItem({
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => onRemove(slot.clientId)}
+            onClick={handleRemoveClick}
             disabled={isSubmitting}
             className="p-1 text-muted-foreground hover:text-destructive h-9 w-9 flex-shrink-0"
             aria-label={`${t("RemovePlayerSlotAriaLabel", "Remove player slot")} ${index + 1}`}

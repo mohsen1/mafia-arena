@@ -4,18 +4,12 @@ import { useGameContext } from "@/context/GameContext"; // Import context hook
 export function GameHeader() {
   // Remove props
   // Get gameState AND t function from context
-  const { gameState, t, isTranslationLoading } = useGameContext();
+  const { gameState, t } = useGameContext();
 
   if (!gameState) return null; // Or a loading state
 
   // Destructure winCondition instead of winner
   const { title, description, phase, round, winCondition } = gameState;
-
-  // Display generic loading if translations are loading
-  if (isTranslationLoading) {
-    // Minimal loading state, adjust as needed
-    return <header className="p-4 border-b h-[97px] animate-pulse" />; // Self-closing tag
-  }
 
   return (
     <header className="p-4 flex justify-between items-center flex-shrink-0 gap-4">
@@ -35,7 +29,7 @@ export function GameHeader() {
           {t("RoundLabel", "Round")}:{" "}
           <span className="font-semibold">{round}</span> |{" "}
           <span className="font-semibold capitalize">
-            {t(`GamePhase${phase}`, phase)}
+            {t(phase, phase)}
           </span>
         </p>
         {/* Winner Status */}
@@ -43,10 +37,7 @@ export function GameHeader() {
           {winCondition && (
             // Translate outcome? Maybe use keys like OutcomeVillagerWin
             <span className="text-lg font-bold text-success">
-              {t(
-                `Outcome${winCondition.outcome.replace(/\s+/g, "")}`,
-                winCondition.outcome,
-              )}
+              {t(winCondition.outcome, winCondition.outcome)}
             </span>
           )}
           {phase === "GameOver" && !winCondition && (

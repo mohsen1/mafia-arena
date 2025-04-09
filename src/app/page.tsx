@@ -1,18 +1,17 @@
 import Link from "next/link";
-import { gameStateManager } from "@/lib/state/gameStateManager";
-import {
-  deleteGameAction,
-  getOrGenerateTranslationsAction,
-} from "@/app/actions/index";
 import type { FilteredGameState } from "@/lib/types/game";
-import StartGameForm from "@/components/StartGameForm";
 import { getGroqModels } from "@/lib/groq/api";
+import { deleteGameAction } from "@/app/actions/index";
 import { Button } from "@/components/ui/button";
-import { headers } from "next/headers";
-import type { LanguageCode } from "@/lib/translation/languages";
-import { availableLanguageCodes } from "@/lib/translation/languages";
 import { format } from "date-fns";
+import { createTranslation } from "./i18n";
+import nextI18nConfig from '../../next-i18next.config.js';
+// import GameCard from "@/components/GameCard";
+import StartGameForm from "@/components/StartGameForm";
 
+interface PageProps {
+  params: { lang?: string };
+}
 // Pass translations object to GameCard instead of t function
 function GameCard({
   game,
@@ -65,78 +64,17 @@ function GameCard({
 }
 
 // Define a standard PageProps type structure
-interface PageProps {
-  params: { [key: string]: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
 
-// Use the defined PageProps type for the Home component
-export default async function Home({ searchParams }: PageProps) {
-  // --- Language/Translation Setup ---
-  const headersList = await headers();
-  const acceptLanguage = headersList.get("accept-language");
 
-  // Prioritize lang query param, then header, then default
-  const langFromParam = (await searchParams)?.lang;
-  const potentialLangCodeFromHeader = acceptLanguage
-    ?.split(",")[0]
-    .split(";")[0]
-    .split("-")[0];
-  const potentialLangCode =
-    typeof langFromParam === "string"
-      ? langFromParam
-      : potentialLangCodeFromHeader || "en";
-
-  // Validate the potential language code using the *availableLanguageCodes*
-  const validatedLangCode = availableLanguageCodes.includes(
-    potentialLangCode as LanguageCode,
-  )
-    ? (potentialLangCode as LanguageCode)
-    : "en"; // Default to 'en' if not supported
-
-  let translations: Record<string, string> = {};
-  let isSourceLanguage = validatedLangCode === "en"; // Determine if we loaded English initially
-
-  try {
-    translations = await getOrGenerateTranslationsAction(validatedLangCode);
-    console.log(
-      `[Home Page] Rendering for lang: ${validatedLangCode}. Translation keys:`,
-      Object.keys(translations).length,
-    );
-  } catch (error) {
-    console.error(
-      `[Home Page] Failed to load translations for ${validatedLangCode}:`,
-      error,
-    );
-    if (validatedLangCode !== "en") {
-      try {
-        translations = await getOrGenerateTranslationsAction("en");
-        isSourceLanguage = true; // Set to true as we fell back to English
-        console.log("[Home Page] Loaded fallback English translations.");
-      } catch (fallbackError) {
-        console.error(
-          "[Home Page] Failed to load fallback English translations:",
-          fallbackError,
-        );
-        isSourceLanguage = false; // Explicitly set to false if fallback fails
-      }
-    }
-  }
-  // --- End Language Setup ---
+export default async function Home({ params }: PageProps) {
+  const lang = params?.lang || nextI18nConfig.i18n.defaultLocale;
+  const { t } = await createTranslation(lang, 'translation');
 
   const availableModels = await getGroqModels();
-  const gameIds = await gameStateManager.listGameIds();
-  const gameStatesPromises = gameIds.map((id) =>
-    gameStateManager.getFilteredGameState(id),
-  );
-  const gameStatesResults = await Promise.all(gameStatesPromises);
-  const existingGames = gameStatesResults.filter(
-    (state): state is FilteredGameState => state !== null,
-  );
+  const existingGames: FilteredGameState[] = []; // Placeholder
 
-  const werewolfAITitle = translations.WerewolfAITitle || "Werewolf AI";
-  const existingGamesHeading =
-    translations.ExistingGamesHeading || "Existing Games";
+  const werewolfAITitle = t("WerewolfAITitle", "Werewolf AI");
+  const existingGamesHeading = t("ExistingGamesTitle", "Existing Games");
 
   return (
     <main className=" mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen">
@@ -144,25 +82,16 @@ export default async function Home({ searchParams }: PageProps) {
         {werewolfAITitle}
       </h1>
 
-      <StartGameForm
-        availableModels={availableModels}
-        translations={translations}
-        isSourceLanguage={isSourceLanguage}
-      />
+      <StartGameForm availableModels={availableModels} />
 
       {existingGames.length > 0 && (
         <div className="w-full mb-8">
           <h2 className="text-2xl font-semibold mb-4 text-center">
             {existingGamesHeading}
           </h2>
-
           <ul className="space-y-3">
             {existingGames.map((game) => (
-              <GameCard
-                key={game.gameId}
-                game={game}
-                translations={translations}
-              />
+              <GameCard key={game.gameId} game={game} />
             ))}
           </ul>
         </div>

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider";
-import { headers } from "next/headers";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
+import nextI18nConfig from '../../next-i18next.config.js'; // Import config
+import { createTranslation } from '@/app/i18n'; // Use path relative to src
+import TranslationsProvider from '@/app/TranslationsProvider'; // Use path relative to src
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,7 +28,6 @@ export const metadata: Metadata = {
     "mafia",
     "party game",
   ],
-  themeColor: "#1a1a1a", // Example theme color, adjust as needed
   openGraph: {
     title: "Werewolf AI",
     description: "Play Werewolf with intelligent AI players.",
@@ -36,45 +37,21 @@ export const metadata: Metadata = {
   },
 };
 
-// Helper function to determine direction based on language code
-const getDirection = (lang: string | undefined): "ltr" | "rtl" => {
-  if (!lang) return "ltr";
-  // Extract the primary language subtag (e.g., 'en' from 'en-US')
-  const languageCode = lang.split("-")[0].toLowerCase();
-  // Add more RTL language codes as needed
-  const rtlLanguages = ["ar", "he", "fa", "ur", "yi", "sd"];
-  return rtlLanguages.includes(languageCode) ? "rtl" : "ltr";
-};
-
 export default async function RootLayout({
   children,
+  params,
 }: Readonly<{
   children: React.ReactNode;
+  params: { lang?: string }; // Expect lang param from URL
 }>) {
-  const headersList = await headers();
-
-  // Read the specific lang header set by middleware
-  const langFromHeader = headersList.get("x-lang");
-
-  let preferredLang: string | undefined;
-
-  // Prioritize lang from header (originally from URL)
-  if (langFromHeader) {
-    preferredLang = langFromHeader;
-  } else {
-    // Fallback to accept-language header
-    const acceptLanguage = headersList.get("accept-language");
-    preferredLang = acceptLanguage?.split(",")[0].split(";")[0];
-  }
-
-  const direction = getDirection(preferredLang);
-  console.log("[Layout] preferredLang:", preferredLang);
-  console.log("[Layout] direction:", direction);
-  // Use the full preferred language tag for the lang attribute if available, default to 'en'
-  const finalLang = preferredLang || "en";
+  // Determine language from URL params or default
+  const lang = params.lang || nextI18nConfig.i18n.defaultLocale;
+  // Initialize i18next on the server for this request
+  const { resources } = await createTranslation(lang, 'translation'); // Removed unused t variable
+  const dir = lang === 'fa' ? 'rtl' : 'ltr';
 
   return (
-    <html lang={finalLang} dir={direction} suppressHydrationWarning>
+    <html lang={lang} dir={dir} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -84,7 +61,13 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <TranslationsProvider 
+            resources={resources} 
+            locale={lang} 
+            namespaces={['translation']} // Match namespace used in createTranslation
+          >
+            {children}
+          </TranslationsProvider>
         </ThemeProvider>
       </body>
     </html>

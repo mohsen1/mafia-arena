@@ -3,7 +3,6 @@
 import type { FilteredGameState, ChatMessage } from "@/lib/types/game";
 import { useGameContext } from "@/context/GameContext";
 import { SpeakText } from "@/components/SpeakText";
-import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Bot, User, Volume2 } from "lucide-react";
 import { useSpokenText } from "@/context/SpokenTextContext";
@@ -17,7 +16,7 @@ interface MessageBubbleProps {
 
 // Message Component with Dark Mode
 export function MessageBubble({ message, players }: MessageBubbleProps) {
-  const { reportAudioFinished, isAudioGloballyEnabled } = useGameContext();
+  const { reportAudioFinished, isAudioGloballyEnabled, t, gameState } = useGameContext();
   const { doneSpeaking: spokenTextReportAudioFinished } = useSpokenText();
 
   // Determine the speaker
@@ -42,8 +41,6 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     spokenTextReportAudioFinished(message.messageId);
   };
 
-  const { resolvedTheme } = useTheme();
-
   // iMessage-like styling
   const bubbleClasses = cn(
     "mb-2 flex max-w-[85%] flex-col rounded-2xl px-4 py-2",
@@ -54,15 +51,20 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     },
   );
 
-  const IconComponent = isModerator ? Volume2 : Bot;
-
   // Container for image + bubble
   const containerClasses = cn("flex items-start gap-2 mb-4", {
-    "justify-end": isHuman || isModerator,
-    "justify-start": !isHuman && !isModerator,
+    "justify-end rtl:flex-row-reverse": isHuman || isModerator,
+    "justify-start rtl:flex-row-reverse": !isHuman && !isModerator,
   });
 
+  // --- Translation Logic --- (Ensure t function is correctly used)
   const textContent = message.content;
+  const displayContent = message.phraseKey
+    ? t(message.phraseKey, { // Use standard options object
+        defaultValue: textContent,
+        ...(message.placeholders || {}),
+      })
+    : textContent;
 
   return (
     <div className={containerClasses}>
@@ -85,7 +87,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
       )}
 
       <div className={bubbleClasses}>
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 rtl:flex-row-reverse">
           <span
             className={cn(
               "text-xs font-semibold opacity-80",
@@ -107,11 +109,11 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
               autoQueue
               onEnd={handleAudioEnd}
             >
-              {textContent}
+              {displayContent}
             </SpeakText>
           )}
         </div>
-        <p className="text-sm whitespace-pre-wrap">{textContent}</p>
+        <p className="text-sm whitespace-pre-wrap">{displayContent}</p>
       </div>
 
       {(isHuman || isModerator) && (

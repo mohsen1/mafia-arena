@@ -97,7 +97,7 @@ export async function initializeNewGame(
     gameId,
     createdAt,
     updatedAt: createdAt,
-    phase: "DayIntroductions",
+    phase: "Day Introductions",
     round: 1,
     players,
     livingPlayerIds: shuffledPlayerIds,
@@ -184,7 +184,7 @@ export function advancePhase(currentState: GameState): GameState {
       // After resolving night actions, proceed directly to the day phase
       nextPhase =
         currentState.round === 1 && currentState.conversationLog.length === 0
-          ? "DayIntroductions" // Special case for very first day after first night
+          ? "Day Introductions" // Special case for very first day after first night
           : "DayDiscussion";
       if (nextPhase === "DayDiscussion") {
         // Shuffle living players for the new day's discussion order
@@ -199,7 +199,7 @@ export function advancePhase(currentState: GameState): GameState {
       );
       break;
     // REMOVED WerewolfChat case
-    case "DayIntroductions": // After introductions, move to discussion
+    case "Day Introductions": // After introductions, move to discussion
       nextPhase = "DayDiscussion";
       // Shuffle living players for the first discussion round
       nextTurnOrder = shuffleArray([...currentState.livingPlayerIds]);
@@ -208,7 +208,7 @@ export function advancePhase(currentState: GameState): GameState {
         nextTurnOrder,
       );
       console.log(
-        `Advancing from DayIntroductions to DayDiscussion, Round ${nextRound}`,
+        `Advancing from Day Introductions to DayDiscussion, Round ${nextRound}`,
       );
       break;
     case "DayDiscussion": // After discussion, move to voting
@@ -245,7 +245,7 @@ export function advancePhase(currentState: GameState): GameState {
     nightActions:
       currentState.phase === "ResolveNight" ? [] : currentState.nightActions,
     // Reset relevant 'last' states *after* ResolveNight completes and we move to Day
-    ...(nextPhase === "DayIntroductions" || nextPhase === "DayDiscussion"
+    ...(nextPhase === "Day Introductions" || nextPhase === "DayDiscussion"
       ? {
           lastEliminatedPlayerId:
             currentState.phase === "ResolveNight"
@@ -334,7 +334,7 @@ export function calculateTotalDiscussionTurns(currentState: GameState): number {
 export function determineNextSpeaker(currentState: GameState): string | null {
   // Speaking happens during Introduction and Discussion phases using the turnOrder array
   // No single speaker during Night, ResolveNight, WerewolfChat, Voting, or GameOver
-  if (!["DayIntroductions", "DayDiscussion"].includes(currentState.phase)) {
+  if (!["Day Introductions", "DayDiscussion"].includes(currentState.phase)) {
     return null;
   }
 

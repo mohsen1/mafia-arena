@@ -12,8 +12,7 @@ import { useGameContext } from "@/context/GameContext";
 type FilteredPlayer = FilteredGameState["players"][string];
 
 interface PlayerCardProps {
-  player: FilteredPlayer; // Use the filtered type
-  // Removed status prop as it seems redundant with player.status
+  player: FilteredPlayer;
 }
 
 // Player Card Component with Dark Mode
@@ -26,9 +25,10 @@ export function PlayerCard({ player }: PlayerCardProps) {
   // Construct metadata string based on visibility
   // Use player.status for the status display
   const meta = [];
-  meta.push(t(player.status));
+  const capitalizedStatus = player.status.charAt(0).toUpperCase() + player.status.slice(1);
+  meta.push(t(`PlayerStatus${capitalizedStatus}`, player.status));
   if (showRole && player.role) {
-    meta.push(t(player.role));
+    meta.push(t(`PlayerRole${player.role}`, player.role));
   }
   meta.push(player.aiModel);
 
@@ -36,10 +36,11 @@ export function PlayerCard({ player }: PlayerCardProps) {
   const metadata = meta.filter(Boolean); // Ensure only non-empty values are added
   const metadataString = metadata.join(" • ");
 
-  // Get the translated alt text template
-  const altTextTemplate = t("PlayerImageAltText", "Image of {{name}}");
-  // Format the alt text
-  const altText = altTextTemplate.replace("{{name}}", player.name);
+  // Get the translated alt text template - Corrected to pass interpolation values
+  const altText = t("PlayerImageAltText", {
+     defaultValue: `Image of ${player.name}`, // Provide default with value
+     name: player.name 
+  });
 
   return (
     <div

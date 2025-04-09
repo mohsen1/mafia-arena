@@ -3,31 +3,23 @@
 import { CharacterSlotItem } from "@/components/CharacterSlotItem"; // Import the item component
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"; // Import Select components
 import { Switch } from "@/components/ui/switch"; // Import Switch component
 import { useGameConfig } from "@/hooks/useGameConfig";
-import { useTranslation } from "@/hooks/useTranslation";
+import { LanguageSelector } from "./LanguageSelector";
+import { useTranslation } from "react-i18next";
 import {
   // getLanguageInfoByCode, // Removed unused import
-  supportedLanguagesInfo,
   mapLanguageCodeToLongCode,
 } from "@/lib/translation/languages";
 import type { Role } from "@/lib/types/game"; // Use import type
 import {
   AlertTriangle,
-  Brain,
   CheckCircle2,
-  Languages,
   Loader2,
   Settings2,
   Trash2,
   UserPlus,
+  Bot,
 } from "lucide-react";
 import { useMemo, useCallback, type FormEvent } from "react";
 
@@ -43,25 +35,14 @@ const availableRolesForSelection: Role[] = [
 // Change t prop to translations
 export interface StartGameFormProps {
   availableModels: string[];
-  translations: Record<string, string>; // Accept translations object
-  isSourceLanguage: boolean; // Add this prop
 }
 
 // Update component signature to accept translations and isSourceLanguage
 export default function StartGameForm({
   availableModels,
-  translations,
-  isSourceLanguage, // Destructure the new prop
 }: StartGameFormProps) {
-  // Instantiate the translation hook here, passing the new prop
-  const {
-    t,
-    isLoading: isTLoading,
-    error: tError,
-  } = useTranslation({
-    translations: translations,
-    isSourceLanguage: isSourceLanguage, // Pass it down
-  });
+  // Use standard hook
+  const { t } = useTranslation('translation');
 
   const {
     characterSlots,
@@ -103,33 +84,30 @@ export default function StartGameForm({
   const handleSubmitWrapper = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      if (!isSubmitting) {
-        console.log("[StartGameForm] Form submitted, preventing default.");
-        handleGenerateAndStartGame();
-      }
+      handleGenerateAndStartGame();
     },
-    [handleGenerateAndStartGame, isSubmitting],
+    [handleGenerateAndStartGame],
   );
 
   console.log(
     `[StartGameForm] Language from useGameConfig: ${selectedLanguage}`,
   ); // Log language from hook
 
-  // Combine submission state with translation loading state
-  const isLoading = isSubmitting || isTLoading || isLoadingNextTurn;
+  // Combine submission state
+  const isLoading = isSubmitting || isLoadingNextTurn;
 
-  // Handle translation error locally
-  if (tError) {
-    // Simple error display for now
+  // Handle error message from useGameConfig 
+  if (errorMsg) {
     return (
-      <div className="text-red-500 p-4">Error with translations: {tError}</div>
+      // Use t from standard hook
+      <div className="text-red-500 p-4">Error: {t(errorMsg, errorMsg)}</div> 
     );
   }
 
   return (
     <form onSubmit={handleSubmitWrapper} className="w-full max-w-5xl space-y-6">
-      {/* Display loading indicator (submission or translation loading) */}
-      {(isLoading || isTLoading) && (
+      {/* Display loading indicator */}
+      {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -182,47 +160,23 @@ export default function StartGameForm({
         {/* Global Model Selector  */}
         <div className="mb-6 flex flex-col items-start justify-start gap-2 max-w-96 mx-auto">
           <Label
-            htmlFor="global-model-select"
+            htmlFor="global-model"
             className="text-sm font-medium text-muted-foreground whitespace-nowrap"
           >
-            <Brain className="w-4 h-4 mr-1" />
+            <Bot size={16} />
             {t("GlobalAIModelLabel", "Global AI Model")}:
           </Label>
-          <Select
-            value={globalModelSelection}
-            onValueChange={updateAllModels}
-            disabled={isLoading || availableModels.length === 0}
-          >
-            <SelectTrigger
-              id="global-model-select"
-              className="w-full text-sm h-9"
-            >
-              <SelectValue
-                placeholder={t(
-                  "SelectGlobalModelPlaceholder",
-                  "Select global model",
-                )}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {availableModels.length === 0 && !initialSlotsSet ? (
-                <SelectItem value="loading" disabled>
-                  {t("LoadingLabel", "Loading...")}
-                </SelectItem>
-              ) : (
-                availableModels.map((modelId) => (
-                  <SelectItem key={modelId} value={modelId} className="text-sm">
-                    {modelId}
-                  </SelectItem>
-                ))
-              )}
-              {availableModels.length === 0 && initialSlotsSet && (
-                <SelectItem value="no-models" disabled>
-                  {t("NoModelsAvailableLabel", "No models available")}
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+          <ModelSelector
+            id="global-model"
+            models={availableModels}
+            selectedModel={globalModelSelection}
+            onModelChange={updateAllModels}
+            placeholder={t(
+              "SelectGlobalModelPlaceholder",
+              "Select global model",
+            )}
+            disabled={isSubmitting}
+          />
         </div>
 
         {/* Language Selector - Use imported types/values */}
@@ -231,54 +185,29 @@ export default function StartGameForm({
             htmlFor="language-select"
             className="text-sm font-medium text-muted-foreground whitespace-nowrap"
           >
-            <Languages className="w-4 h-4 mr-1" />
+            <Languages size={16} />
             {t("GameLanguageLabel", "Game Language")}:
           </Label>
-          <Select
-            value={selectedLanguage}
-            onValueChange={(value) => {
-              updateLanguage(value);
-
-              // also update Document dir attribute
-              document.dir =
-                supportedLanguagesInfo[
-                  value as keyof typeof supportedLanguagesInfo
-                ].dir;
-            }}
-            disabled={isLoading}
-          >
-            <SelectTrigger id="language-select" className="w-full">
-              <SelectValue
-                placeholder={t("SelectLanguagePlaceholder", "Select language")}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.values(supportedLanguagesInfo).map((lang) => (
-                <SelectItem
-                  key={lang.code}
-                  value={lang.code}
-                  className="text-sm"
-                >
-                  {lang.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <LanguageSelector
+            selectedLanguage={selectedLanguage}
+            onLanguageChange={updateLanguage}
+            disabled={isSubmitting}
+          />
         </div>
 
         {/* Audio Enable Toggle - Add  */}
         <div className="mb-6 flex items-center justify-center gap-3">
           <Label
-            htmlFor="audio-toggle"
+            htmlFor="audio-enable"
             className="text-sm font-medium text-muted-foreground whitespace-nowrap"
           >
             {t("EnableAudioLabel", "Enable Audio")}:
           </Label>
           <Switch
-            id="audio-toggle"
+            id="audio-enable"
             checked={isAudioEnabled}
             onCheckedChange={toggleAudioEnabled}
-            disabled={isLoading}
+            disabled={isSubmitting}
             aria-label={t("ToggleGameAudioLabel", "Toggle game audio")}
           />
         </div>
@@ -289,7 +218,7 @@ export default function StartGameForm({
             type="submit"
             className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer max-w-xs mx-auto"
             size="lg"
-            disabled={!canAttemptStart || isLoading}
+            disabled={!canAttemptStart || isSubmitting || isLoading}
             aria-label={t(
               "GenerateAndStartGameButton",
               "Generate characters and start new game",

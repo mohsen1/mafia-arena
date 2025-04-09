@@ -16,14 +16,14 @@ import {
   validateGeneratedGameSetup,
 } from "@/lib/validators/gameConfigValidator";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 // Update hook signature - REMOVE t function parameter
 export function useGameConfig(availableModels: string[]) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useTranslation();
+  const { t } = useTranslation('translation');
 
   // Determine initial language CODE from URL or default
   const initialLangCode = useMemo(() => {
@@ -216,14 +216,8 @@ export function useGameConfig(availableModels: string[]) {
 
   // Update language: navigate to new URL with lang param
   const updateLanguage = useCallback(
-    (newLangCode: string) => {
-      // Validate if the new code is a key in supportedLanguagesInfo
+    async (newLangCode: string) => {
       if (newLangCode in supportedLanguagesInfo) {
-        // setSelectedLanguage(newLangCode as LanguageCode); // Don't set state directly
-        console.log(
-          `[useGameConfig] updateLanguage called with code: ${newLangCode}. Pushing to router.`,
-        );
-        // Use router to navigate, triggering server refetch and hook re-initialization
         router.push(`/?lang=${newLangCode}`, { scroll: false });
       } else {
         console.warn(
@@ -231,7 +225,7 @@ export function useGameConfig(availableModels: string[]) {
         );
       }
     },
-    [router], // Add router dependency
+    [router],
   );
 
   const handleGenerateAndStartGame = useCallback(async () => {
@@ -259,6 +253,7 @@ export function useGameConfig(availableModels: string[]) {
 
         setInfoMsg(
           t("GeneratingCharacterInfo", {
+            defaultValue: `Generating character info ${i + 1} of ${slotsToGenerate.length}...`,
             count: i + 1,
             total: slotsToGenerate.length,
           }),
