@@ -13,7 +13,7 @@ import {
 import { Switch } from "@/components/ui/switch"; // Import Switch component
 import { useGameConfig } from "@/hooks/useGameConfig";
 import { useTranslation } from "@/hooks/useTranslation";
-import { mapLanguageNameToCode } from "@/lib/translation/languages";
+import { mapLanguageCodeToLongCode, mapLanguageNameToCode } from "@/lib/translation/languages";
 import type { Role } from "@/lib/types/game"; // Use import type
 import {
   AlertTriangle,
@@ -23,8 +23,8 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react";
-import { useMemo, useState, useCallback, type FormEvent } from "react";
-import { supportedLanguagesInfo, type LanguageName } from "@/lib/translation/languages"; // Corrected import
+import { useMemo, useCallback, type FormEvent } from "react";
+import { supportedLanguagesInfo } from "@/lib/translation/languages"; // Corrected import
 
 // Define available roles for selection (can be defined here or imported)
 const availableRolesForSelection: Role[] = [
@@ -48,10 +48,6 @@ export default function StartGameForm({
   translations,
   isSourceLanguage, // Destructure the new prop
 }: StartGameFormProps) {
-  console.log(
-    `[StartGameForm] Received ${Object.keys(translations).length} translation keys`,
-  ); // Log received translations
-
   // Instantiate the translation hook here, passing the new prop
   const {
     t,
@@ -88,7 +84,7 @@ export default function StartGameForm({
   } = useGameConfig(availableModels); // Call hook without t
 
   console.log(
-    `[StartGameForm] Language from useGameConfig: ${selectedLanguage}`,
+    `[StartGameForm] Language from useGameConfig: ${selectedLanguage}`
   ); // Log language from hook
 
   // Combine submission state with translation loading state
@@ -104,14 +100,12 @@ export default function StartGameForm({
 
   // Create a number formatter based on selected language
   const numberFormatter = useMemo(() => {
-    // Map language name (e.g., 'Persian') to locale code (e.g., 'fa-IR')
-    const langCode = mapLanguageNameToCode(selectedLanguage);
-    const locale =
-      langCode === "fa" ? "fa-IR" : langCode === "de" ? "de-DE" : "en-US"; // Map to appropriate locale
+    // selectedLanguage is already the language code
+    const longCode = mapLanguageCodeToLongCode(selectedLanguage);
     try {
-      return new Intl.NumberFormat(locale);
+      return new Intl.NumberFormat(longCode);
     } catch (e) {
-      console.error("Failed to create NumberFormat for locale:", locale, e);
+      console.error("Failed to create NumberFormat for locale:", longCode, e);
       return new Intl.NumberFormat("en-US"); // Fallback
     }
   }, [selectedLanguage]);
@@ -125,7 +119,7 @@ export default function StartGameForm({
         handleGenerateAndStartGame();
       }
     },
-    [handleGenerateAndStartGame, isSubmitting],
+    [handleGenerateAndStartGame, isSubmitting]
   );
 
   return (
@@ -137,157 +131,171 @@ export default function StartGameForm({
         </div>
       )}
 
-      <h2 className="text-2xl font-bold mb-6 text-foreground text-center">
-        {t("ConfigureNewGameTitle", "Configure New Game")}
-      </h2>
+      {/* Config container */}
+      <div className="mb-6 max-w-2xl mx-auto">
+        <h2 className="text-2xl font-bold mb-6 text-foreground text-center">
+          {t("ConfigureNewGameTitle", "Configure New Game")}
+        </h2>
 
-      {/* Player Count Adjustment - Use Formatter */}
-      <div className="mb-4 flex items-center justify-center gap-4">
-        <Label className="text-sm font-medium text-muted-foreground">
-          {t("PlayersLabel", "Players")}:
-        </Label>
-        {/* Format the totalSlots number */}
-        <span className="text-lg font-semibold text-foreground w-10 text-center">
-          {numberFormatter.format(totalSlots)}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={addPlayerSlot}
-          disabled={isLoading}
-          aria-label={t("AddPlayerSlotLabel", "Add player slot")}
-        >
-          <UserPlus className="h-4 w-4 mr-1" />
-          <span>{t("AddPlayerButtonLabel", "Add")}</span>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() =>
-            totalSlots > 0 &&
-            removePlayerSlot(characterSlots[characterSlots.length - 1].clientId)
-          }
-          disabled={isLoading || totalSlots <= 5}
-          aria-label={t("RemovePlayerSlotLabel", "Remove last player slot")}
-        >
-          <Trash2 className="h-4 w-4 mr-1 text-red-500" />
-          <span className="text-red-500">
-            {t("RemovePlayerButtonLabel", "Remove")}
+        {/* Player Count Adjustment - Use Formatter */}
+        <div className="mb-4 flex items-center justify-center gap-4">
+          <Label className="text-sm font-medium text-muted-foreground">
+            {t("PlayersLabel", "Players")}:
+          </Label>
+          {/* Format the totalSlots number */}
+          <span className="text-lg font-semibold text-foreground w-10 text-center">
+            {numberFormatter.format(totalSlots)}
           </span>
-        </Button>
-      </div>
-
-      {/* Global Model Selector  */}
-      <div className="mb-6 flex items-center justify-center gap-2 max-w-4xl mx-auto">
-        <Label
-          htmlFor="global-model-select"
-          className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[160px]"
-        >
-          {t("GlobalAIModelLabel", "Global AI Model")}:
-        </Label>
-        <Select
-          value={globalModelSelection}
-          onValueChange={updateAllModels}
-          disabled={isLoading || availableModels.length === 0}
-        >
-          <SelectTrigger
-            id="global-model-select"
-            className="w-full max-w-xs text-sm h-9"
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={addPlayerSlot}
+            disabled={isLoading}
+            aria-label={t("AddPlayerSlotLabel", "Add player slot")}
           >
-            <SelectValue
-              placeholder={t(
-                "SelectGlobalModelPlaceholder",
-                "Select global model",
-              )}
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {availableModels.length === 0 && !initialSlotsSet ? (
-              <SelectItem value="loading" disabled>
-                {t("LoadingLabel", "Loading...")}
-              </SelectItem>
-            ) : (
-              availableModels.map((modelId) => (
-                <SelectItem key={modelId} value={modelId} className="text-sm">
-                  {modelId}
+            <UserPlus className="h-4 w-4 mr-1" />
+            <span>{t("AddPlayerButtonLabel", "Add")}</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() =>
+              totalSlots > 0 &&
+              removePlayerSlot(
+                characterSlots[characterSlots.length - 1].clientId
+              )
+            }
+            disabled={isLoading || totalSlots <= 5}
+            aria-label={t("RemovePlayerSlotLabel", "Remove last player slot")}
+          >
+            <Trash2 className="h-4 w-4 mr-1 text-red-500" />
+            <span className="text-red-500">
+              {t("RemovePlayerButtonLabel", "Remove")}
+            </span>
+          </Button>
+        </div>
+
+        {/* Global Model Selector  */}
+        <div className="mb-6 flex flex-col items-start justify-start gap-2 max-w-96 mx-auto">
+          <Label
+            htmlFor="global-model-select"
+            className="text-sm font-medium text-muted-foreground whitespace-nowrap"
+          >
+            {t("GlobalAIModelLabel", "Global AI Model")}:
+          </Label>
+          <Select
+            value={globalModelSelection}
+            onValueChange={updateAllModels}
+            disabled={isLoading || availableModels.length === 0}
+          >
+            <SelectTrigger
+              id="global-model-select"
+              className="w-full text-sm h-9"
+            >
+              <SelectValue
+                placeholder={t(
+                  "SelectGlobalModelPlaceholder",
+                  "Select global model"
+                )}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {availableModels.length === 0 && !initialSlotsSet ? (
+                <SelectItem value="loading" disabled>
+                  {t("LoadingLabel", "Loading...")}
                 </SelectItem>
-              ))
+              ) : (
+                availableModels.map((modelId) => (
+                  <SelectItem key={modelId} value={modelId} className="text-sm">
+                    {modelId}
+                  </SelectItem>
+                ))
+              )}
+              {availableModels.length === 0 && initialSlotsSet && (
+                <SelectItem value="no-models" disabled>
+                  {t("NoModelsAvailableLabel", "No models available")}
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Language Selector - Use imported types/values */}
+        <div className="mb-6 flex flex-col items-start justify-start gap-2 max-w-96 mx-auto">
+          <Label
+            htmlFor="language-select"
+            className="text-sm font-medium text-muted-foreground whitespace-nowrap"
+          >
+            {t("GameLanguageLabel", "Game Language")}:
+          </Label>
+          <Select
+            value={selectedLanguage}
+            onValueChange={(value) => {
+              updateLanguage(value);
+
+              // also update Document dir attribute
+              document.dir = supportedLanguagesInfo[value as keyof typeof supportedLanguagesInfo].dir;
+            }}
+            disabled={isLoading}
+          >
+            <SelectTrigger id="language-select" className="w-full">
+              <SelectValue
+                placeholder={t("SelectLanguagePlaceholder", "Select language")}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.values(supportedLanguagesInfo).map((lang) => (
+                <SelectItem
+                  key={lang.code}
+                  value={lang.code}
+                  className="text-sm"
+                >
+                  {lang.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Audio Enable Toggle - Add  */}
+        <div className="mb-6 flex items-center justify-center gap-3">
+          <Label
+            htmlFor="audio-toggle"
+            className="text-sm font-medium text-muted-foreground whitespace-nowrap"
+          >
+            {t("EnableAudioLabel", "Enable Audio")}:
+          </Label>
+          <Switch
+            id="audio-toggle"
+            checked={isAudioEnabled}
+            onCheckedChange={toggleAudioEnabled}
+            disabled={isLoading}
+            aria-label={t("ToggleGameAudioLabel", "Toggle game audio")}
+          />
+        </div>
+
+        {/* Submit Button - Remove onClick, ensure type="submit" */}
+        <div className="flex justify-center pt-4">
+          <Button
+            type="submit"
+            className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer max-w-xs mx-auto"
+            size="lg"
+            disabled={!canAttemptStart || isLoading}
+            aria-label={t(
+              "GenerateAndStartGameButton",
+              "Generate characters and start new game"
             )}
-            {availableModels.length === 0 && initialSlotsSet && (
-              <SelectItem value="no-models" disabled>
-                {t("NoModelsAvailableLabel", "No models available")}
-              </SelectItem>
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                {t(infoMsg || "StartingButtonLabel", infoMsg || "Starting...")}
+              </>
+            ) : (
+              t("GenerateAndStartGameButton", "Generate & Start Game")
             )}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Language Selector - Use imported types/values */}
-      <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse">
-        <Label
-          htmlFor="language-select"
-          className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[160px]"
-        >
-          {t("GameLanguageLabel", "Game Language")}:
-        </Label>
-        <Select
-          value={selectedLanguage}
-          onValueChange={(value) => {
-            updateLanguage(value);
-          }}
-          disabled={isLoading}
-        >
-          <SelectTrigger id="language-select" className="w-[180px]">
-            <SelectValue placeholder={t("SelectLanguagePlaceholder", "Select language")} />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.values(supportedLanguagesInfo).map((lang) => (
-              <SelectItem key={lang.code} value={lang.code} className="text-sm">
-                {lang.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Audio Enable Toggle - Add  */}
-      <div className="mb-6 flex items-center justify-center gap-3">
-        <Label
-          htmlFor="audio-toggle"
-          className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[160px]"
-        >
-          {t("EnableAudioLabel", "Enable Audio")}:
-        </Label>
-        <Switch
-          id="audio-toggle"
-          checked={isAudioEnabled}
-          onCheckedChange={toggleAudioEnabled}
-          disabled={isLoading}
-          aria-label={t("ToggleGameAudioLabel", "Toggle game audio")}
-        />
-      </div>
-
-      {/* Submit Button - Remove onClick, ensure type="submit" */}
-      <div className="flex justify-center pt-4">
-        <Button
-          type="submit" 
-          className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer max-w-xs mx-auto"
-          size="lg"
-          disabled={!canAttemptStart || isLoading}
-          aria-label={t(
-            "GenerateAndStartGameButton",
-            "Generate characters and start new game",
-          )}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              {t(infoMsg || "StartingButtonLabel", infoMsg || "Starting...")}
-            </>
-          ) : (
-            t("GenerateAndStartGameButton", "Generate & Start Game")
-          )}
-        </Button>
+          </Button>
+        </div>
       </div>
 
       {/* Character Slot List & Configuration - Conditionally hide when submitting */}
@@ -332,7 +340,7 @@ export default function StartGameForm({
             <p className="text-center text-sm text-muted-foreground italic py-4">
               {t(
                 "AddPlayerSlotsPrompt",
-                "Use the '+' button to add player slots (minimum 5).",
+                "Use the '+' button to add player slots (minimum 5)."
               )}
             </p>
           )}
@@ -356,8 +364,8 @@ export default function StartGameForm({
               isPostGenValid === true
                 ? "text-success"
                 : isPostGenValid === false
-                  ? "text-warning"
-                  : "text-muted-foreground"
+                ? "text-warning"
+                : "text-muted-foreground"
             }`}
           >
             {isPostGenValid === true ? (
@@ -373,7 +381,7 @@ export default function StartGameForm({
             <CheckCircle2 className="h-4 w-4" />{" "}
             {`${t("ConfigLooksGood_Prefix", "Configuration looks good")} ${t(
               "ConfigLooksGood_Suffix",
-              "(Ready to Generate & Start)",
+              "(Ready to Generate & Start)"
             )}`}
           </p>
         ) : initialSlotsSet ? (
@@ -385,7 +393,7 @@ export default function StartGameForm({
           <p className="text-muted-foreground italic">
             {t(
               "InitialConfigPrompt",
-              "Configure player slots, roles, and models.",
+              "Configure player slots, roles, and models."
             )}
           </p>
         )}

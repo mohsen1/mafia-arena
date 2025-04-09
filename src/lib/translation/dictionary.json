@@ -311,11 +311,6 @@
       "description": "Label for player count/list."
     },
     {
-      "phrase": "PlayerSlotPendingLabel",
-      "translation": "Player Slot",
-      "description": "Label indicating a slot is for a player (not AI)."
-    },
-    {
       "phrase": "PlayerStatusAlive",
       "translation": "alive",
       "description": "Auto-added from fallback"
