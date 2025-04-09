@@ -23,8 +23,8 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react";
-import { useMemo } from "react";
-import { supportedLanguagesInfo, type LanguageName } from "@/lib/translation/languages"; // Import availableLanguages
+import { useMemo, useState, useCallback, type FormEvent } from "react";
+import { supportedLanguagesInfo, type LanguageName } from "@/lib/translation/languages"; // Corrected import
 
 // Define available roles for selection (can be defined here or imported)
 const availableRolesForSelection: Role[] = [
@@ -84,6 +84,7 @@ export default function StartGameForm({
     handleGenerateAndStartGame,
     isAudioEnabled, // Get audio state
     toggleAudioEnabled, // Get audio toggle function
+    isLoadingNextTurn, // If used for combined loading state
   } = useGameConfig(availableModels); // Call hook without t
 
   console.log(
@@ -91,7 +92,7 @@ export default function StartGameForm({
   ); // Log language from hook
 
   // Combine submission state with translation loading state
-  const isLoading = isSubmitting || isTLoading;
+  const isLoading = isSubmitting || isTLoading || isLoadingNextTurn;
 
   // Handle translation error locally
   if (tError) {
@@ -115,8 +116,20 @@ export default function StartGameForm({
     }
   }, [selectedLanguage]);
 
+  // Wrapper function for form submission
+  const handleSubmitWrapper = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!isSubmitting) {
+        console.log("[StartGameForm] Form submitted, preventing default.");
+        handleGenerateAndStartGame();
+      }
+    },
+    [handleGenerateAndStartGame, isSubmitting],
+  );
+
   return (
-    <div className="mb-8 p-6 rounded-lg relative w-full">
+    <form onSubmit={handleSubmitWrapper} className="w-full max-w-5xl space-y-6">
       {/* Display loading indicator (submission or translation loading) */}
       {(isLoading || isTLoading) && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -209,43 +222,29 @@ export default function StartGameForm({
         </Select>
       </div>
 
-      {/* Language Selector  */}
-      <div className="mb-6 flex items-center justify-center gap-2 ">
+      {/* Language Selector - Use imported types/values */}
+      <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse">
         <Label
           htmlFor="language-select"
-          className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[160px]"
+          className="text-sm font-medium text-muted-foreground whitespace-nowrap"
         >
           {t("GameLanguageLabel", "Game Language")}:
         </Label>
         <Select
-          value={mapLanguageNameToCode(selectedLanguage) || ''}
+          value={selectedLanguage} 
           onValueChange={(value) => {
-            console.log(`[StartGameForm] Language select changed to code: ${value}`); // Log select change
-            // Find the LanguageName corresponding to the selected code (value)
-            const selectedLangInfo = Object.values(supportedLanguagesInfo).find(
-              (lang) => lang.code === value,
-            );
-            if (selectedLangInfo) {
-              console.log(`[StartGameForm] Updating language to name: ${selectedLangInfo.name}`);
-              updateLanguage(selectedLangInfo.name); // Pass the correct LanguageName
-            } else {
-              console.error(`[StartGameForm] Could not find language info for code: ${value}`);
-            }
+            updateLanguage(value as LanguageName); // Cast to the imported type
           }}
           disabled={isLoading}
         >
-          <SelectTrigger
-            id="language-select"
-            className="w-full max-w-xs text-sm h-9"
-          >
-            <SelectValue
-              placeholder={t("SelectLanguagePlaceholder", "Select language")}
-            />
+          <SelectTrigger id="language-select" className="w-[180px]">
+            <SelectValue placeholder={t("SelectLanguagePlaceholder", "Select language")} />
           </SelectTrigger>
           <SelectContent>
+            {/* Use the imported array */} 
             {Object.values(supportedLanguagesInfo).map((lang) => (
-              <SelectItem key={lang.code} value={lang.code}>
-                {lang.label}
+              <SelectItem key={lang.code} value={lang.code} className="text-sm">
+                {lang.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -269,12 +268,11 @@ export default function StartGameForm({
         />
       </div>
 
-      {/* Generate & Start Game Button */}
-      <div className="max-w-lg mx-auto">
+      {/* Submit Button - Remove onClick, ensure type="submit" */}
+      <div className="flex justify-center pt-4">
         <Button
-          type="button"
-          onClick={handleGenerateAndStartGame}
-          className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer"
+          type="submit" 
+          className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer max-w-xs mx-auto"
           size="lg"
           disabled={!canAttemptStart || isLoading}
           aria-label={t(
@@ -285,7 +283,6 @@ export default function StartGameForm({
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              {/* Translate button text based on state (using infoMsg key) */}
               {t(infoMsg || "StartingButtonLabel", infoMsg || "Starting...")}
             </>
           ) : (
@@ -293,6 +290,7 @@ export default function StartGameForm({
           )}
         </Button>
       </div>
+
       {/* Character Slot List & Configuration - Conditionally hide when submitting */}
       {!isSubmitting && (
         <div className="my-4 p-4 rounded-md min-h-[200px]">
@@ -393,6 +391,6 @@ export default function StartGameForm({
           </p>
         )}
       </div>
-    </div>
+    </form>
   );
 }

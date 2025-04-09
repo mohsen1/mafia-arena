@@ -17,11 +17,11 @@ import type {
 import type { LanguageCode, LanguageName } from "@/lib/translation/languages";
 import {
   mapLanguageNameToCode,
-  getLanguageInfoByCode,
 } from "@/lib/translation/languages";
 import { getOrGenerateTranslationsAction } from "@/app/actions/index";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
+import { supportedLanguagesInfo } from "@/lib/translation/languages";
 
 // Define the shape of the context state
 interface GameContextState {
@@ -129,20 +129,20 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         return;
       }
 
-      // Use derived name for logging
-      const langInfo = getLanguageInfoByCode(gameLanguageCode);
+      // Use derived name for logging using the map directly
+      const targetLanguageName = supportedLanguagesInfo[gameLanguageCode]?.name; 
       console.log(
-        `[GameContext] Language is ${langInfo.name} (${gameLanguageCode}), loading translations...`,
+        `[GameContext] Language is ${targetLanguageName} (${gameLanguageCode}), loading translations...`,
       );
       setIsTranslationLoading(true);
       try {
         const loadedTranslations =
           await getOrGenerateTranslationsAction(gameLanguageCode);
         setTranslations(loadedTranslations);
-        console.log(`[GameContext] Translations loaded for ${langInfo.name}.`);
+        console.log(`[GameContext] Translations loaded for ${targetLanguageName}.`);
       } catch (error: unknown) {
         console.error(
-          `[GameContext] Failed loading translations for ${langInfo.name}:`,
+          `[GameContext] Failed loading translations for ${targetLanguageName}:`,
           error,
         );
         // Extract error message safely

@@ -336,6 +336,11 @@
       "description": "Validation message after generation succeeds."
     },
     {
+      "phrase": "Ready: 9 players generated.",
+      "translation": "Ready: 9 players generated.",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "RemovePlayerButtonLabel",
       "translation": "Remove",
       "description": "Auto-added from fallback"
