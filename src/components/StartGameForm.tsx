@@ -218,10 +218,19 @@ export default function StartGameForm({
           {t("GameLanguageLabel", "Game Language")}:
         </Label>
         <Select
-          value={selectedLanguage}
+          value={mapLanguageNameToCode(selectedLanguage) || ''}
           onValueChange={(value) => {
-            console.log(`[StartGameForm] Language select changed to: ${value}`); // Log select change
-            updateLanguage(value as LanguageName);
+            console.log(`[StartGameForm] Language select changed to code: ${value}`); // Log select change
+            // Find the LanguageName corresponding to the selected code (value)
+            const selectedLangInfo = Object.values(supportedLanguagesInfo).find(
+              (lang) => lang.code === value,
+            );
+            if (selectedLangInfo) {
+              console.log(`[StartGameForm] Updating language to name: ${selectedLangInfo.name}`);
+              updateLanguage(selectedLangInfo.name); // Pass the correct LanguageName
+            } else {
+              console.error(`[StartGameForm] Could not find language info for code: ${value}`);
+            }
           }}
           disabled={isLoading}
         >

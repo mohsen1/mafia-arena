@@ -111,9 +111,9 @@ export async function getOrGenerateTranslationsAction(
       error instanceof Error &&
       (error as NodeJS.ErrnoException).code === "ENOENT"
     ) {
-      // 2. Cache MISS - Generate using LLM
+      // 2. Cache MISS - Generate using LLM OR load if dictionary is complete
       console.log(
-        `[Action:getTranslations] Cache MISS for ${targetLanguageName}. Generating...`,
+        `[Action:getTranslations] Cache MISS for ${targetLanguageName}. Checking dictionary...`,
       );
       try {
         const englishDictionary = dictionary.en;
@@ -122,6 +122,52 @@ export async function getOrGenerateTranslationsAction(
             "Source English dictionary ('en') is missing or empty.",
           );
         }
+
+        // --- Check if dictionary.json has all translations --- 
+        const preExistingTranslations = dictionary[targetLangCode];
+        if (preExistingTranslations && preExistingTranslations.length > 0) {
+           const englishPhrases = new Set(englishDictionary.map(item => item.phrase));
+           const preExistingPhrases = new Set(preExistingTranslations.map(item => item.phrase));
+           const allPhrasesFound = [...englishPhrases].every(phrase => preExistingPhrases.has(phrase));
+
+           if(allPhrasesFound) {
+              console.log(`[Action:getTranslations] All ${englishPhrases.size} required phrases found in dictionary.json for ${targetLangCode}. Skipping AI generation.`);
+              const translationMap: Record<string, string> = {};
+              for (const entry of preExistingTranslations) {
+                // Only include entries that correspond to the current English dictionary
+                if (englishPhrases.has(entry.phrase)) {
+                   translationMap[entry.phrase] = entry.translation;
+                }
+              }
+
+                // Write to cache (same logic as after AI gen)
+               try {
+                 await fs.mkdir(CACHE_DIR, { recursive: true });
+                 await fs.writeFile(
+                   cacheFilePath,
+                   JSON.stringify(translationMap, null, 2),
+                 );
+                 console.log(
+                   `[Action:getTranslations] Wrote dictionary-based translations to cache: ${cacheFilePath}`,
+                 );
+               } catch (writeError: unknown) {
+                 const message =
+                   writeError instanceof Error
+                     ? writeError.message
+                     : String(writeError);
+                 console.error(
+                   `[Action:getTranslations] FAILED to write dictionary-based cache file ${cacheFilePath}:`,
+                   message,
+                 );
+               }
+               return translationMap;
+           }
+           console.log(`[Action:getTranslations] Dictionary incomplete for ${targetLangCode}. Proceeding with AI generation.`);
+        }
+         // --- End dictionary check --- 
+
+        // --- If dictionary incomplete or empty, proceed with AI --- 
+        console.log(`[Action:getTranslations] Generating translations via AI for ${targetLanguageName}...`);
 
         const systemPrompt = GENERATE_UI_TRANSLATION_PROMPT(targetLanguageName);
         const userMessage = JSON.stringify(englishDictionary, null, 2);
@@ -179,8 +225,7 @@ export async function getOrGenerateTranslationsAction(
           }
         }
 
-        // 2. Load and overwrite with pre-existing dictionary translations
-        const preExistingTranslations = dictionary[targetLangCode];
+        // 2. Overwrite with pre-existing dictionary translations (variable already declared above)
         if (preExistingTranslations && preExistingTranslations.length > 0) {
           console.log(
             `[Action:getTranslations] Found ${preExistingTranslations.length} pre-existing entries in dictionary.json for ${targetLangCode}. Merging...`,
