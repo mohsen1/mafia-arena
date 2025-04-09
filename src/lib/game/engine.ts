@@ -15,7 +15,7 @@ import type {
 import crypto from 'node:crypto';
 import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
 import { selectCharacterImage } from "@/lib/utils/imageUtils";
-import type { SupportedLanguage } from '@/hooks/useGameConfig';
+import type { SupportedLanguage } from '@/app/actions/translation';
 import { mapLanguageNameToCode } from '@/lib/translation/languages';
 
 // --- Constants ---
@@ -154,19 +154,26 @@ export function advancePhase(currentState: GameState): GameState {
     let nextRound = currentState.round;
     let nextTurnOrderIndex = 0; // Reset index for the start of the new phase
     let nextTurnOrder = [...currentState.turnOrder]; // Default to current order
+    // const livingWerewolvesExist = currentState.livingPlayerIds.some(id => currentState.players[id].role === 'Werewolf'); // No longer needed here
 
     switch (currentState.phase) {
         case 'Night':
-            // If it's the end of the very first night (Round 1), go to introductions.
-            // Otherwise, go directly to discussion.
-            nextPhase = currentState.round === 0 ? 'DayIntroductions' : 'DayDiscussion';
+            nextPhase = 'ResolveNight';
+            console.log(`Advancing from Night to ResolveNight, Round ${nextRound}`);
+            break;
+        case 'ResolveNight':
+            // After resolving night actions, proceed directly to the day phase
+            nextPhase = currentState.round === 1 && currentState.conversationLog.length === 0 
+                            ? 'DayIntroductions' // Special case for very first day after first night
+                            : 'DayDiscussion';
             if (nextPhase === 'DayDiscussion') {
                 // Shuffle living players for the new day's discussion order
                 nextTurnOrder = shuffleArray([...currentState.livingPlayerIds]);
-                console.log(`Shuffled turn order for Day ${nextRound} Discussion:`, nextTurnOrder);
+                console.log(`Shuffled turn order for Day ${nextRound} Discussion (post-resolve):`, nextTurnOrder);
             }
-            console.log(`Advancing from Night to ${nextPhase}, Round ${nextRound}`);
+            console.log(`Advancing from ResolveNight to ${nextPhase}, Round ${nextRound}`);
             break;
+        // REMOVED WerewolfChat case
         case 'DayIntroductions': // After introductions, move to discussion
             nextPhase = 'DayDiscussion';
             // Shuffle living players for the first discussion round
@@ -176,23 +183,18 @@ export function advancePhase(currentState: GameState): GameState {
             break;
         case 'DayDiscussion': // After discussion, move to voting
             nextPhase = 'Voting';
-            // Voting phase doesn't use turn order in the same way, keep existing order for potential future use?
-            // Or clear it? For now, keep it.
             console.log(`Advancing from DayDiscussion to Voting, Round ${nextRound}`);
             break;
         case 'Voting': // After voting, move to night, start next round
             nextPhase = 'Night';
             nextRound++;
-            // Night phase doesn't use turn order, keep existing order.
             console.log(`Advancing from Voting to Night, starting Round ${nextRound}`);
             break;
-        // Should not happen if called correctly, but good practice:
         default:
              console.warn(`Unexpected current phase: ${currentState.phase}. Staying in current phase.`);
-             // Attempt to recover or throw an error? For now, stay in phase.
              nextPhase = currentState.phase;
-             nextTurnOrderIndex = currentState.turnOrderIndex; // Keep current index
-             nextTurnOrder = currentState.turnOrder; // Keep current order
+             nextTurnOrderIndex = currentState.turnOrderIndex;
+             nextTurnOrder = currentState.turnOrder;
              break;
     }
 
@@ -201,15 +203,25 @@ export function advancePhase(currentState: GameState): GameState {
         ...currentState,
         phase: nextPhase,
         round: nextRound,
-        turnOrder: nextTurnOrder, // Use the potentially shuffled order
+        turnOrder: nextTurnOrder,
         turnOrderIndex: nextTurnOrderIndex,
-        // Clear transient state from the previous phase
-        votes: [],
-        nightActions: [],
-        lastEliminatedPlayerId: currentState.phase === 'Voting' ? currentState.lastEliminatedPlayerId : null, // Preserve elimination from vote
-        lastWerewolfTargetId: currentState.phase === 'Night' ? currentState.lastWerewolfTargetId : null, // Preserve night target
-        lastDoctorSaveId: currentState.phase === 'Night' ? currentState.lastDoctorSaveId : null, // Preserve night save
-        lastSeerTargetId: currentState.phase === 'Night' ? currentState.lastSeerTargetId : null, // Preserve night seer target
+        // Clear transient state based on the *previous* phase end
+        votes: currentState.phase === 'Voting' ? [] : currentState.votes,
+        // nightActions are now cleared *after* ResolveNight
+        nightActions: currentState.phase === 'ResolveNight' ? [] : currentState.nightActions,
+        // Reset relevant 'last' states *after* ResolveNight completes and we move to Day
+        ...( (nextPhase === 'DayIntroductions' || nextPhase === 'DayDiscussion') ? {
+             lastEliminatedPlayerId: currentState.phase === 'ResolveNight' ? currentState.lastEliminatedPlayerId : null, // Preserve elimination from night
+             lastWerewolfTargetId: null,
+             lastDoctorSaveId: null,
+             lastSeerTargetId: null,
+         } : {
+            // Preserve these if we are still in Night/ResolveNight cycle
+             lastEliminatedPlayerId: currentState.lastEliminatedPlayerId,
+             lastWerewolfTargetId: currentState.lastWerewolfTargetId,
+             lastDoctorSaveId: currentState.lastDoctorSaveId,
+             lastSeerTargetId: currentState.lastSeerTargetId,
+         })
     };
 }
 
@@ -277,7 +289,8 @@ export function calculateTotalDiscussionTurns(currentState: GameState): number {
  */
 export function determineNextSpeaker(currentState: GameState): string | null {
     // Speaking happens during Introduction and Discussion phases using the turnOrder array
-    if (currentState.phase !== 'DayIntroductions' && currentState.phase !== 'DayDiscussion') {
+    // No single speaker during Night, ResolveNight, WerewolfChat, Voting, or GameOver
+    if (!['DayIntroductions', 'DayDiscussion'].includes(currentState.phase)) {
         return null;
     }
 

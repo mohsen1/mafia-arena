@@ -1,6 +1,6 @@
 "use server";
 
-import type { SupportedLanguage } from "@/hooks/useGameConfig";
+
 import { getAIResponse } from "@/lib/ai/openaiService";
 import { GENERATE_UI_TRANSLATION_PROMPT, TRANSLATE_TEXT_SYSTEM_PROMPT } from "@/lib/ai/PROMPTS";
 import dictionaryDataJson from '@/lib/translation/dictionary.json';
@@ -14,6 +14,10 @@ import { cleanAIResponse } from "@/lib/utils/stringUtils";
 import fs from "node:fs/promises";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import path from "node:path";
+
+// Define supported languages
+export const supportedLanguages = ['English', 'Persian', 'German'] as const;
+export type SupportedLanguage = typeof supportedLanguages[number];
 
 // --- Helper Function for Translation (using AI) --- 
 export async function translateText(text: string, targetLanguage: SupportedLanguage): Promise<string> {

@@ -8,7 +8,7 @@ import {
     GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT, 
     GAME_TITLE_DESCRIPTION_PROMPT
 } from './PROMPTS';
-import type { SupportedLanguage } from "@/hooks/useGameConfig";
+import type { SupportedLanguage } from "@/app/actions/translation";
 
 // --- Initialize OpenAI Client ---
 

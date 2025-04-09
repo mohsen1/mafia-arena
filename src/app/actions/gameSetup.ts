@@ -1,6 +1,5 @@
 'use server';
 
-import { type SupportedLanguage } from "@/hooks/useGameConfig";
 import { generateAICharacterProfile } from "@/lib/ai/openaiService";
 import { DEFAULT_GAME_SETTINGS } from "@/lib/config";
 import { initializeNewGame } from "@/lib/game/engine";
@@ -14,6 +13,8 @@ import type {
 import { selectCharacterImage } from "@/lib/utils/imageUtils";
 import crypto from "node:crypto";
 import { redirect } from "next/navigation";
+import type { SupportedLanguage } from "./translation";
+
 
 // ElevenLabs configuration
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;

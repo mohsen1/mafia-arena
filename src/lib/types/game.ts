@@ -1,15 +1,17 @@
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 // Import language type
-import type { SupportedLanguage } from "@/hooks/useGameConfig";
+import type { SupportedLanguage } from "@/app/actions/translation";
 
 // Use string literal unions instead of enums
 export type Role = 'Villager' | 'Werewolf' | 'Seer' | 'Doctor';
 
-// Moderator is not a role, but a concept for messages/speakers
+// Moderator is not a concept for roles, but for messages/speakers
 export type SpeakerType = 'player' | 'moderator';
 
 export type GamePhase =
   | 'Night'
+  | 'ResolveNight' // Process night actions (kills, saves, investigations)
+  | 'WerewolfChat'
   | 'DayIntroductions' // Players introduce themselves
   | 'DayDiscussion' // Main discussion phase
   | 'Voting'

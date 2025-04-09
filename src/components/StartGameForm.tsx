@@ -1,5 +1,7 @@
 "use client";
 
+import { supportedLanguages } from "@/app/actions/translation";
+import type { SupportedLanguage } from "@/app/actions/translation";
 import { CharacterSlotItem } from "@/components/CharacterSlotItem"; // Import the item component
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,11 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"; // Import Select components
 import { Switch } from "@/components/ui/switch"; // Import Switch component
-import type { SupportedLanguage } from "@/hooks/useGameConfig"; // Use import type
-import {
-  supportedLanguages,
-  useGameConfig,
-} from "@/hooks/useGameConfig";
+import { useGameConfig } from "@/hooks/useGameConfig";
 import { useTranslation } from "@/hooks/useTranslation";
 import { mapLanguageNameToCode } from "@/lib/translation/languages";
 import type { Role } from "@/lib/types/game"; // Use import type

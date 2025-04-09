@@ -1,6 +1,6 @@
+import type { SupportedLanguage } from "@/app/actions/translation";
 import type { AICharacterProfile, Role } from "@/lib/types/game";
-// Import language type
-import type { SupportedLanguage } from "@/hooks/useGameConfig";
+
 
 export const GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT = 
 `You are a creative assistant tasked with generating a thematic title and a short, evocative description 
@@ -101,12 +101,18 @@ export const NIGHT_ACTION_WEREWOLF_PROMPT = (
     persona: string, 
     characterName: string, 
     fellowWerewolfNames: string[],
-    targetNames: string[]
+    targetNames: string[],
+    werewolfChatHistory: string
 ) => 
 `${NIGHT_ACTION_BASE_PROMPT(persona, characterName, 'Werewolf')}
 
-You gather silently with your fellow werewolves: ${fellowWerewolfNames.join(', ') || ' (You seem to be the only one left...)'}.
-It's time to decide who to eliminate tonight. Discussing silently amongst yourselves (or deciding alone if you are the last), indicate your *preferred* target from the list below.
+You gather silently with your fellow werewolves: ${fellowWerewolfNames.join(', ') || ' (You are the only one left!)'}.
+
+**Recent Werewolf Chat (This Night):**
+${werewolfChatHistory || '(No messages yet)'}
+
+Based on your discussion (if any), it's time to decide who to eliminate tonight.
+Indicate your *preferred* target from the list below.
 The pack will act based on the majority preference (if a clear majority exists).
 
 CRITICAL: Respond ONLY with the single number corresponding to the player you want to vote to eliminate. Do NOT include any other text, formatting, explanations, or reasoning.
@@ -274,3 +280,50 @@ export const GENERATE_UI_TRANSLATION_PROMPT = (targetLanguageName: string): stri
  */
 export const TRANSLATE_TEXT_SYSTEM_PROMPT = (targetLanguage: SupportedLanguage): string => 
   `You are a helpful translation assistant. Translate the user's text accurately into ${targetLanguage}. Respond ONLY with the translated text, nothing else.`;
+
+/**
+ * Generates the system prompt for the Werewolf Chat phase.
+ * @param persona The AI's character persona.
+ * @param playerName The AI's character name.
+ * @param fellowWerewolfNames List of other living werewolf names.
+ * @param round Current round number.
+ * @param lastNightResults Summary of what happened last night (elimination/save).
+ * @param recentConversation History of the werewolf chat *in this phase*.
+ * @returns The system prompt string.
+ */
+export const WEREWOLF_CHAT_PROMPT = (
+  persona: string,
+  playerName: string,
+  fellowWerewolfNames: string[],
+  round: number,
+  lastNightResults: string, // e.g., "Player X was eliminated", "The night was uneventful"
+  recentConversation: string // Formatted string of the chat so far
+): string => {
+  const basePrompt = `You are playing a character in a game of Werewolf.
+
+Your Character Details:
+${persona}
+
+Your Character Name: ${playerName}
+Your Assigned Role (SECRET): Werewolf
+
+It is currently the Werewolf Chat phase (Night ${round}), a private discussion ONLY among werewolves.
+Your fellow living werewolves are: ${fellowWerewolfNames.join(', ') || 'None (You are the last wolf!)'}
+
+**Last Night's Outcome:** ${lastNightResults}
+
+**Recent Werewolf Chat (This Phase):**
+${recentConversation || '(No messages yet)'}
+
+It's your turn to speak **privately** to your fellow werewolf(s).
+Discuss your strategy for the upcoming day:
+- Who do you suspect is the Seer or Doctor?
+- Who should you try to accuse or vote for during the day?
+- Should you defend each other if accused?
+- Coordinate your story and actions.
+
+Speak in the FIRST PERSON. Be concise but clear. Remember, ONLY werewolves see this chat.
+Do NOT reveal you are a werewolf in this chat unless strategizing requires it.
+`;
+  return basePrompt.trim();
+};

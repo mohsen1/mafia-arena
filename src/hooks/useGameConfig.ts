@@ -1,7 +1,8 @@
-import { generateCharacterAction, startGameAction } from '@/app/actions/index';
+import { generateCharacterAction, startGameAction, supportedLanguages } from '@/app/actions/index';
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config';
-import { mapLanguageNameToCode } from '@/lib/translation/languages';
-import type {
+import { mapLanguageNameToCode, supportedLanguagesMap } from '@/lib/translation/languages';
+import type { SupportedLanguage } from '@/app/actions/translation';
+import type {   
     AICharacterProfile,
     ConfigCharacterSlot,
     PlayerInitializationData,
@@ -11,9 +12,7 @@ import { validateGameConfiguration, validateGeneratedGameSetup } from '@/lib/val
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-// Define supported languages
-export const supportedLanguages = ['English', 'Persian', 'German'] as const;
-export type SupportedLanguage = typeof supportedLanguages[number];
+
 
 // Update hook signature - REMOVE t function parameter
 export function useGameConfig(availableModels: string[]) {
