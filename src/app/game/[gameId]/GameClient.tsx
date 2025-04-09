@@ -1,12 +1,11 @@
 "use client";
 
-import { GameProvider, useGameContext } from "@/context/GameContext";
-import { FilteredGameState } from "@/lib/types/game";
-import { GameSidebar } from "@/components/GameSidebar";
-import { GameHeader } from "@/components/GameHeader";
 import { ConversationLog } from "@/components/ConversationLog";
-import { ReactNode } from "react";
+import { GameHeader } from "@/components/GameHeader";
+import { GameSidebar } from "@/components/GameSidebar";
+import { GameProvider, useGameContext } from "@/context/GameContext";
 import { SpokenTextProvider } from "@/context/SpokenTextContext";
+import { FilteredGameState } from "@/lib/types/game";
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
