@@ -985,9 +985,7 @@ export async function runGameTurnAction(gameId: string) {
 
     // 5. Generate Moderator Summary Message
     let originalSummaryContent = "";
-    let summaryPhraseKey:
-      | keyof typeof import("@/lib/translation/dictionary.json")["en"][number]["phrase"]
-      | undefined = undefined;
+    let summaryPhraseKey: string | undefined = undefined;
     let summaryPlaceholders: Record<string, string | number> = {};
 
     if (eliminatedPlayerId) {
@@ -1077,9 +1075,9 @@ export async function runGameTurnAction(gameId: string) {
           ...stateAfterResolution.conversationLog,
           gameOverMessage,
         ],
-        nightActions: [], // Clear actions on game over
         updatedAt: Date.now(),
       };
+      // Save final game over state
       await gameStateManager.updateGameState(gameId, stateAfterResolution);
       console.log(`Game ${gameId} ended after night resolution.`);
       revalidatePath(`/game/${gameId}`);
@@ -1091,9 +1089,7 @@ export async function runGameTurnAction(gameId: string) {
 
     // 8. Add Moderator Message for the *Start* of the NEXT Phase
     let originalPhaseStartMsg = "";
-    let phaseStartPhraseKey:
-      | keyof typeof import("@/lib/translation/dictionary.json")["en"][number]["phrase"]
-      | undefined = undefined;
+    let phaseStartPhraseKey: string | undefined = undefined;
     let phaseStartPlaceholders: Record<string, string | number> = {};
 
     if (nextState.phase === "DayIntroductions") {
