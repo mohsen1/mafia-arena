@@ -24,7 +24,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useMemo } from "react";
-import { availableLanguageNames, type LanguageName } from "@/lib/translation/languages";
+import { supportedLanguagesInfo, type LanguageName } from "@/lib/translation/languages"; // Import availableLanguages
 
 // Define available roles for selection (can be defined here or imported)
 const availableRolesForSelection: Role[] = [
@@ -234,9 +234,9 @@ export default function StartGameForm({
             />
           </SelectTrigger>
           <SelectContent>
-            {availableLanguageNames.map((langName) => (
-              <SelectItem key={langName} value={langName}>
-                {langName}
+            {Object.values(supportedLanguagesInfo).map((lang) => (
+              <SelectItem key={lang.code} value={lang.code}>
+                {lang.label}
               </SelectItem>
             ))}
           </SelectContent>

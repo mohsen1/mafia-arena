@@ -508,6 +508,11 @@
       "description": "The game moderator."
     },
     {
+        "phrase": "ModeratorLabel",
+        "translation": "خدا",
+        "description": "The game moderator label shown in messages."
+      },
+    {
       "phrase": "WerewolfAITitle",
       "translation": "مافیا هوش مصنوعی",
       "description": "Main title of the application."

@@ -162,26 +162,60 @@ export async function getOrGenerateTranslationsAction(
         }
         // --- End LLM Call & Parse ---
 
+        // --- Merge with pre-existing dictionary entries ---
         const translationMap: Record<string, string> = {};
         const originalPhrases = new Set(
           englishDictionary.map((item: TranslationEntry) => item.phrase),
         );
+
+        // 1. Populate with AI translations first
         for (const item of translatedArray) {
           if (originalPhrases.has(item.phrase)) {
             translationMap[item.phrase] = item.translation;
           } else {
             console.warn(
-              `[Action:getTranslations] LLM returned unknown phrase "${item.phrase}", skipping.`,
+              `[Action:getTranslations] LLM returned unknown phrase "${item.phrase}" (not in English source), skipping.`,
             );
           }
         }
-        // Check for missing keys
+
+        // 2. Load and overwrite with pre-existing dictionary translations
+        const preExistingTranslations = dictionary[targetLangCode];
+        if (preExistingTranslations && preExistingTranslations.length > 0) {
+          console.log(
+            `[Action:getTranslations] Found ${preExistingTranslations.length} pre-existing entries in dictionary.json for ${targetLangCode}. Merging...`,
+          );
+          for (const entry of preExistingTranslations) {
+            if (originalPhrases.has(entry.phrase)) {
+              if (translationMap[entry.phrase] !== entry.translation) {
+                // Log if we are actually overwriting an AI translation
+                if (translationMap[entry.phrase]) {
+                  console.log(
+                    `[Action:getTranslations] Overwriting AI translation for "${entry.phrase}" with dictionary version.`,
+                  );
+                } else {
+                   console.log(
+                    `[Action:getTranslations] Adding dictionary translation for "${entry.phrase}" (was missing from AI).`,
+                  );
+                }
+                translationMap[entry.phrase] = entry.translation;
+              }
+            } else {
+              console.warn(
+                `[Action:getTranslations] Dictionary entry "${entry.phrase}" for ${targetLangCode} does not match any English source phrase, skipping.`,
+              );
+            }
+          }
+        }
+        // --- End Merge ---
+
+        // Check for missing keys AFTER merging
         const missingKeys = englishDictionary.filter(
           (item: TranslationEntry) => !(item.phrase in translationMap),
         );
         if (missingKeys.length > 0) {
           console.warn(
-            `[Action:getTranslations] LLM translation missed ${missingKeys.length} phrases: ${missingKeys.map((k: TranslationEntry) => k.phrase).join(", ")}`,
+            `[Action:getTranslations] Final translation map for ${targetLanguageName} is missing ${missingKeys.length} phrases: ${missingKeys.map((k: TranslationEntry) => k.phrase).join(", ")}`,
           );
         }
 
