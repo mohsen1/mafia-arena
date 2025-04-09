@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import { revalidatePath } from "next/cache";
@@ -18,4 +18,4 @@ export async function deleteGameAction(gameId: string): Promise<void> {
     // Rethrow or handle as appropriate for your UI
     throw new Error(`Could not delete game ${gameId}.`);
   }
-} 
+}

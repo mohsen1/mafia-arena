@@ -26,19 +26,19 @@ function GameLayout() {
   const textDirection = gameState.language === "Persian" ? "rtl" : "ltr";
 
   return (
-      <div className="grid grid-cols-[280px_1fr] h-screen" dir={textDirection}>
-        {/* Left Column (Sidebar): Player List */}
-        <GameSidebar />
+    <div className="grid grid-cols-[280px_1fr] h-screen" dir={textDirection}>
+      {/* Left Column (Sidebar): Player List */}
+      <GameSidebar />
 
-        {/* Right Column: Game Info & Conversation */}
-        <main className="flex flex-col h-screen overflow-hidden">
-          {/* Top Row: Game Info & Actions */}
-          <GameHeader />
+      {/* Right Column: Game Info & Conversation */}
+      <main className="flex flex-col h-screen overflow-hidden">
+        {/* Top Row: Game Info & Actions */}
+        <GameHeader />
 
-          {/* Bottom Row: Conversation Log */}
-          <ConversationLog />
-        </main>
-      </div>
+        {/* Bottom Row: Conversation Log */}
+        <ConversationLog />
+      </main>
+    </div>
   );
 }
 
@@ -49,13 +49,13 @@ export default function GameClient({
 }: GameClientProps) {
   return (
     <SpokenTextProvider>
-    <GameProvider
-      initialGameState={initialGameState}
-      gameId={gameId}
-      boundRunGameTurnAction={boundRunGameTurnAction}
-    >
-      <GameLayout />
-    </GameProvider>
+      <GameProvider
+        initialGameState={initialGameState}
+        gameId={gameId}
+        boundRunGameTurnAction={boundRunGameTurnAction}
+      >
+        <GameLayout />
+      </GameProvider>
     </SpokenTextProvider>
   );
 }

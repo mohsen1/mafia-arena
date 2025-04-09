@@ -1,20 +1,19 @@
-'use server';
+"use server";
 
 import { generateAICharacterProfile } from "@/lib/ai/openaiService";
 import { DEFAULT_GAME_SETTINGS } from "@/lib/config";
 import { initializeNewGame } from "@/lib/game/engine";
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import type {
-    AICharacterProfile,
-    GameSettings,
-    PlayerInitializationData,
-    Role,
+  AICharacterProfile,
+  GameSettings,
+  PlayerInitializationData,
+  Role,
 } from "@/lib/types/game";
 import { selectCharacterImage } from "@/lib/utils/imageUtils";
 import crypto from "node:crypto";
 import { redirect } from "next/navigation";
-import type { SupportedLanguage } from "./translation";
-
+import type { LanguageName } from "@/lib/translation/languages";
 
 // ElevenLabs configuration
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -46,7 +45,7 @@ async function getElevenLabsVoices(): Promise<
     });
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch ElevenLabs voices: ${response.statusText}`
+        `Failed to fetch ElevenLabs voices: ${response.statusText}`,
       );
     }
     const data = await response.json();
@@ -58,8 +57,8 @@ async function getElevenLabsVoices(): Promise<
 }
 
 // Define the structure that startGameAction actually receives from useGameConfig
-type StartGameInputData = PlayerInitializationData & { 
-  persona: string; 
+type StartGameInputData = PlayerInitializationData & {
+  persona: string;
   voiceId?: string; // Voice ID added here before calling initializeNewGame
   imageUrl?: string | null;
 };
@@ -67,11 +66,11 @@ type StartGameInputData = PlayerInitializationData & {
 // Action to start a new game - Accepts player list and language
 export async function startGameAction(
   // Update parameter to use the defined type
-  playerInitDataList: StartGameInputData[], 
-  language: SupportedLanguage
+  playerInitDataList: StartGameInputData[],
+  language: LanguageName,
 ) {
   console.log(
-    `Attempting to start a new game with ${playerInitDataList.length} players in ${language}...`
+    `Attempting to start a new game with ${playerInitDataList.length} players in ${language}...`,
   );
 
   let gameIdToRedirect: string | null = null;
@@ -85,30 +84,34 @@ export async function startGameAction(
     // --- Fetch Voices ---
     const availableVoices = await getElevenLabsVoices();
     const usableVoices = availableVoices.filter(
-      (v) => v.category === "premade"
+      (v) => v.category === "premade",
     ); // Use only premade voices
     let voiceIndex = 0;
 
     // --- Assign Voices to Init Data (before passing to initializeNewGame) ---
     // Add voiceId to the input data
-    const playersForInitialization: StartGameInputData[] = playerInitDataList.map((initData) => {
-      let assignedVoiceId: string | undefined = undefined;
-      if (usableVoices.length > 0) {
-        assignedVoiceId =
-          usableVoices[voiceIndex % usableVoices.length].voice_id;
-        voiceIndex++;
-      }
-      // Add voiceId to the existing object
-      return { ...initData, voiceId: assignedVoiceId };
-    });
+    const playersForInitialization: StartGameInputData[] =
+      playerInitDataList.map((initData) => {
+        let assignedVoiceId: string | undefined = undefined;
+        if (usableVoices.length > 0) {
+          assignedVoiceId =
+            usableVoices[voiceIndex % usableVoices.length].voice_id;
+          voiceIndex++;
+        }
+        // Add voiceId to the existing object
+        return { ...initData, voiceId: assignedVoiceId };
+      });
 
     // --- Construct Settings ---
     const numPlayers = playersForInitialization.length;
     const settings: GameSettings = {
-      roleDistribution: playersForInitialization.reduce((acc, curr) => {
-        acc[curr.role] = (acc[curr.role] || 0) + 1;
-        return acc;
-      }, {} as Record<Role, number>),
+      roleDistribution: playersForInitialization.reduce(
+        (acc, curr) => {
+          acc[curr.role] = (acc[curr.role] || 0) + 1;
+          return acc;
+        },
+        {} as Record<Role, number>,
+      ),
       discussionRoundsPerPlayer:
         DEFAULT_GAME_SETTINGS.discussionRoundsPerPlayer,
       numPlayers: numPlayers,
@@ -125,16 +128,18 @@ export async function startGameAction(
       gameId,
       createdAt,
       playersForInitialization, // Pass the mapped data
-      language
+      language,
     );
 
     // --- Save Game State ---
     const newGame = await gameStateManager.createAndSaveGame(initialGameState); // Use the correct method
     console.log(`New game created with ID: ${newGame.gameId}`);
     gameIdToRedirect = newGame.gameId;
-  } catch (error: unknown) { // Type error
-    if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error; // Check for redirect error
-    const errorMessage = (error instanceof Error) ? error.message : String(error);
+  } catch (error: unknown) {
+    // Type error
+    if (error instanceof Error && error.message.includes("NEXT_REDIRECT"))
+      throw error; // Check for redirect error
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Failed to start new game:", errorMessage);
     return {
       error: `Failed to create the game: ${errorMessage}`,
@@ -160,19 +165,29 @@ export async function startGameAction(
 export async function generateCharacterAction(
   role: Role,
   model: string,
-  language: SupportedLanguage,
-  existingProfiles?: AICharacterProfile[]
+  language: LanguageName,
+  existingProfiles?: AICharacterProfile[],
 ): Promise<GenerateCharacterResult | { error: string }> {
-  console.log(`generateCharacterAction called for role: ${role}, model: ${model}, lang: ${language}`);
+  console.log(
+    `generateCharacterAction called for role: ${role}, model: ${model}, lang: ${language}`,
+  );
   try {
     // Call generateAICharacterProfile which now returns profile + persona
-    const profileAndPersona = await generateAICharacterProfile(role, model, language, existingProfiles);
+    const profileAndPersona = await generateAICharacterProfile(
+      role,
+      model,
+      language,
+      existingProfiles,
+    );
     if (!profileAndPersona) {
       throw new Error("AI profile generation returned null.");
     }
 
     // Select image after profile generation using fields from profileAndPersona
-    const imageUrl = await selectCharacterImage(profileAndPersona.gender, profileAndPersona.ageCategory);
+    const imageUrl = await selectCharacterImage(
+      profileAndPersona.gender,
+      profileAndPersona.ageCategory,
+    );
 
     // Construct the result using the data from profileAndPersona
     const result: GenerateCharacterResult = {
@@ -183,12 +198,13 @@ export async function generateCharacterAction(
       // voiceId will be assigned later in startGameAction
     };
     return result;
-
-  } catch (error: unknown) { // Type error
-    const errorMessage = (error instanceof Error) ? error.message : String(error);
+  } catch (error: unknown) {
+    // Type error
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
-      `Error in generateCharacterAction for role ${role}:`, errorMessage
+      `Error in generateCharacterAction for role ${role}:`,
+      errorMessage,
     );
     return { error: errorMessage };
   }
-} 
+}

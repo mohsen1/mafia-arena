@@ -1,6 +1,6 @@
 import { PlayerCard } from "@/components/PlayerCard";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
-import {  HouseIcon, } from "lucide-react";
+import { HouseIcon } from "lucide-react";
 import Link from "next/link";
 
 export function GameSidebar() {

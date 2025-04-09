@@ -1,431 +1,471 @@
 {
-    "en": [
-        {
-            "phrase": "Moderator",
-            "translation": "Moderator",
-            "description": "The game moderator."
-        },
-        {
-            "phrase": "Villager",
-            "translation": "Villager",
-            "description": "A member of the village faction."
-        },
-        {
-            "phrase": "Werewolf",
-            "translation": "Werewolf",
-            "description": "A member of the werewolf faction."
-        },
-        {
-            "phrase": "Seer",
-            "translation": "Seer",
-            "description": "A villager who can investigate players at night."
-        },
-        {
-            "phrase": "Doctor",
-            "translation": "Doctor",
-            "description": "A villager who can protect players at night."
-        },
-        {
-            "phrase": "PlayerStatusDead",
-            "translation": "Dead",
-            "description": "Indicates a player is dead."
-        },
-        {
-            "phrase": "GamePhaseNight",
-            "translation": "Night",
-            "description": "The night phase of the game."
-        },
-        {
-            "phrase": "GamePhaseDayIntroductions",
-            "translation": "Day Introductions",
-            "description": "The introduction phase."
-        },
-        {
-            "phrase": "GamePhaseDayDiscussion",
-            "translation": "Day Discussion",
-            "description": "The discussion phase."
-        },
-        {
-            "phrase": "GamePhaseVoting",
-            "translation": "Voting",
-            "description": "The voting phase."
-        },
-        {
-            "phrase": "GamePhaseGameOver",
-            "translation": "Game Over",
-            "description": "The game has ended."
-        },
-        {
-            "phrase": "RoundLabel",
-            "translation": "Round",
-            "description": "Label for the current round number."
-        },
-        {
-            "phrase": "OutcomeVillagerWin",
-            "translation": "Villager Win",
-            "description": "Villagers won the game."
-        },
-        {
-            "phrase": "OutcomeWerewolfWin",
-            "translation": "Werewolf Win",
-            "description": "Werewolves won the game."
-        },
-        {
-            "phrase": "StartGameButton",
-            "translation": "Start New Game",
-            "description": "Button text to start a new game config."
-        },
-        {
-            "phrase": "GenerateAndStartGameButton",
-            "translation": "Generate & Start Game",
-            "description": "Button text to generate characters and start."
-        },
-        {
-            "phrase": "PlayersLabel",
-            "translation": "Players",
-            "description": "Label for player count/list."
-        },
-        {
-            "phrase": "GlobalAIModelLabel",
-            "translation": "Global AI Model",
-            "description": "Label for the global AI model selector."
-        },
-        {
-            "phrase": "GameLanguageLabel",
-            "translation": "Game Language",
-            "description": "Label for the game language selector."
-        },
-        {
-            "phrase": "CharacterSetupLabel",
-            "translation": "Character Setup",
-            "description": "Header for character configuration section."
-        },
-        {
-            "phrase": "RoleLabel",
-            "translation": "Role",
-            "description": "Label for role selection."
-        },
-        {
-            "phrase": "ModelLabel",
-            "translation": "Model",
-            "description": "Label for model selection."
-        },
-        {
-            "phrase": "NextTurnButton",
-            "translation": "Next",
-            "description": "Button to advance to the next turn/step."
-        },
-        {
-            "phrase": "PauseButton",
-            "translation": "Pause",
-            "description": "Button to pause auto-run."
-        },
-        {
-            "phrase": "ResumeButton",
-            "translation": "Resume",
-            "description": "Button to resume auto-run."
-        },
-        {
-            "phrase": "SelectRolePlaceholder",
-            "translation": "Select role",
-            "description": "Placeholder for role selection dropdown."
-        },
-        {
-            "phrase": "SelectModelPlaceholder",
-            "translation": "Select model",
-            "description": "Placeholder for model selection dropdown."
-        },
-        {
-            "phrase": "WerewolfAITitle",
-            "translation": "Werewolf AI",
-            "description": "Main title of the application."
-        },
-        {
-            "phrase": "ExistingGamesTitle",
-            "translation": "Existing Games",
-            "description": "Header for the list of saved games."
-        },
-        {
-            "phrase": "LoadingGameState",
-            "translation": "Loading game state...",
-            "description": "Message shown while game state is loading."
-        },
-        {
-            "phrase": "EmptyConversationLog",
-            "translation": "The conversation log is empty.",
-            "description": "Message shown when there are no conversation messages."
-        },
-        {
-            "phrase": "GameOverStatus",
-            "translation": "Game Over",
-            "description": "Status text indicating the game has ended."
-        },
-        {
-            "phrase": "ConfigureGamePrompt",
-            "translation": "Configure player slots, roles, and models.",
-            "description": "Initial prompt in the game configuration form."
-        },
-        {
-            "phrase": "PlayerImageAlt",
-            "translation": "Image of {name}",
-            "description": "Alt text for player avatar image. {name} is a placeholder."
-        },
-        {
-            "phrase": "WelcomeMessage",
-            "translation": "Welcome to \"{gameTitle}\"! {playerCount} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.",
-            "description": "Initial game welcome message. Placeholders: {gameTitle}, {playerCount}"
-        },
-        {
-            "phrase": "IntroCompleteMessage",
-            "translation": "Introductions are complete. The floor is now open for discussion.",
-            "description": "Message when introductions end and discussion begins."
-        },
-        {
-            "phrase": "NightSummaryElimination",
-            "translation": "A scream pierces the night! The villagers gather in the morning to find {playerName} dead. They were a {playerRole}.",
-            "description": "Moderator message when a player is killed at night. Placeholders: {playerName}, {playerRole}"
-        },
-        {
-            "phrase": "NightSummarySaved",
-            "translation": "A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.",
-            "description": "Moderator message when a werewolf kill was prevented by a doctor save."
-        },
-        {
-            "phrase": "NightSummaryPeaceful",
-            "translation": "The night passes uneventfully. Dawn breaks.",
-            "description": "Moderator message when no kill action happened (no wolves, tie, etc.)."
-        },
-        {
-            "phrase": "DayStartDiscussionMessage",
-            "translation": "Day {round} begins. Discuss what happened and who you suspect.",
-            "description": "Message at the start of the day discussion phase. Placeholder: {round}"
-        },
-        {
-            "phrase": "DayStartIntroductionMessage",
-            "translation": "Day {round} begins. Time for introductions.",
-            "description": "Message at the start of the day introduction phase (should only be round 1). Placeholder: {round}"
-        },
-        {
-            "phrase": "VoteStartMessage",
-            "translation": "Discussion time is over. It is now time to vote for who to eliminate.",
-            "description": "Message when discussion ends and voting begins."
-        },
-        {
-            "phrase": "VoteResultsMessage",
-            "translation": "The votes are in!\n{voteDetails}",
-            "description": "Message announcing the vote counts. Placeholder: {voteDetails} (multiline list)"
-        },
-        {
-            "phrase": "VoteEliminationMessage",
-            "translation": "With {voteCount} votes, {playerName} has been eliminated by the village. They were a {playerRole}.",
-            "description": "Message when a player is eliminated by vote. Placeholders: {voteCount}, {playerName}, {playerRole}"
-        },
-        {
-            "phrase": "VoteTieMessage",
-            "translation": "The vote is tied between {tiedPlayerNames}! No one is eliminated today.",
-            "description": "Message when the vote results in a tie. Placeholder: {tiedPlayerNames}"
-        },
-        {
-            "phrase": "VoteNoVotesMessage",
-            "translation": "No votes were cast. The village remains undecided.",
-            "description": "Message when no votes are cast during the voting phase."
-        },
-        {
-            "phrase": "NightStartMessage",
-            "translation": "The sun sets. Night {round} falls upon the village. Close your eyes...",
-            "description": "Message when voting ends and the night phase begins. Placeholder: {round}"
-        },
-        {
-            "phrase": "GameOverMessage",
-            "translation": "The game is over! {outcomeMessage}",
-            "description": "Container message for game over, usually followed by win condition message. Placeholder: {outcomeMessage}"
-        },
-        {
-            "phrase": "ModeratorLabel",
-            "translation": "Moderator",
-            "description": "The game moderator label shown in messages."
-        },
-        {
-            "phrase": "GamePhaseLabel",
-            "translation": "Phase",
-            "description": "Label for the current game phase."
-        },
-        {
-            "phrase": "DeleteButton",
-            "translation": "Delete",
-            "description": "Button text for deleting a game."
-        },
-        {
-            "phrase": "ConfigureNewGameTitle",
-            "translation": "Configure New Game",
-            "description": "Title for the new game configuration form."
-        },
-        {
-            "phrase": "AddPlayerSlotLabel",
-            "translation": "Add player slot",
-            "description": "Aria-label for the button to add a player slot."
-        },
-        {
-            "phrase": "RemovePlayerSlotLabel",
-            "translation": "Remove last player slot",
-            "description": "Aria-label for the button to remove the last player slot."
-        },
-        {
-            "phrase": "LoadingLabel",
-            "translation": "Loading...",
-            "description": "Generic loading text."
-        },
-        {
-            "phrase": "NoModelsAvailableLabel",
-            "translation": "No models available",
-            "description": "Text shown in model dropdown when none are found."
-        },
-        {
-            "phrase": "LoadingSetupLabel",
-            "translation": "Loading setup...",
-            "description": "Message shown while initial game config setup is loading."
-        },
-        {
-            "phrase": "WaitingForModelsLabel",
-            "translation": "Waiting for available AI models...",
-            "description": "Message shown if AI models haven't loaded yet."
-        },
-        {
-            "phrase": "AddPlayerSlotsPrompt",
-            "translation": "Use the '+' button to add player slots (minimum 5).",
-            "description": "Prompt shown when no player slots are configured."
-        },
-        {
-            "phrase": "InitialConfigPrompt",
-            "translation": "Configure player slots, roles, and models.",
-            "description": "Initial prompt message in the status area."
-        },
-        {
-            "phrase": "GeneratingCharactersInfo",
-            "translation": "Generating characters...",
-            "description": "Info message shown while characters are being generated."
-        },
-        {
-            "phrase": "ValidationPassedInfo",
-            "translation": "Validation passed. Starting game...",
-            "description": "Info message shown after successful generation before starting."
-        },
-        {
-            "phrase": "GameStartedSuccessInfo",
-            "translation": "Game started successfully!",
-            "description": "Info message shown when the game starts successfully."
-        },
-        {
-            "phrase": "GeneratingButtonLabel",
-            "translation": "Generating...",
-            "description": "Text on the start button during character generation."
-        },
-        {
-            "phrase": "StartingButtonLabel",
-            "translation": "Starting...",
-            "description": "Text on the start button while initiating the game start process."
-        },
-        {
-            "phrase": "ConfigLooksGood",
-            "translation": "Configuration looks good ({playerCount} players).",
-            "description": "Validation message when config is valid. Placeholder: {playerCount}"
-        },
-        {
-            "phrase": "ConfigInvalid",
-            "translation": "Configuration invalid",
-            "description": "Generic prefix or message for invalid configuration state."
-        },
-        {
-            "phrase": "MinimumPlayersRequired",
-            "translation": "Minimum 5 players required.",
-            "description": "Validation error: not enough players."
-        },
-        {
-            "phrase": "WerewolfRequired",
-            "translation": "At least one Werewolf is required.",
-            "description": "Validation error: no werewolf role assigned."
-        },
-        {
-            "phrase": "SeerRequired",
-            "translation": "At least one Seer is recommended.",
-            "description": "Validation warning/error: no seer role assigned (optional)."
-        },
-        {
-            "phrase": "DoctorRequired",
-            "translation": "At least one Doctor is recommended.",
-            "description": "Validation warning/error: no doctor role assigned (optional)."
-        },
-        {
-            "phrase": "TooManyWerewolves",
-            "translation": "Too many Werewolves for the number of players.",
-            "description": "Validation error: werewolf count exceeds limits."
-        },
-        {
-            "phrase": "PostGenValidationValid",
-            "translation": "Generated setup valid.",
-            "description": "Validation message after generation succeeds."
-        },
-        {
-            "phrase": "PostGenValidationInvalid",
-            "translation": "Generated setup invalid",
-            "description": "Validation message prefix after generation fails checks."
-        },
-        {
-            "phrase": "GenerationError",
-            "translation": "Generation error",
-            "description": "Generic error during character generation."
-        },
-        {
-            "phrase": "UnexpectedGenerationError",
-            "translation": "Unexpected generation error",
-            "description": "Error message for unexpected failures during generation."
-        },
-        {
-            "phrase": "GenerationInvalidSetupError",
-            "translation": "Generation complete, but setup is invalid. Check details below.",
-            "description": "Error message shown when generation finishes but validation fails."
-        },
-        {
-            "phrase": "InternalNotEnoughPlayersError",
-            "translation": "Internal Error: Not enough valid players ({playerCount}) after filtering.",
-            "description": "Internal error if filtering generated players results in too few. Placeholder: {playerCount}"
-        },
-        {
-            "phrase": "StartGameFailedError",
-            "translation": "Failed to start game: {errorMessage}",
-            "description": "Error message when the final game start action fails. Placeholder: {errorMessage}"
-        },
-        {
-            "phrase": "UnnamedCharacterLabel",
-            "translation": "Unnamed",
-            "description": "Default label if a generated character has no name."
-        },
-        {
-            "phrase": "RoleUnknown",
-            "translation": "Unknown Role",
-            "description": "Label shown if a character's role is somehow unknown."
-        },
-        {
-            "phrase": "GenerationErrorPrefix",
-            "translation": "Error",
-            "description": "Prefix for displaying a generation error message in the slot item."
-        },
-        {
-            "phrase": "SlotLabel",
-            "translation": "Slot",
-            "description": "Label prefix for a character configuration slot."
-        },
-        {
-            "phrase": "RemovePlayerSlotAriaLabel",
-            "translation": "Remove player slot",
-            "description": "Aria-label for the button to remove a specific player slot."
-        }
-    ],
-    "fa": [
-        {
-            "phrase": "Moderator",
-            "translation": "خدا",
-            "description": "The game moderator."
-        }
-    ]
+  "en": [
+    {
+      "phrase": "AddPlayerButtonLabel",
+      "translation": "Add",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "AddPlayerSlotLabel",
+      "translation": "Add player slot",
+      "description": "Aria-label for the button to add a player slot."
+    },
+    {
+      "phrase": "AddPlayerSlotsPrompt",
+      "translation": "Use the '+' button to add player slots (minimum 5).",
+      "description": "Prompt shown when no player slots are configured."
+    },
+    {
+      "phrase": "CharacterSetupLabel",
+      "translation": "Character Setup",
+      "description": "Header for character configuration section."
+    },
+    {
+      "phrase": "ConfigInvalid",
+      "translation": "Configuration invalid",
+      "description": "Generic prefix or message for invalid configuration state."
+    },
+    {
+      "phrase": "ConfigLooksGood",
+      "translation": "Configuration looks good ({playerCount} players).",
+      "description": "Validation message when config is valid. Placeholder: {playerCount}"
+    },
+    {
+      "phrase": "ConfigLooksGood_Prefix",
+      "translation": "Configuration looks good",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "ConfigLooksGood_Suffix",
+      "translation": "(Ready to Generate & Start)",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "ConfigureGamePrompt",
+      "translation": "Configure player slots, roles, and models.",
+      "description": "Initial prompt in the game configuration form."
+    },
+    {
+      "phrase": "ConfigureNewGameTitle",
+      "translation": "Configure New Game",
+      "description": "Title for the new game configuration form."
+    },
+    {
+      "phrase": "DayStartDiscussionMessage",
+      "translation": "Day {round} begins. Discuss what happened and who you suspect.",
+      "description": "Message at the start of the day discussion phase. Placeholder: {round}"
+    },
+    {
+      "phrase": "DayStartIntroductionMessage",
+      "translation": "Day {round} begins. Time for introductions.",
+      "description": "Message at the start of the day introduction phase (should only be round 1). Placeholder: {round}"
+    },
+    {
+      "phrase": "DeleteButton",
+      "translation": "Delete",
+      "description": "Button text for deleting a game."
+    },
+    {
+      "phrase": "Doctor",
+      "translation": "Doctor",
+      "description": "A villager who can protect players at night."
+    },
+    {
+      "phrase": "DoctorRequired",
+      "translation": "At least one Doctor is recommended.",
+      "description": "Validation warning/error: no doctor role assigned (optional)."
+    },
+    {
+      "phrase": "EmptyConversationLog",
+      "translation": "The conversation log is empty.",
+      "description": "Message shown when there are no conversation messages."
+    },
+    {
+      "phrase": "EnableAudioLabel",
+      "translation": "Enable Audio",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "ExistingGamesTitle",
+      "translation": "Existing Games",
+      "description": "Header for the list of saved games."
+    },
+    {
+      "phrase": "GameLanguageLabel",
+      "translation": "Game Language",
+      "description": "Label for the game language selector."
+    },
+    {
+      "phrase": "GameOverMessage",
+      "translation": "The game is over! {outcomeMessage}",
+      "description": "Container message for game over, usually followed by win condition message. Placeholder: {outcomeMessage}"
+    },
+    {
+      "phrase": "GameOverStatus",
+      "translation": "Game Over",
+      "description": "Status text indicating the game has ended."
+    },
+    {
+      "phrase": "GamePhaseDayDiscussion",
+      "translation": "Day Discussion",
+      "description": "The discussion phase."
+    },
+    {
+      "phrase": "GamePhaseDayIntroductions",
+      "translation": "Day Introductions",
+      "description": "The introduction phase."
+    },
+    {
+      "phrase": "GamePhaseGameOver",
+      "translation": "Game Over",
+      "description": "The game has ended."
+    },
+    {
+      "phrase": "GamePhaseLabel",
+      "translation": "Phase",
+      "description": "Label for the current game phase."
+    },
+    {
+      "phrase": "GamePhaseNight",
+      "translation": "Night",
+      "description": "The night phase of the game."
+    },
+    {
+      "phrase": "GamePhaseVoting",
+      "translation": "Voting",
+      "description": "The voting phase."
+    },
+    {
+      "phrase": "GameStartedSuccessInfo",
+      "translation": "Game started successfully!",
+      "description": "Info message shown when the game starts successfully."
+    },
+    {
+      "phrase": "GenerateAndStartGameButton",
+      "translation": "Generate & Start Game",
+      "description": "Button text to generate characters and start."
+    },
+    {
+      "phrase": "GeneratingButtonLabel",
+      "translation": "Generating...",
+      "description": "Text on the start button during character generation."
+    },
+    {
+      "phrase": "GeneratingCharactersInfo",
+      "translation": "Generating characters...",
+      "description": "Info message shown while characters are being generated."
+    },
+    {
+      "phrase": "GenerationError",
+      "translation": "Generation error",
+      "description": "Generic error during character generation."
+    },
+    {
+      "phrase": "GenerationErrorPrefix",
+      "translation": "Error",
+      "description": "Prefix for displaying a generation error message in the slot item."
+    },
+    {
+      "phrase": "GenerationInvalidSetupError",
+      "translation": "Generation complete, but setup is invalid. Check details below.",
+      "description": "Error message shown when generation finishes but validation fails."
+    },
+    {
+      "phrase": "GlobalAIModelLabel",
+      "translation": "Global AI Model",
+      "description": "Label for the global AI model selector."
+    },
+    {
+      "phrase": "InitialConfigPrompt",
+      "translation": "Configure player slots, roles, and models.",
+      "description": "Initial prompt message in the status area."
+    },
+    {
+      "phrase": "InternalNotEnoughPlayersError",
+      "translation": "Internal Error: Not enough valid players ({playerCount}) after filtering.",
+      "description": "Internal error if filtering generated players results in too few. Placeholder: {playerCount}"
+    },
+    {
+      "phrase": "IntroCompleteMessage",
+      "translation": "Introductions are complete. The floor is now open for discussion.",
+      "description": "Message when introductions end and discussion begins."
+    },
+    {
+      "phrase": "LoadingGameState",
+      "translation": "Loading game state...",
+      "description": "Message shown while game state is loading."
+    },
+    {
+      "phrase": "LoadingLabel",
+      "translation": "Loading...",
+      "description": "Generic loading text."
+    },
+    {
+      "phrase": "LoadingSetupLabel",
+      "translation": "Loading setup...",
+      "description": "Message shown while initial game config setup is loading."
+    },
+    {
+      "phrase": "MinimumPlayersRequired",
+      "translation": "Minimum 5 players required.",
+      "description": "Validation error: not enough players."
+    },
+    {
+      "phrase": "ModelLabel",
+      "translation": "Model",
+      "description": "Label for model selection."
+    },
+    {
+      "phrase": "Moderator",
+      "translation": "Moderator",
+      "description": "The game moderator."
+    },
+    {
+      "phrase": "ModeratorLabel",
+      "translation": "Moderator",
+      "description": "The game moderator label shown in messages."
+    },
+    {
+      "phrase": "NextTurnButton",
+      "translation": "Next",
+      "description": "Button to advance to the next turn/step."
+    },
+    {
+      "phrase": "NightStartMessage",
+      "translation": "The sun sets. Night {round} falls upon the village. Close your eyes...",
+      "description": "Message when voting ends and the night phase begins. Placeholder: {round}"
+    },
+    {
+      "phrase": "NightSummaryElimination",
+      "translation": "A scream pierces the night! The villagers gather in the morning to find {playerName} dead. They were a {playerRole}.",
+      "description": "Moderator message when a player is killed at night. Placeholders: {playerName}, {playerRole}"
+    },
+    {
+      "phrase": "NightSummaryPeaceful",
+      "translation": "The night passes uneventfully. Dawn breaks.",
+      "description": "Moderator message when no kill action happened (no wolves, tie, etc.)."
+    },
+    {
+      "phrase": "NightSummarySaved",
+      "translation": "A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.",
+      "description": "Moderator message when a werewolf kill was prevented by a doctor save."
+    },
+    {
+      "phrase": "NoModelsAvailableLabel",
+      "translation": "No models available",
+      "description": "Text shown in model dropdown when none are found."
+    },
+    {
+      "phrase": "OutcomeVillagerWin",
+      "translation": "Villager Win",
+      "description": "Villagers won the game."
+    },
+    {
+      "phrase": "OutcomeWerewolfWin",
+      "translation": "Werewolf Win",
+      "description": "Werewolves won the game."
+    },
+    {
+      "phrase": "PauseButton",
+      "translation": "Pause",
+      "description": "Button to pause auto-run."
+    },
+    {
+      "phrase": "PlayerImageAlt",
+      "translation": "Image of {name}",
+      "description": "Alt text for player avatar image. {name} is a placeholder."
+    },
+    {
+      "phrase": "PlayersLabel",
+      "translation": "Players",
+      "description": "Label for player count/list."
+    },
+    {
+      "phrase": "PlayerStatusDead",
+      "translation": "Dead",
+      "description": "Indicates a player is dead."
+    },
+    {
+      "phrase": "PostGenValidationInvalid",
+      "translation": "Generated setup invalid",
+      "description": "Validation message prefix after generation fails checks."
+    },
+    {
+      "phrase": "PostGenValidationValid",
+      "translation": "Generated setup valid.",
+      "description": "Validation message after generation succeeds."
+    },
+    {
+      "phrase": "RemovePlayerButtonLabel",
+      "translation": "Remove",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "RemovePlayerSlotAriaLabel",
+      "translation": "Remove player slot",
+      "description": "Aria-label for the button to remove a specific player slot."
+    },
+    {
+      "phrase": "RemovePlayerSlotLabel",
+      "translation": "Remove last player slot",
+      "description": "Aria-label for the button to remove the last player slot."
+    },
+    {
+      "phrase": "ResumeButton",
+      "translation": "Resume",
+      "description": "Button to resume auto-run."
+    },
+    {
+      "phrase": "RoleLabel",
+      "translation": "Role",
+      "description": "Label for role selection."
+    },
+    {
+      "phrase": "RoleUnknown",
+      "translation": "Unknown Role",
+      "description": "Label shown if a character's role is somehow unknown."
+    },
+    {
+      "phrase": "RoundLabel",
+      "translation": "Round",
+      "description": "Label for the current round number."
+    },
+    {
+      "phrase": "Seer",
+      "translation": "Seer",
+      "description": "A villager who can investigate players at night."
+    },
+    {
+      "phrase": "SeerRequired",
+      "translation": "At least one Seer is recommended.",
+      "description": "Validation warning/error: no seer role assigned (optional)."
+    },
+    {
+      "phrase": "SelectGlobalModelPlaceholder",
+      "translation": "Select global model",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "SelectLanguagePlaceholder",
+      "translation": "Select language",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "SelectModelPlaceholder",
+      "translation": "Select model",
+      "description": "Placeholder for model selection dropdown."
+    },
+    {
+      "phrase": "SelectRolePlaceholder",
+      "translation": "Select role",
+      "description": "Placeholder for role selection dropdown."
+    },
+    {
+      "phrase": "SlotLabel",
+      "translation": "Slot",
+      "description": "Label prefix for a character configuration slot."
+    },
+    {
+      "phrase": "StartGameButton",
+      "translation": "Start New Game",
+      "description": "Button text to start a new game config."
+    },
+    {
+      "phrase": "StartGameFailedError",
+      "translation": "Failed to start game: {errorMessage}",
+      "description": "Error message when the final game start action fails. Placeholder: {errorMessage}"
+    },
+    {
+      "phrase": "StartingButtonLabel",
+      "translation": "Starting...",
+      "description": "Text on the start button while initiating the game start process."
+    },
+    {
+      "phrase": "ToggleGameAudioLabel",
+      "translation": "Toggle game audio",
+      "description": "Auto-added from fallback"
+    },
+    {
+      "phrase": "TooManyWerewolves",
+      "translation": "Too many Werewolves for the number of players.",
+      "description": "Validation error: werewolf count exceeds limits."
+    },
+    {
+      "phrase": "UnexpectedGenerationError",
+      "translation": "Unexpected generation error",
+      "description": "Error message for unexpected failures during generation."
+    },
+    {
+      "phrase": "UnnamedCharacterLabel",
+      "translation": "Unnamed",
+      "description": "Default label if a generated character has no name."
+    },
+    {
+      "phrase": "ValidationPassedInfo",
+      "translation": "Validation passed. Starting game...",
+      "description": "Info message shown after successful generation before starting."
+    },
+    {
+      "phrase": "Villager",
+      "translation": "Villager",
+      "description": "A member of the village faction."
+    },
+    {
+      "phrase": "VoteEliminationMessage",
+      "translation": "With {voteCount} votes, {playerName} has been eliminated by the village. They were a {playerRole}.",
+      "description": "Message when a player is eliminated by vote. Placeholders: {voteCount}, {playerName}, {playerRole}"
+    },
+    {
+      "phrase": "VoteNoVotesMessage",
+      "translation": "No votes were cast. The village remains undecided.",
+      "description": "Message when no votes are cast during the voting phase."
+    },
+    {
+      "phrase": "VoteResultsMessage",
+      "translation": "The votes are in!\n{voteDetails}",
+      "description": "Message announcing the vote counts. Placeholder: {voteDetails} (multiline list)"
+    },
+    {
+      "phrase": "VoteStartMessage",
+      "translation": "Discussion time is over. It is now time to vote for who to eliminate.",
+      "description": "Message when discussion ends and voting begins."
+    },
+    {
+      "phrase": "VoteTieMessage",
+      "translation": "The vote is tied between {tiedPlayerNames}! No one is eliminated today.",
+      "description": "Message when the vote results in a tie. Placeholder: {tiedPlayerNames}"
+    },
+    {
+      "phrase": "WaitingForModelsLabel",
+      "translation": "Waiting for available AI models...",
+      "description": "Message shown if AI models haven't loaded yet."
+    },
+    {
+      "phrase": "WelcomeMessage",
+      "translation": "Welcome to \"{gameTitle}\"! {playerCount} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.",
+      "description": "Initial game welcome message. Placeholders: {gameTitle}, {playerCount}"
+    },
+    {
+      "phrase": "Werewolf",
+      "translation": "Werewolf",
+      "description": "A member of the werewolf faction."
+    },
+    {
+      "phrase": "WerewolfAITitle",
+      "translation": "Werewolf AI",
+      "description": "Main title of the application."
+    },
+    {
+      "phrase": "WerewolfRequired",
+      "translation": "At least one Werewolf is required.",
+      "description": "Validation error: no werewolf role assigned."
+    }
+  ],
+  "fa": [
+    {
+      "phrase": "Moderator",
+      "translation": "خدا",
+      "description": "The game moderator."
+    }
+  ]
 }

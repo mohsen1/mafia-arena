@@ -1,7 +1,5 @@
 "use client";
 
-import { supportedLanguages } from "@/app/actions/translation";
-import type { SupportedLanguage } from "@/app/actions/translation";
 import { CharacterSlotItem } from "@/components/CharacterSlotItem"; // Import the item component
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,6 +24,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useMemo } from "react";
+import { availableLanguageNames, type LanguageName } from "@/lib/translation/languages";
 
 // Define available roles for selection (can be defined here or imported)
 const availableRolesForSelection: Role[] = [
@@ -40,23 +39,27 @@ const availableRolesForSelection: Role[] = [
 export interface StartGameFormProps {
   availableModels: string[];
   translations: Record<string, string>; // Accept translations object
+  isSourceLanguage: boolean; // Add this prop
 }
 
-// Update component signature to accept translations
+// Update component signature to accept translations and isSourceLanguage
 export default function StartGameForm({
   availableModels,
   translations,
+  isSourceLanguage, // Destructure the new prop
 }: StartGameFormProps) {
-  console.log(`[StartGameForm] Received ${Object.keys(translations).length} translation keys`); // Log received translations
+  console.log(
+    `[StartGameForm] Received ${Object.keys(translations).length} translation keys`,
+  ); // Log received translations
 
-  // Instantiate the translation hook here
+  // Instantiate the translation hook here, passing the new prop
   const {
     t,
     isLoading: isTLoading,
     error: tError,
   } = useTranslation({
-    translations: translations, // Initialize with passed translations
-    // No need to pass loading/error state from here
+    translations: translations,
+    isSourceLanguage: isSourceLanguage, // Pass it down
   });
 
   const {
@@ -83,7 +86,9 @@ export default function StartGameForm({
     toggleAudioEnabled, // Get audio toggle function
   } = useGameConfig(availableModels); // Call hook without t
 
-  console.log(`[StartGameForm] Language from useGameConfig: ${selectedLanguage}`); // Log language from hook
+  console.log(
+    `[StartGameForm] Language from useGameConfig: ${selectedLanguage}`,
+  ); // Log language from hook
 
   // Combine submission state with translation loading state
   const isLoading = isSubmitting || isTLoading;
@@ -152,7 +157,9 @@ export default function StartGameForm({
           disabled={isLoading || totalSlots <= 5}
           aria-label={t("RemovePlayerSlotLabel", "Remove last player slot")}
         >
-          <span className="text-red-500">{t("RemovePlayerButtonLabel", "Remove")}</span>
+          <span className="text-red-500">
+            {t("RemovePlayerButtonLabel", "Remove")}
+          </span>
           <Trash2 className="h-4 w-4 mr-1 text-red-500" />
         </Button>
       </div>
@@ -177,7 +184,7 @@ export default function StartGameForm({
             <SelectValue
               placeholder={t(
                 "SelectGlobalModelPlaceholder",
-                "Select global model"
+                "Select global model",
               )}
             />
           </SelectTrigger>
@@ -214,7 +221,7 @@ export default function StartGameForm({
           value={selectedLanguage}
           onValueChange={(value) => {
             console.log(`[StartGameForm] Language select changed to: ${value}`); // Log select change
-            updateLanguage(value as SupportedLanguage);
+            updateLanguage(value as LanguageName);
           }}
           disabled={isLoading}
         >
@@ -227,9 +234,9 @@ export default function StartGameForm({
             />
           </SelectTrigger>
           <SelectContent>
-            {supportedLanguages.map((lang) => (
-              <SelectItem key={lang} value={lang} className="text-sm">
-                {lang}
+            {availableLanguageNames.map((langName) => (
+              <SelectItem key={langName} value={langName}>
+                {langName}
               </SelectItem>
             ))}
           </SelectContent>
@@ -261,21 +268,21 @@ export default function StartGameForm({
           className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer"
           size="lg"
           disabled={!canAttemptStart || isLoading}
-        aria-label={t(
-          "GenerateAndStartGameButton",
-          "Generate characters and start new game"
-        )}
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            {/* Translate button text based on state (using infoMsg key) */}
-            {t(infoMsg || "StartingButtonLabel", infoMsg || "Starting...")}
-          </>
-        ) : (
-          t("GenerateAndStartGameButton", "Generate & Start Game")
-        )}
-      </Button>
+          aria-label={t(
+            "GenerateAndStartGameButton",
+            "Generate characters and start new game",
+          )}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              {/* Translate button text based on state (using infoMsg key) */}
+              {t(infoMsg || "StartingButtonLabel", infoMsg || "Starting...")}
+            </>
+          ) : (
+            t("GenerateAndStartGameButton", "Generate & Start Game")
+          )}
+        </Button>
       </div>
       {/* Character Slot List & Configuration */}
       <div className="my-4 p-4 rounded-md min-h-[200px]">
@@ -318,7 +325,7 @@ export default function StartGameForm({
           <p className="text-center text-sm text-muted-foreground italic py-4">
             {t(
               "AddPlayerSlotsPrompt",
-              "Use the '+' button to add player slots (minimum 5)."
+              "Use the '+' button to add player slots (minimum 5).",
             )}
           </p>
         )}
@@ -341,8 +348,8 @@ export default function StartGameForm({
               isPostGenValid === true
                 ? "text-success"
                 : isPostGenValid === false
-                ? "text-warning"
-                : "text-muted-foreground"
+                  ? "text-warning"
+                  : "text-muted-foreground"
             }`}
           >
             {isPostGenValid === true ? (
@@ -358,7 +365,7 @@ export default function StartGameForm({
             <CheckCircle2 className="h-4 w-4" />{" "}
             {`${t("ConfigLooksGood_Prefix", "Configuration looks good")} ${t(
               "ConfigLooksGood_Suffix",
-              "(Ready to Generate & Start)"
+              "(Ready to Generate & Start)",
             )}`}
           </p>
         ) : initialSlotsSet ? (
@@ -370,7 +377,7 @@ export default function StartGameForm({
           <p className="text-muted-foreground italic">
             {t(
               "InitialConfigPrompt",
-              "Configure player slots, roles, and models."
+              "Configure player slots, roles, and models.",
             )}
           </p>
         )}

@@ -41,7 +41,7 @@ export default function UI() {
 const messages = [
   "First message: Hello from the sequential player!",
   "Second message: This should play after the first one finishes.",
-  "Third and final message: Playback complete."
+  "Third and final message: Playback complete.",
 ];
 
 function PlayMultipleSpeak() {
@@ -49,9 +49,9 @@ function PlayMultipleSpeak() {
   const [showMessages, setShowMessages] = useState<boolean>(false);
 
   const addMessagesToQueue = () => {
-      console.log("PlayMultiple: Add Messages button clicked.");
-      setShowMessages(true);
-      // Note: The actual queuing happens when SpeakText mounts with autoQueue=true
+    console.log("PlayMultiple: Add Messages button clicked.");
+    setShowMessages(true);
+    // Note: The actual queuing happens when SpeakText mounts with autoQueue=true
   };
 
   // Maybe add a button to remove them too for testing unmount?
@@ -60,20 +60,23 @@ function PlayMultipleSpeak() {
   return (
     <div className="space-y-4">
       <Button onClick={addMessagesToQueue} disabled={showMessages}>
-         {showMessages ? "Messages Added/Queued" : "Add Messages & Auto-Queue"}
+        {showMessages ? "Messages Added/Queued" : "Add Messages & Auto-Queue"}
       </Button>
       {/* Conditionally render the messages based on state */}
-      {showMessages && messages.map((text, index) => (
-        <div key={index}> {/* Key moved to the wrapper div */}
+      {showMessages &&
+        messages.map((text, index) => (
+          <div key={index}>
+            {" "}
+            {/* Key moved to the wrapper div */}
             <SpeakText
-            // Removed ref and onEnd
-            autoQueue={true} // Tell component to register itself with the context queue
-            className="text-card-foreground"
+              // Removed ref and onEnd
+              autoQueue={true} // Tell component to register itself with the context queue
+              className="text-card-foreground"
             >
-            {text}
+              {text}
             </SpeakText>
-        </div>
-      ))}
+          </div>
+        ))}
     </div>
   );
 }

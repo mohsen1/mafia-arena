@@ -4,7 +4,7 @@ import type { FilteredGameState, PlayerStatus, Role } from "@/lib/types/game";
 import { useGameContext } from "@/context/GameContext";
 
 // Define the props for PlayerCard using the type from FilteredGameState
-type FilteredPlayer = FilteredGameState['players'][string];
+type FilteredPlayer = FilteredGameState["players"][string];
 
 interface PlayerCardProps {
   player: FilteredPlayer; // Use the filtered type
@@ -17,7 +17,7 @@ export function PlayerCard({ player, status, role }: PlayerCardProps) {
   const { t, gameState } = useGameContext();
 
   // Determine player role visibility based on game phase
-  const showRole = gameState?.phase === 'GameOver';
+  const showRole = gameState?.phase === "GameOver";
   // Determine voice ID based on game phase or player data
   const voiceId = showRole ? player.voiceId : undefined; // Example: only show voiceId if role is visible
 
@@ -32,13 +32,9 @@ export function PlayerCard({ player, status, role }: PlayerCardProps) {
   metadataString = metadata.join(" • ");
 
   // Get the translated alt text template
-  const altTextTemplate = t(
-    'PlayerImageAltText', 
-    "Image of {{name}}"
-  );
+  const altTextTemplate = t("PlayerImageAltText", "Image of {{name}}");
   // Format the alt text
   const altText = altTextTemplate.replace("{{name}}", player.name);
-  
 
   return (
     <div
@@ -52,7 +48,7 @@ export function PlayerCard({ player, status, role }: PlayerCardProps) {
           alt={altText}
           width={48} // Smaller size
           height={48}
-          className="rounded-full me-3 object-cover border-2 border-border flex-shrink-0" 
+          className="rounded-full me-3 object-cover border-2 border-border flex-shrink-0"
         />
       ) : (
         <div className="w-12 h-12 rounded-full bg-muted me-3 flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">

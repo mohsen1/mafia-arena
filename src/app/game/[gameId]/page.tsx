@@ -4,27 +4,26 @@ import { notFound } from "next/navigation";
 import GameClient from "./GameClient"; // Import the client component
 
 interface GamePageProps {
-    params: Promise<{ gameId: string }>; // Params are async in app router
+  params: Promise<{ gameId: string }>; // Params are async in app router
 }
 
 export default async function GamePage({ params }: GamePageProps) {
-    // No need to await params directly
-    const { gameId } = await params;
-    const gameState = await gameStateManager.getFilteredGameState(gameId);
+  // No need to await params directly
+  const { gameId } = await params;
+  const gameState = await gameStateManager.getFilteredGameState(gameId);
 
-    if (!gameState) {
-        notFound();
-    }
+  if (!gameState) {
+    notFound();
+  }
 
-    // Bind the action here on the server
-    const boundRunGameTurnAction = runGameTurnAction.bind(null, gameId);
+  // Bind the action here on the server
+  const boundRunGameTurnAction = runGameTurnAction.bind(null, gameId);
 
-    return (
-       <GameClient
-           initialGameState={gameState}
-           gameId={gameId}
-           boundRunGameTurnAction={boundRunGameTurnAction}
-        />
-    );
-} 
-
+  return (
+    <GameClient
+      initialGameState={gameState}
+      gameId={gameId}
+      boundRunGameTurnAction={boundRunGameTurnAction}
+    />
+  );
+}
