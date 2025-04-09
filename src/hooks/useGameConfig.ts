@@ -174,87 +174,147 @@ export function useGameConfig(availableModels: string[]) {
 
         setIsSubmitting(true);
         setErrorMsg(null);
-        // Use keys or English strings for info messages
         setInfoMsg("GeneratingCharactersInfo");
         setPostGenValidationMsg(null);
         setIsPostGenValid(null);
 
         const slotsToGenerate = characterSlots.map(resetSlotGeneration);
-        setCharacterSlots(slotsToGenerate);
+        setCharacterSlots([...slotsToGenerate]); // Update state immediately to show reset
 
-        const generationPromises = slotsToGenerate.map(async (slot) => {
-            const finalRole = slot.roleSelection;
-            try {
-                 const result = await generateCharacterAction(finalRole, slot.aiModel, selectedLanguage, []);
-                 if ('error' in result) throw new Error(result.error);
-                 return { ...slot, assignedRole: finalRole, profile: result.profile as AICharacterProfile, imageUrl: result.imageUrl, isGenerated: true, generationError: undefined };
-            } catch (err: any) {
-                // Return original error message or a specific key
-                return { ...slot, assignedRole: finalRole, isGenerated: false, generationError: err.message || 'GenerationError' };
-            }
-        });
+        const generatedProfiles: AICharacterProfile[] = [];
+        const updatedSlots = [...slotsToGenerate];
+        const batchSize = 10;
 
-        const results = await Promise.allSettled(generationPromises);
+        for (let i = 0; i < slotsToGenerate.length; i += batchSize) {
+            const batch = slotsToGenerate.slice(i, i + batchSize);
+            const batchIndices = Array.from({ length: batch.length }, (_, k) => i + k);
 
-        let updatedSlots = [...slotsToGenerate];
-        results.forEach((settledResult, index) => {
-            if (settledResult.status === 'fulfilled') {
-                 updatedSlots[index] = settledResult.value;
-             } else {
-                 console.error("Unexpected promise rejection:", settledResult.reason);
-                 // Use key or English string
-                 const errorText = 'UnexpectedGenerationError';
-                 setErrorMsg(prev => prev ? `${prev}, ${errorText}` : errorText);
-             }
-         });
-        setCharacterSlots(updatedSlots);
+            // Use key or English string for batch info
+            setInfoMsg(`GeneratingBatchInfo_${i / batchSize + 1}`); // e.g., GeneratingBatchInfo_1
 
+            const generationPromises = batch.map(async (slot) => {
+                const finalRole = slot.roleSelection;
+                try {
+                    // Pass current generatedProfiles to the action
+                    // generateCharacterAction returns GenerateCharacterResult (flat structure + persona)
+                    const result = await generateCharacterAction(finalRole, slot.aiModel, selectedLanguage, generatedProfiles);
+                    if ('error' in result) throw new Error(result.error);
+                    // result now contains profile fields directly + persona
+                    // Store the structured profile and the persona in the slot
+                    return { 
+                        ...slot, // Keep clientId, aiModel, roleSelection
+                        assignedRole: finalRole, 
+                        profile: { // Reconstruct profile object from flat result fields
+                            characterName: result.characterName,
+                            gender: result.gender,
+                            ageCategory: result.ageCategory,
+                            shortBio: result.shortBio
+                        },
+                        persona: result.persona, // Store the generated persona
+                        imageUrl: result.imageUrl, 
+                        isGenerated: true, 
+                        generationError: undefined 
+                    };
+                } catch (err: unknown) { // Type err as unknown
+                    const errorMessage = (err instanceof Error) ? err.message : 'GenerationError';
+                    // Store error, keep assignedRole attempt
+                    return { ...slot, assignedRole: finalRole, isGenerated: false, generationError: errorMessage, profile: undefined, persona: undefined };
+                }
+            });
+
+            const results = await Promise.allSettled(generationPromises);
+
+            results.forEach((settledResult, batchIndex) => {
+                const originalIndex = batchIndices[batchIndex];
+                if (settledResult.status === 'fulfilled') {
+                    const fulfilledValue = settledResult.value;
+                    updatedSlots[originalIndex] = fulfilledValue;
+                    // Add successfully generated profile to the list for subsequent calls
+                    // We need the full profile structure here (AICharacterProfile)
+                    if (fulfilledValue.isGenerated && fulfilledValue.profile) {
+                        // Pass the structured profile, not the whole slot
+                        generatedProfiles.push(fulfilledValue.profile); 
+                    }
+                } else {
+                    console.error("Unexpected promise rejection:", settledResult.reason);
+                    const errorText = 'UnexpectedGenerationError';
+                     // Type reason as unknown and extract message safely
+                    const reasonMessage = (settledResult.reason instanceof Error) ? settledResult.reason.message : errorText;
+                    setErrorMsg(prev => prev ? `${prev}, ${errorText}` : errorText);
+                    // Ensure the slot reflects the failure state even on rejection
+                    updatedSlots[originalIndex] = {
+                        ...slotsToGenerate[originalIndex], // Start from the reset state
+                        assignedRole: slotsToGenerate[originalIndex].roleSelection, // Keep assigned role attempt
+                        isGenerated: false,
+                        generationError: reasonMessage, // Use extracted message
+                    };
+                }
+            });
+
+            // Update the main characterSlots state after each batch for UI feedback
+            setCharacterSlots([...updatedSlots]);
+        }
+
+        // Final validation after all batches
         const finalValidation = validateGeneratedGameSetup(updatedSlots);
-         // Return original validation message
         setPostGenValidationMsg(finalValidation.message ?? null);
         setIsPostGenValid(finalValidation.isValid);
 
-
         if (!finalValidation.isValid) {
-             // Use key or English string
-             setErrorMsg('GenerationInvalidSetupError');
+            setErrorMsg('GenerationInvalidSetupError');
             setIsSubmitting(false);
-            setInfoMsg(null);
+            setInfoMsg(null); // Clear processing message
             return;
         }
 
-         // Use key or English string
-         setInfoMsg('ValidationPassedInfo');
+        setInfoMsg('ValidationPassedInfo');
 
         try {
-            const charactersToSubmit: PlayerInitializationData[] = updatedSlots
-                .filter(slot => slot.isGenerated && !slot.generationError && slot.profile && slot.assignedRole)
-                .map(({ clientId, isGenerated, generationError, roleSelection, ...rest }) => ({
-                     ...rest,
-                     aiModel: rest.aiModel,
-                     profile: rest.profile!,
-                     role: rest.assignedRole!,
+            // Use the final 'updatedSlots' which contains all results
+            // Map ConfigCharacterSlot[] to (PlayerInitializationData & { persona: string })[] for startGameAction
+            const charactersToSubmit: (PlayerInitializationData & { persona: string })[] = updatedSlots
+                 .filter((slot): slot is Required<ConfigCharacterSlot> & { profile: AICharacterProfile; assignedRole: Role; persona: string } => 
+                    slot.isGenerated && 
+                    !slot.generationError && 
+                    slot.profile !== undefined && 
+                    slot.assignedRole !== undefined &&
+                    slot.persona !== undefined // Ensure persona exists
+                 )
+                 // Destructure only fields available on ConfigCharacterSlot here
+                 .map(({ profile, assignedRole, aiModel, imageUrl, persona }) => ({ 
+                     // Construct the object expected by startGameAction
+                     role: assignedRole,
+                     profile: profile,
+                     aiModel: aiModel,
+                     imageUrl: imageUrl,
+                     // voiceId is added within startGameAction
+                     persona: persona, // Include persona
                 }));
 
              if (charactersToSubmit.length < 5) {
-                 // Use key or English string
                  throw new Error('InternalNotEnoughPlayersError');
              }
 
             const result = await startGameAction(charactersToSubmit, selectedLanguage);
-            if (result && 'error' in result) throw new Error(result.error); // Let action handle redirect
+            if (result && 'error' in result) throw new Error(result.error);
 
-            // Use key or English string
             setInfoMsg('GameStartedSuccessInfo');
             // Redirect is handled by action
-        } catch (error: any) {
+        } catch (error: unknown) { // Type error as unknown
             console.error("Starting game failed:", error);
-             // Use key or English string
-             setErrorMsg(error.message || 'StartGameFailedError');
+             // Extract message safely
+             const errorMessage = (error instanceof Error) ? error.message : 'StartGameFailedError';
+             setErrorMsg(errorMessage);
             setIsSubmitting(false);
             setInfoMsg(null);
+        } finally {
+             // Ensure submitting state is turned off if generation failed early
+             if (!finalValidation.isValid) {
+                 setIsSubmitting(false);
+             }
+             // No need to set isSubmitting to false here if successful, as redirection occurs
         }
-    }, [characterSlots, configValidation.isValid, selectedLanguage, resetSlotGeneration]);
+    }, [characterSlots, configValidation.isValid, selectedLanguage, resetSlotGeneration]); 
 
     // Return original state values/keys
     return {

@@ -1,14 +1,14 @@
-import { AICharacterProfile, Role } from '@/lib/types/game';
+import type { AICharacterProfile, Role } from '@/lib/types/game';
 import { OpenAI } from 'openai';
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { cleanAIResponse, extractJSONFromText } from "@/lib/utils/stringUtils";
 import { 
     GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT, 
     GENERATE_TITLE_AND_DESCRIPTION_USER_PROMPT, 
-    GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT
+    GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT, 
+    GAME_TITLE_DESCRIPTION_PROMPT
 } from './PROMPTS';
-import { SupportedLanguage } from "@/hooks/useGameConfig";
-import { GAME_TITLE_DESCRIPTION_PROMPT } from "./PROMPTS";
+import type { SupportedLanguage } from "@/hooks/useGameConfig";
 
 // --- Initialize OpenAI Client ---
 
@@ -85,20 +85,20 @@ export const getAIResponse: GetAIResponseFunction = async (
             throw new Error("Received empty response content from AI.");
         }
 
-        // Remove logging call
-        // await logAPICall(gameId, playerId, requestDetails, { content: responseContent }); 
+        // Removed logging call
         console.log(
             `[AI Response - ${gameId}|${playerId}] Received content (length: ${responseContent.length}).`
         );
         return responseContent;
 
-    } catch (error: any) {
+    } catch (error: unknown) { // Type error as unknown
+        const modelName = settings.model; // Capture model name for error log
+        const errorMessage = (error instanceof Error) ? error.message : String(error);
         console.error(
-            `[AI Error - ${gameId}|${playerId}] Failed AI call for model ${settings.model}:`,
-            error?.message || error
+            `[AI Error - ${gameId}|${playerId}] Failed AI call for model ${modelName}:`,
+            errorMessage
         );
-        // Remove logging call
-        // await logAPICall(gameId, playerId, requestDetails, { error: error?.message || 'Unknown Error' }); 
+        // Removed logging call
         throw error; // Re-throw the error to be handled by the caller
     }
 };
@@ -202,20 +202,18 @@ export async function generateAICharacterProfile(
     role: Role, 
     model: string, 
     language: SupportedLanguage,
-    existingProfiles?: AICharacterProfile[] // Add optional parameter
-): Promise<AICharacterProfile | null> {
+    existingProfiles?: AICharacterProfile[] // Keep existing profiles for diversity check
+): Promise<(AICharacterProfile & { persona: string }) | null> { // Return type now includes persona
     console.log(`Requesting AI profile generation for role: ${role} in ${language} using model: ${model}${existingProfiles && existingProfiles.length > 0 ? ` (considering ${existingProfiles.length} existing profiles)` : ''}`);
     
-    // Construct context about existing characters, focusing on names for uniqueness check
+    // Construct context about existing characters, focusing on names and shortBios for diversity
     let existingCharsContext = ''
     if (existingProfiles && existingProfiles.length > 0) {
-        const existingNames = existingProfiles.map(p => p.characterName).join(', ');
-        existingCharsContext = `\n\nExisting Characters in the group 
-        (IMPORTANT: DO NOT REUSE THESE NAMES, CREATE A UNIQUE CHARACTER, DO NOT USE THE FIRST OR LAST NAMES IN THIS LIST): ${existingNames}\n`;
-        // Optionally add more details back if needed for diversity, but keep names prominent
-        existingCharsContext += existingProfiles.map((p, i) => 
-            `- ${p.characterName} (${p.gender}, ${p.ageCategory}, ${p.personalityArchetype})`
+        const existingSummaries = existingProfiles.map(p => 
+            `- ${p.characterName} (${p.gender}, ${p.ageCategory}, ${p.shortBio.substring(0, 50)}...)` // Use shortBio for context
         ).join('\n');
+        const existingNames = existingProfiles.map(p => p.characterName).join(', ');
+        existingCharsContext = `\n\nExisting Characters (DO NOT REUSE NAMES OR EXACT BIOS):\n${existingSummaries}\n\nNames to avoid: ${existingNames}\n`;
     }
 
     // Use the imported prompt function, passing language
@@ -226,15 +224,14 @@ export async function generateAICharacterProfile(
         { role: 'user', content: `Generate a character profile for a ${role}.` }
     ];
 
-    // Declare responseJsonString here, outside the try block, so it's accessible in the catch
     let responseJsonString: string | undefined;
 
     try {
         // Use the existing getAIResponse but expect JSON
         responseJsonString = await getAIResponse(
             messages,
-            'character-generation', // Game ID placeholder for logging/context
-            `generate-${role}`,     // Player ID placeholder
+            'character-generation', 
+            `generate-${role}`,    
             { model: model, temperature: 0.8, response_format: { type: "json_object" } } 
         );
 
@@ -242,32 +239,35 @@ export async function generateAICharacterProfile(
             throw new Error("AI returned an empty response.");
         }
 
-        // --- Clean the response --- 
-        // Use utility function to clean the response and extract JSON
         const cleanedContent = cleanAIResponse(responseJsonString);
         const cleanedJsonString = extractJSONFromText(cleanedContent);
 
-        // Parse the cleaned JSON response string
-        const profile: AICharacterProfile = JSON.parse(cleanedJsonString);
+        // Use a type assertion here, assuming the AI adheres to the prompt
+        const profile = JSON.parse(cleanedJsonString) as AICharacterProfile;
         
-        // Basic validation (can add more checks)
-        // Use the keys defined in the prompt's JSON structure
-        if (!profile.characterName || !profile.roleInCommunity || !profile.appearance || !profile.background || 
-            !profile.personalityArchetype || !profile.keyTraits || !profile.motivations || 
-            !profile.gender || !profile.ageCategory) {
-            throw new Error("Generated JSON is missing required fields.");
+        // Basic validation for the new simplified structure
+        if (!profile.characterName || !profile.shortBio || !profile.gender || !profile.ageCategory) {
+            throw new Error("Generated JSON is missing required fields (characterName, shortBio, gender, ageCategory).");
         }
-        console.log(`Successfully generated profile for ${profile.characterName} (${role})`);
-        return profile;
 
-    } catch (error: any) {
-        console.error(`Error generating or parsing AI character profile for ${role}:`, error);
+        // Construct full persona string from the simplified profile
+        const fullPersona = 
+            `Name: ${profile.characterName}\n` +
+            `Gender: ${profile.gender}\n` +
+            `Age Category: ${profile.ageCategory}\n` +
+            `Bio & Personality: ${profile.shortBio}`;
+
+        console.log(`Successfully generated profile for ${profile.characterName} (${role})`);
+         // Return the parsed profile and the derived full persona
+         return { ...profile, persona: fullPersona }; 
+
+    } catch (error: unknown) { // Type error as unknown
+        const errorMessage = (error instanceof Error) ? error.message : String(error);
+        console.error(`Error generating or parsing AI character profile for ${role}:`, errorMessage);
         // Log the raw response if available and it's a parsing error
-        // The responseJsonString variable is now accessible here if the error occurred after assignment
         if (error instanceof SyntaxError && typeof responseJsonString === 'string') {
              console.error("Raw AI Response (JSON parse failed):\n", responseJsonString);
         }
         return null; // Return null on failure
     }
 }
-

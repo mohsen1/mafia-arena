@@ -1,6 +1,6 @@
-import { type ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 // Import language type
-import { SupportedLanguage } from "@/hooks/useGameConfig";
+import type { SupportedLanguage } from "@/hooks/useGameConfig";
 
 // Use string literal unions instead of enums
 export type Role = 'Villager' | 'Werewolf' | 'Seer' | 'Doctor';
@@ -69,12 +69,7 @@ export interface AICharacterProfile {
   readonly characterName: string;
   readonly gender: 'male' | 'female';
   readonly ageCategory: 'young' | 'old';
-  readonly roleInCommunity: string;
-  readonly appearance: string;
-  readonly background: string;
-  readonly personalityArchetype: string;
-  readonly keyTraits: string;
-  readonly motivations: readonly string[];
+  readonly shortBio: string; // Simplified bio replacing multiple fields
 }
 
 export interface PlayerInitializationData {
@@ -162,6 +157,7 @@ export interface ConfigCharacterSlot {
     roleSelection: Role; // Or Role | 'Auto' if you revert
     assignedRole?: Role;
     profile?: AICharacterProfile;
+    persona?: string; // Add field to store the generated persona
     imageUrl?: string | null;
     isGenerated: boolean;
     generationError?: string;

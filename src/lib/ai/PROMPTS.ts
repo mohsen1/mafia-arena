@@ -1,6 +1,6 @@
-import { AICharacterProfile, Role } from "@/lib/types/game";
+import type { AICharacterProfile, Role } from "@/lib/types/game";
 // Import language type
-import { SupportedLanguage } from "@/hooks/useGameConfig";
+import type { SupportedLanguage } from "@/hooks/useGameConfig";
 
 export const GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT = 
 `You are a creative assistant tasked with generating a thematic title and a short, evocative description 
@@ -18,32 +18,25 @@ ${characterDescriptions}
 Respond ONLY with the JSON object.`
 
 export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (role: string, existingCharsContext: string, language: SupportedLanguage) =>
-`You are an AI assistant designed to create compelling and diverse character profiles for a game of Werewolf set
-in a rustic, superstitious village.
+`You are an AI assistant creating character profiles for a game of Werewolf.
 Generate a character profile for the role of **${role}**.${existingCharsContext} 
 
-**Target Language and Culture:** ${language}. Generate details, especially the **characterName**, that fit this cultural context. 
-${language !== 'English' ? `**Script Requirement:** Write the \`characterName\` **using the native script** for the ${language} language (e.g., Perso-Arabic script for Persian). Do NOT use Latin script unless the target language is English.` : ''}
+**Target Language:** ${language}. Generate details, especially the **characterName**, that fit this cultural context. 
+${language !== 'English' ? `**Script Requirement:** Write the \`characterName\` **using the native script** for ${language}. Do NOT use Latin script unless English.` : ''}
 
-CRITICALLY IMPORTANT: Do NOT use any of the names mentioned in the 'Existing Characters' list above for the new character.
+CRITICALLY IMPORTANT: Do NOT use any names from the 'Existing Characters' list.
 
-Respond ONLY with a valid JSON object adhering to the following structure:
+Respond ONLY with a valid JSON object adhering to the following simplified structure:
 {
-  "characterName": "[Character Name - MUST BE UNIQUE, NOT FROM LIST ABOVE${language !== 'English' ? ', written in the NATIVE SCRIPT for ' + language : ''}]",
-  "roleInCommunity": "[Archetype or Profession]",
-  "appearance": "[1-2 sentences describing visual appearance]",
-  "background": "[2-3 sentences covering origin, profession, key life events, reputation - make it distinct]",
-  "personalityArchetype": "[e.g., The Cynic, The Protector - try to vary from existing, consider archetypes prone to suspicion or argument]",
-  "keyTraits": "[1-2 sentences summarizing key traits like suspicion, honesty, confidence - aim for diversity, consider traits that drive interaction/conflict]",
-  "motivations": ["[Motivation 1]", "[Motivation 2]", "[Motivation 3]"],
+  "characterName": "[Character Name - UNIQUE, NOT FROM LIST${language !== 'English' ? ', native script' : ''}]",
+  "shortBio": "[1-2 sentences: Age, Profession, and a defining trait or motivation related to suspicion/deception. Example: 'An old, grumpy farmer who trusts no one.']", 
   "gender": "[male or female]",
   "ageCategory": "[young or old]"
 }
 
-Ensure the details are appropriate for the assigned role (${role}) and the game's setting.
-Be creative but maintain consistency.
-CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${role}) or mention the game mechanics 
-(like roles, phases, werewolves) in the profile fields. Keep it purely in-character.
+Ensure details are appropriate for the role (${role}) and setting. 
+Keep the shortBio concise and game-relevant.
+Do NOT reveal the secret assigned role (${role}) or game mechanics in the profile.
 Output ONLY the JSON object.`;
 
 // --- Game Turn Prompts ---

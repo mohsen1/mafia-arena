@@ -54,7 +54,6 @@ export function CharacterSlotItem({
                                 <span className="font-medium truncate block text-sm text-foreground" title={slot.profile?.characterName}>
                                     {slot.profile?.characterName || t('UnnamedCharacterLabel', 'Unnamed')}
                                 </span>
-                                <span className="text-xs text-muted-foreground">({t(slot.assignedRole || 'RoleUnknown', slot.assignedRole || 'Unknown')})</span>
                             </div>
                         </>
                     ) : slot.generationError ? (

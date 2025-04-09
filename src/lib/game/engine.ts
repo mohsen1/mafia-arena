@@ -1,16 +1,22 @@
 import { getAIGameTitleAndDescription } from '@/lib/ai/openaiService';
-import {
-    GamePhase,
-    GameSettings,
-    GameState,
-    Player,
-    PlayerInitializationData,
+import type { 
+    ChatMessage, 
+    GamePhase, 
+    GameSettings, 
+    GameState, 
+    NightAction, 
+    Player, 
+    PlayerInitializationData, 
+    Role, 
+    SpeakerType, 
+    Vote, 
     WinCondition
 } from '@/lib/types/game';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
 import { selectCharacterImage } from "@/lib/utils/imageUtils";
-import { SupportedLanguage } from "@/hooks/useGameConfig";
+import type { SupportedLanguage } from '@/hooks/useGameConfig';
+import { mapLanguageNameToCode } from '@/lib/translation/languages';
 
 // --- Constants ---
 
@@ -39,7 +45,7 @@ export async function initializeNewGame(
     settings: GameSettings,
     gameId: string,
     createdAt: number,
-    playerInitDataList: (PlayerInitializationData & { imageUrl?: string | null, voiceId?: string, aiModel: string })[],
+    playerInitDataList: (PlayerInitializationData & { persona: string })[],
     language: SupportedLanguage
 ): Promise<GameState> {
     console.log(
@@ -71,16 +77,7 @@ export async function initializeNewGame(
             id: playerId,
             name: initData.profile.characterName,
             role: initData.role,
-            persona: `Name: ${initData.profile.characterName}
-Role: ${initData.role}
-Gender: ${initData.profile.gender}
-Age: ${initData.profile.ageCategory}
-Role in Community: ${initData.profile.roleInCommunity}
-Appearance: ${initData.profile.appearance}
-Background: ${initData.profile.background}
-Personality: ${initData.profile.personalityArchetype}
-Key Traits: ${initData.profile.keyTraits}
-Motivations: ${initData.profile.motivations.join(", ")}`,
+            persona: initData.persona,
             status: "alive",
             aiModel: initData.aiModel,
             imageUrl: finalImageUrl,
