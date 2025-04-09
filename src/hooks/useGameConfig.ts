@@ -1,7 +1,12 @@
 import { generateCharacterAction, startGameAction } from '@/app/actions/index';
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from '@/lib/config';
 import { mapLanguageNameToCode } from '@/lib/translation/languages';
-import { AICharacterProfile, ConfigCharacterSlot, PlayerInitializationData, Role } from '@/lib/types/game';
+import type {
+    AICharacterProfile,
+    ConfigCharacterSlot,
+    PlayerInitializationData,
+    Role
+} from '@/lib/types/game';
 import { validateGameConfiguration, validateGeneratedGameSetup } from '@/lib/validators/gameConfigValidator';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -19,7 +24,9 @@ export function useGameConfig(availableModels: string[]) {
     const initialLangName = useMemo(() => {
         const langCodeFromUrl = searchParams.get('lang');
         const matchingLang = supportedLanguages.find(name => mapLanguageNameToCode(name) === langCodeFromUrl);
-        return matchingLang || 'English';
+        const langToUse = matchingLang || 'English';
+        console.log(`[useGameConfig] Initial language name determined: ${langToUse} (from URL code: ${langCodeFromUrl})`);
+        return langToUse;
     }, [searchParams]);
 
     const defaultModel = useMemo(() => {
@@ -43,6 +50,22 @@ export function useGameConfig(availableModels: string[]) {
     const [isPostGenValid, setIsPostGenValid] = useState<boolean | null>(null);
     
     // Removed translation state and effect
+
+    const resetPostGenState = useCallback(() => {
+        setErrorMsg(null);
+        setPostGenValidationMsg(null);
+        setIsPostGenValid(null);
+    }, []);
+
+    // Wrap resetSlotGeneration in useCallback
+    const resetSlotGeneration = useCallback((slot: ConfigCharacterSlot): ConfigCharacterSlot => ({
+        ...slot,
+        isGenerated: false,
+        assignedRole: undefined,
+        profile: undefined,
+        imageUrl: undefined,
+        generationError: undefined,
+    }), []); // No dependencies needed
 
     useEffect(() => {
         setGlobalModelSelection(defaultModel);
@@ -84,21 +107,6 @@ export function useGameConfig(availableModels: string[]) {
     const canAttemptStart = configValidation.isValid && !isSubmitting;
     const totalSlots = characterSlots.length;
 
-    const resetPostGenState = useCallback(() => {
-        setErrorMsg(null);
-        setPostGenValidationMsg(null);
-        setIsPostGenValid(null);
-    }, []);
-
-    const resetSlotGeneration = (slot: ConfigCharacterSlot): ConfigCharacterSlot => ({
-        ...slot,
-        isGenerated: false,
-        assignedRole: undefined,
-        profile: undefined,
-        imageUrl: undefined,
-        generationError: undefined,
-    });
-
     const addPlayerSlot = useCallback(() => {
         setCharacterSlots(prev => [
             ...prev,
@@ -124,7 +132,7 @@ export function useGameConfig(availableModels: string[]) {
                 : slot
         ));
         resetPostGenState();
-    }, [resetPostGenState]);
+    }, [resetPostGenState, resetSlotGeneration]);
 
     const updateAllModels = useCallback((newModel: string) => {
         setGlobalModelSelection(newModel);
@@ -132,7 +140,7 @@ export function useGameConfig(availableModels: string[]) {
              resetSlotGeneration({ ...slot, aiModel: newModel })
         ));
         resetPostGenState();
-    }, [resetPostGenState]);
+    }, [resetPostGenState, resetSlotGeneration]);
 
     const updateSlotRole = useCallback((clientId: string, newRole: Role) => {
         setCharacterSlots(prev => prev.map(slot =>
@@ -141,7 +149,7 @@ export function useGameConfig(availableModels: string[]) {
                 : slot
         ));
         resetPostGenState();
-    }, [resetPostGenState]);
+    }, [resetPostGenState, resetSlotGeneration]);
 
     // Toggle audio state
     const toggleAudioEnabled = useCallback(() => {
@@ -154,6 +162,7 @@ export function useGameConfig(availableModels: string[]) {
             setSelectedLanguage(newLanguage); // Update local state for immediate UI feedback
             const newLangCode = mapLanguageNameToCode(newLanguage);
             if (newLangCode) {
+                console.log(`[useGameConfig] updateLanguage called with ${newLanguage}. Pushing lang code: ${newLangCode}`);
                 // Use router to navigate, triggering server refetch
                 router.push(`/?lang=${newLangCode}`, { scroll: false }); 
             }
@@ -245,7 +254,7 @@ export function useGameConfig(availableModels: string[]) {
             setIsSubmitting(false);
             setInfoMsg(null);
         }
-    }, [characterSlots, configValidation.isValid, selectedLanguage, isAudioEnabled]);
+    }, [characterSlots, configValidation.isValid, selectedLanguage, resetSlotGeneration]);
 
     // Return original state values/keys
     return {

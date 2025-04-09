@@ -49,6 +49,8 @@ export default function StartGameForm({
   availableModels,
   translations,
 }: StartGameFormProps) {
+  console.log(`[StartGameForm] Received ${Object.keys(translations).length} translation keys`); // Log received translations
+
   // Instantiate the translation hook here
   const {
     t,
@@ -83,6 +85,8 @@ export default function StartGameForm({
     toggleAudioEnabled, // Get audio toggle function
   } = useGameConfig(availableModels); // Call hook without t
 
+  console.log(`[StartGameForm] Language from useGameConfig: ${selectedLanguage}`); // Log language from hook
+
   // Combine submission state with translation loading state
   const isLoading = isSubmitting || isTLoading;
 
@@ -109,7 +113,7 @@ export default function StartGameForm({
   }, [selectedLanguage]);
 
   return (
-    <div className="mb-8 p-6 rounded-lg relative">
+    <div className="mb-8 p-6 rounded-lg relative w-full">
       {/* Display loading indicator (submission or translation loading) */}
       {(isLoading || isTLoading) && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -156,7 +160,7 @@ export default function StartGameForm({
       </div>
 
       {/* Global Model Selector - Add rtl:flex-row-reverse */}
-      <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse">
+      <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse max-w-4xl mx-auto">
         <Label
           htmlFor="global-model-select"
           className="text-sm font-medium text-muted-foreground whitespace-nowrap"
@@ -210,7 +214,10 @@ export default function StartGameForm({
         </Label>
         <Select
           value={selectedLanguage}
-          onValueChange={(value) => updateLanguage(value as SupportedLanguage)}
+          onValueChange={(value) => {
+            console.log(`[StartGameForm] Language select changed to: ${value}`); // Log select change
+            updateLanguage(value as SupportedLanguage);
+          }}
           disabled={isLoading}
         >
           <SelectTrigger
@@ -249,12 +256,13 @@ export default function StartGameForm({
       </div>
 
       {/* Generate & Start Game Button */}
-      <Button
-        type="button"
-        onClick={handleGenerateAndStartGame}
-        className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer"
-        size="lg"
-        disabled={!canAttemptStart || isLoading}
+      <div className="max-w-lg mx-auto">
+        <Button
+          type="button"
+          onClick={handleGenerateAndStartGame}
+          className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer"
+          size="lg"
+          disabled={!canAttemptStart || isLoading}
         aria-label={t(
           "GenerateAndStartGameButton",
           "Generate characters and start new game"
@@ -270,7 +278,7 @@ export default function StartGameForm({
           t("GenerateAndStartGameButton", "Generate & Start Game")
         )}
       </Button>
-
+      </div>
       {/* Character Slot List & Configuration */}
       <div className="my-4 p-4 rounded-md min-h-[200px]">
         <h3 className="text-lg font-medium text-foreground mb-3 text-center flex items-center justify-center gap-2">
@@ -290,7 +298,7 @@ export default function StartGameForm({
         )}
 
         {initialSlotsSet && characterSlots.length > 0 && (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pr-2">
+          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pr-2">
             {characterSlots.map((slot, index) => (
               <CharacterSlotItem
                 key={slot.clientId}

@@ -72,7 +72,7 @@ export default async function Home({ searchParams }: PageProps) {
     let translations: Record<string, string> = {};
     try {
         translations = await getOrGenerateTranslationsAction(validatedLangCode);
-        console.log(`[Home Page] Loaded translations for: ${validatedLangCode}`);
+        console.log(`[Home Page] Rendering for lang: ${validatedLangCode}. Translation keys:`, Object.keys(translations).length);
     } catch (error) {
         console.error(`[Home Page] Failed to load translations for ${validatedLangCode}:`, error);
         if (validatedLangCode !== 'en') { 
@@ -102,7 +102,7 @@ export default async function Home({ searchParams }: PageProps) {
             <StartGameForm availableModels={availableModels} translations={translations} />
 
             {existingGames.length > 0 && (
-            <div className="w-full max-w-2xl mb-8">
+            <div className="w-full mb-8">
                 <h2 className="text-2xl font-semibold mb-4 text-center">{existingGamesHeading}</h2>
                 
                     <ul className="space-y-3">
