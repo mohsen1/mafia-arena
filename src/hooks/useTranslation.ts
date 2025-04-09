@@ -57,10 +57,6 @@ export function useTranslation({
               );
               // Optionally remove from addedKeysRef if you want to retry on next render?
               // addedKeysRef.current.delete(phraseKey);
-            } else {
-              console.log(
-                `[Translation] Server action reported success for adding/checking key: "${phraseKey}"`,
-              );
             }
           })
           .catch((err) => {

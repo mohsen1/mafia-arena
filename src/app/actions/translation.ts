@@ -329,9 +329,6 @@ export async function addMissingEnglishPhrase(
   phraseKey: string,
   fallbackTranslation: string,
 ): Promise<{ success: boolean; message?: string }> {
-  console.log(
-    `[Action:addMissingPhrase] Received request for key: "${phraseKey}" with fallback: "${fallbackTranslation}"`,
-  );
 
   // Basic validation
   if (!phraseKey || !fallbackTranslation) {
@@ -360,9 +357,6 @@ export async function addMissingEnglishPhrase(
     );
 
     if (existingEntry) {
-      console.log(
-        `[Action:addMissingPhrase] Phrase "${phraseKey}" already exists. No update needed.`,
-      );
       // Optionally update the translation if the fallback is different?
       // For now, just return success if it exists.
       return { success: true };

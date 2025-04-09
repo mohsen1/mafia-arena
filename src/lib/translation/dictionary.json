@@ -156,6 +156,11 @@
       "description": "Button text to generate characters and start."
     },
     {
+      "phrase": "GeneratingBatchInfo",
+      "translation": "GeneratingBatchInfo",
+      "description": "Auto-added from fallback"
+    },
+    {
       "phrase": "GeneratingBatchInfo_1",
       "translation": "GeneratingBatchInfo_1",
       "description": "Auto-added from fallback"
@@ -508,10 +513,10 @@
       "description": "The game moderator."
     },
     {
-        "phrase": "ModeratorLabel",
-        "translation": "خدا",
-        "description": "The game moderator label shown in messages."
-      },
+      "phrase": "ModeratorLabel",
+      "translation": "خدا",
+      "description": "The game moderator label shown in messages."
+    },
     {
       "phrase": "WerewolfAITitle",
       "translation": "مافیا هوش مصنوعی",
