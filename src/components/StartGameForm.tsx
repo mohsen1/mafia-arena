@@ -109,10 +109,10 @@ export default function StartGameForm({
   }, [selectedLanguage]);
 
   return (
-    <div className="mb-8 p-6 bg-card rounded-lg relative">
+    <div className="mb-8 p-6 rounded-lg relative">
       {/* Display loading indicator (submission or translation loading) */}
       {(isLoading || isTLoading) && (
-        <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+        <div className="absolute inset-0 flex items-center justify-center z-10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
@@ -272,7 +272,7 @@ export default function StartGameForm({
       </Button>
 
       {/* Character Slot List & Configuration */}
-      <div className="my-4 p-4 rounded-md bg-muted min-h-[200px]">
+      <div className="my-4 p-4 rounded-md min-h-[200px]">
         <h3 className="text-lg font-medium text-foreground mb-3 text-center flex items-center justify-center gap-2">
           <Settings2 className="h-5 w-5" />{" "}
           {t("CharacterSetupLabel", "Character Setup")}

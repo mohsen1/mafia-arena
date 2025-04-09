@@ -18,7 +18,8 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     // Get necessary context functions and state
     const {
         t, // Keep t function from context
-        reportAudioFinished // Get the function to report audio finish
+        reportAudioFinished, // Get the function to report audio finish
+        isAudioGloballyEnabled // Get global audio state
     } = useGameContext();
 
     const speakerPlayer = message.speaker.type === 'player'
@@ -58,15 +59,19 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                 <span className={`font-semibold text-foreground ${isModerator ? 'text-primary' : ''}`}>
                     {isModerator ? t('ModeratorLabel', 'Moderator') : message.speakerName}:
                 </span>
-                {/* Use SpeakText for the message content, pass onEnd */}
-                <SpeakText 
-                    voiceId={speakerPlayer?.voiceId} 
-                    className="mt-1" 
-                    autoQueue 
-                    onEnd={handleAudioEnd} // Pass the callback
-                >
-                    {message.content}
-                </SpeakText>
+                {/* Conditionally render SpeakText or plain text based on isAudioGloballyEnabled */}
+                {isAudioGloballyEnabled ? (
+                    <SpeakText
+                        voiceId={speakerPlayer?.voiceId}
+                        className="mt-1"
+                        autoQueue
+                        onEnd={handleAudioEnd} // Pass the callback
+                    >
+                        {message.content}
+                    </SpeakText>
+                ) : (
+                    <div className="mt-1">{message.content}</div>
+                )}
                 {/* Timestamp (moved below SpeakText) */}
                 <span className="text-xs text-muted-foreground block text-right opacity-75 mt-1">
                     R{message.round} {message.phase}
