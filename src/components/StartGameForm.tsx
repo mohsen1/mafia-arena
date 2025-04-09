@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"; // Import Select components
+import { Switch } from "@/components/ui/switch"; // Import Switch component
 import {
   SupportedLanguage,
   supportedLanguages,
@@ -78,6 +79,8 @@ export default function StartGameForm({
     updateSlotRole,
     updateLanguage,
     handleGenerateAndStartGame,
+    isAudioEnabled, // Get audio state
+    toggleAudioEnabled, // Get audio toggle function
   } = useGameConfig(availableModels); // Call hook without t
 
   // Combine submission state with translation loading state
@@ -227,6 +230,24 @@ export default function StartGameForm({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Audio Enable Toggle - Add rtl:flex-row-reverse */}
+      <div className="mb-6 flex items-center justify-center gap-3 rtl:flex-row-reverse">
+        <Label
+          htmlFor="audio-toggle"
+          className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap"
+        >
+          {t("EnableAudioLabel", "Enable Audio")}:
+        </Label>
+        <Switch
+          id="audio-toggle"
+          checked={isAudioEnabled}
+          onCheckedChange={toggleAudioEnabled}
+          disabled={isLoading}
+          aria-label={t("ToggleGameAudioLabel", "Toggle game audio")}
+        />
+      </div>
+
       {/* Generate & Start Game Button */}
       <Button
         type="button"

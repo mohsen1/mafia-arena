@@ -33,6 +33,7 @@ export function useGameConfig(availableModels: string[]) {
     const [globalModelSelection, setGlobalModelSelection] = useState<string>(defaultModel);
     const [characterSlots, setCharacterSlots] = useState<ConfigCharacterSlot[]>([]);
     const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>(initialLangName);
+    const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [initialSlotsSet, setInitialSlotsSet] = useState(false);
@@ -142,6 +143,11 @@ export function useGameConfig(availableModels: string[]) {
         resetPostGenState();
     }, [resetPostGenState]);
 
+    // Toggle audio state
+    const toggleAudioEnabled = useCallback(() => {
+        setIsAudioEnabled(prev => !prev);
+    }, []);
+
     // Update language: navigate to new URL with lang param
     const updateLanguage = useCallback((newLanguage: SupportedLanguage) => {
         if (supportedLanguages.includes(newLanguage)) {
@@ -239,8 +245,7 @@ export function useGameConfig(availableModels: string[]) {
             setIsSubmitting(false);
             setInfoMsg(null);
         }
-    // Remove t dependency
-    }, [characterSlots, configValidation.isValid, selectedLanguage]);
+    }, [characterSlots, configValidation.isValid, selectedLanguage, isAudioEnabled]);
 
     // Return original state values/keys
     return {
@@ -256,12 +261,14 @@ export function useGameConfig(availableModels: string[]) {
         totalSlots,
         globalModelSelection,
         selectedLanguage,
+        isAudioEnabled,
         addPlayerSlot,
         removePlayerSlot,
         updateSlotModel,
         updateAllModels,
         updateSlotRole,
         updateLanguage,
+        toggleAudioEnabled,
         handleGenerateAndStartGame,
     };
 }

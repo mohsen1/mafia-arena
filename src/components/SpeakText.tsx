@@ -410,14 +410,14 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         // Always render full text if playback completed successfully OR if alignment data is missing
         if (hasPlaybackCompleted || (!isLoading && !isPlaying && !alignmentData)) {
             return textContent.split('').map((char, index) => (
-                <span key={index}>{char === ' ' ? ' ' : char}</span>
+                <span key={index}>{char}</span>
             ));
         } else if (alignmentData && highlightedCharIndex >= 0) {
             // During playback reveal, render chars up to the index
             const charsToRender = textContent.slice(0, highlightedCharIndex + 1);
             return charsToRender.split('').map((char, index) => (
                 <span key={index}>
-                    {char === ' ' ? ' ' : char}
+                    {char}
                 </span>
             ));
         }
@@ -435,7 +435,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     return (
       <div className={className}>
         {/* Render revealed text directly */}
-        <span className="text-content min-h-[1em]"> {/* Add min-height to prevent layout shifts */}
+        <span className="text-foreground inline leading-normal tracking-normal min-h-[1em]"> {/* Apply Tailwind classes directly */}
           {renderTextContent()}
         </span>
       </div>
