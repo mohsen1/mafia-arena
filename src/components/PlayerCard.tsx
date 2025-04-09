@@ -26,9 +26,9 @@ export function PlayerCard({ player }: PlayerCardProps) {
   // Construct metadata string based on visibility
   // Use player.status for the status display
   const meta = [];
-  meta.push(player.status);
+  meta.push(t(player.status));
   if (showRole && player.role) {
-    meta.push(player.role);
+    meta.push(t(player.role));
   }
   meta.push(player.aiModel);
 

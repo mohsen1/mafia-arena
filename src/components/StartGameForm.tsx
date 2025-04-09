@@ -21,7 +21,9 @@ import {
 import type { Role } from "@/lib/types/game"; // Use import type
 import {
   AlertTriangle,
+  Brain,
   CheckCircle2,
+  Languages,
   Loader2,
   Settings2,
   Trash2,
@@ -183,6 +185,7 @@ export default function StartGameForm({
             htmlFor="global-model-select"
             className="text-sm font-medium text-muted-foreground whitespace-nowrap"
           >
+            <Brain className="w-4 h-4 mr-1" />
             {t("GlobalAIModelLabel", "Global AI Model")}:
           </Label>
           <Select
@@ -228,6 +231,7 @@ export default function StartGameForm({
             htmlFor="language-select"
             className="text-sm font-medium text-muted-foreground whitespace-nowrap"
           >
+            <Languages className="w-4 h-4 mr-1" />
             {t("GameLanguageLabel", "Game Language")}:
           </Label>
           <Select

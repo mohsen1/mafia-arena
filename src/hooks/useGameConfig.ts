@@ -16,12 +16,14 @@ import {
   validateGeneratedGameSetup,
 } from "@/lib/validators/gameConfigValidator";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 // Update hook signature - REMOVE t function parameter
 export function useGameConfig(availableModels: string[]) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
 
   // Determine initial language CODE from URL or default
   const initialLangCode = useMemo(() => {
@@ -256,7 +258,10 @@ export function useGameConfig(availableModels: string[]) {
         const originalIndex = i;
 
         setInfoMsg(
-          `GeneratingCharacterInfo_${i + 1}_${slotsToGenerate.length}`,
+          t("GeneratingCharacterInfo", {
+            count: i + 1,
+            total: slotsToGenerate.length,
+          }),
         ); // Update info message per character
 
         const finalRole = slot.roleSelection;
@@ -400,6 +405,7 @@ export function useGameConfig(availableModels: string[]) {
     selectedLanguage,
     resetSlotGeneration,
     isSubmitting,
+    t,
   ]);
 
   // Return original state values/keys

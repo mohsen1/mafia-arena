@@ -50,7 +50,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     {
       "self-end bg-blue-500 text-white": isHuman,
       "self-end bg-secondary text-secondary-foreground": isModerator,
-      "self-start bg-muted text-muted-foreground": isBot && !isModerator,
+      "self-start bg-muted text-foreground": isBot && !isModerator,
     },
   );
 
@@ -77,7 +77,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+            <div className="flex h-full w-full items-center justify-center bg-muted">
               <Bot size={18} />
             </div>
           )}
@@ -91,9 +91,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
               "text-xs font-semibold opacity-80",
               isHuman
                 ? "text-blue-100"
-                : isModerator
-                  ? "text-secondary-foreground"
-                  : "text-muted-foreground",
+                : "text-foreground",
             )}
           >
             {message.speakerName}

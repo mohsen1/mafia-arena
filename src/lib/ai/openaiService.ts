@@ -80,7 +80,7 @@ export const getAIResponse: GetAIResponseFunction = async (
       model: settings.model,
       messages: messages,
       presence_penalty: settings.presence_penalty ?? 0.5,
-      max_tokens: settings.max_tokens ?? 5000,
+      max_tokens: settings.max_tokens ?? undefined,
       temperature: settings.temperature ?? 0.7,
       response_format: settings.response_format, // Pass response format if provided
     });
@@ -147,7 +147,7 @@ export async function getAIGameTitleAndDescription(
       model: settings.model,
       messages: messages,
       temperature: settings.temperature ?? 0.7, // Default temperature if not provided
-      max_tokens: 150, // Adjust as needed
+      max_tokens: 4096,
       // Ensure response format is JSON if the prompt specifies it
       // response_format: { type: "json_object" }, // Uncomment if prompt demands JSON
     });

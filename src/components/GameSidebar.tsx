@@ -6,14 +6,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 
 export function GameSidebar() {
-  const {
-    gameState, // Destructure gameState instead of individual properties
-    // players,
-    // livingPlayerIds,
-    // deadPlayerIds,
-    // language,
-  } = useGameContext(); // Use context instead of props
-
+  const { gameState } = useGameContext(); 
   const { t } = useTranslation(gameState?.language); // Use gameState?.language
 
   // Handle null gameState
@@ -21,21 +14,16 @@ export function GameSidebar() {
     return null; // Or return a loading state/placeholder
   }
 
-  const { players, livingPlayerIds } = gameState;
+  const { players, livingPlayerIds, deadPlayerIds } = gameState;
 
-  // const livingPlayers = players.filter((p) => livingPlayerIds.includes(p.id));
-  // const deadPlayerIds = Object.values(players)
-  //   .filter((p) => p.status === "dead")
-  //   .map((p) => p.id);
   const livingPlayers = livingPlayerIds
     .map((id: string) => players[id]) // Add type for id
     .filter((p): p is Player => !!p); // Type guard already ensures p is Player
-  // const deadPlayers = Object.values(players).filter((p) => p.status === 'dead'); // Removed unused variable
-  // const deadPlayers = deadPlayerIds.map(id => players[id]).filter((p): p is Player => !!p); // Use deadPlayerIds from context if available
 
-  // const werewolfPlayers = livingPlayers.filter((p) => p.role === 'Werewolf'); // Removed unused variable
-
-  // Check players object exists (already handled by gameState check, but good practice)
+  // Calculate dead players
+  const deadPlayers = deadPlayerIds
+    .map((id: string) => players[id])
+    .filter((p): p is Player => !!p);
   if (!players) return null;
 
   return (
@@ -60,6 +48,18 @@ export function GameSidebar() {
             <PlayerCard key={player.id} player={player} />
           ))}
           {/* Remove separate rendering for living/dead players */}
+          {/* Render dead players if any exist */}
+          {deadPlayers.length > 0 && (
+            <>
+              <hr className="my-2 border-muted" /> {/* Add a divider */}
+              <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
+                {t("Dead Players", "Dead Players")}
+              </h3>
+              {deadPlayers.map((player: Player) => (
+                <PlayerCard key={player.id} player={player} />
+              ))}
+            </>
+          )}
         </div>
       </div>
     </aside>

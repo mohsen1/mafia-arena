@@ -94,6 +94,11 @@ export async function runGameTurnAction(gameId: string) {
       round: currentState.round,
       phase: currentState.phase,
       audience: { type: "all" },
+      phraseKey: "WelcomeMessage", // Added key
+      placeholders: { // Added placeholders
+        gameTitle: currentState.title || "Werewolf AI",
+        playerCount: currentState.livingPlayerIds.length,
+      },
     };
     // Add message and update state *before* proceeding
     // Re-fetch latest state here as adding welcome msg is async
@@ -301,11 +306,13 @@ export async function runGameTurnAction(gameId: string) {
         gameId: gameId,
         speaker: { type: "moderator" },
         speakerName: "Moderator",
-        content: originalIntroCompleteMsg, // Use translated message
+        content: originalIntroCompleteMsg, // Removed t() call, use original string
         timestamp: Date.now(),
         round: nextState.round,
         phase: nextState.phase,
         audience: { type: "all" },
+        phraseKey: "IntroCompleteMessage", // Added key
+        placeholders: {}, // Added placeholders (none needed)
       };
       nextState = {
         ...nextState,
@@ -1348,6 +1355,8 @@ export async function runGameTurnAction(gameId: string) {
           round: stateBeforeVote.round,
           phase: stateBeforeVote.phase, // Should be 'Voting'
           audience: { type: "all" },
+          phraseKey: "VoteStartMessage", // Added key
+          placeholders: {}, // Added placeholders (none needed)
         };
 
         finalState = {
@@ -1426,6 +1435,8 @@ export async function runGameTurnAction(gameId: string) {
           round: nextState.round,
           phase: nextState.phase, // Should be 'Voting'
           audience: { type: "all" },
+          phraseKey: "VoteStartMessage", // Re-added key
+          placeholders: {}, // Re-added placeholders (none needed)
         };
         nextState = {
           ...nextState,
@@ -1912,6 +1923,8 @@ export async function runGameTurnAction(gameId: string) {
         round: nextState.round,
         phase: nextState.phase,
         audience: { type: "all" },
+        phraseKey: "NightStartMessage", // Added key
+        placeholders: { round: nextState.round }, // Added placeholders
       };
 
       nextState = {
