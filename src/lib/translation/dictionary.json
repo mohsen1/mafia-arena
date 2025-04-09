@@ -51,6 +51,11 @@
       "description": "Title for the new game configuration form."
     },
     {
+      "phrase": "CreatedLabel",
+      "translation": "Created",
+      "description": "Label for game creation timestamp."
+    },
+    {
       "phrase": "DayStartDiscussionMessage",
       "translation": "Day {round} begins. Discuss what happened and who you suspect.",
       "description": "Message at the start of the day discussion phase. Placeholder: {round}"
@@ -59,6 +64,11 @@
       "phrase": "DayStartIntroductionMessage",
       "translation": "Day {round} begins. Time for introductions.",
       "description": "Message at the start of the day introduction phase (should only be round 1). Placeholder: {round}"
+    },
+    {
+      "phrase": "DefaultGameTitle",
+      "translation": "Default Game Title",
+      "description": "Fallback title for unnamed games."
     },
     {
       "phrase": "DeleteButton",
@@ -276,9 +286,19 @@
       "description": "Alt text for player avatar image. {name} is a placeholder."
     },
     {
+      "phrase": "PlayerImageAltText",
+      "translation": "Image of {{name}}",
+      "description": "Alt text template for player images. Placeholder: {{name}}"
+    },
+    {
       "phrase": "PlayersLabel",
       "translation": "Players",
       "description": "Label for player count/list."
+    },
+    {
+      "phrase": "PlayerSlotPendingLabel",
+      "translation": "Player Slot",
+      "description": "Label indicating a slot is for a player (not AI)."
     },
     {
       "phrase": "PlayerStatusDead",
@@ -466,6 +486,11 @@
       "phrase": "Moderator",
       "translation": "خدا",
       "description": "The game moderator."
+    },
+    {
+      "phrase": "WerewolfAITitle",
+      "translation": "مافیا هوش مصنوعی",
+      "description": "Main title of the application."
     }
   ]
 }

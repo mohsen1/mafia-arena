@@ -144,8 +144,8 @@ export default function StartGameForm({
           disabled={isLoading}
           aria-label={t("AddPlayerSlotLabel", "Add player slot")}
         >
-          <span>{t("AddPlayerButtonLabel", "Add")}</span>
           <UserPlus className="h-4 w-4 mr-1" />
+          <span>{t("AddPlayerButtonLabel", "Add")}</span>
         </Button>
         <Button
           type="button"
@@ -157,18 +157,18 @@ export default function StartGameForm({
           disabled={isLoading || totalSlots <= 5}
           aria-label={t("RemovePlayerSlotLabel", "Remove last player slot")}
         >
+          <Trash2 className="h-4 w-4 mr-1 text-red-500" />
           <span className="text-red-500">
             {t("RemovePlayerButtonLabel", "Remove")}
           </span>
-          <Trash2 className="h-4 w-4 mr-1 text-red-500" />
         </Button>
       </div>
 
-      {/* Global Model Selector - Add rtl:flex-row-reverse */}
-      <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse max-w-4xl mx-auto">
+      {/* Global Model Selector  */}
+      <div className="mb-6 flex items-center justify-center gap-2 max-w-4xl mx-auto">
         <Label
           htmlFor="global-model-select"
-          className="text-sm font-medium text-muted-foreground whitespace-nowrap"
+          className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[160px]"
         >
           {t("GlobalAIModelLabel", "Global AI Model")}:
         </Label>
@@ -209,11 +209,11 @@ export default function StartGameForm({
         </Select>
       </div>
 
-      {/* Language Selector - Add rtl:flex-row-reverse */}
-      <div className="mb-6 flex items-center justify-center gap-2 rtl:flex-row-reverse">
+      {/* Language Selector  */}
+      <div className="mb-6 flex items-center justify-center gap-2 ">
         <Label
           htmlFor="language-select"
-          className="text-sm font-medium text-muted-foreground whitespace-nowrap"
+          className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[160px]"
         >
           {t("GameLanguageLabel", "Game Language")}:
         </Label>
@@ -243,8 +243,8 @@ export default function StartGameForm({
         </Select>
       </div>
 
-      {/* Audio Enable Toggle - Add rtl:flex-row-reverse */}
-      <div className="mb-6 flex items-center justify-center gap-3 rtl:flex-row-reverse">
+      {/* Audio Enable Toggle - Add  */}
+      <div className="mb-6 flex items-center justify-center gap-3">
         <Label
           htmlFor="audio-toggle"
           className="text-sm font-medium text-muted-foreground whitespace-nowrap"

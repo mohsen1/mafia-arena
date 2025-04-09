@@ -83,7 +83,7 @@ export default async function Home({ searchParams }: PageProps) {
   const acceptLanguage = headersList.get("accept-language");
 
   // Prioritize lang query param, then header, then default
-  const langFromParam = searchParams?.lang;
+  const langFromParam = (await searchParams)?.lang;
   const potentialLangCodeFromHeader = acceptLanguage
     ?.split(",")[0]
     .split(";")[0]

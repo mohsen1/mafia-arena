@@ -95,7 +95,7 @@ export function CharacterSlotItem({
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                 <Bot className="h-5 w-5" />
               </div>
-              <span className="ml-2 text-sm italic">
+              <span className="ms-2 text-sm italic">
                 {t("PlayerSlotPendingLabel", "Player Slot")}
               </span>
             </div>
