@@ -1054,6 +1054,12 @@ export async function runGameTurnAction(gameId: string) {
         `Game Over detected after night resolution. Outcome: ${winResultNight.outcome}`,
       );
       const originalGameOverMsg = winResultNight.message;
+      const gameOverPhraseKey =
+        winResultNight.outcome === "Villager Win"
+          ? "ModeratorGameOverVillagersWin"
+          : winResultNight.outcome === "Werewolf Win"
+          ? "ModeratorGameOverWerewolvesWin"
+          : "GameOverMessage";
       // --- Replace Translation ---
       // const translatedGameOverMsg = await translateText(
       //   originalGameOverMsg,
@@ -1066,8 +1072,8 @@ export async function runGameTurnAction(gameId: string) {
         speaker: { type: "moderator" },
         speakerName: "Moderator",
         content: originalGameOverMsg, // Fallback content (assuming winResultNight.message is suitable)
-        phraseKey: "GameOverMessage", // <-- Use phrase key
-        placeholders: { outcomeMessage: originalGameOverMsg }, // <-- Add placeholder
+        phraseKey: gameOverPhraseKey,
+        placeholders: {},
         timestamp: Date.now(),
         round: stateAfterResolution.round,
         phase: "GameOver",
@@ -1897,6 +1903,12 @@ export async function runGameTurnAction(gameId: string) {
         // Add Game Over message using the win condition details
         // --- Translate Game Over Message ---
         const originalGameOverMsg = winResultVote.message;
+        const gameOverPhraseKey =
+          winResultVote.outcome === "Villager Win"
+            ? "ModeratorGameOverVillagersWin"
+            : winResultVote.outcome === "Werewolf Win"
+            ? "ModeratorGameOverWerewolvesWin"
+            : "GameOverMessage";
         // --- Replace Translation ---
         // const translatedGameOverMsg = await translateText(
         //   originalGameOverMsg,
@@ -1909,8 +1921,8 @@ export async function runGameTurnAction(gameId: string) {
           speaker: { type: "moderator" },
           speakerName: "Moderator",
           content: originalGameOverMsg, // Fallback content
-          phraseKey: "GameOverMessage", // <-- Use phrase key
-          placeholders: { outcomeMessage: originalGameOverMsg }, // <-- Add placeholder
+          phraseKey: gameOverPhraseKey,
+          placeholders: {},
           timestamp: Date.now(),
           round: stateAfterTally.round,
           phase: "GameOver",

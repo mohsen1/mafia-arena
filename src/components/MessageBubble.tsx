@@ -8,6 +8,7 @@ import { Bot, User } from "lucide-react";
 import { useSpokenText } from "@/context/SpokenTextContext";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
+import { useMemo } from "react";
 
 // Define the props
 interface MessageBubbleProps {
@@ -64,6 +65,20 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
   // Translate speaker name if it's a key
   const translatedSpeakerName = t(message.speakerName, { defaultValue: message.speakerName });
 
+  // Prepare placeholders with translated values where applicable (e.g., role names)
+  const resolvedPlaceholders = useMemo(() => {
+    const placeholders = message.placeholders ?? {};
+    const translated: Record<string, string | number> = {};
+    for (const [key, val] of Object.entries(placeholders)) {
+      if (typeof val === "string") {
+        translated[key] = t(val, { defaultValue: val });
+      } else {
+        translated[key] = val;
+      }
+    }
+    return translated;
+  }, [message.placeholders, t]);
+
   return (
     <div className={containerClasses}>
       {isBot && (
@@ -114,7 +129,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
         <p className="text-sm whitespace-pre-wrap">
           {message.phraseKey
             ? t(message.phraseKey, {
-                ...(message.placeholders || {}),
+                ...resolvedPlaceholders,
                 defaultValue: message.content,
               })
             : message.content}
