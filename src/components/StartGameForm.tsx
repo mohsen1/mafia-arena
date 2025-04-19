@@ -213,7 +213,7 @@ export default function StartGameForm({
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                {t(infoMsg || "StartingButtonLabel", infoMsg || "Starting...")}
+                {t("StartingButtonLabel", "Starting...")}
               </>
             ) : (
               t("GenerateAndStartGameButton", "Generate & Start Game")

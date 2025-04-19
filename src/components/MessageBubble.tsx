@@ -20,8 +20,8 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
   const { reportAudioFinished, isAudioGloballyEnabled, gameState } = useGameContext();
   const { doneSpeaking: spokenTextReportAudioFinished } = useSpokenText();
 
-  // Use standard hook
-  const { t } = useTranslation(gameState?.settings?.language || 'en'); // Pass lang code as namespace
+  // Use default namespace; language is handled by i18next provider
+  const { t } = useTranslation();
 
   // Determine the speaker
   const isModerator = message.speaker.type === "moderator";
@@ -62,7 +62,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
   });
 
   // Translate speaker name if it's a key
-  const translatedSpeakerName = t(message.speakerName, message.speakerName);
+  const translatedSpeakerName = t(message.speakerName, { defaultValue: message.speakerName });
 
   return (
     <div className={containerClasses}>
@@ -94,7 +94,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
               isHuman ? "text-blue-100" : "text-foreground",
             )}
           >
-            {isModerator ? t('ModeratorName', 'Moderator') : translatedSpeakerName}
+            {isModerator ? t('ModeratorName', { defaultValue: 'Moderator' }) : translatedSpeakerName}
           </span>
           {isBot && isAudioGloballyEnabled && (
             <SpeakText
@@ -112,7 +112,12 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
           )}
         </div>
         <p className="text-sm whitespace-pre-wrap">
-          {message.phraseKey ? t(message.phraseKey, message.content) : message.content}
+          {message.phraseKey
+            ? t(message.phraseKey, {
+                ...(message.placeholders || {}),
+                defaultValue: message.content,
+              })
+            : message.content}
         </p>
       </div>
 
@@ -121,7 +126,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
           {isModerator ? (
             <Image
               src="/images/characters/mod.png"
-              alt={t('ModeratorName', 'Moderator')}
+              alt={t('ModeratorName', { defaultValue: 'Moderator' })}
               width={32}
               height={32}
               className="object-cover"
