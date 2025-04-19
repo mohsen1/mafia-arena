@@ -280,14 +280,13 @@ export class GameStateManager {
       Omit<ChatMessage, "audience"> & { speakerName: string }
     >; // Explicit cast here
 
-    // Construct the final filtered state
-    const result: FilteredGameState = {
+    // Return the complete filtered state, including the flag
+    return {
       ...restOfState,
       players: filteredPlayers,
       conversationLog: filteredLog,
+      isWaitingForVotes: gameState.isWaitingForVotes, // Pass the flag
     };
-
-    return result;
   }
 
   // Optional: Method to clear cache for a specific game or all games

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "../globals.css";
 import type { Locale } from "./dictionaries"; // Import Locale type if needed
+import { supportedLanguagesInfo } from "@/lib/translation/languages";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,7 +44,10 @@ export default async function RootLayout({
   params: { lang: Locale }; // Use Locale type
 }>) {
   const { lang } = params;
-  const dir = lang === 'fa' ? 'rtl' : 'ltr';
+  const rtlLanguages = Object.values(supportedLanguagesInfo)
+    .filter((lang) => lang.dir === "rtl")
+    .map((lang) => lang.code);
+  const dir = rtlLanguages.includes(lang) ? "rtl" : "ltr";
 
   return (
     <html lang={lang} dir={dir} suppressHydrationWarning>

@@ -824,28 +824,26 @@ export async function runGameTurnAction(gameId: string) {
     // 3. Advance phase to ResolveNight
     const nextState = advancePhase(stateWithCollectedActions);
 
-    // Add a *simple* moderator message indicating night is over, actions collected.
-    // No results revealed here.
-    // --- Translate Message ---
-    const originalNightEndMsg = `Night ${stateBeforeAdvance.round} ends. Actions have been taken...`;
-    // --- End Translation ---
-    const nightEndMessage: ChatMessage = {
-      messageId: `msg-${crypto.randomUUID()}-night-end`,
-      gameId: gameId,
-      speaker: { type: "moderator" },
-      speakerName: "Moderator",
-      content: originalNightEndMsg, // Fallback content
-      phraseKey: "NightEndMessage", // <-- Use phrase key
-      placeholders: { round: stateBeforeAdvance.round }, // <-- Add placeholders
-      timestamp: Date.now(),
-      round: nextState.round,
-      phase: nextState.phase, // Should be ResolveNight
-      audience: { type: "all" },
-    };
+    // REMOVED: Simple moderator message indicating night is over.
+    // const originalNightEndMsg = `Night ${stateBeforeAdvance.round} ends. Actions have been taken...`;
+    // const nightEndMessage: ChatMessage = {
+    //   messageId: `msg-${crypto.randomUUID()}-night-end`,
+    //   gameId: gameId,
+    //   speaker: { type: "moderator" },
+    //   speakerName: "Moderator",
+    //   content: originalNightEndMsg,
+    //   phraseKey: "NightEndMessage",
+    //   placeholders: { round: stateBeforeAdvance.round },
+    //   timestamp: Date.now(),
+    //   round: nextState.round,
+    //   phase: nextState.phase,
+    //   audience: { type: "all" },
+    // };
 
     const finalStateForNight = {
       ...nextState,
-      conversationLog: [...nextState.conversationLog, nightEndMessage],
+      // REMOVED: Don't add the nightEndMessage
+      // conversationLog: [...nextState.conversationLog, nightEndMessage],
     };
 
     // 4. Save the state with collected actions and the new phase (ResolveNight)
@@ -985,17 +983,20 @@ export async function runGameTurnAction(gameId: string) {
     let originalSummaryContent = "";
     let summaryPhraseKey: string | undefined = undefined;
     let summaryPlaceholders: Record<string, string | number> = {};
+    // Next round number is current round + 1 (for day announcement)
+    const nextDayRound = stateAfterResolution.round; // This is already incremented by the time we resolve night
 
     if (eliminatedPlayerId) {
       const eliminatedPlayerName =
         stateAfterResolution.players[eliminatedPlayerId].name;
       const eliminatedPlayerRole =
         stateAfterResolution.players[eliminatedPlayerId].role; // Reveal role on night death
-      originalSummaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead. They were a ${eliminatedPlayerRole}.`;
-      summaryPhraseKey = "NightSummaryElimination";
+      originalSummaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead. They were a ${eliminatedPlayerRole}.\n\nDay ${nextDayRound} begins. Discuss what happened and who you suspect.`;
+      summaryPhraseKey = "NightSummaryEliminationAndDayStart";
       summaryPlaceholders = {
         playerName: eliminatedPlayerName,
         playerRole: eliminatedPlayerRole,
+        round: nextDayRound,
       };
     } else if (
       killAction &&
@@ -1006,13 +1007,17 @@ export async function runGameTurnAction(gameId: string) {
       gamePhaseState.players[killAction.targetPlayerId]?.status === "alive"
     ) {
       originalSummaryContent =
-        "A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.";
-      summaryPhraseKey = "NightSummarySaved";
-      summaryPlaceholders = {};
+        `A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.\n\nDay ${nextDayRound} begins. Discuss what happened and who you suspect.`;
+      summaryPhraseKey = "NightSummarySavedAndDayStart";
+      summaryPlaceholders = {
+        round: nextDayRound,
+      };
     } else {
-      originalSummaryContent = "The night passes uneventfully. Dawn breaks.";
-      summaryPhraseKey = "NightSummaryPeaceful";
-      summaryPlaceholders = {};
+      originalSummaryContent = `The night passes uneventfully. Dawn breaks.\n\nDay ${nextDayRound} begins. Discuss what happened and who you suspect.`;
+      summaryPhraseKey = "NightSummaryPeacefulAndDayStart";
+      summaryPlaceholders = {
+        round: nextDayRound,
+      };
     }
 
     const summaryMessage: ChatMessage = {
@@ -1074,6 +1079,7 @@ export async function runGameTurnAction(gameId: string) {
           gameOverMessage,
         ],
         updatedAt: Date.now(),
+        isWaitingForVotes: false, // Ensure flag is false on game over
       };
       // Save final game over state
       await gameStateManager.updateGameState(gameId, stateAfterResolution);
@@ -1085,35 +1091,20 @@ export async function runGameTurnAction(gameId: string) {
     // 7. If game not over, Advance Phase (to WerewolfChat, DayDiscussion, or Day Introductions)
     let nextState = advancePhase(stateAfterResolution);
 
-    // 8. Add Moderator Message for the *Start* of the NEXT Phase
-    let originalPhaseStartMsg = "";
-    let phaseStartPhraseKey: string | undefined = undefined;
-    let phaseStartPlaceholders: Record<string, string | number> = {};
+    // 8. Remove the separate day start message - it's now combined with night resolution
+    // let originalPhaseStartMsg = "";
+    // let phaseStartPhraseKey: string | undefined = undefined;
+    // let phaseStartPlaceholders: Record<string, string | number> = {};
 
     if (nextState.phase === "Day Introductions") {
-      originalPhaseStartMsg = `Welcome to "${nextState.title || "the game"}"! ${nextState.livingPlayerIds.length} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.`;
-      phaseStartPhraseKey = "WelcomeMessage";
-      phaseStartPlaceholders = {
+      // Keep this special case for the first introduction
+      const originalPhaseStartMsg = `Welcome to "${nextState.title || "the game"}"! ${nextState.livingPlayerIds.length} players have gathered. The first phase is introductions. Each player will briefly introduce themselves.`;
+      const phaseStartPhraseKey = "WelcomeMessage";
+      const phaseStartPlaceholders = {
         gameTitle: nextState.title || "the game",
         playerCount: nextState.livingPlayerIds.length,
       };
-    } else if (nextState.phase === "DayDiscussion") {
-      originalPhaseStartMsg = `Day ${nextState.round} begins. Discuss what happened and who you suspect.`;
-      phaseStartPhraseKey = "DayStartDiscussionMessage";
-      phaseStartPlaceholders = { round: nextState.round };
-    } else if (nextState.phase === "Night") {
-      originalPhaseStartMsg = `The sun sets. Night ${nextState.round} falls upon the village. Close your eyes...`;
-      phaseStartPhraseKey = "NightStartMessage";
-      phaseStartPlaceholders = { round: nextState.round };
-    }
-
-    if (phaseStartPhraseKey) {
-      // --- Replace Translation ---
-      // const translatedPhaseStartMsg = await translateText(
-      //   originalPhaseStartMsg,
-      //   language,
-      // );
-      // --- End Replace Translation ---
+      
       const phaseStartMessage: ChatMessage = {
         messageId: `msg-${crypto.randomUUID()}-phasestart`,
         gameId: gameId,
@@ -1132,7 +1123,8 @@ export async function runGameTurnAction(gameId: string) {
         ...nextState,
         conversationLog: [...nextState.conversationLog, phaseStartMessage],
       };
-    }
+    } 
+    // Remove the DayDiscussion and Night cases - we've combined them with previous messages
 
     // 9. Save the final state for the ResolveNight transition
     await gameStateManager.updateGameState(gameId, nextState);
@@ -1361,12 +1353,14 @@ export async function runGameTurnAction(gameId: string) {
 
         finalState = {
           ...stateBeforeVote,
-          conversationLog: [
-            ...stateBeforeVote.conversationLog,
-            voteStartMessage,
-          ],
+          // Remove the VoteStartMessage addition
+          // conversationLog: [
+          //   ...stateBeforeVote.conversationLog,
+          //   voteStartMessage,
+          // ],
           // turnOrderIndex is already reset by advancePhase
           votes: [], // Clear any previous votes from other phases potentially
+          isWaitingForVotes: true, // Set the flag
         };
         console.log(`Game ${gameId} advanced to ${finalState.phase} phase.`);
       } else {
@@ -1440,8 +1434,10 @@ export async function runGameTurnAction(gameId: string) {
         };
         nextState = {
           ...nextState,
-          conversationLog: [...nextState.conversationLog, voteStartMessage],
+          // Remove the VoteStartMessage addition
+          // conversationLog: [...nextState.conversationLog, voteStartMessage],
           votes: [], // Ensure votes are cleared
+          isWaitingForVotes: true, // Set the flag
         };
 
         // Save the updated state with the new phase
@@ -1702,28 +1698,8 @@ export async function runGameTurnAction(gameId: string) {
         voteDetails += `- ${targetName}: ${count} ${count === 1 ? "vote" : "votes"}\n`;
       }
 
-      // Add vote counts message
-      const originalVoteResultsMsg = `The votes are in!\n${voteDetails}`;
-      // --- Replace Translation ---
-      // const translatedVoteResultsMsg = await translateText(
-      //   originalVoteResultsMsg,
-      //   language,
-      // );
-      // --- End Replace Translation ---
-      const voteResultsMessage: ChatMessage = {
-        messageId: `msg-${crypto.randomUUID()}-voteresults`,
-        gameId: gameId,
-        speaker: { type: "moderator" },
-        speakerName: "Moderator",
-        content: originalVoteResultsMsg, // Fallback content
-        phraseKey: "VoteResultsMessage", // <-- Use phrase key
-        placeholders: { voteDetails: voteDetails }, // <-- Add placeholder
-        timestamp: Date.now(),
-        round: stateAfterTally.round,
-        phase: stateAfterTally.phase,
-        audience: { type: "all" },
-      };
-      voteModeratorMessages.push(voteResultsMessage);
+      // REMOVE the separate vote counts message - we'll combine it with the elimination/tie message
+      // DO NOT add the voteResultsMessage to voteModeratorMessages
 
       // **** DECISION LOGIC ****
       if (playersWithMaxVotes.length === 1) {
@@ -1742,7 +1718,8 @@ export async function runGameTurnAction(gameId: string) {
           `Player ${eliminatedPlayerName} (${dayEliminatedPlayerId}) received the most votes (${maxVotes}) and will be eliminated.`,
         );
         // --- Translate Elimination Message ---
-        const originalEliminationMsg = `With ${maxVotes} votes, ${eliminatedPlayerName} has been eliminated by the village. They were a ${eliminatedPlayerRole}.`;
+        // Include vote details AND night beginning in same message
+        const originalEliminationMsg = `The votes are in!\n${voteDetails}\nWith ${maxVotes} votes, ${eliminatedPlayerName} has been eliminated by the village. They were a ${eliminatedPlayerRole}.\n\nNight ${stateAfterTally.round} begins as darkness falls upon the village.`;
         // --- Replace Translation ---
         // const translatedEliminationMsg = await translateText(
         //   originalEliminationMsg,
@@ -1755,12 +1732,14 @@ export async function runGameTurnAction(gameId: string) {
           speaker: { type: "moderator" },
           speakerName: "Moderator",
           content: originalEliminationMsg, // Fallback content
-          phraseKey: "VoteEliminationMessage", // <-- Use phrase key
+          phraseKey: "VoteDetailsEliminationAndNightStartMessage", // <-- Updated phrase key
           placeholders: {
+            voteDetails: voteDetails,
             voteCount: maxVotes,
             playerName: eliminatedPlayerName,
             playerRole: eliminatedPlayerRole,
-          }, // <-- Add placeholders
+            round: stateAfterTally.round,
+          }, // <-- Added voteDetails placeholder
           timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
@@ -1778,7 +1757,8 @@ export async function runGameTurnAction(gameId: string) {
           `Vote tied between ${tiedPlayerNames} with ${maxVotes} votes each. No one eliminated.`,
         );
         // --- Translate Tie Message ---
-        const originalTieMsg = `The vote is tied between ${tiedPlayerNames}! No one is eliminated today.`;
+        // Include vote details AND night beginning in same message
+        const originalTieMsg = `The votes are in!\n${voteDetails}\nThe vote is tied between ${tiedPlayerNames}! No one is eliminated today.\n\nNight ${stateAfterTally.round} begins as darkness falls upon the village.`;
         // --- Replace Translation ---
         // const translatedTieMsg = await translateText(originalTieMsg, language);
         // --- End Translation ---
@@ -1788,8 +1768,12 @@ export async function runGameTurnAction(gameId: string) {
           speaker: { type: "moderator" },
           speakerName: "Moderator",
           content: originalTieMsg, // Fallback content
-          phraseKey: "VoteTieMessage", // <-- Use phrase key
-          placeholders: { tiedPlayerNames: tiedPlayerNames }, // <-- Add placeholder
+          phraseKey: "VoteDetailsTieAndNightStartMessage", // <-- Updated phrase key
+          placeholders: { 
+            voteDetails: voteDetails,
+            tiedPlayerNames: tiedPlayerNames,
+            round: stateAfterTally.round
+          }, // <-- Added voteDetails placeholder
           timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
@@ -1898,6 +1882,7 @@ export async function runGameTurnAction(gameId: string) {
             gameOverMessage,
           ],
           updatedAt: Date.now(),
+          isWaitingForVotes: false, // Ensure flag is false on game over
         };
         // Save final game over state
         await gameStateManager.updateGameState(gameId, stateAfterTally);
@@ -1909,30 +1894,12 @@ export async function runGameTurnAction(gameId: string) {
       // Advance Phase (to Night)
       let nextState = advancePhase(stateAfterTally);
 
-      // Add phase change message
-      // --- Translate Night Start Message ---
-      const originalNightStartMsg = `The sun sets. Night ${nextState.round} falls upon the village. Close your eyes...`;
-      // --- End Translation ---
-      const nightStartMessage: ChatMessage = {
-        messageId: `msg-${crypto.randomUUID()}-night-start`,
-        gameId: gameId,
-        speaker: { type: "moderator" },
-        speakerName: "Moderator",
-        content: originalNightStartMsg,
-        timestamp: Date.now(),
-        round: nextState.round,
-        phase: nextState.phase,
-        audience: { type: "all" },
-        phraseKey: "NightStartMessage", // Added key
-        placeholders: { round: nextState.round }, // Added placeholders
-      };
-
       nextState = {
         ...nextState,
-        conversationLog: [...nextState.conversationLog, nightStartMessage],
         nightActions: [],
         votes: [],
         turnOrderIndex: 0,
+        isWaitingForVotes: false, // Ensure flag is false when advancing to Night
       };
 
       // Log the final state before saving

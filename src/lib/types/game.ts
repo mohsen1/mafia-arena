@@ -153,6 +153,7 @@ export interface GameState {
     seerResults?: Record<string, "Werewolf" | "Villager">; // seerId -> targetId -> result (string literals)
     initialProfiles?: PlayerInitializationData[]; // Add storage for initial profiles
   };
+  isWaitingForVotes?: boolean; // Flag for UI during vote collection
 }
 
 // Subset of GameState safe to send to the client
@@ -172,6 +173,7 @@ export type FilteredGameState = Omit<
   playerPerspective?: PlayerPerspective; // <-- Use defined type
   title?: string; // Add optional title
   description?: string; // Add optional description
+  isWaitingForVotes?: boolean; // Pass through the waiting flag
 };
 
 // Example Character Preset Structure

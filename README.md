@@ -1,6 +1,8 @@
 # Werewolf AI
 
-This is an AI game were you can play against AI characters. The game is based on the game of Werewolf.
+<img src="public/images/logo.png" width="100" alt="Werewolf AI Logo" />
+
+This is an AI game were you can play against AI characters. The game is based on the [game of Werewolf aka Mafia](https://en.wikipedia.org/wiki/Mafia_(party_game)).
 
 ## Rules
 
