@@ -1,6 +1,5 @@
 "use client";
 
-import type { Locale } from "@/app/[lang]/dictionaries"; // Use import type
 import { CharacterSlotItem } from "@/components/CharacterSlotItem"; // Import the item component
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,10 +20,7 @@ import { useCallback, useMemo, type FormEvent } from "react";
 import LanguageSelector from "./LanguageSelector"; // Import the new selector
 import ModelSelector from "./ModelSelector"; // Import ModelSelector
 import { type LanguageCode, mapLanguageCodeToLongCode } from "@/lib/i18n/settings";
-// Define a more specific Dictionary type (adjust based on actual structure)
-type Dictionary = {
-  [key: string]: string | Dictionary;
-};
+import { useTranslation } from 'react-i18next'; // Ensure hook is imported
 
 // Define available roles for selection (can be defined here or imported)
 const availableRolesForSelection: Role[] = [
@@ -34,43 +30,20 @@ const availableRolesForSelection: Role[] = [
   "Doctor",
 ];
 
-// Define props for the component
+// Define props, removing translations
 export interface StartGameFormProps {
   availableModels: string[];
-  dict: Dictionary; // Add dict prop
-  lang: Locale; // Add lang prop
+  lang: LanguageCode; // Keep for numberFormatter
 }
 
-// Update component signature to accept dict and lang
+// Update component signature
 export default function StartGameForm({
   availableModels,
-  dict, // Receive dict
-  lang, // Receive lang
+  lang,
 }: StartGameFormProps) {
-  // Helper for translation lookup - update signature to match expected type
-  const t = (
-    key: string,
-    paramsOrFallback?: Record<string, string | number> | string,
-  ) => {
-    const value = dict[key];
-    if (typeof value === 'string') {
-      // Basic placeholder replacement if params are provided
-      if (typeof paramsOrFallback === 'object' && paramsOrFallback !== null) {
-        let str = value;
-        for (const [paramKey, paramValue] of Object.entries(paramsOrFallback)) {
-          str = str.replace(`{${paramKey}}`, String(paramValue));
-        }
-        return str;
-      }
-      return value; // No params, return as is
-    }
-    // Fallback logic
-    return typeof paramsOrFallback === 'string'
-      ? paramsOrFallback
-      : typeof dict[key] === 'string' // Check if key exists but isn't a string
-        ? key // If key exists but wrong type, return key
-        : key; // Fallback to key if not found
-  };
+
+  // Use the hook to get the t function
+  const { t } = useTranslation();
 
   const {
     characterSlots,
@@ -93,12 +66,11 @@ export default function StartGameForm({
     isAudioEnabled,
     toggleAudioEnabled,
     isLoadingNextTurn,
-  } = useGameConfig(availableModels, lang); // Remove t function from arguments
+  } = useGameConfig(availableModels, lang);
 
   // Use lang prop for numberFormatter
   const numberFormatter = useMemo(() => {
-    // Assert lang as LanguageCode, as Locale is a subset
-    const longCode = mapLanguageCodeToLongCode(lang as LanguageCode);
+    const longCode = mapLanguageCodeToLongCode(lang);
     try {
       return new Intl.NumberFormat(longCode);
     } catch (e) {
@@ -122,11 +94,12 @@ export default function StartGameForm({
   // Combine submission state
   const isLoading = isSubmitting || isLoadingNextTurn;
 
-  // Handle error message from useGameConfig 
+  // Conditional error rendering using t helper or direct access
   if (errorMsg) {
     return (
-      // Use t from standard hook
-      <div className="text-red-500 p-4">{t("ErrorPrefix", "Error")}: {t(errorMsg, errorMsg)}</div> 
+      <div className="text-red-500 p-4">
+          {t("ErrorPrefix", "Error")}: {t(errorMsg, errorMsg)}
+      </div>
     );
   }
 
@@ -183,7 +156,7 @@ export default function StartGameForm({
           </Button>
         </div>
 
-        {/* Global Model Selector (Restored) */}
+        {/* Global Model Selector */}
         <div className="mb-6 flex flex-col items-start justify-start gap-2 max-w-96 mx-auto">
           <Label
             htmlFor="global-model"
@@ -202,7 +175,6 @@ export default function StartGameForm({
               "Select global model",
             )}
             disabled={isSubmitting}
-            dict={dict} // Pass dict if ModelSelector needs translations
           />
         </div>
 
@@ -283,7 +255,6 @@ export default function StartGameForm({
                   onUpdateRole={updateSlotRole}
                   onUpdateModel={updateSlotModel}
                   onRemove={removePlayerSlot}
-                  dict={dict} // Pass dict instead of translations
                 />
               ))}
             </ul>
@@ -299,17 +270,17 @@ export default function StartGameForm({
         </div>
       )}
 
-      {/* Status/Error Message Area - Use t function */}
+      {/* Status/Error Message Area */}
       <div className="h-10 text-center flex items-center justify-center px-2 mt-4 mb-2 text-sm">
         {errorMsg ? (
           <p className="text-destructive flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" /> {t(errorMsg, errorMsg)}
-          </p> // Attempt to translate error, fallback to original
+          </p>
         ) : isSubmitting ? (
           <p className="text-primary flex items-center gap-1">
             <Loader2 className="h-4 w-4 animate-spin" />{" "}
-            {t(infoMsg || "ProcessingLabel", infoMsg || "Processing...")}
-          </p> // Translate info message
+            {t(infoMsg || 'ProcessingLabel', infoMsg || 'Processing...')}
+          </p>
         ) : postGenValidationMsg ? (
           <p
             className={`flex items-center gap-1 ${
@@ -326,7 +297,6 @@ export default function StartGameForm({
               <AlertTriangle className="h-4 w-4" />
             ) : null}
             {t(postGenValidationMsg, postGenValidationMsg)}{" "}
-            {/* Translate post-gen validation msg */}
           </p>
         ) : configValidation.isValid ? (
           <p className="text-success flex items-center gap-1">
@@ -339,7 +309,7 @@ export default function StartGameForm({
         ) : initialSlotsSet ? (
           <p className="text-warning flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" />{" "}
-            {t("ConfigInvalid", configValidation.message || "")}
+            {t(configValidation.message || 'ConfigInvalid', configValidation.message || "")}
           </p>
         ) : (
           <p className="text-muted-foreground italic">

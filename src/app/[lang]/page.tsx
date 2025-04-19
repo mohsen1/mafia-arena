@@ -1,87 +1,80 @@
+"use client"; // Make this a Client Component
+
+import { useState, useEffect, use } from 'react'; // Import hooks
 import Link from "next/link";
 import type { FilteredGameState } from "@/lib/types/game";
-import { getGroqModels } from "@/lib/groq/api";
-import { deleteGameAction } from "@/app/actions/index";
+// import { getGroqModels } from "@/lib/groq/api";
+// import { deleteGameAction } from "@/app/actions/index"; // Server Actions need care in Client Components
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { getDictionary, type Locale } from "./dictionaries";
-// import GameCard from "@/components/GameCard";
 import StartGameForm from "@/components/StartGameForm";
+import GameCard from "@/components/GameCard";
 
+// Import i18n hook
+import { useTranslation } from 'react-i18next';
+import type { LanguageCode } from "@/lib/i18n/settings"; // Use type import for LanguageCode
+
+// Remove unused server i18n imports and TFunction
+
+// Define PageProps
 interface PageProps {
-  params: { lang: Locale };
+  params: { lang: LanguageCode };
 }
 
-type Dictionary = Awaited<ReturnType<typeof getDictionary>>;
-
-function GameCard({
-  game,
-  dict,
-}: {
-  game: FilteredGameState;
-  dict: Dictionary;
-}) {
-  const deleteThisGame = deleteGameAction.bind(null, game.gameId);
-
-  const t = (key: string, fallback?: string) => {
-    const value = dict[key];
-    if (typeof value === 'string') {
-      if (key === 'DefaultGameTitle' && value.includes("{{gameIdShort}}")) {
-        return value.replace("{{gameIdShort}}", game.gameId.substring(0, 8));
-      }
-      return value;
-    }
-    return fallback || key;
-  };
-
-  return (
-    <li className="flex justify-between items-start gap-4">
-      <div className="flex-grow">
-        <h3 className="text-lg font-semibold mb-1">
-          <Link href={`/${game.gameId}`} className="hover:underline">
-            {game.title || t("DefaultGameTitle")}
-          </Link>
-        </h3>
-        {game.description && (
-          <p className="text-sm text-muted-foreground italic mb-2">
-            {game.description}
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground">
-          {t("GamePhaseLabel", "Phase")}:{" "}
-          <span className="font-medium capitalize">
-            {t(`GamePhase${game.phase}`, game.phase)}
-          </span>{" "}
-          | {t("RoundLabel", "Round")}:{" "}
-          <span className="font-medium">{game.round}</span> |
-          {t("PlayersLabel", "Players")}:{" "}
-          <span className="font-medium">
-            {Object.keys(game.players).length}
-          </span>{" "}
-          | {t("CreatedLabel", "Created")}:{" "}
-          <span className="font-medium">
-            {format(new Date(game.createdAt), "PPpp")}
-          </span>
-        </p>
-      </div>
-      <form action={deleteThisGame} className="flex-shrink-0">
-        <Button type="submit" variant="outline" size="sm">
-          {t("DeleteButton", "Delete")}
-        </Button>
-      </form>
-    </li>
-  );
-}
-
-export default async function Home({ params }: PageProps) {
+export default function Home({ params: paramsProp }: PageProps) {
+  // Unwrap params using React.use()
+  const params = use(paramsProp as unknown as Promise<{ lang: LanguageCode }>) as { lang: LanguageCode };
   const { lang } = params;
-  const dict = await getDictionary(lang);
+  // Use the hook for translations
+  const { t } = useTranslation();
 
-  const availableModels = await getGroqModels();
-  const existingGames: FilteredGameState[] = []; // Placeholder
+  // State for server-fetched data
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [existingGames, setExistingGames] = useState<FilteredGameState[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // Add error state
 
-  const werewolfAITitle = typeof dict.WerewolfAITitle === 'string' ? dict.WerewolfAITitle : "Werewolf AI";
-  const existingGamesHeading = typeof dict.ExistingGamesTitle === 'string' ? dict.ExistingGamesTitle : "Existing Games";
+  // Fetch data on the client from the API route
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null); // Clear previous errors
+
+        // Fetch models from the API endpoint
+        const response = await fetch('/api/models');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({})); // Try to parse error, default to empty obj
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setAvailableModels(data.models || []); // Set models from response
+
+        // TODO: Fetch existing games (replace placeholder)
+        // const games = await fetchExistingGames();
+        // setExistingGames(games);
+
+      } catch (err) {
+        console.error("Failed to fetch initial data:", err);
+        setError(err instanceof Error ? err.message : "An unknown error occurred");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []); // Empty dependency array ensures this runs once on mount
+
+  // Use t directly for page-level translations
+  const werewolfAITitle = t("WerewolfAITitle", "Werewolf AI");
+  const existingGamesHeading = t("ExistingGamesTitle", "Existing Games");
+
+  // Handle loading and error states
+  if (loading) {
+      return <div className="p-4 text-center">{t('Loading', 'Loading...')}</div>;
+  }
+  if (error) {
+      return <div className="p-4 text-center text-destructive">{t('ErrorLoadingData', 'Error loading data')}: {error}</div>;
+  }
 
   return (
     <main className=" mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen">
@@ -89,7 +82,8 @@ export default async function Home({ params }: PageProps) {
         {werewolfAITitle}
       </h1>
 
-      <StartGameForm availableModels={availableModels} dict={dict} lang={lang} />
+      {/* Pass necessary props to StartGameForm */}
+      <StartGameForm availableModels={availableModels} lang={lang} />
 
       {existingGames.length > 0 && (
         <div className="w-full mb-8">
@@ -98,11 +92,12 @@ export default async function Home({ params }: PageProps) {
           </h2>
           <ul className="space-y-3">
             {existingGames.map((game) => (
-              <GameCard key={game.gameId} game={game} dict={dict} />
+              <GameCard key={game.gameId} game={game} />
             ))}
           </ul>
         </div>
       )}
+      {/* TODO: Add a message if existingGames is empty after loading */}
     </main>
   );
 }

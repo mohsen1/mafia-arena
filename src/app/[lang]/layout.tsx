@@ -1,104 +1,70 @@
-import type { Metadata } from "next";
+"use client"; // Make this a client component
+
+// Remove Metadata import if no longer used here
+// import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "../globals.css";
-import type { Locale } from "./dictionaries"; // Import Locale type if needed
 
-// Import i18n utilities
-import { dir } from 'i18next' // Use dir from i18next
-// import { languages, defaultNS } from "@/lib/i18n/settings";
-// Remove server-side hook import, we initialize directly here
-// import { useTranslation } from "@/lib/i18n"; 
-// import { TranslationsProvider } from "@/lib/i18n/client"; 
-// import i18next, { createInstance, type Resource } from 'i18next'; // Import necessary i18next functions/types
-// import { initReactI18next } from 'react-i18next/initReactI18next';
-// import { getOptions } from '@/lib/i18n/settings';
-// import fs from 'node:fs/promises';
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+// Import i18n utilities and types
+import { dir } from 'i18next';
+import { type LanguageCode, /* languages, */ defaultNS, fallbackLng } from "@/lib/i18n/settings"; // Remove languages if unused
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Import and execute client-side i18n config
+import i18nInstance from '@/lib/i18n/i18n.client';
+import { I18nextProvider, useTranslation } from 'react-i18next';
+import { use } from 'react'; // Import the use hook
 
-export const metadata: Metadata = {
-  title: "Werewolf AI - Social Deduction Game",
-  description:
-    "Play the classic game of Werewolf with intelligent AI players. Can you survive the night?",
-  keywords: [
-    "werewolf",
-    "ai",
-    "game",
-    "social deduction",
-    "mafia",
-    "party game",
-  ],
-  openGraph: {
-    title: "Werewolf AI",
-    description: "Play Werewolf with intelligent AI players.",
-    type: "website",
-    // url: "YOUR_APP_URL", // Replace with your actual URL
-    // images: [{ url: "/og-image.png" }], // Replace with your OG image path
-  },
-};
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], });
 
-// Function to generate static params for supported languages
-// export async function generateStaticParams() {
-//   return languages.map((lng) => ({ lang: lng }))
-// }
+// Remove the metadata export - cannot be exported from client components
+// export const metadata: Metadata = { ... };
 
-// initI18next function, similar to the one previously in index.ts
-// We need it here to create the instance and pass resources
-// const initServerI18next = async (lng: string, ns: string | string[]) => {
-//   const i18nInstance = createInstance();
-//   const dictionaryDir = `${process.cwd()}/src/app/[lang]/dictionaries/`;
-//   const dictionaryPath = `${dictionaryDir}/${lng}.json`;
-//   const dictionary = JSON.parse(await fs.readFile(dictionaryPath, 'utf-8'));
-//   const langs = Array.isArray(ns) ? ns : [ns];
-//   const resources: Resource = {};
-//   for (const lang of langs) {
-//     resources[lang] = {
-//       [defaultNS]: dictionary
-//     };
-//   }
-//   await i18nInstance
-//     .use(initReactI18next)
-//     // Load the dictionary dynamically WITHIN the layout/server component context
-//     .init({
-//       ...getOptions(lng, ns),
-//       resources
-//     });
-//   return i18nInstance;
-// };
+// Remove generateStaticParams - It's for Server Components
 
-export default async function RootLayout({
+// RootLayout is now a Client Component
+export default function RootLayout({
   children,
-  params, 
+  params: paramsProp, // Rename prop to avoid conflict with potential promise
 }: Readonly<{
   children: React.ReactNode;
-  params: Promise<{ lang: Locale }>; 
+  params: { lang: LanguageCode };
 }>) {
-  // Initialize i18next instance here, loading the necessary resources
-  const { lang } = await params;
-  // const i18n = await initServerI18next(lang, defaultNS);
-  
+
+  // Unwrap params using React.use() and assert the expected type
+  const params = use(paramsProp as unknown as Promise<{ lang: LanguageCode }>) as { lang: LanguageCode };
+  const { lang } = params;
+
+  if (i18nInstance.language !== lang) {
+      i18nInstance.changeLanguage(lang);
+  }
+
+  const direction = i18nInstance.dir(lang);
+
   return (
-    <html lang={lang} dir={dir(lang)} suppressHydrationWarning>
+    <html lang={i18nInstance.language} dir={direction} suppressHydrationWarning>
+      {/* Add static meta tags here if needed */}
+      <head>
+          <meta name="keywords" content="werewolf, ai, game, social deduction, mafia, party game" />
+          {/* Add other static meta tags like viewport, charset etc. */}
+          <meta charSet="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          {/* Consider adding OpenGraph tags statically if they don't change much */}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* Remove TranslationsProvider wrapper */}
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+        <I18nextProvider i18n={i18nInstance} defaultNS={defaultNS}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+          </ThemeProvider>
+        </I18nextProvider>
       </body>
     </html>
   );

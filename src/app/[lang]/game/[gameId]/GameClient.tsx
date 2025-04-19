@@ -6,7 +6,7 @@ import { GameSidebar } from "@/components/GameSidebar";
 import { GameProvider, useGameContext } from "@/context/GameContext";
 import { SpokenTextProvider } from "@/context/SpokenTextContext";
 import type { FilteredGameState } from "@/lib/types/game";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from 'react-i18next';
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
@@ -16,19 +16,19 @@ interface GameClientProps {
 
 function GameLayout() {
   const { gameState } = useGameContext();
-  const { i18n } = useTranslation();
-  const lang = i18n.language;
+  const { t, i18n } = useTranslation();
 
   if (!gameState) {
-    return <div>Loading game state...</div>;
+    return <div>{t("LoadingGameState", "Loading game state...")}</div>;
   }
 
-  const dir = i18n.dir(lang);
+  const lang = i18n.language;
+  const direction = i18n.dir(lang);
 
   return (
     <div
       className="grid grid-cols-[280px_1fr] h-screen"
-      dir={dir}
+      dir={direction}
     >
       <GameSidebar />
       <main className="flex flex-col h-screen overflow-hidden">

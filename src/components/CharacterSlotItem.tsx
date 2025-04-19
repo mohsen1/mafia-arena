@@ -12,11 +12,9 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Users, ServerCrash, Bot, X, Loader2 } from "lucide-react";
+import { useTranslation } from 'react-i18next'; // Import hook
 
-// Define Dictionary type locally or import if shared
-type Dictionary = {
-  [key: string]: string | Dictionary;
-};
+// Remove CharacterTranslations interface
 
 interface CharacterSlotItemProps {
   slot: ConfigCharacterSlot;
@@ -28,7 +26,7 @@ interface CharacterSlotItemProps {
   onUpdateRole: (clientId: string, newRole: Role) => void;
   onUpdateModel: (clientId: string, newModel: string) => void;
   onRemove: (clientId: string) => void;
-  dict: Dictionary; // Add dict prop
+  // Remove translations prop
 }
 
 export function CharacterSlotItem({
@@ -41,13 +39,13 @@ export function CharacterSlotItem({
   onUpdateRole,
   onUpdateModel,
   onRemove,
-  dict, // Receive dict prop
+  // translations, // Remove from destructuring
 }: CharacterSlotItemProps) {
-  // Simple t helper function
-  const t = (key: string, fallback?: string) => {
-    const value = dict[key];
-    return typeof value === 'string' ? value : fallback || key;
-  };
+
+  // Use the hook
+  const { t } = useTranslation();
+
+  // Remove local t helper
 
   const handleRemoveClick = () => {
     onRemove(slot.clientId);
@@ -104,7 +102,7 @@ export function CharacterSlotItem({
           )}
         </div>
 
-        {/* Remove Button (moved to top right) */}
+        {/* Remove Button */}
         {canRemove && (
           <Button
             type="button"
@@ -150,6 +148,7 @@ export function CharacterSlotItem({
             <SelectContent>
               {availableRoles.map((roleId) => (
                 <SelectItem key={roleId} value={roleId} className="text-xs">
+                  {/* Use t to translate roleId, fallback to roleId */}
                   {t(roleId, roleId)}
                 </SelectItem>
               ))}
