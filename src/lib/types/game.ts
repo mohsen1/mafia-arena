@@ -73,6 +73,7 @@ export interface GameSettings {
   readonly numPlayers: number; // Maybe derive from roles?
   readonly roleDistribution: Readonly<Record<Role, number>>;
   readonly discussionRoundsPerPlayer: number;
+  readonly language: LanguageName;
 }
 
 export interface AICharacterProfile {
@@ -145,7 +146,6 @@ export interface GameState {
   lastDoctorSaveId: string | null; // Track successful save
   lastSeerTargetId: string | null; // Track seer's target
   winCondition: WinCondition | null;
-  language: LanguageName; // <-- Add language field
   aiMessageLog: AIMessageLogEntry[]; // Log of AI prompts and responses
   // Internal state not sent to client
   _internalState?: {

@@ -40,12 +40,11 @@ export async function initializeNewGame(
   gameId: string,
   createdAt: number,
   playerInitDataList: (PlayerInitializationData & { persona: string })[],
-  language: LanguageName,
 ): Promise<GameState> {
   console.log(
     `Initializing game ${gameId} with ${playerInitDataList.length} players. Settings:`,
     settings,
-    `Language: ${language}`,
+    `Language: ${settings.language}`,
   );
 
   const players: Record<string, Player> = {};
@@ -113,7 +112,6 @@ export async function initializeNewGame(
     lastDoctorSaveId: null,
     lastSeerTargetId: null,
     winCondition: null,
-    language: language,
     _internalState: {
       initialProfiles: playerInitDataList.map(
         ({ profile, role, aiModel, imageUrl, voiceId }) => ({
@@ -144,7 +142,7 @@ export async function initializeNewGame(
   const { title, description } = await getAIGameTitleAndDescription(
     playerDetailsForTitle,
     titleGenSettings,
-    language,
+    settings.language,
   );
 
   initialGameState.title = title;

@@ -15,7 +15,7 @@ export const GENERATE_TITLE_AND_DESCRIPTION_USER_PROMPT = (
   characterDescriptions: string,
 ) =>
   dedent`Generate a title and description for a Werewolf game featuring these characters:
-  ${characterDescriptions}
+  <characterDescriptions>${characterDescriptions}</characterDescriptions>
 
   Respond ONLY with the JSON object.`;
 
@@ -25,9 +25,9 @@ export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (
   language: LanguageName,
 ) =>
   dedent`You are an AI assistant creating character profiles for a game of Werewolf.
-  Generate a character profile for the role of **${role}**.${existingCharsContext}
+  Generate a character profile for the role of <role>${role}</role>.${existingCharsContext}
 
-  **Target Language:** ${language}. Generate details, especially the **characterName**,
+  **Target Language:** <language>${language}</language>. Generate details, especially the **characterName**,
   that fit this cultural context.
   ${
     language !== "English"
@@ -49,9 +49,9 @@ export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (
     "ageCategory": "[young or old]"
   }
 
-  Ensure details are appropriate for the role (${role}) and setting.
+  Ensure details are appropriate for the role (<role>${role}</role>) and setting.
   Keep the shortBio concise and game-relevant.
-  Do NOT reveal the secret assigned role (${role}) or game mechanics in the profile.
+  Do NOT reveal the secret assigned role (<role>${role}</role>) or game mechanics in the profile.
   Output ONLY the JSON object.`;
 
 // --- Game Turn Prompts ---
@@ -68,19 +68,21 @@ export const DAY_INTRODUCTION_PROMPT = (
 ) =>
   dedent`You are playing a character in a game of Werewolf.
 
+  <characterDetails>
   Your Character Details:
-  ${persona}
+  <persona>${persona}</persona>
 
-  Your Character Name: ${characterName}
-  Your Assigned Role (SECRET): ${role}
+  Your Character Name: <characterName>${characterName}</characterName>
+  Your Assigned Role (SECRET): <role>${role}</role>
+  </characterDetails>
 
   The current game phase is Day Introductions. The villagers have gathered, and it's your turn to speak.
 
   **Recent Events (Moderator Announcements):**
-  ${recentModeratorMessages || "[No major events announced recently.]"}
+  <moderatorMessages>${recentModeratorMessages || "[No major events announced recently.]"}</moderatorMessages>
 
   **Who Spoke Before You:**
-  ${previousIntroductions || "[You are the first to speak]"}
+  <previousIntroductions>${previousIntroductions || "[You are the first to speak]"}</previousIntroductions>
 
   Your task is to introduce yourself briefly (1-2 sentences, maximum 30 words).
   Speak in the FIRST PERSON, embodying your character. Use an INFORMAL, conversational tone.
@@ -88,7 +90,7 @@ export const DAY_INTRODUCTION_PROMPT = (
   if it fits your character.
   Make it sound like a real villager talking, not a formal announcement.
 
-  CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (${role}) or mention game mechanics
+  CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (<role>${role}</role>) or mention game mechanics
   (like roles, phases, werewolves). Keep it purely in-character under tense circumstances.`;
 
 /**
@@ -101,11 +103,13 @@ const NIGHT_ACTION_BASE_PROMPT = (
 ) =>
   dedent`You are playing a character in a game of Werewolf.
 
+  <characterDetails>
   Your Character Details:
-  ${persona}
+  <persona>${persona}</persona>
 
-  Your Character Name: ${characterName}
-  Your Assigned Role (SECRET): ${role}
+  Your Character Name: <characterName>${characterName}</characterName>
+  Your Assigned Role (SECRET): <role>${role}</role>
+  </characterDetails>
 
   The current game phase is Night. It is time for you to perform your nightly action.
   Think about who seemed suspicious during the day's discussions (if any). Use your instincts and role.`;
@@ -122,12 +126,10 @@ export const NIGHT_ACTION_WEREWOLF_PROMPT = (
 ) =>
   dedent`${NIGHT_ACTION_BASE_PROMPT(persona, characterName, "Werewolf")}
 
-  You gather silently with your fellow werewolves: ${
-    fellowWerewolfNames.join(", ") || " (You are the only one left!)"
-  }.
+  You gather silently with your fellow werewolves: <fellowWerewolves>${fellowWerewolfNames.join(", ") || " (You are the only one left!)"}</fellowWerewolves>.
 
   **Recent Werewolf Chat (This Night):**
-  ${werewolfChatHistory || "(No messages yet)"}
+  <werewolfChatHistory>${werewolfChatHistory || "(No messages yet)"}</werewolfChatHistory>
 
   Based on your discussion (if any), it's time to decide who to eliminate tonight.
   Indicate your *preferred* target from the list below.
@@ -136,8 +138,10 @@ export const NIGHT_ACTION_WEREWOLF_PROMPT = (
   CRITICAL: Respond ONLY with the single number corresponding to the player you want to vote to
   eliminate. Do NOT include any other text, formatting, explanations, or reasoning.
 
+  <targetList>
   Living Non-Werewolf Players:
-  ${targetNames.map((name, index) => `${index + 1}. ${name}`).join("\n")}`;
+  ${targetNames.map((name, index) => `${index + 1}. ${name}`).join("\n")}
+  </targetList>`;
 
 /**
  * Generates the system prompt for a Seer choosing a target.
@@ -155,8 +159,10 @@ export const NIGHT_ACTION_SEER_PROMPT = (
   CRITICAL: Respond ONLY with the single number corresponding to the player. Do NOT include any
   other text, formatting, explanations, or reasoning.
 
+  <targetList>
   Other Living Players:
-  ${targetNames.map((name, index) => `${index + 1}. ${name}`).join("\n")}`;
+  ${targetNames.map((name, index) => `${index + 1}. ${name}`).join("\n")}
+  </targetList>`;
 
 /**
  * Generates the system prompt for a Doctor choosing a target.
@@ -174,8 +180,10 @@ export const NIGHT_ACTION_DOCTOR_PROMPT = (
   CRITICAL: Respond ONLY with the single number corresponding to the player. Do NOT include any
   other text, formatting, explanations, or reasoning.
 
+  <targetList>
   Living Players:
-  ${targetNames.map((name, index) => `${index + 1}. ${name}`).join("\n")}`;
+  ${targetNames.map((name, index) => `${index + 1}. ${name}`).join("\n")}
+  </targetList>`;
 
 /**
  * Generates the system prompt for a player's contribution during the DayDiscussion phase.
@@ -230,17 +238,21 @@ export const DAY_DISCUSSION_PROMPT = (
 
   return dedent`You are playing a character in a game of Werewolf.
 
+  <characterDetails>
   Your Character Details:
-  ${persona}
+  <persona>${persona}</persona>
 
-  Your Character Name: ${characterName}
-  Your Assigned Role (SECRET): ${role}
+  Your Character Name: <characterName>${characterName}</characterName>
+  Your Assigned Role (SECRET): <role>${role}</role>
+  </characterDetails>
 
-  The current game phase is Day Discussion (Round ${round}).
-  Living Players: ${livingPlayerNames.join(", ")}
+  The current game phase is Day Discussion (<round>${round}</round>).
+  Living Players: <livingPlayers>${livingPlayerNames.join(", ")}</livingPlayers>
 
   **Recent Conversation & Events:**
+  <conversationHistory>
   ${conversationHistory || "[No discussion yet this round]"}
+  </conversationHistory>
 
   It's your turn to speak. Speak in the FIRST PERSON with PASSION and CONVICTION. Embrace the tension.
   Don't be afraid to show frustration, anger, suspicion, or even panic directly. Make your statements impactful.
@@ -273,12 +285,14 @@ export const DAY_DISCUSSION_PROMPT = (
       'I'm looking at you...', 'What's behind your sudden...?'. 
       Find NEW, UNIQUE ways to express yourself based on your persona. Vary your sentence structures.
 
+  <roleSpecificGuidance>
   **Your Role-Specific Strategy (More Aggressive):**
   ${roleSpecificGuidance}
+  </roleSpecificGuidance>
 
   Keep your response FOCUSED, aiming for 3-6 sentences (approx 40-80 words) if needed to make a
   strong point or accusation. Ensure your contribution feels distinct from previous speakers.
-  Do NOT explicitly state your role (${role}) unless it's a calculated, desperate, and DRAMATIC move.`;
+  Do NOT explicitly state your role (<role>${role}</role>) unless it's a calculated, desperate, and DRAMATIC move.`;
 };
 
 /**
@@ -294,17 +308,21 @@ export const VOTING_PROMPT = (
 ) =>
   dedent`You are playing a character in a game of Werewolf.
 
+  <characterDetails>
   Your Character Details:
-  ${persona}
+  <persona>${persona}</persona>
 
-  Your Character Name: ${characterName}
-  Your Assigned Role (SECRET): ${role}
+  Your Character Name: <characterName>${characterName}</characterName>
+  Your Assigned Role (SECRET): <role>${role}</role>
+  </characterDetails>
 
-  The current game phase is Voting (Round ${round}). Discussion is over.
+  The current game phase is Voting (Round <round>${round}</round>). Discussion is over.
   It's time to eliminate someone you suspect is a werewolf based on the discussion and events so far.
 
   **Summary of Today's Discussion:**
+  <conversationHistory>
   ${conversationHistory || "[No discussion occurred this round, or first round vote]"}
+  </conversationHistory>
 
   Think carefully about who seemed most suspicious or deceitful based on the discussion.
 
@@ -312,8 +330,10 @@ export const VOTING_PROMPT = (
   CRITICAL: Respond ONLY with the single number corresponding to the player. Do NOT include any
   other text, formatting, explanations, or reasoning.
 
+  <targetList>
   Available Players (Cannot vote for yourself):
   ${targetList}
+  </targetList>
 
   CRITICAL: Respond ONLY with the number.`;
 
@@ -329,11 +349,11 @@ export const GAME_TITLE_DESCRIPTION_PROMPT = (
     .join("\n");
 
   return dedent`Based on the following cast of characters:
-  ${characterList}
+  <characterList>${characterList}</characterList>
 
   Generate a thematic and engaging game title (starting with "Title:") and a short,
   evocative game description (starting with "Description:") for this Werewolf session.
-  IMPORTANT: Generate the title and description **ONLY in ${language}**.
+  IMPORTANT: Generate the title and description **ONLY in <language>${language}</language>**.
   Do not add any other text, explanations, or translations. Format your response exactly like this:
   Title: [Your Title in ${language}]
   Description: [Your Description in ${language}]
@@ -352,8 +372,8 @@ export const GENERATE_UI_TRANSLATION_PROMPT = (
   See https://en.wikipedia.org/wiki/Mafia_(party_game)
   Depending on which name is common in the language culture choose Mafia vs. Werewolf.
   Each object has keys "phrase", "translation", and "description".
-  Your task is to translate ONLY the "translation" field of each object into ${targetLanguage}.
-  Return ONLY the complete JSON array for the ${targetLanguage} language, maintaining the exact
+  Your task is to translate ONLY the "translation" field of each object into <targetLanguage>${targetLanguage}</targetLanguage>.
+  Return ONLY the complete JSON array for the <targetLanguage>${targetLanguage}</targetLanguage> language, maintaining the exact
   same structure and "phrase" keys. Do not include any explanations, markdown formatting, or
   other text outside the JSON array. Ensure proper JSON formatting, especially correct
   escaping of quotes within translated strings if necessary.`;
@@ -379,21 +399,21 @@ export const WEREWOLF_CHAT_PROMPT = (
 ): string => {
   const basePrompt = dedent`You are playing a character in a game of Werewolf.
 
+  <characterDetails>
   Your Character Details:
-  ${persona}
+  <persona>${persona}</persona>
 
-  Your Character Name: ${playerName}
-  Your Assigned Role (SECRET): Werewolf
+  Your Character Name: <characterName>${playerName}</characterName>
+  Your Assigned Role (SECRET): <role>Werewolf</role>
+  </characterDetails>
 
-  It is currently the Werewolf Chat phase (Night ${round}), a private discussion ONLY among werewolves.
-  Your fellow living werewolves are: ${
-    fellowWerewolfNames.join(", ") || "None (You are the last wolf!)"
-  }
+  It is currently the Werewolf Chat phase (Night <round>${round}</round>), a private discussion ONLY among werewolves.
+  Your fellow living werewolves are: <fellowWerewolves>${fellowWerewolfNames.join(", ") || "None (You are the last wolf!)"}</fellowWerewolves>
 
-  **Last Night's Outcome:** ${lastNightResults}
+  **Last Night's Outcome:** <lastNightResults>${lastNightResults}</lastNightResults>
 
   **Recent Werewolf Chat (This Phase):**
-  ${recentConversation || "(No messages yet)"}
+  <werewolfChatHistory>${recentConversation || "(No messages yet)"}</werewolfChatHistory>
 
   It's your turn to speak **privately** to your fellow werewolf(s).
   Discuss your strategy for the upcoming day:
@@ -417,12 +437,15 @@ export const TRANSLATE_DICTIONARY_PROMPT = (
 ) => {
   return dedent`You are an expert translation assistant specializing in game localization.
   Your task is to translate the VALUES of the following JSON dictionary from English
-  to the target language: **${targetLanguage}**.\n\n
+  to the target language: **<targetLanguage>${targetLanguage}</targetLanguage>**.\n\n
 
   **RULES:**\n  1.  Translate ONLY the string values associated with each key.\n  2.  Keep the JSON keys EXACTLY the same.\n  3.  Maintain the original JSON structure (key-value pairs).\n  4.  Preserve any placeholder variables like \`{{variableName}}\` exactly as they appear in the original English value.\n  5.  Ensure the output is ONLY a single, valid JSON object containing the translated key-value pairs.\n  6.  Use natural and contextually appropriate translations for a Werewolf/Mafia style social deduction game.\n\n
 
-  **English Dictionary JSON:**\n  \`\`\`json\n  ${sourceDictionaryJsonString}\n  \`\`\`\n\n
+  **English Dictionary JSON:**
+  \`\`\`json
+  <sourceDictionary>${sourceDictionaryJsonString}</sourceDictionary>
+  \`\`\`\n\n
 
-  Respond ONLY with the translated JSON object for the target language (${targetLanguage}).
+  Respond ONLY with the translated JSON object for the target language (<targetLanguage>${targetLanguage}</targetLanguage>).
   Do NOT include any explanatory text, apologies, or markdown formatting outside the JSON object.`;
 };

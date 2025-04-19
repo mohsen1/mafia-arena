@@ -9,3 +9,21 @@ avoid using shadows and borders as much as possible. neat clean UI
 prefer JSDoc comments
 Be aware the app support RTL and LTR directions. use ms instead of ml in tailwind classes and so on
 use pnpm
+after changes run `pnpm tsc` to ensure no type errors are found
+you can use the following tools:
+    getConsoleLogs
+    getConsoleErrors
+    getNetworkErrors
+    getNetworkLogs
+    takeScreenshot
+    getSelectedElement
+    wipeLogs
+    runAccessibilityAudit
+    runPerformanceAudit
+    runSEOAudit
+    runNextJSAudit
+    runDebuggerMode
+    runAuditMode
+    runBestPracticesAudit
+
+use above tools to make sure there are no runtime errors after making changes 
