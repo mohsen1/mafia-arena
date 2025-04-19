@@ -21,7 +21,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
   return (
     <div
       className={cn(
-        "flex items-center space-x-3 rtl:space-x-reverse p-2 rounded-md",
+        "flex items-center space-x-2 rtl:space-x-reverse p-2 rounded-md",
         isAlive ? "bg-card" : "bg-muted opacity-60",
       )}
     >
@@ -47,7 +47,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
           )}
         </div>
       </div>
-      <div className="flex-grow min-w-0">
+      <div className="flex-grow min-w-0 ms-1">
         <p className="text-sm font-medium truncate text-card-foreground">
           {player.name}
         </p>

@@ -52,14 +52,14 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     {
       "self-end bg-blue-500 text-white": isHuman,
       "self-end bg-secondary text-secondary-foreground": isModerator,
-      "self-start bg-muted text-foreground": isBot && !isModerator,
+      "self-start bg-muted text-foreground": isBot,
     },
   );
 
   // Container for image + bubble
   const containerClasses = cn("flex items-start gap-2 mb-4", {
-    "justify-end rtl:flex-row-reverse": isHuman || isModerator,
-    "justify-start rtl:flex-row-reverse": !isHuman && !isModerator,
+    "justify-end": isHuman || isModerator,
+    "justify-start": isBot,
   });
 
   // Translate speaker name if it's a key
@@ -67,12 +67,12 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
 
   return (
     <div className={containerClasses}>
-      {!isHuman && !isModerator && (
+      {isBot && (
         <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden flex-shrink-0">
           {imageUrl ? (
             <Image
               src={imageUrl}
-              alt={message.speakerName}
+              alt={translatedSpeakerName}
               width={32}
               height={32}
               className="object-cover"
@@ -86,18 +86,18 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
       )}
 
       <div className={bubbleClasses}>
-        <div className="flex items-center gap-2 rtl:flex-row-reverse">
+        <div className={cn("flex items-center gap-2", {
+          "rtl:flex-row-reverse": isModerator || isHuman,
+        })}>
           <span
             className={cn(
               "text-xs font-semibold opacity-80",
-              isHuman
-                ? "text-blue-100"
-                : "text-foreground",
+              isHuman ? "text-blue-100" : "text-foreground",
             )}
           >
-            {translatedSpeakerName}
+            {isModerator ? t('ModeratorName', 'Moderator') : translatedSpeakerName}
           </span>
-          {!isHuman && isAudioGloballyEnabled && (
+          {isBot && isAudioGloballyEnabled && (
             <SpeakText
               voiceId={
                 message.speaker.type === "player" && speakerPlayer
@@ -122,7 +122,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
           {isModerator ? (
             <Image
               src="/images/characters/mod.png"
-              alt="Moderator"
+              alt={t('ModeratorName', 'Moderator')}
               width={32}
               height={32}
               className="object-cover"
@@ -130,7 +130,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
           ) : imageUrl ? (
             <Image
               src={imageUrl}
-              alt={message.speakerName}
+              alt={translatedSpeakerName}
               width={32}
               height={32}
               className="object-cover"

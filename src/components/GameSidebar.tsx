@@ -8,10 +8,11 @@ import type { Player } from "@/lib/types/game"; // Import Player type
 import Link from "next/link";
 // Import from react-i18next
 import { useTranslation } from "react-i18next"; 
+import { useParams } from "next/navigation";
 
 export function GameSidebar() {
   const { gameState } = useGameContext();
-
+  const { lang } = useParams();
   // Use standard hook
   const { t } = useTranslation('translation'); // Keep namespace for now
 
@@ -36,7 +37,7 @@ export function GameSidebar() {
     <aside className="flex flex-col h-screen">
       <h2 className="text-lg font-semibold p-3 ">
         <Link
-          href="/"
+          href={`/${lang}`}
           className="flex items-center gap-2"
           aria-label={t("Werewolves AI")}
         >
@@ -65,7 +66,8 @@ export function GameSidebar() {
             <>
               <hr className="my-2 border-muted" /> {/* Add a divider */}
               <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
-                {t("Dead Players")}
+                {/* Use translation key */}
+                {t("DeadPlayersTitle", "Dead Players")}
               </h3>
               {deadPlayers.map((player: Player) => (
                 <PlayerCard key={player.id} player={player} />
