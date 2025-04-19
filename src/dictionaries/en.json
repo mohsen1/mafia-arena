@@ -124,5 +124,6 @@
   "ModeratorGameOverVillagersWin": "Game Over! The Villagers have eliminated all werewolves.",
   "DeadPlayersTitle": "Dead Players",
   "ModeratorEliminatedSeer": "{{name}} has been eliminated by the village. They were a Seer.",
-  "ModeratorNightBeginsInterpolated": "Night {{day}} begins as darkness falls upon the village."
+  "ModeratorNightBeginsInterpolated": "Night {{day}} begins as darkness falls upon the village.",
+  "LoadingNextTurn": "Loading next turn..."
 } 

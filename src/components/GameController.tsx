@@ -100,7 +100,14 @@ export default function GameController() {
         </Button>
 
         {/* Standalone Loading Indicator (only shown when loading) */}
-        {isLoadingNextTurn && <Loader className="animate-spin" size={18} />}
+        {isLoadingNextTurn && (
+          <>
+            <Loader className="animate-spin" size={18} />
+            <span className="text-xs text-muted-foreground">
+              {t("LoadingNextTurn")}
+            </span>
+          </>
+        )}
       </div>
     </div>
   );
