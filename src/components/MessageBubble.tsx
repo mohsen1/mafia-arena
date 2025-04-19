@@ -85,7 +85,9 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
       )}
 
       <div className={bubbleClasses}>
-        <div className={cn("flex items-center gap-2 justify-end")}>
+        <div className={cn("flex items-center gap-2 justify-start", {
+          "justify-end": isHuman || isModerator,
+        })}>
           <span
             className={cn(
               "text-xs font-semibold opacity-80",
