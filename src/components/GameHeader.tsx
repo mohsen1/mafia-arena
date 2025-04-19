@@ -9,7 +9,7 @@ export function GameHeader() {
   const { gameState } = useGameContext(); // Only get gameState
   
   // Use standard hook
-  const { t } = useTranslation('translation'); // Keep namespace for now
+  const { t } = useTranslation();
 
   if (!gameState) return null; 
 
@@ -33,14 +33,14 @@ export function GameHeader() {
           <span className="font-semibold">{round}</span> |{" "}
           <span className="font-semibold capitalize">
             {/* Assuming phase names might be translation keys */}
-            {t(phase, phase)}
+            {t(`GamePhase${phase}`, { defaultValue: phase })}
           </span>
         </p>
         <div className="mt-1">
           {winCondition && (
             <span className="text-lg font-bold text-success">
               {/* Assuming outcome strings might be translation keys */} 
-              {t(winCondition.outcome, winCondition.outcome)}
+              {t(`Outcome${winCondition.outcome.replace(/\s/g, '')}`, { defaultValue: winCondition.outcome })}
             </span>
           )}
           {phase === "GameOver" && !winCondition && (

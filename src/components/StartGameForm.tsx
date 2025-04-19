@@ -105,13 +105,6 @@ export default function StartGameForm({
 
   return (
     <form onSubmit={handleSubmitWrapper} className="w-full max-w-5xl space-y-6">
-      {/* Display loading indicator */}
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center z-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      )}
-
       {/* Config container */}
       <div className="mb-6 max-w-2xl mx-auto">
         <h2 className="text-2xl font-bold mb-6 text-foreground text-center">
