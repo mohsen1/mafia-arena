@@ -2,11 +2,11 @@ import { runGameTurnAction } from "@/app/actions/index";
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import { notFound } from "next/navigation";
 import GameClient from "./GameClient"; // Import the client component
+import type { LanguageCode } from "@/lib/i18n/settings";
 
 // Remove i18n imports - no longer needed here
 // import { getDictionary } from "@/lib/getDictionary";
 // import { dir } from 'i18next';
-import type { LanguageCode } from "@/lib/i18n/settings";
 
 interface GamePageProps {
   params: Promise<{ gameId: string; lang: LanguageCode }>;

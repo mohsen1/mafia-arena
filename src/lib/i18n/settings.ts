@@ -264,12 +264,11 @@ export function getLanguageInfoByName(
 // i18next options function
 export function getOptions (lng: string = fallbackLng, ns: string | string[] = defaultNS): InitOptions {
   return {
-    // debug: true, // Set to true to see i18next logs
-    supportedLngs: languages, // Use derived languages array
+    supportedLngs: languages,
     fallbackLng,
     lng,
     fallbackNS: defaultNS,
     defaultNS,
-    ns // Pass ns directly (can be string or array)
+    ns
   }
 } 

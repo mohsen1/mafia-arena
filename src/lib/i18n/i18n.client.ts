@@ -1,10 +1,7 @@
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
-// import LanguageDetector from 'i18next-browser-languagedetector'; // Removed unused import
 import { languages, fallbackLng, defaultNS } from './settings';
 
-// Import all dictionaries directly (or use dynamic imports if preferred for chunking)
-// This might become large if you have many languages/large files
 import enTranslation from '@/dictionaries/en.json';
 import zhTranslation from '@/dictionaries/zh.json';
 import hiTranslation from '@/dictionaries/hi.json';
@@ -36,7 +33,6 @@ import teTranslation from '@/dictionaries/te.json';
 import haTranslation from '@/dictionaries/ha.json';
 import myTranslation from '@/dictionaries/my.json';
 
-// Structure resources for i18next
 const resources = {
   en: { [defaultNS]: enTranslation },
   zh: { [defaultNS]: zhTranslation },
@@ -71,28 +67,16 @@ const resources = {
 };
 
 i18next
-  // Optional: Add language detector (check documentation for options)
-  // .use(LanguageDetector)
-  // Pass the i18next instance to react-i18next.
   .use(initReactI18next)
-  // Init i18next
-  // For options documentation see https://www.i18next.com/overview/configuration-options
   .init({
-    // debug: process.env.NODE_ENV === 'development',
     fallbackLng,
     ns: [defaultNS],
     defaultNS,
     supportedLngs: languages,
     resources,
     interpolation: {
-      escapeValue: false, // React already safes from xss
+      escapeValue: false,
     },
-    // LanguageDetector options (if used)
-    // detection: {
-    //   order: ['path', 'cookie', 'localStorage', 'navigator', 'htmlTag'],
-    //   caches: ['cookie', 'localStorage'],
-    //   lookupFromPathIndex: 0, // Important for /[lang]/ structure
-    // },
   });
 
 export default i18next; 

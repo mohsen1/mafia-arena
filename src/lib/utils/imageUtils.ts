@@ -8,7 +8,6 @@ const BASE_IMAGE_PATH = path.join(
   "characters",
 );
 
-// Cache image file lists to avoid repeated fs calls
 let imageCache: Record<string, string[]> = {};
 let cacheInitialized = false;
 
@@ -27,14 +26,11 @@ async function initializeImageCache(): Promise<void> {
       const dirPath = path.join(BASE_IMAGE_PATH, gender, age);
       const key = `${gender}-${age}`;
       try {
-        // Check if directory exists before trying to read
         await fs.access(dirPath);
         const files = await fs.readdir(dirPath);
-        // Filter for image files (e.g., png, jpg)
         imageCache[key] = files.filter((f) => f.match(/\.(png|jpe?g|webp)$/i));
         console.log(`Cached ${imageCache[key].length} images for ${key}`);
       } catch (error) {
-        // Check if it's an error object with a code property
         if (
           error instanceof Error &&
           typeof error === "object" &&
@@ -45,9 +41,8 @@ async function initializeImageCache(): Promise<void> {
           console.warn(`Image directory not found, skipping cache: ${dirPath}`);
           imageCache[key] = [];
         } else {
-          // For other errors, log more seriously
           console.error(`Error reading image directory ${dirPath}:`, error);
-          imageCache[key] = []; // Ensure cache entry exists but is empty
+          imageCache[key] = [];
         }
       }
     }
@@ -67,27 +62,20 @@ export async function selectCharacterImage(
   gender: "male" | "female",
   ageCategory: "young" | "old",
 ): Promise<string | null> {
-  await initializeImageCache(); // Ensure cache is loaded
+  await initializeImageCache();
 
   const key = `${gender}-${ageCategory}`;
   const availableImages = imageCache[key];
 
   if (!availableImages || availableImages.length === 0) {
     console.warn(`No images found for category: ${key}`);
-    return null; // No images available for this combination
+    return null;
   }
 
-  // Select a random image from the list
   const randomIndex = Math.floor(Math.random() * availableImages.length);
   const imageName = availableImages[randomIndex];
 
-  // Construct the relative URL path
   const imageUrl = `/images/characters/${gender}/${ageCategory}/${imageName}`;
 
   return imageUrl;
 }
-
-// Initialize cache on module load (can be adjusted if needed)
-// Note: Top-level await might not be supported everywhere,
-// calling initializeImageCache() before first use in selectCharacterImage is safer.
-// initializeImageCache();

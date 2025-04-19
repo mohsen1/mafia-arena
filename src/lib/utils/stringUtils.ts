@@ -15,25 +15,20 @@ export function cleanAIResponse(response: string): string {
 
   let cleanedResponse = response;
 
-  // 1. Remove <think>...</think> blocks
   cleanedResponse = cleanedResponse.replace(/<think>[\s\S]*?<\/think>/g, "");
 
-  // 2. Remove markdown code blocks that might contain JSON
   cleanedResponse = cleanedResponse.replace(
     /```(?:json|javascript|js)?([\s\S]*?)```/g,
     "$1",
   );
 
-  // 3. Clean up any remaining backticks (often used to mark inline code)
   cleanedResponse = cleanedResponse.replace(/`/g, "");
 
-  // 4. Remove "Reasoning:" or "Thought:" prefixes that some models add
   cleanedResponse = cleanedResponse.replace(
     /^(?:Reasoning|Thought|Thinking|Analysis):\s*/i,
     "",
   );
 
-  // 5. Trim whitespace and normalize line breaks
   cleanedResponse = cleanedResponse.trim().replace(/\n{3,}/g, "\n\n");
 
   return cleanedResponse;
@@ -54,7 +49,7 @@ export function extractJSONFromText(text: string): string {
     return text.substring(firstBrace, lastBrace + 1);
   }
 
-  return text; // Return original if no JSON structure found
+  return text;
 }
 
 // Export additional string utility functions as needed
