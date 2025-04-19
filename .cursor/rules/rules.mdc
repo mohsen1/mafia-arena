@@ -27,3 +27,5 @@ you can use the following tools:
     runBestPracticesAudit
 
 use above tools to make sure there are no runtime errors after making changes 
+
+after making changes to anything that can impact visual rendering use the `takeScreenshot` to make sure things are working fine. Screenshots are stored in the `screenshots` directory in root. you can open those files to see the outcome

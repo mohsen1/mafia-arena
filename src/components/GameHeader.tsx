@@ -1,23 +1,27 @@
+'use client'; // Ensure this is a client component
+
 import GameController from "@/components/GameController";
-import { useGameContext } from "@/context/GameContext"; // Import context hook
+import { useGameContext } from "@/context/GameContext";
+// Import from react-i18next
+import { useTranslation } from "react-i18next"; 
 
 export function GameHeader() {
-  // Remove props
-  // Get gameState AND t function from context
-  const { gameState, t } = useGameContext();
+  const { gameState } = useGameContext(); // Only get gameState
+  
+  // Use standard hook
+  const { t } = useTranslation('translation'); // Keep namespace for now
 
-  if (!gameState) return null; // Or a loading state
+  if (!gameState) return null; 
 
-  // Destructure winCondition instead of winner
   const { title, description, phase, round, winCondition } = gameState;
 
   return (
-    <header className="p-4 flex justify-between items-center flex-shrink-0 gap-4">
+    <header className="p-4 flex justify-between items-center flex-shrink-0 gap-6">
       {/* Game Info Group */}
-      <div className="flex-grow">
-        {/* Use appropriate key for the game title if it comes from dictionary */}
+      <div className="flex-grow min-w-0">
         <h1 className="text-2xl font-bold mb-1 truncate">
-          {title || t("WerewolfAITitle", "Werewolf Game")}
+          {/* Use key from the appropriate namespace (now lang code) */}
+          {title || t("WerewolfAITitle")}
         </h1>
         {description && (
           <p className="text-sm text-muted-foreground mb-1 italic">
@@ -25,32 +29,30 @@ export function GameHeader() {
           </p>
         )}
         <p className="text-sm text-muted-foreground">
-          {/* Use t() for "Round" */}
-          {t("RoundLabel", "Round")}:{" "}
+          {t("RoundLabel")}:{" "}
           <span className="font-semibold">{round}</span> |{" "}
           <span className="font-semibold capitalize">
+            {/* Assuming phase names might be translation keys */}
             {t(phase, phase)}
           </span>
         </p>
-        {/* Winner Status */}
         <div className="mt-1">
           {winCondition && (
-            // Translate outcome? Maybe use keys like OutcomeVillagerWin
             <span className="text-lg font-bold text-success">
+              {/* Assuming outcome strings might be translation keys */} 
               {t(winCondition.outcome, winCondition.outcome)}
             </span>
           )}
           {phase === "GameOver" && !winCondition && (
-            // Use t() for "Game Over"
             <span className="text-lg font-bold text-destructive">
-              {t("GameOverStatus", "Game Over")}
+              {t("GameOverStatus")}
             </span>
           )}
         </div>
       </div>
       {/* Action Buttons */}
       {phase !== "GameOver" && (
-        <GameController /> // Use the new controller
+        <GameController /> 
       )}
     </header>
   );

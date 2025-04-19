@@ -1,5 +1,5 @@
 import dedent from "dedent";
-import type { LanguageName } from "@/lib/translation/languages";
+import type { LanguageName } from "@/lib/i18n/settings";
 import type { Role } from "@/lib/types/game";
 
 export const GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT = dedent`

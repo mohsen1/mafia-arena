@@ -1,7 +1,7 @@
 'use client';
 
 import type { Locale } from "@/app/[lang]/dictionaries";
-import { supportedLanguagesInfo } from "@/lib/translation/languages";
+import { supportedLanguagesInfo } from "@/lib/i18n/settings";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Select,
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Languages } from "lucide-react";
+import * as SelectPrimitive from "@radix-ui/react-select";
+import { Check, ChevronDown } from "lucide-react";
 
 interface LanguageSelectorProps {
   currentLang: Locale;

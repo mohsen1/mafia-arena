@@ -40,5 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# i18n -- any non-english dictionaries is ignored
+# because they are generated on the fly
+!src/app/[lang]/dictionaries/*.json
+!src/app/[lang]/dictionaries/en.json
+
 # DB!
 data/**
+screenshots/

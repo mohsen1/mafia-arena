@@ -2,9 +2,8 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { match } from '@formatjs/intl-localematcher';
 import Negotiator from 'negotiator';
-import { availableLanguageCodes } from '@/lib/translation/languages'; // Import all codes
+import { languages as locales, fallbackLng, type LanguageCode } from '@/lib/i18n/settings';
 
-const locales = availableLanguageCodes; // Use all codes from the languages file
 const defaultLocale = 'en';
 
 // Static paths that should be excluded from locale redirection
@@ -39,8 +38,8 @@ export function middleware(request: NextRequest) {
     return undefined;
   }
 
-  // Check if the pathname already starts with a supported locale
-  const pathnameHasLocale = locales.some((locale) => {
+  // Check if there is any supported locale in the pathname
+  const pathnameHasLocale = locales.some((locale: LanguageCode) => {
     const hasLocale = pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`;
     // console.log(`[Middleware] Checking locale '${locale}': ${hasLocale}`); // Optional detailed log
     return hasLocale;
@@ -52,6 +51,23 @@ export function middleware(request: NextRequest) {
   if (pathnameHasLocale) {
     console.log('[Middleware] Skipping redirect.');
     return undefined;
+  }
+
+  // Check if the pathname is missing a locale
+  const pathnameIsMissingLocale = locales.every(
+    (locale: LanguageCode) => !pathname.startsWith(`/${locale}/`) && pathname !== `/${locale}`
+  );
+
+  // Redirect if there is no locale
+  if (pathnameIsMissingLocale) {
+    // Use the default language
+    const locale = fallbackLng;
+
+    // e.g. incoming request is /products
+    // The new URL is now /en/products
+    return NextResponse.redirect(
+      new URL(`/${locale}${pathname}`, request.url)
+    );
   }
 
   // Otherwise, redirect if there is no locale (or it's an unsupported one)

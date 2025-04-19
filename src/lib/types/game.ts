@@ -1,6 +1,6 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-// Import language type
-import type { LanguageName } from "@/lib/translation/languages";
+// Update import path
+import type { LanguageName } from "@/lib/i18n/settings";
 
 // Use string literal unions instead of enums
 export type Role = "Villager" | "Werewolf" | "Seer" | "Doctor";
@@ -161,6 +161,7 @@ export type FilteredGameState = Omit<
   GameState,
   "_internalState" | "players" | "conversationLog"
 > & {
+  settings: GameSettings; // Add settings back for client access
   conversationLog: ReadonlyArray<
     Omit<ChatMessage, "audience"> & { speakerName: string }
   >;

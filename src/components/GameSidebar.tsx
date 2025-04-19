@@ -1,14 +1,19 @@
+'use client'; // Ensure this is a client component
+
 import Image from "next/image";
 import { PlayerCard } from "@/components/PlayerCard";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
 import type { Player } from "@/lib/types/game"; // Import Player type
 
 import Link from "next/link";
-import { useTranslation } from "react-i18next";
+// Import from react-i18next
+import { useTranslation } from "react-i18next"; 
 
 export function GameSidebar() {
-  const { gameState } = useGameContext(); 
-  const { t } = useTranslation(gameState?.language); // Use gameState?.language
+  const { gameState } = useGameContext();
+
+  // Use standard hook
+  const { t } = useTranslation('translation'); // Keep namespace for now
 
   // Handle null gameState
   if (!gameState) {
@@ -33,7 +38,7 @@ export function GameSidebar() {
         <Link
           href="/"
           className="flex items-center gap-2"
-          aria-label={t("Werewolves AI", "Werewolves AI")}
+          aria-label={t("Werewolves AI")}
         >
           {/* Display total player count */}
           <span className="flex items-center gap-2">
@@ -44,7 +49,7 @@ export function GameSidebar() {
               width={36}
               height={36}
             />
-            {t("Werewolves AI", "Werewolves AI")}
+            {t("Werewolves AI")}
           </span>
         </Link>
       </h2>
@@ -60,7 +65,7 @@ export function GameSidebar() {
             <>
               <hr className="my-2 border-muted" /> {/* Add a divider */}
               <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
-                {t("Dead Players", "Dead Players")}
+                {t("Dead Players")}
               </h3>
               {deadPlayers.map((player: Player) => (
                 <PlayerCard key={player.id} player={player} />

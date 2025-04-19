@@ -12,42 +12,44 @@ import {
   validateGeneratedGameSetup,
 } from "@/lib/validators/gameConfigValidator";
 import { useCallback, useEffect, useMemo, useState } from "react";
-// Remove useTranslation
-import type { Locale } from "@/app/[lang]/dictionaries"; // Import Locale type
+import type { Locale } from "@/app/[lang]/dictionaries";
+import { useTranslation } from "react-i18next";
 
-// Update hook signature - accept lang prop
-export function useGameConfig(availableModels: string[], lang: Locale) {
+// Type Guard for checking if an object is an error
+const isError = (e: unknown): e is { error: string } => {
+  return typeof e === "object" && e !== null && "error" in e;
+};
 
-
-  const defaultModel = useMemo(() => {
-    const preferred = DEFAULT_GAME_SETTINGS.aiModel;
-    if (availableModels && availableModels.length > 0) {
-      return availableModels.includes(preferred)
-        ? preferred
-        : availableModels[0];
-    }
-    return preferred;
-  }, [availableModels]);
+export function useGameConfig(
+  availableModels: string[],
+  lang: Locale,
+) {
+  const { t } = useTranslation('translation');
 
   const [globalModelSelection, setGlobalModelSelection] =
-    useState<string>(defaultModel);
+    useState<string>(DEFAULT_GAME_SETTINGS.aiModel);
   const [characterSlots, setCharacterSlots] = useState<ConfigCharacterSlot[]>(
     [],
   );
-  // Remove selectedLanguage state
-  // const [selectedLanguage, setSelectedLanguage] =
-  //   useState<LanguageCode>(initialLangCode);
   const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [initialSlotsSet, setInitialSlotsSet] = useState(false);
-  // Initialize with default English message or key
-  const [infoMsg, setInfoMsg] = useState<string | null>("InitialConfigPrompt"); // Use a key
+  const [infoMsg, setInfoMsg] = useState<string | null>("InitialConfigPrompt");
   const [postGenValidationMsg, setPostGenValidationMsg] = useState<
     string | null
   >(null);
   const [isPostGenValid, setIsPostGenValid] = useState<boolean | null>(null);
   const [isLoadingNextTurn /*, setIsLoadingNextTurn */] = useState(false);
+
+  const defaultModel = useMemo(() => {
+    if (availableModels && availableModels.length > 0) {
+      return availableModels.includes(DEFAULT_GAME_SETTINGS.aiModel)
+        ? DEFAULT_GAME_SETTINGS.aiModel
+        : availableModels[0];
+    }
+    return DEFAULT_GAME_SETTINGS.aiModel;
+  }, [availableModels]);
 
   const resetPostGenState = useCallback(() => {
     setErrorMsg(null);
@@ -55,7 +57,6 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
     setIsPostGenValid(null);
   }, []);
 
-  // Wrap resetSlotGeneration in useCallback
   const resetSlotGeneration = useCallback(
     (slot: ConfigCharacterSlot): ConfigCharacterSlot => ({
       ...slot,
@@ -66,16 +67,11 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
       generationError: undefined,
     }),
     [],
-  ); // No dependencies needed
+  );
 
   useEffect(() => {
     setGlobalModelSelection(defaultModel);
   }, [defaultModel]);
-
-  // Remove effect for initialLangCode
-  // useEffect(() => {
-  //   setSelectedLanguage(initialLangCode);
-  // }, [initialLangCode]);
 
   useEffect(() => {
     if (
@@ -116,9 +112,8 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
     setInitialSlotsSet(true);
   }, [availableModels, globalModelSelection, initialSlotsSet]);
 
-  // Revert validation message handling to return original message/key
   const configValidation = useMemo(() => {
-    return validateGameConfiguration(characterSlots); // Return original result
+    return validateGameConfiguration(characterSlots);
   }, [characterSlots]);
 
   const canAttemptStart = configValidation.isValid && !isSubmitting;
@@ -186,7 +181,6 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
     [resetPostGenState, resetSlotGeneration],
   );
 
-  // Toggle audio state
   const toggleAudioEnabled = useCallback(() => {
     setIsAudioEnabled((prev) => !prev);
   }, []);
@@ -196,7 +190,7 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
 
     setIsSubmitting(true);
     setErrorMsg(null);
-    setInfoMsg("GeneratingCharactersInfo"); // Use keys for messages
+    setInfoMsg(t("GeneratingCharactersInfo"));
     setPostGenValidationMsg(null);
     setIsPostGenValid(null);
 
@@ -212,7 +206,12 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
         const slot = slotsToGenerate[i];
         const originalIndex = i;
 
-        setInfoMsg(`Generating character info ${i + 1} of ${slotsToGenerate.length}...`); // Simple message for now
+        setInfoMsg(
+          t("GeneratingCharacterInfo", {
+            current: i + 1,
+            total: slotsToGenerate.length,
+          }),
+        );
 
         const finalRole = slot.roleSelection;
         let generatedResult: ConfigCharacterSlot;
@@ -221,7 +220,7 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
           const result = await generateCharacterAction(
             finalRole,
             slot.aiModel,
-            lang, // Pass lang prop directly
+            lang,
             [...generatedProfiles],
           );
 
@@ -242,7 +241,6 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
             generationError: undefined,
           };
 
-          // Add the newly generated profile to the list for the *next* iteration
           if (generatedResult.profile) {
             generatedProfiles.push(generatedResult.profile);
           }
@@ -266,23 +264,19 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
         setCharacterSlots([...updatedSlots]);
       }
 
-      // Final validation after all characters are processed
-      finalValidation = validateGeneratedGameSetup(updatedSlots); // Assign to outer scope variable
+      finalValidation = validateGeneratedGameSetup(updatedSlots);
       setPostGenValidationMsg(finalValidation.message ?? null);
       setIsPostGenValid(finalValidation.isValid);
 
       if (!finalValidation.isValid) {
-        setErrorMsg("GenerationInvalidSetupError");
+        setErrorMsg(t("GenerationInvalidSetupError"));
         setInfoMsg(null);
-        // Need to set isSubmitting false here because we are returning early
         setIsSubmitting(false);
-        return; // Exit if validation fails
+        return;
       }
 
-      setInfoMsg("ValidationPassedInfo");
+      setInfoMsg(t("ValidationPassedInfo"));
 
-      // Use the final 'updatedSlots' which contains all results
-      // Map ConfigCharacterSlot[] to (PlayerInitializationData & { persona: string })[] for startGameAction
       const charactersToSubmit: (PlayerInitializationData & {
         persona: string;
       })[] = updatedSlots
@@ -298,11 +292,9 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
             !slot.generationError &&
             slot.profile !== undefined &&
             slot.assignedRole !== undefined &&
-            slot.persona !== undefined, // Ensure persona exists
+            slot.persona !== undefined,
         )
-        // Destructure only fields available on ConfigCharacterSlot here
         .map(({ profile, assignedRole, aiModel, imageUrl, persona }) => ({
-          // Construct the object expected by startGameAction
           role: assignedRole,
           profile: profile,
           aiModel: aiModel,
@@ -311,51 +303,45 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
         }));
 
       if (charactersToSubmit.length < 5) {
-        throw new Error("InternalNotEnoughPlayersError");
+        throw new Error(t("InternalNotEnoughPlayersError"));
       }
 
       const result = await startGameAction(
         charactersToSubmit,
-        lang, // Pass lang prop directly
+        lang,
       );
 
-      // If startGameAction returned an error object instead of redirecting/throwing
       if (result && "error" in result) {
         throw new Error(result.error);
       }
 
-      // If we somehow reach here without an error or redirect exception:
       console.warn(
         "startGameAction completed without expected error or redirect. Resetting state.",
       );
-      setInfoMsg("GameStartedSuccessInfo"); // Indicate success
-      setIsSubmitting(false); // Explicitly reset state as a safeguard
+      setInfoMsg("GameStartedSuccessInfo");
+      setIsSubmitting(false);
     } catch (error: unknown) {
       console.error("Error during game generation or start:", error);
       const errorMessage =
         error instanceof Error ? error.message : "StartGameFailedError";
 
-      // IMPORTANT: Re-throw redirect errors so Next.js handles them
       if (errorMessage.includes("NEXT_REDIRECT")) {
         throw error;
       }
 
-      // Handle other errors
-      setErrorMsg(errorMessage);
-      setIsSubmitting(false); // Reset state on error
+      setErrorMsg(t(errorMessage, { default: errorMessage }));
+      setIsSubmitting(false);
       setInfoMsg(null);
     }
-    // Removed finally block - state reset is handled within try/catch now
   }, [
     characterSlots,
     configValidation.isValid,
-    lang, // Depend on lang prop
+    lang,
     resetSlotGeneration,
     isSubmitting,
-    // Remove t dependency
+    t,
   ]);
 
-  // Return state and functions, remove selectedLanguage and updateLanguage
   return {
     characterSlots,
     isSubmitting,
@@ -368,7 +354,6 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
     canAttemptStart,
     totalSlots,
     globalModelSelection,
-    // selectedLanguage, // Removed
     isAudioEnabled,
     isLoadingNextTurn,
     addPlayerSlot,
@@ -376,7 +361,6 @@ export function useGameConfig(availableModels: string[], lang: Locale) {
     updateSlotModel,
     updateAllModels,
     updateSlotRole,
-    // updateLanguage, // Removed
     toggleAudioEnabled,
     handleGenerateAndStartGame,
   };

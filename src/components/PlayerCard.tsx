@@ -1,72 +1,58 @@
-import Image from "next/image";
-import type { FilteredGameState } from "@/lib/types/game";
-// import { Player, /* PlayerStatus, Role */ } from "@/lib/types/game";
-// import { Bot, User, Skull } from "lucide-react";
-// import { cn } from "@/lib/utils";
-import { useGameContext } from "@/context/GameContext";
-// import { useTranslation } from "@/hooks/useTranslation";
-// import { motion } from "framer-motion";
-// import { getContrastColor } from "@/lib/utils/colorUtils";
+'use client';
 
-// Define the props for PlayerCard using the type from FilteredGameState
-type FilteredPlayer = FilteredGameState["players"][string];
+import type { Player } from "@/lib/types/game";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { PersonStanding, Skull } from "lucide-react";
+// Import from react-i18next
+import { useTranslation } from "react-i18next"; 
 
 interface PlayerCardProps {
-  player: FilteredPlayer;
+  player: Player;
 }
 
-// Player Card Component with Dark Mode
 export function PlayerCard({ player }: PlayerCardProps) {
-  const { t, gameState } = useGameContext();
+  // Use standard hook
+  const { t } = useTranslation('translation'); // Keep namespace for now
 
-  // Determine player role visibility based on game phase or if player is dead
-  const showRole = gameState?.phase === "GameOver" || player.status === "dead";
-
-  // Construct metadata string based on visibility
-  // Use player.status for the status display
-  const meta = [];
-  const capitalizedStatus = player.status.charAt(0).toUpperCase() + player.status.slice(1);
-  meta.push(t(`PlayerStatus${capitalizedStatus}`, player.status));
-  if (showRole && player.role) {
-    meta.push(t(`PlayerRole${player.role}`, player.role));
-  }
-  meta.push(player.aiModel);
-
-  // Filter metadata based on availability
-  const metadata = meta.filter(Boolean); // Ensure only non-empty values are added
-  const metadataString = metadata.join(" • ");
-
-  // Get the translated alt text template - Corrected to pass interpolation values
-  const altText = t("PlayerImageAltText", {
-     defaultValue: `Image of ${player.name}`, // Provide default with value
-     name: player.name 
-  });
+  const isAlive = player.status === "alive";
+  const roleToDisplay = player.role || t("RoleUnknown"); 
 
   return (
     <div
-      className={`p-2 flex items-center transition-colors duration-200 ${
-        player.status === "dead" ? "opacity-25" : ""
-      }`}
-    >
-      {player.imageUrl ? (
-        <Image
-          src={player.imageUrl}
-          alt={altText}
-          width={48} // Smaller size
-          height={48}
-          className="rounded-full me-3 object-cover border-2 border-border flex-shrink-0"
-        />
-      ) : (
-        <div className="w-12 h-12 rounded-full bg-muted me-3 flex items-center justify-center text-muted-foreground text-xs flex-shrink-0">
-          {player.name.substring(0, 2)}
-        </div>
+      className={cn(
+        "flex items-center space-x-3 rtl:space-x-reverse p-2 rounded-md",
+        isAlive ? "bg-card" : "bg-muted opacity-60",
       )}
-      <div className="flex-grow">
-        <h3 className="text-md font-semibold text-foreground truncate">
+    >
+      <div className="relative flex-shrink-0">
+        <Image
+          src={player.imageUrl || "/images/placeholder.png"} 
+          alt={t("PlayerImageAltText", { name: player.name })}
+          width={40}
+          height={40}
+          className="rounded-full w-10 h-10 object-cover border"
+        />
+        <div
+          className={cn(
+            "absolute bottom-0 right-0 transform translate-x-1/4 translate-y-1/4",
+            "rounded-full p-0.5 border-2 border-background",
+            isAlive ? "bg-green-500" : "bg-gray-500",
+          )}
+        >
+          {isAlive ? (
+            <PersonStanding size={10} className="text-white" />
+          ) : (
+            <Skull size={10} className="text-white" />
+          )}
+        </div>
+      </div>
+      <div className="flex-grow min-w-0">
+        <p className="text-sm font-medium truncate text-card-foreground">
           {player.name}
-        </h3>
-        <p className="text-xs text-muted-foreground capitalize">
-          {metadataString}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {isAlive ? roleToDisplay : t("PlayerStatusDead")}
         </p>
       </div>
     </div>

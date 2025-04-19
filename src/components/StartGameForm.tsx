@@ -1,32 +1,30 @@
 "use client";
 
+import type { Locale } from "@/app/[lang]/dictionaries"; // Use import type
 import { CharacterSlotItem } from "@/components/CharacterSlotItem"; // Import the item component
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch"; // Import Switch component
 import { useGameConfig } from "@/hooks/useGameConfig";
-import LanguageSelector from "./LanguageSelector"; // Import the new selector
-import {
-  mapLanguageCodeToLongCode,
-  type LanguageCode, // Import LanguageCode type
-} from "@/lib/translation/languages";
+
 import type { Role } from "@/lib/types/game"; // Use import type
 import {
   AlertTriangle,
+  Bot,
   CheckCircle2,
   Loader2,
   Settings2,
   Trash2,
   UserPlus,
-  Bot,
 } from "lucide-react";
-import { useMemo, useCallback, type FormEvent } from "react";
-import type { Locale } from "@/app/[lang]/dictionaries"; // Use import type
+import { useCallback, useMemo, type FormEvent } from "react";
+import LanguageSelector from "./LanguageSelector"; // Import the new selector
+import ModelSelector from "./ModelSelector"; // Import ModelSelector
+import { type LanguageCode, mapLanguageCodeToLongCode } from "@/lib/i18n/settings";
 // Define a more specific Dictionary type (adjust based on actual structure)
 type Dictionary = {
   [key: string]: string | Dictionary;
 };
-import ModelSelector from "./ModelSelector"; // Import ModelSelector
 
 // Define available roles for selection (can be defined here or imported)
 const availableRolesForSelection: Role[] = [
@@ -49,10 +47,29 @@ export default function StartGameForm({
   dict, // Receive dict
   lang, // Receive lang
 }: StartGameFormProps) {
-  // Helper for translation lookup
-  const t = (key: string, fallback?: string) => {
+  // Helper for translation lookup - update signature to match expected type
+  const t = (
+    key: string,
+    paramsOrFallback?: Record<string, string | number> | string,
+  ) => {
     const value = dict[key];
-    return typeof value === 'string' ? value : fallback || key;
+    if (typeof value === 'string') {
+      // Basic placeholder replacement if params are provided
+      if (typeof paramsOrFallback === 'object' && paramsOrFallback !== null) {
+        let str = value;
+        for (const [paramKey, paramValue] of Object.entries(paramsOrFallback)) {
+          str = str.replace(`{${paramKey}}`, String(paramValue));
+        }
+        return str;
+      }
+      return value; // No params, return as is
+    }
+    // Fallback logic
+    return typeof paramsOrFallback === 'string'
+      ? paramsOrFallback
+      : typeof dict[key] === 'string' // Check if key exists but isn't a string
+        ? key // If key exists but wrong type, return key
+        : key; // Fallback to key if not found
   };
 
   const {
@@ -76,7 +93,7 @@ export default function StartGameForm({
     isAudioEnabled,
     toggleAudioEnabled,
     isLoadingNextTurn,
-  } = useGameConfig(availableModels, lang); // Pass lang to hook if needed
+  } = useGameConfig(availableModels, lang); // Remove t function from arguments
 
   // Use lang prop for numberFormatter
   const numberFormatter = useMemo(() => {
@@ -109,7 +126,7 @@ export default function StartGameForm({
   if (errorMsg) {
     return (
       // Use t from standard hook
-      <div className="text-red-500 p-4">Error: {t(errorMsg, errorMsg)}</div> 
+      <div className="text-red-500 p-4">{t("ErrorPrefix", "Error")}: {t(errorMsg, errorMsg)}</div> 
     );
   }
 

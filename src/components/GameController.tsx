@@ -15,18 +15,23 @@ import { useGameContext } from "@/context/GameContext"; // Import context hook
 import { Button } from "@/components/ui/button"; // Import Button
 import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 import { Label } from "@/components/ui/label"; // Import Label
+import { useTranslation } from "react-i18next"; // Import from react-i18next
 
 export default function GameController() {
   const {
+    // Get gameState only if needed for something else, otherwise remove
+    // gameState, 
     isAutoRunning,
     toggleAutoRun,
-    runNextTurnAction,
     isLoadingNextTurn,
-    t, // Get t function from context
+    runNextTurnAction,
     // Get global audio state and toggle function
     isAudioGloballyEnabled,
     toggleAudioGloballyEnabled,
   } = useGameContext();
+
+  // Use standard hook
+  const { t } = useTranslation('translation'); // Keep namespace for now
 
   const handleNextClick = () => {
     // Don't run next if auto-running is on, let it proceed naturally
@@ -47,11 +52,7 @@ export default function GameController() {
           onClick={toggleAutoRun}
           variant="outline"
           size="icon"
-          aria-label={
-            isAutoRunning
-              ? t("PauseButton", "Pause Auto-Run")
-              : t("ResumeButton", "Resume Auto-Run")
-          } // Translate aria-label based on state
+          aria-label={isAutoRunning ? t("PauseButton") : t("ResumeButton")}
         >
           {isAutoRunning ? (
             <Pause className="h-4 w-4 rtl:-scale-x-100" />
@@ -68,11 +69,11 @@ export default function GameController() {
           variant="default"
           size="sm"
           className="px-4 py-2"
-          aria-label={t("NextTurnButton", "Next Turn")} // Translate aria-label
+          aria-label={t("NextTurnButton")}
         >
           <SkipForward className="h-4 w-4 mr-1 rtl:-scale-x-100" />
           {/* Translate button text */}
-          {t("NextTurnButton", "Next")}
+          {t("NextTurnButton")}
         </Button>
       </div>
 

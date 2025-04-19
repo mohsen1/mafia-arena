@@ -30,8 +30,6 @@ import { cleanAIResponse } from "@/lib/utils/stringUtils";
 import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import type {} from // TranslationEntry, // Removed unused import
-"@/lib/translation/languages"; // Import for type checking keys
 
 // Helper function to get a placeholder string for missing player names
 const getPlayerName = (
@@ -55,16 +53,16 @@ const getPlayerRole = (
 export async function runGameTurnAction(gameId: string) {
   console.log(`Running turn for game: ${gameId}`);
 
+  // Fetch the latest game state
   // Use let because we might update it after fetching latest state
   let currentState = await gameStateManager.getGameState(gameId);
 
   if (!currentState) {
-    console.error(`Game state not found for ${gameId}`);
-    return;
+    throw new Error(`Game state not found for gameId: ${gameId}`);
   }
 
-  // Get language from state (safe after null check)
-  const language = currentState.language;
+  // Correctly access language via settings
+  const language = currentState.settings.language;
   const languageInstruction = `\n\nIMPORTANT: Respond ONLY in ${language}.`;
 
   if (currentState.phase === "GameOver") {

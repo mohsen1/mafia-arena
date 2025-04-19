@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { Bot, User, Volume2 } from "lucide-react";
 import { useSpokenText } from "@/context/SpokenTextContext";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
+import { MemoizedReactMarkdown } from "@/components/MemoizedReactMarkdown";
 
 // Define the props
 interface MessageBubbleProps {
@@ -16,8 +18,11 @@ interface MessageBubbleProps {
 
 // Message Component with Dark Mode
 export function MessageBubble({ message, players }: MessageBubbleProps) {
-  const { reportAudioFinished, isAudioGloballyEnabled, t, gameState } = useGameContext();
+  const { reportAudioFinished, isAudioGloballyEnabled, gameState } = useGameContext();
   const { doneSpeaking: spokenTextReportAudioFinished } = useSpokenText();
+
+  // Use standard hook
+  const { t } = useTranslation(gameState?.settings?.language || 'en'); // Pass lang code as namespace
 
   // Determine the speaker
   const isModerator = message.speaker.type === "moderator";
@@ -57,14 +62,8 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
     "justify-start rtl:flex-row-reverse": !isHuman && !isModerator,
   });
 
-  // --- Translation Logic --- (Ensure t function is correctly used)
-  const textContent = message.content;
-  const displayContent = message.phraseKey
-    ? t(message.phraseKey, { // Use standard options object
-        defaultValue: textContent,
-        ...(message.placeholders || {}),
-      })
-    : textContent;
+  // Translate speaker name if it's a key
+  const translatedSpeakerName = t(message.speakerName, message.speakerName);
 
   return (
     <div className={containerClasses}>
@@ -96,7 +95,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
                 : "text-foreground",
             )}
           >
-            {message.speakerName}
+            {translatedSpeakerName}
           </span>
           {!isHuman && isAudioGloballyEnabled && (
             <SpeakText
@@ -109,11 +108,13 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
               autoQueue
               onEnd={handleAudioEnd}
             >
-              {displayContent}
+              {message.content}
             </SpeakText>
           )}
         </div>
-        <p className="text-sm whitespace-pre-wrap">{displayContent}</p>
+        <p className="text-sm whitespace-pre-wrap">
+          {message.phraseKey ? t(message.phraseKey, message.content) : message.content}
+        </p>
       </div>
 
       {(isHuman || isModerator) && (

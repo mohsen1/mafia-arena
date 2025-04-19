@@ -6,7 +6,8 @@ import {
   GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT,
   GAME_TITLE_DESCRIPTION_PROMPT,
 } from "./PROMPTS";
-import type { LanguageName } from "@/lib/translation/languages";
+import type { LanguageName } from "@/lib/i18n/settings";
+import type { GameState } from "@/lib/types/game";
 
 // --- Initialize OpenAI Client ---
 
@@ -15,21 +16,20 @@ const baseURL = process.env.OPENAI_BASE_URL;
 
 if (!apiKey) {
   console.warn(
-    "Missing OPENAI_API_KEY environment variable. AI features will be disabled.",
+    "Missing OPENAI_API_KEY environment variable. AI features will be disabled."
   );
 }
 
-// Set a longer timeout (e.g., 30 seconds = 30000ms)
-const TIMEOUT_MS = 30_000;
+function getOpenAIInstance() {
+  const TIMEOUT_MS = 30_000;
 
-const openai = apiKey
-  ? new OpenAI({
-      apiKey: apiKey,
-      baseURL: baseURL, // Will be undefined if not set, which is fine
-      timeout: TIMEOUT_MS, // Add explicit timeout
-      // httpAgent: new Agent({ timeout: TIMEOUT_MS }), // Consider if using httpAgent
-    })
-  : null;
+  return new OpenAI({
+    apiKey: apiKey,
+    baseURL: baseURL, // Will be undefined if not set, which is fine
+    timeout: TIMEOUT_MS, // Add explicit timeout
+    // httpAgent: new Agent({ timeout: TIMEOUT_MS }), // Consider if using httpAgent
+  });
+}
 
 // --- AI Interaction Function Definition ---
 
@@ -47,7 +47,7 @@ export type GetAIResponseFunction = (
     max_tokens?: number;
     presence_penalty?: number;
     response_format?: { type: "text" | "json_object" }; // <-- Add optional response_format
-  },
+  }
 ) => Promise<string>; // Returns the AI's text response
 
 // --- Real OpenAI Implementation ---
@@ -66,13 +66,16 @@ export const getAIResponse: GetAIResponseFunction = async (
   messages,
   gameId,
   playerId,
-  settings,
+  settings
 ) => {
+  const openai = getOpenAIInstance();
   if (!openai) {
     throw new Error("OpenAI client not initialized. Missing OPENAI_API_KEY.");
   }
   console.log(
-    `[AI Request - ${gameId}|${playerId}] Calling model ${settings.model} (Temp: ${settings.temperature ?? "default"})...`,
+    `[AI Request - ${gameId}|${playerId}] Calling model ${
+      settings.model
+    } (Temp: ${settings.temperature ?? "default"})...`
   );
 
   try {
@@ -92,7 +95,7 @@ export const getAIResponse: GetAIResponseFunction = async (
 
     // Removed logging call
     console.log(
-      `[AI Response - ${gameId}|${playerId}] Received content (length: ${responseContent.length}).`,
+      `[AI Response - ${gameId}|${playerId}] Received content (length: ${responseContent.length}).`
     );
     return responseContent;
   } catch (error: unknown) {
@@ -101,7 +104,7 @@ export const getAIResponse: GetAIResponseFunction = async (
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
       `[AI Error - ${gameId}|${playerId}] Failed AI call for model ${modelName}:`,
-      errorMessage,
+      errorMessage
     );
     // Removed logging call
     throw error; // Re-throw the error to be handled by the caller
@@ -114,10 +117,11 @@ export const getAIResponse: GetAIResponseFunction = async (
 export async function getAIGameTitleAndDescription(
   playerDetails: { name: string; persona: string }[],
   settings: { model: string; temperature?: number },
-  language: LanguageName,
+  language: LanguageName
 ): Promise<{ title: string; description: string }> {
+  const openai = getOpenAIInstance();
   console.log(
-    `Generating title/description in ${language} using model: ${settings.model}`,
+    `Generating title/description in ${language} using model: ${settings.model}`
   );
 
   // Add null check for openai client
@@ -213,11 +217,15 @@ export async function generateAICharacterProfile(
   role: Role,
   model: string,
   language: LanguageName,
-  existingProfiles?: AICharacterProfile[], // Keep existing profiles for diversity check
+  existingProfiles?: AICharacterProfile[] // Keep existing profiles for diversity check
 ): Promise<(AICharacterProfile & { persona: string }) | null> {
   // Return type now includes persona
   console.log(
-    `Requesting AI profile generation for role: ${role} in ${language} using model: ${model}${existingProfiles && existingProfiles.length > 0 ? ` (considering ${existingProfiles.length} existing profiles)` : ""}`,
+    `Requesting AI profile generation for role: ${role} in ${language} using model: ${model}${
+      existingProfiles && existingProfiles.length > 0
+        ? ` (considering ${existingProfiles.length} existing profiles)`
+        : ""
+    }`
   );
 
   // Construct context about existing characters, focusing on names and shortBios for diversity
@@ -226,7 +234,9 @@ export async function generateAICharacterProfile(
     const existingSummaries = existingProfiles
       .map(
         (p) =>
-          `- ${p.characterName} (${p.gender}, ${p.ageCategory}, ${p.shortBio.substring(0, 50)}...)`, // Use shortBio for context
+          `- ${p.characterName} (${p.gender}, ${
+            p.ageCategory
+          }, ${p.shortBio.substring(0, 50)}...)` // Use shortBio for context
       )
       .join("\n");
     const existingNames = existingProfiles
@@ -239,7 +249,7 @@ export async function generateAICharacterProfile(
   const systemPrompt = GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT(
     role,
     existingCharsContext,
-    language,
+    language
   );
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -259,7 +269,7 @@ export async function generateAICharacterProfile(
         model: model,
         temperature: 0.8,
         response_format: { type: "json_object" },
-      },
+      }
     );
 
     if (!responseJsonString) {
@@ -280,7 +290,7 @@ export async function generateAICharacterProfile(
       !profile.ageCategory
     ) {
       throw new Error(
-        "Generated JSON is missing required fields (characterName, shortBio, gender, ageCategory).",
+        "Generated JSON is missing required fields (characterName, shortBio, gender, ageCategory)."
       );
     }
 
@@ -292,7 +302,7 @@ export async function generateAICharacterProfile(
       `Bio & Personality: ${profile.shortBio}`;
 
     console.log(
-      `Successfully generated profile for ${profile.characterName} (${role})`,
+      `Successfully generated profile for ${profile.characterName} (${role})`
     );
     // Return the parsed profile and the derived full persona
     return { ...profile, persona: fullPersona };
@@ -301,7 +311,7 @@ export async function generateAICharacterProfile(
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
       `Error generating or parsing AI character profile for ${role}:`,
-      errorMessage,
+      errorMessage
     );
     // Log the raw response if available and it's a parsing error
     if (
@@ -310,7 +320,7 @@ export async function generateAICharacterProfile(
     ) {
       console.error(
         "Raw AI Response (JSON parse failed):\n",
-        responseJsonString,
+        responseJsonString
       );
     }
     return null; // Return null on failure

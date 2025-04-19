@@ -6,36 +6,33 @@ import { GameSidebar } from "@/components/GameSidebar";
 import { GameProvider, useGameContext } from "@/context/GameContext";
 import { SpokenTextProvider } from "@/context/SpokenTextContext";
 import type { FilteredGameState } from "@/lib/types/game";
+import { useTranslation } from "react-i18next";
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
   gameId: string;
-  boundRunGameTurnAction: () => Promise<void>; // Pass the bound action
+  boundRunGameTurnAction: () => Promise<void>;
 }
 
-// Inner component to consume context easily after provider is set up
 function GameLayout() {
-  // Example of consuming context if needed directly here, but children will consume it
   const { gameState } = useGameContext();
+  const { i18n } = useTranslation();
+  const lang = i18n.language;
 
   if (!gameState) {
-    return <div>Loading game state...</div>; // Or some loading indicator
+    return <div>Loading game state...</div>;
   }
 
-  // Determine text direction based on language
-  const textDirection = gameState.language === "Persian" ? "rtl" : "ltr";
+  const dir = i18n.dir(lang);
 
   return (
-    <div className="grid grid-cols-[280px_1fr] h-screen" dir={textDirection}>
-      {/* Left Column (Sidebar): Player List */}
+    <div
+      className="grid grid-cols-[280px_1fr] h-screen"
+      dir={dir}
+    >
       <GameSidebar />
-
-      {/* Right Column: Game Info & Conversation */}
       <main className="flex flex-col h-screen overflow-hidden">
-        {/* Top Row: Game Info & Actions */}
         <GameHeader />
-
-        {/* Bottom Row: Conversation Log */}
         <ConversationLog />
       </main>
     </div>

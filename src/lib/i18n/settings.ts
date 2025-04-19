@@ -1,3 +1,5 @@
+import type { InitOptions } from 'i18next'
+
 // Define supported language codes, their English names, and native labels
 export const supportedLanguagesInfo = {
   en: {
@@ -219,17 +221,15 @@ export type LanguageCode = keyof typeof supportedLanguagesInfo;
 export type LanguageName =
   (typeof supportedLanguagesInfo)[LanguageCode]["name"];
 
-// Array of available language codes
-export const availableLanguageCodes = Object.keys(
+// Array of available language codes derived from the info object
+export const languages = Object.keys(
   supportedLanguagesInfo,
 ) as LanguageCode[];
 
-// Array of available full English language names
-export const availableLanguageNames = Object.values(supportedLanguagesInfo).map(
-  (lang) => lang.name,
-);
+export const fallbackLng = 'en'
+export const defaultNS = 'translation' // Assuming 'translation' is your primary namespace based on dictionary filenames
 
-// Utility function to map LanguageName (used in context/UI) back to LanguageCode
+// Utility functions moved from languages.ts
 export function mapLanguageNameToCode(
   name: LanguageName | string,
 ): LanguageCode | undefined {
@@ -248,14 +248,12 @@ export function mapLanguageCodeToLongCode(
   return supportedLanguagesInfo[code]?.longCode;
 }
 
-// Utility function to get Language Info object by code
 export function getLanguageInfoByCode(
   code: LanguageCode,
 ): (typeof supportedLanguagesInfo)[LanguageCode] {
   return supportedLanguagesInfo[code];
 }
 
-// Utility function to get Language Info object by name
 export function getLanguageInfoByName(
   name: LanguageName | string,
 ): (typeof supportedLanguagesInfo)[LanguageCode] | undefined {
@@ -263,12 +261,15 @@ export function getLanguageInfoByName(
   return code ? supportedLanguagesInfo[code] : undefined;
 }
 
-// --- Types ---
-// Export these types for use in actions.ts
-export interface TranslationEntry {
-  phrase: string;
-  translation: string;
-  description: string;
-  preTranslated?: boolean; // Added optional flag
-}
-export type DictionaryData = Partial<Record<LanguageCode, TranslationEntry[]>>;
+// i18next options function
+export function getOptions (lng: string = fallbackLng, ns: string | string[] = defaultNS): InitOptions {
+  return {
+    // debug: true, // Set to true to see i18next logs
+    supportedLngs: languages, // Use derived languages array
+    fallbackLng,
+    lng,
+    fallbackNS: defaultNS,
+    defaultNS,
+    ns // Pass ns directly (can be string or array)
+  }
+} 

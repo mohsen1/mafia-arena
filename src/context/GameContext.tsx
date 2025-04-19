@@ -14,9 +14,12 @@ import type { Dispatch, SetStateAction, ReactNode } from "react";
 // import { mapLanguageNameToCode } from "@/lib/translation/languages";
 // import { getOrGenerateTranslationsAction } from "@/app/actions/index";
 // Import the standard hook
-import { useTranslation } from "react-i18next";
+// import { useTranslation } from "react-i18next";
+// Import the custom client hook
+// import { useTranslation } from "@/lib/i18n/client";
 import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
-import type { TFunction } from "i18next"; // Import TFunction directly
+// Import mapping function
+// import { mapLanguageNameToCode } from "@/lib/i18n/settings";
 // Import GameState, ChatMessage, Player
 // import { GameState, ChatMessage, Player } from "@/lib/types/game";
 
@@ -36,7 +39,7 @@ interface GameContextState {
   // translations: Record<string, string>;
   // isTranslationLoading: boolean;
   // translationError: string | null;
-  t: TFunction; // Use imported TFunction type
+  // t: TFunction; // Removed
   // Add global audio state
   isAudioGloballyEnabled: boolean;
   toggleAudioGloballyEnabled: () => void;
@@ -69,10 +72,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] =
     useState<boolean>(false); // Default audio to off
 
-  // --- Use standard useTranslation hook ---
-  // Assuming the namespace used in the provider is 'translation'
-  const { t, i18n } = useTranslation('translation');
-  // --- End standard hook usage ---
+  // --- Remove useTranslation hook call --- 
+  // const gameLanguage = gameState?.settings?.language;
+  // const languageCode = mapLanguageNameToCode(gameLanguage || 'English') || 'en';
+  // const { t, i18n } = useTranslation(languageCode); 
+  // --- End removal ---
 
   // Get currently speaking ID from SpokenTextContext
   const { currentlySpeakingId: spokenTextCurrentlySpeakingId } =
@@ -345,7 +349,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     registerStopAudio,
     unregisterStopAudio,
     // Expose standard t function from react-i18next
-    t,
+    // t, // Removed
     // Add global audio state and toggle
     isAudioGloballyEnabled,
     toggleAudioGloballyEnabled,

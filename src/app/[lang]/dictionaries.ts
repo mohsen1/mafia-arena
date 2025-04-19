@@ -62,16 +62,22 @@ async function translateDictionaryWithLLM(
 }
 // --- End of LLM Translation Function --- 
 
-// Only define the static loader for the default language
-import enDict from './dictionaries/en.json';
+// Import using the path alias
+import enDict from '@/app/en/dictionaries/translation.json';
+import deDict from '@/app/de/dictionaries/translation.json';
+import faDict from '@/app/fa/dictionaries/translation.json';
+import arDict from '@/app/ar/dictionaries/translation.json'; // Added ar
 
-const dictionaries: Partial<Record<string, () => Promise<Dictionary>>> = {
-  en: () => Promise.resolve(enDict),
-  // Other languages will be handled by the LLM logic below
+const dictionaries: Record<Locale, Dictionary> = {
+  en: enDict as Dictionary, // Cast to Dictionary type
+  de: deDict as Dictionary, // Cast to Dictionary type
+  fa: faDict as Dictionary, // Cast to Dictionary type
+  ar: arDict as Dictionary, // Added ar, cast
+  // ... add other languages ...
 };
 
 // Type for the default locale
-export type Locale = 'en'; // Only 'en' is statically known
+export type Locale = 'en' | 'de' | 'fa' | 'ar'; // Only 'en', 'de', 'fa', and 'ar' are statically known
 
 const defaultLocale: Locale = 'en';
 const llmModelName = 'meta-llama/llama-4-maverick-17b-128e-instruct';

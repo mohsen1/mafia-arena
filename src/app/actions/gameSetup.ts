@@ -13,7 +13,7 @@ import type {
 import { selectCharacterImage } from "@/lib/utils/imageUtils";
 import crypto from "node:crypto";
 import { redirect } from "next/navigation";
-import type { LanguageName } from "@/lib/translation/languages";
+import type { LanguageName } from "@/lib/i18n/settings";
 
 // ElevenLabs configuration
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -115,6 +115,7 @@ export async function startGameAction(
       discussionRoundsPerPlayer:
         DEFAULT_GAME_SETTINGS.discussionRoundsPerPlayer,
       numPlayers: numPlayers,
+      language: language,
     };
     // --- End Settings ---
 
@@ -128,7 +129,6 @@ export async function startGameAction(
       gameId,
       createdAt,
       playersForInitialization, // Pass the mapped data
-      language,
     );
 
     // --- Save Game State ---
