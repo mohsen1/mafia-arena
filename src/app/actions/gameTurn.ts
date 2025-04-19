@@ -190,7 +190,12 @@ export async function runGameTurnAction(gameId: string) {
       let rawIntroductionContent = "";
       let aiError: Error | null = null;
       const aiModel = nextSpeaker.aiModel;
-      const aiSettings = { model: aiModel, temperature: 0.8 };
+      const aiSettings = { 
+        model: aiModel, 
+        temperature: 0.9,
+        presence_penalty: 0.7,
+        frequency_penalty: 0.7
+      };
 
       try {
         rawIntroductionContent = await getAIResponse(
@@ -397,7 +402,12 @@ export async function runGameTurnAction(gameId: string) {
       let rawChatContent = "";
       let aiErrorChat: Error | null = null;
       const aiModelChat = wolf.aiModel;
-      const aiSettingsChat = { model: aiModelChat, temperature: 0.8 };
+      const aiSettingsChat = { 
+        model: aiModelChat, 
+        temperature: 0.9,
+        presence_penalty: 0.8,
+        frequency_penalty: 0.7
+      };
 
       try {
         rawChatContent = await getAIResponse(
@@ -1221,8 +1231,9 @@ export async function runGameTurnAction(gameId: string) {
       const aiModelDiscussion = nextSpeaker.aiModel;
       const aiSettingsDiscussion = {
         model: aiModelDiscussion,
-        temperature: 0.9,
-        presence_penalty: 0.85,
+        temperature: 0.95,
+        presence_penalty: 0.9,
+        frequency_penalty: 0.8,
       };
 
       try {

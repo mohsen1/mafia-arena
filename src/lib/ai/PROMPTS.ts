@@ -90,6 +90,17 @@ export const DAY_INTRODUCTION_PROMPT = (
   if it fits your character.
   Make it sound like a real villager talking, not a formal announcement.
 
+  **IMPORTANT DISTINCTIVENESS RULES:**
+  - Study the previous introductions and create an introduction that is DISTINCTLY DIFFERENT in tone, 
+    style, and content
+  - DO NOT use similar sentence structures or vocabulary as previous speakers
+  - Choose a different emotional tone than previous speakers (if they were friendly, be cautious; 
+    if they were suspicious, be more trusting, etc.)
+  - Draw on your character's unique background and traits to create a MEMORABLE first impression
+  - If others used formal language, be more casual, or vice versa
+  - Your introduction should reflect your character's UNIQUE personality - confident, shy, 
+    suspicious, outgoing, etc. - in a way that stands out
+
   CRITICALLY IMPORTANT: Do NOT reveal your secret assigned role (<role>${role}</role>) or mention game mechanics
   (like roles, phases, werewolves). Keep it purely in-character under tense circumstances.`;
 
@@ -278,12 +289,23 @@ export const DAY_DISCUSSION_PROMPT = (
       explain *why* YOUR character would be suspicious based on their specific traits 
       e.g., 'As a retired guard, I find your lack of discipline alarming...' or 
       'My trusting nature was taken advantage of by...').
-  *   **BE ORIGINAL & AVOID CLICHÉS:** CRITICAL! Do NOT repeat common phrases seen in the
-       conversation history or tired game clichés. 
-      **AVOID phrases like:** 'reeks of desperation', 'shady behavior', 'deflection tactic', 
+  *   **ZERO REPETITION - CRITICAL:** Thoroughly analyze the conversation history above. Do NOT repeat:
+      - Any phrases, expressions, or argument structures used by previous speakers
+      - Common werewolf game clichés or standard accusations
+      - The same sentence patterns or rhetorical devices as others
+      - Frequently used words in the conversation (find synonyms)
+      **AVOID overused phrases like:** 'reeks of desperation', 'shady behavior', 'deflection tactic', 
       'lack of transparency raises red flags', 'I'm calling for votes to investigate...', 
       'I'm looking at you...', 'What's behind your sudden...?'. 
-      Find NEW, UNIQUE ways to express yourself based on your persona. Vary your sentence structures.
+  *   **CREATE A DISTINCT VOICE:** Your dialogue must be immediately distinguishable from others. Use:
+      - Different sentence lengths and structures (short + punchy or complex + flowing)
+      - Unique metaphors and analogies based on your character's background
+      - Specific vocabulary that reflects your character's education and profession
+      - A distinctive speech pattern (formal/informal, direct/evasive, emotional/logical)
+  *   **CONVERSATION STYLE VARIATION:** Deliberately avoid the conversational approach used by the last 
+      2-3 speakers. If they were analytical, be emotional. If they were accusatory, be more contemplative
+      but still decisive. If they focused on one player, expand the suspicion to others or defend 
+      someone unexpectedly.
 
   <roleSpecificGuidance>
   **Your Role-Specific Strategy (More Aggressive):**
@@ -421,6 +443,13 @@ export const WEREWOLF_CHAT_PROMPT = (
   - Who should you try to accuse or vote for during the day?
   - Should you defend each other if accused?
   - Coordinate your story and actions.
+
+  **Communication Guidelines:**
+  - Use a DISTINCT COMMUNICATION STYLE that differs from your fellow werewolves
+  - AVOID REPEATING phrases, arguments, or ideas that have already been discussed
+  - Frame your thoughts through the lens of your character's unique personality
+  - If others have been direct, consider being more nuanced; if others have been vague, be more specific
+  - Use vocabulary and speech patterns that match your character's background
 
   Speak in the FIRST PERSON. Be concise but clear. Remember, ONLY werewolves see this chat.
   Do NOT reveal you are a werewolf in this chat unless strategizing requires it.
