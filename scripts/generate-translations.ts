@@ -19,7 +19,30 @@ const projectRoot = path.resolve(__dirname, '..');
 const dictionariesDir = path.join(projectRoot, 'src', 'dictionaries');
 const sourceLang = 'en';
 const sourceFile = path.join(dictionariesDir, `${sourceLang}.json`);
-const targetLangs = languages.filter(lang => lang !== sourceLang);
+
+// Parse CLI arguments for single language option
+const args = process.argv.slice(2);
+let specifiedLang: LanguageCode | undefined;
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg.startsWith('--lang=')) {
+    specifiedLang = arg.split('=')[1] as LanguageCode;
+  } else if (arg === '--lang' && args[i + 1]) {
+    specifiedLang = args[i + 1] as LanguageCode;
+  }
+}
+if (specifiedLang) {
+  if (!languages.includes(specifiedLang)) {
+    console.error(`❌ Error: Language '${specifiedLang}' is not supported.`);
+    process.exit(1);
+  }
+  if (specifiedLang === sourceLang) {
+    console.error(`❌ Error: Cannot translate source language '${sourceLang}'.`);
+    process.exit(1);
+  }
+  console.log(`Using single language: ${specifiedLang}`);
+}
+const targetLangs = specifiedLang ? [specifiedLang] : languages.filter(lang => lang !== sourceLang);
 const llmModelName = process.env.DEFAULT_TRANSLATION_MODEL || 'meta-llama/Meta-Llama-3-8B-Instruct';
 
 interface Dictionary { [key: string]: string; }
