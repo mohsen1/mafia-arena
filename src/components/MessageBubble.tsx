@@ -66,18 +66,14 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
   const translatedSpeakerName = t(message.speakerName, { defaultValue: message.speakerName });
 
   // Prepare placeholders with translated values where applicable (e.g., role names)
-  const resolvedPlaceholders = useMemo(() => {
-    const placeholders = message.placeholders ?? {};
-    const translated: Record<string, string | number> = {};
-    for (const [key, val] of Object.entries(placeholders)) {
-      if (typeof val === "string") {
-        translated[key] = t(val, { defaultValue: val });
-      } else {
-        translated[key] = val;
-      }
+  const translatePlaceholders = (ph?: Record<string, string | number>) => {
+    const out: Record<string, string | number> = {};
+    if (!ph) return out;
+    for (const [k, v] of Object.entries(ph)) {
+      out[k] = typeof v === "string" ? t(v, { defaultValue: v }) : v;
     }
-    return translated;
-  }, [message.placeholders, t]);
+    return out;
+  };
 
   return (
     <div className={containerClasses}>
@@ -129,7 +125,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
         <p className="text-sm whitespace-pre-wrap">
           {message.phraseKey
             ? t(message.phraseKey, {
-                ...resolvedPlaceholders,
+                ...translatePlaceholders(message.placeholders),
                 defaultValue: message.content,
               })
             : message.content}

@@ -16,7 +16,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
   const { t } = useTranslation('translation'); // Keep namespace for now
 
   const isAlive = player.status === "alive";
-  const roleToDisplay = player.role || t("RoleUnknown"); 
+  const roleToDisplay = t(player.role) || t("RoleUnknown"); 
 
   return (
     <div
@@ -52,7 +52,8 @@ export function PlayerCard({ player }: PlayerCardProps) {
           {player.name}
         </p>
         <p className="text-xs text-muted-foreground">
-          {isAlive ? roleToDisplay : t("PlayerStatusDead")}
+          {roleToDisplay}{' · '}
+          {!isAlive && t("PlayerStatusDead")}
         </p>
       </div>
     </div>
