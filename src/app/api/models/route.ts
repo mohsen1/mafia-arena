@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 /**
  * API route handler to fetch available Groq models securely on the server.
  */
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Ensure GROQ_API_KEY is set in your environment variables on the server
     if (!process.env.GROQ_API_KEY) {

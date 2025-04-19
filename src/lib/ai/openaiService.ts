@@ -7,7 +7,6 @@ import {
   GAME_TITLE_DESCRIPTION_PROMPT,
 } from "./PROMPTS";
 import type { LanguageName } from "@/lib/i18n/settings";
-import type { GameState } from "@/lib/types/game";
 
 // --- Initialize OpenAI Client ---
 

@@ -7,12 +7,12 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import "../globals.css";
 
 // Import i18n utilities and types
-import { dir } from 'i18next';
-import { type LanguageCode, /* languages, */ defaultNS, fallbackLng } from "@/lib/i18n/settings"; // Remove languages if unused
+// Remove unused dir import
+import { type LanguageCode, /* languages, */ defaultNS } from "@/lib/i18n/settings"; // Remove languages and fallbackLng if unused
 
 // Import and execute client-side i18n config
 import i18nInstance from '@/lib/i18n/i18n.client';
-import { I18nextProvider, useTranslation } from 'react-i18next';
+import { I18nextProvider } from 'react-i18next'; // Remove useTranslation
 import { use } from 'react'; // Import the use hook
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], });

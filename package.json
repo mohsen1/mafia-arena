@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "PORT=3099 next dev --turbopack",
     "build": "next build",
-    "start": "next start",
+    "prestart": "pnpm run build && pnpm run translate",
+    "start": "PORT=3100 next start",
     "lint": "next lint",
     "translate": "tsx scripts/generate-translations.ts"
   },

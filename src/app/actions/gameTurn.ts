@@ -1333,21 +1333,21 @@ export async function runGameTurnAction(gameId: string) {
         const stateBeforeVote = advancePhase(finalState); // advancePhase resets turnOrderIndex
 
         // Add moderator message for voting start
-        const originalVoteStartMsg =
-          "Discussion time is over. It is now time to vote for who to eliminate.";
-        const voteStartMessage: ChatMessage = {
-          messageId: `msg-${crypto.randomUUID()}-vote-start`,
-          gameId: gameId,
-          speaker: { type: "moderator" },
-          speakerName: "Moderator",
-          content: originalVoteStartMsg,
-          timestamp: Date.now(),
-          round: stateBeforeVote.round,
-          phase: stateBeforeVote.phase, // Should be 'Voting'
-          audience: { type: "all" },
-          phraseKey: "VoteStartMessage", // Added key
-          placeholders: {}, // Added placeholders (none needed)
-        };
+        // const originalVoteStartMsg =
+        //   "Discussion time is over. It is now time to vote for who to eliminate.";
+        // const voteStartMessage: ChatMessage = {
+        //   messageId: `msg-${crypto.randomUUID()}-vote-start`,
+        //   gameId: gameId,
+        //   speaker: { type: "moderator" },
+        //   speakerName: "Moderator",
+        //   content: originalVoteStartMsg,
+        //   timestamp: Date.now(),
+        //   round: stateBeforeVote.round,
+        //   phase: stateBeforeVote.phase, // Should be 'Voting'
+        //   audience: { type: "all" },
+        //   phraseKey: "VoteStartMessage", // Added key
+        //   placeholders: {}, // Added placeholders (none needed)
+        // };
 
         finalState = {
           ...stateBeforeVote,
@@ -1415,21 +1415,21 @@ export async function runGameTurnAction(gameId: string) {
         let nextState = advancePhase(stateBeforeVote); // advancePhase resets turnOrderIndex
 
         // Add moderator message for voting start
-        const originalVoteStartMsg =
-          "Discussion time is over. It is now time to vote for who to eliminate.";
-        const voteStartMessage: ChatMessage = {
-          messageId: `msg-${crypto.randomUUID()}-vote-start-alt`, // Different ID for debugging
-          gameId: gameId,
-          speaker: { type: "moderator" },
-          speakerName: "Moderator",
-          content: originalVoteStartMsg,
-          timestamp: Date.now(),
-          round: nextState.round,
-          phase: nextState.phase, // Should be 'Voting'
-          audience: { type: "all" },
-          phraseKey: "VoteStartMessage", // Re-added key
-          placeholders: {}, // Re-added placeholders (none needed)
-        };
+        // const originalVoteStartMsg =
+        //   "Discussion time is over. It is now time to vote for who to eliminate.";
+        // const voteStartMessage: ChatMessage = {
+        //   messageId: `msg-${crypto.randomUUID()}-vote-start-alt`, // Different ID for debugging
+        //   gameId: gameId,
+        //   speaker: { type: "moderator" },
+        //   speakerName: "Moderator",
+        //   content: originalVoteStartMsg,
+        //   timestamp: Date.now(),
+        //   round: nextState.round,
+        //   phase: nextState.phase, // Should be 'Voting'
+        //   audience: { type: "all" },
+        //   phraseKey: "VoteStartMessage", // Re-added key
+        //   placeholders: {}, // Re-added placeholders (none needed)
+        // };
         nextState = {
           ...nextState,
           // Remove the VoteStartMessage addition

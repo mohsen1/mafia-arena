@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
 import { Button } from "@/components/ui/button"; // Import Button
-import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
-import { Label } from "@/components/ui/label"; // Import Label
+// import { Checkbox } from "@/components/ui/checkbox"; // Removed unused Checkbox import
+// import { Label } from "@/components/ui/label"; // Removed unused Label import
 import { useTranslation } from "react-i18next"; // Import from react-i18next
 
 export default function GameController() {

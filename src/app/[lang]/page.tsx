@@ -1,12 +1,12 @@
 "use client"; // Make this a Client Component
 
 import { useState, useEffect, use } from 'react'; // Import hooks
-import Link from "next/link";
+// import Link from "next/link"; // Removed unused Link import
 import type { FilteredGameState } from "@/lib/types/game";
 // import { getGroqModels } from "@/lib/groq/api";
 // import { deleteGameAction } from "@/app/actions/index"; // Server Actions need care in Client Components
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+// import { Button } from "@/components/ui/button"; // Removed unused Button import
+// import { format } from "date-fns"; // Removed unused format import
 import StartGameForm from "@/components/StartGameForm";
 import GameCard from "@/components/GameCard";
 
@@ -18,19 +18,19 @@ import type { LanguageCode } from "@/lib/i18n/settings"; // Use type import for 
 
 // Define PageProps
 interface PageProps {
-  params: { lang: LanguageCode };
+  params: Promise<{ lang: LanguageCode }>;
 }
 
-export default function Home({ params: paramsProp }: PageProps) {
+export default function Home({ params: paramsPromise }: PageProps) {
   // Unwrap params using React.use()
-  const params = use(paramsProp as unknown as Promise<{ lang: LanguageCode }>) as { lang: LanguageCode };
+  const params = use(paramsPromise) as { lang: LanguageCode };
   const { lang } = params;
   // Use the hook for translations
   const { t } = useTranslation();
 
   // State for server-fetched data
   const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [existingGames, setExistingGames] = useState<FilteredGameState[]>([]);
+  const [existingGames, /* setExistingGames */ ] = useState<FilteredGameState[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null); // Add error state
 

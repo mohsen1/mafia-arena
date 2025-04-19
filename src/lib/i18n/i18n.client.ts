@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector'; // Optional: detect user language
+// import LanguageDetector from 'i18next-browser-languagedetector'; // Removed unused import
 import { languages, fallbackLng, defaultNS } from './settings';
 
 // Import all dictionaries directly (or use dynamic imports if preferred for chunking)

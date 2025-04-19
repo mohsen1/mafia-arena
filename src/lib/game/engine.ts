@@ -6,13 +6,13 @@ import type {
   WinCondition,
   Player,
   PlayerInitializationData,
-  Role,
-  Vote,
+  // Role, // Removed unused Role import
+  // Vote, // Removed unused Vote import
 } from "../types/game";
 import crypto from "node:crypto";
 import { DEFAULT_GAME_SETTINGS } from "@/lib/config";
 import { selectCharacterImage } from "@/lib/utils/imageUtils";
-import type { LanguageName } from "@/lib/i18n/settings";
+// import type { LanguageName } from "@/lib/i18n/settings"; // Removed unused LanguageName import
 
 // --- Constants ---
 

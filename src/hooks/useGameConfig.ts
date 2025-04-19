@@ -12,13 +12,13 @@ import {
   validateGeneratedGameSetup,
 } from "@/lib/validators/gameConfigValidator";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Locale } from "@/app/[lang]/dictionaries";
+import type { LanguageCode as Locale } from "@/lib/i18n/settings";
 import { useTranslation } from "react-i18next";
 
 // Type Guard for checking if an object is an error
-const isError = (e: unknown): e is { error: string } => {
-  return typeof e === "object" && e !== null && "error" in e;
-};
+// const isError = (e: unknown): e is { error: string } => {
+//   return typeof e === "object" && e !== null && "error" in e;
+// };
 
 export function useGameConfig(
   availableModels: string[],

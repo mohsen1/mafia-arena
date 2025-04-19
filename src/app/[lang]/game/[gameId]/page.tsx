@@ -9,11 +9,11 @@ import GameClient from "./GameClient"; // Import the client component
 import type { LanguageCode } from "@/lib/i18n/settings";
 
 interface GamePageProps {
-  params: { gameId: string; lang: LanguageCode }; // Keep lang for potential non-i18n use
+  params: Promise<{ gameId: string; lang: LanguageCode }>;
 }
 
-export default async function GamePage({ params }: GamePageProps) {
-  const { gameId, lang } = params; // Keep lang extraction for now
+export default async function GamePage({ params: paramsPromise }: GamePageProps) {
+  const { gameId } = await paramsPromise; // Await the params promise
   const gameState = await gameStateManager.getFilteredGameState(gameId);
 
   if (!gameState) {

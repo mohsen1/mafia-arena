@@ -4,11 +4,10 @@ import type { FilteredGameState, ChatMessage } from "@/lib/types/game";
 import { useGameContext } from "@/context/GameContext";
 import { SpeakText } from "@/components/SpeakText";
 import { cn } from "@/lib/utils";
-import { Bot, User, Volume2 } from "lucide-react";
+import { Bot, User } from "lucide-react";
 import { useSpokenText } from "@/context/SpokenTextContext";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
-import { MemoizedReactMarkdown } from "@/components/MemoizedReactMarkdown";
 
 // Define the props
 interface MessageBubbleProps {
@@ -86,9 +85,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
       )}
 
       <div className={bubbleClasses}>
-        <div className={cn("flex items-center gap-2", {
-          "rtl:flex-row-reverse": isModerator || isHuman,
-        })}>
+        <div className={cn("flex items-center gap-2 justify-end")}>
           <span
             className={cn(
               "text-xs font-semibold opacity-80",
