@@ -42,6 +42,7 @@
     "tw-animate-css": "^1.2.5"
   },
   "devDependencies": {
+    "@agentdeskai/browser-tools-mcp": "1.2.0",
     "@tailwindcss/postcss": "^4.1.3",
     "@types/async-retry": "^1.4.9",
     "@types/node": "^20.17.30",

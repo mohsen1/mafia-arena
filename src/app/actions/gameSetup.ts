@@ -147,7 +147,9 @@ export async function startGameAction(
   }
 
   if (gameIdToRedirect) {
-    redirect(`/game/${gameIdToRedirect}`);
+    // Include the language in the redirect path
+    console.log(`Redirecting to /${language}/game/${gameIdToRedirect}`);
+    redirect(`/${language}/game/${gameIdToRedirect}`);
   } else {
     return { error: "Game creation failed unexpectedly." };
   }

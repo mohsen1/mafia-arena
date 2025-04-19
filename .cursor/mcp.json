@@ -1,0 +1,12 @@
+{
+    "mcpServers": {
+      "browser-tools": {
+        "command": "pnpx",
+        "args": [
+
+          "@agentdeskai/browser-tools-mcp@1.2.0"
+        ],
+        "env": {}
+      }
+    }
+  }
