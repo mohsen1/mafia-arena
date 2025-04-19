@@ -124,5 +124,6 @@
   "ModeratorGameOverVillagersWin": "انتهت اللعبة! قام سكان القرية بإقصاء جميع الذئاب.",
   "DeadPlayersTitle": "اللاعبون المتوفون",
   "ModeratorEliminatedSeer": "{{name}} قد تم إقصاؤهم من قبل القرية. كانوا من الناظرين.",
-  "ModeratorNightBeginsInterpolated": "يبدأ الليل {{day}} مع سقوط الظلام على القرية."
+  "ModeratorNightBeginsInterpolated": "يبدأ الليل {{day}} مع سقوط الظلام على القرية.",
+  "LoadingNextTurn": "جاري تحميل الدورة التالية..."
 }

@@ -104,10 +104,6 @@
   "WerewolfAITitle": "گرگینه هوش مصنوعی",
   "WerewolfRequired": "حداقل یک گرگ مورد نیاز است.",
   "Werewolves AI": "گرگینه هوش مصنوعی",
-  "Loading": "در حال بارگذاری...",
-  "ErrorLoadingData": "خطا در بارگذاری داده‌ها",
-  "Werewolves": "گرگینه‌ها",
-  "WerewolvesAI": "گرگینه هوش مصنوعی",
   "ModeratorName": "گرداننده",
   "ModeratorScream": "فریادی شب را می شکافد! روستاییان صبح جمع می شوند تا جسد {{name}} را پیدا کنند. او یک {{role}} بود.",
   "ModeratorVotesIn": "آرا شمارش شد",
@@ -118,5 +114,16 @@
   "ModeratorNightBegins": "شب {{day}} آغاز می شود. گرگینه ها، هدف خود را انتخاب کنید. نقش های ویژه، اقدامات خود را انجام دهید.",
   "ModeratorGameOverWerewolvesWin": "بازی تمام شد! گرگینه ها همه روستاییان را از بین بردند.",
   "ModeratorGameOverVillagersWin": "بازی تمام شد! روستاییان همه گرگینه ها را از بین بردند.",
-  "DeadPlayersTitle": "بازیکنان مرده"
+  "DeadPlayersTitle": "بازیکنان مرده",
+  "GamePhaseLOBBY": "اتاق انتظار",
+  "GamePhaseCHARACTER_GENERATION": "ایجاد شخصیت",
+  "GamePhaseINTRODUCTION": "معرفی",
+  "GamePhaseNIGHT": "شب",
+  "GamePhaseNIGHT_SUMMARY": "خلاصه شب",
+  "GamePhaseDAY_DISCUSSION": "بحث روز",
+  "GamePhaseVOTE_SUMMARY": "خلاصه رای",
+  "GamePhaseGAME_OVER": "پایان بازی",
+  "ModeratorEliminatedSeer": "{{name}} توسط روستا حذف شد. آنها یک بیننده بودند.",
+  "ModeratorNightBeginsInterpolated": "شب {{day}} با تاریکی فرا رسیدن روستا آغاز می شود.",
+  "LoadingNextTurn": "بارگیری دور بعدی..."
 }
