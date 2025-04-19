@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Users, ServerCrash, Bot, X, Loader2 } from "lucide-react";
-import { useTranslation } from "react-i18next";
+
+// Define Dictionary type locally or import if shared
+type Dictionary = {
+  [key: string]: string | Dictionary;
+};
 
 interface CharacterSlotItemProps {
   slot: ConfigCharacterSlot;
@@ -24,6 +28,7 @@ interface CharacterSlotItemProps {
   onUpdateRole: (clientId: string, newRole: Role) => void;
   onUpdateModel: (clientId: string, newModel: string) => void;
   onRemove: (clientId: string) => void;
+  dict: Dictionary; // Add dict prop
 }
 
 export function CharacterSlotItem({
@@ -36,8 +41,13 @@ export function CharacterSlotItem({
   onUpdateRole,
   onUpdateModel,
   onRemove,
+  dict, // Receive dict prop
 }: CharacterSlotItemProps) {
-  const { t } = useTranslation('translation');
+  // Simple t helper function
+  const t = (key: string, fallback?: string) => {
+    const value = dict[key];
+    return typeof value === 'string' ? value : fallback || key;
+  };
 
   const handleRemoveClick = () => {
     onRemove(slot.clientId);

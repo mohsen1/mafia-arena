@@ -8,3 +8,4 @@ avoid using tailwind colors like green or red, pay attention to globals.css and 
 avoid using shadows and borders as much as possible. neat clean UI
 prefer JSDoc comments
 Be aware the app support RTL and LTR directions. use ms instead of ml in tailwind classes and so on
+use pnpm

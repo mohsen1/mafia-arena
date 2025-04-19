@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch"; // Import Switch component
 import { useGameConfig } from "@/hooks/useGameConfig";
-import { LanguageSelector } from "./LanguageSelector";
-import { useTranslation } from "react-i18next";
+import LanguageSelector from "./LanguageSelector"; // Import the new selector
 import {
-  // getLanguageInfoByCode, // Removed unused import
   mapLanguageCodeToLongCode,
+  type LanguageCode, // Import LanguageCode type
 } from "@/lib/translation/languages";
 import type { Role } from "@/lib/types/game"; // Use import type
 import {
@@ -22,6 +21,12 @@ import {
   Bot,
 } from "lucide-react";
 import { useMemo, useCallback, type FormEvent } from "react";
+import type { Locale } from "@/app/[lang]/dictionaries"; // Use import type
+// Define a more specific Dictionary type (adjust based on actual structure)
+type Dictionary = {
+  [key: string]: string | Dictionary;
+};
+import ModelSelector from "./ModelSelector"; // Import ModelSelector
 
 // Define available roles for selection (can be defined here or imported)
 const availableRolesForSelection: Role[] = [
@@ -32,17 +37,23 @@ const availableRolesForSelection: Role[] = [
 ];
 
 // Define props for the component
-// Change t prop to translations
 export interface StartGameFormProps {
   availableModels: string[];
+  dict: Dictionary; // Add dict prop
+  lang: Locale; // Add lang prop
 }
 
-// Update component signature to accept translations and isSourceLanguage
+// Update component signature to accept dict and lang
 export default function StartGameForm({
   availableModels,
+  dict, // Receive dict
+  lang, // Receive lang
 }: StartGameFormProps) {
-  // Use standard hook
-  const { t } = useTranslation('translation');
+  // Helper for translation lookup
+  const t = (key: string, fallback?: string) => {
+    const value = dict[key];
+    return typeof value === 'string' ? value : fallback || key;
+  };
 
   const {
     characterSlots,
@@ -56,30 +67,28 @@ export default function StartGameForm({
     canAttemptStart,
     totalSlots,
     globalModelSelection,
-    selectedLanguage,
     addPlayerSlot,
     removePlayerSlot,
     updateSlotModel,
     updateAllModels,
     updateSlotRole,
-    updateLanguage,
     handleGenerateAndStartGame,
-    isAudioEnabled, // Get audio state
-    toggleAudioEnabled, // Get audio toggle function
-    isLoadingNextTurn, // If used for combined loading state
-    // availableRolesForSelection, // Removed unused variable
-  } = useGameConfig(availableModels); // Call hook without t
+    isAudioEnabled,
+    toggleAudioEnabled,
+    isLoadingNextTurn,
+  } = useGameConfig(availableModels, lang); // Pass lang to hook if needed
 
-  // Moved useMemo and useCallback right after initial hook calls
+  // Use lang prop for numberFormatter
   const numberFormatter = useMemo(() => {
-    const longCode = mapLanguageCodeToLongCode(selectedLanguage);
+    // Assert lang as LanguageCode, as Locale is a subset
+    const longCode = mapLanguageCodeToLongCode(lang as LanguageCode);
     try {
       return new Intl.NumberFormat(longCode);
     } catch (e) {
       console.error("Failed to create NumberFormat for locale:", longCode, e);
       return new Intl.NumberFormat("en-US"); // Fallback
     }
-  }, [selectedLanguage]);
+  }, [lang]);
 
   const handleSubmitWrapper = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -90,7 +99,7 @@ export default function StartGameForm({
   );
 
   console.log(
-    `[StartGameForm] Language from useGameConfig: ${selectedLanguage}`,
+    `[StartGameForm] Language from useGameConfig: ${lang}`,
   ); // Log language from hook
 
   // Combine submission state
@@ -157,11 +166,11 @@ export default function StartGameForm({
           </Button>
         </div>
 
-        {/* Global Model Selector  */}
+        {/* Global Model Selector (Restored) */}
         <div className="mb-6 flex flex-col items-start justify-start gap-2 max-w-96 mx-auto">
           <Label
             htmlFor="global-model"
-            className="text-sm font-medium text-muted-foreground whitespace-nowrap"
+            className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
           >
             <Bot size={16} />
             {t("GlobalAIModelLabel", "Global AI Model")}:
@@ -176,24 +185,12 @@ export default function StartGameForm({
               "Select global model",
             )}
             disabled={isSubmitting}
+            dict={dict} // Pass dict if ModelSelector needs translations
           />
         </div>
 
-        {/* Language Selector - Use imported types/values */}
-        <div className="mb-6 flex flex-col items-start justify-start gap-2 max-w-96 mx-auto">
-          <Label
-            htmlFor="language-select"
-            className="text-sm font-medium text-muted-foreground whitespace-nowrap"
-          >
-            <Languages size={16} />
-            {t("GameLanguageLabel", "Game Language")}:
-          </Label>
-          <LanguageSelector
-            selectedLanguage={selectedLanguage}
-            onLanguageChange={updateLanguage}
-            disabled={isSubmitting}
-          />
-        </div>
+        {/* Language Selector - Use the new component */}
+        <LanguageSelector currentLang={lang} />
 
         {/* Audio Enable Toggle - Add  */}
         <div className="mb-6 flex items-center justify-center gap-3">
@@ -269,7 +266,7 @@ export default function StartGameForm({
                   onUpdateRole={updateSlotRole}
                   onUpdateModel={updateSlotModel}
                   onRemove={removePlayerSlot}
-                  translations={translations}
+                  dict={dict} // Pass dict instead of translations
                 />
               ))}
             </ul>

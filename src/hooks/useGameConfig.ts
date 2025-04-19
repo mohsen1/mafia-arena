@@ -1,8 +1,8 @@
 import { generateCharacterAction, startGameAction } from "@/app/actions/index";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
 import {
-  supportedLanguagesInfo,
-  type LanguageCode,
+  // supportedLanguagesInfo, // No longer needed here
+  type LanguageCode, // Keep if needed for actions, otherwise remove
 } from "@/lib/translation/languages";
 import type {
   AICharacterProfile,
@@ -15,30 +15,21 @@ import {
   validateGameConfiguration,
   validateGeneratedGameSetup,
 } from "@/lib/validators/gameConfigValidator";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter /*, useSearchParams */ } from "next/navigation"; // Remove useSearchParams
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+// Remove useTranslation
+import { type Locale } from "@/app/[lang]/dictionaries"; // Import Locale type
 
-// Update hook signature - REMOVE t function parameter
-export function useGameConfig(availableModels: string[]) {
+// Update hook signature - accept lang prop
+export function useGameConfig(availableModels: string[], lang: Locale) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { t } = useTranslation('translation');
+  // Remove searchParams and related logic
+  // const searchParams = useSearchParams();
+  // Remove useTranslation
+  // const { t } = useTranslation('translation');
 
-  // Determine initial language CODE from URL or default
-  const initialLangCode = useMemo(() => {
-    const langCodeFromUrl = searchParams.get("lang");
-    if (langCodeFromUrl && langCodeFromUrl in supportedLanguagesInfo) {
-      console.log(
-        `[useGameConfig] Initial language code from URL: ${langCodeFromUrl}`,
-      );
-      return langCodeFromUrl as LanguageCode;
-    }
-    console.log(
-      `[useGameConfig] No valid language code in URL, defaulting to 'en'.`,
-    );
-    return "en" as LanguageCode;
-  }, [searchParams]);
+  // Remove initialLangCode derivation
+  // const initialLangCode = useMemo(() => { ... });
 
   const defaultModel = useMemo(() => {
     const preferred = DEFAULT_GAME_SETTINGS.aiModel;
@@ -55,9 +46,9 @@ export function useGameConfig(availableModels: string[]) {
   const [characterSlots, setCharacterSlots] = useState<ConfigCharacterSlot[]>(
     [],
   );
-  // Initialize state with the code derived from the URL
-  const [selectedLanguage, setSelectedLanguage] =
-    useState<LanguageCode>(initialLangCode);
+  // Remove selectedLanguage state
+  // const [selectedLanguage, setSelectedLanguage] =
+  //   useState<LanguageCode>(initialLangCode);
   const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -93,12 +84,10 @@ export function useGameConfig(availableModels: string[]) {
     setGlobalModelSelection(defaultModel);
   }, [defaultModel]);
 
-  // Effect to sync state if the derived initial code changes after mount
-  // This ensures the state updates if the URL param changes causing a re-render
-  // without a full remount of this specific component instance.
-  useEffect(() => {
-    setSelectedLanguage(initialLangCode);
-  }, [initialLangCode]);
+  // Remove effect for initialLangCode
+  // useEffect(() => {
+  //   setSelectedLanguage(initialLangCode);
+  // }, [initialLangCode]);
 
   useEffect(() => {
     if (
@@ -214,61 +203,38 @@ export function useGameConfig(availableModels: string[]) {
     setIsAudioEnabled((prev) => !prev);
   }, []);
 
-  // Update language: navigate to new URL with lang param
-  const updateLanguage = useCallback(
-    async (newLangCode: string) => {
-      if (newLangCode in supportedLanguagesInfo) {
-        router.push(`/?lang=${newLangCode}`, { scroll: false });
-      } else {
-        console.warn(
-          `[useGameConfig] Attempted to set invalid language code: ${newLangCode}`,
-        );
-      }
-    },
-    [router],
-  );
-
   const handleGenerateAndStartGame = useCallback(async () => {
-    // Guard against double submission
     if (!configValidation.isValid || isSubmitting) return;
 
     setIsSubmitting(true);
     setErrorMsg(null);
-    setInfoMsg("GeneratingCharactersInfo");
+    setInfoMsg("GeneratingCharactersInfo"); // Use keys for messages
     setPostGenValidationMsg(null);
     setIsPostGenValid(null);
 
     const slotsToGenerate = characterSlots.map(resetSlotGeneration);
-    setCharacterSlots([...slotsToGenerate]); // Update state immediately to show reset
+    setCharacterSlots([...slotsToGenerate]);
 
     const generatedProfiles: AICharacterProfile[] = [];
     const updatedSlots = [...slotsToGenerate];
     let finalValidation: ValidationResult | null = null;
 
     try {
-      // Generate sequentially instead of in parallel batches
       for (let i = 0; i < slotsToGenerate.length; i++) {
         const slot = slotsToGenerate[i];
         const originalIndex = i;
 
-        setInfoMsg(
-          t("GeneratingCharacterInfo", {
-            defaultValue: `Generating character info ${i + 1} of ${slotsToGenerate.length}...`,
-            count: i + 1,
-            total: slotsToGenerate.length,
-          }),
-        ); // Update info message per character
+        setInfoMsg(`Generating character info ${i + 1} of ${slotsToGenerate.length}...`); // Simple message for now
 
         const finalRole = slot.roleSelection;
         let generatedResult: ConfigCharacterSlot;
 
         try {
-          // Pass the *current* state of generatedProfiles
           const result = await generateCharacterAction(
             finalRole,
             slot.aiModel,
-            selectedLanguage,
-            [...generatedProfiles], // Pass a copy of the current list
+            lang, // Pass lang prop directly
+            [...generatedProfiles],
           );
 
           if ("error" in result) throw new Error(result.error);
@@ -309,7 +275,6 @@ export function useGameConfig(availableModels: string[]) {
         }
 
         updatedSlots[originalIndex] = generatedResult;
-        // Update UI after each character generation
         setCharacterSlots([...updatedSlots]);
       }
 
@@ -354,8 +319,7 @@ export function useGameConfig(availableModels: string[]) {
           profile: profile,
           aiModel: aiModel,
           imageUrl: imageUrl,
-          // voiceId is added within startGameAction
-          persona: persona, // Include persona
+          persona: persona,
         }));
 
       if (charactersToSubmit.length < 5) {
@@ -364,7 +328,7 @@ export function useGameConfig(availableModels: string[]) {
 
       const result = await startGameAction(
         charactersToSubmit,
-        selectedLanguage,
+        lang, // Pass lang prop directly
       );
 
       // If startGameAction returned an error object instead of redirecting/throwing
@@ -397,13 +361,13 @@ export function useGameConfig(availableModels: string[]) {
   }, [
     characterSlots,
     configValidation.isValid,
-    selectedLanguage,
+    lang, // Depend on lang prop
     resetSlotGeneration,
     isSubmitting,
-    t,
+    // Remove t dependency
   ]);
 
-  // Return original state values/keys
+  // Return state and functions, remove selectedLanguage and updateLanguage
   return {
     characterSlots,
     isSubmitting,
@@ -416,7 +380,7 @@ export function useGameConfig(availableModels: string[]) {
     canAttemptStart,
     totalSlots,
     globalModelSelection,
-    selectedLanguage,
+    // selectedLanguage, // Removed
     isAudioEnabled,
     isLoadingNextTurn,
     addPlayerSlot,
@@ -424,7 +388,7 @@ export function useGameConfig(availableModels: string[]) {
     updateSlotModel,
     updateAllModels,
     updateSlotRole,
-    updateLanguage,
+    // updateLanguage, // Removed
     toggleAudioEnabled,
     handleGenerateAndStartGame,
   };

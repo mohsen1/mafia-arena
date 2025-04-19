@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import "./globals.css";
-import nextI18nConfig from '../../next-i18next.config.js'; // Import config
-import { createTranslation } from '@/app/i18n'; // Use path relative to src
-import TranslationsProvider from '@/app/TranslationsProvider'; // Use path relative to src
+import "../globals.css";
+import type { Locale } from "./dictionaries"; // Import Locale type if needed
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,12 +40,9 @@ export default async function RootLayout({
   params,
 }: Readonly<{
   children: React.ReactNode;
-  params: { lang?: string }; // Expect lang param from URL
+  params: { lang: Locale }; // Use Locale type
 }>) {
-  // Determine language from URL params or default
-  const lang = params.lang || nextI18nConfig.i18n.defaultLocale;
-  // Initialize i18next on the server for this request
-  const { resources } = await createTranslation(lang, 'translation'); // Removed unused t variable
+  const { lang } = params;
   const dir = lang === 'fa' ? 'rtl' : 'ltr';
 
   return (
@@ -61,13 +56,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TranslationsProvider 
-            resources={resources} 
-            locale={lang} 
-            namespaces={['translation']} // Match namespace used in createTranslation
-          >
-            {children}
-          </TranslationsProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>

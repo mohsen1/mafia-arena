@@ -1,67 +1,62 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import acceptLanguage from 'accept-language';
-import i18nConfig from '../next-i18next.config'; // Adjust path as needed
+import { match } from '@formatjs/intl-localematcher';
+import Negotiator from 'negotiator';
+import { availableLanguageCodes } from '@/lib/translation/languages'; // Import all codes
 
-const { locales, defaultLocale } = i18nConfig.i18n;
-acceptLanguage.languages(locales);
+const locales = availableLanguageCodes; // Use all codes from the languages file
+const defaultLocale = 'en';
+
+// Get the preferred locale, similar to the example in Next.js docs
+function getLocale(request: NextRequest): string {
+  const negotiatorHeaders: Record<string, string> = {};
+  request.headers.forEach((value, key) => {
+    negotiatorHeaders[key] = value;
+  });
+
+  // @ts-ignore locales are readonly
+  const languages = new Negotiator({ headers: negotiatorHeaders }).languages(locales);
+
+  try {
+      return match(languages, locales, defaultLocale);
+  } catch (e) {
+      // Handle cases where match might fail (e.g., invalid languages)
+      console.error("Locale matching failed:", e);
+      return defaultLocale;
+  }
+}
+
+export function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  console.log('[Middleware] Pathname:', pathname);
+
+  // Check if the pathname already starts with a supported locale
+  const pathnameHasLocale = locales.some((locale) => {
+    const hasLocale = pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`;
+    // console.log(`[Middleware] Checking locale '${locale}': ${hasLocale}`); // Optional detailed log
+    return hasLocale;
+  });
+
+  console.log('[Middleware] Pathname has locale:', pathnameHasLocale);
+
+  // If the pathname already has a supported locale, do nothing.
+  if (pathnameHasLocale) {
+    console.log('[Middleware] Skipping redirect.');
+    return undefined;
+  }
+
+  // Otherwise, redirect if there is no locale (or it's an unsupported one)
+  console.log('[Middleware] No supported locale found, determining preferred locale...');
+  const locale = getLocale(request);
+  const newUrl = new URL(
+    locale,
+    request.url
+  );
+  console.log(`[Middleware] Redirecting to: ${newUrl.toString()}`);
+  return NextResponse.redirect(newUrl);
+}
 
 export const config = {
-  // matcher: '/', // Example: Match only the root path
-  // Match all paths except _next/static, _next/image, assets, favicon.ico, sw.js
-  matcher: [
-    '/((?!api|_next/static|_next/image|assets|images|favicon.ico|sw.js).*)', // Standard matcher
-  ],
+  // Matcher ignoring `/_next/` and `/api/`
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
-
-const cookieName = 'i18next'; // Cookie name to store preferred language
-
-export function middleware(req: NextRequest) {
-  let lng: string | null = null; // Initialize explicitly to null
-
-  // 1. Try getting locale from cookie
-  if (req.cookies.has(cookieName)) {
-    lng = acceptLanguage.get(req.cookies.get(cookieName)?.value);
-  }
-  // 2. Try getting locale from Accept-Language header
-  if (!lng) {
-    lng = acceptLanguage.get(req.headers.get('Accept-Language'));
-  }
-  // 3. Use default locale if none detected
-  if (!lng) {
-    lng = defaultLocale;
-  }
-
-  const pathname = req.nextUrl.pathname;
-
-  // Check if the pathname already includes a supported locale
-  const pathnameIsMissingLocale = locales.every(
-    (locale) => !pathname.startsWith(`/${locale}/`) && pathname !== `/${locale}`,
-  );
-
-  // Redirect if locale is missing
-  if (pathnameIsMissingLocale) {
-    // e.g. incoming request is /products
-    // The new URL is now /en-US/products
-    const newUrl = new URL(`/${lng}${pathname}`, req.url);
-    console.log(`[Middleware] Redirecting to: ${newUrl.toString()}`);
-    return NextResponse.redirect(newUrl);
-  }
-
-  // If locale is present, store it in a cookie for future requests
-  const response = NextResponse.next(); // Use const
-  const referer = req.headers.get('referer'); // Get referer safely
-  if (referer) { // Check if referer exists
-    const refererUrl = new URL(referer);
-    const lngInReferer = locales.find((l) => refererUrl.pathname.startsWith(`/${l}`))
-    if (lngInReferer) {
-      console.log(`[Middleware] Setting lang cookie from referer: ${lngInReferer}`);
-      response.cookies.set(cookieName, lngInReferer);
-    }
-  }
-
-  // Optionally add header for client components to read (less common now)
-  // res.headers.set('x-lang', lng);
-
-  return response;
-}
