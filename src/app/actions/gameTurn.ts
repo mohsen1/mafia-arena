@@ -999,12 +999,11 @@ export async function runGameTurnAction(gameId: string) {
         stateAfterResolution.players[eliminatedPlayerId].name;
       const eliminatedPlayerRole =
         stateAfterResolution.players[eliminatedPlayerId].role; // Reveal role on night death
-      originalSummaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead. They were a ${eliminatedPlayerRole}.\n\nDay ${nextDayRound} begins. Discuss what happened and who you suspect.`;
-      summaryPhraseKey = "NightSummaryEliminationAndDayStart";
+      originalSummaryContent = `A scream pierces the night! The villagers gather in the morning to find ${eliminatedPlayerName} dead. They were a ${eliminatedPlayerRole}.`;
+      summaryPhraseKey = "NightSummaryElimination";
       summaryPlaceholders = {
         playerName: eliminatedPlayerName,
         playerRole: eliminatedPlayerRole,
-        round: nextDayRound,
       };
     } else if (
       killAction &&
@@ -1015,17 +1014,13 @@ export async function runGameTurnAction(gameId: string) {
       gamePhaseState.players[killAction.targetPlayerId]?.status === "alive"
     ) {
       originalSummaryContent =
-        `A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.\n\nDay ${nextDayRound} begins. Discuss what happened and who you suspect.`;
-      summaryPhraseKey = "NightSummarySavedAndDayStart";
-      summaryPlaceholders = {
-        round: nextDayRound,
-      };
+        "A chilling silence fell over the village, but dawn arrives without incident. Someone was lucky tonight.";
+      summaryPhraseKey = "NightSummarySaved";
+      summaryPlaceholders = {};
     } else {
-      originalSummaryContent = `The night passes uneventfully. Dawn breaks.\n\nDay ${nextDayRound} begins. Discuss what happened and who you suspect.`;
-      summaryPhraseKey = "NightSummaryPeacefulAndDayStart";
-      summaryPlaceholders = {
-        round: nextDayRound,
-      };
+      originalSummaryContent = "The night passes uneventfully. Dawn breaks.";
+      summaryPhraseKey = "NightSummaryPeaceful";
+      summaryPlaceholders = {};
     }
 
     const summaryMessage: ChatMessage = {
@@ -1741,20 +1736,33 @@ export async function runGameTurnAction(gameId: string) {
           speaker: { type: "moderator" },
           speakerName: "Moderator",
           content: originalEliminationMsg, // Fallback content
-          phraseKey: "VoteDetailsEliminationAndNightStartMessage", // <-- Updated phrase key
+          phraseKey: "VoteEliminationMessage",
           placeholders: {
-            voteDetails: voteDetails,
             voteCount: maxVotes,
             playerName: eliminatedPlayerName,
             playerRole: eliminatedPlayerRole,
-            round: stateAfterTally.round,
-          }, // <-- Added voteDetails placeholder
+          },
           timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
           audience: { type: "all" },
         };
         voteModeratorMessages.push(eliminationMessage);
+
+        const nightStartMsg: ChatMessage = {
+          messageId: `msg-${crypto.randomUUID()}-nightstart`,
+          gameId,
+          speaker: { type: "moderator" },
+          speakerName: "Moderator",
+          content: `Night ${stateAfterTally.round} begins as darkness falls upon the village.`,
+          phraseKey: "NightStartMessage",
+          placeholders: { round: stateAfterTally.round },
+          timestamp: Date.now() + 2,
+          round: stateAfterTally.round,
+          phase: stateAfterTally.phase,
+          audience: { type: "all" },
+        };
+        voteModeratorMessages.push(nightStartMsg);
       } else if (playersWithMaxVotes.length > 1) {
         // Tie
         console.log("[Vote Tally Debug] Entering TIE branch."); // Log branch
@@ -1777,18 +1785,29 @@ export async function runGameTurnAction(gameId: string) {
           speaker: { type: "moderator" },
           speakerName: "Moderator",
           content: originalTieMsg, // Fallback content
-          phraseKey: "VoteDetailsTieAndNightStartMessage", // <-- Updated phrase key
-          placeholders: { 
-            voteDetails: voteDetails,
-            tiedPlayerNames: tiedPlayerNames,
-            round: stateAfterTally.round
-          }, // <-- Added voteDetails placeholder
+          phraseKey: "VoteTieMessage",
+          placeholders: { tiedPlayerNames },
           timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
           audience: { type: "all" },
         };
         voteModeratorMessages.push(tieMessage);
+
+        const nightStartMsg: ChatMessage = {
+          messageId: `msg-${crypto.randomUUID()}-nightstart`,
+          gameId,
+          speaker: { type: "moderator" },
+          speakerName: "Moderator",
+          content: `Night ${stateAfterTally.round} begins as darkness falls upon the village.`,
+          phraseKey: "NightStartMessage",
+          placeholders: { round: stateAfterTally.round },
+          timestamp: Date.now() + 2,
+          round: stateAfterTally.round,
+          phase: stateAfterTally.phase,
+          audience: { type: "all" },
+        };
+        voteModeratorMessages.push(nightStartMsg);
       } else {
         // Handle cases like zero votes or unexpected scenarios
         console.log(
@@ -1819,6 +1838,21 @@ export async function runGameTurnAction(gameId: string) {
           audience: { type: "all" },
         };
         voteModeratorMessages.push(noVotesMessage);
+
+        const nightStartMsg: ChatMessage = {
+          messageId: `msg-${crypto.randomUUID()}-nightstart`,
+          gameId,
+          speaker: { type: "moderator" },
+          speakerName: "Moderator",
+          content: `Night ${stateAfterTally.round} begins as darkness falls upon the village.`,
+          phraseKey: "NightStartMessage",
+          placeholders: { round: stateAfterTally.round },
+          timestamp: Date.now() + 1,
+          round: stateAfterTally.round,
+          phase: stateAfterTally.phase,
+          audience: { type: "all" },
+        };
+        voteModeratorMessages.push(nightStartMsg);
       }
 
       // Update player status if elimination occurred
