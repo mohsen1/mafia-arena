@@ -1,9 +1,5 @@
 import { generateCharacterAction, startGameAction } from "@/app/actions/index";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
-import {
-  // supportedLanguagesInfo, // No longer needed here
-  type LanguageCode, // Keep if needed for actions, otherwise remove
-} from "@/lib/translation/languages";
 import type {
   AICharacterProfile,
   ConfigCharacterSlot,
@@ -15,21 +11,13 @@ import {
   validateGameConfiguration,
   validateGeneratedGameSetup,
 } from "@/lib/validators/gameConfigValidator";
-import { useRouter /*, useSearchParams */ } from "next/navigation"; // Remove useSearchParams
 import { useCallback, useEffect, useMemo, useState } from "react";
 // Remove useTranslation
-import { type Locale } from "@/app/[lang]/dictionaries"; // Import Locale type
+import type { Locale } from "@/app/[lang]/dictionaries"; // Import Locale type
 
 // Update hook signature - accept lang prop
 export function useGameConfig(availableModels: string[], lang: Locale) {
-  const router = useRouter();
-  // Remove searchParams and related logic
-  // const searchParams = useSearchParams();
-  // Remove useTranslation
-  // const { t } = useTranslation('translation');
 
-  // Remove initialLangCode derivation
-  // const initialLangCode = useMemo(() => { ... });
 
   const defaultModel = useMemo(() => {
     const preferred = DEFAULT_GAME_SETTINGS.aiModel;

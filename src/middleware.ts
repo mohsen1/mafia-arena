@@ -7,6 +7,9 @@ import { availableLanguageCodes } from '@/lib/translation/languages'; // Import 
 const locales = availableLanguageCodes; // Use all codes from the languages file
 const defaultLocale = 'en';
 
+// Static paths that should be excluded from locale redirection
+const STATIC_PATHS = ['/images/', '/fonts/', '/videos/', '/assets/'];
+
 // Get the preferred locale, similar to the example in Next.js docs
 function getLocale(request: NextRequest): string {
   const negotiatorHeaders: Record<string, string> = {};
@@ -29,6 +32,12 @@ function getLocale(request: NextRequest): string {
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   console.log('[Middleware] Pathname:', pathname);
+
+  // Skip locale redirect for static files
+  if (STATIC_PATHS.some(path => pathname.startsWith(path))) {
+    console.log('[Middleware] Skipping redirect for static path.');
+    return undefined;
+  }
 
   // Check if the pathname already starts with a supported locale
   const pathnameHasLocale = locales.some((locale) => {
@@ -57,6 +66,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Matcher ignoring `/_next/` and `/api/`
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  // Matcher ignoring `/_next/`, `/api/`, and static assets
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|images/).*)'],
 };

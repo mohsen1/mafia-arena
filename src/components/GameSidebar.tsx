@@ -1,7 +1,8 @@
+import Image from "next/image";
 import { PlayerCard } from "@/components/PlayerCard";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
 import type { Player } from "@/lib/types/game"; // Import Player type
-import { HouseIcon } from "lucide-react";
+
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 
@@ -36,7 +37,13 @@ export function GameSidebar() {
         >
           {/* Display total player count */}
           <span className="flex items-center gap-2">
-            <HouseIcon className="w-9 h-9" />
+            <Image
+              src={'/images/logo.png'}
+              alt="Werewolves AI Logo"
+              className="w-9 h-9"
+              width={36}
+              height={36}
+            />
             {t("Werewolves AI", "Werewolves AI")}
           </span>
         </Link>
