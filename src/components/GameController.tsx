@@ -81,26 +81,24 @@ export default function GameController() {
       <div className="flex items-center gap-2 h-8">
         {" "}
         {/* Ensure consistent height */}
-        {/* Audio Toggle Checkbox */}
-        <div className="flex items-center space-x-2 rtl:space-x-reverse">
-          <Checkbox
-            id="audio-toggle"
-            checked={isAudioGloballyEnabled}
-            onCheckedChange={() => toggleAudioGloballyEnabled()}
-          />
-          <Label
-            htmlFor="audio-toggle"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-1"
-          >
-            {isAudioGloballyEnabled ? (
-              <Volume2 size={16} />
-            ) : (
-              <VolumeX size={16} />
-            )}
-            {/* Keep text label for clarity */}
-            {/* {t('EnableAudioLabel', 'Enable Audio')} */}
-          </Label>
-        </div>
+        {/* Audio Toggle Icon Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={toggleAudioGloballyEnabled}
+          aria-label={
+            isAudioGloballyEnabled
+              ? t("DisableAudioButton")
+              : t("EnableAudioButton")
+          }
+        >
+          {isAudioGloballyEnabled ? (
+            <Volume2 className="h-4 w-4" />
+          ) : (
+            <VolumeX className="h-4 w-4" />
+          )}
+        </Button>
+
         {/* Standalone Loading Indicator (only shown when loading) */}
         {isLoadingNextTurn && <Loader className="animate-spin" size={18} />}
       </div>
