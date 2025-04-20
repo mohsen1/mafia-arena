@@ -1775,10 +1775,26 @@ export async function runGameTurnAction(gameId: string) {
 
       // Format vote results message
       let voteDetails = "";
+      let voteBreakdown = ""; // Variable for voter -> target details
+      // Filter out skips and use the correct property name 'voterPlayerId'
+      const validVotes = stateAfterTally.votes.filter(v => v.targetPlayerId);
+
+      if (validVotes.length > 0) {
+        voteBreakdown = validVotes.map(vote => {
+          const voterName = getPlayerName(stateAfterTally, vote.voterPlayerId); // Use voterPlayerId
+          const targetName = getPlayerName(stateAfterTally, vote.targetPlayerId);
+          return `- ${voterName} voted for ${targetName}`;
+        }).join("\n");
+        voteBreakdown = `\n--- Vote Details ---\n${voteBreakdown}\n--------------------`;
+      } else {
+        voteBreakdown = "\nNo votes were cast towards any player.";
+      }
+
       for (const [targetId, count] of Object.entries(voteCounts)) {
         const targetName = getPlayerName(stateAfterTally, targetId);
         voteDetails += `- ${targetName}: ${count} ${count === 1 ? "vote" : "votes"}\n`;
       }
+      // --- End Modification ---
 
       // REMOVE the separate vote counts message - we'll combine it with the elimination/tie message
       // DO NOT add the voteResultsMessage to voteModeratorMessages
@@ -1819,6 +1835,7 @@ export async function runGameTurnAction(gameId: string) {
             voteCount: maxVotes,
             playerName: eliminatedPlayerName,
             playerRole: eliminatedPlayerRole,
+            voteBreakdown: voteBreakdown, // Add vote breakdown
           },
           timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
@@ -1864,7 +1881,10 @@ export async function runGameTurnAction(gameId: string) {
           speakerName: "Moderator",
           content: originalTieMsg, // Fallback content
           phraseKey: "VoteTieMessage",
-          placeholders: { tiedPlayerNames },
+          placeholders: {
+            tiedPlayerNames,
+            voteBreakdown: voteBreakdown, // Add vote breakdown
+           },
           timestamp: Date.now() + 1, // Ensure it appears after vote counts
           round: stateAfterTally.round,
           phase: stateAfterTally.phase,
