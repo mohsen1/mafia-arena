@@ -1,11 +1,11 @@
 import { getAIGameTitleAndDescription } from "@/lib/ai/openaiService";
+import type { StartGameInputData } from "@/app/actions/gameSetup";
 import type {
   GameState,
   GamePhase,
   GameSettings,
   WinCondition,
   Player,
-  PlayerInitializationData,
   // Role, // Removed unused Role import
   // Vote, // Removed unused Vote import
 } from "../types/game";
@@ -41,7 +41,7 @@ export async function initializeNewGame(
   settings: GameSettings,
   gameId: string,
   createdAt: number,
-  playerInitDataList: (PlayerInitializationData & { persona: string })[],
+  playerInitDataList: StartGameInputData[],
 ): Promise<GameState> {
   console.log(
     `Initializing game ${gameId} with ${playerInitDataList.length} players. Settings:`,
@@ -51,6 +51,7 @@ export async function initializeNewGame(
 
   const players: Record<string, Player> = {};
   const livingPlayerIds: string[] = [];
+  let humanPlayerId: string | null = null;
 
   for (const initData of playerInitDataList) {
     const playerId = `player-${crypto.randomUUID().substring(0, 8)}`;
@@ -71,23 +72,32 @@ export async function initializeNewGame(
       );
       throw new Error("Missing player profile data during initialization.");
     }
-    if (!initData.aiModel) {
+    if (!initData.isHuman && !initData.aiModel) {
       console.error("Initialization failed: Missing aiModel for a player.");
       throw new Error("Missing player AI model during initialization.");
     }
 
     const newPlayer: Player = {
       id: playerId,
+      isHuman: initData.isHuman ?? false,
       name: initData.profile.characterName,
       role: initData.role,
       persona: initData.persona,
       status: "alive",
-      aiModel: initData.aiModel,
+      aiModel: initData.aiModel || "",
       imageUrl: finalImageUrl,
       voiceId: initData.voiceId,
     };
     players[playerId] = newPlayer;
     livingPlayerIds.push(playerId);
+
+    if (newPlayer.isHuman) {
+      if (humanPlayerId) {
+        console.warn("Multiple human players detected during initialization. Only the first will be used.");
+      } else {
+        humanPlayerId = playerId;
+      }
+    }
   }
 
   // --- Shuffle Player Order for Initial Turn ---
@@ -115,17 +125,11 @@ export async function initializeNewGame(
     lastSeerTargetId: null,
     winCondition: null,
     _internalState: {
-      initialProfiles: playerInitDataList.map(
-        ({ profile, role, aiModel, imageUrl, voiceId }) => ({
-          profile,
-          role,
-          aiModel,
-          imageUrl,
-          voiceId,
-        }),
-      ),
+      initialProfiles: playerInitDataList,
     },
     aiMessageLog: [],
+    humanPlayerId: humanPlayerId,
+    pendingHumanAction: null,
   };
 
   // Get AI Title and Description - Use the default model from config

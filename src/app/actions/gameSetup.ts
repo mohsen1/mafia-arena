@@ -56,11 +56,12 @@ async function getElevenLabsVoices(): Promise<
   }
 }
 
-// Define the structure that startGameAction actually receives from useGameConfig
-type StartGameInputData = PlayerInitializationData & {
+// Define and export the structure that startGameAction actually receives from useGameConfig
+export type StartGameInputData = PlayerInitializationData & {
   persona: string;
   voiceId?: string; // Voice ID added here before calling initializeNewGame
   imageUrl?: string | null;
+  isHuman?: boolean; // Add flag to identify human player data
 };
 
 // Action to start a new game - Accepts player list and language
@@ -91,15 +92,16 @@ export async function startGameAction(
     // --- Assign Voices to Init Data (before passing to initializeNewGame) ---
     // Add voiceId to the input data
     const playersForInitialization: StartGameInputData[] =
-      playerInitDataList.map((initData) => {
+      playerInitDataList.map((initData): StartGameInputData => {
         let assignedVoiceId: string | undefined = undefined;
-        if (usableVoices.length > 0) {
+        const isHuman = initData.isHuman ?? false;
+        if (!isHuman && usableVoices.length > 0) {
           assignedVoiceId =
             usableVoices[voiceIndex % usableVoices.length].voice_id;
           voiceIndex++;
         }
-        // Add voiceId to the existing object
-        return { ...initData, voiceId: assignedVoiceId };
+        // Add voiceId to the existing object, ensure isHuman is passed through
+        return { ...initData, isHuman: isHuman, voiceId: assignedVoiceId };
       });
 
     // --- Construct Settings ---

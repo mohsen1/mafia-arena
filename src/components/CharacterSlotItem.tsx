@@ -11,13 +11,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Users, ServerCrash, Bot, X, Loader2 } from "lucide-react";
+import { Users, ServerCrash, Bot, X, Loader2, User } from "lucide-react";
 import { useTranslation } from 'react-i18next'; // Import hook
+import { cn } from "@/lib/utils";
 
 // Remove CharacterTranslations interface
 
 interface CharacterSlotItemProps {
   slot: ConfigCharacterSlot;
+  isHuman: boolean;
   index: number;
   availableModels: string[];
   availableRoles: Role[];
@@ -31,6 +33,7 @@ interface CharacterSlotItemProps {
 
 export function CharacterSlotItem({
   slot,
+  isHuman,
   index,
   availableModels,
   availableRoles,
@@ -54,13 +57,46 @@ export function CharacterSlotItem({
   return (
     <li
       key={slot.clientId}
-      className={`p-4  border rounded-lg transition-all duration-300 ease-in-out flex flex-col gap-3 ${slot.generationError ? "bg-destructive/10 border border-destructive/50" : "bg-card"}`}
+      className={cn(
+        "p-4 border rounded-lg transition-all duration-300 ease-in-out flex flex-col gap-3",
+        slot.generationError ? "bg-destructive/10 border-destructive/50" : "bg-card",
+        isHuman ? "border-primary/50 ring-2 ring-primary/30" : "border-border"
+      )}
     >
       {/* Top section: Status/Generated Info & Remove Button */}
       <div className="flex items-center justify-between gap-3">
         {/* Left side: Status/Generated Info */}
         <div className="flex items-center gap-3 flex-grow min-w-0">
-          {slot.isGenerated && !slot.generationError ? (
+          {/* --- Human Player (Before Generation) --- */}
+          {isHuman && !slot.isGenerated && !slot.generationError ? (
+            <>
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                {/* Use User icon for human player placeholder */}
+                <User className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </>
+          ) : slot.imageUrl ? (
+            // Generated Image
+            <Image
+              src={slot.imageUrl}
+              alt={slot.profile?.characterName || "Character"}
+              width={40}
+              height={40}
+              className="rounded-full object-cover w-10 h-10 flex-shrink-0"
+            />
+          ) : slot.generationError ? (
+            // Error Icon
+            <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+              <ServerCrash className="h-5 w-5 text-destructive" />
+            </div>
+          ) : (
+            // AI Placeholder Icon
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+              <Bot className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+          {/* --- Generated AI or Human Player --- */}
+          {slot.isGenerated && !slot.generationError && (
             <>
               {slot.imageUrl ? (
                 <Image
@@ -76,30 +112,38 @@ export function CharacterSlotItem({
                 </div>
               )}
               <div className="truncate min-w-0">
+                {isHuman && (
+                  <span className="inline-flex items-center gap-1 me-1 text-primary font-semibold">
+                    <User className="inline-block h-4 w-4 me-1 text-primary" aria-label={t("HumanPlayerIndicatorLabel", "Human Player")} />
+                    {t("HumanPlayerLabel", "You")}
+                  </span>
+                )}
                 <span
                   className="font-medium truncate block text-sm text-foreground"
-                  title={slot.profile?.characterName}
+                  title={slot.profile?.characterName || (isHuman ? t("EnterYourNamePlaceholder", "Enter your name") : t("PendingGenerationLabel", "Pending generation"))}
                 >
-                  {slot.profile?.characterName ||
-                    t("UnnamedCharacterLabel", "Unnamed")}
+                  {slot.profile?.characterName || (isHuman ? "" : t("PendingGenerationLabel", "Pending generation"))}
                 </span>
               </div>
             </>
-          ) : slot.generationError ? (
+          )}
+          {/* --- Generation Error --- */}
+          {slot.generationError && (
             <div className="flex items-center text-destructive text-sm flex-grow">
               <ServerCrash className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="truncate" title={slot.generationError}>
                 {t("GenerationErrorPrefix", "Error")}: {slot.generationError}
               </span>
             </div>
-          ) : (
-            // Display Placeholder before generation - Use muted
+          )}
+           {/* --- AI Placeholder (Before Generation, not human) --- */}
+          {!isHuman && !slot.isGenerated && !slot.generationError && (
             <div className="flex items-center text-muted-foreground flex-grow">
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                 <Bot className="h-5 w-5" />
               </div>
             </div>
-          )}
+          )}          
         </div>
 
         {/* Remove Button */}
@@ -165,7 +209,7 @@ export function CharacterSlotItem({
             value={slot.aiModel}
             onValueChange={(newModel) => onUpdateModel(slot.clientId, newModel)}
             required
-            disabled={isSubmitting || availableModels.length === 0}
+            disabled={isHuman || isSubmitting || availableModels.length === 0}
           >
             <SelectTrigger
               className="w-full text-xs h-9"

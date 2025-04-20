@@ -1,4 +1,5 @@
 import { runGameTurnAction } from "@/app/actions/index";
+import { submitHumanAction } from "@/app/actions/humanActions"; // Import the new action
 import { gameStateManager } from "@/lib/state/gameStateManager";
 import { notFound } from "next/navigation";
 import GameClient from "./GameClient"; // Import the client component
@@ -14,7 +15,7 @@ interface GamePageProps {
 
 export default async function GamePage({ params: paramsPromise }: GamePageProps) {
   const { gameId } = await paramsPromise; // Await the params promise
-  const gameState = await gameStateManager.getFilteredGameState(gameId);
+  const gameState = await gameStateManager.getGameState(gameId);
 
   if (!gameState) {
     notFound();
@@ -24,8 +25,9 @@ export default async function GamePage({ params: paramsPromise }: GamePageProps)
   // const dictionary = await getDictionary(lang);
   // const direction = dir(lang);
 
-  // Bind the action here on the server
+  // Bind the actions here on the server
   const boundRunGameTurnAction = runGameTurnAction.bind(null, gameId);
+  const boundSubmitHumanAction = submitHumanAction.bind(null, gameId); // Bind the human action
 
   // Pass only necessary props to GameClient
   return (
@@ -34,6 +36,7 @@ export default async function GamePage({ params: paramsPromise }: GamePageProps)
       gameId={gameId}
       // Remove lang and direction props
       boundRunGameTurnAction={boundRunGameTurnAction}
+      boundSubmitHumanAction={boundSubmitHumanAction} // Pass the bound human action
     />
   );
 }

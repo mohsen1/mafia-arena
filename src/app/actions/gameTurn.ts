@@ -25,6 +25,7 @@ import type {
   AIMessageLogEntry,
   Role,
   GameState,
+  PendingHumanAction,
 } from "@/lib/types/game";
 import { cleanAIResponse } from "@/lib/utils/stringUtils";
 import crypto from "node:crypto";
@@ -128,6 +129,26 @@ export async function runGameTurnAction(gameId: string) {
 
     if (nextSpeakerId) {
       const nextSpeaker = gamePhaseState.players[nextSpeakerId];
+
+      // --- START HUMAN PLAYER CHECK ---
+      if (nextSpeaker.isHuman) {
+        console.log(
+          `[${gameId}] Human player ${nextSpeaker.name}'s turn for Introduction. Setting pending action.`
+        );
+        const pendingAction: PendingHumanAction = { 
+          type: 'chat', 
+          phase: gamePhaseState.phase 
+        }; // Or derive from phase if needed
+        const updatedState = {
+          ...gamePhaseState,
+          pendingHumanAction: pendingAction,
+          updatedAt: Date.now(),
+        };
+        await gameStateManager.updateGameState(gameId, updatedState);
+        revalidatePath(`/game/${gameId}`); // Notify frontend
+        return; // Wait for human input
+      }
+      // --- END HUMAN PLAYER CHECK ---
 
       // Check if player object exists and has the aiModel property
       if (!nextSpeaker || !nextSpeaker.aiModel) {
@@ -1140,14 +1161,33 @@ export async function runGameTurnAction(gameId: string) {
     console.log(
       `Game ${gameId} advanced from ResolveNight to ${nextState.phase}`,
     );
-  } else if (currentState.phase === "DayDiscussion") {
+  } else if (currentState.phase === "DayDiscussion") { // START OF DAY DISCUSSION PHASE
     console.log(`Processing DayDiscussion phase for game ${gameId}...`);
-    // Assign to block-scoped const for this phase's logic
     const gamePhaseState = currentState;
     const nextSpeakerId = determineNextSpeaker(gamePhaseState);
 
     if (nextSpeakerId) {
       const nextSpeaker = gamePhaseState.players[nextSpeakerId];
+
+      // --- START HUMAN PLAYER CHECK ---
+      if (nextSpeaker.isHuman) {
+        console.log(
+          `[${gameId}] Human player ${nextSpeaker.name}'s turn for Discussion. Setting pending action.`
+        );
+        const pendingAction: PendingHumanAction = { 
+          type: 'chat', 
+          phase: gamePhaseState.phase 
+        }; // Or derive from phase if needed
+        const updatedState = {
+          ...gamePhaseState,
+          pendingHumanAction: pendingAction,
+          updatedAt: Date.now(),
+        };
+        await gameStateManager.updateGameState(gameId, updatedState);
+        revalidatePath(`/game/${gameId}`); // Notify frontend
+        return; // Wait for human input
+      }
+      // --- END HUMAN PLAYER CHECK ---
 
       // Check if player object exists and has the aiModel property
       if (!nextSpeaker || !nextSpeaker.aiModel) {
@@ -1318,7 +1358,6 @@ export async function runGameTurnAction(gameId: string) {
         audience: { type: "all" },
         isThinking: false, // Explicitly set to false
       };
-
       // 6. Update Game State: Remove thinking message, add final, increment turn
       let finalState = {
         ...stateAfterThinking,
@@ -1426,22 +1465,7 @@ export async function runGameTurnAction(gameId: string) {
 
         let nextState = advancePhase(stateBeforeVote); // advancePhase resets turnOrderIndex
 
-        // Add moderator message for voting start
-        // const originalVoteStartMsg =
-        //   "Discussion time is over. It is now time to vote for who to eliminate.";
-        // const voteStartMessage: ChatMessage = {
-        //   messageId: `msg-${crypto.randomUUID()}-vote-start-alt`, // Different ID for debugging
-        //   gameId: gameId,
-        //   speaker: { type: "moderator" },
-        //   speakerName: "Moderator",
-        //   content: originalVoteStartMsg,
-        //   timestamp: Date.now(),
-        //   round: nextState.round,
-        //   phase: nextState.phase, // Should be 'Voting'
-        //   audience: { type: "all" },
-        //   phraseKey: "VoteStartMessage", // Re-added key
-        //   placeholders: {}, // Re-added placeholders (none needed)
-        // };
+        
         nextState = {
           ...nextState,
           // Remove the VoteStartMessage addition
@@ -1464,15 +1488,63 @@ export async function runGameTurnAction(gameId: string) {
     console.log(`Processing Voting phase for game ${gameId}...`);
     // Assign to block-scoped const for this phase's logic
     const gamePhaseState = currentState;
+
+    // --- NEW: Check if waiting for human vote before collecting AI votes ---
+    if (gamePhaseState.pendingHumanAction?.type === 'vote') {
+        console.log(`[${gameId}] Voting phase: Still waiting for human vote. Returning.`);
+        // No need to revalidate here, just wait for human action submission
+        return; 
+    }
+    // --- END NEW CHECK ---
+
+    // --- Check if all votes are already collected (e.g., after human voted) ---
+    const livingPlayerCount = gamePhaseState.livingPlayerIds.length;
+    if (gamePhaseState.votes.length >= livingPlayerCount) {
+        console.log(`[${gameId}] Voting phase: All ${livingPlayerCount} votes collected. Proceeding to tally.`);
+        // TODO: Implement vote tally logic here or call a function
+        // For now, assume tallying happens in a subsequent runGameTurnAction call
+        // after advancing the phase.
+        // Move to advancing phase...
+    } else {
+        console.log(`[${gameId}] Voting phase: Collecting votes (${gamePhaseState.votes.length}/${livingPlayerCount} collected so far).`);
+    }
+    // --- END VOTE COLLECTION CHECK ---
+
+
     const livingPlayers = gamePhaseState.livingPlayerIds
       .map((id) => gamePhaseState.players[id])
       .filter((p) => p.status === "alive");
-    const collectedVotes: Vote[] = [];
+    // const collectedVotes: Vote[] = []; // Use existing votes from state
 
-    // Collect votes from all living players
-    for (const voter of livingPlayers) {
+    // Collect votes from all living players *who haven\'t voted yet*
+    const playersWhoHaventVoted = livingPlayers.filter(
+      (p) => !gamePhaseState.votes.some(v => v.voterPlayerId === p.id)
+    );
+
+    for (const voter of playersWhoHaventVoted) { // Iterate only through those who need to vote
       console.log(`Getting vote from ${voter.name}...`);
 
+      // --- START HUMAN PLAYER CHECK for Voting ---
+      if (voter.isHuman) {
+        console.log(
+          `[${gameId}] Human player ${voter.name}'s turn to Vote. Setting pending action.`
+        );
+        const pendingAction: PendingHumanAction = { 
+          type: 'vote', 
+          phase: gamePhaseState.phase // Should be 'Voting'
+        }; 
+        const stateWaitingForHumanVote = {
+          ...gamePhaseState,
+          pendingHumanAction: pendingAction,
+          updatedAt: Date.now(),
+        };
+        await gameStateManager.updateGameState(gameId, stateWaitingForHumanVote);
+        revalidatePath(`/game/${gameId}`); // Notify frontend
+        return; // IMPORTANT: Stop collecting AI votes and wait for human
+      }
+      // --- END HUMAN PLAYER CHECK ---
+
+      // --- Existing AI Vote Logic Starts Here ---
       // Filter out the voter themselves
       const targetOptions = livingPlayers.filter((p) => p.id !== voter.id);
       if (targetOptions.length === 0) {
@@ -1644,7 +1716,7 @@ export async function runGameTurnAction(gameId: string) {
         console.log(
           `${voter.name} voted for ${finalTargetName} (${targetPlayerId})`,
         );
-        collectedVotes.push({ voterPlayerId: voter.id, targetPlayerId });
+        gamePhaseState.votes.push({ voterPlayerId: voter.id, targetPlayerId });
       } else {
         console.warn(
           `${voter.name} failed to provide a valid vote target after retries.`,
@@ -1653,7 +1725,7 @@ export async function runGameTurnAction(gameId: string) {
       }
     } // End loop collecting votes
 
-    console.log("Finished collecting votes:", collectedVotes);
+    console.log("Finished collecting votes:", gamePhaseState.votes);
 
     // Fetch latest state before tallying
     const stateBeforeTally = await gameStateManager.getGameState(gameId);
@@ -1664,7 +1736,7 @@ export async function runGameTurnAction(gameId: string) {
 
     const stateWithVotes = {
       ...stateBeforeTally,
-      votes: collectedVotes,
+      votes: gamePhaseState.votes,
     };
 
     // --- Vote Tally and Resolution ---
@@ -1945,7 +2017,6 @@ export async function runGameTurnAction(gameId: string) {
         revalidatePath(`/game/${gameId}`);
         return; // End action
       }
-
       // Advance Phase (to Night)
       let nextState = advancePhase(stateAfterTally);
 
@@ -1973,3 +2044,5 @@ export async function runGameTurnAction(gameId: string) {
   revalidatePath(`/game/${gameId}`);
   console.log(`Path revalidated for game ${gameId}`);
 }
+
+

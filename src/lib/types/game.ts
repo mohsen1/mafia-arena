@@ -27,6 +27,10 @@ export interface Player {
   readonly aiModel: string; // The AI model used for this player
   readonly imageUrl?: string; // Optional URL for the character image
   readonly voiceId?: string; // Optional ElevenLabs voice ID
+  /** True if this player is controlled by a real human user */
+  readonly isHuman?: boolean;
+  /** If human, associates the browser session with the player */
+  readonly sessionId?: string | null;
   status: PlayerStatus;
 }
 
@@ -147,6 +151,10 @@ export interface GameState {
   lastSeerTargetId: string | null; // Track seer's target
   winCondition: WinCondition | null;
   aiMessageLog: AIMessageLogEntry[]; // Log of AI prompts and responses
+  /** If the current game includes a human, this stores their playerId. */
+  humanPlayerId?: string | null;
+  /** When truthy, the engine is blocked waiting for the human to submit the expected action. */
+  pendingHumanAction?: PendingHumanAction | null;
   // Internal state not sent to client
   _internalState?: {
     werewolfChatLog?: ChatMessage[]; // Use mutable array
@@ -202,10 +210,27 @@ export interface ConfigCharacterSlot {
   imageUrl?: string | null;
   isGenerated: boolean;
   generationError?: string;
+  /** True if this slot represents the human player */
+  isHuman?: boolean;
 }
 
 // Add 'export'
 export interface ValidationResult {
   isValid: boolean;
   message?: string;
+}
+
+/**
+ * Represents an action the engine is waiting for from the human player.
+ * The engine will pause at the end of the current frame until the client
+ * submits the expected action through a server action.
+ */
+export interface PendingHumanAction {
+  phase: GamePhase;
+  type: "chat" | "vote" | "nightAction";
+  /**
+   * Additional information required to render the input UI.
+   * For chat this is undefined; for vote / nightAction it contains the list of selectable targetIds
+   */
+  payload?: unknown;
 }

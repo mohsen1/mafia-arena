@@ -1,4 +1,5 @@
 import { generateCharacterAction, startGameAction } from "@/app/actions/index";
+import type { StartGameInputData } from "@/app/actions/gameSetup";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
 import type {
   AICharacterProfile,
@@ -41,6 +42,11 @@ export function useGameConfig(
   >(null);
   const [isPostGenValid, setIsPostGenValid] = useState<boolean | null>(null);
   const [isLoadingNextTurn /*, setIsLoadingNextTurn */] = useState(false);
+  const [isHumanJoining, setIsHumanJoining] = useState<boolean>(false);
+  const [humanRoleSelection, setHumanRoleSelection] = useState<Role>(
+    DEFAULT_GAME_SETTINGS.roleDistribution && Object.keys(DEFAULT_GAME_SETTINGS.roleDistribution)[0] as Role
+  );
+  const [humanPlayerName, setHumanPlayerName] = useState<string>("");
 
   const defaultModel = useMemo(() => {
     if (availableModels && availableModels.length > 0) {
@@ -81,36 +87,50 @@ export function useGameConfig(
     )
       return;
 
+    // Determine total players and roles list from config
+    const roleDist = { ...DEFAULT_GAME_SETTINGS.roleDistribution };
+    // If human joins, remove one slot of their selected role for AI generation
+    if (isHumanJoining && roleDist[humanRoleSelection] > 0) {
+      roleDist[humanRoleSelection]--;
+    }
     const defaultNumPlayersFromConfig = calculateNumPlayers(
       DEFAULT_GAME_SETTINGS.roleDistribution,
     );
     const initialPlayerCount = Math.max(5, defaultNumPlayersFromConfig);
 
-    const defaultRoles: Role[] = Object.entries(
-      DEFAULT_GAME_SETTINGS.roleDistribution,
-    ).flatMap(([role, count]) => Array(count).fill(role as Role));
+    // Build roles array for AI slots
+    const defaultRoles: Role[] = Object.entries(roleDist).flatMap(
+      ([role, count]) => Array(count).fill(role as Role)
+    );
 
+    // Shuffle roles for randomness
     for (let i = defaultRoles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [defaultRoles[i], defaultRoles[j]] = [defaultRoles[j], defaultRoles[i]];
     }
 
     const initialSlots: ConfigCharacterSlot[] = Array.from({
-      length: initialPlayerCount,
+      length: isHumanJoining ? defaultRoles.length + 1 : defaultRoles.length,
     }).map((_, index) => {
-      const roleSelection =
-        index < defaultRoles.length ? defaultRoles[index] : "Villager";
+      // Assign human slot at index 0 if joining
+      if (isHumanJoining && index === 0) {
+        return { clientId: crypto.randomUUID(), aiModel: "", roleSelection: humanRoleSelection, isGenerated: false, isHuman: true, profile: { characterName: humanPlayerName } as Partial<AICharacterProfile> };
+      }
+      // AI slot index offset when human at front
+      const aiIndex = isHumanJoining ? index - 1 : index;
+      const roleSelection = defaultRoles[aiIndex] || "Villager";
       return {
         clientId: crypto.randomUUID(),
         aiModel: globalModelSelection,
-        roleSelection: roleSelection,
+        roleSelection,
         isGenerated: false,
+        isHuman: false,
       };
-    });
+    }) as ConfigCharacterSlot[];
 
     setCharacterSlots(initialSlots);
     setInitialSlotsSet(true);
-  }, [availableModels, globalModelSelection, initialSlotsSet]);
+  }, [availableModels, globalModelSelection, initialSlotsSet, isHumanJoining, humanRoleSelection, humanPlayerName]);
 
   const configValidation = useMemo(() => {
     return validateGameConfiguration(characterSlots);
@@ -134,9 +154,15 @@ export function useGameConfig(
 
   const removePlayerSlot = useCallback(
     (clientIdToRemove: string) => {
-      setCharacterSlots((prev) =>
-        prev.filter((c) => c.clientId !== clientIdToRemove),
-      );
+      setCharacterSlots((prev) => {
+        const slotToRemove = prev.find((c) => c.clientId === clientIdToRemove);
+        const updatedSlots = prev.filter((c) => c.clientId !== clientIdToRemove);
+        if (slotToRemove?.isHuman) {
+          setIsHumanJoining(false);
+          setHumanPlayerName("");
+        }
+        return updatedSlots;
+      });
       resetPostGenState();
     },
     [resetPostGenState],
@@ -185,7 +211,31 @@ export function useGameConfig(
     setIsAudioEnabled((prev) => !prev);
   }, []);
 
+  const toggleHumanJoining = useCallback(() => {
+    setIsHumanJoining((prev) => {
+      const becomingHuman = !prev;
+      if (!becomingHuman) {
+        setHumanPlayerName("");
+      }
+      setInitialSlotsSet(false);
+      resetPostGenState();
+      return becomingHuman;
+    });
+  }, [resetPostGenState]);
+
+  const updateHumanPlayerName = useCallback((name: string) => {
+    setHumanPlayerName(name);
+    setCharacterSlots(slots => slots.map(slot => {
+      if (slot.isHuman && slot.profile) {
+        return { ...slot, profile: { ...slot.profile, characterName: name } };
+      }
+      return slot;
+    }));
+  }, []);
+
   const handleGenerateAndStartGame = useCallback(async () => {
+    const humanSlot = characterSlots.find(slot => slot.isHuman);
+
     if (!configValidation.isValid || isSubmitting) return;
 
     setIsSubmitting(true);
@@ -194,27 +244,37 @@ export function useGameConfig(
     setPostGenValidationMsg(null);
     setIsPostGenValid(null);
 
-    const slotsToGenerate = characterSlots.map(resetSlotGeneration);
-    setCharacterSlots([...slotsToGenerate]);
+    // Separate human player slot from AI slots
+    const aiSlotsToReset = characterSlots.filter(slot => !slot.isHuman).map(resetSlotGeneration);
+    // Keep human slot as is, but ensure its generation state is reset if needed (though it shouldn't generate)
+    const currentSlots = humanSlot ? [humanSlot, ...aiSlotsToReset] : aiSlotsToReset;
+
+    setCharacterSlots(currentSlots);
 
     const generatedProfiles: AICharacterProfile[] = [];
-    const updatedSlots = [...slotsToGenerate];
+    // We'll generate only AI slots, start with AI slots needing generation
+    const aiSlotsToGenerate = currentSlots.filter(slot => !slot.isHuman);
+    const generatedAiSlots: ConfigCharacterSlot[] = []; // Store successfully generated AI slots
     let finalValidation: ValidationResult | null = null;
 
     try {
-      for (let i = 0; i < slotsToGenerate.length; i++) {
-        const slot = slotsToGenerate[i];
+      // Generate only AI characters
+      for (let i = 0; i < aiSlotsToGenerate.length; i++) {
+        const slot = aiSlotsToGenerate[i];
         const originalIndex = i;
 
         setInfoMsg(
           t("GeneratingCharacterInfo", {
             current: i + 1,
-            total: slotsToGenerate.length,
+            total: aiSlotsToGenerate.length,
           }),
         );
 
         const finalRole = slot.roleSelection;
         let generatedResult: ConfigCharacterSlot;
+
+        // Skip generation for human slot if it somehow ended up here
+        if (slot.isHuman) continue;
 
         try {
           const result = await generateCharacterAction(
@@ -260,13 +320,31 @@ export function useGameConfig(
           );
         }
 
-        updatedSlots[originalIndex] = generatedResult;
-        setCharacterSlots([...updatedSlots]);
+        // Update the specific AI slot in our temporary array
+        generatedAiSlots[originalIndex] = generatedResult;
+        // Update the main state by combining human (if exists) and the current state of generated AI slots
+        setCharacterSlots(humanSlot ? [humanSlot, ...generatedAiSlots] : [...generatedAiSlots]);
       }
 
-      finalValidation = validateGeneratedGameSetup(updatedSlots);
+      // Combine human player (if exists) and generated AI players for final validation
+      const finalCharacterSlots = humanSlot ? [humanSlot, ...generatedAiSlots] : generatedAiSlots;
+      finalValidation = validateGeneratedGameSetup(finalCharacterSlots);
       setPostGenValidationMsg(finalValidation.message ?? null);
       setIsPostGenValid(finalValidation.isValid);
+
+      // --- FIX: Assign role to human slot before final mapping --- 
+      if (humanSlot && !humanSlot.assignedRole) {
+          // Ensure the human slot object within finalCharacterSlots is updated
+          const humanIndex = finalCharacterSlots.findIndex(s => s.isHuman);
+          if (humanIndex !== -1) {
+            finalCharacterSlots[humanIndex].assignedRole = finalCharacterSlots[humanIndex].roleSelection;
+            console.log("Assigned role to human slot:", finalCharacterSlots[humanIndex].assignedRole);
+          } else {
+            // This case should ideally not happen if humanSlot exists
+            console.error("Human slot found initially but not in finalCharacterSlots array?");
+          }
+      }
+      // --- End Fix ---
 
       if (!finalValidation.isValid) {
         setErrorMsg(t("GenerationInvalidSetupError"));
@@ -277,35 +355,55 @@ export function useGameConfig(
 
       setInfoMsg(t("ValidationPassedInfo"));
 
-      const charactersToSubmit: (PlayerInitializationData & {
-        persona: string;
-      })[] = updatedSlots
-        .filter(
-          (
-            slot,
-          ): slot is Required<ConfigCharacterSlot> & {
-            profile: AICharacterProfile;
-            assignedRole: Role;
-            persona: string;
-          } =>
-            slot.isGenerated &&
-            !slot.generationError &&
-            slot.profile !== undefined &&
-            slot.assignedRole !== undefined &&
-            slot.persona !== undefined,
-        )
-        .map(({ profile, assignedRole, aiModel, imageUrl, persona }) => ({
-          role: assignedRole,
-          profile: profile,
-          aiModel: aiModel,
-          imageUrl: imageUrl,
-          persona: persona,
-        }));
+      // Prepare data for startGameAction
+      const charactersToSubmit: StartGameInputData[] = finalCharacterSlots
+         .map((slot): StartGameInputData | null => {
+           if (slot.isHuman) {
+             // --- Human Player Data ---            
+             if (!slot.profile || !slot.assignedRole) {
+               console.error("Human slot missing profile or assigned role", slot);
+               return null; // Skip this slot
+             }
+             return {
+               role: slot.assignedRole,
+               profile: {
+                 characterName: slot.profile.characterName || t("DefaultHumanPlayerName"),
+                 gender: slot.profile.gender || "female",
+                 ageCategory: slot.profile.ageCategory || "young",
+                 shortBio: slot.profile.shortBio || t("DefaultHumanBio"),
+               } as AICharacterProfile,
+               aiModel: "", // No AI model for human
+               imageUrl: slot.imageUrl || null,
+               voiceId: undefined,
+               isHuman: true,
+               // Provide a default/placeholder persona for human to satisfy type
+               persona: slot.profile.shortBio || t("DefaultHumanPersona"),
+             };
+           } 
+
+           // --- AI Player Data --- 
+           if (slot.isGenerated && !slot.generationError && slot.profile && slot.assignedRole && slot.persona) {
+             return {
+               role: slot.assignedRole,
+               profile: slot.profile,
+               aiModel: slot.aiModel,
+               imageUrl: slot.imageUrl,
+               persona: slot.persona, // Persona is required and present for generated AI
+               voiceId: undefined,
+               isHuman: false,
+             };
+           }
+
+           // --- Invalid/Skipped Slot --- 
+           return null;
+         })
+         .filter((character): character is StartGameInputData => character !== null); // Correct type predicate
 
       if (charactersToSubmit.length < 5) {
         throw new Error(t("InternalNotEnoughPlayersError"));
       }
 
+      // Now charactersToSubmit should match the expected type for startGameAction
       const result = await startGameAction(
         charactersToSubmit,
         lang,
@@ -342,6 +440,22 @@ export function useGameConfig(
     t,
   ]);
 
+  useEffect(() => {
+    if (!initialSlotsSet && characterSlots.length > 0) {
+      if (characterSlots[0].isHuman) {
+        setIsHumanJoining(true);
+        setHumanPlayerName(characterSlots[0].profile?.characterName || t("DefaultHumanPlayerName"));
+      }
+    }
+  }, [initialSlotsSet, characterSlots, t]);
+
+  // Expose role selection update
+  const updateHumanRoleSelection = useCallback((role: Role) => {
+    setHumanRoleSelection(role);
+    setInitialSlotsSet(false);
+    resetPostGenState();
+  }, [resetPostGenState]);
+
   return {
     characterSlots,
     isSubmitting,
@@ -363,5 +477,11 @@ export function useGameConfig(
     updateSlotRole,
     toggleAudioEnabled,
     handleGenerateAndStartGame,
+    isHumanJoining,
+    humanPlayerName,
+    humanRoleSelection,
+    updateHumanRoleSelection,
+    toggleHumanJoining,
+    updateHumanPlayerName,
   };
 }

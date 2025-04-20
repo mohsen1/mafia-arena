@@ -3,10 +3,13 @@
 import { CharacterSlotItem } from "@/components/CharacterSlotItem"; // Import the item component
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch"; // Import Switch component
+import { Switch } from "@/components/ui/switch"; 
 import { useGameConfig } from "@/hooks/useGameConfig";
+import { Checkbox } from "@/components/ui/checkbox"; 
+import { Input } from "@/components/ui/input"; 
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import type { Role } from "@/lib/types/game"; // Use import type
+import type { Role } from "@/lib/types/game"; 
 import {
   AlertTriangle,
   Bot,
@@ -17,12 +20,12 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useCallback, useMemo, type FormEvent } from "react";
-import LanguageSelector from "./LanguageSelector"; // Import the new selector
-import ModelSelector from "./ModelSelector"; // Import ModelSelector
+import LanguageSelector from "./LanguageSelector"; 
+import ModelSelector from "./ModelSelector"; 
 import { type LanguageCode, mapLanguageCodeToLongCode } from "@/lib/i18n/settings";
-import { useTranslation } from 'react-i18next'; // Ensure hook is imported
+import { useTranslation } from 'react-i18next'; 
 
-// Define available roles for selection (can be defined here or imported)
+
 const availableRolesForSelection: Role[] = [
   "Villager",
   "Werewolf",
@@ -33,7 +36,7 @@ const availableRolesForSelection: Role[] = [
 // Define props, removing translations
 export interface StartGameFormProps {
   availableModels: string[];
-  lang: LanguageCode; // Keep for numberFormatter
+  lang: LanguageCode;
 }
 
 // Update component signature
@@ -66,6 +69,12 @@ export default function StartGameForm({
     isAudioEnabled,
     toggleAudioEnabled,
     isLoadingNextTurn,
+    isHumanJoining, // Destructure new state
+    humanPlayerName,
+    humanRoleSelection,
+    updateHumanRoleSelection,
+    toggleHumanJoining,
+    updateHumanPlayerName,
   } = useGameConfig(availableModels, lang);
 
   // Use lang prop for numberFormatter
@@ -191,6 +200,42 @@ export default function StartGameForm({
           />
         </div>
 
+        {/* Human Player Join Option */}
+        <div className="mb-6 flex items-center justify-center gap-3">
+          <Checkbox
+            id="human-join"
+            checked={isHumanJoining}
+            onCheckedChange={toggleHumanJoining}
+            disabled={isLoading}
+            aria-label={t("ToggleHumanPlayerJoinLabel", "Toggle joining as a human player")}
+          />
+          <Label
+            htmlFor="human-join"
+            className="text-sm font-medium text-muted-foreground whitespace-nowrap cursor-pointer"
+          >
+            {t("JoinAsHumanLabel", "Join the game yourself?")}
+          </Label>
+        </div>
+
+        {/* Human Player Name Input (Conditional) */}
+        {isHumanJoining && (
+          <div className="mb-6 flex flex-col items-center justify-center gap-2 max-w-xs mx-auto">
+            <Label htmlFor="human-name" className="text-sm font-medium text-muted-foreground">
+              {t("YourPlayerNameLabel", "Your Player Name")}:
+            </Label>
+            <Input
+              id="human-name"
+              type="text"
+              value={humanPlayerName}
+              onChange={(e) => updateHumanPlayerName(e.target.value)}
+              placeholder={t("EnterYourNamePlaceholder", "Enter your name")}
+              disabled={isLoading}
+              required // Ensure a name is provided if joining
+              className="text-center"
+            />
+          </div>
+        )}
+
         {/* Submit Button - Remove onClick, ensure type="submit" */}
         <div className="flex justify-center pt-4">
           <Button
@@ -238,6 +283,7 @@ export default function StartGameForm({
             <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pr-2">
               {characterSlots.map((slot, index) => (
                 <CharacterSlotItem
+                  isHuman={slot.isHuman ?? false}
                   key={slot.clientId}
                   slot={slot}
                   index={index}

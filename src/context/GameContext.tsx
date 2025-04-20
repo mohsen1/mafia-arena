@@ -1,4 +1,3 @@
-import type { FilteredGameState } from "@/lib/types/game";
 import type React from "react";
 import {
   createContext,
@@ -22,11 +21,19 @@ import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
 // import { mapLanguageNameToCode } from "@/lib/i18n/settings";
 // Import GameState, ChatMessage, Player
 // import { GameState, ChatMessage, Player } from "@/lib/types/game";
+// Import GameState
+import type { GameState } from "@/lib/types/game";
+
+// Define the payload type based on the server action
+type HumanActionPayload =
+  | { type: "chat"; content: string }
+  | { type: "vote"; targetPlayerId: string }
+  | { type: "nightAction"; targetPlayerId: string };
 
 // Define the shape of the context state
 interface GameContextState {
-  gameState: FilteredGameState | null;
-  setGameState: Dispatch<SetStateAction<FilteredGameState | null>>;
+  gameState: GameState | null;
+  setGameState: Dispatch<SetStateAction<GameState | null>>;
   isAutoRunning: boolean;
   toggleAutoRun: () => void;
   isLoadingNextTurn: boolean;
@@ -45,6 +52,7 @@ interface GameContextState {
   toggleAudioGloballyEnabled: () => void;
   // Add the missing function type
   reportAudioFinished: (messageId: string) => void;
+  submitHumanAction: (payload: HumanActionPayload) => Promise<void>; // Add the human action submitter
 }
 
 // Create the context with a default undefined value
@@ -53,8 +61,9 @@ const GameContext = createContext<GameContextState | undefined>(undefined);
 // Define props for the provider
 interface GameProviderProps {
   children: ReactNode;
-  initialGameState: FilteredGameState;
+  initialGameState: GameState;
   boundRunGameTurnAction: () => Promise<void>; // Pre-bound server action
+  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<void>; // Add prop for bound human action
 }
 
 // Create the provider component
@@ -62,8 +71,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   children,
   initialGameState,
   boundRunGameTurnAction,
+  boundSubmitHumanAction, // Destructure the new prop
 }) => {
-  const [gameState, setGameState] = useState<FilteredGameState | null>(
+  const [gameState, setGameState] = useState<GameState | null>(
     initialGameState,
   );
   const [isAutoRunning, setIsAutoRunning] = useState<boolean>(false);
@@ -242,11 +252,12 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       isAutoRunning &&
       !isAudioGloballyEnabled &&
       spokenTextCurrentlySpeakingId === null &&
-      !isLoadingNextTurn
+      !isLoadingNextTurn &&
+      !gameState?.pendingHumanAction
     ) {
       if (gameState?.phase !== "GameOver") {
         console.log(
-          "[Context Effect Idle Check] AutoRun ON, Audio OFF, Idle -> Triggering next turn.",
+          "[Context Effect Idle Check] AutoRun ON, Audio OFF, Idle, No Human Action -> Triggering next turn.",
         );
         const timeoutId = setTimeout(() => {
           // Double-check conditions after delay
@@ -255,6 +266,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
             !isAudioGloballyEnabled &&
             spokenTextCurrentlySpeakingId === null &&
             !isLoadingNextTurn &&
+            !gameState?.pendingHumanAction &&
             gameState?.phase !== "GameOver"
           ) {
             runNextTurnAction();
@@ -271,6 +283,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     isLoadingNextTurn,
     runNextTurnAction,
     gameState?.phase,
+    gameState?.pendingHumanAction,
   ]);
 
   // Function called by MessageBubble (via SpeakText onEnd) when audio finishes
@@ -288,7 +301,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         isAutoRunning &&
         isAudioGloballyEnabled &&
         messageId === latestLogMessageId &&
-        !isLoadingNextTurn
+        !isLoadingNextTurn &&
+        !gameState?.pendingHumanAction
       ) {
         if (gameState?.phase !== "GameOver") {
           console.log(
@@ -301,6 +315,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
               isAudioGloballyEnabled &&
               spokenTextIdRef.current === null &&
               !isLoadingNextTurn &&
+              !gameState?.pendingHumanAction &&
               gameState?.phase !== "GameOver"
             ) {
               console.log(
@@ -310,7 +325,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
             } else {
               // Log using the ref value for clarity
               console.log(
-                `[Context reportAudioFinished] Conditions no longer met after delay (AutoRun: ${isAutoRunning}, AudioOn: ${isAudioGloballyEnabled}, SpeakingIDRef: ${spokenTextIdRef.current}, Loading: ${isLoadingNextTurn}, Phase: ${gameState?.phase})`,
+                `[Context reportAudioFinished] Conditions no longer met after delay (AutoRun: ${isAutoRunning}, AudioOn: ${isAudioGloballyEnabled}, SpeakingIDRef: ${spokenTextIdRef.current}, Loading: ${isLoadingNextTurn}, Phase: ${gameState?.phase}, PendingHumanAction: ${gameState?.pendingHumanAction})`,
               );
             }
           }, 500);
@@ -321,7 +336,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         }
       } else {
         console.log(
-          `[Context reportAudioFinished] Audio finished, but not proceeding to next turn (isAutoRunning: ${isAutoRunning}, isAudioEnabled: ${isAudioGloballyEnabled}, messageId: ${messageId}, isLatest: ${messageId === latestLogMessageId}, isLoading: ${isLoadingNextTurn})`,
+          `[Context reportAudioFinished] Audio finished, but not proceeding to next turn (isAutoRunning: ${isAutoRunning}, isAudioEnabled: ${isAudioGloballyEnabled}, messageId: ${messageId}, isLatest: ${messageId === latestLogMessageId}, isLoading: ${isLoadingNextTurn}, PendingHumanAction: ${gameState?.pendingHumanAction})`,
         );
       }
     },
@@ -330,6 +345,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       isLoadingNextTurn,
       gameState?.conversationLog,
       gameState?.phase,
+      gameState?.pendingHumanAction,
       runNextTurnAction,
       unregisterStopAudio,
       isAudioGloballyEnabled,
@@ -355,6 +371,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     toggleAudioGloballyEnabled,
     // Add the missing function
     reportAudioFinished,
+    submitHumanAction: boundSubmitHumanAction, // Provide the function in the context
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
