@@ -44,8 +44,7 @@ function GameLayout() {
       dir={direction}
     >
       <GameSidebar />
-      <main className="grid grid-rows-[auto_1fr_auto] h-screen overflow-hidden">
-        <GameHeader />
+      <main className="grid grid-rows-[1fr_auto] h-screen overflow-hidden">
         <div className="overflow-y-auto">
           <ConversationLog />
         </div>

@@ -18,8 +18,8 @@ export function ConversationLog() {
   if (!gameState) return null; // Handle loading/null state
   const { conversationLog, players } = gameState; // Remove isWaitingForVotes
 
-  // Reverse log for display (oldest first)
-  const displayLog = conversationLog?.slice().reverse() || [];
+
+  const displayLog = conversationLog || [];
 
   return (
     <div className="flex-grow bg-background p-4 overflow-y-auto"> 

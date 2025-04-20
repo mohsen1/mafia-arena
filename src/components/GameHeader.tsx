@@ -1,5 +1,6 @@
 'use client'; // Ensure this is a client component
 
+import { useState } from "react"; // Added import for state
 import GameController from "@/components/GameController";
 import { useGameContext } from "@/context/GameContext";
 // Import from react-i18next
@@ -11,24 +12,43 @@ export function GameHeader() {
   // Use standard hook
   const { t } = useTranslation();
 
+  // State for description expansion
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false); 
+
   if (!gameState) return null; 
 
   const { title, description, phase, round, winCondition } = gameState;
 
   return (
-    <header className="p-4 flex justify-between items-center flex-shrink-0 gap-6">
-      {/* Game Info Group */}
-      <div className="flex-grow min-w-0">
-        <h1 className="text-2xl font-bold mb-1 truncate">
+    <div className="p-4 space-y-3 flex-shrink-0"> 
+      <div> 
+        <h1 className="text-xl font-bold mb-1 truncate"> 
           {/* Use key from the appropriate namespace (now lang code) */}
           {title || t("WerewolfAITitle")}
         </h1>
+        
         {description && (
-          <p className="text-sm text-muted-foreground mb-1 italic">
-            {description}
-          </p>
+          <div> {/* Wrapper div for description and toggle button */}
+            <p 
+              className={[
+                "text-sm text-muted-foreground italic",
+                !isDescriptionExpanded ? "line-clamp-1 mb-0" : "mb-1" // Apply line clamp and adjust margin
+              ].join(" ")}
+            >
+              {description}
+            </p>
+            {/* Toggle button */} 
+            <button 
+              type="button"
+              onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+              className="text-sm text-primary hover:underline mt-0.5" // Use primary color
+            >
+              {isDescriptionExpanded ? t("ShowLess") : t("ShowMore")}
+            </button>
+          </div>
         )}
-        <p className="text-sm text-muted-foreground">
+
+        <p className="text-sm text-muted-foreground mt-2"> {/* Added margin top */}
           {t("RoundLabel")}:{" "}
           <span className="font-semibold">{round}</span> |{" "}
           <span className="font-semibold capitalize">
@@ -50,10 +70,10 @@ export function GameHeader() {
           )}
         </div>
       </div>
-      {/* Action Buttons */}
+      {/* Action Buttons - Now appears below game info */}
       {phase !== "GameOver" && (
         <GameController /> 
       )}
-    </header>
+    </div> 
   );
 }

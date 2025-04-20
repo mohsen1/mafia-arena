@@ -9,6 +9,7 @@ import Link from "next/link";
 // Import from react-i18next
 import { useTranslation } from "react-i18next"; 
 import { useParams } from "next/navigation";
+import { GameHeader } from "./GameHeader";
 
 export function GameSidebar() {
   const { gameState } = useGameContext();
@@ -54,6 +55,7 @@ export function GameSidebar() {
           </span>
         </Link>
       </h2>
+      <GameHeader />
       <div className="flex-grow p-2 overflow-y-auto">
         <div className="space-y-1">
           {/* Map over all players */}

@@ -3,7 +3,7 @@
 import type { Player } from "@/lib/types/game";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { PersonStanding, Skull } from "lucide-react";
+import { PersonStanding, Skull, User } from "lucide-react";
 // Import from react-i18next
 import { useTranslation } from "react-i18next"; 
 
@@ -25,14 +25,20 @@ export function PlayerCard({ player }: PlayerCardProps) {
         isAlive ? "bg-card" : "opacity-60",
       )}
     >
-      <div className="relative flex-shrink-0">
-        <Image
-          src={player.imageUrl || "/images/placeholder.png"} 
-          alt={t("PlayerImageAltText", { name: player.name })}
-          width={40}
-          height={40}
-          className="rounded-full w-10 h-10 object-cover border"
-        />
+      <div className="relative flex-shrink-0 w-10 h-10">
+        {player.isHuman ? (
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border">
+            <User className="h-5 w-5 text-primary" />
+          </div>
+        ) : (
+          <Image
+            src={player.imageUrl || "/images/placeholder.png"}
+            alt={t("PlayerImageAltText", { name: player.name })}
+            width={40}
+            height={40}
+            className="rounded-full w-10 h-10 object-cover border"
+          />
+        )}
         <div
           className={cn(
             "absolute bottom-0 right-0 transform translate-x-1/4 translate-y-1/4",
