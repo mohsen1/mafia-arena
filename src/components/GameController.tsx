@@ -1,33 +1,22 @@
 "use client";
 
-import React from "react";
-import {
-  Play,
-  Pause,
-  SkipForward,
-  // AlertCircle,
-  // Loader2,
-  Volume2,
-  VolumeX,
-  Loader,
-} from "lucide-react";
-import { useGameContext } from "@/context/GameContext"; // Import context hook
 import { Button } from "@/components/ui/button"; // Import Button
-// import { Checkbox } from "@/components/ui/checkbox"; // Removed unused Checkbox import
-// import { Label } from "@/components/ui/label"; // Removed unused Label import
+import { useGameContext } from "@/context/GameContext"; // Import context hook
+import {
+  Loader,
+  Pause,
+  Play,
+  SkipForward
+} from "lucide-react";
+
 import { useTranslation } from "react-i18next"; // Import from react-i18next
 
 export default function GameController() {
   const {
-    // Get gameState only if needed for something else, otherwise remove
-    // gameState, 
     isAutoRunning,
     toggleAutoRun,
     isLoadingNextTurn,
     runNextTurnAction,
-    // Get global audio state and toggle function
-    isAudioGloballyEnabled,
-    toggleAudioGloballyEnabled,
   } = useGameContext();
 
   // Use standard hook
@@ -77,27 +66,8 @@ export default function GameController() {
         </Button>
       </div>
 
-      {/* Row 2: Audio Toggle and Loader Icon (optional, shown only when loading) */}
+      {/* Row 2: Loader Icon (optional, shown only when loading) */}
       <div className="flex items-center gap-2 h-8">
-        {" "}
-        {/* Ensure consistent height */}
-        {/* Audio Toggle Icon Button */}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={toggleAudioGloballyEnabled}
-          aria-label={
-            isAudioGloballyEnabled
-              ? t("DisableAudioButton")
-              : t("EnableAudioButton")
-          }
-        >
-          {isAudioGloballyEnabled ? (
-            <Volume2 className="h-4 w-4" />
-          ) : (
-            <VolumeX className="h-4 w-4" />
-          )}
-        </Button>
 
         {/* Standalone Loading Indicator (only shown when loading) */}
         {isLoadingNextTurn && (

@@ -1,15 +1,15 @@
 "use client";
 
-import { CharacterSlotItem } from "@/components/CharacterSlotItem"; // Import the item component
+import { CharacterSlotItem } from "@/components/character-slot/CharacterSlotItem"; // Import the item component
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch"; 
+import { Switch } from "@/components/ui/switch";
 import { useGameConfig } from "@/hooks/useGameConfig";
-import { Checkbox } from "@/components/ui/checkbox"; 
-import { Input } from "@/components/ui/input"; 
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import type { Role } from "@/lib/types/game"; 
+import { type LanguageCode, mapLanguageCodeToLongCode } from "@/lib/i18n/settings";
+import type { Role } from "@/lib/types/game";
 import {
   AlertTriangle,
   Bot,
@@ -19,11 +19,10 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react";
-import { useCallback, useMemo, type FormEvent } from "react";
-import LanguageSelector from "./LanguageSelector"; 
-import ModelSelector from "./ModelSelector"; 
-import { type LanguageCode, mapLanguageCodeToLongCode } from "@/lib/i18n/settings";
-import { useTranslation } from 'react-i18next'; 
+import { type FormEvent, useCallback, useMemo } from "react";
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from "./LanguageSelector";
+import ModelSelector from "./ModelSelector";
 
 
 const availableRolesForSelection: Role[] = [
@@ -66,13 +65,9 @@ export default function StartGameForm({
     updateAllModels,
     updateSlotRole,
     handleGenerateAndStartGame,
-    isAudioEnabled,
-    toggleAudioEnabled,
     isLoadingNextTurn,
     isHumanJoining, // Destructure new state
     humanPlayerName,
-    humanRoleSelection,
-    updateHumanRoleSelection,
     toggleHumanJoining,
     updateHumanPlayerName,
   } = useGameConfig(availableModels, lang);
@@ -183,22 +178,6 @@ export default function StartGameForm({
         {/* Language Selector - Use the new component */}
         <LanguageSelector currentLang={lang} />
 
-        {/* Audio Enable Toggle - Add  */}
-        <div className="mb-6 flex items-center justify-center gap-3">
-          <Label
-            htmlFor="audio-enable"
-            className="text-sm font-medium text-muted-foreground whitespace-nowrap"
-          >
-            {t("EnableAudioLabel", "Enable Audio")}:
-          </Label>
-          <Switch
-            id="audio-enable"
-            checked={isAudioEnabled}
-            onCheckedChange={toggleAudioEnabled}
-            disabled={isSubmitting}
-            aria-label={t("ToggleGameAudioLabel", "Toggle game audio")}
-          />
-        </div>
 
         {/* Human Player Join Option */}
         <div className="mb-6 flex items-center justify-center gap-3">

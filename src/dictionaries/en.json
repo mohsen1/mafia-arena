@@ -104,6 +104,7 @@
   "WerewolfAITitle": "Werewolf AI",
   "WerewolfRequired": "At least one Werewolf is required.",
   "Werewolves AI": "Werewolves AI",
+  "AIPlayerLabel": "AI",
   "GamePhaseLOBBY": "Lobby",
   "GamePhaseCHARACTER_GENERATION": "Character Generation",
   "GamePhaseINTRODUCTION": "Introduction",
