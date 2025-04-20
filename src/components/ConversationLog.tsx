@@ -4,6 +4,7 @@ import { useGameContext } from "@/context/GameContext";
 import { MessageBubble } from "./MessageBubble";
 import { useTranslation } from "react-i18next"; 
 import { useRef, useEffect, useCallback, useLayoutEffect } from "react"; // Add useLayoutEffect
+import type { ChatMessage } from "@/lib/types/game"; // Import ChatMessage type
 
 export function ConversationLog() {
   const { gameState } = useGameContext(); // Only get gameState
@@ -15,9 +16,24 @@ export function ConversationLog() {
   const { t } = useTranslation('translation'); // Keep namespace for now
 
   if (!gameState) return null; // Handle loading/null state
-  const { conversationLog, players, pendingHumanAction } = gameState; // Add pendingHumanAction to track voting changes
+  // Destructure necessary parts including _internalState and humanPlayerId
+  const { conversationLog, players, pendingHumanAction, _internalState, humanPlayerId } = gameState; 
 
-  const displayLog = conversationLog || [];
+  const regularLog = conversationLog || [];
+  const werewolfLog = _internalState?.werewolfChatLog || [];
+
+  // Determine if werewolf chat should be shown
+  const isHumanWerewolf = humanPlayerId && players[humanPlayerId]?.role === "Werewolf";
+  const showWerewolfChat = !humanPlayerId || isHumanWerewolf;
+
+  // Combine and sort logs if werewolf chat is shown
+  let displayLog: ChatMessage[] = [...regularLog];
+  if (showWerewolfChat) {
+    // Add a marker property to distinguish werewolf messages
+    const markedWerewolfLog = werewolfLog.map(msg => ({ ...msg, isWerewolfChat: true }));
+    displayLog = [...displayLog, ...markedWerewolfLog];
+    displayLog.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  }
   
   // Function to scroll last message into view, memoized with useCallback
   const scrollToBottom = useCallback(() => {
@@ -74,6 +90,8 @@ export function ConversationLog() {
               <MessageBubble
                 message={message}
                 players={players}
+                // Pass the marker prop to MessageBubble
+                isWerewolfChat={(message as ChatMessage & { isWerewolfChat?: boolean }).isWerewolfChat ?? false} 
               />
             </div>
           ))

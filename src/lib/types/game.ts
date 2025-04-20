@@ -227,7 +227,7 @@ export interface ValidationResult {
  */
 export interface PendingHumanAction {
   phase: GamePhase;
-  type: "chat" | "vote" | "nightAction";
+  type: "chat" | "vote" | "nightAction" | "werewolfChat";
   /**
    * Additional information required to render the input UI.
    * For chat this is undefined; for vote / nightAction it contains the list of selectable targetIds

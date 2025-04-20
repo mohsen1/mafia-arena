@@ -14,10 +14,11 @@ import { useMemo } from "react";
 interface MessageBubbleProps {
   message: Omit<ChatMessage, "audience"> & { speakerName: string };
   players: FilteredGameState["players"];
+  isWerewolfChat?: boolean;
 }
 
 // Message Component with Dark Mode
-export function MessageBubble({ message, players }: MessageBubbleProps) {
+export function MessageBubble({ message, players, isWerewolfChat }: MessageBubbleProps) {
   const { reportAudioFinished, isAudioGloballyEnabled, gameState } = useGameContext();
   const { doneSpeaking: spokenTextReportAudioFinished } = useSpokenText();
 
@@ -53,6 +54,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
       "self-end bg-blue-500 text-white": isHuman,
       "self-end bg-secondary text-secondary-foreground": isModerator,
       "self-start bg-muted text-foreground": isBot,
+      "border border-red-500/50 bg-red-900/10": isWerewolfChat,
     },
   );
 
@@ -117,6 +119,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
               className="text-xs"
               autoQueue
               onEnd={handleAudioEnd}
+              disabled={isWerewolfChat}
             >
               {message.content}
             </SpeakText>

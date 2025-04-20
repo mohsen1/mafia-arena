@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
 import { ScrollArea } from './ui/scroll-area';
 import Image from 'next/image';
+import { sendChatMessageAction, sendWerewolfChatMessageAction } from '@/app/actions/chatActions';
+import { cn } from '@/lib/utils';
 
 interface HumanChatInputProps {
   gameState: GameState;
@@ -15,9 +17,8 @@ interface HumanChatInputProps {
   isPlayerTurn: boolean;
   onSubmitAction: (
     payload: 
-      | { type: 'chat'; content: string } 
       | { type: 'vote'; targetPlayerId: string } 
-      | { type: 'nightAction'; targetPlayerId: string } 
+      | { type: 'nightAction'; targetPlayerId: string }
   ) => Promise<void>;
 }
 
@@ -26,60 +27,83 @@ export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn,
   const [inputValue, setInputValue] = useState('');
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const gameId = gameState.gameId;
 
   const pendingAction = gameState.pendingHumanAction;
   const humanPlayer = gameState.players[humanPlayerId];
 
   const handleSubmit = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
-    if (!pendingAction || isSubmitting) return;
+    if (!pendingAction || isSubmitting || !gameId || !humanPlayerId) return;
 
     setIsSubmitting(true);
-    let payload: 
-      | { type: 'chat'; content: string } 
-      | { type: 'vote'; targetPlayerId: string } 
-      | { type: 'nightAction'; targetPlayerId: string };
-
-    switch (pendingAction.type) {
-      case 'chat':
-        if (!inputValue.trim()) {
-          setIsSubmitting(false);
-          return; // Don't submit empty messages
-        }
-        payload = { type: 'chat', content: inputValue };
-        break;
-      case 'vote':
-      case 'nightAction':
-        if (!selectedTarget) {
-            console.warn("No target selected for vote/night action.");
-            setIsSubmitting(false);
-            return; 
-        }
-        payload = { type: pendingAction.type, targetPlayerId: selectedTarget };
-        break;
-      default:
-        console.error('Unknown pending action type:', pendingAction.type);
-        setIsSubmitting(false);
-        return;
-    }
-
+    
     try {
-      await onSubmitAction(payload);
-      setInputValue(''); // Clear input after successful submission
-      setSelectedTarget(null); // Clear selection
+      switch (pendingAction.type) {
+        case 'chat': {
+          if (!inputValue.trim()) {
+            setIsSubmitting(false);
+            return;
+          }
+          await sendChatMessageAction(gameId, humanPlayerId, inputValue);
+          setInputValue('');
+          break;
+        }
+        case 'werewolfChat': {
+          if (!inputValue.trim()) {
+            setIsSubmitting(false);
+            return;
+          }
+          await sendWerewolfChatMessageAction(gameId, humanPlayerId, inputValue);
+          setInputValue('');
+          break;
+        }
+        case 'vote': {
+          if (!selectedTarget) {
+              console.warn("No target selected for vote.");
+              setIsSubmitting(false);
+              return; 
+          }
+          await onSubmitAction({ type: 'vote', targetPlayerId: selectedTarget });
+          setSelectedTarget(null);
+          break;
+        }
+        case 'nightAction': {
+          if (!selectedTarget) {
+              console.warn("No target selected for night action.");
+              setIsSubmitting(false);
+              return; 
+          }
+          await onSubmitAction({ type: 'nightAction', targetPlayerId: selectedTarget });
+          setSelectedTarget(null);
+          break;
+        }
+        default: {
+          const _exhaustiveCheck = pendingAction;
+          console.error('Unknown pending action type:', _exhaustiveCheck);
+          setIsSubmitting(false);
+          return;
+        }
+      }
     } catch (error) {
       console.error("Error submitting human action:", error);
-      // Optionally show an error message to the user
     } finally {
       setIsSubmitting(false);
     }
-  }, [pendingAction, inputValue, selectedTarget, onSubmitAction, isSubmitting]);
+  }, [
+    pendingAction, 
+    inputValue, 
+    selectedTarget, 
+    isSubmitting, 
+    gameId,
+    humanPlayerId,
+    onSubmitAction
+  ]);
 
   if (!humanPlayer || humanPlayer.status === 'dead') {
-    return null; // Don't render if no pending action or human is dead
+    return null;
   }
 
-  // Helper to get target options based on action type
   const getTargetOptions = (): Player[] => {
     if (!pendingAction) return [];
     
@@ -89,20 +113,17 @@ export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn,
 
     switch (pendingAction.type) {
       case 'vote':
-        return livingPlayers.filter(p => p.id !== humanPlayerId); // Cannot vote for self
+        return livingPlayers.filter(p => p.id !== humanPlayerId);
       case 'nightAction':
         switch (humanPlayer.role) {
           case 'Werewolf':
-            // Werewolves target non-werewolves
             return livingPlayers.filter(p => p.role !== 'Werewolf');
           case 'Seer':
-            // Seer targets anyone but self
             return livingPlayers.filter(p => p.id !== humanPlayerId);
           case 'Doctor':
-            // Doctor can target anyone (including self)
             return livingPlayers; 
           default:
-            return []; // Villagers have no night action
+            return [];
         }
       default:
         return [];
@@ -112,7 +133,6 @@ export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn,
   const targetOptions = getTargetOptions();
 
   const renderInput = () => {
-    // If there's no pending action, render nothing or a disabled placeholder
     if (!pendingAction) {
       return (
         <div className="p-4 border-t text-center text-muted-foreground italic">
@@ -123,22 +143,40 @@ export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn,
 
     switch (pendingAction.type) {
       case 'chat':
-        return (
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 p-4 border-t">
-            <Input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={t('TypeYourMessagePlaceholder', 'Type your message...')}
-              aria-label={t('ChatMessageInputLabel', 'Chat message input')}
-              disabled={!isPlayerTurn || isSubmitting}
-              className="flex-grow"
-            />
-            <Button type="submit" disabled={!isPlayerTurn || isSubmitting || !inputValue.trim()}>
-              {isSubmitting ? t('SendingButtonLabel', 'Sending...') : t('SendButtonLabel', 'Send')}
-            </Button>
-          </form>
-        );
+      case 'werewolfChat':
+        {
+          const isWWChat = pendingAction.type === 'werewolfChat';
+          const placeholder = isWWChat 
+            ? t('TypeWerewolfChatMessagePlaceholder', 'Werewolf chat...') 
+            : t('TypeYourMessagePlaceholder', 'Type your message...');
+          const ariaLabel = isWWChat
+            ? t('WerewolfChatMessageInputLabel', 'Werewolf chat message input')
+            : t('ChatMessageInputLabel', 'Chat message input');
+          const buttonLabel = isWWChat
+            ? t('SendWerewolfChatButtonLabel', 'Send (Pack)')
+            : t('SendButtonLabel', 'Send');
+
+          return (
+            <form onSubmit={handleSubmit} className="flex items-center gap-2 p-4 border-t">
+              <Input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={placeholder}
+                aria-label={ariaLabel}
+                disabled={!isPlayerTurn || isSubmitting}
+                className={cn("flex-grow", isWWChat && "border-red-500/50 focus:ring-red-500/50")}
+              />
+              <Button 
+                type="submit" 
+                disabled={!isPlayerTurn || isSubmitting || !inputValue.trim()}
+                variant={isWWChat ? 'destructive' : 'default'}
+              >
+                {isSubmitting ? t('SendingButtonLabel', 'Sending...') : buttonLabel}
+              </Button>
+            </form>
+          );
+        }
       case 'vote':
       case 'nightAction':
         {

@@ -46,6 +46,8 @@ interface SpeakTextProps {
   onEnd?: () => void;
   /** If true, component will register itself for automatic sequential playback. */
   autoQueue?: boolean;
+  /** If true, audio playback will be disabled. */
+  disabled?: boolean;
 }
 
 // Define the type for the imperative handle
@@ -55,7 +57,7 @@ export interface SpeakTextHandle {
 
 // Wrap component with forwardRef
 export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
-  ({ children, voiceId, className, onEnd, autoQueue = false }, ref) => {
+  ({ children, voiceId, className, onEnd, autoQueue = false, disabled = false }, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -92,8 +94,9 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
       "",
     );
 
-    // Check if this component *can* play (permission + global setting)
+    // Check if this component *can* play (permission + global setting + not disabled)
     const canPlay =
+      !disabled &&
       isAudioGloballyEnabled &&
       (currentlySpeakingId === null || currentlySpeakingId === componentId);
     // const isCurrentlySpeakingThis = currentlySpeakingId === componentId;
@@ -153,21 +156,21 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
 
     // Effect to register for auto-play queue
     useEffect(() => {
-      // Only register if globally enabled and autoQueue prop is true
-      if (isAudioGloballyEnabled && autoQueue) {
+      // Only register if globally enabled and autoQueue prop is true and not disabled
+      if (!disabled && isAudioGloballyEnabled && autoQueue) {
         console.log(
           `[SpeakText ${componentId}] Registering for auto-play queue (Audio Enabled).`,
         );
         registerForAutoPlay(componentId);
       }
-    }, [autoQueue, registerForAutoPlay, componentId, isAudioGloballyEnabled]); // Add dependency
+    }, [autoQueue, registerForAutoPlay, componentId, isAudioGloballyEnabled, disabled]);
 
     const handlePlayPause = useCallback(
       async (triggeredExternally = false) => {
-        // Prevent any action if audio is globally disabled
-        if (!isAudioGloballyEnabled) {
+        // Prevent any action if audio is globally disabled OR component is disabled
+        if (disabled || !isAudioGloballyEnabled) {
           console.log(
-            `[SpeakText ${componentId}] Audio globally disabled, preventing play/pause.`,
+            `[SpeakText ${componentId}] Audio globally disabled or component disabled, preventing play/pause.`,
           );
           return;
         }
@@ -454,6 +457,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         voiceId,
         onEnd,
         isAudioGloballyEnabled, // Add dependency
+        disabled,
       ],
     );
 

@@ -294,6 +294,7 @@ export async function handleVotingPhase(initialState: GameState, gameId: string)
       voteCounts,
     );
 
+    // TODO: translate this
     let voteDetails = "";
     let voteBreakdown = "";
     if (validVotes.length > 0) {
@@ -305,7 +306,7 @@ export async function handleVotingPhase(initialState: GameState, gameId: string)
         })
         .join("\n");
       voteBreakdown =
-        `\n--- Vote Details ---\n${voteBreakdown}\n--------------------`;
+        `\nVote Details:\n${voteBreakdown}`;
     } else {
       voteBreakdown = "\nNo valid votes were cast towards any player.";
     }
