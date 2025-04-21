@@ -5,20 +5,41 @@ import { DummyAIAgent } from './agents/DummyAIAgent';
 import { HumanAgent } from './agents/HumanAgent';
 import { ConsoleRenderer } from './rendering/ConsoleRenderer';
 import { MarkdownRenderer } from './rendering/MarkdownRenderer';
+import { SeerRole } from './roles/SeerRole';
+import { DoctorRole } from './roles/DoctorRole';
+import type { IRole } from './interfaces/IRole';
 
 async function main() {
     console.log('Starting Mafia Game...');
 
     // Basic configuration
     const playerCount = 5; // Total players
-    // Ensure 2 mafia for 5-7 players, otherwise default to ~1/3
-    const mafiaCount = (playerCount >= 5 && playerCount <= 7) ? 2 : Math.max(1, Math.floor(playerCount / 3));
+
+    // Define roles based on player count (example for 5 players)
+    let rolesToAssign: IRole[];
+    if (playerCount === 5) {
+        rolesToAssign = [
+            new MafiaRole(),
+            new SeerRole(),
+            new DoctorRole(),
+            new VillagerRole(),
+            new VillagerRole(),
+        ];
+    } else {
+        // Fallback for other counts (adjust as needed)
+        const mafiaCount = Math.max(1, Math.floor(playerCount / 3));
+        rolesToAssign = [];
+        for (let i = 0; i < mafiaCount; i++) rolesToAssign.push(new MafiaRole());
+        while (rolesToAssign.length < playerCount) rolesToAssign.push(new VillagerRole());
+    }
+
+    // Shuffle roles for random assignment
+    rolesToAssign.sort(() => Math.random() - 0.5);
     
     // Create player configurations (name, role, agent)
     const playerSetups = [];
     for (let i = 0; i < playerCount; i++) {
-        const isMafia = i < mafiaCount;
-        const role = isMafia ? new MafiaRole() : new VillagerRole();
+        const role = rolesToAssign[i];
         const name = `Player ${i+1}`;
         
         // First player is human, the rest are AI

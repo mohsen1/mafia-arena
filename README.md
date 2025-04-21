@@ -28,7 +28,7 @@ The game continues until either all Mafia members are eliminated (villagers win)
 │   ├── main.ts                  # Entry point
 │   ├── rendering/               # Renderer implementations
 │   ├── phases/                  # Game phase implementations
-│   ├── roles/                   # Role implementations
+│   ├── roles/                   # Role implementations (Mafia, Villager, Doctor, Seer...)
 │   ├── agents/                  # Agent implementations (AI & Human)
 │   └── interfaces/              # Core interfaces
 ├── tests/                       # Unit and integration tests
@@ -71,6 +71,30 @@ When playing as a human:
 - During the day phase, you can send messages to other players or vote for a player to execute
 - If you're a Mafia member, during the night phase you'll be asked to choose a player to eliminate
 - Follow the on-screen prompts to enter your actions
+
+## Creating Custom Renderers
+
+The game uses an interface-based approach for rendering output, allowing you to easily create custom renderers (e.g., for a web UI, a different log format, or a graphical display).
+
+1.  **Implement `IGameRenderer`:**
+    Create a new class in the `src/rendering/` directory that implements the `IGameRenderer` interface (`src/interfaces/IGameRenderer.ts`).
+
+2.  **Define Methods:**
+    Your class must implement the methods defined in the interface. These methods are called by the `Game` core at different points:
+    *   `renderGameStart(players, gameId)`: Called once at the beginning.
+    *   `renderRoundStart(round)`: Called at the start of each round.
+    *   `renderPhaseStart(phase, round)`: Called at the start of each phase (Init, Day, Night, GameOver).
+    *   `renderMessage(message)`: Called whenever a message is logged (respecting visibility).
+    *   `renderVoteResults(votes, executedPlayerId)`: Called after Day voting to show who voted for whom and the outcome.
+    *   `renderNightResults(killedPlayerId)`: Called after the Night phase to announce who was killed (if anyone).
+    *   `renderPlayerStatusUpdate(player, oldStatus, newStatus)`: Called when a player's status changes (e.g., Alive -> Dead).
+    *   `renderGameOver(winner, finalState)`: Called once at the end, providing the winner and final player details.
+    *   `renderNarration(text)`: Used for general system messages, prompts, or phase descriptions.
+
+3.  **Register Renderer:**
+    In `src/main.ts`, instantiate your custom renderer and add it to the game using `game.addRenderer(new YourCustomRenderer());`.
+
+The `ConsoleRenderer` and `MarkdownRenderer` provide examples of how to implement this interface.
 
 ## Future Enhancements
 

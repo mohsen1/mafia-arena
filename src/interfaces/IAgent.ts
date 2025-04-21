@@ -6,6 +6,8 @@ export type PlayerAction =
     | { type: 'message'; content: string }
     | { type: 'vote'; targetPlayerId: PlayerId | null } // null for abstain/no vote
     | { type: 'mafiaKill'; targetPlayerId: PlayerId }
+    | { type: 'doctorSave'; targetPlayerId: PlayerId | null } // null for no save
+    | { type: 'seerInvestigate'; targetPlayerId: PlayerId | null } // null for no investigation
     | { type: 'noAction' }; // For roles with no night action
 
 export interface IAgent {

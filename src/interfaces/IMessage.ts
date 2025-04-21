@@ -4,6 +4,7 @@ import type { GamePhaseType } from "./IGamePhase";
 export enum MessageVisibility {
     Public = 'Public',      // Day chat, visible to all alive players
     Mafia = 'Mafia',        // Night chat, visible only to alive Mafia
+    Private = 'Private',    // Visible only to specific roles or the system log
     // System = 'System'    // Game announcements (e.g., "Player X was killed")
 }
 

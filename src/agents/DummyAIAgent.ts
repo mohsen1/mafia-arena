@@ -2,6 +2,7 @@ import { IAgent, PlayerAction } from '../interfaces/IAgent';
 import { VisibleGameState } from '../interfaces/GameState';
 import { PlayerId } from '../interfaces/IPlayer';
 import { delay } from '../core/utils';
+import { RoleName } from '../interfaces/IRole';
 
 export class DummyAIAgent implements IAgent {
     public playerId!: PlayerId; // Set by Game constructor
@@ -31,16 +32,35 @@ export class DummyAIAgent implements IAgent {
                     return { type: 'noAction' };
                 }
             case 'Night':
-                if (gameState.self.isMafia && aliveOthers.length > 0) {
-                    // Mafia: Kill a random non-mafia player
-                    const potentialTargets = aliveOthers.filter(id => !gameState.mafiaPlayerIds?.has(id));
-                    if(potentialTargets.length > 0) {
-                        const targetId = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
-                        console.log(`[${this.playerId} - MAFIA] Deciding to KILL ${targetId}`);
-                        return { type: 'mafiaKill', targetPlayerId: targetId };
+                const selfRole = gameState.self.role;
+                const potentialTargets = aliveOthers.filter(id => !gameState.mafiaPlayerIds?.has(id)); // Non-mafia targets
+                const anyAliveTarget = aliveOthers[Math.floor(Math.random() * aliveOthers.length)]; // Any other alive player
+
+                if (selfRole === RoleName.Mafia && potentialTargets.length > 0) {
+                    const targetId = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
+                    console.log(`[${this.playerId} - MAFIA] Deciding to KILL ${targetId}`);
+                    return { type: 'mafiaKill', targetPlayerId: targetId };
+                } else if (selfRole === RoleName.Doctor && aliveOthers.length > 0) {
+                    // Simple AI: 70% chance to save a random non-mafia player, 30% chance no save
+                    if (Math.random() < 0.7 && potentialTargets.length > 0) {
+                         const targetId = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
+                         console.log(`[${this.playerId} - DOCTOR] Deciding to SAVE ${targetId}`);
+                         return { type: 'doctorSave', targetPlayerId: targetId };
                     }
+                     console.log(`[${this.playerId} - DOCTOR] Deciding NO SAVE`);
+                    return { type: 'doctorSave', targetPlayerId: null }; 
+                } else if (selfRole === RoleName.Seer && aliveOthers.length > 0) {
+                     // Simple AI: 70% chance to investigate a random player (not self), 30% no investigation
+                     const targetsToInvestigate = aliveOthers.filter(id => id !== gameState.self.id);
+                     if (Math.random() < 0.7 && targetsToInvestigate.length > 0) {
+                         const targetId = targetsToInvestigate[Math.floor(Math.random() * targetsToInvestigate.length)];
+                         console.log(`[${this.playerId} - SEER] Deciding to INVESTIGATE ${targetId}`);
+                         return { type: 'seerInvestigate', targetPlayerId: targetId };
+                     }
+                     console.log(`[${this.playerId} - SEER] Deciding NO INVESTIGATION`);
+                     return { type: 'seerInvestigate', targetPlayerId: null };
                 }
-                 // Villagers (or Mafia with no targets) do nothing specific at night
+                 // Villagers (or roles with no targets/decided no action) do nothing specific at night
                  console.log(`[${this.playerId}] Deciding NO ACTION for night.`);
                 return { type: 'noAction' };
 

@@ -2,6 +2,7 @@ import { IAgent, PlayerAction } from '../interfaces/IAgent';
 import { VisibleGameState } from '../interfaces/GameState';
 import { PlayerId } from '../interfaces/IPlayer';
 import * as readline from 'readline/promises'; // Use promise-based readline
+import { RoleName } from '../interfaces/IRole'; // Import RoleName
 
 const rl = readline.createInterface({
     input: process.stdin,
