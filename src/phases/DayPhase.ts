@@ -37,7 +37,7 @@ export class DayPhase extends AbstractGamePhase {
                 }
                 prompt += `Alive Players: ${Array.from(gameState.alivePlayerIds).map(id => gameState.players.find(p=>p.id===id)?.name ?? id).join(', ')}\n`;
                 prompt += "--------------------------------------------------\n";
-                prompt += "Action? (m [message] / n [no action])";
+                prompt += "What do you want to say?";
                 game.notifyRenderers('renderNarration', prompt); // Use renderNarration to display prompt
             }
 
