@@ -1,6 +1,7 @@
 import type { PublicPlayerInfo, PlayerId, PlayerStatus } from "./IPlayer";
 import type { GamePhaseType } from "./IGamePhase";
 import type { RoleName } from "./IRole";
+import type { IMessage } from "./IMessage";
 
 // Represents the game state information passed TO an agent.
 // It's filtered based on what that agent SHOULD know.
@@ -22,6 +23,7 @@ export interface VisibleGameState {
     // readonly recentMessages: ReadonlyArray<IMessage>;
     readonly language: string; // Added language setting
     readonly lastNightInvestigationResult?: { targetId: PlayerId, allegiance: 'Mafia' | 'Town' }; // Added for Seer feedback
+    readonly conversationHistory?: ReadonlyArray<IMessage>; // Add conversation history
     
     // Added for GameOver state to include full details
     readonly playerDetails?: ReadonlyArray<{ 

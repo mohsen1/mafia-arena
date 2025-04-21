@@ -213,6 +213,13 @@ export class Game {
 
         const isMafia = player.role.name === RoleName.Mafia;
 
+        // Get relevant conversation history (limited length)
+        const historyLimit = 20; // Limit number of messages in history
+        const allVisibleMessages = this.#conversationLog.getMessages({
+             relevantToPlayer: { id: playerId, role: player.role.name }
+        });
+        const limitedHistory = allVisibleMessages.slice(-historyLimit);
+
         // Base visible state
         const state: VisibleGameState = {
              gameId: this.id,
@@ -237,8 +244,7 @@ export class Game {
                      allegiance: this.#lastNightResults.seerInvestigation.allegiance
                  }
              }),
-             // TODO: Add relevant recent messages from ConversationLog based on visibility
-             // recentMessages: this.#conversationLog.getMessages({ relevantToPlayer: { id: playerId, role: player.role.name }})
+             conversationHistory: limitedHistory
         };
 
         return Object.freeze(state); // Make it immutable
