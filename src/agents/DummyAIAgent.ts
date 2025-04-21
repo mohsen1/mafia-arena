@@ -22,7 +22,7 @@ export class DummyAIAgent implements IAgent {
                     console.log(`[${this.playerId}] Deciding to VOTE for ${targetId}`);
                     return { type: 'vote', targetPlayerId: targetId };
                 } else if (canMessage && Math.random() < 0.7) { // Chance to message if allowed
-                    const message = `Hello from ${gameState.self.name} (${this.playerId}). It's round ${gameState.round}.`;
+                    const message = `[${gameState.language}] Hello from ${gameState.self.name} (${this.playerId}). It's round ${gameState.round}.`;
                     console.log(`[${this.playerId}] Deciding to SEND MESSAGE: ${message}`);
                     return { type: 'message', content: message };
                 } else {

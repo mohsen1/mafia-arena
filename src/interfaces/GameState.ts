@@ -20,6 +20,7 @@ export interface VisibleGameState {
     readonly mafiaPlayerIds?: ReadonlySet<PlayerId>; // Only included if self.isMafia = true
     // Potentially add recent messages visible to this player
     // readonly recentMessages: ReadonlyArray<IMessage>;
+    readonly language: string; // Added language setting
     
     // Added for GameOver state to include full details
     readonly playerDetails?: ReadonlyArray<{ 

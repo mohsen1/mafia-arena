@@ -5,6 +5,7 @@ import { DayPhase } from './DayPhase';
 import type { PlayerAction } from '../interfaces/IAgent';
 import type { PlayerId } from '../interfaces/IPlayer';
 import  { MessageVisibility } from '../interfaces/IMessage';
+import { HumanAgent } from '../agents/HumanAgent';
 
 export class NightPhase extends AbstractGamePhase {
     readonly type: GamePhaseType = 'Night';
@@ -22,6 +23,30 @@ export class NightPhase extends AbstractGamePhase {
             // Only ask players whose roles CAN act at night
             if (player.role.canPerformNightAction) {
                  const gameState = game.generateVisibleGameState(player.id);
+
+                 // Check if human agent and prompt if needed
+                 if (player.agent instanceof HumanAgent) {
+                     if (gameState.self.isMafia) {
+                         const aliveOthersInfo = Array.from(gameState.alivePlayerIds)
+                             .filter(id => id !== player.id)
+                             .map(id => gameState.players.find(p => p.id === id)!);
+                         const potentialTargets = aliveOthersInfo.filter(p => !gameState.mafiaPlayerIds?.has(p.id));
+                         
+                         let prompt = `\n--- ${player.name} (${player.id}) - Mafia Night Action ---\n`;
+                         if (potentialTargets.length > 0) {
+                             prompt += "Choose player to kill:\n";
+                             potentialTargets.forEach((p, i) => prompt += `${i + 1}: ${p.name}\n`);
+                             prompt += "Kill target index (or 0 for no kill): ";
+                         } else {
+                             prompt += "No non-mafia targets available. (Press Enter to continue)";
+                         }
+                          game.notifyRenderers('renderNarration', prompt); // Use renderNarration to display prompt
+                     } else {
+                          // Prompt for other night roles (Doctor, Detective) if human
+                         game.notifyRenderers('renderNarration', `\n--- ${player.name} (${player.id}) - Night Action ---\nYou rest during the night. (Press Enter to continue)`); 
+                     }
+                 }
+
                  const action = await player.decideAction(gameState);
                  actions.set(player.id, action);
 

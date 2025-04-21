@@ -20,11 +20,13 @@ export class Game {
     #renderers: IGameRenderer[] = [];
     #conversationLog = new ConversationLog();
     #round = 0;
+    public readonly language: string;
 
-    constructor(playerSetups: { name: string; agent: IAgent; role: IRole }[]) {
+    constructor(playerSetups: { name: string; agent: IAgent; role: IRole }[], language: string = 'en') {
         if (playerSetups.length < 3) { // Example minimum player count
              throw new Error("Not enough players to start a game.");
         }
+        this.language = language;
         playerSetups.forEach((setup, index) => {
             const playerId: PlayerId = `player-${index + 1}-${setup.name.toLowerCase().replace(/\s+/g, '-')}`;
             // Ensure agent has the correct ID *before* creating the player
@@ -210,6 +212,7 @@ export class Game {
             },
             players: this.getPublicPlayerArray(), // Only public info
             alivePlayerIds: new Set(this.getAlivePlayers().map(p => p.id)),
+            language: this.language,
             // Conditionally add Mafia member list
              ...(isMafia && { mafiaPlayerIds: new Set(this.getAliveMafia().map(p => p.id)) }),
              // TODO: Add relevant recent messages from ConversationLog based on visibility

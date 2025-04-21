@@ -1,4 +1,9 @@
-export enum RoleName { Mafia = 'Mafia', Villager = 'Villager' /* , Doctor, Detective etc. */}
+export enum RoleName { 
+    Mafia = 'Mafia', 
+    Villager = 'Villager', 
+    Doctor = 'Doctor', 
+    Seer = 'Seer' // Detective equivalent
+}
 
 export interface IRole {
     readonly name: RoleName;

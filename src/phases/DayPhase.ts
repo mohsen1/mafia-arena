@@ -5,6 +5,7 @@ import { NightPhase } from './NightPhase';
 import type { PlayerAction } from '../interfaces/IAgent';
 import type { PlayerId } from '../interfaces/IPlayer';
 import { MessageVisibility } from '../interfaces/IMessage';
+import { HumanAgent } from '../agents/HumanAgent';
 
 export class DayPhase extends AbstractGamePhase {
     readonly type: GamePhaseType = 'Day';
@@ -21,6 +22,25 @@ export class DayPhase extends AbstractGamePhase {
         game.logMessage(null, "Discussion phase:", MessageVisibility.Public);
         for (const player of alivePlayers) {
             const gameState = game.generateVisibleGameState(player.id);
+            
+            // Check if human agent and prompt if needed
+            if (player.agent instanceof HumanAgent) {
+                const aliveOthersInfo = Array.from(gameState.alivePlayerIds)
+                    .filter(id => id !== player.id)
+                    .map(id => gameState.players.find(p => p.id === id)!);
+                
+                let prompt = `\n--- ${player.name} (${player.id}) - Your turn! ---\n`;
+                prompt += `Phase: ${gameState.phase}, Round: ${gameState.round}\n`;
+                prompt += `Your Role: ${gameState.self.role}\n`;
+                if (gameState.self.isMafia) {
+                    prompt += `Your fellow Mafia (alive): ${Array.from(gameState.mafiaPlayerIds ?? []).join(', ')}\n`;
+                }
+                prompt += `Alive Players: ${Array.from(gameState.alivePlayerIds).map(id => gameState.players.find(p=>p.id===id)?.name ?? id).join(', ')}\n`;
+                prompt += "--------------------------------------------------\n";
+                prompt += "Action? (m [message] / n [no action])";
+                game.notifyRenderers('renderNarration', prompt); // Use renderNarration to display prompt
+            }
+
             // Pass allowed actions for discussion
             const action = await player.decideAction(gameState, ['message', 'noAction']);
             actions.set(player.id, action);
@@ -35,6 +55,24 @@ export class DayPhase extends AbstractGamePhase {
          // (A real game might have distinct Discussion/Voting sub-phases)
         for (const player of alivePlayers) {
             const gameState = game.generateVisibleGameState(player.id); // Update state if needed
+            
+            // Check if human agent and prompt if needed
+            if (player.agent instanceof HumanAgent) {
+                const aliveOthersInfo = Array.from(gameState.alivePlayerIds)
+                    .filter(id => id !== player.id)
+                    .map(id => gameState.players.find(p => p.id === id)!);
+                
+                let prompt = "\nVote Action:\n";
+                if (aliveOthersInfo.length > 0) {
+                    prompt += "Choose player to vote for:\n";
+                    aliveOthersInfo.forEach((p, i) => prompt += `${i + 1}: ${p.name}\n`);
+                    prompt += "Action? (v [player index] / n [no action])";
+                } else {
+                     prompt += "No one else to vote for. (n [no action])";
+                }
+                game.notifyRenderers('renderNarration', prompt); // Use renderNarration to display prompt
+            }
+
              // Ask again, expecting a vote this time
             const action = await player.decideAction(gameState, ['vote', 'noAction']);
             actions.set(player.id, action); // Update action map
