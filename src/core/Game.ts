@@ -179,16 +179,19 @@ export class Game {
     }
 
     checkWinCondition(): 'Mafia' | 'Town' | null {
-        const aliveMafia = this.getAliveMafia().length;
-        const aliveTown = this.getAliveVillagers().length; // Add other town roles here
+        const aliveMafiaCount = this.getAliveMafia().length;
+        // Count ALL alive Town members (Villagers, Doctors, Seers, etc.)
+        const aliveTownCount = this.getAlivePlayers().filter(p => p.role.allegiance === 'Town').length;
 
-        if (aliveMafia === 0) {
+        if (aliveMafiaCount === 0 && aliveTownCount > 0) { // Ensure Town still has members
             return 'Town';
         }
-        if (aliveMafia >= aliveTown) {
-            return 'Mafia';
+        // Check if Mafia count is >= total Town count OR if Town count is 0
+        if (aliveMafiaCount >= aliveTownCount || aliveTownCount === 0) {
+            // Make sure there are still mafia alive to win
+            return aliveMafiaCount > 0 ? 'Mafia' : null; // Mafia wins if they exist, otherwise null (stalemate?)
         }
-        return null;
+        return null; // No winner yet
     }
 
     // Creates the specific view of the game state for a given player
