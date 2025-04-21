@@ -21,6 +21,8 @@ export class Game {
     #conversationLog = new ConversationLog();
     #round = 0;
     public readonly language: string;
+    // Store results from the last night phase
+    #lastNightResults: { seerInvestigation?: { seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town' } } = {};
 
     constructor(playerSetups: { name: string; agent: IAgent; role: IRole }[], language: string = 'en') {
         if (playerSetups.length < 3) { // Example minimum player count
@@ -194,6 +196,16 @@ export class Game {
         return null; // No winner yet
     }
 
+    // Method for NightPhase to store results
+    setNightResults(results: { seerInvestigation?: { seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town' } }): void {
+        this.#lastNightResults = results;
+    }
+
+    // Method to clear results at the start of the night (or end of day)
+    clearNightResults(): void {
+        this.#lastNightResults = {};
+    }
+
     // Creates the specific view of the game state for a given player
     generateVisibleGameState(playerId: PlayerId): VisibleGameState {
         const player = this.getPlayer(playerId);
@@ -218,6 +230,13 @@ export class Game {
             language: this.language,
             // Conditionally add Mafia member list
              ...(isMafia && { mafiaPlayerIds: new Set(this.getAliveMafia().map(p => p.id)) }),
+             // Add Seer result if applicable to this player
+            ...(playerId === this.#lastNightResults.seerInvestigation?.seerId && {
+                 lastNightInvestigationResult: {
+                     targetId: this.#lastNightResults.seerInvestigation.targetId,
+                     allegiance: this.#lastNightResults.seerInvestigation.allegiance
+                 }
+             }),
              // TODO: Add relevant recent messages from ConversationLog based on visibility
              // recentMessages: this.#conversationLog.getMessages({ relevantToPlayer: { id: playerId, role: player.role.name }})
         };

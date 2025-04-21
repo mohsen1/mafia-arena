@@ -24,9 +24,11 @@ const mockMafiaRole: IRole = {
 
 // Mock Agent implementation using Vitest functions
 const createMockAgent = (playerId: PlayerId): IAgent & { getAction: ReturnType<typeof vi.fn> } => {
+    // Cast vi.fn() to the expected function signature
+    const mockGetAction = vi.fn() as unknown as IAgent['getAction'] & ReturnType<typeof vi.fn>;
     return {
         playerId,
-        getAction: vi.fn<[VisibleGameState], Promise<PlayerAction>>(), // Define types for mock
+        getAction: mockGetAction,
     };
 };
 
@@ -85,6 +87,7 @@ describe('Player', () => {
             gameId: 'game-abc',
             round: 1,
             phase: 'Day',
+            language: 'en',
             self: {
                 id: playerId,
                 name: playerName,

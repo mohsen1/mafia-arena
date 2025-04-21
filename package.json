@@ -21,6 +21,8 @@
     "license": "MIT",
     "dependencies": {
         "chalk": "^4.1.2",
+        "dotenv": "^16.5.0",
+        "openai": "^4.95.1",
         "uuid": "^9.0.0"
     },
     "devDependencies": {

@@ -15,7 +15,8 @@ The game continues until either all Mafia members are eliminated (villagers win)
 
 - Modular architecture using interfaces and the State Pattern for game phases
 - Support for human player interaction via the console
-- Simple AI agents with basic decision-making capabilities
+- Simple AI agents (`DummyAIAgent`) with basic decision-making capabilities
+- Option to use a more sophisticated AI agent (`OpenAIAgent`) via the OpenAI API (requires API key)
 - Game state rendering to console and Markdown log files
 - Extensible design for adding more roles and features
 
@@ -29,7 +30,7 @@ The game continues until either all Mafia members are eliminated (villagers win)
 │   ├── rendering/               # Renderer implementations
 │   ├── phases/                  # Game phase implementations
 │   ├── roles/                   # Role implementations (Mafia, Villager, Doctor, Seer...)
-│   ├── agents/                  # Agent implementations (AI & Human)
+│   ├── agents/                  # Agent implementations (Human, DummyAI, OpenAIAgent)
 │   └── interfaces/              # Core interfaces
 ├── tests/                       # Unit and integration tests
 ```
@@ -40,6 +41,7 @@ The game continues until either all Mafia members are eliminated (villagers win)
 
 - Node.js (v16 or higher)
 - npm or yarn
+- (Optional) OpenAI API Key if using `OpenAIAgent`
 
 ### Installation
 
@@ -49,8 +51,21 @@ git clone https://github.com/yourusername/mafia-game.git
 cd mafia-game
 
 # Install dependencies
-npm install
+pnpm install
 ```
+
+### Environment Variables (for OpenAI Agent)
+
+If you plan to use the `OpenAIAgent`, create a `.env` file in the project root:
+
+```plaintext
+#.env
+OPENAI_API_KEY="your_openai_api_key"
+OPENAI_MODEL="gpt-4o" # Or gpt-4-turbo, gpt-3.5-turbo, etc.
+# OPENAI_BASE_URL="your_proxy_or_local_url" # Optional
+```
+
+Replace `"your_openai_api_key"` with your actual key. **Do not commit your `.env` file to version control.**
 
 ### Running the Game
 
@@ -58,11 +73,16 @@ npm install
 # Build the project
 npm run build
 
-# Run the game
+# Run the game with OpenAI Agent (default)
 npm start
 
-# Or run in development mode
-npm run dev
+# Run the game explicitly using the Dummy AI Agent
+npm start -- --dummy-ai 
+# Note: The extra '--' passes the flag to the node script
+
+# Or run in development mode (watches for changes)
+npm run dev # Uses OpenAI Agent by default
+npm run dev -- --dummy-ai # Uses Dummy AI Agent
 ```
 
 ## Game Play

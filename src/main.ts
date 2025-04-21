@@ -1,16 +1,22 @@
 import { Game } from './core/Game';
 import { MafiaRole } from './roles/MafiaRole';
 import { VillagerRole } from './roles/VillagerRole';
-import { DummyAIAgent } from './agents/DummyAIAgent';
+import { DummyAIAgent } from './agents/DummyAIAgent'; // Import Dummy AI
 import { HumanAgent } from './agents/HumanAgent';
 import { ConsoleRenderer } from './rendering/ConsoleRenderer';
 import { MarkdownRenderer } from './rendering/MarkdownRenderer';
 import { SeerRole } from './roles/SeerRole';
 import { DoctorRole } from './roles/DoctorRole';
 import type { IRole } from './interfaces/IRole';
+import { OpenAIAgent } from './agents/OpenAIAgent'; // Import OpenAI Agent
+
+
+// --- Argument Parsing ---
+const args = process.argv.slice(2); // Skip node executable and script path
+const useDummyAI = args.includes('--dummy-ai');
 
 async function main() {
-    console.log('Starting Mafia Game...');
+    console.log(`Starting Mafia Game... (${useDummyAI ? 'Using Dummy AI' : 'Using OpenAI AI'})`);
 
     // Basic configuration
     const playerCount = 5; // Total players
@@ -42,8 +48,9 @@ async function main() {
         const role = rolesToAssign[i];
         const name = `Player ${i+1}`;
         
-        // First player is human, the rest are AI
-        const agent = i === 0 ? new HumanAgent() : new DummyAIAgent();
+        // First player is human, the rest are AI based on flag
+        const AIAgentClass = useDummyAI ? DummyAIAgent : OpenAIAgent;
+        const agent = i === 0 ? new HumanAgent() : new AIAgentClass(); 
         
         playerSetups.push({ name, role, agent });
     }

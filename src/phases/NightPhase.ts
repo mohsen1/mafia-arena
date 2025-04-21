@@ -13,6 +13,7 @@ export class NightPhase extends AbstractGamePhase {
 
     async runPhase(game: Game): Promise<void> {
         game.logMessage(null, "Night falls. Silence descends...", MessageVisibility.Public);
+        game.clearNightResults(); // Clear results from previous night
 
         const alivePlayers = game.getAlivePlayers();
         const actions = new Map<PlayerId, PlayerAction>();
@@ -76,7 +77,18 @@ export class NightPhase extends AbstractGamePhase {
                      }
                  }
 
-                 const action = await player.decideAction(gameState);
+                 // Determine allowed night actions based on role
+                 let nightAllowedActions: PlayerAction['type'][] = ['noAction']; // Default
+                 if (player.role.name === RoleName.Mafia) {
+                     nightAllowedActions = ['mafiaKill', 'message', 'noAction']; // Allow kill or chat
+                 } else if (player.role.name === RoleName.Doctor) {
+                     nightAllowedActions = ['doctorSave', 'noAction'];
+                 } else if (player.role.name === RoleName.Seer) {
+                     nightAllowedActions = ['seerInvestigate', 'noAction'];
+                 }
+                 // Other roles default to just ['noAction'] if canPerformNightAction was somehow true
+
+                 const action = await player.decideAction(gameState, nightAllowedActions);
                  actions.set(player.id, action);
 
                  // Handle specific actions
@@ -150,6 +162,7 @@ export class NightPhase extends AbstractGamePhase {
          let playerKilledTonight: PlayerId | null = null;
          let savedPlayerId: PlayerId | null = doctorSaveTarget;
          let actualKillTarget: PlayerId | null = finalMafiaKillTarget;
+         let nightResults: { seerInvestigation?: { seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town' } } = {};
 
          // Apply Doctor Save
          if (savedPlayerId && actualKillTarget === savedPlayerId) {
@@ -172,10 +185,18 @@ export class NightPhase extends AbstractGamePhase {
             const seer = game.getPlayer(seerPlayerId);
             if (targetPlayer && seer) {
                 const allegiance = targetPlayer.role.allegiance;
-                 // TODO: Implement proper private feedback mechanism (e.g., add to next gameState or use dedicated renderer method)
-                game.logMessage(null, `Seer ${seer.name} investigated ${targetPlayer.name} and found their allegiance is ${allegiance}.`, MessageVisibility.Private);
+                // Store result for Game state generation
+                nightResults.seerInvestigation = {
+                    seerId: seerPlayerId,
+                    targetId: seerInvestigationTarget,
+                    allegiance: allegiance
+                };
+                game.logMessage(null, `Seer ${seer.name} performed their investigation.`, MessageVisibility.Private);
             }
         }
+
+        // Store all collected night results in the Game object
+        game.setNightResults(nightResults);
 
         // 4. Announce Public Night Results
         game.logMessage(null, "Dawn breaks.", MessageVisibility.Public);
