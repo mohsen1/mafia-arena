@@ -11,7 +11,8 @@ export class InitializationPhase extends AbstractGamePhase {
         game.logMessage(null, "Game is starting...", MessageVisibility.Public, this.type);
         for (const player of game.getPlayers().values()) {
             // Maybe send a private "welcome" message to each player with their role?
-             game.logMessage(null, `Welcome ${player.name}! You are a ${player.role.name}. Allegiance: ${player.role.allegiance}.`, MessageVisibility.Public, this.type); // For demo, make public
+             // The player will see their role via the VisibleGameState.
+             // game.logMessage(null, `Welcome ${player.name}! You are a ${player.role.name}. Allegiance: ${player.role.allegiance}.`, MessageVisibility.Public, this.type); // Removed public reveal
              // In real game: Send via a private channel or only show in agent's initial state
         };
         // No actions needed in init phase itself

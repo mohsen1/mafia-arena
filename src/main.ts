@@ -11,7 +11,8 @@ async function main() {
 
     // Basic configuration
     const playerCount = 5; // Total players
-    const mafiaCount = Math.max(1, Math.floor(playerCount / 3)); // ~1/3 are Mafia
+    // Ensure 2 mafia for 5-7 players, otherwise default to ~1/3
+    const mafiaCount = (playerCount >= 5 && playerCount <= 7) ? 2 : Math.max(1, Math.floor(playerCount / 3));
     
     // Create player configurations (name, role, agent)
     const playerSetups = [];

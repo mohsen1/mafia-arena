@@ -4,7 +4,10 @@
     "description": "A Mafia game implementation with AI agents",
     "main": "dist/main.js",
     "scripts": {
+        "clean": "rm -rf dist",
         "build": "tsc",
+        "prebuild": "npm run clean",
+        "prestart": "npm run build",
         "start": "node dist/main.js",
         "dev": "ts-node src/main.ts",
         "test": "vitest"

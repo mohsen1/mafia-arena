@@ -13,9 +13,10 @@ export interface IAgent {
     /**
      * Called by the Game to get the agent's action for the current phase.
      * @param gameState A snapshot of the game state visible to this player.
+     * @param allowedActions An array of actions that the player is allowed to take.
      * @returns A promise resolving to the player's action.
      */
-    getAction(gameState: VisibleGameState): Promise<PlayerAction>;
+    getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction>;
 
     /**
      * Optional: Informs the agent about a message directed at them or globally.

@@ -21,7 +21,8 @@ export class DayPhase extends AbstractGamePhase {
         game.logMessage(null, "Discussion phase:", MessageVisibility.Public);
         for (const player of alivePlayers) {
             const gameState = game.generateVisibleGameState(player.id);
-            const action = await player.decideAction(gameState);
+            // Pass allowed actions for discussion
+            const action = await player.decideAction(gameState, ['message', 'noAction']);
             actions.set(player.id, action);
             if (action.type === 'message') {
                 game.logMessage(player.id, action.content, MessageVisibility.Public);
@@ -34,8 +35,8 @@ export class DayPhase extends AbstractGamePhase {
          // (A real game might have distinct Discussion/Voting sub-phases)
         for (const player of alivePlayers) {
             const gameState = game.generateVisibleGameState(player.id); // Update state if needed
-             // Ask again, expecting a vote this time from cooperative agents
-            const action = await player.decideAction(gameState);
+             // Ask again, expecting a vote this time
+            const action = await player.decideAction(gameState, ['vote', 'noAction']);
             actions.set(player.id, action); // Update action map
 
              if (action.type === 'vote') {
@@ -77,18 +78,21 @@ export class DayPhase extends AbstractGamePhase {
         }
 
         // 4. Determine Execution
+        const alivePlayerCount = game.getAlivePlayers().length;
+        const majorityThreshold = Math.floor(alivePlayerCount / 2) + 1; // Need > 50%
+
         let executedPlayerId: PlayerId | null = null;
-        if (maxVotes > 0 && playersToExecute.length === 1) {
-            // Clear winner
+        if (maxVotes >= majorityThreshold && playersToExecute.length === 1) { // Check for majority
             executedPlayerId = playersToExecute[0];
-             game.logMessage(null, `The town has decided to execute ${game.getPlayer(executedPlayerId)?.name ?? executedPlayerId}.`, MessageVisibility.Public);
-             game.killPlayer(executedPlayerId, "was executed by popular vote.");
-        } else if (maxVotes > 0 && playersToExecute.length > 1) {
-            // Tie vote
-             game.logMessage(null, `Vote resulted in a tie between ${playersToExecute.map(id=>game.getPlayer(id)?.name ?? id).join(', ')}. No one is executed.`, MessageVisibility.Public);
-        } else {
-            // No votes cast or only abstains
-             game.logMessage(null, "The town could not reach a decision. No one is executed.", MessageVisibility.Public);
+            const executedPlayerName = game.getPlayer(executedPlayerId)?.name ?? executedPlayerId;
+            game.logMessage(null, `With ${maxVotes} votes, the town has decided to execute ${executedPlayerName}.`, MessageVisibility.Public);
+            game.killPlayer(executedPlayerId, "was executed by popular vote.");
+        } else if (maxVotes > 0 && (playersToExecute.length > 1 || maxVotes < majorityThreshold)) { // Handle tie or no majority
+             const tiedNames = playersToExecute.map(id => game.getPlayer(id)?.name ?? id).join(', ');
+             const reason = maxVotes < majorityThreshold ? "did not reach a majority" : `resulted in a tie between ${tiedNames}`;
+             game.logMessage(null, `The vote ${reason}. No one is executed.`, MessageVisibility.Public);
+        } else { // No votes cast or only abstains
+            game.logMessage(null, "The town cast no deciding votes. No one is executed.", MessageVisibility.Public);
         }
 
         // Notify renderers about vote outcome

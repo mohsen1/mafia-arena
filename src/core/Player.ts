@@ -54,7 +54,7 @@ export class Player implements IPlayer {
     }
 
     // Delegate action request to the agent, passing filtered state
-    async decideAction(gameState: VisibleGameState): Promise<PlayerAction> {
+    async decideAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         if (!this.isAlive()) {
             console.warn(`Attempted to get action from dead player ${this.id}`);
             return { type: 'noAction' };
@@ -62,7 +62,7 @@ export class Player implements IPlayer {
         try {
             // The Game class is responsible for constructing the *correct*
             // VisibleGameState for this specific player before calling this.
-            return await this.#agent.getAction(gameState);
+            return await this.#agent.getAction(gameState, allowedActions);
         } catch (error) {
             console.error(`Error getting action from agent ${this.id}:`, error);
             return { type: 'noAction' }; // Default safe action on error

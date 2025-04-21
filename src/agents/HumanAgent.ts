@@ -11,7 +11,7 @@ const rl = readline.createInterface({
 export class HumanAgent implements IAgent {
      public playerId!: PlayerId;
 
-    async getAction(gameState: VisibleGameState): Promise<PlayerAction> {
+    async getAction(gameState: VisibleGameState, _allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         console.log(`\n--- ${gameState.self.name} (${this.playerId}) - Your turn! ---`);
         console.log(`Phase: ${gameState.phase}, Round: ${gameState.round}`);
         console.log(`Your Role: ${gameState.self.role}`);

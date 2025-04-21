@@ -6,24 +6,29 @@ import { delay } from '../core/utils';
 export class DummyAIAgent implements IAgent {
     public playerId!: PlayerId; // Set by Game constructor
 
-    async getAction(gameState: VisibleGameState): Promise<PlayerAction> {
+    async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         await delay(50 + Math.random() * 100); // Simulate thinking time
 
         const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
 
         switch (gameState.phase) {
             case 'Day':
-                // 50% chance to talk, 50% chance to vote
-                if (Math.random() < 0.6 && aliveOthers.length > 0) {
-                     // Vote for a random alive player (not self)
+                 // If voting is allowed, prioritize voting. Otherwise, message.
+                 const canVote = allowedActions?.includes('vote');
+                 const canMessage = allowedActions?.includes('message');
+
+                 if (canVote && aliveOthers.length > 0 && Math.random() < 0.8) { // Higher chance to vote when allowed
                     const targetId = aliveOthers[Math.floor(Math.random() * aliveOthers.length)];
-                     console.log(`[${this.playerId}] Deciding to VOTE for ${targetId}`);
-                     return { type: 'vote', targetPlayerId: targetId };
+                    console.log(`[${this.playerId}] Deciding to VOTE for ${targetId}`);
+                    return { type: 'vote', targetPlayerId: targetId };
+                } else if (canMessage && Math.random() < 0.7) { // Chance to message if allowed
+                    const message = `Hello from ${gameState.self.name} (${this.playerId}). It's round ${gameState.round}.`;
+                    console.log(`[${this.playerId}] Deciding to SEND MESSAGE: ${message}`);
+                    return { type: 'message', content: message };
                 } else {
-                     // Send a generic message
-                     const message = `Hello from ${gameState.self.name} (${this.playerId}). It's round ${gameState.round}.`;
-                     console.log(`[${this.playerId}] Deciding to SEND MESSAGE: ${message}`);
-                     return { type: 'message', content: message };
+                    // If couldn't decide or only noAction is allowed
+                    console.log(`[${this.playerId}] Deciding NO ACTION for day.`);
+                    return { type: 'noAction' };
                 }
             case 'Night':
                 if (gameState.self.isMafia && aliveOthers.length > 0) {

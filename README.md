@@ -24,13 +24,13 @@ The game continues until either all Mafia members are eliminated (villagers win)
 ```
 ./
 ├── src/
-│   ├── interfaces/              # Core interfaces
 │   ├── core/                    # Core game logic classes
-│   ├── agents/                  # Agent implementations (AI & Human)
-│   ├── roles/                   # Role implementations
-│   ├── phases/                  # Game phase implementations
+│   ├── main.ts                  # Entry point
 │   ├── rendering/               # Renderer implementations
-│   └── main.ts                  # Entry point
+│   ├── phases/                  # Game phase implementations
+│   ├── roles/                   # Role implementations
+│   ├── agents/                  # Agent implementations (AI & Human)
+│   └── interfaces/              # Core interfaces
 ├── tests/                       # Unit and integration tests
 ```
 
