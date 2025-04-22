@@ -3,6 +3,7 @@ import type { GamePhaseType } from "./IGamePhase";
 import type { RoleName } from "./IRole";
 import type { IMessage } from "./IMessage";
 import type { Persona } from "./Theme";
+import type { AgentMemory } from "./AgentMemory";
 
 // Represents the game state information passed TO an agent.
 // It's filtered based on what that agent SHOULD know.
@@ -21,13 +22,9 @@ export interface VisibleGameState {
     readonly players: ReadonlyArray<PublicPlayerInfo>; // Public info of all players
     readonly alivePlayerIds: ReadonlySet<PlayerId>;
     readonly mafiaPlayerIds?: ReadonlySet<PlayerId>; // Only included if self.isMafia = true
-    // Potentially add recent messages visible to this player
-    // readonly recentMessages: ReadonlyArray<IMessage>;
     readonly language: string; // Added language setting
-    readonly lastNightInvestigationResult?: { targetId: PlayerId, allegiance: 'Mafia' | 'Town' }; // Added for Seer feedback
-    readonly conversationHistory?: ReadonlyArray<IMessage>; // Add conversation history
-    readonly previousDayVoteResults?: ReadonlyMap<PlayerId, PlayerId | null>; // Added previous vote results
     readonly themeName?: string; // Added game theme name
+    readonly memory: AgentMemory; // Comprehensive memory for the agent
     
     // Added for GameOver state to include full details
     readonly playerDetails?: ReadonlyArray<{ 

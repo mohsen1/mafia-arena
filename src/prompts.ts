@@ -1,6 +1,8 @@
 import type { PlayerAction } from './interfaces/IAgent';
 import type { RoleName } from './interfaces/IRole';
 import type { Persona } from './interfaces/Theme';
+import type { AgentMemory } from './interfaces/AgentMemory'; // Import AgentMemory
+import type { IMessage } from './interfaces/IMessage'; // Import IMessage
 
 /**
  * Generates the system prompt explaining the game rules and desired output format.
@@ -52,10 +54,12 @@ Player IDs are strings like "player-1-name". Ensure targetPlayerId is a valid ID
 
 /**
  * Generates the user prompt containing the current game state and request for action.
- * @param currentGameState A simplified view of the game state.
+ * @param currentGameState A simplified view of the game state (includes memory).
  * @param allowedActions The actions the agent is allowed to perform.
  */
 export function getUserPrompt(currentGameState: any, allowedActions?: PlayerAction['type'][]): string {
+    const memory: AgentMemory = currentGameState.memory; // Extract memory
+
     let prompt = `Current Game State:
 Theme: ${currentGameState.themeName || 'Default'}
 Round: ${currentGameState.round}, Phase: ${currentGameState.phase}, Language: ${currentGameState.language}
@@ -67,39 +71,65 @@ Round: ${currentGameState.round}, Phase: ${currentGameState.phase}, Language: ${
         prompt += `Your Persona: ${p.name} (${p.personalityTraits.join(', ')}). Backstory: ${p.backstory}\n`;
     }
 
-    prompt += `Your Info (Self Role): ${JSON.stringify({ role: currentGameState.self.role, isMafia: currentGameState.self.isMafia }) }\n`; // Keep role info separate
-    prompt += `Alive Players: ${currentGameState.alivePlayerIds.join(', ')}
-All Player Status: ${JSON.stringify(currentGameState.players)}
-`;
+    prompt += `Your Info (Self Role): ${JSON.stringify({ role: currentGameState.self.role, isMafia: currentGameState.self.isMafia }) }\n`;
+    prompt += `Alive Players: ${currentGameState.alivePlayerIds.join(', ')}\n`;
+    prompt += `All Player Status: ${JSON.stringify(currentGameState.players)}\n`;
 
     if (currentGameState.mafiaPlayerIds) {
         prompt += `Known Mafia Members: ${currentGameState.mafiaPlayerIds.join(', ')}\n`;
     }
 
-    // Add Seer result if available
-    if (currentGameState.lastNightInvestigationResult) {
-        const target = currentGameState.players.find((p: any) => p.id === currentGameState.lastNightInvestigationResult.targetId);
-        const targetName = target ? target.name : currentGameState.lastNightInvestigationResult.targetId;
-        prompt += `Your Last Night Investigation Result: You investigated ${targetName} (${currentGameState.lastNightInvestigationResult.targetId}) and found their allegiance is ${currentGameState.lastNightInvestigationResult.allegiance}.\n`;
-    }
+    // --- Format Memory --- 
+    prompt += `\n--- Your Memory ---\n`;
 
-    // Add Previous Day's Vote Results
-    if (currentGameState.previousDayVoteResults && currentGameState.previousDayVoteResults.size > 0) {
-        prompt += `\nPrevious Day's Voting Results:\n`;
-        for (const [voterId, targetId] of currentGameState.previousDayVoteResults.entries()) {
-            const voterName = currentGameState.players.find((p: any) => p.id === voterId)?.name ?? voterId;
-            const targetName = targetId ? (currentGameState.players.find((p: any) => p.id === targetId)?.name ?? targetId) : 'Abstain';
-            prompt += `- ${voterName} voted for ${targetName}\n`;
-        }
-    }
-
-    // Add Conversation History
-    if (currentGameState.conversationHistory && currentGameState.conversationHistory.length > 0) {
-        prompt += `\nRecent Conversation History (up to ${currentGameState.conversationHistory.length} messages):\n`;
-        currentGameState.conversationHistory.forEach((msg: any) => {
-            prompt += `[R${msg.round} ${msg.phase}] ${msg.senderName}: ${msg.content}\n`;
+    // Add Seer results from memory
+    if (memory.investigationResults.length > 0) {
+        prompt += `Your Investigation Results:\n`;
+        memory.investigationResults.forEach(res => {
+             const target = currentGameState.players.find((p: any) => p.id === res.targetId);
+             const targetName = target ? target.name : res.targetId;
+             prompt += `- Round ${res.round}: Investigated ${targetName} (${res.targetId}) - Result: ${res.allegiance}\n`;
         });
     }
+
+    // Add Past Vote History from memory
+    if (memory.voteHistory.length > 0) {
+        prompt += `Previous Day Voting History:\n`;
+        memory.voteHistory.forEach(voteRecord => {
+            prompt += ` Round ${voteRecord.round} Votes:\n`;
+            if (voteRecord.votes.size === 0) {
+                 prompt += `  (No votes cast)\n`;
+            } else {
+                 for (const [voterId, targetId] of voteRecord.votes.entries()) {
+                    const voterName = currentGameState.players.find((p: any) => p.id === voterId)?.name ?? voterId;
+                    const targetName = targetId ? (currentGameState.players.find((p: any) => p.id === targetId)?.name ?? targetId) : 'Abstain';
+                    prompt += `  - ${voterName} voted for ${targetName}\n`;
+                 }
+            }
+        });
+    }
+
+    // Add Past Kill History from memory
+     if (memory.killHistory.length > 0) {
+        prompt += `Previous Night Kill History:\n`;
+        memory.killHistory.forEach(killRecord => {
+            const targetName = killRecord.killedPlayerId ? (currentGameState.players.find((p: any) => p.id === killRecord.killedPlayerId)?.name ?? killRecord.killedPlayerId) : 'No one';
+            prompt += `- Round ${killRecord.round}: ${targetName} was killed.\n`;
+        });
+    }
+
+    // Add Full Conversation History from memory
+    if (memory.messageHistory && memory.messageHistory.length > 0) {
+        prompt += `\nFull Conversation History (Visible to You):\n`;
+        memory.messageHistory.forEach((msg: IMessage) => {
+            // Add visibility prefix for non-public messages if needed
+            const visibilityPrefix = msg.visibility === 'Mafia' ? '[MAFIA ONLY] ' : '';
+            prompt += `[R${msg.round} ${msg.phase}] ${visibilityPrefix}${msg.senderName}: ${msg.content}\n`;
+        });
+    } else {
+        prompt += `\nNo conversation history visible yet.\n`;
+    }
+    prompt += `--- End Memory --- \n`;
 
     prompt += `\nAllowed Actions: ${allowedActions ? allowedActions.join(', ') : 'None (likely noAction expected)'}\n`;
     
@@ -107,8 +137,8 @@ All Player Status: ${JSON.stringify(currentGameState.players)}
     if (currentGameState.round === 1 && currentGameState.phase === 'Day' && allowedActions?.includes('message')) {
         prompt += `\n**It's Round 1 Introductions! Your ONLY goal this turn is to introduce yourself based on your Persona.** Respond with a JSON message action like: { "type": "message", "content": "Your introduction here..." }`;
     } else {
-        prompt += `Choose your action based on your role, persona, game state, previous votes, recent conversation, and allowed actions. Remember to output ONLY the action JSON object.`;
+        prompt += `Choose your action based on your role, persona, memory (investigations, votes, kills, conversation), current game state, and allowed actions. Remember to output ONLY the action JSON object.`;
     }
 
     return prompt;
-} 
+}

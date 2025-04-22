@@ -81,8 +81,28 @@ npm start -- --dummy-ai
 # Note: The extra '--' passes the flag to the node script
 
 # Or run in development mode (watches for changes)
-npm run dev # Uses OpenAI Agent by default
+npm run dev # Uses default AI by default
 npm run dev -- --dummy-ai # Uses Dummy AI Agent
+npm run dev -- --claude-ai # Uses Claude AI Agent
+npm run dev -- --gemini-ai # Uses Gemini AI Agent
+```
+
+### Enabling Debug Logs
+
+To see verbose logging from the AI agents (like their thinking process, chosen actions, and potential errors), you can use the `DEBUG` environment variable. Set it before running the game:
+
+```bash
+# Show logs from all agents
+DEBUG=mafia:agent:* npm start
+
+# Show logs only from OpenAI agent
+DEBUG=mafia:agent:openai npm start
+
+# Show logs from Claude and Gemini agents
+DEBUG=mafia:agent:claude,mafia:agent:gemini npm start
+
+# Combine with other flags
+DEBUG=mafia:agent:* npm start -- --dummy-ai
 ```
 
 ## Game Play

@@ -4,6 +4,14 @@ import type { VisibleGameState } from '../interfaces/GameState';
 import type { PlayerId } from '../interfaces/IPlayer';
 import { getSystemPrompt, getUserPrompt } from '../prompts'; // Import prompt functions
 import type { Persona } from '../interfaces/Theme'; // Import Persona
+import * as dotenv from 'dotenv'; // Import dotenv
+import debug from 'debug'; // Import debug
+
+// Create a specific debugger instance
+const log = debug('mafia:agent:claude');
+
+// Load environment variables from .env file
+dotenv.config();
 
 // Ensure API key is set in environment variables
 if (!process.env.ANTHROPIC_API_KEY) {
@@ -23,10 +31,10 @@ export class ClaudeAgent implements IAgent {
     public persona?: Persona; // Add persona property
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
-        console.log(`[${this.playerId} - ${gameState.self.role} (Claude)] Thinking...`);
+        log(`[${this.playerId} - ${gameState.self.role} (Claude)] Thinking...`);
 
-        // Filter gameState for brevity and relevance
-        const relevantGameState = {
+        // Pass the necessary parts of gameState, including the memory object
+        const promptInputState = {
             round: gameState.round,
             phase: gameState.phase,
             self: gameState.self,
@@ -34,11 +42,12 @@ export class ClaudeAgent implements IAgent {
             players: gameState.players.map(p => ({ id: p.id, name: p.name, status: p.status })),
             language: gameState.language,
             mafiaPlayerIds: gameState.self.isMafia ? Array.from(gameState.mafiaPlayerIds ?? []) : undefined,
-            lastNightInvestigationResult: gameState.lastNightInvestigationResult // Pass seer results
+            themeName: gameState.themeName,
+            memory: gameState.memory // Pass the whole memory object
         };
 
-        const systemPrompt = getSystemPrompt(); // Use imported function
-        const userPrompt = getUserPrompt(relevantGameState, allowedActions); // Use imported function
+        const systemPrompt = getSystemPrompt(); 
+        const userPrompt = getUserPrompt(promptInputState, allowedActions); 
 
         try {
             const response = await anthropic.messages.create({
@@ -64,7 +73,7 @@ export class ClaudeAgent implements IAgent {
             const potentialJson = "{" + responseText + "}";
 
             if (!responseText) {
-                console.error(`[${this.playerId} (Claude)] API response was empty.`);
+                log(`ERROR: [${this.playerId} (Claude)] API response was empty.`);
                 return { type: 'noAction' };
             }
 
@@ -73,28 +82,28 @@ export class ClaudeAgent implements IAgent {
             try {
                 action = JSON.parse(potentialJson.trim()) as PlayerAction;
             } catch (parseError) {
-                 console.error(`[${this.playerId} (Claude)] Failed to parse JSON response: ${potentialJson}`, parseError);
+                 log(`ERROR: [${this.playerId} (Claude)] Failed to parse JSON response: ${potentialJson} %O`, parseError);
                 return { type: 'noAction' };
             }
 
             // Validate action type
             if (!allowedActions || allowedActions.length === 0) {
                 if (action.type !== 'noAction') {
-                    console.warn(`[${this.playerId} (Claude)] Action type '${action.type}' is not allowed (no actions specified). Defaulting to noAction.`);
+                    log(`WARN: [${this.playerId} (Claude)] Action type '${action.type}' is not allowed (no actions specified). Defaulting to noAction.`);
                     return { type: 'noAction' };
                 }
             } else if (!allowedActions.includes(action.type)) {
-                 console.warn(`[${this.playerId} (Claude)] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`);
+                 log(`WARN: [${this.playerId} (Claude)] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`);
                  return { type: 'noAction' };
             }
 
             // TODO: Add more specific validation based on action type
 
-            console.log(`[${this.playerId} - ${gameState.self.role} (Claude)] Chose action:`, action);
+            log(`[${this.playerId} - ${gameState.self.role} (Claude)] Chose action: %o`, action);
             return action;
 
         } catch (error) {
-            console.error(`[${this.playerId} (Claude)] Error calling Anthropic API:`, error);
+            log(`ERROR: [${this.playerId} (Claude)] Error calling Anthropic API: %O`, error);
             return { type: 'noAction' }; // Fallback on API error
         }
     }

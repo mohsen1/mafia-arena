@@ -13,7 +13,7 @@ export class NightPhase extends AbstractGamePhase {
 
     async runPhase(game: Game): Promise<void> {
         game.logMessage(null, "Night falls. Silence descends...", MessageVisibility.Public);
-        game.clearNightResults(); // Clear results from previous night
+        // game.clearNightResults(); // No longer needed - memory is cumulative
 
         const alivePlayers = game.getAlivePlayers();
         const actions = new Map<PlayerId, PlayerAction>();
@@ -182,7 +182,6 @@ export class NightPhase extends AbstractGamePhase {
          let playerKilledTonight: PlayerId | null = null;
          let savedPlayerId: PlayerId | null = doctorSaveTarget;
          let actualKillTarget: PlayerId | null = finalMafiaKillTarget;
-         let nightResults: { seerInvestigation?: { seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town' } } = {};
 
          // Apply Doctor Save
          if (savedPlayerId && actualKillTarget === savedPlayerId) {
@@ -191,32 +190,31 @@ export class NightPhase extends AbstractGamePhase {
          }
 
          // Process Kill
-         if (actualKillTarget) {
+         if (actualKillTarget !== null) { // Check explicit null
               const targetPlayer = game.getPlayer(actualKillTarget);
-              if(targetPlayer && targetPlayer.isAlive()){ 
+              if (targetPlayer && targetPlayer.isAlive()){ 
                     playerKilledTonight = actualKillTarget;
                     game.killPlayer(playerKilledTonight, "was killed during the night.");
               }
+         } else {
+             // Ensure playerKilledTonight is null if kill was prevented or didn't happen
+             playerKilledTonight = null;
          }
 
-        // Process Seer Investigation & provide feedback (simple private log for now)
+        // Process Seer Investigation & record result in Seer's memory
         if (seerInvestigationTarget && seerPlayerId) {
             const targetPlayer = game.getPlayer(seerInvestigationTarget);
             const seer = game.getPlayer(seerPlayerId);
             if (targetPlayer && seer) {
                 const allegiance = targetPlayer.role.allegiance;
-                // Store result for Game state generation
-                nightResults.seerInvestigation = {
-                    seerId: seerPlayerId,
-                    targetId: seerInvestigationTarget,
-                    allegiance: allegiance
-                };
+                // Record result specifically in the Seer's memory
+                game.recordSeerResultInMemory(seerPlayerId, seerInvestigationTarget, allegiance);
                 game.logMessage(null, `Seer ${seer.name} performed their investigation.`, MessageVisibility.Private);
             }
         }
 
-        // Store all collected night results in the Game object
-        game.setNightResults(nightResults);
+        // Record kill result (or lack thereof) in memory for all agents
+        game.recordKillInMemory(playerKilledTonight);
 
         // 4. Announce Public Night Results
         game.logMessage(null, "Dawn breaks.", MessageVisibility.Public);

@@ -12,7 +12,7 @@ export class DayPhase extends AbstractGamePhase {
 
     async runPhase(game: Game): Promise<void> {
         game.logMessage(null, "Day begins. Discuss and decide who to execute.", MessageVisibility.Public);
-        game.clearDayVoteResults(); // Clear results from previous day
+        // game.clearDayVoteResults(); // No longer needed - memory is cumulative
 
         const alivePlayers = game.getAlivePlayers();
         const actions = new Map<PlayerId, PlayerAction>();
@@ -166,8 +166,8 @@ export class DayPhase extends AbstractGamePhase {
         // Notify renderers about vote outcome
         game.notifyRenderers('renderVoteResults', votes, executedPlayerId);
 
-        // Store vote results for next phase's state generation
-        game.setDayVoteResults(votes);
+        // Store vote results in memory for all agents
+        game.recordVoteResultsInMemory(votes);
     }
 
     transition(game: Game): AbstractGamePhase {

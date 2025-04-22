@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { IAgent } from '../interfaces/IAgent';
 import type { IRole } from '../interfaces/IRole';
 import { type GameTheme, Themes } from '../interfaces/Theme';
+import { type AgentMemory, createInitialMemory } from '../interfaces/AgentMemory';
 
 export class Game {
     public readonly id: string = uuidv4();
@@ -23,10 +24,8 @@ export class Game {
     #round = 0;
     public readonly language: string;
     public readonly theme: GameTheme;
-    // Store results from the last night phase
-    #lastNightResults: { seerInvestigation?: { seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town' } } = {};
-    // Store votes from the last day phase
-    #lastDayVoteResults: ReadonlyMap<PlayerId, PlayerId | null> | null = null;
+    // Store memory for each agent
+    #agentMemories = new Map<PlayerId, AgentMemory>();
 
     constructor(
         playerSetups: { name: string; agent: IAgent; role: IRole }[],
@@ -44,11 +43,11 @@ export class Game {
             setup.agent.playerId = playerId; // TODO: This mutation isn't ideal, better to pass ID to agent constructor
             const player = new Player(playerId, setup.name, setup.role, setup.agent);
             this.#players.set(playerId, player);
+            this.#agentMemories.set(playerId, createInitialMemory()); // Initialize memory
         });
 
         // Initial state
         this.#currentState = new InitializationPhase();
-        this.#lastNightResults = {};
     }
 
     addRenderer(renderer: IGameRenderer): void {
@@ -206,24 +205,27 @@ export class Game {
         return null; // No winner yet
     }
 
-    // Method for NightPhase to store results
-    setNightResults(results: { seerInvestigation?: { seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town' } }): void {
-        this.#lastNightResults = results;
+    // --- Memory Update Methods ---
+
+    recordVoteResultsInMemory(votes: ReadonlyMap<PlayerId, PlayerId | null>): void {
+        const voteRecord = { round: this.round, votes };
+        this.#agentMemories.forEach(memory => {
+            memory.voteHistory.push(voteRecord);
+        });
     }
 
-    // Method to clear results at the start of the night (or end of day)
-    clearNightResults(): void {
-        this.#lastNightResults = {};
+    recordKillInMemory(killedPlayerId: PlayerId | null): void {
+        const killRecord = { round: this.round, killedPlayerId };
+        this.#agentMemories.forEach(memory => {
+            memory.killHistory.push(killRecord);
+        });
     }
 
-    // Method for DayPhase to store results
-    setDayVoteResults(votes: ReadonlyMap<PlayerId, PlayerId | null>): void {
-         this.#lastDayVoteResults = votes;
-    }
-
-    // Method to clear vote results at the start of the day
-    clearDayVoteResults(): void {
-        this.#lastDayVoteResults = null;
+    recordSeerResultInMemory(seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town'): void {
+        const memory = this.#agentMemories.get(seerId);
+        if (memory) {
+            memory.investigationResults.push({ round: this.round, targetId, allegiance });
+        }
     }
 
     // Creates the specific view of the game state for a given player
@@ -233,12 +235,19 @@ export class Game {
 
         const isMafia = player.role.name === RoleName.Mafia;
 
-        // Get relevant conversation history (limited length)
-        const historyLimit = 20; // Limit number of messages in history
-        const allVisibleMessages = this.#conversationLog.getMessages({
+        // Get agent-specific memory
+        const agentMemory = this.#agentMemories.get(playerId);
+        if (!agentMemory) {
+             // Should not happen if initialized correctly
+             console.error(`Memory not found for player ${playerId}!`);
+             throw new Error(`Memory not found for player ${playerId}`);
+        }
+
+        // Update message history within the memory object before generating state
+        // Get ALL relevant messages, no arbitrary limit
+        agentMemory.messageHistory = this.#conversationLog.getMessages({
              relevantToPlayer: { id: playerId, role: player.role.name }
         });
-        const limitedHistory = allVisibleMessages.slice(-historyLimit);
 
         // Base visible state
         const state: VisibleGameState = {
@@ -258,17 +267,8 @@ export class Game {
             language: this.language,
             // Conditionally add Mafia member list
              ...(isMafia && { mafiaPlayerIds: new Set(this.getAliveMafia().map(p => p.id)) }),
-             // Add Seer result if applicable to this player
-            ...(playerId === this.#lastNightResults.seerInvestigation?.seerId && {
-                 lastNightInvestigationResult: {
-                     targetId: this.#lastNightResults.seerInvestigation.targetId,
-                     allegiance: this.#lastNightResults.seerInvestigation.allegiance
-                 }
-             }),
-             conversationHistory: limitedHistory,
-             // Add previous vote results if available
-             ...(this.#lastDayVoteResults && { previousDayVoteResults: this.#lastDayVoteResults }),
-             themeName: this.theme.name
+             themeName: this.theme.name,
+            memory: agentMemory // Pass the agent's specific memory
         };
 
         return Object.freeze(state); // Make it immutable
