@@ -25,11 +25,11 @@ export class HumanAgent implements IAgent {
             switch (gameState.phase) {
                 case 'Day':
                     // Prompt is now shown by DayPhase
-                    const dayAction = await rl.question('> '); // Simple prompt indicator
-                    if (dayAction.startsWith('m ')) {
-                        return { type: 'message', content: dayAction.substring(2) };
-                    } else if (dayAction.startsWith('v ')) {
-                        const index = parseInt(dayAction.substring(2), 10) - 1;
+                    const dayActionStr = await rl.question('> '); // Simple prompt indicator
+                    if (dayActionStr.startsWith('m ')) {
+                        return { type: 'message', content: dayActionStr.substring(2) };
+                    } else if (dayActionStr.startsWith('v ')) {
+                        const index = parseInt(dayActionStr.substring(2), 10) - 1;
                         // Need aliveOthersInfo from Phase? No, recalculate or get from state
                         const voteTargets = aliveOthersInfo; // Assuming this logic remains valid
                         if (index >= 0 && index < voteTargets.length) {
@@ -43,28 +43,71 @@ export class HumanAgent implements IAgent {
 
                 case 'Night':
                     if (gameState.self.isMafia) {
-                         if (aliveOthersInfo.length === 0) return {type: 'noAction'}; // No one else to kill
-                         const potentialTargets = aliveOthersInfo.filter(p => !gameState.mafiaPlayerIds?.has(p.id));
-                         if (potentialTargets.length === 0) {
-                             // Prompt handled by NightPhase
-                             // console.log("No non-mafia targets available.");
-                             await rl.question('> '); // Wait for Enter
-                             return {type: 'noAction'};
-                         }
                          // Prompt handled by NightPhase
-                         // console.log("Choose player to kill:");
-                         // potentialTargets.forEach((p, i) => console.log(`${i + 1}: ${p.name}`));
-                         const killChoice = await rl.question('> '); // Simple prompt indicator
-                         const index = parseInt(killChoice, 10) - 1;
-                         if (index >= 0 && index < potentialTargets.length) {
-                             return { type: 'mafiaKill', targetPlayerId: potentialTargets[index].id };
+                         const nightActionStr = await rl.question('> '); // Simple prompt indicator
+
+                         if (nightActionStr.startsWith('m ')) { // Check for message first
+                             return { type: 'message', content: nightActionStr.substring(2) };
+                         } else { 
+                              // If not a message, try parsing as a kill index
+                              const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
+                              const aliveOthersInfo = aliveOthers.map(id => gameState.players.find(p => p.id === id)!);
+                              const potentialTargets = aliveOthersInfo.filter(p => !gameState.mafiaPlayerIds?.has(p.id));
+
+                              if (potentialTargets.length === 0) {
+                                   console.warn('WARN: Human Mafia tried to act but no valid targets.'); 
+                                   return { type: 'noAction' };
+                              }
+
+                              if (nightActionStr.trim() === '0') {
+                                   return { type: 'noAction' }; // Explicit no kill
+                              }
+
+                              const index = parseInt(nightActionStr, 10);
+                              if (!isNaN(index) && index > 0 && index <= potentialTargets.length) {
+                                   // Valid index entered (adjusting for 1-based index from prompt)
+                                  return { type: 'mafiaKill', targetPlayerId: potentialTargets[index - 1].id };
+                              } else {
+                                   // Invalid input for kill index
+                                   console.log("Invalid night action. Expected 'm [message]' or kill target index (e.g., 1, 2) or 0.");
+                                   return { type: 'noAction' }; 
+                              }
                          }
-                    } else {
-                        // Prompt handled by NightPhase
-                        // console.log("You rest during the night.");
-                         await rl.question('> '); // Wait for Enter
+                    } else if (gameState.self.role === RoleName.Doctor) {
+                         // --- Doctor Logic --- (Keep existing correct logic)
+                         const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
+                         const aliveOthersInfo = aliveOthers.map(id => gameState.players.find(p => p.id === id)!);
+                         const potentialTargets = aliveOthersInfo; 
+                         if (potentialTargets.length === 0) {
+                             await rl.question('> '); return { type: 'noAction' };
+                         }
+                         const saveChoice = await rl.question('> ');
+                         const index = parseInt(saveChoice, 10) - 1;
+                         if (index >= 0 && index < potentialTargets.length) {
+                             return { type: 'doctorSave', targetPlayerId: potentialTargets[index].id };
+                         } else {
+                             return { type: 'doctorSave', targetPlayerId: null }; // Explicit no save
+                         }
+                    } else if (gameState.self.role === RoleName.Seer) {
+                         // --- Seer Logic --- (Keep existing correct logic)
+                         const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
+                         const aliveOthersInfo = aliveOthers.map(id => gameState.players.find(p => p.id === id)!);
+                         const potentialTargets = aliveOthersInfo.filter(p => p.id !== gameState.self.id); 
+                         if (potentialTargets.length === 0) {
+                             await rl.question('> '); return { type: 'noAction' };
+                         }
+                         const investigateChoice = await rl.question('> ');
+                         const index = parseInt(investigateChoice, 10) - 1;
+                         if (index >= 0 && index < potentialTargets.length) {
+                             return { type: 'seerInvestigate', targetPlayerId: potentialTargets[index].id };
+                         } else {
+                             return { type: 'seerInvestigate', targetPlayerId: null }; // Explicit no investigation
+                         }
+                    } else { 
+                         // --- Other Roles --- (Keep existing correct logic)
+                         await rl.question('> '); 
+                         return { type: 'noAction' };
                     }
-                    return { type: 'noAction' };
 
                 default:
                     console.log("No action required for this phase.");
