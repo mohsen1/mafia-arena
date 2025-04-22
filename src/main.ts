@@ -169,11 +169,11 @@ async function main() {
                 // Assign persona
                 if (currentPersonaIndex < personas.length) {
                     assignedPersona = personas[currentPersonaIndex];
-                    // Only assign persona to AI agents
-                    if (!(agent instanceof HumanAgent)) {
-                        // Assert type to satisfy linter
-                        (agent as OpenAIAgent | ClaudeAgent | GeminiAgent | DummyAIAgent).persona = assignedPersona;
-                    }
+                    // Only assign persona to AI agents - The persona is passed via GameState, no need to assign here.
+                    // if (!(agent instanceof HumanAgent)) {
+                    //    // Assert type to satisfy linter
+                    //    (agent as OpenAIAgent | ClaudeAgent | GeminiAgent | DummyAIAgent).persona = assignedPersona;
+                    //}
                     playerName = assignedPersona.name; 
                     currentPersonaIndex++;
                 } else {

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import { OpenAIAgent } from '../../src/agents/OpenAIAgent';
 import type { VisibleGameState } from '../../src/interfaces/GameState';
 import type { PlayerAction } from '../../src/interfaces/IAgent';
-import { createInitialMemory, type AgentMemory } from '../../src/interfaces/AgentMemory';
+import { createInitialMemory, type AgentMemory, type AIConversationLog } from '../../src/interfaces/AgentMemory';
 import { RoleName } from '../../src/interfaces/IRole';
 import { PlayerStatus } from '../../src/interfaces/IPlayer';
 
@@ -14,13 +14,17 @@ vi.mock('openai', async (importActual) => {
     const mockCreate = vi.fn();
     const mockCompletions = { create: mockCreate };
     const mockChat = { completions: mockCompletions };
-    const MockOpenAI = vi.fn(() => ({ chat: mockChat }));
+    const MockOpenAI = vi.fn((config) => {
+        // You could store or assert config.apiKey, config.baseURL here if needed
+        return { chat: mockChat };
+    });
 
     return {
         OpenAI: MockOpenAI,
         default: MockOpenAI,
         // Export the internal mock function reference
-        __mockCreate: mockCreate
+        __mockCreate: mockCreate,
+        __MockOpenAIConstructor: MockOpenAI
     };
 });
 
@@ -36,8 +40,14 @@ describe('OpenAIAgent', () => {
     let agent: OpenAIAgent;
     let mockGameState: VisibleGameState;
     let mockCreate: Mock; // To hold the mock function
+    let MockOpenAIConstructor: Mock;
     let getSystemPrompt: Mock;
     let getUserPrompt: Mock;
+
+    // Define test configurations
+    const testModel = 'test-model-123';
+    const testApiBase = 'http://localhost:1234/v1';
+    const testApiKey = 'test-key-xyz';
 
     beforeEach(async () => { // Make beforeEach async to handle potential dynamic imports
         vi.clearAllMocks();
@@ -45,6 +55,7 @@ describe('OpenAIAgent', () => {
         // Dynamically import the mocked components AFTER vi.mock has run
         const mockedOpenAI = await import('openai');
         mockCreate = (mockedOpenAI as any).__mockCreate; // Get the exported mock function
+        MockOpenAIConstructor = (mockedOpenAI as any).__MockOpenAIConstructor; // Get constructor mock
 
         const mockedPrompts = await import('../../src/prompts');
         getSystemPrompt = mockedPrompts.getSystemPrompt as Mock;
@@ -55,9 +66,10 @@ describe('OpenAIAgent', () => {
         getSystemPrompt.mockReturnValue('Mock System Prompt');
         getUserPrompt.mockReturnValue('Mock User Prompt');
         mockCreate.mockClear(); // Clear any previous calls/results
+        MockOpenAIConstructor.mockClear(); // Clear constructor mock calls too
 
-        agent = new OpenAIAgent(); // Instantiates agent, which uses the mocked OpenAI
-        agent.playerId = 'openai-test-player';
+        agent = new OpenAIAgent(testModel, testApiBase, testApiKey); // Instantiates agent, which uses the mocked OpenAI
+        agent.setPlayerId('openai-test-player');
 
         mockGameState = {
              gameId: 'test-game',
@@ -72,7 +84,16 @@ describe('OpenAIAgent', () => {
          };
     });
 
-    it('should call OpenAI API with correct prompts and parameters', async () => {
+    it('should initialize OpenAI client with correct parameters', () => {
+        // Agent is created in beforeEach
+        expect(MockOpenAIConstructor).toHaveBeenCalledTimes(1);
+        expect(MockOpenAIConstructor).toHaveBeenCalledWith({
+            apiKey: testApiKey,
+            baseURL: testApiBase,
+        });
+    });
+
+    it('should call OpenAI API with configured model and prompts', async () => {
         const expectedAction: PlayerAction = { type: 'message', content: 'Hello from mock!' };
         // Use the mockCreate obtained in beforeEach
         mockCreate.mockResolvedValue({
@@ -97,7 +118,7 @@ describe('OpenAIAgent', () => {
         // Use the mockCreate obtained in beforeEach
         expect(mockCreate).toHaveBeenCalledTimes(1);
         expect(mockCreate).toHaveBeenCalledWith({
-            model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo', // Check model
+            model: testModel, // Check configured model is used
             messages: [
                 { role: 'system', content: 'Mock System Prompt' }, // Check prompts used
                 { role: 'user', content: 'Mock User Prompt' },
@@ -144,7 +165,7 @@ describe('OpenAIAgent', () => {
          expect(action).toEqual({ type: 'noAction' });
      });
 
-     it('should handle empty API response', async () => {
+     it('should return noAction and log error on empty API response', async () => {
          // Use the mockCreate obtained in beforeEach
          mockCreate.mockResolvedValue({
              choices: [{ message: { content: null } }], // Simulate empty content
@@ -152,22 +173,53 @@ describe('OpenAIAgent', () => {
 
          const action = await agent.getAction(mockGameState, ['message']);
          expect(action).toEqual({ type: 'noAction' });
+
+         // Check if the error was logged
+         expect(mockGameState.memory.aiConversationLogs).toHaveLength(1);
+         const log = mockGameState.memory.aiConversationLogs[0];
+         expect(log.response.raw).toBeNull();
+         expect(log.response.error).toContain('Empty API response');
+         expect(log.response.parsedAction).toBeNull(); // No action parsed
      });
 
-     it('should handle API call error', async () => {
-          const apiError = new Error('API failed');
+     it('should return noAction and log error on API call failure', async () => {
+          const apiError = new Error('API failed miserably');
           // Use the mockCreate obtained in beforeEach
           mockCreate.mockRejectedValue(apiError); // Simulate API error
 
           const action = await agent.getAction(mockGameState, ['message']);
           expect(action).toEqual({ type: 'noAction' });
+
+          // Check if the error was logged
+          expect(mockGameState.memory.aiConversationLogs).toHaveLength(1);
+          const log = mockGameState.memory.aiConversationLogs[0];
+          expect(log.response.raw).toBeNull(); // No raw response
+          expect(log.response.error).toContain('API call failed: API failed miserably');
+          expect(log.response.parsedAction).toBeNull(); // No action parsed
       });
+
+    it('should return noAction and log error on JSON parsing failure', async () => {
+        const invalidJsonResponse = '{"type": "message", "content": "unterminated string';
+         mockCreate.mockResolvedValue({
+             choices: [{ message: { content: invalidJsonResponse } }],
+         });
+
+         const action = await agent.getAction(mockGameState, ['message']);
+         expect(action).toEqual({ type: 'noAction' });
+
+         // Check if the error was logged
+         expect(mockGameState.memory.aiConversationLogs).toHaveLength(1);
+         const log = mockGameState.memory.aiConversationLogs[0];
+         expect(log.response.raw).toEqual(invalidJsonResponse);
+         expect(log.response.error).toContain('JSON parse error');
+         expect(log.response.parsedAction).toBeNull(); // No action parsed
+    });
 
     it('should handle a Mafia player during the Night phase', async () => {
         // Create a specific game state for this test
         const mafiaPlayerId = 'mafia-player';
         const villagerPlayerId = 'villager1';
-        agent.playerId = mafiaPlayerId; // Ensure agent has the correct ID for this test
+        agent.setPlayerId(mafiaPlayerId); // Ensure agent has the correct ID for this test
 
         const mafiaGameState: VisibleGameState = {
             gameId: 'mafia-test-game',
@@ -222,7 +274,7 @@ describe('OpenAIAgent', () => {
         // Create a specific game state with pre-populated memory for this test
         const player1Id = 'player1';
         const player2Id = 'player2';
-        agent.playerId = player1Id;
+        agent.setPlayerId(player1Id);
 
         const memoryWithHistory: AgentMemory = {
             investigationResults: [],
@@ -236,7 +288,8 @@ describe('OpenAIAgent', () => {
                     senderName: 'Player 2', content: 'Test message', 
                     timestamp: new Date(), visibility: 'Public' as any // Cast for simplicity
                 }
-            ]
+            ],
+            aiConversationLogs: [] // Initialize the logs array
         };
 
         const gameStateWithMemory: VisibleGameState = {

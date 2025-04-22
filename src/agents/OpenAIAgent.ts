@@ -1,103 +1,113 @@
-import { OpenAI } from 'openai';
-import type { IAgent, PlayerAction } from '../interfaces/IAgent';
+import OpenAI from 'openai';
 import type { VisibleGameState } from '../interfaces/GameState';
-import type { PlayerId } from '../interfaces/IPlayer';
-import * as dotenv from 'dotenv'; // Import dotenv
-import { getSystemPrompt, getUserPrompt } from '../prompts'; // Import prompt functions
-import type { Persona } from '../interfaces/Theme'; // Import Persona
-import debug from 'debug'; // Import debug
+import type { IAgent, PlayerAction } from '../interfaces/IAgent';
+import { getSystemPrompt, getUserPrompt } from '../prompts';
+import type { AgentMemory, AIConversationLog } from '../interfaces/AgentMemory'; // Import AIConversationLog
+import { RoleName } from '../interfaces/IRole'; // Keep existing imports
 
-// Create a specific debugger instance for this agent
-const log = debug('mafia:agent:openai');
-
-// Load environment variables from .env file
-dotenv.config();
-// Ensure API key and model are set in environment variables
-if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY environment variable is not set.");
-}
-if (!process.env.OPENAI_MODEL) {
-    log(`WARN: OPENAI_MODEL environment variable is not set. Using default 'gpt-3.5-turbo'.`);
-}
-
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_BASE_URL, // Optional: Defaults to OpenAI's base URL
-});
-
-const model = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+// Define default configuration (can be overridden)
+const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'; // Use a default model
+const DEFAULT_API_BASE = process.env.OPENAI_API_BASE || 'https://api.openai.com/v1';
+const DEFAULT_API_KEY = process.env.OPENAI_API_KEY; // API key is now explicitly handled
 
 export class OpenAIAgent implements IAgent {
-    public playerId!: PlayerId; // Set by Game constructor
-    public persona?: Persona; // Add persona property
+    playerId: string = 'default-openai-agent';
+    role: RoleName | null = null;
+    private openai: OpenAI;
+    private model: string;
+    private apiBase: string;
 
-    async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
-        log(`[${this.playerId} - ${gameState.self.role}] Thinking...`);
+    // Updated constructor to accept configuration
+    constructor(model: string = DEFAULT_MODEL, apiBase: string = DEFAULT_API_BASE, apiKey: string | undefined = DEFAULT_API_KEY) {
+        this.model = model;
+        this.apiBase = apiBase; // Store apiBase if needed for logging/debugging
 
-        // Pass the necessary parts of gameState, including the memory object, to the prompt function
-        const promptInputState = {
+        // Ensure apiKey is handled correctly (undefined vs empty string)
+        if (!apiKey) {
+            console.warn(`Warning: API key for OpenAI agent (model: ${this.model}, endpoint: ${this.apiBase}) is not set. Requests might fail.`);
+            // Depending on the provider, an API key might not always be required (e.g., local Ollama)
+        }
+
+        this.openai = new OpenAI({
+            apiKey: apiKey, // Pass explicitly, can be undefined
+            baseURL: this.apiBase,
+        });
+    }
+
+    setPlayerId(id: string): void {
+        this.playerId = id;
+    }
+
+    setRole(role: RoleName): void {
+        this.role = role;
+    }
+
+    async getAction(gameState: VisibleGameState, allowedActions: PlayerAction['type'][]): Promise<PlayerAction> {
+        const systemPrompt = getSystemPrompt();
+        const userPrompt = getUserPrompt(gameState, allowedActions);
+        const memory = gameState.memory; // Get memory for logging
+
+        const logEntry: Partial<AIConversationLog> = { // Use Partial for building the log
             round: gameState.round,
             phase: gameState.phase,
-            self: gameState.self,
-            alivePlayerIds: Array.from(gameState.alivePlayerIds),
-            players: gameState.players.map(p => ({ id: p.id, name: p.name, status: p.status })),
-            language: gameState.language,
-            mafiaPlayerIds: gameState.self.isMafia ? Array.from(gameState.mafiaPlayerIds ?? []) : undefined,
-            themeName: gameState.themeName,
-            memory: gameState.memory // Pass the whole memory object
+            timestamp: new Date(),
+            model: this.model,
+            prompt: { system: systemPrompt, user: userPrompt },
+            response: { raw: null, parsedAction: null }
         };
 
-        const systemPrompt = getSystemPrompt();
-        const userPrompt = getUserPrompt(promptInputState, allowedActions); // Pass the constructed state
-
         try {
-            const response = await openai.chat.completions.create({
-                model: model,
+            const completion = await this.openai.chat.completions.create({
+                model: this.model, // Use the configured model
                 messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userPrompt },
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt },
                 ],
-                temperature: 0.7, // Adjust for creativity vs consistency
+                temperature: 0.7,
                 max_tokens: 150,
-                response_format: { type: "json_object" } // Ensure JSON output if model supports it
+                response_format: { type: 'json_object' },
             });
 
-            const responseContent = response.choices[0]?.message?.content;
+            const responseContent = completion.choices[0]?.message?.content;
+            logEntry.response!.raw = responseContent; // Log raw response
+
             if (!responseContent) {
-                log(`ERROR: [${this.playerId}] OpenAI response was empty.`);
+                console.warn(`[Agent ${this.playerId}] Received empty response from API.`);
+                logEntry.response!.error = 'Empty API response';
+                memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
                 return { type: 'noAction' };
             }
 
-            // Parse and validate the action
-            let action: PlayerAction;
             try {
-                 // The response should *only* be the JSON object
-                action = JSON.parse(responseContent.trim()) as PlayerAction;
-            } catch (parseError) {
-                 log(`ERROR: [${this.playerId}] Failed to parse JSON response: ${responseContent} %O`, parseError);
-                return { type: 'noAction' };
-            }
+                const parsedAction = JSON.parse(responseContent) as PlayerAction;
 
-            // Validate action type
-            if (!allowedActions || allowedActions.length === 0) {
-                // If no actions are specified, assume noAction is the only valid one (or handle error)
-                if (action.type !== 'noAction') {
-                    log(`WARN: [${this.playerId}] Action type '${action.type}' is not allowed (no actions specified). Defaulting to noAction.`);
+                // Validate action type
+                if (!allowedActions.includes(parsedAction.type)) {
+                    console.warn(`[Agent ${this.playerId}] Received disallowed action type '${parsedAction.type}'. Allowed: ${allowedActions.join(', ')}`);
+                    logEntry.response!.parsedAction = parsedAction; // Log parsed but disallowed action
+                    logEntry.response!.error = 'Disallowed action type received';
+                    memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
                     return { type: 'noAction' };
                 }
-            } else if (!allowedActions.includes(action.type)) {
-                 log(`WARN: [${this.playerId}] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`);
-                 return { type: 'noAction' };
+
+                // Action is valid and allowed
+                logEntry.response!.parsedAction = parsedAction; // Log successful action
+                memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
+                return parsedAction;
+
+            } catch (parseError) {
+                console.error(`[Agent ${this.playerId}] Failed to parse JSON response: ${responseContent}`, parseError);
+                logEntry.response!.error = `JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
+                memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
+                return { type: 'noAction' };
             }
 
-            // TODO: Add more specific validation based on action type (e.g., targetPlayerId exists and is alive)
-
-            log(`[${this.playerId} - ${gameState.self.role}] Chose action: %o`, action); // Use %o for object formatting
-            return action;
-
         } catch (error) {
-            log(`ERROR: [${this.playerId}] Error calling OpenAI API: %O`, error); // Use %O for detailed error object
-            return { type: 'noAction' }; // Fallback on API error
+            console.error(`[Agent ${this.playerId}] Error calling OpenAI API (model: ${this.model}, endpoint: ${this.apiBase}):`, error);
+            logEntry.response!.raw = null; // No raw response available on API error
+            logEntry.response!.error = `API call failed: ${error instanceof Error ? error.message : String(error)}`;
+            memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
+            return { type: 'noAction' };
         }
     }
-} 
+}
