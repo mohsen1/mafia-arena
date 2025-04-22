@@ -7,7 +7,7 @@ A text-based implementation of the social deduction game "Mafia" (also known as 
 In Mafia, players are secretly assigned roles as either innocent villagers or mafia members. The game alternates between day and night phases:
 
 - **Day Phase**: All players discuss and vote on who they think might be the Mafia. The player with the most votes is executed.
-- **Night Phase**: The Mafia members secretly choose a villager to eliminate.
+- **Night Phase**: The Mafia members secretly choose a villager to eliminate. Roles like Doctor and Seer may also perform night actions.
 
 The game continues until either all Mafia members are eliminated (villagers win) or the Mafia members equal or outnumber the villagers (Mafia wins).
 
@@ -15,9 +15,15 @@ The game continues until either all Mafia members are eliminated (villagers win)
 
 - Modular architecture using interfaces and the State Pattern for game phases
 - Support for human player interaction via the console
-- Simple AI agents (`DummyAIAgent`) with basic decision-making capabilities
-- Option to use a more sophisticated AI agent (`OpenAIAgent`) via the OpenAI API (requires API key)
+- Basic AI agent (`DummyAIAgent`)
+- Advanced AI agents using LLMs:
+    - `OpenAIAgent` (via OpenAI API)
+    - `ClaudeAgent` (via Anthropic API)
+    - `GeminiAgent` (via Google API)
+- Implemented roles: `Villager`, `Mafia`, `Doctor`, `Seer`
 - Game state rendering to console and Markdown log files
+- Conversation logging and memory for AI agents
+- Optional game themes (e.g., classic, wild west) to influence prompts
 - Extensible design for adding more roles and features
 
 ## Project Structure
@@ -25,14 +31,53 @@ The game continues until either all Mafia members are eliminated (villagers win)
 ```
 ./
 ├── src/
-│   ├── core/                    # Core game logic classes
+│   ├── core/                    # Core game logic (Game, Player, Message, ConversationLog)
+│   │   ├── Game.ts
+│   │   ├── Player.ts
+│   │   ├── Message.ts
+│   │   ├── ConversationLog.ts
+│   │   └── utils.ts
 │   ├── main.ts                  # Entry point
+│   ├── prompts.ts               # Prompts used by AI agents
 │   ├── rendering/               # Renderer implementations
-│   ├── phases/                  # Game phase implementations
-│   ├── roles/                   # Role implementations (Mafia, Villager, Doctor, Seer...)
-│   ├── agents/                  # Agent implementations (Human, DummyAI, OpenAIAgent)
-│   └── interfaces/              # Core interfaces
+│   │   ├── ConsoleRenderer.ts
+│   │   └── MarkdownRenderer.ts
+│   ├── phases/                  # Game phase implementations (Init, Day, Night, GameOver)
+│   │   ├── InitializationPhase.ts
+│   │   ├── DayPhase.ts
+│   │   ├── NightPhase.ts
+│   │   ├── GameOverPhase.ts
+│   │   └── AbstractGamePhase.ts
+│   ├── roles/                   # Role implementations
+│   │   ├── VillagerRole.ts
+│   │   ├── MafiaRole.ts
+│   │   ├── DoctorRole.ts
+│   │   ├── SeerRole.ts
+│   │   └── Role.ts              # Base role class/interface
+│   ├── agents/                  # Agent implementations
+│   │   ├── HumanAgent.ts
+│   │   ├── DummyAIAgent.ts
+│   │   ├── OpenAIAgent.ts
+│   │   ├── ClaudeAgent.ts
+│   │   └── GeminiAgent.ts
+│   └── interfaces/              # Core interfaces (IAgent, IRole, IGamePhase, etc.)
+│       ├── IAgent.ts
+│       ├── IRole.ts
+│       ├── IGamePhase.ts
+│       ├── IGameRenderer.ts
+│       ├── IPlayer.ts
+│       ├── IMessage.ts
+│       ├── GameState.ts
+│       ├── AgentMemory.ts
+│       ├── AIConfig.ts
+│       └── Theme.ts
 ├── tests/                       # Unit and integration tests
+├── .env.example                 # Example environment variables
+├── .gitignore
+├── package.json
+├── pnpm-lock.yaml
+├── README.md
+└── tsconfig.json
 ```
 
 ## Getting Started
@@ -54,19 +99,23 @@ cd mafia-game
 pnpm install
 ```
 
-### Environment Variables (for OpenAI Agent)
+### Environment Variables (for AI Agents)
 
-If you plan to use the `OpenAIAgent`, `ClaudeAgent`, or `GeminiAgent`, create a `.env` file in the project root:
+If you plan to use the `OpenAIAgent`, `ClaudeAgent`, or `GeminiAgent`, create a `.env` file in the project root (you can copy `.env.example`):
 
 ```plaintext
 #.env
+# --- OpenAI ---
 OPENAI_API_KEY="your_openai_api_key"
 OPENAI_MODEL="gpt-4o" # Or gpt-4-turbo, gpt-3.5-turbo, etc.
 # OPENAI_BASE_URL="your_proxy_or_local_url" # Optional
 
+# --- Anthropic ---
 ANTHROPIC_API_KEY="your_anthropic_api_key"
-# ANTHROPIC_MODEL="claude-3-opus-20240229" # Optional, defaults to Sonnet
+# ANTHROPIC_MODEL="claude-3-sonnet-20240229" # Optional, defaults to Sonnet 3.5
+# ANTHROPIC_BASE_URL="your_proxy_or_local_url" # Optional
 
+# --- Google Gemini ---
 GEMINI_API_KEY="your_google_api_key"
 # GEMINI_MODEL="gemini-1.5-pro-latest" # Optional, defaults to 1.5-flash
 ```
@@ -91,8 +140,8 @@ npm run dev
 To see verbose logging from the AI agents (like their thinking process, chosen actions, and potential errors), you can use the `DEBUG` environment variable. Set it before running the game:
 
 ```bash
-# Show logs from all agents
-DEBUG=mafia:agent:* npm start
+# Show logs from all agents and core game logic
+DEBUG=mafia:* npm start
 
 # Show logs only from OpenAI agent
 DEBUG=mafia:agent:openai npm start
@@ -101,7 +150,10 @@ DEBUG=mafia:agent:openai npm start
 DEBUG=mafia:agent:claude,mafia:agent:gemini npm start
 
 # Show logs from Dummy agent
-# DEBUG=mafia:agent:dummy npm start 
+DEBUG=mafia:agent:dummy npm start
+
+# Show logs from core game logic
+# DEBUG=mafia:core npm start
 ```
 
 ## Game Play
@@ -137,11 +189,11 @@ The `ConsoleRenderer` and `MarkdownRenderer` provide examples of how to implemen
 
 ## Future Enhancements
 
-- More roles (Doctor, Detective, etc.)
-- Advanced AI agents using more sophisticated decision-making
+- More roles (e.g., Detective, Bodyguard)
 - Web-based UI
 - Multiplayer support over the network
 - Game statistics and analytics
+- More sophisticated AI agent strategies and memory management
 
 ## License
 
