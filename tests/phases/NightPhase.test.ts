@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NightPhase } from '../../src/phases/NightPhase';
 import { Game } from '../../src/core/Game'; // We need Game to mock its methods
 import { Player } from '../../src/core/Player';
-import { RoleName } from '../../src/interfaces/IRole';
+import { IRole, RoleName } from '../../src/interfaces/IRole';
 import { DoctorRole } from '../../src/roles/DoctorRole';
 import { SeerRole } from '../../src/roles/SeerRole';
 import { MafiaRole } from '../../src/roles/MafiaRole';

@@ -120,8 +120,10 @@ export class DayPhase extends AbstractGamePhase {
                      votes.set(player.id, null); // Invalid vote counts as abstain
                      game.logMessage(player.id, "cast an invalid vote (counts as abstain).", MessageVisibility.Public);
                  }
-             } else {
+             } else { // Handle noAction during voting
                   votes.set(player.id, null); // No vote action = abstain
+                  // Add the missing log message for abstention
+                  game.logMessage(player.id, "abstains from voting.", MessageVisibility.Public);
              }
         }
 
