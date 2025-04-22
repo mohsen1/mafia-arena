@@ -6,6 +6,7 @@ import { getSystemPrompt, getUserPrompt } from '../prompts'; // Import prompt fu
 import type { Persona } from '../interfaces/Theme'; // Import Persona
 import * as dotenv from 'dotenv'; // Import dotenv
 import debug from 'debug'; // Import debug
+import { RoleName, type Allegiance } from '../interfaces/IRole'; // Import RoleName and Allegiance
 
 // Create a specific debugger instance
 const log = debug('mafia:agent:gemini');
@@ -23,7 +24,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Define the model to use (e.g., gemini-1.5-flash)
 // Consider making this configurable via environment variable GEMINI_MODEL
-const modelName = "gemini-1.5-flash";
+const defaultModelName = "gemini-1.5-flash"; // Default model
 
 // Configure safety settings to be less restrictive for game context
 // Adjust these as needed, but be aware of potential harmful content generation
@@ -37,31 +38,43 @@ const safetySettings = [
 export class GeminiAgent implements IAgent {
     public playerId!: PlayerId; // Set by Game constructor
     public persona?: Persona; // Add persona property
+    private modelName: string; // Store the selected model name
+
+    constructor(model?: string) { // Accept optional model
+        this.modelName = model || defaultModelName; // Use provided model or default
+        log(`Initialized GeminiAgent with model: ${this.modelName}`);
+    }
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
-        log(`[${this.playerId} - ${gameState.self.role} (Gemini)] Thinking...`);
+        log(`[${this.playerId} - ${gameState.self.role} (Gemini)] Thinking with model ${this.modelName}...`);
 
-        // Pass the necessary parts of gameState, including the memory object
+        // Determine allegiance
+        const allegiance: Allegiance = gameState.self.role === RoleName.Mafia ? 'Mafia' : 'Town';
+
+        // Prepare state for the prompt, converting Set to Array and adding allegiance
         const promptInputState = {
             round: gameState.round,
             phase: gameState.phase,
-            self: gameState.self,
-            alivePlayerIds: Array.from(gameState.alivePlayerIds),
+            self: {
+                ...gameState.self, // Spread existing self properties
+                allegiance: allegiance // Add the determined allegiance
+            },
+            alivePlayerIds: Array.from(gameState.alivePlayerIds), // Convert Set to Array here
             players: gameState.players.map(p => ({ id: p.id, name: p.name, status: p.status })),
             language: gameState.language,
             mafiaPlayerIds: gameState.self.isMafia ? Array.from(gameState.mafiaPlayerIds ?? []) : undefined,
             themeName: gameState.themeName,
-            memory: gameState.memory // Pass the whole memory object
+            memory: gameState.memory 
         };
 
-        // Gemini prefers the system prompt as part of the initial user message typically
         const systemPrompt = getSystemPrompt();
-        const userPrompt = getUserPrompt(promptInputState, allowedActions);
+        // Pass the modified state with the array to getUserPrompt
+        const userPrompt = getUserPrompt(promptInputState, allowedActions); 
         const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
         try {
             const model = genAI.getGenerativeModel({
-                 model: modelName,
+                 model: this.modelName,
                  safetySettings,
                  // Specify JSON output mode if supported and desired
                  // generationConfig: { responseMimeType: "application/json" }
@@ -112,7 +125,7 @@ export class GeminiAgent implements IAgent {
             return action;
 
         } catch (error) {
-            log(`ERROR: [${this.playerId} (Gemini)] Error calling Google Generative AI API: %O`, error);
+            log(`ERROR: [${this.playerId} (${this.modelName})] Error calling Google Generative AI API: %O`, error);
             return { type: 'noAction' }; // Fallback on API error
         }
     }

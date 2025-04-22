@@ -1,9 +1,44 @@
 import type { PlayerAction } from './interfaces/IAgent';
-import type { RoleName } from './interfaces/IRole';
+import type { RoleName, Allegiance } from './interfaces/IRole';
 import type { Persona } from './interfaces/Theme';
-import type { AgentMemory } from './interfaces/AgentMemory'; // Import AgentMemory
-import type { IMessage } from './interfaces/IMessage'; // Import IMessage
-import dedent from 'dedent'; // Import dedent
+import type { AgentMemory } from './interfaces/AgentMemory';
+import type { IMessage } from './interfaces/IMessage';
+import type { PlayerId } from './interfaces/IPlayer';
+import type { GamePhaseType } from './interfaces/IGamePhase';
+import dedent from 'dedent';
+
+// --- Type Definition for Prompt Input ---
+interface PromptPlayerInfo {
+    id: PlayerId;
+    name: string;
+    status: string;
+}
+interface PromptSelfInfo extends PromptPlayerInfo {
+    role: RoleName;
+    allegiance: Allegiance;
+    isMafia: boolean;
+    personaDescription?: string;
+}
+
+// Define expected type for seer results based on usage
+type PromptSeerResultMap = Map<PlayerId, { isMafia: boolean }>;
+
+interface PromptGameState {
+    round: number;
+    phase: GamePhaseType;
+    themeName?: string;
+    language?: string;
+    self: PromptSelfInfo;
+    alivePlayerIds: PlayerId[];
+    players: PromptPlayerInfo[];
+    mafiaPlayerIds?: PlayerId[];
+    seerResults?: PromptSeerResultMap;
+    messages?: ReadonlyArray<IMessage>;
+    memory?: AgentMemory;
+}
+
+// Define constant if not already defined globally or imported
+const MAX_MESSAGES_IN_PROMPT = 15; // Example value, adjust as needed
 
 /**
  * Generates the system prompt explaining the game rules and desired output format.
@@ -43,7 +78,13 @@ export function getSystemPrompt(): string {
           (Mafia or Town).
 
         **Role-Specific Hints (Apply within your Persona):**
-        - **Mafia:** Your goal is to eliminate threats to the Mafia. At night, you can choose a target\n          using the \`mafiaKill\` action (this can be any living player, even another Mafia if\n          strategically necessary, though usually you target Town members). You are strongly\n          encouraged to use the \`message\` action first to discuss strategy and targets with fellow\n          Mafia (remember, messages are only seen by others in the next state). Submitting a\n          \`mafiaKill\` action is usually expected, but choosing \`noAction\` is possible if strategically\n          justified (e.g., to avoid detection). Blend in during the day using your persona.
+        - **Mafia:** Your goal is to eliminate threats to the Mafia. At night, you can choose a target
+        using the \`mafiaKill\` action (this can be any living player, even another Mafia if
+        strategically necessary, though usually you target Town members). You are strongly
+        encouraged to use the \`message\` action first to discuss strategy and targets with fellow
+        Mafia (remember, messages are only seen by others in the next state). Submitting a
+        \`mafiaKill\` action is usually expected, but choosing \`noAction\` is possible if strategically
+        justified (e.g., to avoid detection). Blend in during the day using your persona.
         - **Villager:** Actively participate in discussions as your persona. Share suspicions based on
           behavior/votes. Accuse players you suspect and explain why (in character). Vote decisively.
         - **Doctor:** Saving is powerful. Protect valuable Town members or those likely targeted, perhaps
@@ -60,8 +101,10 @@ export function getSystemPrompt(): string {
         any other text, explanations, or markdown formatting.
         Valid Actions (based on phase and role):
         - { "type": "message", "content": "your message text (in character)" } (Day Discussion / Introduction)
-        - { "type": "vote", "targetPlayerId": "player-id-string" | null } (Day Vote - Use null to\n          abstain, but voting is encouraged!)
-        - { "type": "mafiaKill", "targetPlayerId": "player-id-string" } (Night, Mafia only - target\n          any living player)
+        - { "type": "vote", "targetPlayerId": "player-id-string" | null } (Day Vote - Use null to
+        abstain, but voting is encouraged!)
+        - { "type": "mafiaKill", "targetPlayerId": "player-id-string" } (Night, Mafia only - target
+        any living player)
         - { "type": "doctorSave", "targetPlayerId": "player-id-string" | null } (Night, Doctor only -
           null for no save)
         - { "type": "seerInvestigate", "targetPlayerId": "player-id-string" | null } (Night, Seer only -
@@ -78,145 +121,115 @@ export function getSystemPrompt(): string {
  * @param currentGameState A simplified view of the game state (includes memory).
  * @param allowedActions The actions the agent is allowed to perform.
  */
-export function getUserPrompt(currentGameState: any, allowedActions?: PlayerAction['type'][]): string {
-    const memory: AgentMemory = currentGameState.memory;
+export function getUserPrompt(
+    currentGameState: PromptGameState,
+    allowedActions?: PlayerAction['type'][]
+): string {
+    const promptLines: string[] = [];
 
-    // Use dedent for the main prompt construction parts
-    let prompt = dedent`
-        Current Game State:
-        Theme: ${currentGameState.themeName || 'Default'}
-        Round: ${currentGameState.round}, Phase: ${currentGameState.phase}, Language: ${currentGameState.language}
-    `;
+    // Basic Game State
+    promptLines.push(`**Current Game State:**`);
+    promptLines.push(`- Round: ${currentGameState.round}`);
+    promptLines.push(`- Phase: ${currentGameState.phase}`);
+    promptLines.push(`- Theme: ${currentGameState.themeName || 'Unknown'}`);
+    promptLines.push(`- Language: ${currentGameState.language || 'en'}`);
 
-    if (currentGameState.self?.persona) {
-        const p = currentGameState.self.persona;
-        prompt += dedent`
-
-            Your Persona: ${p.name} (${p.personalityTraits.join(', ')}).
-            Backstory: ${p.backstory}
-        `;
+    // Your Identity
+    promptLines.push(`\n**Your Identity:**`);
+    promptLines.push(`- Player ID: ${currentGameState.self.id}`);
+    promptLines.push(`- Player Name: ${currentGameState.self.name}`);
+    promptLines.push(`- Your Role: ${currentGameState.self.role}`);
+    promptLines.push(`- Your Allegiance: ${currentGameState.self.allegiance}`);
+    if (currentGameState.self.personaDescription) {
+        promptLines.push(`- Your Persona: ${currentGameState.self.personaDescription}`);
     }
 
-    prompt += dedent`
-
-        Your Info (Self Role): ${JSON.stringify({ role: currentGameState.self.role, isMafia: currentGameState.self.isMafia }) }
-        Alive Players: ${currentGameState.alivePlayerIds.join(', ')}
-        All Player Status: ${JSON.stringify(currentGameState.players)}
-    `;
-
-    if (currentGameState.mafiaPlayerIds) {
-        prompt += dedent`
-
-            Known Mafia Members: ${currentGameState.mafiaPlayerIds.join(', ')}
-        `; // Newline added below
+    // Known Information (Role Specific)
+    if (currentGameState.self.isMafia && currentGameState.mafiaPlayerIds) {
+        promptLines.push(`\n**Mafia Team:**`);
+        const mafiaNames = currentGameState.mafiaPlayerIds
+            .map((id: PlayerId) => {
+                const player = currentGameState.players.find((p: PromptPlayerInfo) => p.id === id);
+                return player ? `${player.name} (${id})` : id;
+            })
+            .join(', ');
+        promptLines.push(`- Your fellow Mafia members are: ${mafiaNames}`);
     }
-
-    // --- Format Memory --- 
-    prompt += dedent`
-
-        --- Your Memory ---
-    `; // Add spacing
-
-    if (memory.investigationResults.length > 0) {
-        prompt += dedent`
-
-            Your Investigation Results:
-        `;
-        memory.investigationResults.forEach(res => {
-            const target = currentGameState.players.find((p: any) => p.id === res.targetId);
-            const targetName = target ? target.name : res.targetId;
-            prompt += dedent`
-                - Round ${res.round}: Investigated ${targetName} (${res.targetId}) - Result: ${res.allegiance}
-            `;
+    if (currentGameState.seerResults && currentGameState.seerResults.size > 0) {
+        promptLines.push(`\n**Seer Investigations:**`);
+        currentGameState.seerResults.forEach((result: { isMafia: boolean }, targetId: PlayerId) => {
+            const targetName = currentGameState.players.find((p: PromptPlayerInfo) => p.id === targetId)?.name || targetId;
+            promptLines.push(`- You investigated ${targetName}: They are ${result.isMafia ? 'Mafia' : 'Not Mafia'}.`);
         });
     }
 
-    if (memory.voteHistory.length > 0) {
-        prompt += dedent`
-
-            Previous Day Voting History:
-        `;
-        memory.voteHistory.forEach(voteRecord => {
-            prompt += dedent`
-
-                Round ${voteRecord.round} Votes:
-            `;
-            if (voteRecord.votes.size === 0) {
-                prompt += dedent`
-
-                    (No votes cast)
-                `;
-            } else {
-                for (const [voterId, targetId] of voteRecord.votes.entries()) {
-                    const voterName = currentGameState.players.find((p: any) => p.id === voterId)?.name ?? voterId;
-                    const targetName = targetId ? (currentGameState.players.find((p: any) => p.id === targetId)?.name ?? targetId) : 'Abstain';
-                    prompt += dedent`
-
-                        - ${voterName} voted for ${targetName}
-                    `;
-                }
-            }
-        });
-    }
-
-    if (memory.killHistory.length > 0) {
-        prompt += dedent`
-
-            Previous Night Kill History:
-        `;
-        memory.killHistory.forEach(killRecord => {
-            const targetName = killRecord.killedPlayerId ?
-                (currentGameState.players.find((p: any) => p.id === killRecord.killedPlayerId)?.name ?? killRecord.killedPlayerId)
-                : 'No one';
-            prompt += dedent`
-
-                - Round ${killRecord.round}: ${targetName} was killed.
-            `;
-        });
-    }
-
-    if (memory.messageHistory && memory.messageHistory.length > 0) {
-        prompt += dedent`
-
-            Full Conversation History (Visible to You):
-        `;
-        memory.messageHistory.forEach((msg: IMessage) => {
-            const visibilityPrefix = msg.visibility === 'Mafia' ? '[MAFIA ONLY] ' : '';
-            prompt += dedent`
-
-                [R${msg.round} ${msg.phase}] ${visibilityPrefix}${msg.senderName}: ${msg.content}
-            `;
-        });
-    } else {
-        prompt += dedent`
-
-            No conversation history visible yet.
-        `;
-    }
-    prompt += dedent`
-
-        --- End Memory ---
-    `;
-
-    // Add Allowed Actions and Final Instruction
-    prompt += dedent`
-
-        Allowed Actions: ${allowedActions ? allowedActions.join(', ') : 'None (likely noAction expected)'}
-    `;
+    // Player List - Use Array methods now
+    const alivePlayersList = currentGameState.players
+        .filter((p: PromptPlayerInfo) => currentGameState.alivePlayerIds.includes(p.id))
+        .map((p: PromptPlayerInfo) => 
+            `- ${p.name} (${p.id})${p.id === currentGameState.self.id ? ' (You)' : ''}${!currentGameState.alivePlayerIds.includes(p.id) ? ' [DEAD]' : ''}`
+        )
+        .join('\n');
     
-    if (currentGameState.round === 1 && currentGameState.phase === 'Day' && allowedActions?.includes('message')) {
-        prompt += dedent`
+    const alivePlayerIdsString = currentGameState.alivePlayerIds.join(', ');
 
-            **It's Round 1 Introductions! Your ONLY goal this turn is to introduce yourself based on your Persona.**
-            Respond with a JSON message action like: { "type": "message", "content": "Your introduction here..." }
-        `;
+    promptLines.push(`\n**Players (${currentGameState.players.length} total, ${currentGameState.alivePlayerIds.length} alive):**`);
+    promptLines.push(alivePlayersList);
+    promptLines.push(`\n(Alive Player IDs: ${alivePlayerIdsString})`);
+
+    // Recent Messages (Public)
+    if (currentGameState.messages && currentGameState.messages.length > 0) {
+        promptLines.push(`\n**Recent Public Messages (Last ${MAX_MESSAGES_IN_PROMPT}):**`);
+        currentGameState.messages
+            .slice(-MAX_MESSAGES_IN_PROMPT)
+            .forEach((msg: IMessage) => {
+                 const senderName = currentGameState.players.find((p: PromptPlayerInfo) => p.id === msg.senderId)?.name || msg.senderId || 'SYSTEM';
+                 promptLines.push(`- ${senderName}: ${msg.content}`);
+            });
     } else {
-        prompt += dedent`
-
-            Choose your action based on your role, persona, memory (investigations, votes, kills, conversation),
-            current game state, and allowed actions. Remember to output ONLY the action JSON object.
-        `;
+        promptLines.push("\n**Recent Public Messages:** None");
     }
 
-    return prompt;
+    // Game History / Memory - Removed memory.summary access
+    if (currentGameState.memory) {
+        promptLines.push(`\n**Your Memory / Game History Summary:**`);
+        if (Object.keys(currentGameState.memory).length > 0) {
+             promptLines.push("- *You have some memories recorded.*");
+        } else {
+             promptLines.push("- *Your memory is clear.*");
+        }
+    }
+
+    // Allowed Actions
+    promptLines.push(`\n**Your Turn:**`);
+    if (allowedActions && allowedActions.length > 0) {
+        promptLines.push(`You must choose one of the following actions: ${allowedActions.join(', ')}.`);
+        promptLines.push("Provide your action as a JSON object matching the examples below.");
+
+        // Action Examples (customize based on phase/role)
+        promptLines.push(`\n**Action Format Examples:**`);
+        if (allowedActions.includes('message')) {
+            promptLines.push('- Speak: `{"type": "message", "content": "Your message here..."}`');
+        }
+        if (allowedActions.includes('vote')) {
+            promptLines.push('- Vote: `{"type": "vote", "targetPlayerId": "player-id-to-vote-for"}`');
+        }
+        if (allowedActions.includes('mafiaKill')) {
+            promptLines.push('- Mafia Kill: `{"type": "mafiaKill", "targetPlayerId": "player-id-to-kill"}`');
+        }
+        if (allowedActions.includes('doctorSave')) {
+            promptLines.push('- Doctor Save: `{"type": "doctorSave", "targetPlayerId": "player-id-to-save"}`');
+        }
+        if (allowedActions.includes('seerInvestigate')) {
+            promptLines.push('- Seer Investigate: `{"type": "seerInvestigate", "targetPlayerId": "player-id-to-investigate"}`');
+        }
+        promptLines.push('- Abstain/No Action: `{"type": "noAction"}` (or `{"type": "vote", "targetPlayerId": null}` for voting)');
+
+        promptLines.push(`\n**Important:** Respond ONLY with the JSON object for your chosen action. Include a brief 'reasoning' field within the JSON if possible, explaining your choice concisely.`);
+
+    } else {
+        promptLines.push("No specific actions are available or required right now.");
+    }
+
+    return promptLines.join('\n');
 }

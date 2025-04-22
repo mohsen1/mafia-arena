@@ -142,36 +142,42 @@ describe('OpenAIAgent', () => {
     });
 
      it('should return noAction if response is not valid JSON', async () => {
-         // Use the mockCreate obtained in beforeEach
          mockCreate.mockResolvedValue({
              choices: [{ message: { content: 'This is not JSON' } }],
          });
 
+         // Suppress console error for this test
+         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
          const action = await agent.getAction(mockGameState, ['message']);
+         consoleSpy.mockRestore();
 
          expect(action).toEqual({ type: 'noAction' });
      });
 
     it('should return noAction if the returned action type is not allowed', async () => {
-        const disallowedAction: PlayerAction = { type: 'mafiaKill', targetPlayerId: 'p1' }; // Mafia action
-         // Use the mockCreate obtained in beforeEach
+        const disallowedAction: PlayerAction = { type: 'mafiaKill', targetPlayerId: 'p1' };
          mockCreate.mockResolvedValue({
              choices: [{ message: { content: JSON.stringify(disallowedAction) } }],
          });
 
-         // Villager during the day cannot perform mafiaKill
+         // Suppress console error for this test
+         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
          const action = await agent.getAction(mockGameState, ['message', 'vote', 'noAction']);
+         consoleSpy.mockRestore();
 
          expect(action).toEqual({ type: 'noAction' });
      });
 
      it('should return noAction and log error on empty API response', async () => {
-         // Use the mockCreate obtained in beforeEach
          mockCreate.mockResolvedValue({
-             choices: [{ message: { content: null } }], // Simulate empty content
+             choices: [{ message: { content: null } }],
          });
 
+         // Suppress console error for this test
+         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
          const action = await agent.getAction(mockGameState, ['message']);
+         consoleSpy.mockRestore();
+
          expect(action).toEqual({ type: 'noAction' });
 
          // Check if the error was logged
@@ -184,10 +190,13 @@ describe('OpenAIAgent', () => {
 
      it('should return noAction and log error on API call failure', async () => {
           const apiError = new Error('API failed miserably');
-          // Use the mockCreate obtained in beforeEach
-          mockCreate.mockRejectedValue(apiError); // Simulate API error
+          mockCreate.mockRejectedValue(apiError);
 
+          // Suppress console error for this test
+          const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
           const action = await agent.getAction(mockGameState, ['message']);
+          consoleSpy.mockRestore();
+
           expect(action).toEqual({ type: 'noAction' });
 
           // Check if the error was logged
@@ -204,7 +213,11 @@ describe('OpenAIAgent', () => {
              choices: [{ message: { content: invalidJsonResponse } }],
          });
 
+         // Suppress console error for this test
+         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
          const action = await agent.getAction(mockGameState, ['message']);
+         consoleSpy.mockRestore();
+
          expect(action).toEqual({ type: 'noAction' });
 
          // Check if the error was logged

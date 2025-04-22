@@ -5,6 +5,8 @@ import type { VisibleGameState } from '../interfaces/GameState';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { format } from 'date-fns';
+import { type AgentMemory, type AIConversationLog } from '../interfaces/AgentMemory';
 
 export class MarkdownRenderer implements IGameRenderer {
     private gameId = '';
@@ -134,6 +136,52 @@ export class MarkdownRenderer implements IGameRenderer {
         this.appendToMarkdown(`- **Winner**: ${winner}`);
         this.appendToMarkdown(`- **End Time**: ${new Date().toLocaleString()}`);
         
+        // --- NEW: AI Conversation Logs --- 
+        this.appendToMarkdown(`## AI Agent Conversation Logs`);
+
+        // Check if detailed player info is available
+        if (finalState.playerDetails && finalState.playerDetails.length > 0) {
+            let foundLogs = false;
+            for (const playerInfo of finalState.playerDetails) {
+                // Access memory via the assumed structure in finalState.
+                // IMPORTANT: This requires `createPublicFinalState` in GameOverPhase to add this data.
+                const memory = (finalState as any).memories?.[playerInfo.id] as AgentMemory | undefined;
+
+                if (memory && memory.aiConversationLogs && memory.aiConversationLogs.length > 0) {
+                    foundLogs = true;
+                    this.appendToMarkdown(`### Logs for ${playerInfo.name} (${playerInfo.id} - Role: ${playerInfo.role || 'Unknown'})`);
+                    memory.aiConversationLogs.forEach((log: AIConversationLog, index: number) => {
+                        this.appendToMarkdown(`#### Log Entry ${index + 1} (Round ${log.round}, ${log.phase})`);
+                        this.appendToMarkdown(`- **Timestamp:** ${log.timestamp ? format(log.timestamp, 'yyyy-MM-dd HH:mm:ss.SSS') : 'N/A'}`);
+                        this.appendToMarkdown(`- **Model:** ${log.model || 'N/A'}`);
+                        this.appendToMarkdown(`- **System Prompt:**`);
+                        this.appendToMarkdown('```txt\n' + (log.prompt.system || '(None)') + '\n```'); // Use txt for generic prompts
+                        this.appendToMarkdown(`- **User Prompt:**`);
+                        this.appendToMarkdown('```json\n' + (log.prompt.user || '(None)') + '\n```'); // Assume user prompt is structured JSON
+                        this.appendToMarkdown(`- **Raw Response:**`);
+                        this.appendToMarkdown('```json\n' + (log.response.raw || '(None)') + '\n```'); // Assume raw response is JSON
+                        if (log.response.parsedAction) {
+                            this.appendToMarkdown(`- **Parsed Action:** \`\`\`json\n${JSON.stringify(log.response.parsedAction, null, 2)}\n\`\`\``);
+                        }
+                        if (log.response.error) {
+                            this.appendToMarkdown(`- **Error:**`);
+                            this.appendToMarkdown('```\n' + log.response.error + '\n```');
+                        }
+                        this.appendToMarkdown(`---`); // Separator between log entries
+                    });
+                } else if (memory && (!memory.aiConversationLogs || memory.aiConversationLogs.length === 0)) {
+                    // Optionally log if an AI agent had no recorded conversations
+                    // Check if player was supposed to be AI (e.g., not Human type if available)
+                    // We don't have agent type here, so maybe just skip or add a generic note.
+                }
+            }
+            if (!foundLogs) {
+                this.appendToMarkdown(`*No AI conversation logs were recorded or made available in the final game state.*`);
+            }
+        } else {
+            this.appendToMarkdown(`*Could not retrieve detailed player information to display AI logs.*`);
+        }
+
         console.log(`Markdown log file saved to: ${this.outputFile}`);
     }
 

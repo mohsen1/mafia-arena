@@ -4,6 +4,17 @@ import type { IAgent, PlayerAction } from '../interfaces/IAgent';
 import { getSystemPrompt, getUserPrompt } from '../prompts';
 import type { AgentMemory, AIConversationLog } from '../interfaces/AgentMemory'; // Import AIConversationLog
 import { RoleName } from '../interfaces/IRole'; // Keep existing imports
+import type { Allegiance } from '../interfaces/IRole'; // Correct import path for Allegiance
+import * as dotenv from 'dotenv';
+import debug from 'debug'; // Import debug
+import type { PlayerId } from '../interfaces/IPlayer';
+import type { Persona } from '../interfaces/Theme';
+
+// Create a specific debugger instance
+const log = debug('mafia:agent:openai');
+
+// Load environment variables
+dotenv.config();
 
 // Define default configuration (can be overridden)
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'; // Use a default model
@@ -43,8 +54,30 @@ export class OpenAIAgent implements IAgent {
     }
 
     async getAction(gameState: VisibleGameState, allowedActions: PlayerAction['type'][]): Promise<PlayerAction> {
+        log(`[${this.playerId} - ${gameState.self.role} (OpenAI)] Thinking with model ${this.model}...`);
+
+        // Determine allegiance based on role name
+        const allegiance: Allegiance = gameState.self.role === RoleName.Mafia ? 'Mafia' : 'Town';
+
+        // Prepare state for the prompt, converting Set to Array and adding allegiance
+        const promptInputState = {
+            round: gameState.round,
+            phase: gameState.phase,
+            self: {
+                ...gameState.self, // Spread existing self properties
+                allegiance: allegiance // Add the determined allegiance
+            },
+            alivePlayerIds: Array.from(gameState.alivePlayerIds), 
+            players: gameState.players.map(p => ({ id: p.id, name: p.name, status: p.status })),
+            language: gameState.language,
+            mafiaPlayerIds: gameState.self.isMafia ? Array.from(gameState.mafiaPlayerIds ?? []) : undefined,
+            themeName: gameState.themeName,
+            memory: gameState.memory 
+        };
+
         const systemPrompt = getSystemPrompt();
-        const userPrompt = getUserPrompt(gameState, allowedActions);
+        const userPrompt = getUserPrompt(promptInputState, allowedActions); 
+
         const memory = gameState.memory; // Get memory for logging
 
         const logEntry: Partial<AIConversationLog> = { // Use Partial for building the log

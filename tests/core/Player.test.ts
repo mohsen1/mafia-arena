@@ -128,7 +128,12 @@ describe('Player', () => {
             player.kill();
             const expectedAction: PlayerAction = { type: 'noAction' };
 
+            // Suppress console.warn for this specific log message
+            const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
             const action = await player.decideAction(mockGameState);
+
+            consoleWarnSpy.mockRestore(); // Restore console.warn
 
             expect(action).toEqual(expectedAction);
             expect(mockAgent.getAction).not.toHaveBeenCalled();

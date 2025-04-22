@@ -5,9 +5,11 @@ export enum RoleName {
     Seer = 'Seer' // Detective equivalent
 }
 
+export type Allegiance = 'Town' | 'Mafia'; 
+
 export interface IRole {
     readonly name: RoleName;
-    readonly allegiance: 'Mafia' | 'Town'; // Or other factions
+    readonly allegiance: Allegiance;
     readonly canPerformNightAction: boolean; // Does this role act at night?
     readonly description: string;
 
