@@ -43,10 +43,7 @@ export function getSystemPrompt(): string {
           (Mafia or Town).
 
         **Role-Specific Hints (Apply within your Persona):**
-        - **Mafia:** Blend in using your persona. Deflect suspicion. Create doubt. **At night, FIRST
-          send messages to fellow Mafia suggesting kill targets or discussing strategy. THEN, on your
-          turn, also submit your kill vote.** Target key roles. Use night chat (\`message\` action)
-          extensively before deciding your kill (\`mafiaKill\` action).
+        - **Mafia:** Your goal is to eliminate threats to the Mafia. At night, you can choose a target\n          using the \`mafiaKill\` action (this can be any living player, even another Mafia if\n          strategically necessary, though usually you target Town members). You are strongly\n          encouraged to use the \`message\` action first to discuss strategy and targets with fellow\n          Mafia (remember, messages are only seen by others in the next state). Submitting a\n          \`mafiaKill\` action is usually expected, but choosing \`noAction\` is possible if strategically\n          justified (e.g., to avoid detection). Blend in during the day using your persona.
         - **Villager:** Actively participate in discussions as your persona. Share suspicions based on
           behavior/votes. Accuse players you suspect and explain why (in character). Vote decisively.
         - **Doctor:** Saving is powerful. Protect valuable Town members or those likely targeted, perhaps
@@ -63,10 +60,8 @@ export function getSystemPrompt(): string {
         any other text, explanations, or markdown formatting.
         Valid Actions (based on phase and role):
         - { "type": "message", "content": "your message text (in character)" } (Day Discussion / Introduction)
-        - { "type": "vote", "targetPlayerId": "player-id-string" | null } (Day Vote - Use null to abstain,
-          but voting is encouraged!)
-        - { "type": "mafiaKill", "targetPlayerId": "player-id-string" } (Night, Mafia only - target a
-          non-Mafia player)
+        - { "type": "vote", "targetPlayerId": "player-id-string" | null } (Day Vote - Use null to\n          abstain, but voting is encouraged!)
+        - { "type": "mafiaKill", "targetPlayerId": "player-id-string" } (Night, Mafia only - target\n          any living player)
         - { "type": "doctorSave", "targetPlayerId": "player-id-string" | null } (Night, Doctor only -
           null for no save)
         - { "type": "seerInvestigate", "targetPlayerId": "player-id-string" | null } (Night, Seer only -
