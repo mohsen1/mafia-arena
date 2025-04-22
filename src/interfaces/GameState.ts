@@ -2,6 +2,7 @@ import type { PublicPlayerInfo, PlayerId, PlayerStatus } from "./IPlayer";
 import type { GamePhaseType } from "./IGamePhase";
 import type { RoleName } from "./IRole";
 import type { IMessage } from "./IMessage";
+import type { Persona } from "./Theme";
 
 // Represents the game state information passed TO an agent.
 // It's filtered based on what that agent SHOULD know.
@@ -15,6 +16,7 @@ export interface VisibleGameState {
         readonly status: PlayerStatus;
         readonly role: RoleName; // The player knows their own role
         readonly isMafia: boolean; // Convenience flag
+        readonly persona?: Persona;
     };
     readonly players: ReadonlyArray<PublicPlayerInfo>; // Public info of all players
     readonly alivePlayerIds: ReadonlySet<PlayerId>;
@@ -25,6 +27,7 @@ export interface VisibleGameState {
     readonly lastNightInvestigationResult?: { targetId: PlayerId, allegiance: 'Mafia' | 'Town' }; // Added for Seer feedback
     readonly conversationHistory?: ReadonlyArray<IMessage>; // Add conversation history
     readonly previousDayVoteResults?: ReadonlyMap<PlayerId, PlayerId | null>; // Added previous vote results
+    readonly themeName?: string; // Added game theme name
     
     // Added for GameOver state to include full details
     readonly playerDetails?: ReadonlyArray<{ 

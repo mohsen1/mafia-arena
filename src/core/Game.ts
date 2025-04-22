@@ -12,6 +12,7 @@ import { RoleName } from '../interfaces/IRole';
 import { v4 as uuidv4 } from 'uuid';
 import type { IAgent } from '../interfaces/IAgent';
 import type { IRole } from '../interfaces/IRole';
+import { type GameTheme, Themes } from '../interfaces/Theme';
 
 export class Game {
     public readonly id: string = uuidv4();
@@ -21,14 +22,20 @@ export class Game {
     #conversationLog = new ConversationLog();
     #round = 0;
     public readonly language: string;
+    public readonly theme: GameTheme;
     // Store results from the last night phase
     #lastNightResults: { seerInvestigation?: { seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town' } } = {};
     // Store votes from the last day phase
     #lastDayVoteResults: ReadonlyMap<PlayerId, PlayerId | null> | null = null;
 
-    constructor(playerSetups: { name: string; agent: IAgent; role: IRole }[], language: string = 'en') {
-        if (playerSetups.length < 3) { // Example minimum player count
-             throw new Error("Not enough players to start a game.");
+    constructor(
+        playerSetups: { name: string; agent: IAgent; role: IRole }[],
+        themeName: string = 'UK_VILLAGE_1900S',
+        language: string = 'en'
+    ) {
+        this.theme = Themes[themeName];
+        if (!this.theme) {
+            throw new Error(`Selected theme "${themeName}" not found.`);
         }
         this.language = language;
         playerSetups.forEach((setup, index) => {
@@ -244,6 +251,7 @@ export class Game {
                 status: player.status,
                 role: player.role.name,
                 isMafia: isMafia,
+                persona: player.agent.persona
             },
             players: this.getPublicPlayerArray(), // Only public info
             alivePlayerIds: new Set(this.getAlivePlayers().map(p => p.id)),
@@ -259,7 +267,8 @@ export class Game {
              }),
              conversationHistory: limitedHistory,
              // Add previous vote results if available
-             ...(this.#lastDayVoteResults && { previousDayVoteResults: this.#lastDayVoteResults })
+             ...(this.#lastDayVoteResults && { previousDayVoteResults: this.#lastDayVoteResults }),
+             themeName: this.theme.name
         };
 
         return Object.freeze(state); // Make it immutable

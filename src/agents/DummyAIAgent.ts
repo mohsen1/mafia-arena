@@ -3,9 +3,11 @@ import { VisibleGameState } from '../interfaces/GameState';
 import { PlayerId } from '../interfaces/IPlayer';
 import { delay } from '../core/utils';
 import { RoleName } from '../interfaces/IRole';
+import type { Persona } from '../interfaces/Theme';
 
 export class DummyAIAgent implements IAgent {
     public playerId!: PlayerId; // Set by Game constructor
+    public persona?: Persona; // Add persona property
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         await delay(50 + Math.random() * 100); // Simulate thinking time

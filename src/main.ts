@@ -9,8 +9,11 @@ import { SeerRole } from './roles/SeerRole';
 import { DoctorRole } from './roles/DoctorRole';
 import type { IRole } from './interfaces/IRole';
 import { OpenAIAgent } from './agents/OpenAIAgent'; // Import OpenAI Agent
+import { ClaudeAgent } from './agents/ClaudeAgent'; // Import ClaudeAgent
+import { GeminiAgent } from './agents/GeminiAgent'; // Import GeminiAgent
 import * as dotenv from 'dotenv';
 import * as readline from 'readline/promises'; // Import readline/promises
+import { Themes, type Persona } from './interfaces/Theme'; // Import Themes and Persona
 
 // Load environment variables from .env file
 dotenv.config();
@@ -18,6 +21,29 @@ dotenv.config();
 // --- Argument Parsing ---
 const args = process.argv.slice(2); // Skip node executable and script path
 const useDummyAI = args.includes('--dummy-ai');
+const useClaudeAI = args.includes('--claude-ai'); // Add flag for Claude
+const useGeminiAI = args.includes('--gemini-ai'); // Add flag for Gemini
+
+// Determine AI Agent Class (Default to OpenAI if multiple flags or none specified)
+let SelectedAIAgentClass: typeof OpenAIAgent | typeof ClaudeAgent | typeof GeminiAgent | typeof DummyAIAgent;
+let aiTypeString: string;
+
+if (useDummyAI) {
+    SelectedAIAgentClass = DummyAIAgent;
+    aiTypeString = "Dummy AI";
+} else if (useClaudeAI && !useGeminiAI) { // Prioritize Claude if only Claude flag
+    SelectedAIAgentClass = ClaudeAgent;
+    aiTypeString = "Claude AI";
+} else if (useGeminiAI && !useClaudeAI) { // Prioritize Gemini if only Gemini flag
+    SelectedAIAgentClass = GeminiAgent;
+    aiTypeString = "Gemini AI";
+} else { // Default to OpenAI if no specific flag or multiple flags
+    SelectedAIAgentClass = OpenAIAgent;
+    aiTypeString = "OpenAI AI";
+    if (useClaudeAI || useGeminiAI) {
+         console.warn("Multiple AI flags specified (--claude-ai, --gemini-ai). Defaulting to OpenAI AI.");
+    }
+}
 
 // --- Interactive Setup Function ---
 async function interactiveSetup(rl: readline.Interface): Promise<{ playerCount: number, includeHuman: boolean }> {
@@ -48,6 +74,27 @@ async function interactiveSetup(rl: readline.Interface): Promise<{ playerCount: 
     return { playerCount, includeHuman };
 }
 
+// --- Theme Selection Function ---
+async function selectTheme(rl: readline.Interface): Promise<string> {
+    const themeKeys = Object.keys(Themes);
+    console.log("\nAvailable Themes:");
+    themeKeys.forEach((key, index) => {
+        console.log(`${index + 1}: ${Themes[key].name} (${Themes[key].description})`);
+    });
+
+    let selectedThemeKey = "";
+    while (!selectedThemeKey) {
+        const choiceStr = await rl.question(`Choose a theme number (1-${themeKeys.length}): `);
+        const choiceIndex = parseInt(choiceStr, 10) - 1;
+        if (choiceIndex >= 0 && choiceIndex < themeKeys.length) {
+            selectedThemeKey = themeKeys[choiceIndex];
+        } else {
+            console.log("Invalid choice. Please enter a valid number.");
+        }
+    }
+    return selectedThemeKey;
+}
+
 async function main() {
     // Create readline interface
     const rl = readline.createInterface({
@@ -60,9 +107,12 @@ async function main() {
     try {
         // --- Get Setup Config Interactively ---
         const { playerCount, includeHuman } = await interactiveSetup(rl);
+        const themeKey = await selectTheme(rl);
+        const selectedTheme = Themes[themeKey];
 
         console.log(`\nSetting up game with ${playerCount} players (${includeHuman ? 'including Human' : 'AI only'})...`);
-        console.log(`(${useDummyAI ? 'Using Dummy AI' : 'Using OpenAI AI'} for AI players)`);
+        console.log(`Theme: ${selectedTheme.name}`);
+        console.log(`(Using ${aiTypeString} for AI players)`); // Use dynamic AI type string
 
         // Define roles based on player count 
         let rolesToAssign: IRole[];
@@ -85,27 +135,42 @@ async function main() {
         // Shuffle roles for random assignment
         rolesToAssign.sort(() => Math.random() - 0.5);
 
-        // Create player configurations (name, role, agent)
+        // --- Persona Assignment ---
+        const personas = selectedTheme.generatePersonaPool(playerCount);
+
+        // --- Create Player Setups ---
         const playerSetups = [];
-        const AIAgentClass = useDummyAI ? DummyAIAgent : OpenAIAgent;
         let humanPlayerIndex = includeHuman ? 0 : -1; // Human is Player 1 if included
+        let currentPersonaIndex = 0; // Keep track of assigned personas
 
         for (let i = 0; i < playerCount; i++) {
             const role = rolesToAssign[i];
-            const name = `Player ${i + 1}`;
-
+            let assignedPersona: Persona | undefined = undefined;
+            let playerName: string;
             let agent;
+
             if (i === humanPlayerIndex) {
                 agent = new HumanAgent();
+                playerName = `Player ${i + 1}`; // Human keeps simple name
             } else {
-                agent = new AIAgentClass();
+                agent = new SelectedAIAgentClass();
+                if (currentPersonaIndex < personas.length) {
+                    assignedPersona = personas[currentPersonaIndex];
+                    agent.persona = assignedPersona; // Assign persona to AI agent
+                    playerName = assignedPersona.name; // Use persona name for AI player
+                    currentPersonaIndex++;
+                } else {
+                     // Fallback if not enough personas generated (shouldn't happen with current logic)
+                     playerName = `Player ${i + 1}`;
+                     console.warn(`Warning: Not enough personas generated for player ${i+1}`);
+                }
             }
 
-            playerSetups.push({ name, role, agent });
+            playerSetups.push({ name: playerName, role, agent });
         }
 
         // Set up the game with the player configurations
-        game = new Game(playerSetups);
+        game = new Game(playerSetups, themeKey, 'en'); // Pass themeKey to Game constructor
 
         // Add renderers
         game.addRenderer(new ConsoleRenderer());

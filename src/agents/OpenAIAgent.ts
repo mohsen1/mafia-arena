@@ -5,6 +5,7 @@ import type { PlayerId } from '../interfaces/IPlayer';
 import { RoleName } from '../interfaces/IRole';
 import * as dotenv from 'dotenv'; // Import dotenv
 import { getSystemPrompt, getUserPrompt } from '../prompts'; // Import prompt functions
+import type { Persona } from '../interfaces/Theme'; // Import Persona
 
 // Load environment variables from .env file
 dotenv.config();
@@ -25,6 +26,7 @@ const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 export class OpenAIAgent implements IAgent {
     public playerId!: PlayerId; // Set by Game constructor
+    public persona?: Persona; // Add persona property
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         console.log(`[${this.playerId} - ${gameState.self.role}] Thinking...`);

@@ -3,6 +3,7 @@ import type { IAgent, PlayerAction } from '../interfaces/IAgent';
 import type { VisibleGameState } from '../interfaces/GameState';
 import type { PlayerId } from '../interfaces/IPlayer';
 import { getSystemPrompt, getUserPrompt } from '../prompts'; // Import prompt functions
+import type { Persona } from '../interfaces/Theme'; // Import Persona
 
 // Ensure API key is set in environment variables
 if (!process.env.ANTHROPIC_API_KEY) {
@@ -19,6 +20,7 @@ const model = "claude-3-sonnet-20240229";
 
 export class ClaudeAgent implements IAgent {
     public playerId!: PlayerId; // Set by Game constructor
+    public persona?: Persona; // Add persona property
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         console.log(`[${this.playerId} - ${gameState.self.role} (Claude)] Thinking...`);

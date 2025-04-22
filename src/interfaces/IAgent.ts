@@ -1,6 +1,7 @@
 import type { PlayerId } from './IPlayer';
 import type { VisibleGameState } from './GameState';
 import type { Message } from '../core/Message';
+import type { Persona } from './Theme';
 
 export type PlayerAction =
     | { type: 'message'; content: string }
@@ -12,6 +13,7 @@ export type PlayerAction =
 
 export interface IAgent {
     playerId: PlayerId;
+    persona?: Persona;
     /**
      * Called by the Game to get the agent's action for the current phase.
      * @param gameState A snapshot of the game state visible to this player.

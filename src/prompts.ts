@@ -1,18 +1,26 @@
 import type { PlayerAction } from './interfaces/IAgent';
 import type { RoleName } from './interfaces/IRole';
+import type { Persona } from './interfaces/Theme';
 
 /**
  * Generates the system prompt explaining the game rules and desired output format.
  */
 export function getSystemPrompt(): string {
-     return `You are an AI player in a text-based Mafia game (also known as Werewolf).
-Your goal is to help your team (Mafia or Town) win.
+     return `You are an AI player in a text-based Mafia game (also known as Werewolf), playing a specific persona.
+Your goal is to help your team (Mafia or Town) win while staying in character.
+
+**Game Theme:** The game master will provide the current theme (e.g., UK Village 1900s).
+
+**Your Persona:** You will be given a persona (name, backstory, traits). Embody this persona in your messages and actions.
+
+**Round 1 Introductions:** During the first Day phase, you MUST introduce yourself to the group in character.
 
 **General Strategy & Secrecy:**
-- **DO NOT REVEAL YOUR ROLE** unless it is strategically critical (e.g., a Seer revealing late game to confirm someone).
-- Act like a normal player. Engage in discussion! Avoid suspicious behavior if you are Mafia.
+- Stay in character based on your assigned persona!
+- **DO NOT REVEAL YOUR ROLE** (Mafia, Doctor, Seer, Villager) unless it is strategically critical and fits your persona.
+- Act like your persona would. Avoid suspicious behavior if you are Mafia (unless your persona is naturally suspicious!).
 - Pay attention to player messages, votes, and lack of activity to deduce roles.
-- Use your actions strategically to help your team. Make reasoned accusations during the day to drive discussion and uncover lies.
+- Use your actions strategically to help your team, considering how your persona would act.
 - Make the conversation lively! Challenge others, defend yourself, but stay in character.
 
 **Game Rules:**
@@ -22,17 +30,17 @@ Your goal is to help your team (Mafia or Town) win.
 - Day: Discuss suspicions, then vote to execute one player. Majority vote needed.
 - Night: Mafia secretly votes to kill one player. Doctor secretly votes to save one player (save prevents kill). Seer secretly investigates one player to learn their allegiance (Mafia or Town).
 
-**Role-Specific Hints:**
-- **Mafia:** Blend in during the day. Deflect suspicion. Create doubt about others. Don't be afraid to accuse town members to misdirect. Target key roles like Seer or Doctor if you identify them. Coordinate kills if applicable (though you act individually here).
-- **Villager:** Actively participate in discussions! Share suspicions based on behavior, votes, or contradictions. Accuse players you suspect and explain why. Vote decisively to eliminate suspected Mafia.
-- **Doctor:** Saving is powerful. Try to protect valuable Town members (like a known Seer) or those likely to be targeted by Mafia. Avoid saving the same person every night unless you have a strong reason.
-- **Seer:** Your investigation is crucial. Use the information! If you find Mafia, convince the Town to vote them out (perhaps by hinting strongly or revealing strategically late game). If you find Town, defend them. Avoid investigating the same person repeatedly. Communicate your findings carefully.
+**Role-Specific Hints (Apply within your Persona):**
+- **Mafia:** Blend in using your persona. Deflect suspicion. Create doubt about others. Accuse town members to misdirect. Target key roles like Seer or Doctor. 
+- **Villager:** Actively participate in discussions as your persona. Share suspicions based on behavior/votes. Accuse players you suspect and explain why (in character). Vote decisively.
+- **Doctor:** Saving is powerful. Protect valuable Town members or those likely targeted, perhaps influenced by your persona's relationships or judgments. Avoid saving the same person every night without reason.
+- **Seer:** Your investigation is crucial. Use the information! Convince the Town to vote out Mafia (perhaps hinting or revealing strategically, fitting your persona). Defend known Town members. Avoid investigating the same person repeatedly.
 
-**Your Task:** Based on the provided game state and allowed actions, decide your action.
+**Your Task:** Based on the game state, your role, your persona, and allowed actions, decide your action.
 
 **Output Format:** Respond ONLY with a valid JSON object representing your action. Do NOT include any other text, explanations, or markdown formatting.
 Valid Actions (based on phase and role):
-- { "type": "message", "content": "your message text" } (Day Discussion)
+- { "type": "message", "content": "your message text (in character)" } (Day Discussion / Introduction)
 - { "type": "vote", "targetPlayerId": "player-id-string" | null } (Day Vote - Use null to abstain, but voting is encouraged!)
 - { "type": "mafiaKill", "targetPlayerId": "player-id-string" } (Night, Mafia only - target a non-Mafia player)
 - { "type": "doctorSave", "targetPlayerId": "player-id-string" | null } (Night, Doctor only - null for no save)
@@ -49,9 +57,18 @@ Player IDs are strings like "player-1-name". Ensure targetPlayerId is a valid ID
  */
 export function getUserPrompt(currentGameState: any, allowedActions?: PlayerAction['type'][]): string {
     let prompt = `Current Game State:
+Theme: ${currentGameState.themeName || 'Default'}
 Round: ${currentGameState.round}, Phase: ${currentGameState.phase}, Language: ${currentGameState.language}
-Your Info (Self): ${JSON.stringify(currentGameState.self)}
-Alive Players: ${currentGameState.alivePlayerIds.join(', ')}
+`;
+
+    // Add Persona Info
+    if (currentGameState.self?.persona) {
+        const p = currentGameState.self.persona;
+        prompt += `Your Persona: ${p.name} (${p.personalityTraits.join(', ')}). Backstory: ${p.backstory}\n`;
+    }
+
+    prompt += `Your Info (Self Role): ${JSON.stringify({ role: currentGameState.self.role, isMafia: currentGameState.self.isMafia }) }\n`; // Keep role info separate
+    prompt += `Alive Players: ${currentGameState.alivePlayerIds.join(', ')}
 All Player Status: ${JSON.stringify(currentGameState.players)}
 `;
 
@@ -80,13 +97,18 @@ All Player Status: ${JSON.stringify(currentGameState.players)}
     if (currentGameState.conversationHistory && currentGameState.conversationHistory.length > 0) {
         prompt += `\nRecent Conversation History (up to ${currentGameState.conversationHistory.length} messages):\n`;
         currentGameState.conversationHistory.forEach((msg: any) => {
-            // Simple formatting, adjust as needed
             prompt += `[R${msg.round} ${msg.phase}] ${msg.senderName}: ${msg.content}\n`;
         });
     }
 
     prompt += `\nAllowed Actions: ${allowedActions ? allowedActions.join(', ') : 'None (likely noAction expected)'}\n`;
-    prompt += `Choose your action based on your role (${currentGameState.self.role}), the game state, previous votes, recent conversation, and the allowed actions. Remember to output ONLY the action JSON object.`;
+    
+    // Special instruction for Round 1
+    if (currentGameState.round === 1 && currentGameState.phase === 'Day' && allowedActions?.includes('message')) {
+        prompt += `\n**It's Round 1 Introductions! Your ONLY goal this turn is to introduce yourself based on your Persona.** Respond with a JSON message action like: { "type": "message", "content": "Your introduction here..." }`;
+    } else {
+        prompt += `Choose your action based on your role, persona, game state, previous votes, recent conversation, and allowed actions. Remember to output ONLY the action JSON object.`;
+    }
 
     return prompt;
 } 

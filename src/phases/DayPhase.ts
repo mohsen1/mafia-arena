@@ -18,35 +18,64 @@ export class DayPhase extends AbstractGamePhase {
         const actions = new Map<PlayerId, PlayerAction>();
         const votes = new Map<PlayerId, PlayerId | null>(); // PlayerId -> VotedForPlayerId | null
 
-        // 1. Discussion / Message Sending (Optional - could be multiple rounds)
-        // For simplicity, one round of messages first
-        game.logMessage(null, "Discussion phase:", MessageVisibility.Public);
-        for (const player of alivePlayers) {
-            const gameState = game.generateVisibleGameState(player.id);
-            
-            // Check if human agent and prompt if needed
-            if (player.agent instanceof HumanAgent) {
-                const aliveOthersInfo = Array.from(gameState.alivePlayerIds)
-                    .filter(id => id !== player.id)
-                    .map(id => gameState.players.find(p => p.id === id)!);
-                
-                let prompt = `\n--- ${player.name} (${player.id}) - Your turn! ---\n`;
-                prompt += `Phase: ${gameState.phase}, Round: ${gameState.round}\n`;
-                prompt += `Your Role: ${gameState.self.role}\n`;
-                if (gameState.self.isMafia) {
-                    prompt += `Your fellow Mafia (alive): ${Array.from(gameState.mafiaPlayerIds ?? []).join(', ')}\n`;
+        // --- Round 1: Introductions --- 
+        if (game.round === 1) {
+            game.logMessage(null, "Let's begin with introductions. Please introduce yourself based on your persona.", MessageVisibility.Public);
+            for (const player of alivePlayers) {
+                const gameState = game.generateVisibleGameState(player.id);
+                let action: PlayerAction;
+                // Prompt human differently for introduction?
+                if (player.agent instanceof HumanAgent) {
+                     let prompt = `\n--- ${player.name} (${player.id}) - Your turn! ---\n`;
+                     prompt += `It's Round 1: Introductions! Please introduce yourself to the group.\n`;
+                     prompt += `(Your role: ${gameState.self.role})\n`; // Still show role privately
+                     prompt += "--------------------------------------------------\n";
+                     prompt += "Introduction Message?";
+                     game.notifyRenderers('renderNarration', prompt);
+                     action = await player.decideAction(gameState, ['message']); // Only allow message
+                } else {
+                     // AI: Explicitly ask for introduction message based on persona
+                    action = await player.decideAction(gameState, ['message', 'noAction']); // Allow message or noAction
                 }
-                prompt += `Alive Players: ${Array.from(gameState.alivePlayerIds).map(id => gameState.players.find(p=>p.id===id)?.name ?? id).join(', ')}\n`;
-                prompt += "--------------------------------------------------\n";
-                prompt += "What do you want to say?";
-                game.notifyRenderers('renderNarration', prompt); // Use renderNarration to display prompt
-            }
 
-            // Pass allowed actions for discussion
-            const action = await player.decideAction(gameState, ['message', 'noAction']);
-            actions.set(player.id, action);
-            if (action.type === 'message') {
-                game.logMessage(player.id, action.content, MessageVisibility.Public);
+                actions.set(player.id, action);
+                if (action.type === 'message') {
+                    game.logMessage(player.id, action.content, MessageVisibility.Public);
+                }
+            }
+            game.logMessage(null, "Introductions complete. The discussion phase now begins.", MessageVisibility.Public);
+        }
+
+        // --- General Discussion Phase (Round 2+) ---
+        if (game.round > 1) {
+            game.logMessage(null, "Discussion phase:", MessageVisibility.Public);
+            for (const player of alivePlayers) {
+                const gameState = game.generateVisibleGameState(player.id);
+                
+                // Check if human agent and prompt if needed
+                if (player.agent instanceof HumanAgent) {
+                    const aliveOthersInfo = Array.from(gameState.alivePlayerIds)
+                        .filter(id => id !== player.id)
+                        .map(id => gameState.players.find(p => p.id === id)!);
+                    
+                    let prompt = `\n--- ${player.name} (${player.id}) - Your turn! ---\n`;
+                    prompt += `Phase: ${gameState.phase}, Round: ${gameState.round}\n`;
+                    prompt += `Your Role: ${gameState.self.role}\n`;
+                    if (gameState.self.isMafia) {
+                        prompt += `Your fellow Mafia (alive): ${Array.from(gameState.mafiaPlayerIds ?? []).join(', ')}\n`;
+                    }
+                    prompt += `Alive Players: ${Array.from(gameState.alivePlayerIds).map(id => gameState.players.find(p=>p.id===id)?.name ?? id).join(', ')}\n`;
+                    prompt += "--------------------------------------------------\n";
+                    prompt += "What do you want to say?";
+                    game.notifyRenderers('renderNarration', prompt);
+                }
+
+                // Pass allowed actions for discussion
+                const action = await player.decideAction(gameState, ['message', 'noAction']);
+                actions.set(player.id, action);
+                if (action.type === 'message') {
+                    game.logMessage(player.id, action.content, MessageVisibility.Public);
+                }
             }
         }
 
