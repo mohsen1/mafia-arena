@@ -13,11 +13,6 @@ export class HumanAgent implements IAgent {
      public playerId!: PlayerId;
 
     async getAction(gameState: VisibleGameState, _allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
-        // Removed console logs for status/prompt - now handled by Phase logic
-        // console.log(`\n--- ${gameState.self.name} (${this.playerId}) - Your turn! ---`);
-        // ... other logs removed ...
-        // console.log("--------------------------------------------------");
-
         const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
         const aliveOthersInfo = aliveOthers.map(id => gameState.players.find(p => p.id === id)!);
 
