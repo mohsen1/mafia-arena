@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import { OpenAIAgent } from '../../src/agents/OpenAIAgent';
 import type { VisibleGameState } from '../../src/interfaces/GameState';
 import type { PlayerAction } from '../../src/interfaces/IAgent';
-import { createInitialMemory } from '../../src/interfaces/AgentMemory';
+import { createInitialMemory, type AgentMemory } from '../../src/interfaces/AgentMemory';
 import { RoleName } from '../../src/interfaces/IRole';
 import { PlayerStatus } from '../../src/interfaces/IPlayer';
 
@@ -162,6 +162,131 @@ describe('OpenAIAgent', () => {
           const action = await agent.getAction(mockGameState, ['message']);
           expect(action).toEqual({ type: 'noAction' });
       });
+
+    it('should handle a Mafia player during the Night phase', async () => {
+        // Create a specific game state for this test
+        const mafiaPlayerId = 'mafia-player';
+        const villagerPlayerId = 'villager1';
+        agent.playerId = mafiaPlayerId; // Ensure agent has the correct ID for this test
+
+        const mafiaGameState: VisibleGameState = {
+            gameId: 'mafia-test-game',
+            round: 3,
+            phase: 'Night',
+            language: 'en',
+            self: { id: mafiaPlayerId, name: 'Test Mafia Agent', role: RoleName.Mafia, isMafia: true, status: PlayerStatus.Alive },
+            players: [
+                { id: mafiaPlayerId, name: 'Test Mafia Agent', status: PlayerStatus.Alive },
+                { id: villagerPlayerId, name: 'Villager One', status: PlayerStatus.Alive }
+            ],
+            alivePlayerIds: new Set([mafiaPlayerId, villagerPlayerId]),
+            memory: createInitialMemory(), // Start with initial memory, prompts should adapt
+            themeName: 'Spooky'
+        };
+
+        const expectedAction: PlayerAction = { type: 'mafiaKill', targetPlayerId: villagerPlayerId };
+        mockCreate.mockResolvedValue({
+            choices: [{ message: { content: JSON.stringify(expectedAction) } }],
+        });
+        const allowed: PlayerAction['type'][] = ['mafiaKill', 'noAction']; // Mafia can kill at night
+
+        const action = await agent.getAction(mafiaGameState, allowed);
+
+        expect(getSystemPrompt).toHaveBeenCalled(); // System prompt should still be called
+        expect(getUserPrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                phase: 'Night',
+                self: expect.objectContaining({ role: RoleName.Mafia, isMafia: true }),
+                // Only check that memory is an object, as its internal structure might vary
+                memory: expect.any(Object),
+                // Check other important parts of the state passed to the prompt
+                players: expect.arrayContaining([
+                    expect.objectContaining({ id: mafiaPlayerId }),
+                    expect.objectContaining({ id: villagerPlayerId })
+                ]),
+                alivePlayerIds: expect.anything(), // Accept Set or Array after potential serialization
+            }),
+            allowed
+        );
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+        expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+            messages: expect.arrayContaining([
+                { role: 'system', content: 'Mock System Prompt' },
+                { role: 'user', content: 'Mock User Prompt' },
+            ]),
+        }));
+        expect(action).toEqual(expectedAction);
+    });
+
+    it('should use existing memory when generating prompts', async () => {
+        // Create a specific game state with pre-populated memory for this test
+        const player1Id = 'player1';
+        const player2Id = 'player2';
+        agent.playerId = player1Id;
+
+        const memoryWithHistory: AgentMemory = {
+            investigationResults: [],
+            killHistory: [],
+            voteHistory: [
+                { round: 1, votes: new Map([[player1Id, player2Id]]) }
+            ],
+            messageHistory: [
+                { 
+                    id: 'msg1', round: 1, phase: 'Day', senderId: player2Id, 
+                    senderName: 'Player 2', content: 'Test message', 
+                    timestamp: new Date(), visibility: 'Public' as any // Cast for simplicity
+                }
+            ]
+        };
+
+        const gameStateWithMemory: VisibleGameState = {
+            gameId: 'memory-test-game',
+            round: 2,
+            phase: 'Day',
+            language: 'en',
+            self: { id: player1Id, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive },
+            players: [
+                { id: player1Id, name: 'Test Agent', status: PlayerStatus.Alive },
+                { id: player2Id, name: 'Player 2', status: PlayerStatus.Alive }
+            ],
+            alivePlayerIds: new Set([player1Id, player2Id]),
+            memory: memoryWithHistory, // Use the pre-populated memory
+            themeName: 'Memory Test'
+        };
+
+        const expectedAction: PlayerAction = { type: 'vote', targetPlayerId: player2Id };
+        mockCreate.mockResolvedValue({
+            choices: [{ message: { content: JSON.stringify(expectedAction) } }],
+        });
+        const allowed: PlayerAction['type'][] = ['message', 'vote', 'noAction'];
+
+        await agent.getAction(gameStateWithMemory, allowed);
+
+        // Verify getUserPrompt was called with the specific memory content
+        expect(getUserPrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                memory: expect.objectContaining({
+                    voteHistory: expect.arrayContaining([ // Check vote history structure
+                        expect.objectContaining({ 
+                            round: 1, 
+                            votes: expect.any(Map) // Check it has a Map
+                        })
+                    ]),
+                    messageHistory: expect.arrayContaining([ // Check message history structure
+                        expect.objectContaining({ 
+                            id: 'msg1', 
+                            senderId: player2Id, 
+                            content: 'Test message' 
+                        })
+                    ])
+                })
+            }),
+            allowed
+        );
+
+        // Also verify the API call was made
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+    });
 
     // Add more tests: different roles, different phases, specific content validation if needed.
 });
