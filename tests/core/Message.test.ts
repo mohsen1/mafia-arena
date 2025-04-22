@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Message } from './Message';
-import { MessageVisibility } from '../interfaces/IMessage';
-import { type PlayerId } from '../interfaces/IPlayer';
+import { Message } from '../../src/core/Message.ts';
+import { MessageVisibility } from '../../src/interfaces/IMessage';
+import { type PlayerId } from '../../src/interfaces/IPlayer';
 
 describe('Message', () => {
     it('should create a message with required properties', () => {

@@ -9,6 +9,12 @@ import type { IRole } from '../../src/interfaces/IRole';
 import { MessageVisibility } from '../../src/interfaces/IMessage';
 import { InitializationPhase } from '../../src/phases/InitializationPhase';
 import { GameOverPhase } from '../../src/phases/GameOverPhase';
+import { MafiaRole } from '../../src/roles/MafiaRole';
+import { VillagerRole } from '../../src/roles/VillagerRole';
+import { DoctorRole } from '../../src/roles/DoctorRole';
+import { SeerRole } from '../../src/roles/SeerRole';
+import { Message } from '../../src/core/Message';
+import { createInitialMemory } from '../../src/interfaces/AgentMemory';
 
 // Mock role implementations
 const mockVillagerRole: IRole = {
@@ -150,7 +156,7 @@ describe('Game', () => {
                 { name: 'P1', agent: createMockAgent('t1'), role: mockVillagerRole }, 
                 { name: 'P2', agent: createMockAgent('t2'), role: mockMafiaRole }
              ];
-             expect(() => new Game(fewPlayerSetups)).toThrow(/Not enough players/);
+             expect(() => new Game(fewPlayerSetups)).toThrow('Not enough players to start a game.');
          });
     });
 
@@ -510,4 +516,188 @@ describe('Game', () => {
               expect(mockRenderer.renderPlayerStatusUpdate).not.toHaveBeenCalled();
           });
       });
+
+    describe('Agent Memory Handling', () => {
+        let testVotes: Map<PlayerId, PlayerId | null>;
+
+        beforeEach(() => {
+            // Use actual IDs generated in the outer beforeEach
+            testVotes = new Map([
+                [villager1Id, mafia1Id],
+                [villager2Id, mafia1Id],
+                [villager3Id, villager1Id],
+                [mafia1Id, villager1Id],
+                [mafia2Id, null], // Abstain
+            ]);
+        });
+
+        it('should record vote results in each agent memory', () => {
+            game.recordVoteResultsInMemory(testVotes);
+
+            const v1State = game.generateVisibleGameState(villager1Id);
+            expect(v1State.memory.voteHistory.length).toBe(1);
+            // Assuming round starts at 0, Day phase increments it, so first Day vote is round 1
+            expect(v1State.memory.voteHistory[0].round).toBe(game.round);
+            expect(v1State.memory.voteHistory[0].votes).toEqual(testVotes);
+
+            const m1State = game.generateVisibleGameState(mafia1Id);
+            expect(m1State.memory.voteHistory.length).toBe(1);
+            expect(m1State.memory.voteHistory[0].votes).toEqual(testVotes);
+        });
+
+        it('should record night kill results in each agent memory', () => {
+            game.recordKillInMemory(villager1Id); // V1 was killed
+
+            const v2State = game.generateVisibleGameState(villager2Id); // Check a survivor's memory
+            expect(v2State.memory.killHistory.length).toBe(1);
+            expect(v2State.memory.killHistory[0].round).toBe(game.round);
+            expect(v2State.memory.killHistory[0].killedPlayerId).toBe(villager1Id);
+
+            game.recordKillInMemory(null); // No one killed next round
+            const v2StateRound2 = game.generateVisibleGameState(villager2Id);
+            expect(v2StateRound2.memory.killHistory.length).toBe(2);
+             expect(v2StateRound2.memory.killHistory[1].killedPlayerId).toBeNull();
+        });
+
+        it('should record Seer results only in the Seer agent memory', () => {
+            const setups = [
+                 { name: 'Seer', agent: createMockAgent('temp-s1'), role: new SeerRole() },
+                 { name: 'Mafia', agent: createMockAgent('temp-m1'), role: mockMafiaRole },
+                 { name: 'Villager', agent: createMockAgent('temp-v1'), role: mockVillagerRole },
+            ];
+            game = new Game(setups);
+            const seerId = Array.from(game.getPlayers().values()).find(p => p.role.name === RoleName.Seer)!.id;
+            const mafiaId = Array.from(game.getPlayers().values()).find(p => p.role.name === RoleName.Mafia)!.id;
+            const villagerId = Array.from(game.getPlayers().values()).find(p => p.role.name === RoleName.Villager)!.id;
+
+            game.recordSeerResultInMemory(seerId, mafiaId, 'Mafia');
+
+            const seerState = game.generateVisibleGameState(seerId);
+            expect(seerState.memory.investigationResults.length).toBe(1);
+            expect(seerState.memory.investigationResults[0]).toEqual({
+                round: game.round,
+                targetId: mafiaId,
+                allegiance: 'Mafia'
+            });
+
+            const mafiaState = game.generateVisibleGameState(mafiaId);
+            expect(mafiaState.memory.investigationResults.length).toBe(0);
+
+             const villagerState = game.generateVisibleGameState(villagerId);
+             expect(villagerState.memory.investigationResults.length).toBe(0);
+        });
+
+         it('should include relevant message history in agent memory', () => {
+             // Need to advance round slightly for messages to have a round number if DayPhase increments first
+             // For simplicity, assume round is managed correctly elsewhere or messages adapt
+             const msg1 = game.logMessage(villager1Id, "Hello public", MessageVisibility.Public);
+             const msg2 = game.logMessage(mafia1Id, "Mafia secret chat", MessageVisibility.Mafia, 'Night');
+             const msg3 = game.logMessage(null, "System message", MessageVisibility.Public);
+
+             // Check Villager state
+             const v1State = game.generateVisibleGameState(villager1Id);
+             // Villager sees Public messages
+             expect(v1State.memory.messageHistory.map(m => m.content)).toEqual(["Hello public", "System message"]);
+
+             // Check Mafia state
+             const m1State = game.generateVisibleGameState(mafia1Id);
+             // Mafia sees Public + Mafia messages
+             expect(m1State.memory.messageHistory.map(m => m.content)).toEqual(["Hello public", "Mafia secret chat", "System message"]);
+
+             // Ensure the actual message objects are there
+             expect(v1State.memory.messageHistory[0]).toBeInstanceOf(Message);
+             expect(m1State.memory.messageHistory[1]).toBeInstanceOf(Message);
+         });
+
+        it('generateVisibleGameState should include up-to-date memory', () => {
+             game.recordVoteResultsInMemory(testVotes);
+             game.recordKillInMemory(villager1Id);
+
+             const state = game.generateVisibleGameState(mafia1Id);
+
+             expect(state.memory).toBeDefined();
+             expect(state.memory.voteHistory.length).toBe(1);
+             expect(state.memory.voteHistory[0].votes).toEqual(testVotes);
+             expect(state.memory.killHistory.length).toBe(1);
+             expect(state.memory.killHistory[0].killedPlayerId).toBe(villager1Id);
+             expect(state.memory.investigationResults).toEqual([]);
+         });
+    });
+
+    describe('Logging Messages', () => {
+        it('logMessage should add message to conversation log', () => {
+            const initialCount = game.getConversationLog().getAllMessages().length;
+            game.logMessage(villager1Id, 'Test message', MessageVisibility.Public);
+            const messages = game.getConversationLog().getAllMessages();
+            expect(messages.length).toBe(initialCount + 1);
+            const lastMessage = messages[messages.length - 1];
+            expect(lastMessage?.content).toBe('Test message');
+            expect(lastMessage?.senderId).toBe(villager1Id);
+            expect(lastMessage?.visibility).toBe(MessageVisibility.Public);
+        });
+
+         it('logMessage should notify renderers for Public messages', () => {
+             const mockRenderer = { renderMessage: vi.fn() };
+             game.addRenderer(mockRenderer as any);
+             game.logMessage(villager1Id, 'Public Msg', MessageVisibility.Public);
+             expect(mockRenderer.renderMessage).toHaveBeenCalledTimes(1);
+             expect(mockRenderer.renderMessage).toHaveBeenCalledWith(expect.objectContaining({ content: 'Public Msg' }));
+         });
+
+         it('logMessage should notify renderers for Mafia messages', () => {
+             const mockRenderer = { renderMessage: vi.fn() };
+             game.addRenderer(mockRenderer as any);
+             game.logMessage(mafia1Id, 'Mafia Msg', MessageVisibility.Mafia);
+             expect(mockRenderer.renderMessage).toHaveBeenCalledTimes(1);
+             expect(mockRenderer.renderMessage).toHaveBeenCalledWith(expect.objectContaining({ content: 'Mafia Msg' }));
+         });
+
+         it('logMessage should NOT notify renderers for Private messages by default', () => {
+            const mockRenderer = { renderMessage: vi.fn() };
+            game.addRenderer(mockRenderer as any);
+            game.logMessage(villager1Id, 'Private Msg', MessageVisibility.Private);
+            expect(mockRenderer.renderMessage).not.toHaveBeenCalled();
+         });
+
+    });
+
+    describe('Killing Players', () => {
+         it('killPlayer should set player status to Dead', () => {
+             const player = game.getPlayer(villager1Id)!;
+             expect(player.status).toBe('Alive');
+             game.killPlayer(villager1Id, 'reason');
+             expect(player.status).toBe('Dead');
+         });
+
+         it('killPlayer should log a public message and notify renderers', () => {
+             const logSpy = vi.spyOn(game, 'logMessage');
+             const notifySpy = vi.spyOn(game, 'notifyRenderers');
+             const player = game.getPlayer(villager1Id)!;
+
+             game.killPlayer(villager1Id, 'was voted out');
+
+             expect(logSpy).toHaveBeenCalledWith(
+                 null,
+                 expect.stringContaining(`${player.name} (${player.role.name}) was voted out`),
+                 MessageVisibility.Public
+             );
+             expect(notifySpy).toHaveBeenCalledWith(
+                 'renderPlayerStatusUpdate',
+                 expect.objectContaining({ id: villager1Id }),
+                 'Alive',
+                 'Dead'
+             );
+         });
+
+         it('killPlayer should not kill already dead players', () => {
+            const logSpy = vi.spyOn(game, 'logMessage');
+            game.killPlayer(villager1Id, 'first kill');
+            logSpy.mockClear();
+            game.killPlayer(villager1Id, 'second attempt');
+            expect(logSpy).not.toHaveBeenCalled(); // Should not log again
+            expect(game.getPlayer(villager1Id)?.status).toBe('Dead');
+         });
+    });
+
+    // TODO: Add tests for runGameLoop (more complex, requires mocking phases)
 });

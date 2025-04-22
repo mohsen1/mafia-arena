@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Player } from '../../src/core/Player';
-import { PlayerStatus } from '../../src/interfaces/IPlayer';
+import { PlayerStatus, type PlayerId } from '../../src/interfaces/IPlayer';
 import { RoleName } from '../../src/interfaces/IRole';
 import type { IAgent, PlayerAction } from '../../src/interfaces/IAgent';
 import type { IRole } from '../../src/interfaces/IRole';
-import type { PlayerId } from '../../src/interfaces/IPlayer';
 import type { VisibleGameState } from '../../src/interfaces/GameState';
+import { createInitialMemory } from '../../src/interfaces/AgentMemory';
 
 // Mock Role implementation
 const mockVillagerRole: IRole = {
@@ -83,21 +83,27 @@ describe('Player', () => {
     });
 
     describe('decideAction', () => {
-        const mockGameState: VisibleGameState = {
-            gameId: 'game-abc',
-            round: 1,
-            phase: 'Day',
-            language: 'en',
-            self: {
-                id: playerId,
-                name: playerName,
-                status: PlayerStatus.Alive,
-                role: RoleName.Villager,
-                isMafia: false,
-            },
-            players: [{ id: playerId, name: playerName, status: PlayerStatus.Alive }],
-            alivePlayerIds: new Set([playerId]),
-        };
+        let mockGameState: VisibleGameState;
+
+        beforeEach(() => {
+            mockGameState = {
+                gameId: 'game-abc',
+                round: 1,
+                phase: 'Day',
+                language: 'en',
+                self: {
+                    id: playerId,
+                    name: playerName,
+                    status: PlayerStatus.Alive,
+                    role: RoleName.Villager,
+                    isMafia: false,
+                },
+                players: [{ id: playerId, name: playerName, status: PlayerStatus.Alive }],
+                alivePlayerIds: new Set([playerId]),
+                memory: createInitialMemory(),
+                themeName: 'Default'
+            };
+        });
 
         it('should call agent.getAction with the provided game state when alive', async () => {
             const expectedAction: PlayerAction = { type: 'message', content: 'Agent action' };
@@ -106,7 +112,7 @@ describe('Player', () => {
             await player.decideAction(mockGameState);
 
             expect(mockAgent.getAction).toHaveBeenCalledTimes(1);
-            expect(mockAgent.getAction).toHaveBeenCalledWith(mockGameState);
+            expect(mockAgent.getAction).toHaveBeenCalledWith(mockGameState, undefined);
         });
 
          it('should return the action decided by the agent when alive', async () => {

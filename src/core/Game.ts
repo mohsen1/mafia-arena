@@ -32,6 +32,11 @@ export class Game {
         themeName: string = 'UK_VILLAGE_1900S',
         language: string = 'en'
     ) {
+        // Add validation for minimum player count
+        if (playerSetups.length < 3) {
+            throw new Error('Not enough players to start a game.');
+        }
+
         this.theme = Themes[themeName];
         if (!this.theme) {
             throw new Error(`Selected theme "${themeName}" not found.`);
