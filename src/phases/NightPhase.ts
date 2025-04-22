@@ -155,6 +155,26 @@ export class NightPhase extends AbstractGamePhase {
              } else {
                  game.logMessage(null, "The Mafia could not agree on a target.", MessageVisibility.Mafia);
              }
+
+             // Log a summary of the Mafia vote for Mafia members
+             if (mafiaVotes.size > 0) {
+                let voteSummary = "Mafia Kill Vote Summary:\n";
+                for (const [voterId, targetId] of mafiaVotes.entries()) {
+                    const voterName = game.getPlayer(voterId)?.name ?? voterId;
+                    const targetName = game.getPlayer(targetId)?.name ?? targetId;
+                    voteSummary += `- ${voterName} voted for ${targetName}\n`;
+                }
+                if (finalMafiaKillTarget) {
+                    const finalTargetName = game.getPlayer(finalMafiaKillTarget)?.name ?? finalMafiaKillTarget;
+                    voteSummary += `Result: The chosen target is ${finalTargetName}.`;
+                } else {
+                    voteSummary += "Result: No consensus reached, no kill target chosen.";
+                }
+                 game.logMessage(null, voteSummary, MessageVisibility.Mafia); // Log summary only to Mafia
+             } else if (game.getAliveMafia().length > 0) {
+                 // Log if Mafia exist but didn't vote
+                 game.logMessage(null, "The Mafia did not cast any votes to kill.", MessageVisibility.Mafia);
+             }
          }
 
 

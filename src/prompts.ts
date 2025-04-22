@@ -10,9 +10,10 @@ Your goal is to help your team (Mafia or Town) win.
 
 **General Strategy & Secrecy:**
 - **DO NOT REVEAL YOUR ROLE** unless it is strategically critical (e.g., a Seer revealing late game to confirm someone).
-- Act like a normal player. Avoid suspicious behavior if you are Mafia.
-- Pay attention to player messages and votes to deduce roles.
-- Use your actions strategically to help your team.
+- Act like a normal player. Engage in discussion! Avoid suspicious behavior if you are Mafia.
+- Pay attention to player messages, votes, and lack of activity to deduce roles.
+- Use your actions strategically to help your team. Make reasoned accusations during the day to drive discussion and uncover lies.
+- Make the conversation lively! Challenge others, defend yourself, but stay in character.
 
 **Game Rules:**
 - Players are secretly assigned roles: Mafia, Villager, Doctor, Seer.
@@ -22,10 +23,10 @@ Your goal is to help your team (Mafia or Town) win.
 - Night: Mafia secretly votes to kill one player. Doctor secretly votes to save one player (save prevents kill). Seer secretly investigates one player to learn their allegiance (Mafia or Town).
 
 **Role-Specific Hints:**
-- **Mafia:** Coordinate kills if possible (though you act individually here). Try to appear like a Villager during the day. Sow discord among Town members. Target key roles like Seer or Doctor if you identify them.
-- **Villager:** Actively participate in discussions. Share suspicions based on behavior and votes. Vote decisively to eliminate suspected Mafia.
+- **Mafia:** Blend in during the day. Deflect suspicion. Create doubt about others. Don't be afraid to accuse town members to misdirect. Target key roles like Seer or Doctor if you identify them. Coordinate kills if applicable (though you act individually here).
+- **Villager:** Actively participate in discussions! Share suspicions based on behavior, votes, or contradictions. Accuse players you suspect and explain why. Vote decisively to eliminate suspected Mafia.
 - **Doctor:** Saving is powerful. Try to protect valuable Town members (like a known Seer) or those likely to be targeted by Mafia. Avoid saving the same person every night unless you have a strong reason.
-- **Seer:** Your investigation is crucial. Use the information! If you find Mafia, convince the Town to vote them out. If you find Town, defend them. Avoid investigating the same person repeatedly. Communicate your findings carefully (directly revealing can make you a target).
+- **Seer:** Your investigation is crucial. Use the information! If you find Mafia, convince the Town to vote them out (perhaps by hinting strongly or revealing strategically late game). If you find Town, defend them. Avoid investigating the same person repeatedly. Communicate your findings carefully.
 
 **Your Task:** Based on the provided game state and allowed actions, decide your action.
 
@@ -65,6 +66,16 @@ All Player Status: ${JSON.stringify(currentGameState.players)}
         prompt += `Your Last Night Investigation Result: You investigated ${targetName} (${currentGameState.lastNightInvestigationResult.targetId}) and found their allegiance is ${currentGameState.lastNightInvestigationResult.allegiance}.\n`;
     }
 
+    // Add Previous Day's Vote Results
+    if (currentGameState.previousDayVoteResults && currentGameState.previousDayVoteResults.size > 0) {
+        prompt += `\nPrevious Day's Voting Results:\n`;
+        for (const [voterId, targetId] of currentGameState.previousDayVoteResults.entries()) {
+            const voterName = currentGameState.players.find((p: any) => p.id === voterId)?.name ?? voterId;
+            const targetName = targetId ? (currentGameState.players.find((p: any) => p.id === targetId)?.name ?? targetId) : 'Abstain';
+            prompt += `- ${voterName} voted for ${targetName}\n`;
+        }
+    }
+
     // Add Conversation History
     if (currentGameState.conversationHistory && currentGameState.conversationHistory.length > 0) {
         prompt += `\nRecent Conversation History (up to ${currentGameState.conversationHistory.length} messages):\n`;
@@ -75,7 +86,7 @@ All Player Status: ${JSON.stringify(currentGameState.players)}
     }
 
     prompt += `\nAllowed Actions: ${allowedActions ? allowedActions.join(', ') : 'None (likely noAction expected)'}\n`;
-    prompt += `Choose your action based on your role (${currentGameState.self.role}), the game state, recent conversation, and the allowed actions. Remember to output ONLY the action JSON object.`;
+    prompt += `Choose your action based on your role (${currentGameState.self.role}), the game state, previous votes, recent conversation, and the allowed actions. Remember to output ONLY the action JSON object.`;
 
     return prompt;
 } 

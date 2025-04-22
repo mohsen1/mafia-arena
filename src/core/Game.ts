@@ -23,6 +23,8 @@ export class Game {
     public readonly language: string;
     // Store results from the last night phase
     #lastNightResults: { seerInvestigation?: { seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town' } } = {};
+    // Store votes from the last day phase
+    #lastDayVoteResults: ReadonlyMap<PlayerId, PlayerId | null> | null = null;
 
     constructor(playerSetups: { name: string; agent: IAgent; role: IRole }[], language: string = 'en') {
         if (playerSetups.length < 3) { // Example minimum player count
@@ -39,6 +41,7 @@ export class Game {
 
         // Initial state
         this.#currentState = new InitializationPhase();
+        this.#lastNightResults = {};
     }
 
     addRenderer(renderer: IGameRenderer): void {
@@ -206,6 +209,16 @@ export class Game {
         this.#lastNightResults = {};
     }
 
+    // Method for DayPhase to store results
+    setDayVoteResults(votes: ReadonlyMap<PlayerId, PlayerId | null>): void {
+         this.#lastDayVoteResults = votes;
+    }
+
+    // Method to clear vote results at the start of the day
+    clearDayVoteResults(): void {
+        this.#lastDayVoteResults = null;
+    }
+
     // Creates the specific view of the game state for a given player
     generateVisibleGameState(playerId: PlayerId): VisibleGameState {
         const player = this.getPlayer(playerId);
@@ -244,7 +257,9 @@ export class Game {
                      allegiance: this.#lastNightResults.seerInvestigation.allegiance
                  }
              }),
-             conversationHistory: limitedHistory
+             conversationHistory: limitedHistory,
+             // Add previous vote results if available
+             ...(this.#lastDayVoteResults && { previousDayVoteResults: this.#lastDayVoteResults })
         };
 
         return Object.freeze(state); // Make it immutable

@@ -24,6 +24,7 @@ export interface VisibleGameState {
     readonly language: string; // Added language setting
     readonly lastNightInvestigationResult?: { targetId: PlayerId, allegiance: 'Mafia' | 'Town' }; // Added for Seer feedback
     readonly conversationHistory?: ReadonlyArray<IMessage>; // Add conversation history
+    readonly previousDayVoteResults?: ReadonlyMap<PlayerId, PlayerId | null>; // Added previous vote results
     
     // Added for GameOver state to include full details
     readonly playerDetails?: ReadonlyArray<{ 
