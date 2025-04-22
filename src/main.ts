@@ -12,155 +12,171 @@ import { OpenAIAgent } from './agents/OpenAIAgent'; // Import OpenAI Agent
 import { ClaudeAgent } from './agents/ClaudeAgent'; // Import ClaudeAgent
 import { GeminiAgent } from './agents/GeminiAgent'; // Import GeminiAgent
 import * as dotenv from 'dotenv';
-import * as readline from 'readline/promises'; // Import readline/promises
+import prompts from 'prompts'; // Import prompts
 import { Themes, type Persona } from './interfaces/Theme'; // Import Themes and Persona
+import { RoleName } from './interfaces/IRole';
 
 // Load environment variables from .env file
 dotenv.config();
 
-// --- Argument Parsing ---
-const args = process.argv.slice(2); // Skip node executable and script path
-const useDummyAI = args.includes('--dummy-ai');
-const useClaudeAI = args.includes('--claude-ai'); // Add flag for Claude
-const useGeminiAI = args.includes('--gemini-ai'); // Add flag for Gemini
+// --- Define Agent Choices ---
+type AgentChoice = 'Human' | 'Dummy' | 'OpenAI' | 'Claude' | 'Gemini';
+const aiAgentChoices = [
+    { title: 'Dummy AI (Fast, Simple)', value: 'Dummy' },
+    { title: 'OpenAI (GPT - Requires OPENAI_API_KEY)', value: 'OpenAI' },
+    { title: 'Claude (Anthropic - Requires ANTHROPIC_API_KEY)', value: 'Claude' },
+    { title: 'Gemini (Google - Requires GEMINI_API_KEY)', value: 'Gemini' },
+];
 
-// Determine AI Agent Class (Default to OpenAI if multiple flags or none specified)
-let SelectedAIAgentClass: typeof OpenAIAgent | typeof ClaudeAgent | typeof GeminiAgent | typeof DummyAIAgent;
-let aiTypeString: string;
+const agentClassMap = {
+    'Dummy': DummyAIAgent,
+    'OpenAI': OpenAIAgent,
+    'Claude': ClaudeAgent,
+    'Gemini': GeminiAgent,
+    'Human': HumanAgent // Include Human for mapping if needed
+};
 
-if (useDummyAI) {
-    SelectedAIAgentClass = DummyAIAgent;
-    aiTypeString = "Dummy AI";
-} else if (useClaudeAI && !useGeminiAI) { // Prioritize Claude if only Claude flag
-    SelectedAIAgentClass = ClaudeAgent;
-    aiTypeString = "Claude AI";
-} else if (useGeminiAI && !useClaudeAI) { // Prioritize Gemini if only Gemini flag
-    SelectedAIAgentClass = GeminiAgent;
-    aiTypeString = "Gemini AI";
-} else { // Default to OpenAI if no specific flag or multiple flags
-    SelectedAIAgentClass = OpenAIAgent;
-    aiTypeString = "OpenAI AI";
-    if (useClaudeAI || useGeminiAI) {
-         console.warn("Multiple AI flags specified (--claude-ai, --gemini-ai). Defaulting to OpenAI AI.");
-    }
-}
-
-// --- Interactive Setup Function ---
-async function interactiveSetup(rl: readline.Interface): Promise<{ playerCount: number, includeHuman: boolean }> {
-    let playerCount = 0;
-    while (playerCount < 3) { // Ensure minimum player count (e.g., 3)
-        const countStr = await rl.question('How many players in total? (minimum 3): ');
-        playerCount = parseInt(countStr, 10);
-        if (isNaN(playerCount) || playerCount < 3) {
-            console.log("Invalid input. Please enter a number >= 3.");
-            playerCount = 0; // Reset to loop again
+async function interactiveSetup(): Promise<{
+    playerCount: number;
+    themeKey: string;
+    mafiaAgentType: AgentChoice;
+    townAgentType: AgentChoice;
+}> {
+    const questions: prompts.PromptObject[] = [
+        {
+            type: 'number',
+            name: 'playerCount',
+            message: 'How many players in total?',
+            initial: 5,
+            min: 3,
+            validate: value => value >= 3 ? true : 'Minimum 3 players required'
+        },
+        {
+            type: 'select',
+            name: 'themeKey',
+            message: 'Choose a game theme:',
+            choices: Object.keys(Themes).map(key => ({
+                title: `${Themes[key].name} (${Themes[key].description})`,
+                value: key
+            })),
+            initial: 0
+        },
+        {
+            type: 'select',
+            name: 'mafiaAgentType',
+            message: 'Choose AI agent type for MAFIA roles:',
+            choices: aiAgentChoices,
+            initial: 1 // Default to OpenAI for Mafia
+        },
+        {
+            type: 'select',
+            name: 'townAgentType',
+            message: 'Choose AI agent type for TOWN roles (Villager, Doctor, Seer):',
+            choices: aiAgentChoices,
+            initial: 1 // Default to OpenAI for Town
         }
-    }
+    ];
 
-    let includeHuman = false;
-    while (true) {
-        const humanStr = await rl.question('Should a human player join? (yes/no): ');
-        if (humanStr.toLowerCase() === 'yes' || humanStr.toLowerCase() === 'y') {
-            includeHuman = true;
-            break;
-        } else if (humanStr.toLowerCase() === 'no' || humanStr.toLowerCase() === 'n') {
-            includeHuman = false;
-            break;
-        } else {
-            console.log("Invalid input. Please enter 'yes' or 'no'.");
-        }
-    }
-
-    return { playerCount, includeHuman };
-}
-
-// --- Theme Selection Function ---
-async function selectTheme(rl: readline.Interface): Promise<string> {
-    const themeKeys = Object.keys(Themes);
-    console.log("\nAvailable Themes:");
-    themeKeys.forEach((key, index) => {
-        console.log(`${index + 1}: ${Themes[key].name} (${Themes[key].description})`);
+    const response = await prompts(questions, {
+         onCancel: () => { 
+             console.log("Game setup cancelled.");
+             process.exit(0);
+         } 
     });
 
-    let selectedThemeKey = "";
-    while (!selectedThemeKey) {
-        const choiceStr = await rl.question(`Choose a theme number (1-${themeKeys.length}): `);
-        const choiceIndex = parseInt(choiceStr, 10) - 1;
-        if (choiceIndex >= 0 && choiceIndex < themeKeys.length) {
-            selectedThemeKey = themeKeys[choiceIndex];
-        } else {
-            console.log("Invalid choice. Please enter a valid number.");
-        }
-    }
-    return selectedThemeKey;
+    // prompts returns an object with the names as keys
+    return response as { 
+        playerCount: number; 
+        themeKey: string; 
+        mafiaAgentType: AgentChoice; 
+        townAgentType: AgentChoice; 
+    };
 }
 
 async function main() {
-    // Create readline interface
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-
-    let game: Game | null = null; // Keep track of game instance
+    let game: Game | null = null;
 
     try {
         // --- Get Setup Config Interactively ---
-        const { playerCount, includeHuman } = await interactiveSetup(rl);
-        const themeKey = await selectTheme(rl);
+        const { 
+            playerCount, 
+            themeKey, 
+            mafiaAgentType, 
+            townAgentType 
+        } = await interactiveSetup();
+        
         const selectedTheme = Themes[themeKey];
+
+        // Determine if a human player is involved based on selections
+        // For simplicity, we'll assume no human for now if both AI types are chosen.
+        // Could add a separate question or allow choosing 'Human' as an agent type.
+        const includeHuman = false; 
+        // TODO: Re-add human player option if needed, possibly by adding 'Human' to agent choices.
 
         console.log(`\nSetting up game with ${playerCount} players (${includeHuman ? 'including Human' : 'AI only'})...`);
         console.log(`Theme: ${selectedTheme.name}`);
-        console.log(`(Using ${aiTypeString} for AI players)`); // Use dynamic AI type string
+        console.log(`Mafia AI: ${mafiaAgentType}, Town AI: ${townAgentType}`);
 
-        // Define roles based on player count 
+        // --- Role Assignment --- (Same as before)
         let rolesToAssign: IRole[];
-        // Example dynamic role assignment (customize as needed)
-        const mafiaCount = Math.max(1, Math.floor(playerCount / 3.5)); // ~1 Mafia per 3.5 players
-        const doctorCount = playerCount >= 5 ? 1 : 0; // Add Doctor for 5+ players
-        const seerCount = playerCount >= 4 ? 1 : 0;   // Add Seer for 4+ players
+        const mafiaCount = Math.max(1, Math.floor(playerCount / 3.5));
+        const doctorCount = playerCount >= 5 ? 1 : 0;
+        const seerCount = playerCount >= 4 ? 1 : 0;
         const villagerCount = playerCount - mafiaCount - doctorCount - seerCount;
 
         if (villagerCount < 0) {
              throw new Error(`Role assignment error for ${playerCount} players. Check logic.`);
         }
-
         rolesToAssign = [];
         for (let i = 0; i < mafiaCount; i++) rolesToAssign.push(new MafiaRole());
         if (doctorCount > 0) rolesToAssign.push(new DoctorRole());
         if (seerCount > 0) rolesToAssign.push(new SeerRole());
         for (let i = 0; i < villagerCount; i++) rolesToAssign.push(new VillagerRole());
-
-        // Shuffle roles for random assignment
         rolesToAssign.sort(() => Math.random() - 0.5);
 
-        // --- Persona Assignment ---
+        // --- Persona Assignment --- (Same as before)
         const personas = selectedTheme.generatePersonaPool(playerCount);
 
-        // --- Create Player Setups ---
+        // --- Create Player Setups --- (Modified for role-based AI)
         const playerSetups = [];
-        let humanPlayerIndex = includeHuman ? 0 : -1; // Human is Player 1 if included
-        let currentPersonaIndex = 0; // Keep track of assigned personas
+        let humanPlayerIndex = -1; // Assume no human for now
+        let currentPersonaIndex = 0; 
 
         for (let i = 0; i < playerCount; i++) {
             const role = rolesToAssign[i];
             let assignedPersona: Persona | undefined = undefined;
             let playerName: string;
             let agent;
+            let AgentClass;
 
-            if (i === humanPlayerIndex) {
+            if (i === humanPlayerIndex) { // Placeholder if human logic is re-added
                 agent = new HumanAgent();
-                playerName = `Player ${i + 1}`; // Human keeps simple name
+                playerName = `Player ${i + 1}`;
             } else {
-                agent = new SelectedAIAgentClass();
+                // Select AI Class based on Role Allegiance
+                if (role.allegiance === 'Mafia') {
+                    AgentClass = agentClassMap[mafiaAgentType];
+                } else { // Town roles
+                    AgentClass = agentClassMap[townAgentType];
+                }
+
+                if (!AgentClass) {
+                    console.warn(`Warning: Could not find agent class for type. Defaulting to Dummy.`);
+                    AgentClass = DummyAIAgent;
+                }
+                agent = new AgentClass();
+
+                // Assign persona
                 if (currentPersonaIndex < personas.length) {
                     assignedPersona = personas[currentPersonaIndex];
-                    agent.persona = assignedPersona; // Assign persona to AI agent
-                    playerName = assignedPersona.name; // Use persona name for AI player
+                    // Only assign persona to AI agents
+                    if (!(agent instanceof HumanAgent)) {
+                        // Assert type to satisfy linter
+                        (agent as OpenAIAgent | ClaudeAgent | GeminiAgent | DummyAIAgent).persona = assignedPersona;
+                    }
+                    playerName = assignedPersona.name; 
                     currentPersonaIndex++;
                 } else {
-                     // Fallback if not enough personas generated (shouldn't happen with current logic)
                      playerName = `Player ${i + 1}`;
                      console.warn(`Warning: Not enough personas generated for player ${i+1}`);
                 }
@@ -169,8 +185,8 @@ async function main() {
             playerSetups.push({ name: playerName, role, agent });
         }
 
-        // Set up the game with the player configurations
-        game = new Game(playerSetups, themeKey, 'en'); // Pass themeKey to Game constructor
+        // Set up the game 
+        game = new Game(playerSetups, themeKey, 'en'); 
 
         // Add renderers
         game.addRenderer(new ConsoleRenderer());
@@ -182,15 +198,18 @@ async function main() {
 
     } catch (error) {
         console.error('Error during game execution:', error);
-    } finally {
-        rl.close(); // Ensure readline interface is closed
-         // Optional: Explicitly exit if needed, though node should exit naturally
-         // process.exit(0); 
-    }
+    } 
+    // No finally block needed, prompts handles ctrl+c gracefully
 }
 
 // Start the game
 main().catch(error => {
     console.error('Fatal error:', error);
+    // Check if it's a prompts cancellation error before logging full stack
+    if (error && typeof error === 'object' && 'exitCode' in error && error.exitCode === 130) {
+        // User likely pressed Ctrl+C
+    } else {
+        console.error(error);
+    }
     process.exit(1);
 });

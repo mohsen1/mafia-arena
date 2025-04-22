@@ -56,16 +56,22 @@ pnpm install
 
 ### Environment Variables (for OpenAI Agent)
 
-If you plan to use the `OpenAIAgent`, create a `.env` file in the project root:
+If you plan to use the `OpenAIAgent`, `ClaudeAgent`, or `GeminiAgent`, create a `.env` file in the project root:
 
 ```plaintext
 #.env
 OPENAI_API_KEY="your_openai_api_key"
 OPENAI_MODEL="gpt-4o" # Or gpt-4-turbo, gpt-3.5-turbo, etc.
 # OPENAI_BASE_URL="your_proxy_or_local_url" # Optional
+
+ANTHROPIC_API_KEY="your_anthropic_api_key"
+# ANTHROPIC_MODEL="claude-3-opus-20240229" # Optional, defaults to Sonnet
+
+GEMINI_API_KEY="your_google_api_key"
+# GEMINI_MODEL="gemini-1.5-pro-latest" # Optional, defaults to 1.5-flash
 ```
 
-Replace `"your_openai_api_key"` with your actual key. **Do not commit your `.env` file to version control.**
+Replace placeholders with your actual keys. **Do not commit your `.env` file to version control.**
 
 ### Running the Game
 
@@ -73,18 +79,11 @@ Replace `"your_openai_api_key"` with your actual key. **Do not commit your `.env
 # Build the project
 npm run build
 
-# Run the game with OpenAI Agent (default)
+# Run the game (will prompt for setup choices)
 npm start
 
-# Run the game explicitly using the Dummy AI Agent
-npm start -- --dummy-ai 
-# Note: The extra '--' passes the flag to the node script
-
 # Or run in development mode (watches for changes)
-npm run dev # Uses default AI by default
-npm run dev -- --dummy-ai # Uses Dummy AI Agent
-npm run dev -- --claude-ai # Uses Claude AI Agent
-npm run dev -- --gemini-ai # Uses Gemini AI Agent
+npm run dev
 ```
 
 ### Enabling Debug Logs
@@ -101,8 +100,8 @@ DEBUG=mafia:agent:openai npm start
 # Show logs from Claude and Gemini agents
 DEBUG=mafia:agent:claude,mafia:agent:gemini npm start
 
-# Combine with other flags
-DEBUG=mafia:agent:* npm start -- --dummy-ai
+# Show logs from Dummy agent
+# DEBUG=mafia:agent:dummy npm start 
 ```
 
 ## Game Play
