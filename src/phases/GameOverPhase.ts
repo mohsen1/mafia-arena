@@ -41,6 +41,9 @@ export class GameOverPhase extends AbstractGamePhase {
             };
         });
 
+        // Get all agent memories
+        const memories = game.getAgentMemories(); 
+
         return {
             gameId: game.id,
             round: game.round,
@@ -51,11 +54,13 @@ export class GameOverPhase extends AbstractGamePhase {
                 status: "Alive", 
                 role: "System",
                 isMafia: false,
+                allegiance: "Town" // Add default allegiance for system/final state self
             },
             players: game.getPublicPlayerArray(),
             alivePlayerIds: new Set(), // Empty since game is over
             winningTeam: this.winner,
-            playerDetails: players
+            playerDetails: players,
+            memories: Object.fromEntries(memories) // Include memories in the final state
         } as unknown as VisibleGameState; // Type assertion since we're extending the interface
     }
 }

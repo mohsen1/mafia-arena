@@ -18,6 +18,7 @@ import { RoleName } from './interfaces/IRole';
 import { Player } from './core/Player';
 import type { IAgent } from './interfaces/IAgent'; // Ensure IAgent is imported
 import type { Allegiance } from './interfaces/IRole'; // Import Allegiance
+import process from 'process'; // Import process for argv
 
 // Load environment variables from .env file
 dotenv.config();
@@ -49,13 +50,19 @@ const geminiModels = [
 
 // Groq Models
 const groqModels = [
-  { title: 'Llama 3.3 70B Versatile (Default)', value: 'llama-3.3-70b-versatile' },
-  { title: 'Llama 3.1 8B Instant', value: 'llama-3.1-8b-instant' },
-  { title: 'Llama 3.1 70B Instruct', value: 'llama-3.1-70b-instruct' },
-  { title: 'Llama 3 Groq 70B Tool Use', value: 'llama-3-groq-70b-tool-use' },
-  { title: 'Llama 3 Groq 8B Tool Use', value: 'llama-3-groq-8b-tool-use' },
-  { title: 'Gemma 2 9B IT', value: 'gemma2-9b-it' },
-  { title: 'Mixtral 8x7B Instruct', value: 'mixtral-8x7b-instruct' },
+  // Production Models
+  { title: 'Gemma 2 9B IT (Google)', value: 'gemma2-9b-it' },
+  { title: 'Llama 3.3 70B Versatile (Meta)', value: 'llama-3.3-70b-versatile' },
+  { title: 'Llama 3.1 8B Instant (Meta)', value: 'llama-3.1-8b-instant' },
+  { title: 'Llama3 70B (Meta, 8K Context)', value: 'llama3-70b-8192' },
+  { title: 'Llama3 8B (Meta, 8K Context)', value: 'llama3-8b-8192' },
+  // Preview Models (May be discontinued)
+  { title: 'Llama 4 Maverick 17B (Meta, Preview)', value: 'meta-llama/llama-4-maverick-17b-128e-instruct' },
+  { title: 'Llama 4 Scout 17B (Meta, Preview)', value: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+  { title: 'Deepseek R1 Distill Llama 70B (DeepSeek, Preview)', value: 'deepseek-r1-distill-llama-70b' },
+  { title: 'Mistral Saba 24B (Mistral, Preview)', value: 'mistral-saba-24b' },
+  { title: 'Qwen QWQ 32B (Alibaba, Preview)', value: 'qwen-qwq-32b' },
+  { title: 'Allam 2 7B (SDAIA, Preview)', value: 'allam-2-7b' },
 ];
 
 // Example OpenAI Providers/Endpoints
@@ -149,7 +156,7 @@ async function interactiveSetup(): Promise<{
              name: 'themeKey',
              message: 'Choose a game theme:',
              choices: Object.keys(Themes).map(key => ({
-                 title: `${Themes[key].name} (${Themes[key].description})`,
+                 title: `${Themes[key].name}: (${Themes[key].description})`,
                  value: key
              })),
              initial: 0
@@ -259,15 +266,54 @@ async function main() {
     let game: Game | null = null;
 
     try {
-        // Initial API Key check can be generic or removed, checked later
+        // Check for -y flag
+        const skipInteractive = process.argv.includes('-y');
 
-        const {
-            playerCount,
-            themeKey,
-            humanPlayerIndex,
-            mafiaConfig,
-            townConfig
-        } = await interactiveSetup();
+        let playerCount: number;
+        let themeKey: string;
+        let humanPlayerIndex: number;
+        let mafiaConfig: AgentGroupConfig;
+        let townConfig: AgentGroupConfig;
+
+        if (skipInteractive) {
+            console.log('Skipping interactive setup (-y flag detected). Using defaults.');
+            // Define default settings
+            playerCount = 5;
+            const themeKeys = Object.keys(Themes);
+            themeKey = themeKeys.length > 0 ? themeKeys[0] : 'western'; // Default theme or fallback
+            humanPlayerIndex = -1; // No human player
+            const defaultProvider = openAIProviders.find(p => p.value === 'groq'); // Default to Groq
+            const defaultModel = groqModels.length > 0 ? groqModels[0].value : undefined; // Default Groq model
+
+            if (!defaultProvider) {
+                 console.warn("Warning: Default provider 'groq' not found. AI might not function correctly.");
+            }
+             if (!defaultModel && defaultProvider) {
+                 console.warn(`Warning: Default model for provider '${defaultProvider.title}' not found. AI might not function correctly.`);
+             }
+
+            mafiaConfig = {
+                agentType: 'Groq',
+                model: defaultModel,
+                provider: defaultProvider,
+            };
+            townConfig = {
+                agentType: 'Groq',
+                model: defaultModel,
+                provider: defaultProvider,
+            };
+
+        } else {
+            // Initial API Key check can be generic or removed, checked later
+
+            const setupResult = await interactiveSetup();
+            playerCount = setupResult.playerCount;
+            themeKey = setupResult.themeKey;
+            humanPlayerIndex = setupResult.humanPlayerIndex;
+            mafiaConfig = setupResult.mafiaConfig;
+            townConfig = setupResult.townConfig;
+        }
+
 
         // Check necessary API keys AFTER setup based on choices
         if (mafiaConfig.agentType !== 'Dummy' && mafiaConfig.agentType !== 'Human') {
@@ -282,6 +328,9 @@ async function main() {
         }
         
         const selectedTheme = Themes[themeKey];
+        if (!selectedTheme) {
+             throw new Error(`Selected theme key "${themeKey}" is invalid or theme definition is missing.`);
+        }
 
         console.log(`\nSetting up game with ${playerCount} players...`);
         console.log(`Theme: ${selectedTheme.name}`);

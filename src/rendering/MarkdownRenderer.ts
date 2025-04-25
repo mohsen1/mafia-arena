@@ -157,7 +157,7 @@ export class MarkdownRenderer implements IGameRenderer {
                         this.appendToMarkdown(`- **System Prompt:**`);
                         this.appendToMarkdown('```txt\n' + (log.prompt.system || '(None)') + '\n```'); // Use txt for generic prompts
                         this.appendToMarkdown(`- **User Prompt:**`);
-                        this.appendToMarkdown('```json\n' + (log.prompt.user || '(None)') + '\n```'); // Assume user prompt is structured JSON
+                        this.appendToMarkdown('```txt\n' + (log.prompt.user || '(None)') + '\n```'); // Changed from json to txt for user prompt
                         this.appendToMarkdown(`- **Raw Response:**`);
                         this.appendToMarkdown('```json\n' + (log.response.raw || '(None)') + '\n```'); // Assume raw response is JSON
                         if (log.response.parsedAction) {

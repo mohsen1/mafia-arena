@@ -43,7 +43,9 @@ export class Game {
         }
         this.language = language;
         playerSetups.forEach((setup, index) => {
-            const playerId: PlayerId = `player-${index + 1}-${setup.name.toLowerCase().replace(/\s+/g, '-')}`;
+            // Sanitize name: remove quotes and convert to lowercase, replace spaces with hyphens
+            const sanitizedName = setup.name.toLowerCase().replace(/"/g, '').replace(/\s+/g, '-');
+            const playerId: PlayerId = `player-${index + 1}-${sanitizedName}`;
             // Ensure agent has the correct ID *before* creating the player
             setup.agent.playerId = playerId; // TODO: This mutation isn't ideal, better to pass ID to agent constructor
             const player = new Player(playerId, setup.name, setup.role, setup.agent);
@@ -180,6 +182,11 @@ export class Game {
 
     getConversationLog(): ConversationLog {
         return this.#conversationLog;
+    }
+
+    // Added getter for agent memories
+    getAgentMemories(): ReadonlyMap<PlayerId, AgentMemory> {
+        return this.#agentMemories;
     }
 
     // --- Game Logic Helpers ---

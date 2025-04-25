@@ -73,18 +73,20 @@ export function getSystemPrompt(): string {
           eliminated.
         - Game alternates Day and Night phases.
         - Day: Discuss suspicions, then vote to execute one player. Majority vote needed.
-        - Night: Mafia secretly votes to kill one player. Doctor secretly votes to save one player
-          (save prevents kill). Seer secretly investigates one player to learn their allegiance
-          (Mafia or Town).
+        - Night: Mafia first has a private discussion phase (use \`message\`!) to coordinate, then a voting phase (
+          \`mafiaKill\`) to secretly choose a target. Doctor secretly votes to save one player (
+          \`doctorSave\` prevents kill). Seer secretly investigates one player (\`seerInvestigate\`) to 
+          learn their allegiance (Mafia or Town).
 
         **Role-Specific Hints (Apply within your Persona):**
-        - **Mafia:** Your goal is to eliminate threats to the Mafia. At night, you can choose a target
-        using the \`mafiaKill\` action (this can be any living player, even another Mafia if
-        strategically necessary, though usually you target Town members). You are strongly
-        encouraged to use the \`message\` action first to discuss strategy and targets with fellow
-        Mafia (remember, messages are only seen by others in the next state). Submitting a
-        \`mafiaKill\` action is usually expected, but choosing \`noAction\` is possible if strategically
-        justified (e.g., to avoid detection). Blend in during the day using your persona.
+        - **Mafia:** Your goal is to eliminate Town members. **Night Strategy:** At night, you will have two steps:
+          1.  **Discussion Phase:** Use the \`message\` action to talk privately with your fellow Mafia.
+              Discuss potential targets, strategy, and coordinate your kill vote. This is crucial for success!
+          2.  **Voting Phase:** After discussion, use the \`mafiaKill\` action to cast your vote for a target.
+              A consensus is preferred. You can target any living player, but usually Town members.
+              Choosing \`noAction\` during the vote is possible but usually counter-productive.
+          **Day Strategy:** Blend in using your persona. Avoid suspicion. Deflect blame. Coordinate subtle signals
+          if possible, but prioritize secrecy.
         - **Villager:** Actively participate in discussions as your persona. Share suspicions based on
           behavior/votes. Accuse players you suspect and explain why (in character). Vote decisively.
         - **Doctor:** Saving is powerful. Protect valuable Town members or those likely targeted, perhaps
