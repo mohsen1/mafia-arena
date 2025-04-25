@@ -57,7 +57,7 @@ async function addWelcomeMessageIfNeeded(gameState: GameState, gameId: string): 
 
 // Main action to run the next turn or step in the game
 export async function runGameTurnAction(gameId: string) {
-  console.log(`Running turn for game: ${gameId}`);
+  console.log(`[${gameId}] Entering runGameTurnAction...`);
 
   // Fetch the latest game state
   let currentState = await gameStateManager.getGameState(gameId);
@@ -78,22 +78,27 @@ export async function runGameTurnAction(gameId: string) {
   try {
     switch (currentState.phase) {
       case "Day Introductions":
+        console.log(`[${gameId}] Calling handleDayIntroductionsPhase.`);
         await handleDayIntroductionsPhase(currentState, gameId);
         break;
         
       case "DayDiscussion":
+        console.log(`[${gameId}] Calling handleDayDiscussionPhase.`);
         await handleDayDiscussionPhase(currentState, gameId);
         break;
         
       case "Voting":
+        console.log(`[${gameId}] Calling handleVotingPhase.`);
         await handleVotingPhase(currentState, gameId);
         break;
         
       case "Night":
+        console.log(`[${gameId}] Calling handleNightPhase.`);
         await handleNightPhase(currentState, gameId);
         break;
         
       case "ResolveNight":
+        console.log(`[${gameId}] Calling handleResolveNightPhase.`);
         await handleResolveNightPhase(currentState, gameId);
         break;
         
@@ -107,10 +112,6 @@ export async function runGameTurnAction(gameId: string) {
     console.error(`Error processing ${currentState.phase} phase for game ${gameId}:`, error);
     // TODO: Consider adding error recovery logic here
   }
-
-  // Revalidate the path to ensure the UI updates
-  revalidatePath(`/game/${gameId}`);
-  console.log(`Path revalidated for game ${gameId}`);
 }
 
 

@@ -169,21 +169,11 @@ export async function submitHumanAction(
     // Revalidate path *before* potentially long-running next turn action
     revalidatePath(`/game/${gameId}`);
 
-    // Trigger the next step in the game flow
-    // Use setTimeout to allow the current request to finish cleanly
-    setTimeout(() => {
-        runGameTurnAction(gameId).catch(error => {
-            console.error(`[${gameId}] Error running game turn after human action:`, error);
-            // Optionally update game state with an error status?
-        });
-    }, 0);
-
   } catch (error) {
     console.error(`[${gameId}] Error processing human action:`, error);
-    // Optionally revert state or set an error state?
     // Revalidate path even on error to show potential issues?
     revalidatePath(`/game/${gameId}`);
     // Rethrow the error to be caught by the client if needed
     throw error;
   }
-} 
+}

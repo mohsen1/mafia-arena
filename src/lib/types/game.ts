@@ -66,7 +66,10 @@ export type NightAction =
       type: "seer_investigation";
       actingPlayerId: string;
       targetPlayerId: string;
-    }; // Use string literals for result
+    } // Use string literals for result
+  | { type: "error_skip"; actingPlayerId: string; }
+  | { type: "no_target"; actingPlayerId: string; }
+  | { type: "failed_action"; actingPlayerId: string; };
 
 export interface Vote {
   voterPlayerId: string;
@@ -160,6 +163,7 @@ export interface GameState {
     werewolfChatLog?: ChatMessage[]; // Use mutable array
     seerResults?: Record<string, "Werewolf" | "Villager">; // seerId -> targetId -> result (string literals)
     initialProfiles?: PlayerInitializationData[]; // Add storage for initial profiles
+    werewolfChatTurnIndex?: number; // Add index to track whose turn it is within werewolf chat
   };
   isWaitingForVotes?: boolean; // Flag for UI during vote collection
 }

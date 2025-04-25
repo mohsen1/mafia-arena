@@ -252,6 +252,52 @@ export async function handleDayDiscussionPhase(
       `DayDiscussion turn processed for ${nextSpeaker.name}. Total turns taken: ${finalState.turnOrderIndex}`,
     );
 
+    // Revalidate path AFTER state update, BEFORE potentially triggering next turn
+    revalidatePath(`/game/${gameId}`);
+
+    // Trigger next turn if applicable
+    // Check if it's still DayDiscussion and not waiting for a human
+    const stateAfterAI = await gameStateManager.getGameState(gameId);
+    if (
+      stateAfterAI && // Check if state exists
+      stateAfterAI.phase === "DayDiscussion" && // Check if phase is still correct
+      !stateAfterAI.pendingHumanAction // Check if not waiting for human
+    ) {
+      console.log(
+        `[${gameId}] Scheduling next discussion turn via setTimeout after AI ${nextSpeaker.name}'s turn.`
+      );
+    } else {
+      console.log(
+        "All expected discussion turns completed (determineNextSpeaker returned null). Advancing phase to Voting...",
+      );
+
+      const stateBeforeVote = await gameStateManager.getGameState(gameId);
+      if (!stateBeforeVote) {
+        console.error(
+          `Game state lost before advancing to Voting (null speaker case) for ${gameId}`,
+        );
+        return;
+      }
+      if (stateBeforeVote.phase !== "DayDiscussion") {
+        console.warn(
+          `State phase changed to ${stateBeforeVote.phase} before advancing from null speaker case. Aborting.`,
+        );
+        return;
+      }
+
+      let nextState = advancePhase(stateBeforeVote);
+      nextState = {
+        ...nextState,
+        votes: [],
+        isWaitingForVotes: true,
+        pendingHumanAction: null, // Ensure pending action is clear when advancing
+      };
+
+      await gameStateManager.updateGameState(gameId, nextState);
+      console.log(
+        `Game ${gameId} advanced from DayDiscussion to Voting (null speaker case).`,
+      );
+    }
   } else {
     // All discussion turns complete or nextSpeaker determined as null
     console.log(

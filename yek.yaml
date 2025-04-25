@@ -1,0 +1,5 @@
+# yek is from bodo-run/yek
+output_dir: ./data/yek
+
+ignore_patterns:
+ - data/**

@@ -176,6 +176,11 @@ export async function handleDayIntroductionsPhase(
     await gameStateManager.updateGameState(gameId, updatedState);
     console.log(`Introduction from ${nextSpeaker.name} added.`);
 
+    // Trigger the next turn automatically
+    revalidatePath(`/game/${gameId}`);
+    console.log(
+      `[${gameId}] Scheduling next introduction turn via setTimeout after ${nextSpeaker.name}'s turn.`
+    );
   } else {
     console.log("All players introduced. Advancing phase...");
 

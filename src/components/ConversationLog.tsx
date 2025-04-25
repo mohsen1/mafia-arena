@@ -22,19 +22,34 @@ export function ConversationLog() {
   const regularLog = conversationLog || [];
   const werewolfLog = _internalState?.werewolfChatLog || [];
 
-  // Determine if werewolf chat should be shown
+  // Determine if werewolf chat should be shown *at all*
   const isHumanWerewolf = humanPlayerId && players[humanPlayerId]?.role === "Werewolf";
-  const showWerewolfChat = !humanPlayerId || isHumanWerewolf;
+  const canSeeWerewolfChat = !humanPlayerId || isHumanWerewolf; // Observer or Werewolf
 
-  // Combine and sort logs if werewolf chat is shown
-  let displayLog: ChatMessage[] = [...regularLog];
-  if (showWerewolfChat) {
-    // Add a marker property to distinguish werewolf messages
+  let displayLog: ChatMessage[] = []; // Start empty
+
+  if (canSeeWerewolfChat && gameState.phase === "Night") {
+    // Werewolf/Observer during Night: Show WW chat + Night-specific moderator messages
     const markedWerewolfLog = werewolfLog.map(msg => ({ ...msg, isWerewolfChat: true }));
-    displayLog = [...displayLog, ...markedWerewolfLog];
-    displayLog.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    // Filter regular log for moderator messages specifically marked for the Night phase
+    const nightModeratorMessages = regularLog.filter(
+      msg => msg.phase === 'Night' && msg.speaker.type === 'moderator'
+    );
+    displayLog = [...nightModeratorMessages, ...markedWerewolfLog];
+
+  } else if (canSeeWerewolfChat) {
+    // Werewolf/Observer during Day/Voting/etc.: Show combined public + WW chat
+    const markedWerewolfLog = werewolfLog.map(msg => ({ ...msg, isWerewolfChat: true }));
+    displayLog = [...regularLog, ...markedWerewolfLog]; // Combine all
+
+  } else {
+    // Non-Werewolf: Show only public messages
+    displayLog = [...regularLog];
   }
-  
+
+  // Always sort the final display log by timestamp
+  displayLog.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
   // Function to scroll last message into view, memoized with useCallback
   const scrollToBottom = useCallback(() => {
     if (lastMessageRef.current && displayLog.length > 0) {

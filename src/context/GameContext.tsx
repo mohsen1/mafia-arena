@@ -245,6 +245,34 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     setIsLoadingNextTurn(false); // Assume new state means loading is finished
   }, [initialGameState]);
 
+  // --- Effect to automatically run next turn for AI ---
+  useEffect(() => {
+    // Conditions to trigger next AI turn:
+    // 1. Game is not over.
+    // 2. Not currently loading the next turn.
+    // 3. No action is pending from the human player.
+    // 4. Auto-run is enabled OR it's an AI's turn (we trigger regardless if no human action is pending)
+    const shouldTriggerNextTurn = 
+      gameState?.phase !== "GameOver" &&
+      !isLoadingNextTurn &&
+      !gameState?.pendingHumanAction;
+
+    if (shouldTriggerNextTurn) {
+      console.log("[Context useEffect] Conditions met, triggering runNextTurnAction.");
+      // Use a minimal setTimeout to ensure this runs after the current render cycle
+      const timerId = setTimeout(() => runNextTurnAction(), 10); // Short delay
+      return () => clearTimeout(timerId); // Cleanup timeout if dependencies change
+    } else {
+       console.log("[Context useEffect] Conditions not met for triggering next turn.", {
+            phase: gameState?.phase,
+            isLoadingNextTurn,
+            pendingHumanAction: gameState?.pendingHumanAction
+       });
+    }
+  // Dependencies: Trigger whenever the state relevant to these conditions changes.
+  }, [gameState?.phase, gameState?.pendingHumanAction, isLoadingNextTurn, runNextTurnAction]);
+  // --- End Auto-run Effect ---
+
   // Effect to handle AUTOPLAY when IDLE (conditions depend on audio setting)
   useEffect(() => {
     // Condition 1: AutoRun ON, Audio OFF, Idle -> Run Next
