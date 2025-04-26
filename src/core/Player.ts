@@ -8,15 +8,31 @@ export class Player implements IPlayer {
     readonly #agent: IAgent;
     #status: PlayerStatus = PlayerStatus.Alive;
     readonly #role: IRole; // Role is private!
+    #name: string; // Make name mutable internally
 
     constructor(
         public readonly id: PlayerId,
-        public readonly name: string,
+        initialName: string, // Use initialName for constructor
         role: IRole, // Inject role
         agent: IAgent // Inject agent
     ) {
         this.#role = role;
         this.#agent = agent;
+        this.#name = initialName; // Assign initial name
+    }
+
+    get name(): string {
+        return this.#name;
+    }
+
+    // Method to update the name after persona generation
+    setName(newName: string): void {
+        // Add validation if needed (e.g., non-empty)
+        if (typeof newName === 'string' && newName.trim().length > 0) {
+            this.#name = newName.trim();
+        } else {
+            console.warn(`Attempted to set invalid name for player ${this.id}: ${newName}`);
+        }
     }
 
     get status(): PlayerStatus {
@@ -44,7 +60,7 @@ export class Player implements IPlayer {
     getPublicRepresentation(): PublicPlayerInfo {
         return {
             id: this.id,
-            name: this.name,
+            name: this.#name, // Use internal name
             status: this.status,
             // Note: Role is NOT included here
         };
@@ -61,7 +77,7 @@ export class Player implements IPlayer {
             // VisibleGameState for this specific player before calling this.
             return await this.#agent.getAction(gameState, allowedActions);
         } catch (error) {
-            console.error(`Error getting action from agent ${this.id}:`, error);
+            console.error(`Error getting action from agent ${this.id} (${this.#name}):`, error); // Include name in error log
             return { type: 'noAction' }; // Default safe action on error
         }
     }

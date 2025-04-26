@@ -6,6 +6,7 @@ import type { IAgent, PlayerAction } from '../../src/interfaces/IAgent';
 import type { IRole } from '../../src/interfaces/IRole';
 import type { VisibleGameState } from '../../src/interfaces/GameState';
 import { createInitialMemory } from '../../src/interfaces/AgentMemory';
+import { DEFAULT_PERSONA } from '../../src/interfaces/Persona';
 
 // Mock Role implementation
 const mockVillagerRole: IRole = {
@@ -22,14 +23,17 @@ const mockMafiaRole: IRole = {
     description: 'Mock Mafia',
 };
 
-// Mock agent factory - Removed playerId
-const createMockAgent = ( /* id: PlayerId */ ): IAgent & { getAction: Mock<any[], unknown> } => ({
-    // playerId: id,
-    getAction: vi.fn().mockResolvedValue({ type: 'noAction' } as PlayerAction)
+// Mock agent factory - Updated to match IAgent
+const createMockAgent = (id: PlayerId = 'mock-agent-id'): IAgent & { getAction: Mock<any[], unknown> } => ({
+    id: id,
+    agentName: 'MockAgent',
+    persona: { ...DEFAULT_PERSONA }, // Add default persona
+    getAction: vi.fn().mockResolvedValue({ type: 'noAction' } as PlayerAction),
+    // generatePersona: vi.fn().mockResolvedValue(undefined), // Optional: mock if needed
 });
 
 describe('Player', () => {
-    const playerId = 'player-123';
+    const playerId: PlayerId = 'player-123'; // Ensure type safety
     let playerName: string;
     let mockAgent: ReturnType<typeof createMockAgent>;
     let player: Player;
@@ -130,17 +134,16 @@ describe('Player', () => {
 
         it('should return "noAction" if agent.getAction throws an error', async () => {
             const error = new Error('Agent failed!');
-            mockAgent.getAction.mockRejectedValue(error); // Simulate agent error
+            mockAgent.getAction.mockRejectedValueOnce(error);
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {}); // Spy on console.error
+
             const expectedAction: PlayerAction = { type: 'noAction' };
-
-            // Suppress console.error for this test
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-            const action = await player.decideAction(mockGameState);
+            const action = await player.decideAction({} as VisibleGameState); // Empty state for this test
 
             expect(action).toEqual(expectedAction);
             expect(mockAgent.getAction).toHaveBeenCalledTimes(1); // Agent was still called
-            expect(consoleErrorSpy).toHaveBeenCalledWith(`Error getting action from agent ${playerId}:`, error);
+            // Update assertion to match the new error log format including the player name
+            expect(consoleErrorSpy).toHaveBeenCalledWith(`Error getting action from agent ${playerId} (${playerName}):`, error);
 
             consoleErrorSpy.mockRestore(); // Clean up spy
         });

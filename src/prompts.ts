@@ -18,6 +18,7 @@ interface PromptSelfInfo extends PromptPlayerInfo {
     allegiance: Allegiance;
     isMafia: boolean;
     personaDescription?: string;
+    persona?: Persona;
 }
 
 // Define expected type for seer results based on usage
@@ -39,6 +40,32 @@ interface PromptGameState {
 
 // Define constant if not already defined globally or imported
 const MAX_MESSAGES_IN_PROMPT = 15; // Example value, adjust as needed
+
+/**
+ * Generates the prompt for an LLM agent to create its persona.
+ * @param themeDescription A one-liner describing the game's theme.
+ */
+export function getPersonaGenerationPrompt(themeDescription: string): string {
+  return dedent`
+    You are a creative writer tasked with generating a character persona for a text-based Mafia game.
+    The game's theme is: "${themeDescription}"
+
+    Please create a compelling and distinct persona that fits this theme.
+    Your response MUST be a single, valid JSON object containing the following fields:
+    - name: string (The character's full name)
+    - backstory: string (A brief, one or two-sentence background for the character)
+    - personalityTraits: string[] (An array of 3-5 descriptive personality traits, e.g., ["Observant", "Quiet", "Cunning"])
+
+    Example JSON Output:
+    {
+      "name": "Silas Croft",
+      "backstory": "The grumpy, solitary gamekeeper of the old manor. Prefers the company of animals to people.",
+      "personalityTraits": ["Gruff", "Observant", "Independent", "Suspicious"]
+    }
+
+    Respond ONLY with the valid JSON object. Do not include any other text, explanations, or markdown formatting.
+  `;
+}
 
 /**
  * Generates the system prompt explaining the game rules and desired output format.
@@ -142,7 +169,14 @@ export function getUserPrompt(
     promptLines.push(`- Player Name: ${currentGameState.self.name}`);
     promptLines.push(`- Your Role: ${currentGameState.self.role}`);
     promptLines.push(`- Your Allegiance: ${currentGameState.self.allegiance}`);
-    if (currentGameState.self.personaDescription) {
+    // Include generated persona details if available
+    if (currentGameState.self.persona) {
+        promptLines.push(`\n**Your Persona:**`);
+        promptLines.push(`- Name: ${currentGameState.self.persona.name}`); // Usually matches player name, but good to confirm
+        promptLines.push(`- Backstory: ${currentGameState.self.persona.backstory}`);
+        promptLines.push(`- Traits: ${currentGameState.self.persona.personalityTraits.join(', ')}`);
+    } else if (currentGameState.self.personaDescription) {
+        // Fallback for manually assigned persona descriptions
         promptLines.push(`- Your Persona: ${currentGameState.self.personaDescription}`);
     }
 

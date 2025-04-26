@@ -3,7 +3,7 @@ import { VisibleGameState } from '../interfaces/GameState';
 import { PlayerId } from '../interfaces/IPlayer';
 // import * as readline from 'readline/promises'; // Removed readline dependency
 import { RoleName } from '../interfaces/IRole'; // Import RoleName
-import type { Persona } from '../interfaces/Theme';
+import { Persona, DEFAULT_PERSONA } from '../interfaces/Persona'; // Use regular import
 
 // const rl = readline.createInterface({ // Removed readline interface
 //     input: process.stdin,
@@ -11,16 +11,23 @@ import type { Persona } from '../interfaces/Theme';
 // });
 
 export class HumanAgent implements IAgent {
-     // public playerId!: PlayerId; // Removed: ID is accessed via gameState.self.id
-     public persona?: Persona;
+    public readonly id: PlayerId;
+    public readonly agentName = 'HumanAgent';
+    public persona: Persona = DEFAULT_PERSONA; // Assign a default persona
 
-     constructor(persona?: Persona) {
-        this.persona = persona;
+     constructor(id: PlayerId, persona?: Persona) {
+        this.id = id;
+        // Human persona might be set differently (e.g., from setup or defaults)
+        this.persona = persona || { 
+            ...DEFAULT_PERSONA, 
+            name: `Human Player (${this.id})` // Default name specific to human
+        }; 
      }
 
     async getAction(gameState: VisibleGameState, _allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         // Human actions are now handled by the Game loop calling a renderer's promptHumanInput method.
         // This method should not be called directly for a HumanAgent.
+        console.error(`[${this.id}] HumanAgent.getAction was called directly. This indicates an error in the game loop logic.`);
         throw new Error(`HumanAgent.getAction should not be called directly. Use Game.requestPlayerAction or Renderer.promptHumanInput.`);
 
         // Keep the old logic commented out below for reference if needed, but it should be removed eventually.

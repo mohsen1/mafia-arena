@@ -45,6 +45,7 @@ describe('OpenAIAgent', () => {
     let getUserPrompt: Mock;
 
     // Define test configurations
+    const testPlayerId = 'openai-test-player'; // Define player ID for tests
     const testModel = 'test-model-123';
     const testApiBase = 'http://localhost:1234/v1';
     const testApiKey = 'test-key-xyz';
@@ -53,7 +54,6 @@ describe('OpenAIAgent', () => {
         vi.clearAllMocks();
 
         // Dynamically import the mocked components AFTER vi.mock has run
-        // This ensures the mocks are applied before the modules are imported by the agent constructor
         const mockedOpenAI = await import('openai');
         mockCreate = (mockedOpenAI as any).__mockCreate; // Get the exported mock function
         MockOpenAIConstructor = (mockedOpenAI as any).__MockOpenAIConstructor; // Get constructor mock
@@ -62,25 +62,22 @@ describe('OpenAIAgent', () => {
         getSystemPrompt = mockedPrompts.getSystemPrompt as Mock;
         getUserPrompt = mockedPrompts.getUserPrompt as Mock;
 
-
         // Reset mock implementations if needed (e.g., for prompts)
         getSystemPrompt.mockReturnValue('Mock System Prompt');
         getUserPrompt.mockReturnValue('Mock User Prompt');
         mockCreate.mockClear(); // Clear any previous calls/results
         MockOpenAIConstructor.mockClear(); // Clear constructor mock calls too
 
-        agent = new OpenAIAgent(testModel, testApiBase, testApiKey); // Instantiates agent, which uses the mocked OpenAI
-        // agent.setPlayerId('openai-test-player'); // Removed: Player ID is now accessed via gameState
+        // Instantiate agent with the CORRECT constructor signature (id first)
+        agent = new OpenAIAgent(testPlayerId, testModel, testApiBase, testApiKey);
 
-        // Define a consistent test player ID
-        const testPlayerId = 'openai-test-player';
+        // Define a consistent test player ID (already defined above)
 
         mockGameState = {
             gameId: 'test-game',
             round: 2,
             phase: 'Day',
             language: 'en',
-            // Use the hardcoded ID since agent no longer stores it
             self: { id: testPlayerId, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive },
             players: [{ id: testPlayerId, name: 'Test Agent', status: PlayerStatus.Alive }],
             alivePlayerIds: new Set([testPlayerId]),

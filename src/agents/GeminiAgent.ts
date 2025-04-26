@@ -2,8 +2,8 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import type { IAgent, PlayerAction } from '../interfaces/IAgent';
 import type { VisibleGameState } from '../interfaces/GameState';
 import type { PlayerId } from '../interfaces/IPlayer';
-import { getSystemPrompt, getUserPrompt } from '../prompts'; // Import prompt functions
-import type { Persona } from '../interfaces/Theme'; // Import Persona
+import { getSystemPrompt, getUserPrompt, getPersonaGenerationPrompt } from '../prompts'; // Added getPersonaGenerationPrompt
+import { Persona, DEFAULT_PERSONA } from '../interfaces/Persona'; // Corrected import path and added DEFAULT_PERSONA
 import * as dotenv from 'dotenv'; // Import dotenv
 import debug from 'debug'; // Import debug
 import { RoleName, type Allegiance } from '../interfaces/IRole'; // Import RoleName and Allegiance
@@ -37,18 +37,69 @@ const safetySettings = [
 ];
 
 export class GeminiAgent implements IAgent {
-    // public playerId!: PlayerId; // Removed: Set by Game constructor
-    public persona?: Persona; // Add persona property
-    private modelName: string; // Store the selected model name
+    public readonly id: PlayerId; // Added readonly id
+    public readonly agentName = 'GeminiAgent'; // Added agentName
+    public persona: Persona = DEFAULT_PERSONA; // Initialize with default
+    private modelName: string;
 
-    constructor(model?: string, persona?: Persona) { // Accept optional model and persona
-        this.modelName = model || defaultModelName; // Use provided model or default
-        this.persona = persona;
-        log(`Initialized GeminiAgent with model: ${this.modelName}`);
+    constructor(id: PlayerId, model?: string) { // Accept id
+        this.id = id;
+        this.modelName = model || process.env.GEMINI_MODEL || defaultModelName; // Use env var if set
+        this.persona = DEFAULT_PERSONA; // Ensure initialized
+        log(`Initialized GeminiAgent ${this.id} with model: ${this.modelName}`);
+    }
+
+    async generatePersona(themeDescription: string): Promise<void> {
+        const agentIdForLog = `${this.id} (Persona Gen)`;
+        log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}`);
+
+        const personaPrompt = getPersonaGenerationPrompt(themeDescription);
+
+        try {
+            const model = genAI.getGenerativeModel({
+                 model: this.modelName,
+                 safetySettings,
+                 // Specify JSON output mode
+                 generationConfig: { responseMimeType: "application/json" },
+             });
+
+            const result = await model.generateContent(personaPrompt);
+            const response = result.response;
+            const responseText = response.text();
+
+            if (!responseText) {
+                log(`ERROR: [${agentIdForLog}] Persona generation API response was empty.`);
+                this.persona = DEFAULT_PERSONA;
+                return;
+            }
+
+            try {
+                const parsedPersona = JSON.parse(responseText) as Persona;
+                // Basic validation
+                if (typeof parsedPersona.name === 'string' &&
+                    typeof parsedPersona.backstory === 'string' &&
+                    Array.isArray(parsedPersona.personalityTraits) &&
+                    parsedPersona.personalityTraits.every(t => typeof t === 'string'))
+                {
+                    this.persona = parsedPersona;
+                    log(`[${agentIdForLog}] Successfully generated persona: ${this.persona.name}`);
+                } else {
+                    log(`ERROR: [${agentIdForLog}] Parsed persona JSON has invalid structure: %o`, parsedPersona);
+                    this.persona = DEFAULT_PERSONA;
+                }
+            } catch (parseError) {
+                log(`ERROR: [${agentIdForLog}] Failed to parse persona JSON response: ${responseText} %O`, parseError);
+                this.persona = DEFAULT_PERSONA;
+            }
+
+        } catch (error) {
+            log(`ERROR: [${agentIdForLog}] Error calling Google Generative AI API for persona generation: %O`, error);
+            this.persona = DEFAULT_PERSONA; // Fallback on API error
+        }
     }
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
-        const agentIdForLog = `${gameState.self.id} - ${gameState.self.role}`;
+        const agentIdForLog = `${this.id} - ${this.persona?.name || 'Unknown Persona'} (${gameState.self.role})`;
         log(`[${agentIdForLog} (Gemini)] Thinking with model ${this.modelName}...`);
 
         // Determine allegiance
@@ -65,10 +116,11 @@ export class GeminiAgent implements IAgent {
             round: gameState.round,
             phase: gameState.phase,
             self: {
-                ...gameState.self, // Spread existing self properties
-                allegiance: allegiance // Add the determined allegiance
+                ...gameState.self,
+                allegiance: allegiance,
+                persona: this.persona, // Pass generated persona to prompt
             },
-            alivePlayerIds: Array.from(gameState.alivePlayerIds), // Convert Set to Array here
+            alivePlayerIds: Array.from(gameState.alivePlayerIds),
             players: gameState.players.map(p => ({ id: p.id, name: p.name, status: p.status })),
             language: gameState.language,
             mafiaPlayerIds: gameState.self.isMafia ? Array.from(gameState.mafiaPlayerIds ?? []) : undefined,
@@ -148,7 +200,7 @@ export class GeminiAgent implements IAgent {
             return action;
 
         } catch (error) {
-            log(`ERROR: [${agentIdForLog} (${this.modelName})] Error calling Google Generative AI API: %O`, error);
+            log(`ERROR: [${agentIdForLog}] Error calling Google Generative AI API: %O`, error);
             return { type: 'noAction' }; // Fallback on API error
         }
     }

@@ -66,13 +66,13 @@ describe('Prompts', () => {
         });
 
          it('should include persona information if available', () => {
-             mockStateData.self.personaDescription = 'Bartholomew Quill (Anxious)'; // Match how it's likely passed
              const prompt = getUserPrompt(mockStateData, allowedActions);
              // Check within the Identity section
-             expect(prompt).toContain('**Your Identity:**');
-             expect(prompt).toContain('- Your Persona: Bartholomew Quill (Anxious)');
-             // The backstory isn't directly included in the standard prompt lines now.
-             // If needed, the test or function would need adjustment.
+             expect(prompt).toContain('**Your Persona:**');
+             // Check for specific fields
+             expect(prompt).toContain(`- Name: ${mockStateData.self.persona.name}`);
+             expect(prompt).toContain(`- Backstory: ${mockStateData.self.persona.backstory}`);
+             expect(prompt).toContain(`- Traits: ${mockStateData.self.persona.personalityTraits.join(', ')}`);
          });
 
         it('should include self role information', () => {

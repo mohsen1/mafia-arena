@@ -10,7 +10,7 @@
         "prestart": "npm run build",
         "start": "node dist/main.js",
         "dev": "ts-node src/main.ts",
-        "test": "vitest"
+        "test": "vitest run"
     },
     "keywords": [
         "mafia",

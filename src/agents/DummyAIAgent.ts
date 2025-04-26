@@ -3,21 +3,24 @@ import { VisibleGameState } from '../interfaces/GameState';
 import { PlayerId } from '../interfaces/IPlayer';
 import { delay } from '../core/utils';
 import { RoleName } from '../interfaces/IRole';
-import type { Persona } from '../interfaces/Theme';
+import { Persona, DEFAULT_PERSONA } from '../interfaces/Persona';
 
 export class DummyAIAgent implements IAgent {
-    // public playerId!: PlayerId; // Removed: Set by Game constructor
-    public persona?: Persona; // Add persona property
+    public readonly id: PlayerId;
+    public readonly agentName = 'DummyAIAgent';
+    public persona: Persona = DEFAULT_PERSONA;
 
-    constructor(persona?: Persona) {
-        this.persona = persona;
+    constructor(id: PlayerId, persona?: Persona) {
+        this.id = id;
+        // Use provided persona or default. Note: Dummy agent won't generate.
+        this.persona = persona || DEFAULT_PERSONA; 
     }
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         await delay(50 + Math.random() * 100); // Simulate thinking time
 
-        const agentIdForLog = gameState.self.id;
-        const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
+        const agentIdForLog = `${this.id} (${this.persona.name})`; // Include persona name in log
+        const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== this.id);
 
         switch (gameState.phase) {
             case 'Day':
@@ -40,8 +43,14 @@ export class DummyAIAgent implements IAgent {
                 }
             case 'Night':
                 const selfRole = gameState.self.role;
-                const potentialTargets = aliveOthers.filter(id => !gameState.mafiaPlayerIds?.has(id)); // Non-mafia targets
-                const anyAliveTarget = aliveOthers[Math.floor(Math.random() * aliveOthers.length)]; // Any other alive player
+                // Filter potential targets: non-mafia and not self
+                const potentialTargets = aliveOthers.filter(id => 
+                    !gameState.mafiaPlayerIds?.has(id) && id !== this.id
+                ); 
+                // Select any alive player other than self
+                const anyAliveTarget = aliveOthers.length > 0 
+                    ? aliveOthers[Math.floor(Math.random() * aliveOthers.length)]
+                    : null; // Handle case where no others are alive
 
                 if (selfRole === RoleName.Mafia && potentialTargets.length > 0) {
                     const targetId = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
@@ -58,7 +67,7 @@ export class DummyAIAgent implements IAgent {
                     return { type: 'doctorSave', targetPlayerId: null }; 
                 } else if (selfRole === RoleName.Seer && aliveOthers.length > 0) {
                      // Simple AI: 70% chance to investigate a random player (not self), 30% no investigation
-                     const targetsToInvestigate = aliveOthers.filter(id => id !== gameState.self.id);
+                     const targetsToInvestigate = aliveOthers.filter(id => id !== this.id);
                      if (Math.random() < 0.7 && targetsToInvestigate.length > 0) {
                          const targetId = targetsToInvestigate[Math.floor(Math.random() * targetsToInvestigate.length)];
                          console.log(`[${agentIdForLog} - SEER] Deciding to INVESTIGATE ${targetId}`);

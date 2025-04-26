@@ -13,8 +13,10 @@ import { ClaudeAgent } from './agents/ClaudeAgent'; // Import ClaudeAgent
 import { GeminiAgent } from './agents/GeminiAgent'; // Import GeminiAgent
 import * as dotenv from 'dotenv';
 import prompts from 'prompts'; // Import prompts
-import { Themes, type Persona } from './interfaces/Theme'; // Import Themes and Persona
-import { RoleName } from './interfaces/IRole';
+import { Themes } from './interfaces/Theme'; // Import Themes from Theme.ts
+import { Persona } from './interfaces/Persona'; // Import Persona from Persona.ts
+import { RoleName } from './interfaces/IRole'; // Import RoleName from IRole.ts
+import type { PlayerId } from './interfaces/IPlayer'; // Import PlayerId
 import { Player } from './core/Player';
 import type { IAgent } from './interfaces/IAgent'; // Ensure IAgent is imported
 import type { Allegiance } from './interfaces/IRole'; // Import Allegiance
@@ -260,6 +262,25 @@ async function interactiveSetup(): Promise<{
     };
 }
 
+// --- Role Assignment Function ---
+function assignRoles(playerCount: number): IRole[] {
+    let rolesToAssign: IRole[];
+    const mafiaCount = Math.max(1, Math.floor(playerCount / 3.5)); // Example ratio
+    const doctorCount = playerCount >= 5 ? 1 : 0;
+    const seerCount = playerCount >= 4 ? 1 : 0;
+    const villagerCount = playerCount - mafiaCount - doctorCount - seerCount;
+
+    if (villagerCount < 0) {
+        throw new Error(`Role assignment error for ${playerCount} players. Check logic.`);
+    }
+    rolesToAssign = [];
+    for (let i = 0; i < mafiaCount; i++) rolesToAssign.push(new MafiaRole());
+    if (doctorCount > 0) rolesToAssign.push(new DoctorRole());
+    if (seerCount > 0) rolesToAssign.push(new SeerRole());
+    for (let i = 0; i < villagerCount; i++) rolesToAssign.push(new VillagerRole());
+    rolesToAssign.sort(() => Math.random() - 0.5); // Shuffle roles
+    return rolesToAssign;
+}
 
 // --- Main Game Function (Reverted to use Group Config) ---
 async function main() {
@@ -332,95 +353,63 @@ async function main() {
              throw new Error(`Selected theme key "${themeKey}" is invalid or theme definition is missing.`);
         }
 
+        const roles = assignRoles(playerCount);
+
         console.log(`\nSetting up game with ${playerCount} players...`);
-        console.log(`Theme: ${selectedTheme.name}`);
+        console.log(`Theme: ${selectedTheme.name} (${selectedTheme.description})`); // Log description too
         console.log(`Mafia AI Config: Type=${mafiaConfig.agentType}, Model=${mafiaConfig.model || 'N/A'}, Provider=${mafiaConfig.provider?.title || 'N/A'}`);
         console.log(`Town AI Config:  Type=${townConfig.agentType}, Model=${townConfig.model || 'N/A'}, Provider=${townConfig.provider?.title || 'N/A'}`);
 
-        // --- Role Assignment --- (Dynamic based on player count)
-        let rolesToAssign: IRole[];
-        const mafiaCount = Math.max(1, Math.floor(playerCount / 3.5)); // Example ratio
-        const doctorCount = playerCount >= 5 ? 1 : 0;
-        const seerCount = playerCount >= 4 ? 1 : 0;
-        const villagerCount = playerCount - mafiaCount - doctorCount - seerCount;
-
-        if (villagerCount < 0) {
-            throw new Error(`Role assignment error for ${playerCount} players. Check logic.`);
-        }
-        rolesToAssign = [];
-        for (let i = 0; i < mafiaCount; i++) rolesToAssign.push(new MafiaRole());
-        if (doctorCount > 0) rolesToAssign.push(new DoctorRole());
-        if (seerCount > 0) rolesToAssign.push(new SeerRole());
-        for (let i = 0; i < villagerCount; i++) rolesToAssign.push(new VillagerRole());
-        rolesToAssign.sort(() => Math.random() - 0.5); // Shuffle roles
-
-        // --- Persona Assignment ---
-        const personas = selectedTheme.generatePersonaPool(playerCount);
-        if (personas.length < playerCount) {
-            console.warn(`Warning: Theme '${selectedTheme.name}' only provided ${personas.length} personas for ${playerCount} players. Some players may have fallback names.`);
-        }
-
-        // --- Create Player Setups --- (Using group config)
+        // --- Create Player Setups --- (No persona pool)
         const playerSetups = [];
-        let currentPersonaIndex = 0;
-
         for (let i = 0; i < playerCount; i++) {
-            const role = rolesToAssign[i];
-            let assignedPersona: Persona | undefined = undefined;
-            let playerName: string;
-            let agent: IAgent; 
+            const role = roles[i];
+            // Generate a placeholder name initially
+            const initialPlayerName = `Player ${i + 1}`; 
+            let agent: IAgent;
             let config: AgentGroupConfig;
 
-             if (currentPersonaIndex < personas.length) {
-                 assignedPersona = personas[currentPersonaIndex++];
-                 playerName = assignedPersona.name;
-            } else {
-                 playerName = `Player ${i + 1}`; 
-            }
-
-            // Determine Agent Configuration based on role allegiance
+            // Determine Agent Configuration based on role allegiance or human player
             if (i === humanPlayerIndex) {
-                 config = { agentType: 'Human' }; 
-                 console.log(`   Player ${i+1} (${playerName}): Human Player`);
+                 config = { agentType: 'Human' };
+                 console.log(`   Player ${i+1} (${initialPlayerName}): Human Player`);
             } else if (role.allegiance === 'Mafia') {
                  config = mafiaConfig;
-                 console.log(`   Player ${i+1} (${playerName}): ${role.name} (Mafia Group AI)`);
+                 console.log(`   Player ${i+1} (${initialPlayerName}): ${role.name} (Mafia Group AI)`);
             } else { // Town allegiance
                  config = townConfig;
-                 console.log(`   Player ${i+1} (${playerName}): ${role.name} (Town Group AI)`);
+                 console.log(`   Player ${i+1} (${initialPlayerName}): ${role.name} (Town Group AI)`);
             }
 
             // Instantiate Agent based on determined config
             const AgentClass = agentClassMap[config.agentType];
+            const agentId: PlayerId = `player-${i + 1}-${role.name.toLowerCase()}`; // Generate ID based on index/role
+
             if (!AgentClass) {
                  console.warn(`Warning: Could not find agent class for type ${config.agentType}. Defaulting to Dummy.`);
-                 agent = new DummyAIAgent();
+                 agent = new DummyAIAgent(agentId); // Pass ID
             } else if (config.agentType === 'Human') {
-                 agent = new HumanAgent();
-            } else if (['OpenAI', 'Groq', 'Ollama'].includes(config.agentType)) { 
+                 agent = new HumanAgent(agentId); // Pass ID
+            } else if (['OpenAI', 'Groq', 'Ollama'].includes(config.agentType)) {
                  const providerApiKey = config.provider?.apiKeyEnvVar ? process.env[config.provider.apiKeyEnvVar] : undefined;
-                 // Handle Ollama key potentially being undefined/empty or the literal 'OLLAMA_API_KEY'
                  const apiKeyToSend = (config.provider?.value === 'ollama_local' && (!providerApiKey || providerApiKey === 'OLLAMA_API_KEY')) ? undefined : providerApiKey;
                  // AgentClass is OpenAIAgent for these types
-                 agent = new AgentClass(config.model, config.provider?.endpoint, apiKeyToSend); 
+                 agent = new AgentClass(agentId, config.model, config.provider?.endpoint, apiKeyToSend); // Pass ID
             } else if (config.agentType === 'Claude') {
-                 agent = new ClaudeAgent(config.model);
+                 agent = new ClaudeAgent(agentId, config.model); // Pass ID
             } else if (config.agentType === 'Gemini') {
-                 agent = new GeminiAgent(config.model);
+                 agent = new GeminiAgent(agentId, config.model); // Pass ID
             }
             else { // Dummy
-                 agent = new DummyAIAgent();
+                 agent = new DummyAIAgent(agentId); // Pass ID
             }
 
-            // Assign persona (as before)
-            if (assignedPersona && 'persona' in agent) {
-                  (agent as any).persona = assignedPersona; 
-            }
-            playerSetups.push({ name: playerName, role, agent });
+            // Persona generation happens during InitializationPhase
+            playerSetups.push({ name: initialPlayerName, role, agent });
         }
 
         // --- Game Initialization ---
-        console.log("\nInitializing game...");
+        console.log("\nInitializing game framework..."); // Changed log message slightly
         game = new Game(playerSetups, themeKey, 'en');
 
         // Add renderers
