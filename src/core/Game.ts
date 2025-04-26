@@ -10,7 +10,8 @@ import { Message } from './Message';
 import type { VisibleGameState } from '../interfaces/GameState';
 import { RoleName } from '../interfaces/IRole';
 import { v4 as uuidv4 } from 'uuid';
-import type { IAgent } from '../interfaces/IAgent';
+import type { IAgent, PlayerAction } from '../interfaces/IAgent';
+import { HumanAgent } from '../agents/HumanAgent';
 import type { IRole } from '../interfaces/IRole';
 import { type GameTheme, Themes } from '../interfaces/Theme';
 import { type AgentMemory, createInitialMemory } from '../interfaces/AgentMemory';
@@ -186,6 +187,44 @@ export class Game {
     // Added getter for agent memories
     getAgentMemories(): ReadonlyMap<PlayerId, AgentMemory> {
         return this.#agentMemories;
+    }
+
+    /**
+     * Requests an action from a player.
+     * If the player has a HumanAgent, it uses the first available renderer
+     * that implements `promptHumanInput`. Otherwise, it calls the player's
+     * `decideAction` method.
+     */
+    async requestPlayerAction(player: Player, allowedActions: PlayerAction['type'][]): Promise<PlayerAction> {
+        if (!player.isAlive()) {
+            console.warn(`Attempted to request action from dead player ${player.id}`);
+            return { type: 'noAction' };
+        }
+
+        if (player.agent instanceof HumanAgent) {
+            const humanPrompter = this.#renderers.find(r => typeof r.promptHumanInput === 'function');
+            if (humanPrompter?.promptHumanInput) {
+                 // Generate the state needed JUST for the prompt context (less than full decideAction state?)
+                 // For now, pass the public info.
+                 // TODO: promptHumanInput might need more context than just publicPlayerInfo.
+                 const playerInfo = player.getPublicRepresentation(); 
+                try {
+                     // Pass necessary context for the prompt (e.g., list of targets)
+                     // This needs refinement - the renderer needs to know who to list!
+                    return await humanPrompter.promptHumanInput(playerInfo, allowedActions);
+                } catch (error) {
+                    console.error(`Error prompting human player ${player.id}:`, error);
+                    return { type: 'noAction' }; // Default safe action on error
+                }
+            } else {
+                console.error(`Human player ${player.id} requires a renderer with promptHumanInput, but none found.`);
+                return { type: 'noAction' }; // Cannot get input
+            }
+        } else {
+            // For AI agents, generate their visible state and call decideAction
+            const gameState = this.generateVisibleGameState(player.id);
+            return await player.decideAction(gameState, allowedActions);
+        }
     }
 
     // --- Game Logic Helpers ---

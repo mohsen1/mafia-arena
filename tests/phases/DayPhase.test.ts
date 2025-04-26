@@ -26,6 +26,7 @@ const mockGame = {
     killPlayer: vi.fn(),
     round: 2,
     recordVoteResultsInMemory: vi.fn(),
+    requestPlayerAction: vi.fn().mockResolvedValue({ type: 'noAction' }),
 };
 
 // Mock Player and Agent - Changed 3rd param from action: PlayerAction to agent: IAgent
@@ -63,61 +64,53 @@ describe('DayPhase', () => {
 
     it('should collect votes, log them, tally, execute player with majority, and record results', async () => {
         // --- Setup Actions ---
-        // Simulate the *second* action request within DayPhase (the voting one)
+        const messageAction: PlayerAction = { type: 'message', content: 'Testing' }; // For discussion
         const voteAction1: PlayerAction = { type: 'vote', targetPlayerId: player3Id };
         const voteAction2: PlayerAction = { type: 'vote', targetPlayerId: player3Id };
         const voteAction3: PlayerAction = { type: 'vote', targetPlayerId: player1Id }; // Mafia votes elsewhere
 
         // --- Setup Player Mocks ---
-        // Create specific agents for this test to mock getAction calls individually
-        const agent1 = { playerId: player1Id, getAction: vi.fn() } as unknown as IAgent;
-        const agent2 = { playerId: player2Id, getAction: vi.fn() } as unknown as IAgent;
-        const agent3 = { playerId: player3Id, getAction: vi.fn() } as unknown as IAgent;
+        // No need for individual agents now, rely on mockGame.requestPlayerAction
+        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
+        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), { getAction: vi.fn() } as any);
+        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), { getAction: vi.fn() } as any);
+        players = [player1, player2, player3];
 
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), agent1);
-        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), agent2);
-        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), agent3);
-        players = [player1, player2, player3]; // Redefine players array for this test
-
-        // Configure game mocks for this specific scenario
+        // Configure game mocks
         mockGame.getAlivePlayers.mockReturnValue(players);
         mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockImplementation((id) => ({ // Provide necessary state for voting
-             self: { id, role: players.find(p=>p.id===id)!.role.name, isMafia: id === player3Id },
-             players: players.map(p => ({ id: p.id, name: p.name, isAlive: p.isAlive })),
-             alivePlayerIds: new Set(players.map(p => p.id)),
-             phase: 'Day',
-             round: mockGame.round,
-             votes: new Map(),
-             messages: [],
-             nightKills: new Map(),
-             seerResults: new Map(),
-             voteResults: null,
-             mafiaPlayerIds: new Set([player3Id]),
-        }));
+        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* state */ }));
 
-        // Mock getAction calls: Assume Round > 1, so first call is discussion, second is vote
-        // Mock discussion action (can be anything, e.g., noAction)
-        // Use vi.mocked() for type safety with mocks
-        vi.mocked(agent1.getAction).mockResolvedValueOnce({ type: 'noAction' });
-        vi.mocked(agent2.getAction).mockResolvedValueOnce({ type: 'noAction' });
-        vi.mocked(agent3.getAction).mockResolvedValueOnce({ type: 'noAction' });
-        // Mock voting action
-        vi.mocked(agent1.getAction).mockResolvedValueOnce(voteAction1);
-        vi.mocked(agent2.getAction).mockResolvedValueOnce(voteAction2);
-        vi.mocked(agent3.getAction).mockResolvedValueOnce(voteAction3);
+        // --- Mock requestPlayerAction specifically for this test ---
+        // Round 1 Discussion
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce(messageAction) // p1 intro
+            .mockResolvedValueOnce(messageAction) // p2 intro
+            .mockResolvedValueOnce(messageAction); // p3 intro
+        // Round > 1 Discussion (skipped if round === 1, but mock anyway)
+        // mockGame.requestPlayerAction... (if needed)
+        // Voting
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce(voteAction1) // p1 vote
+            .mockResolvedValueOnce(voteAction2) // p2 vote
+            .mockResolvedValueOnce(voteAction3); // p3 vote
 
+        // Set round to 1 for intro logic
+        mockGame.round = 1;
 
         // --- Run Phase ---
         await dayPhase.runPhase(mockGame as unknown as Game);
 
         // --- Assertions ---
-        // 1. Verify getAction was called twice per player (discussion + vote)
-        expect(agent1.getAction).toHaveBeenCalledTimes(2);
-        expect(agent2.getAction).toHaveBeenCalledTimes(2);
-        expect(agent3.getAction).toHaveBeenCalledTimes(2);
+        // Verify requestPlayerAction calls (intro + vote for each)
+        expect(mockGame.requestPlayerAction).toHaveBeenCalledTimes(players.length * 2);
 
-        // 2. Verify individual vote logs
+        // Verify message logs from intro
+        expect(mockGame.logMessage).toHaveBeenCalledWith(player1Id, messageAction.content, MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(player2Id, messageAction.content, MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(player3Id, messageAction.content, MessageVisibility.Public);
+
+        // Verify individual vote logs
         const player1Name = players.find(p => p.id === player1Id)?.name;
         const player3Name = players.find(p => p.id === player3Id)?.name;
         expect(mockGame.logMessage).toHaveBeenCalledWith(player1Id, `votes for ${player3Name}.`, MessageVisibility.Public);
@@ -143,21 +136,19 @@ describe('DayPhase', () => {
      it('should handle message action during the discussion part and abstain vote', async () => {
          // --- Setup ---
          const messageAction: PlayerAction = { type: 'message', content: 'I suspect P3!' };
-         const voteAction: PlayerAction = { type: 'noAction' };
+         const voteAction: PlayerAction = { type: 'noAction' }; // Abstain
 
-         // Specific agent for this test
-         const agent1 = { playerId: player1Id, getAction: vi.fn() } as unknown as IAgent;
-         const player1 = createMockDayPlayer(player1Id, new VillagerRole(), agent1);
-         players = [player1]; // Only one player
+         const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
+         players = [player1];
 
-         // Configure mocks for single player scenario
+         // Configure mocks
          mockGame.getAlivePlayers.mockReturnValue(players);
          mockGame.getPlayer.mockImplementation((id) => (id === player1Id ? player1 : undefined));
          mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* Simplified state */ }));
+         mockGame.round = 2; // Ensure discussion happens
 
-         // Mock first call (discussion) returns message, second call (vote) returns noAction
-         // Use vi.mocked()
-         vi.mocked(agent1.getAction).mockResolvedValueOnce(messageAction).mockResolvedValueOnce(voteAction);
+         // Mock requestPlayerAction: discussion message, then vote noAction
+         mockGame.requestPlayerAction.mockResolvedValueOnce(messageAction).mockResolvedValueOnce(voteAction);
 
          // --- Run Phase ---
          await dayPhase.runPhase(mockGame as unknown as Game);
@@ -181,22 +172,19 @@ describe('DayPhase', () => {
      });
 
      it('should handle noAction for both discussion and vote', async () => {
-        const noAction1: PlayerAction = { type: 'noAction' };
-        const noAction2: PlayerAction = { type: 'noAction' };
+        const noAction: PlayerAction = { type: 'noAction' };
 
-        // Specific agent
-        const agent1 = { playerId: player1Id, getAction: vi.fn() } as unknown as IAgent;
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), agent1);
+        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
         players = [player1];
 
         // Configure mocks
         mockGame.getAlivePlayers.mockReturnValue(players);
         mockGame.getPlayer.mockImplementation((id) => (id === player1Id ? player1 : undefined));
         mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* Simplified state */ }));
+        mockGame.round = 2;
 
-        // Mock both calls return noAction
-        // Use vi.mocked()
-        vi.mocked(agent1.getAction).mockResolvedValueOnce(noAction1).mockResolvedValueOnce(noAction2);
+        // Mock requestPlayerAction: both return noAction
+        mockGame.requestPlayerAction.mockResolvedValue(noAction); // Use default for both calls
 
         // --- Run Phase ---
         await dayPhase.runPhase(mockGame as unknown as Game);
@@ -223,26 +211,26 @@ describe('DayPhase', () => {
         const voteAction2: PlayerAction = { type: 'vote', targetPlayerId: player1Id }; // p2 votes p1
         const voteAction3: PlayerAction = { type: 'noAction' }; // p3 abstains
 
-        // --- Setup Player Mocks ---
-        const agent1 = { playerId: player1Id, getAction: vi.fn() } as unknown as IAgent;
-        const agent2 = { playerId: player2Id, getAction: vi.fn() } as unknown as IAgent;
-        const agent3 = { playerId: player3Id, getAction: vi.fn() } as unknown as IAgent;
-
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), agent1);
-        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), agent2);
-        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), agent3);
+        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
+        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), { getAction: vi.fn() } as any);
+        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), { getAction: vi.fn() } as any);
         players = [player1, player2, player3];
 
         // Configure game mocks
         mockGame.getAlivePlayers.mockReturnValue(players);
         mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
         mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* Full state needed */ }));
+        mockGame.round = 2;
 
-        // Mock discussion actions + voting actions
-        // Use vi.mocked()
-        vi.mocked(agent1.getAction).mockResolvedValueOnce({ type: 'noAction' }).mockResolvedValueOnce(voteAction1);
-        vi.mocked(agent2.getAction).mockResolvedValueOnce({ type: 'noAction' }).mockResolvedValueOnce(voteAction2);
-        vi.mocked(agent3.getAction).mockResolvedValueOnce({ type: 'noAction' }).mockResolvedValueOnce(voteAction3);
+        // Mock requestPlayerAction calls
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce({ type: 'noAction' }) // p1 discuss
+            .mockResolvedValueOnce({ type: 'noAction' }) // p2 discuss
+            .mockResolvedValueOnce({ type: 'noAction' }); // p3 discuss
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce(voteAction1) // p1 vote
+            .mockResolvedValueOnce(voteAction2) // p2 vote
+            .mockResolvedValueOnce(voteAction3); // p3 vote
 
         // --- Run Phase ---
         await dayPhase.runPhase(mockGame as unknown as Game);
@@ -272,36 +260,36 @@ describe('DayPhase', () => {
     it('should handle no majority correctly (no execution)', async () => {
         // Add a 4th player
         const player4Id = 'p4';
-        const agent4 = { playerId: player4Id, getAction: vi.fn() } as unknown as IAgent;
-        const player4 = createMockDayPlayer(player4Id, new VillagerRole(), agent4);
+        const player4 = createMockDayPlayer(player4Id, new VillagerRole(), { getAction: vi.fn() } as any);
 
         // Original players + new one
-        const agent1 = { playerId: player1Id, getAction: vi.fn() } as unknown as IAgent;
-        const agent2 = { playerId: player2Id, getAction: vi.fn() } as unknown as IAgent;
-        const agent3 = { playerId: player3Id, getAction: vi.fn() } as unknown as IAgent;
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), agent1);
-        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), agent2);
-        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), agent3);
+        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
+        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), { getAction: vi.fn() } as any);
+        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), { getAction: vi.fn() } as any);
         players = [player1, player2, player3, player4];
 
         mockGame.getAlivePlayers.mockReturnValue(players);
         mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
         mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* updated state */ }));
+        mockGame.round = 2;
 
         // --- Setup Actions ---
-        // 4 players, majority is 3. Votes: p1->p3, p2->p3, p3->p1, p4->p1
-        // p3 gets 2 votes, p1 gets 2 votes. Max votes = 2, not >= majority 3.
         const voteAction1: PlayerAction = { type: 'vote', targetPlayerId: player3Id };
         const voteAction2: PlayerAction = { type: 'vote', targetPlayerId: player3Id };
         const voteAction3: PlayerAction = { type: 'vote', targetPlayerId: player1Id };
         const voteAction4: PlayerAction = { type: 'vote', targetPlayerId: player1Id };
 
-        // Mock discussion + voting actions
-        // Use vi.mocked()
-        vi.mocked(agent1.getAction).mockResolvedValueOnce({ type: 'noAction' }).mockResolvedValueOnce(voteAction1);
-        vi.mocked(agent2.getAction).mockResolvedValueOnce({ type: 'noAction' }).mockResolvedValueOnce(voteAction2);
-        vi.mocked(agent3.getAction).mockResolvedValueOnce({ type: 'noAction' }).mockResolvedValueOnce(voteAction3);
-        vi.mocked(agent4.getAction).mockResolvedValueOnce({ type: 'noAction' }).mockResolvedValueOnce(voteAction4);
+        // Mock requestPlayerAction calls
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce({ type: 'noAction' }) // p1 discuss
+            .mockResolvedValueOnce({ type: 'noAction' }) // p2 discuss
+            .mockResolvedValueOnce({ type: 'noAction' }) // p3 discuss
+            .mockResolvedValueOnce({ type: 'noAction' }); // p4 discuss
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce(voteAction1) // p1 vote
+            .mockResolvedValueOnce(voteAction2) // p2 vote
+            .mockResolvedValueOnce(voteAction3) // p3 vote
+            .mockResolvedValueOnce(voteAction4); // p4 vote
 
         // --- Run Phase ---
         await dayPhase.runPhase(mockGame as unknown as Game);

@@ -1,18 +1,30 @@
 import { IAgent, PlayerAction } from '../interfaces/IAgent';
 import { VisibleGameState } from '../interfaces/GameState';
 import { PlayerId } from '../interfaces/IPlayer';
-import * as readline from 'readline/promises'; // Use promise-based readline
+// import * as readline from 'readline/promises'; // Removed readline dependency
 import { RoleName } from '../interfaces/IRole'; // Import RoleName
+import type { Persona } from '../interfaces/Theme';
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
+// const rl = readline.createInterface({ // Removed readline interface
+//     input: process.stdin,
+//     output: process.stdout
+// });
 
 export class HumanAgent implements IAgent {
-     public playerId!: PlayerId;
+     // public playerId!: PlayerId; // Removed: ID is accessed via gameState.self.id
+     public persona?: Persona;
+
+     constructor(persona?: Persona) {
+        this.persona = persona;
+     }
 
     async getAction(gameState: VisibleGameState, _allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
+        // Human actions are now handled by the Game loop calling a renderer's promptHumanInput method.
+        // This method should not be called directly for a HumanAgent.
+        throw new Error(`HumanAgent.getAction should not be called directly. Use Game.requestPlayerAction or Renderer.promptHumanInput.`);
+
+        // Keep the old logic commented out below for reference if needed, but it should be removed eventually.
+        /*
         const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
         const aliveOthersInfo = aliveOthers.map(id => gameState.players.find(p => p.id === id)!);
 
@@ -43,14 +55,14 @@ export class HumanAgent implements IAgent {
 
                          if (nightActionStr.startsWith('m ')) { // Check for message first
                              return { type: 'message', content: nightActionStr.substring(2) };
-                         } else { 
+                         } else {
                               // If not a message, try parsing as a kill index
                               const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
                               const aliveOthersInfo = aliveOthers.map(id => gameState.players.find(p => p.id === id)!);
                               const potentialTargets = aliveOthersInfo.filter(p => !gameState.mafiaPlayerIds?.has(p.id));
 
                               if (potentialTargets.length === 0) {
-                                   console.warn('WARN: Human Mafia tried to act but no valid targets.'); 
+                                   console.warn('WARN: Human Mafia tried to act but no valid targets.');
                                    return { type: 'noAction' };
                               }
 
@@ -65,14 +77,14 @@ export class HumanAgent implements IAgent {
                               } else {
                                    // Invalid input for kill index
                                    console.log("Invalid night action. Expected 'm [message]' or kill target index (e.g., 1, 2) or 0.");
-                                   return { type: 'noAction' }; 
+                                   return { type: 'noAction' };
                               }
                          }
                     } else if (gameState.self.role === RoleName.Doctor) {
                          // --- Doctor Logic --- (Keep existing correct logic)
                          const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
                          const aliveOthersInfo = aliveOthers.map(id => gameState.players.find(p => p.id === id)!);
-                         const potentialTargets = aliveOthersInfo; 
+                         const potentialTargets = aliveOthersInfo;
                          if (potentialTargets.length === 0) {
                              await rl.question('> '); return { type: 'noAction' };
                          }
@@ -87,7 +99,7 @@ export class HumanAgent implements IAgent {
                          // --- Seer Logic --- (Keep existing correct logic)
                          const aliveOthers = Array.from(gameState.alivePlayerIds).filter(id => id !== gameState.self.id);
                          const aliveOthersInfo = aliveOthers.map(id => gameState.players.find(p => p.id === id)!);
-                         const potentialTargets = aliveOthersInfo.filter(p => p.id !== gameState.self.id); 
+                         const potentialTargets = aliveOthersInfo.filter(p => p.id !== gameState.self.id);
                          if (potentialTargets.length === 0) {
                              await rl.question('> '); return { type: 'noAction' };
                          }
@@ -98,9 +110,9 @@ export class HumanAgent implements IAgent {
                          } else {
                              return { type: 'seerInvestigate', targetPlayerId: null }; // Explicit no investigation
                          }
-                    } else { 
-                         // --- Other Roles --- (Keep existing correct logic)
-                         await rl.question('> '); 
+                    } else {
+                         // --- Other Roles ---
+                         await rl.question('> ');
                          return { type: 'noAction' };
                     }
 
@@ -112,5 +124,6 @@ export class HumanAgent implements IAgent {
             console.error("Error reading input:", e);
             return { type: 'noAction' }; // Safety default
         }
+        */
     }
 }

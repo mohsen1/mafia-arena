@@ -2,6 +2,7 @@ import type { VisibleGameState } from './GameState';
 import type { IMessage } from './IMessage';
 import type { PublicPlayerInfo, PlayerId } from './IPlayer';
 import type { GamePhaseType } from './IGamePhase';
+import type { PlayerAction } from './IAgent';
 
 export interface IGameRenderer {
     /** Renders the start of the game */
@@ -24,4 +25,7 @@ export interface IGameRenderer {
     renderNarration(text: string): void;
     /** Provides the full conversation log for export */
     getConversationLog?(): ReadonlyArray<IMessage>; // Optional for markdown export
+
+    /** Optional: Prompts a human player for their action */
+    promptHumanInput?(playerInfo: PublicPlayerInfo, allowedActions: PlayerAction['type'][]): Promise<PlayerAction>;
 }
