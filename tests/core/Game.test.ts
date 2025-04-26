@@ -15,6 +15,7 @@ import { DoctorRole } from '../../src/roles/DoctorRole';
 import { SeerRole } from '../../src/roles/SeerRole';
 import { Message } from '../../src/core/Message';
 import { createInitialMemory } from '../../src/interfaces/AgentMemory';
+import { NightPhase } from '../../src/phases/NightPhase';
 
 // Mock role implementations
 const mockVillagerRole: IRole = {
@@ -33,7 +34,9 @@ const mockMafiaRole: IRole = {
 
 // Mock agent factory - Removed playerId as it's no longer on IAgent
 const createMockAgent = ( /* id: PlayerId */ ): IAgent => ({
-    // playerId: id,
+    id: 'mock-agent-id', // Add default mock ID
+    agentName: 'MockAgent', // Add default mock name
+    persona: 'A mock agent for testing.', // Add default mock persona
     getAction: vi.fn().mockResolvedValue({ type: 'noAction' } as PlayerAction)
 });
 
@@ -587,7 +590,34 @@ describe('Game', () => {
              expect(villagerState.memory.investigationResults.length).toBe(0);
         });
 
-         it('should include relevant message history in agent memory', () => {
+         it('should record Doctor save results only in the Doctor agent memory', () => {
+             const setups = [
+                 { name: 'Doctor', agent: createMockAgent(), role: new DoctorRole() },
+                 { name: 'Mafia', agent: createMockAgent(), role: mockMafiaRole },
+                 { name: 'Villager', agent: createMockAgent(), role: mockVillagerRole },
+            ];
+            game = new Game(setups);
+            const doctorId = Array.from(game.getPlayers().values()).find(p => p.role.name === RoleName.Doctor)!.id;
+            const mafiaId = Array.from(game.getPlayers().values()).find(p => p.role.name === RoleName.Mafia)!.id;
+            const villagerId = Array.from(game.getPlayers().values()).find(p => p.role.name === RoleName.Villager)!.id;
+
+            game.recordDoctorSaveInMemory(doctorId, villagerId); // Doctor saved Villager
+
+            const doctorState = game.generateVisibleGameState(doctorId);
+            expect(doctorState.memory.saveHistory.length).toBe(1);
+            expect(doctorState.memory.saveHistory[0]).toEqual({
+                round: game.round,
+                savedPlayerId: villagerId,
+            });
+
+            const mafiaState = game.generateVisibleGameState(mafiaId);
+            expect(mafiaState.memory.saveHistory.length).toBe(0);
+
+             const villagerState = game.generateVisibleGameState(villagerId);
+             expect(villagerState.memory.saveHistory.length).toBe(0);
+        });
+
+        it('should include relevant message history in agent memory', () => {
              // Need to advance round slightly for messages to have a round number if DayPhase increments first
              // For simplicity, assume round is managed correctly elsewhere or messages adapt
              const msg1 = game.logMessage(villager1Id, "Hello public", MessageVisibility.Public);
@@ -697,6 +727,205 @@ describe('Game', () => {
             expect(logSpy).not.toHaveBeenCalled(); // Should not log again
             expect(game.getPlayer(villager1Id)?.status).toBe('Dead');
          });
+    });
+
+    describe('Night Phase Actions (requires mocking NightPhase logic implicitly)', () => {
+        let doctorId: PlayerId;
+        let seerId: PlayerId;
+        let nightTestGame: Game;
+        let nightVillagerId: PlayerId;
+        let nightMafiaId1: PlayerId;
+        let nightMafiaId2: PlayerId;
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+
+            const nightSetups = [
+                { name: 'Doctor', role: new DoctorRole(), agent: createMockAgent() },
+                { name: 'Seer', role: new SeerRole(), agent: createMockAgent() },
+                { name: 'VillagerN', role: mockVillagerRole, agent: createMockAgent() },
+                { name: 'MafiaN1', role: mockMafiaRole, agent: createMockAgent() },
+                { name: 'MafiaN2', role: mockMafiaRole, agent: createMockAgent() },
+            ];
+            nightTestGame = new Game(nightSetups);
+            nightTestGame.addRenderer(mockRenderer);
+
+            const players = Array.from(nightTestGame.getPlayers().values());
+            doctorId = players.find(p => p.role.name === RoleName.Doctor)!.id;
+            seerId = players.find(p => p.role.name === RoleName.Seer)!.id;
+            nightVillagerId = players.find(p => p.name === 'VillagerN')!.id;
+            nightMafiaId1 = players.find(p => p.name === 'MafiaN1')!.id;
+            nightMafiaId2 = players.find(p => p.name === 'MafiaN2')!.id;
+
+            // Simulate moving to Night Phase for memory recording etc.
+            nightTestGame["#round"] = 1;
+            nightTestGame["#currentState"] = new NightPhase(); // Use actual phase if needed
+        });
+
+        const getNightAgentMock = (playerId: PlayerId) => {
+            const player = nightTestGame.getPlayer(playerId);
+            if (!player) throw new Error(`Player ${playerId} not found in night test setup`);
+            return player.agent.getAction as ReturnType<typeof vi.fn>;
+        }
+
+        it('should process Mafia kill correctly when no Doctor interferes', async () => {
+            const mafiaAgent1 = getNightAgentMock(nightMafiaId1);
+            const mafiaAgent2 = getNightAgentMock(nightMafiaId2);
+            const doctorAgent = getNightAgentMock(doctorId);
+            const seerAgent = getNightAgentMock(seerId);
+
+            // Setup actions: Mafia target Villager, Doctor targets self, Seer targets Mafia1
+            mafiaAgent1.mockResolvedValue({ type: 'mafiaKill', targetPlayerId: nightVillagerId });
+            mafiaAgent2.mockResolvedValue({ type: 'mafiaKill', targetPlayerId: nightVillagerId });
+            doctorAgent.mockResolvedValue({ type: 'doctorSave', targetPlayerId: doctorId });
+            seerAgent.mockResolvedValue({ type: 'seerInvestigate', targetPlayerId: nightMafiaId1 });
+
+            // Simulate phase execution (simplified - focus on results)
+            // Normally NightPhase would call requestPlayerAction and process results
+            // Here we manually simulate the outcome processing based on Game methods
+            const actions = new Map<PlayerId, PlayerAction>([
+                [nightMafiaId1, { type: 'mafiaKill', targetPlayerId: nightVillagerId }],
+                [nightMafiaId2, { type: 'mafiaKill', targetPlayerId: nightVillagerId }],
+                [doctorId, { type: 'doctorSave', targetPlayerId: doctorId }],
+                [seerId, { type: 'seerInvestigate', targetPlayerId: nightMafiaId1 }],
+                // Villager has no night action
+            ]);
+
+            // Mock the phase's expected calls to game based on actions
+            vi.spyOn(nightTestGame, 'killPlayer');
+            vi.spyOn(nightTestGame, 'recordKillInMemory');
+            vi.spyOn(nightTestGame, 'recordDoctorSaveInMemory');
+            vi.spyOn(nightTestGame, 'recordSeerResultInMemory');
+
+            // Assume NightPhase._processNightActions would call these methods
+            // Direct call to simulate effect of NightPhase execution
+            nightTestGame.recordDoctorSaveInMemory(doctorId, doctorId);
+            nightTestGame.recordSeerResultInMemory(seerId, nightMafiaId1, 'Mafia');
+            nightTestGame.killPlayer(nightVillagerId, "was killed during the night.");
+            nightTestGame.recordKillInMemory(nightVillagerId);
+
+
+            // Assertions
+            expect(nightTestGame.getPlayer(nightVillagerId)?.status).toBe(PlayerStatus.Dead);
+            expect(nightTestGame.killPlayer).toHaveBeenCalledWith(nightVillagerId, expect.any(String));
+            expect(nightTestGame.recordKillInMemory).toHaveBeenCalledWith(nightVillagerId);
+            expect(nightTestGame.getPlayer(doctorId)?.status).toBe(PlayerStatus.Alive);
+
+            // Check memory recordings
+            const doctorState = nightTestGame.generateVisibleGameState(doctorId);
+            expect(doctorState.memory.saveHistory).toEqual([{ round: 0, savedPlayerId: doctorId }]);
+
+            const seerState = nightTestGame.generateVisibleGameState(seerId);
+            expect(seerState.memory.investigationResults).toEqual([{ round: 0, targetId: nightMafiaId1, allegiance: 'Mafia' }]);
+        });
+
+        it('should process Doctor save correctly, preventing Mafia kill', async () => {
+            const mafiaAgent1 = getNightAgentMock(nightMafiaId1);
+            const mafiaAgent2 = getNightAgentMock(nightMafiaId2);
+            const doctorAgent = getNightAgentMock(doctorId);
+            const seerAgent = getNightAgentMock(seerId);
+
+            // Setup actions: Mafia target Villager, Doctor saves Villager
+            mafiaAgent1.mockResolvedValue({ type: 'mafiaKill', targetPlayerId: nightVillagerId });
+            mafiaAgent2.mockResolvedValue({ type: 'mafiaKill', targetPlayerId: nightVillagerId });
+            doctorAgent.mockResolvedValue({ type: 'doctorSave', targetPlayerId: nightVillagerId });
+            seerAgent.mockResolvedValue({ type: 'noAction' }); // Seer does nothing relevant here
+
+            // Simulate phase execution outcome processing
+             vi.spyOn(nightTestGame, 'killPlayer');
+             vi.spyOn(nightTestGame, 'recordKillInMemory');
+             vi.spyOn(nightTestGame, 'recordDoctorSaveInMemory');
+             vi.spyOn(nightTestGame, 'logMessage');
+
+            // Assume NightPhase determines no kill occurs due to save
+            nightTestGame.recordDoctorSaveInMemory(doctorId, nightVillagerId);
+            nightTestGame.recordKillInMemory(null); // Record that no one was killed
+            // Log a message indicating the save (NightPhase responsibility?)
+            nightTestGame.logMessage(null, "The doctor's intervention was successful!", MessageVisibility.Public);
+
+            // Assertions
+            expect(nightTestGame.getPlayer(nightVillagerId)?.status).toBe(PlayerStatus.Alive);
+            expect(nightTestGame.killPlayer).not.toHaveBeenCalled();
+            expect(nightTestGame.recordKillInMemory).toHaveBeenCalledWith(null);
+
+             // Check memory recordings
+             const doctorState = nightTestGame.generateVisibleGameState(doctorId);
+             expect(doctorState.memory.saveHistory).toEqual([{ round: 0, savedPlayerId: nightVillagerId }]);
+             const seerState = nightTestGame.generateVisibleGameState(seerId);
+             expect(seerState.memory.investigationResults).toEqual([]); // Seer did nothing
+             const villagerState = nightTestGame.generateVisibleGameState(nightVillagerId);
+             expect(villagerState.memory.killHistory).toEqual([{ round: 0, killedPlayerId: null }]); // Expect round 0
+        });
+
+        it('should process Seer investigation correctly', async () => {
+            const seerAgent = getNightAgentMock(seerId);
+            const mafiaAgent1 = getNightAgentMock(nightMafiaId1);
+
+            // Setup actions: Seer investigates Mafia1, others do nothing relevant
+            seerAgent.mockResolvedValue({ type: 'seerInvestigate', targetPlayerId: nightMafiaId1 });
+            mafiaAgent1.mockResolvedValue({ type: 'noAction' }); // Mafia abstain kill
+            getNightAgentMock(nightMafiaId2).mockResolvedValue({ type: 'noAction' });
+            getNightAgentMock(doctorId).mockResolvedValue({ type: 'noAction' });
+
+            // Simulate phase execution outcome processing
+            vi.spyOn(nightTestGame, 'recordSeerResultInMemory');
+            vi.spyOn(nightTestGame, 'recordKillInMemory');
+
+            // Assume NightPhase processes Seer action
+            nightTestGame.recordSeerResultInMemory(seerId, nightMafiaId1, 'Mafia');
+            nightTestGame.recordKillInMemory(null); // No kill happened
+
+            // Assertions
+            const seerState = nightTestGame.generateVisibleGameState(seerId);
+            expect(seerState.memory.investigationResults).toHaveLength(1);
+            expect(seerState.memory.investigationResults[0]).toEqual({
+                round: 0,
+                targetId: nightMafiaId1,
+                allegiance: 'Mafia'
+            });
+            expect(nightTestGame.recordKillInMemory).toHaveBeenCalledWith(null);
+
+            // Check non-seer memory
+            const mafiaState = nightTestGame.generateVisibleGameState(nightMafiaId1);
+            expect(mafiaState.memory.investigationResults).toEqual([]);
+        });
+
+         it('should only request actions from players with night actions', async () => {
+            // Spy on the actual requestPlayerAction method
+            vi.spyOn(nightTestGame, 'requestPlayerAction');
+
+            // We need a mock NightPhase instance to call runPhase on
+            const nightPhase = new NightPhase();
+
+            // Mock agent actions (return noAction for simplicity, focus is on who gets called)
+            getNightAgentMock(doctorId).mockResolvedValue({ type: 'noAction' });
+            getNightAgentMock(seerId).mockResolvedValue({ type: 'noAction' });
+            getNightAgentMock(nightMafiaId1).mockResolvedValue({ type: 'noAction' });
+            getNightAgentMock(nightMafiaId2).mockResolvedValue({ type: 'noAction' });
+            // No mock needed for Villager agent, as they shouldn't be called
+
+            await nightPhase.runPhase(nightTestGame);
+
+            // Assertions
+            // Explicitly type the spy to access mock properties safely
+            const requestActionSpy = nightTestGame.requestPlayerAction as unknown as ReturnType<typeof vi.fn>;
+            const calls = requestActionSpy.mock.calls;
+
+            // Check who was asked for an action
+            // Check that players with night actions were called, regardless of arguments or multiple calls
+            const calledPlayerIds = new Set(calls.map(callArgs => (callArgs[0] as Player).id)); // Assert first arg is Player
+            expect(calledPlayerIds).toContain(doctorId);
+            expect(calledPlayerIds).toContain(seerId);
+            expect(calledPlayerIds).toContain(nightMafiaId1);
+            expect(calledPlayerIds).toContain(nightMafiaId2);
+
+            // Crucially, check Villager was NOT asked
+            expect(calledPlayerIds).not.toContain(nightVillagerId);
+
+            // Expect 4 unique players to have been called (Doctor, Seer, Mafia1, Mafia2)
+            expect(calledPlayerIds.size).toBe(4);
+        });
+
     });
 
     // TODO: Add tests for runGameLoop (more complex, requires mocking phases)

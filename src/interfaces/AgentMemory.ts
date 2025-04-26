@@ -10,6 +10,7 @@ import type { GamePhaseType } from './IGamePhase';
 export interface AgentMemory {
     // Agent-specific knowledge
     investigationResults: Array<{ round: number; targetId: PlayerId; allegiance: 'Mafia' | 'Town' }>;
+    saveHistory: Array<{ round: number; savedPlayerId: PlayerId | null }>;
     // Potentially add other role-specific results here (e.g., Doctor save confirmation?)
 
     // Game events relevant to all (but stored per agent)
@@ -48,6 +49,7 @@ export interface AIConversationLog {
 export function createInitialMemory(): AgentMemory {
     return {
         investigationResults: [],
+        saveHistory: [],
         voteHistory: [],
         killHistory: [],
         messageHistory: [],

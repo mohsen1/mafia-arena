@@ -278,6 +278,13 @@ export class Game {
         }
     }
 
+    recordDoctorSaveInMemory(doctorId: PlayerId, savedPlayerId: PlayerId | null): void {
+        const memory = this.#agentMemories.get(doctorId);
+        if (memory) {
+            memory.saveHistory.push({ round: this.round, savedPlayerId });
+        }
+    }
+
     // Creates the specific view of the game state for a given player
     generateVisibleGameState(playerId: PlayerId): VisibleGameState {
         const player = this.getPlayer(playerId);
