@@ -22,16 +22,18 @@ const DEFAULT_API_BASE = process.env.OPENAI_API_BASE || 'https://api.openai.com/
 const DEFAULT_API_KEY = process.env.OPENAI_API_KEY; // API key is now explicitly handled
 
 export class OpenAIAgent implements IAgent {
-    playerId: string = 'default-openai-agent';
-    role: RoleName | null = null;
+    // playerId: string = 'default-openai-agent'; // Removed: Use gameState.self.id
+    role: RoleName | null = null; // Keep role if needed for internal logic (but it seems unused)
+    persona?: Persona; // Added persona property
     private openai: OpenAI;
     private model: string;
     private apiBase: string;
 
     // Updated constructor to accept configuration
-    constructor(model: string = DEFAULT_MODEL, apiBase: string = DEFAULT_API_BASE, apiKey: string | undefined = DEFAULT_API_KEY) {
+    constructor(model: string = DEFAULT_MODEL, apiBase: string = DEFAULT_API_BASE, apiKey: string | undefined = DEFAULT_API_KEY, persona?: Persona) {
         this.model = model;
         this.apiBase = apiBase; // Store apiBase if needed for logging/debugging
+        this.persona = persona;
 
         // Ensure apiKey is handled correctly (undefined vs empty string)
         if (!apiKey) {
@@ -45,16 +47,17 @@ export class OpenAIAgent implements IAgent {
         });
     }
 
-    setPlayerId(id: string): void {
-        this.playerId = id;
-    }
+    // setPlayerId(id: string): void {
+    //     this.playerId = id;
+    // }
 
     setRole(role: RoleName): void {
         this.role = role;
     }
 
     async getAction(gameState: VisibleGameState, allowedActions: PlayerAction['type'][]): Promise<PlayerAction> {
-        log(`[${this.playerId} - ${gameState.self.role} (OpenAI)] Thinking with model ${this.model}...`);
+        const agentIdForLog = `${gameState.self.id} - ${gameState.self.role}`;
+        log(`[${agentIdForLog} (OpenAI)] Thinking with model ${this.model}...`);
 
         // Determine allegiance based on role name
         const allegiance: Allegiance = gameState.self.role === RoleName.Mafia ? 'Mafia' : 'Town';
@@ -105,7 +108,7 @@ export class OpenAIAgent implements IAgent {
             logEntry.response!.raw = responseContent; // Log raw response
 
             if (!responseContent) {
-                console.warn(`[Agent ${this.playerId}] Received empty response from API.`);
+                console.warn(`[Agent ${agentIdForLog}] Received empty response from API.`);
                 logEntry.response!.error = 'Empty API response';
                 memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
                 return { type: 'noAction' };
@@ -116,7 +119,7 @@ export class OpenAIAgent implements IAgent {
 
                 // Validate action type
                 if (!allowedActions.includes(parsedAction.type)) {
-                    console.warn(`[Agent ${this.playerId}] Received disallowed action type '${parsedAction.type}'. Allowed: ${allowedActions.join(', ')}`);
+                    console.warn(`[Agent ${agentIdForLog}] Received disallowed action type '${parsedAction.type}'. Allowed: ${allowedActions.join(', ')}`);
                     logEntry.response!.parsedAction = parsedAction; // Log parsed but disallowed action
                     logEntry.response!.error = 'Disallowed action type received';
                     memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
@@ -129,14 +132,14 @@ export class OpenAIAgent implements IAgent {
                 return parsedAction;
 
             } catch (parseError) {
-                console.error(`[Agent ${this.playerId}] Failed to parse JSON response: ${responseContent}`, parseError);
+                console.error(`[Agent ${agentIdForLog}] Failed to parse JSON response: ${responseContent}`, parseError);
                 logEntry.response!.error = `JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
                 memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
                 return { type: 'noAction' };
             }
 
         } catch (error) {
-            console.error(`[Agent ${this.playerId}] Error calling OpenAI API (model: ${this.model}, endpoint: ${this.apiBase}):`, error);
+            console.error(`[Agent ${agentIdForLog}] Error calling OpenAI API (model: ${this.model}, endpoint: ${this.apiBase}):`, error);
             logEntry.response!.raw = null; // No raw response available on API error
             logEntry.response!.error = `API call failed: ${error instanceof Error ? error.message : String(error)}`;
             memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log

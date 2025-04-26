@@ -49,10 +49,11 @@ describe('OpenAIAgent', () => {
     const testApiBase = 'http://localhost:1234/v1';
     const testApiKey = 'test-key-xyz';
 
-    beforeEach(async () => { // Make beforeEach async to handle potential dynamic imports
+    beforeEach(async () => {
         vi.clearAllMocks();
 
         // Dynamically import the mocked components AFTER vi.mock has run
+        // This ensures the mocks are applied before the modules are imported by the agent constructor
         const mockedOpenAI = await import('openai');
         mockCreate = (mockedOpenAI as any).__mockCreate; // Get the exported mock function
         MockOpenAIConstructor = (mockedOpenAI as any).__MockOpenAIConstructor; // Get constructor mock
@@ -69,19 +70,23 @@ describe('OpenAIAgent', () => {
         MockOpenAIConstructor.mockClear(); // Clear constructor mock calls too
 
         agent = new OpenAIAgent(testModel, testApiBase, testApiKey); // Instantiates agent, which uses the mocked OpenAI
-        agent.setPlayerId('openai-test-player');
+        // agent.setPlayerId('openai-test-player'); // Removed: Player ID is now accessed via gameState
+
+        // Define a consistent test player ID
+        const testPlayerId = 'openai-test-player';
 
         mockGameState = {
-             gameId: 'test-game',
-             round: 2,
-             phase: 'Day',
-             language: 'en',
-             self: { id: agent.playerId, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive },
-             players: [{ id: agent.playerId, name: 'Test Agent', status: PlayerStatus.Alive }],
-             alivePlayerIds: new Set([agent.playerId]),
-             memory: createInitialMemory(),
-             themeName: 'Default'
-         };
+            gameId: 'test-game',
+            round: 2,
+            phase: 'Day',
+            language: 'en',
+            // Use the hardcoded ID since agent no longer stores it
+            self: { id: testPlayerId, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive },
+            players: [{ id: testPlayerId, name: 'Test Agent', status: PlayerStatus.Alive }],
+            alivePlayerIds: new Set([testPlayerId]),
+            memory: createInitialMemory(),
+            themeName: 'Default'
+        };
     });
 
     it('should initialize OpenAI client with correct parameters', () => {
@@ -250,7 +255,7 @@ describe('OpenAIAgent', () => {
         // Create a specific game state for this test
         const mafiaPlayerId = 'mafia-player';
         const villagerPlayerId = 'villager1';
-        agent.setPlayerId(mafiaPlayerId); // Ensure agent has the correct ID for this test
+        // agent.setPlayerId(mafiaPlayerId); // Removed: Agent ID is handled by gameState
 
         const mafiaGameState: VisibleGameState = {
             gameId: 'mafia-test-game',
@@ -305,7 +310,7 @@ describe('OpenAIAgent', () => {
         // Create a specific game state with pre-populated memory for this test
         const player1Id = 'player1';
         const player2Id = 'player2';
-        agent.setPlayerId(player1Id);
+        // agent.setPlayerId(player1Id); // Removed: Agent ID is handled by gameState
 
         const memoryWithHistory: AgentMemory = {
             investigationResults: [],

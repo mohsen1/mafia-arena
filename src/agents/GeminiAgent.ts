@@ -36,17 +36,19 @@ const safetySettings = [
 ];
 
 export class GeminiAgent implements IAgent {
-    public playerId!: PlayerId; // Set by Game constructor
+    // public playerId!: PlayerId; // Removed: Set by Game constructor
     public persona?: Persona; // Add persona property
     private modelName: string; // Store the selected model name
 
-    constructor(model?: string) { // Accept optional model
+    constructor(model?: string, persona?: Persona) { // Accept optional model and persona
         this.modelName = model || defaultModelName; // Use provided model or default
+        this.persona = persona;
         log(`Initialized GeminiAgent with model: ${this.modelName}`);
     }
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
-        log(`[${this.playerId} - ${gameState.self.role} (Gemini)] Thinking with model ${this.modelName}...`);
+        const agentIdForLog = `${gameState.self.id} - ${gameState.self.role}`;
+        log(`[${agentIdForLog} (Gemini)] Thinking with model ${this.modelName}...`);
 
         // Determine allegiance
         const allegiance: Allegiance = gameState.self.role === RoleName.Mafia ? 'Mafia' : 'Town';
@@ -85,7 +87,7 @@ export class GeminiAgent implements IAgent {
             const responseText = response.text();
 
             if (!responseText) {
-                log(`ERROR: [${this.playerId} (Gemini)] API response was empty.`);
+                log(`ERROR: [${agentIdForLog} (Gemini)] API response was empty.`);
                 return { type: 'noAction' };
             }
 
@@ -104,28 +106,28 @@ export class GeminiAgent implements IAgent {
             try {
                 action = JSON.parse(potentialJson) as PlayerAction;
             } catch (parseError) {
-                log(`ERROR: [${this.playerId} (Gemini)] Failed to parse JSON response: ${potentialJson} %O`, parseError);
+                log(`ERROR: [${agentIdForLog} (Gemini)] Failed to parse JSON response: ${potentialJson} %O`, parseError);
                 return { type: 'noAction' };
             }
 
             // Validate action type
              if (!allowedActions || allowedActions.length === 0) {
                 if (action.type !== 'noAction') {
-                    log(`WARN: [${this.playerId} (Gemini)] Action type '${action.type}' is not allowed (no actions specified). Defaulting to noAction.`);
+                    log(`WARN: [${agentIdForLog} (Gemini)] Action type '${action.type}' is not allowed (no actions specified). Defaulting to noAction.`);
                     return { type: 'noAction' };
                 }
             } else if (!allowedActions.includes(action.type)) {
-                 log(`WARN: [${this.playerId} (Gemini)] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`);
+                 log(`WARN: [${agentIdForLog} (Gemini)] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`);
                  return { type: 'noAction' };
             }
 
             // TODO: Add more specific validation based on action type
 
-            log(`[${this.playerId} - ${gameState.self.role} (Gemini)] Chose action: %o`, action);
+            log(`[${agentIdForLog} (Gemini)] Chose action: %o`, action);
             return action;
 
         } catch (error) {
-            log(`ERROR: [${this.playerId} (${this.modelName})] Error calling Google Generative AI API: %O`, error);
+            log(`ERROR: [${agentIdForLog} (${this.modelName})] Error calling Google Generative AI API: %O`, error);
             return { type: 'noAction' }; // Fallback on API error
         }
     }

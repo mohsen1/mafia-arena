@@ -31,9 +31,9 @@ const mockMafiaRole: IRole = {
     description: 'Mafia member',
 };
 
-// Mock agent factory
-const createMockAgent = (id: PlayerId): IAgent => ({
-    playerId: id,
+// Mock agent factory - Removed playerId as it's no longer on IAgent
+const createMockAgent = ( /* id: PlayerId */ ): IAgent => ({
+    // playerId: id,
     getAction: vi.fn().mockResolvedValue({ type: 'noAction' } as PlayerAction)
 });
 
@@ -81,11 +81,11 @@ describe('Game', () => {
 
         // Create mock agents (IDs are temporary placeholders)
         agents = [
-            createMockAgent('temp-v1'),
-            createMockAgent('temp-v2'),
-            createMockAgent('temp-v3'),
-            createMockAgent('temp-m1'),
-            createMockAgent('temp-m2'),
+            createMockAgent(),
+            createMockAgent(),
+            createMockAgent(),
+            createMockAgent(),
+            createMockAgent(),
         ];
 
         // Define player setups
@@ -111,8 +111,9 @@ describe('Game', () => {
         allPlayerIds = [villager1Id, villager2Id, villager3Id, mafia1Id, mafia2Id];
 
         // --- Verify agents have been assigned the correct IDs by the constructor --- 
-        expect(game.getPlayer(villager1Id)?.agent.playerId).toBe(villager1Id);
-        expect(game.getPlayer(mafia1Id)?.agent.playerId).toBe(mafia1Id);
+        // Removed check: Agent no longer stores playerId directly. It's passed via gameState.
+        // expect(game.getPlayer(villager1Id)?.agent.playerId).toBe(villager1Id);
+        // expect(game.getPlayer(mafia1Id)?.agent.playerId).toBe(mafia1Id);
     });
 
     describe('Game initialization', () => {
@@ -136,25 +137,24 @@ describe('Game', () => {
             expect(p1?.name).toBe(playerNames[0]);
             expect(p1?.role.name).toBe(RoleName.Villager);
             expect(p1?.status).toBe(PlayerStatus.Alive);
-            expect(p1?.agent.playerId).toBe(villager1Id); 
 
-            // Check Mafia 1 using the retrieved actual ID
-            const p4 = game.getPlayer(mafia1Id);
-            expect(p4).toBeDefined();
-            expect(p4?.name).toBe(playerNames[3]);
-            expect(p4?.role.name).toBe(RoleName.Mafia);
-            expect(p4?.status).toBe(PlayerStatus.Alive);
-            expect(p4?.agent.playerId).toBe(mafia1Id);
+            // Check a couple more players for role/status
+            expect(game.getPlayer(villager2Id)?.role.name).toBe(RoleName.Villager);
+            expect(game.getPlayer(mafia1Id)?.status).toBe(PlayerStatus.Alive);
+            expect(game.getPlayer(mafia2Id)?.role.name).toBe(RoleName.Mafia);
 
+            // Verify all are initially alive
             playersMap.forEach(player => {
                 expect(player.isAlive()).toBe(true);
             });
+
+            // Checks for agent.playerId were removed as agent no longer stores it.
         });
 
         it('should throw error if fewer than 3 players are provided', () => {
              const fewPlayerSetups = [
-                { name: 'P1', agent: createMockAgent('t1'), role: mockVillagerRole }, 
-                { name: 'P2', agent: createMockAgent('t2'), role: mockMafiaRole }
+                { name: 'P1', agent: createMockAgent(), role: mockVillagerRole }, 
+                { name: 'P2', agent: createMockAgent(), role: mockMafiaRole }
              ];
              expect(() => new Game(fewPlayerSetups)).toThrow('Not enough players to start a game.');
          });
@@ -561,9 +561,9 @@ describe('Game', () => {
 
         it('should record Seer results only in the Seer agent memory', () => {
             const setups = [
-                 { name: 'Seer', agent: createMockAgent('temp-s1'), role: new SeerRole() },
-                 { name: 'Mafia', agent: createMockAgent('temp-m1'), role: mockMafiaRole },
-                 { name: 'Villager', agent: createMockAgent('temp-v1'), role: mockVillagerRole },
+                 { name: 'Seer', agent: createMockAgent(), role: new SeerRole() },
+                 { name: 'Mafia', agent: createMockAgent(), role: mockMafiaRole },
+                 { name: 'Villager', agent: createMockAgent(), role: mockVillagerRole },
             ];
             game = new Game(setups);
             const seerId = Array.from(game.getPlayers().values()).find(p => p.role.name === RoleName.Seer)!.id;

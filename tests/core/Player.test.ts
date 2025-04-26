@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { Player } from '../../src/core/Player';
 import { PlayerStatus, type PlayerId } from '../../src/interfaces/IPlayer';
 import { RoleName } from '../../src/interfaces/IRole';
@@ -22,26 +22,21 @@ const mockMafiaRole: IRole = {
     description: 'Mock Mafia',
 };
 
-// Mock Agent implementation using Vitest functions
-const createMockAgent = (playerId: PlayerId): IAgent & { getAction: ReturnType<typeof vi.fn> } => {
-    // Cast vi.fn() to the expected function signature
-    const mockGetAction = vi.fn() as unknown as IAgent['getAction'] & ReturnType<typeof vi.fn>;
-    return {
-        playerId,
-        getAction: mockGetAction,
-    };
-};
+// Mock agent factory - Removed playerId
+const createMockAgent = ( /* id: PlayerId */ ): IAgent & { getAction: Mock<any[], unknown> } => ({
+    // playerId: id,
+    getAction: vi.fn().mockResolvedValue({ type: 'noAction' } as PlayerAction)
+});
 
 describe('Player', () => {
-    let playerId: PlayerId;
+    const playerId = 'player-123';
     let playerName: string;
     let mockAgent: ReturnType<typeof createMockAgent>;
     let player: Player;
 
     beforeEach(() => {
-        playerId = 'player-123';
         playerName = 'Test Player';
-        mockAgent = createMockAgent(playerId); // Agent ID matches player ID
+        mockAgent = createMockAgent(); // Agent ID matches player ID
         player = new Player(playerId, playerName, mockVillagerRole, mockAgent);
     });
 
@@ -52,12 +47,6 @@ describe('Player', () => {
         expect(player.isAlive()).toBe(true);
         expect(player.role).toBe(mockVillagerRole); // Check internal role reference
         expect(player.agent).toBe(mockAgent); // Check internal agent reference
-    });
-
-    it('should throw error if agent playerId does not match player id', () => {
-        const wrongAgent = createMockAgent('wrong-id');
-        expect(() => new Player(playerId, playerName, mockVillagerRole, wrongAgent))
-            .toThrow(/does not match Player id/);
     });
 
     it('should change status to Dead when kill() is called', () => {

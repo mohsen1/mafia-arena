@@ -46,8 +46,7 @@ export class Game {
             // Sanitize name: remove quotes and convert to lowercase, replace spaces with hyphens
             const sanitizedName = setup.name.toLowerCase().replace(/"/g, '').replace(/\s+/g, '-');
             const playerId: PlayerId = `player-${index + 1}-${sanitizedName}`;
-            // Ensure agent has the correct ID *before* creating the player
-            setup.agent.playerId = playerId; // TODO: This mutation isn't ideal, better to pass ID to agent constructor
+            // PlayerId is now passed via gameState in getAction
             const player = new Player(playerId, setup.name, setup.role, setup.agent);
             this.#players.set(playerId, player);
             this.#agentMemories.set(playerId, createInitialMemory()); // Initialize memory

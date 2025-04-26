@@ -12,7 +12,6 @@ export type PlayerAction =
     | { type: 'noAction' }; // For roles with no night action
 
 export interface IAgent {
-    playerId: PlayerId;
     persona?: Persona;
     /**
      * Called by the Game to get the agent's action for the current phase.

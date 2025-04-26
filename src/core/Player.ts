@@ -15,9 +15,6 @@ export class Player implements IPlayer {
         role: IRole, // Inject role
         agent: IAgent // Inject agent
     ) {
-        if (agent.playerId !== id) {
-            throw new Error(`Agent playerId ${agent.playerId} does not match Player id ${id}`);
-        }
         this.#role = role;
         this.#agent = agent;
     }
