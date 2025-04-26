@@ -148,7 +148,12 @@ describe('NightPhase', () => {
             mafiaId,
             'Mafia' // Expected allegiance of the target
         );
-         expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("Seer"), MessageVisibility.Private);
+         // Verify the private message sent TO the seer
+         expect(mockGame.logMessage).toHaveBeenCalledWith(
+            seerId, // The message is logged TO the seer
+            expect.stringContaining("decides to investigate someone."), // Specific private log content
+            MessageVisibility.Private // Visibility remains private
+         );
     });
 
      it('should handle Mafia message action during the night', async () => {

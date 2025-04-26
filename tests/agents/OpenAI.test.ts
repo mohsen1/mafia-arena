@@ -105,11 +105,29 @@ describe('OpenAIAgent', () => {
 
         expect(getSystemPrompt).toHaveBeenCalled();
         expect(getUserPrompt).toHaveBeenCalledWith(
-             expect.objectContaining({ // Check the state passed to prompt generator
+             expect.objectContaining({ // Check the promptInputState structure
                  round: mockGameState.round,
                  phase: mockGameState.phase,
-                 self: mockGameState.self,
-                 memory: mockGameState.memory, // Ensure memory is passed
+                 language: mockGameState.language,
+                 themeName: mockGameState.themeName,
+                 self: expect.objectContaining({ // Check self properties
+                     id: mockGameState.self.id,
+                     name: mockGameState.self.name,
+                     role: mockGameState.self.role,
+                     isMafia: mockGameState.self.isMafia,
+                     status: mockGameState.self.status,
+                     allegiance: 'Town' // Deduced allegiance for Villager
+                 }),
+                 players: expect.arrayContaining([ // Check mapped player structure
+                    expect.objectContaining({ 
+                        id: mockGameState.self.id, 
+                        name: mockGameState.self.name, 
+                        status: mockGameState.self.status 
+                    })
+                 ]),
+                 alivePlayerIds: expect.arrayContaining([mockGameState.self.id]), // Now an array
+                 mafiaPlayerIds: undefined, // Villager view
+                 memory: mockGameState.memory, // Memory is passed directly
              }),
              allowed // Check allowed actions are passed
          );
