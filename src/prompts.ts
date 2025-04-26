@@ -51,8 +51,9 @@ export function getPersonaGenerationPrompt(themeDescription: string): string {
     The game's theme is: "${themeDescription}"
 
     Please create a compelling and distinct persona that fits this theme.
+    Strive for originality and avoid generic names (like Bob, Jane) or stereotypes unless they are uniquely twisted for the theme.
     Your response MUST be a single, valid JSON object containing the following fields:
-    - name: string (The character's full name)
+    - name: string (The character's full name, make it unique and fitting)
     - backstory: string (A brief, one or two-sentence background for the character)
     - personalityTraits: string[] (An array of 3-5 descriptive personality traits, e.g., ["Observant", "Quiet", "Cunning"])
 

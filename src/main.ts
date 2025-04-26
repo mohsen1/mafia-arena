@@ -141,6 +141,7 @@ async function interactiveSetup(): Promise<{
     playerCount: number;
     themeKey: string;
     humanPlayerIndex: number; // -1 if no human
+    humanPlayerName?: string;
     mafiaConfig: AgentGroupConfig; // Separate config for Mafia
     townConfig: AgentGroupConfig;  // Separate config for Town
 }> {
@@ -174,6 +175,19 @@ async function interactiveSetup(): Promise<{
     const playerCount = initialSetup.playerCount;
     const themeKey = initialSetup.themeKey;
     const humanPlayerIndex = initialSetup.includeHuman ? 0 : -1; 
+    let humanPlayerName: string | undefined = undefined;
+
+    // Prompt for human player name if included
+    if (humanPlayerIndex === 0) {
+        const nameResponse = await prompts({
+            type: 'text',
+            name: 'humanName',
+            message: 'Enter the name for the Human player (Player 1):',
+            initial: 'You',
+            validate: value => value.trim().length > 0 ? true : 'Name cannot be empty'
+        }, { onCancel: () => process.exit(0) });
+        humanPlayerName = nameResponse.humanName.trim();
+    }
 
     console.log("\n--- Configure AI Player Groups ---");
 
@@ -257,6 +271,7 @@ async function interactiveSetup(): Promise<{
         playerCount,
         themeKey,
         humanPlayerIndex,
+        humanPlayerName,
         mafiaConfig,
         townConfig
     };
@@ -293,6 +308,7 @@ async function main() {
         let playerCount: number;
         let themeKey: string;
         let humanPlayerIndex: number;
+        let humanPlayerName: string | undefined;
         let mafiaConfig: AgentGroupConfig;
         let townConfig: AgentGroupConfig;
 
@@ -303,6 +319,7 @@ async function main() {
             const themeKeys = Object.keys(Themes);
             themeKey = themeKeys.length > 0 ? themeKeys[0] : 'western'; // Default theme or fallback
             humanPlayerIndex = -1; // No human player
+            humanPlayerName = undefined;
             const defaultProvider = openAIProviders.find(p => p.value === 'groq'); // Default to Groq
             const defaultModel = groqModels.length > 0 ? groqModels[0].value : undefined; // Default Groq model
 
@@ -331,6 +348,7 @@ async function main() {
             playerCount = setupResult.playerCount;
             themeKey = setupResult.themeKey;
             humanPlayerIndex = setupResult.humanPlayerIndex;
+            humanPlayerName = setupResult.humanPlayerName;
             mafiaConfig = setupResult.mafiaConfig;
             townConfig = setupResult.townConfig;
         }
@@ -364,8 +382,8 @@ async function main() {
         const playerSetups = [];
         for (let i = 0; i < playerCount; i++) {
             const role = roles[i];
-            // Generate a placeholder name initially
-            const initialPlayerName = `Player ${i + 1}`; 
+            // Use prompted human name or generate placeholder
+            const initialPlayerName = (i === humanPlayerIndex && humanPlayerName) ? humanPlayerName : `Player ${i + 1}`; 
             let agent: IAgent;
             let config: AgentGroupConfig;
 

@@ -6,6 +6,7 @@ import type { PlayerAction } from '../../src/interfaces/IAgent';
 import { createInitialMemory, type AgentMemory, type AIConversationLog } from '../../src/interfaces/AgentMemory';
 import { RoleName } from '../../src/interfaces/IRole';
 import { PlayerStatus } from '../../src/interfaces/IPlayer';
+import { Persona, DEFAULT_PERSONA } from '../../src/interfaces/Persona';
 
 // --- Mock OpenAI library ---
 vi.mock('openai', async (importActual) => {
@@ -33,6 +34,7 @@ vi.mock('openai', async (importActual) => {
 vi.mock('../../src/prompts', () => ({
     getSystemPrompt: vi.fn(() => 'Mock System Prompt'),
     getUserPrompt: vi.fn(() => 'Mock User Prompt'),
+    getPersonaGenerationPrompt: vi.fn(() => 'Mock Persona Gen Prompt'),
 }));
 
 
@@ -43,6 +45,7 @@ describe('OpenAIAgent', () => {
     let MockOpenAIConstructor: Mock;
     let getSystemPrompt: Mock;
     let getUserPrompt: Mock;
+    let getPersonaGenerationPrompt: Mock;
 
     // Define test configurations
     const testPlayerId = 'openai-test-player'; // Define player ID for tests
@@ -61,10 +64,12 @@ describe('OpenAIAgent', () => {
         const mockedPrompts = await import('../../src/prompts');
         getSystemPrompt = mockedPrompts.getSystemPrompt as Mock;
         getUserPrompt = mockedPrompts.getUserPrompt as Mock;
+        getPersonaGenerationPrompt = mockedPrompts.getPersonaGenerationPrompt as Mock; // Get the mock
 
         // Reset mock implementations if needed (e.g., for prompts)
         getSystemPrompt.mockReturnValue('Mock System Prompt');
         getUserPrompt.mockReturnValue('Mock User Prompt');
+        getPersonaGenerationPrompt.mockReturnValue('Mock Persona Gen Prompt'); // Reset mock return value
         mockCreate.mockClear(); // Clear any previous calls/results
         MockOpenAIConstructor.mockClear(); // Clear constructor mock calls too
 
@@ -376,6 +381,89 @@ describe('OpenAIAgent', () => {
 
         // Also verify the API call was made
         expect(mockCreate).toHaveBeenCalledTimes(1);
+    });
+
+    // --- Tests for generatePersona ---
+    describe('generatePersona', () => {
+        const themeDesc = 'A spooky haunted house';
+
+        beforeEach(() => {
+            // Reset persona to default before each persona generation test
+            agent.persona = { ...DEFAULT_PERSONA }; 
+        });
+
+        it('should call API with persona prompt and update persona on success', async () => {
+            const mockGeneratedPersona: Persona = {
+                name: 'Ghostly Gustav',
+                backstory: 'A resident phantom.',
+                personalityTraits: ['Ethereal', 'Mischievous'],
+            };
+            mockCreate.mockResolvedValueOnce({
+                choices: [{ message: { content: JSON.stringify(mockGeneratedPersona) } }],
+            });
+
+            await agent.generatePersona(themeDesc);
+
+            expect(getPersonaGenerationPrompt).toHaveBeenCalledWith(themeDesc);
+            expect(mockCreate).toHaveBeenCalledTimes(1);
+            expect(mockCreate).toHaveBeenCalledWith({
+                model: testModel,
+                messages: [
+                    { role: 'user', content: 'Mock Persona Gen Prompt' },
+                ],
+                temperature: expect.any(Number),
+                max_tokens: expect.any(Number),
+                response_format: { type: 'json_object' },
+            });
+            expect(agent.persona).toEqual(mockGeneratedPersona);
+        });
+
+        it('should assign DEFAULT_PERSONA if API call fails', async () => {
+            const apiError = new Error('Persona API failed');
+            mockCreate.mockRejectedValueOnce(apiError);
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {}); // Suppress error
+
+            // agent.persona is already reset in beforeEach
+            await agent.generatePersona(themeDesc);
+            consoleSpy.mockRestore();
+
+            expect(mockCreate).toHaveBeenCalledTimes(1);
+            expect(agent.persona).toEqual(DEFAULT_PERSONA);
+        });
+
+        it('should assign DEFAULT_PERSONA if API response is empty', async () => {
+            mockCreate.mockResolvedValueOnce({
+                choices: [{ message: { content: null } }],
+            });
+            // agent.persona is already reset in beforeEach
+            await agent.generatePersona(themeDesc);
+
+            expect(mockCreate).toHaveBeenCalledTimes(1);
+            expect(agent.persona).toEqual(DEFAULT_PERSONA);
+        });
+
+        it('should assign DEFAULT_PERSONA if response is not valid JSON', async () => {
+             mockCreate.mockResolvedValueOnce({
+                 choices: [{ message: { content: 'invalid json' } }],
+             });
+            // agent.persona is already reset in beforeEach
+             await agent.generatePersona(themeDesc);
+ 
+             expect(mockCreate).toHaveBeenCalledTimes(1);
+             expect(agent.persona).toEqual(DEFAULT_PERSONA);
+         });
+
+        it('should assign DEFAULT_PERSONA if parsed JSON lacks required fields', async () => {
+            const incompletePersona = { name: 'Incomplete Guy', backstory: 'Missing traits.' }; // Missing personalityTraits
+             mockCreate.mockResolvedValueOnce({
+                 choices: [{ message: { content: JSON.stringify(incompletePersona) } }],
+             });
+            // agent.persona is already reset in beforeEach
+             await agent.generatePersona(themeDesc);
+ 
+             expect(mockCreate).toHaveBeenCalledTimes(1);
+             expect(agent.persona).toEqual(DEFAULT_PERSONA);
+        });
     });
 
     // Add more tests: different roles, different phases, specific content validation if needed.

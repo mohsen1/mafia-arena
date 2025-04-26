@@ -97,12 +97,12 @@ export class ClaudeAgent implements IAgent {
                     this.persona = DEFAULT_PERSONA;
                 }
             } catch (parseError) {
-                log(`ERROR: [${agentIdForLog}] Failed to parse persona JSON response: ${potentialJson} %O`, parseError);
+                log(`ERROR: [${agentIdForLog}] Failed to parse persona JSON response. Error: %O\nRaw Response: ${potentialJson}`, parseError);
                 this.persona = DEFAULT_PERSONA;
             }
 
         } catch (error) {
-            log(`ERROR: [${agentIdForLog}] Error calling Anthropic API for persona generation: %O`, error);
+            log(`ERROR: [${agentIdForLog}] API call failed during persona generation: %O`, error);
             this.persona = DEFAULT_PERSONA; // Fallback on API error
         }
     }

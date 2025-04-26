@@ -85,13 +85,13 @@ export class OpenAIAgent implements IAgent {
                     this.persona = DEFAULT_PERSONA;
                 }
             } catch (parseError) {
-                log(`ERROR: [${agentIdForLog}] Failed to parse persona JSON response: ${responseContent} %O`, parseError);
+                log(`ERROR: [${agentIdForLog}] Failed to parse persona JSON response. Error: %O\nRaw Response: ${responseContent}`, parseError);
                 this.persona = DEFAULT_PERSONA;
             }
 
         } catch (error) {
-            log(`ERROR: [${agentIdForLog}] Error calling OpenAI API for persona generation: %O`, error);
-            this.persona = DEFAULT_PERSONA;
+            log(`ERROR: [${agentIdForLog}] API call failed during persona generation: %O`, error);
+            this.persona = DEFAULT_PERSONA; // Fallback on API error
         }
     }
 

@@ -88,13 +88,12 @@ export class GeminiAgent implements IAgent {
                     this.persona = DEFAULT_PERSONA;
                 }
             } catch (parseError) {
-                log(`ERROR: [${agentIdForLog}] Failed to parse persona JSON response: ${responseText} %O`, parseError);
+                log(`ERROR: [${agentIdForLog}] Failed to parse persona JSON response. Error: %O\nRaw Response: ${responseText}`, parseError);
                 this.persona = DEFAULT_PERSONA;
             }
-
         } catch (error) {
-            log(`ERROR: [${agentIdForLog}] Error calling Google Generative AI API for persona generation: %O`, error);
-            this.persona = DEFAULT_PERSONA; // Fallback on API error
+            log(`ERROR: [${agentIdForLog}] API call failed during persona generation: %O`, error);
+            this.persona = DEFAULT_PERSONA;
         }
     }
 
@@ -189,19 +188,12 @@ export class GeminiAgent implements IAgent {
                     log(`WARN: [${agentIdForLog} (Gemini)] Action type '${action.type}' is not allowed (no actions specified). Defaulting to noAction.`);
                     return { type: 'noAction' };
                 }
-            } else if (!allowedActions.includes(action.type)) {
-                 log(`WARN: [${agentIdForLog} (Gemini)] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`);
-                 return { type: 'noAction' };
             }
 
-            // TODO: Add more specific validation based on action type
-
-            log(`[${agentIdForLog} (Gemini)] Chose action: %o`, action);
             return action;
-
         } catch (error) {
-            log(`ERROR: [${agentIdForLog}] Error calling Google Generative AI API: %O`, error);
-            return { type: 'noAction' }; // Fallback on API error
+            log(`ERROR: [${agentIdForLog} (Gemini)] API call failed during action generation: %O`, error);
+            return { type: 'noAction' };
         }
     }
-} 
+}
