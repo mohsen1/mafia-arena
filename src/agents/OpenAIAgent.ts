@@ -62,6 +62,12 @@ export class OpenAIAgent implements IAgent {
         // Determine allegiance based on role name
         const allegiance: Allegiance = gameState.self.role === RoleName.Mafia ? 'Mafia' : 'Town';
 
+        // Prepare memory for prompt: Create a copy and replace AI logs with empty array
+        const memoryForPrompt: AgentMemory = { 
+            ...gameState.memory, 
+            aiConversationLogs: [] // Replace with empty array for the prompt
+        };
+
         // Prepare state for the prompt, converting Set to Array and adding allegiance
         const promptInputState = {
             round: gameState.round,
@@ -75,13 +81,16 @@ export class OpenAIAgent implements IAgent {
             language: gameState.language,
             mafiaPlayerIds: gameState.self.isMafia ? Array.from(gameState.mafiaPlayerIds ?? []) : undefined,
             themeName: gameState.themeName,
-            memory: gameState.memory 
+            // Pass the filtered memory to the prompt generation
+            memory: memoryForPrompt 
         };
 
         const systemPrompt = getSystemPrompt();
+        // Pass the state with filtered memory to getUserPrompt
         const userPrompt = getUserPrompt(promptInputState, allowedActions); 
 
-        const memory = gameState.memory; // Get memory for logging
+        // Use original memory for logging the current AI conversation
+        const memoryForLogging = gameState.memory; 
 
         const logEntry: Partial<AIConversationLog> = { // Use Partial for building the log
             round: gameState.round,
@@ -110,7 +119,8 @@ export class OpenAIAgent implements IAgent {
             if (!responseContent) {
                 console.warn(`[Agent ${agentIdForLog}] Received empty response from API.`);
                 logEntry.response!.error = 'Empty API response';
-                memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
+                // Log to the original memory object
+                memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog); 
                 return { type: 'noAction' };
             }
 
@@ -122,19 +132,22 @@ export class OpenAIAgent implements IAgent {
                     console.warn(`[Agent ${agentIdForLog}] Received disallowed action type '${parsedAction.type}'. Allowed: ${allowedActions.join(', ')}`);
                     logEntry.response!.parsedAction = parsedAction; // Log parsed but disallowed action
                     logEntry.response!.error = 'Disallowed action type received';
-                    memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
+                    // Log to the original memory object
+                    memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
                     return { type: 'noAction' };
                 }
 
                 // Action is valid and allowed
                 logEntry.response!.parsedAction = parsedAction; // Log successful action
-                memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
+                // Log to the original memory object
+                memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog); 
                 return parsedAction;
 
             } catch (parseError) {
                 console.error(`[Agent ${agentIdForLog}] Failed to parse JSON response: ${responseContent}`, parseError);
                 logEntry.response!.error = `JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
-                memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
+                // Log to the original memory object
+                memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog); 
                 return { type: 'noAction' };
             }
 
@@ -142,7 +155,8 @@ export class OpenAIAgent implements IAgent {
             console.error(`[Agent ${agentIdForLog}] Error calling OpenAI API (model: ${this.model}, endpoint: ${this.apiBase}):`, error);
             logEntry.response!.raw = null; // No raw response available on API error
             logEntry.response!.error = `API call failed: ${error instanceof Error ? error.message : String(error)}`;
-            memory.aiConversationLogs.push(logEntry as AIConversationLog); // Push completed log
+            // Log to the original memory object
+            memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog); 
             return { type: 'noAction' };
         }
     }

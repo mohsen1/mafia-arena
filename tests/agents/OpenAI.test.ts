@@ -132,7 +132,11 @@ describe('OpenAIAgent', () => {
                  ]),
                  alivePlayerIds: expect.arrayContaining([mockGameState.self.id]), // Now an array
                  mafiaPlayerIds: undefined, // Villager view
-                 memory: mockGameState.memory, // Memory is passed directly
+                 // Expect the memory *without* AI logs to be passed to the prompt generator
+                 memory: expect.objectContaining({
+                    ...mockGameState.memory, // Copy other memory fields
+                    aiConversationLogs: [] // Expect empty array here
+                 }), 
              }),
              allowed // Check allowed actions are passed
          );

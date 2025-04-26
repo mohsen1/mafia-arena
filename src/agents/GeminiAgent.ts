@@ -7,6 +7,7 @@ import type { Persona } from '../interfaces/Theme'; // Import Persona
 import * as dotenv from 'dotenv'; // Import dotenv
 import debug from 'debug'; // Import debug
 import { RoleName, type Allegiance } from '../interfaces/IRole'; // Import RoleName and Allegiance
+import type { AgentMemory, AIConversationLog } from '../interfaces/AgentMemory'; // Corrected import path
 
 // Create a specific debugger instance
 const log = debug('mafia:agent:gemini');
@@ -53,6 +54,12 @@ export class GeminiAgent implements IAgent {
         // Determine allegiance
         const allegiance: Allegiance = gameState.self.role === RoleName.Mafia ? 'Mafia' : 'Town';
 
+        // Prepare memory for prompt: Create a copy and replace AI logs with empty array
+        const memoryForPrompt: AgentMemory = {
+            ...gameState.memory,
+            aiConversationLogs: [] // Replace with empty array for the prompt
+        };
+
         // Prepare state for the prompt, converting Set to Array and adding allegiance
         const promptInputState = {
             round: gameState.round,
@@ -66,13 +73,27 @@ export class GeminiAgent implements IAgent {
             language: gameState.language,
             mafiaPlayerIds: gameState.self.isMafia ? Array.from(gameState.mafiaPlayerIds ?? []) : undefined,
             themeName: gameState.themeName,
-            memory: gameState.memory 
+            // Pass the filtered memory to the prompt generation
+            memory: memoryForPrompt 
         };
 
         const systemPrompt = getSystemPrompt();
         // Pass the modified state with the array to getUserPrompt
         const userPrompt = getUserPrompt(promptInputState, allowedActions); 
         const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+
+        // Use original memory for logging the current AI conversation
+        const memoryForLogging = gameState.memory;
+
+        // TODO: Add logging for Gemini agent similar to OpenAI agent
+        // const logEntry: Partial<AIConversationLog> = {
+        //     round: gameState.round,
+        //     phase: gameState.phase,
+        //     timestamp: new Date(),
+        //     model: this.modelName,
+        //     prompt: { system: systemPrompt, user: userPrompt },
+        //     response: { raw: null, parsedAction: null }
+        // };
 
         try {
             const model = genAI.getGenerativeModel({
