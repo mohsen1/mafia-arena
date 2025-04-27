@@ -29,6 +29,13 @@ const mockGame = {
 // Mock Player and Agent - Reverted: Keep action for easier setup, though agent.getAction won't be called directly
 const createMockPhasePlayer = (id: PlayerId, role: IRole, action: PlayerAction): Player => {
     const agent: IAgent = {
+        id: `agent-for-${id}`,
+        agentName: `MockAgent${role.name}`,
+        persona: { // Provide a mock Persona object
+            name: `Mock ${role.name}`,
+            backstory: `A test persona for ${role.name}.`,
+            personalityTraits: ["mock", "test"]
+        },
         // Keep the mock action setup for simplicity in test definition, even if not directly used
         getAction: vi.fn().mockResolvedValue(action)
     };
@@ -224,6 +231,46 @@ describe('NightPhase', () => {
          expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(null); // Record no kill occurred
      });
 
+    it('should handle tied Mafia votes by selecting the first target (deterministic tie-break)', async () => {
+        // Setup: 2 Mafia, 2 Villagers. Mafia tie vote.
+        const mafia1Id = 'p-mafia1';
+        const mafia2Id = 'p-mafia2';
+        const villager1Id = 'p-villager1';
+        const villager2Id = 'p-villager2';
+
+        const mafia1Action: PlayerAction = { type: 'mafiaKill', targetPlayerId: villager1Id };
+        const mafia2Action: PlayerAction = { type: 'mafiaKill', targetPlayerId: villager2Id };
+        const dummyAction: PlayerAction = { type: 'noAction' };
+
+        const mafiaPlayer1 = createMockPhasePlayer(mafia1Id, new MafiaRole(), dummyAction);
+        const mafiaPlayer2 = createMockPhasePlayer(mafia2Id, new MafiaRole(), dummyAction);
+        const villagerPlayer1 = createMockPhasePlayer(villager1Id, new VillagerRole(), dummyAction);
+        const villagerPlayer2 = createMockPhasePlayer(villager2Id, new VillagerRole(), dummyAction);
+        players = [mafiaPlayer1, mafiaPlayer2, villagerPlayer1, villagerPlayer2];
+
+        mockGame.getAlivePlayers.mockReturnValue(players);
+        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
+        mockGame.generateVisibleGameState.mockReturnValue({ /* state */ });
+
+        // Mock requestPlayerAction: Discuss (noAction), Vote (m1->v1, m2->v2)
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce({ type: 'noAction' }) // m1 discuss
+            .mockResolvedValueOnce({ type: 'noAction' }) // m2 discuss
+            .mockResolvedValueOnce(mafia1Action)        // m1 vote
+            .mockResolvedValueOnce(mafia2Action);       // m2 vote
+
+        await nightPhase.runPhase(mockGame as unknown as Game);
+
+        // Assert: killPlayer should be called for villager1Id (first target in tie)
+        expect(mockGame.killPlayer).toHaveBeenCalledWith(villager1Id, expect.any(String));
+        expect(mockGame.killPlayer).toHaveBeenCalledTimes(1); // Only one kill despite tie
+        // Verify recorded kill
+        expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(villager1Id);
+        // Verify renderer notification
+        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderNightResults', villager1Id);
+        // Verify Mafia log mentions the chosen target
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining(`chosen target is ${villagerPlayer1.name}`), MessageVisibility.Mafia);
+    });
 
     it('should transition to DayPhase', () => {
         const nextPhase = nightPhase.transition(mockGame as unknown as Game);

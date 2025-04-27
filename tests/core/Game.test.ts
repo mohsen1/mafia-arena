@@ -36,7 +36,7 @@ const mockMafiaRole: IRole = {
 const createMockAgent = ( /* id: PlayerId */ ): IAgent => ({
     id: 'mock-agent-id', // Add default mock ID
     agentName: 'MockAgent', // Add default mock name
-    persona: 'A mock agent for testing.', // Add default mock persona
+    persona: { name: 'MockAgent', backstory: 'Testing agent', personalityTraits: ['mock'] },
     getAction: vi.fn().mockResolvedValue({ type: 'noAction' } as PlayerAction)
 });
 
@@ -284,8 +284,9 @@ describe('Game', () => {
              game.killPlayer(mafia2Id, 'killed'); // Kill one mafia
 
              // Manually set state for testing
-             game["#round"] = 2;
-             game["#currentState"] = { type: 'Day', runPhase: vi.fn(), transition: vi.fn() } as any;
+             // Bypass type check for test setup
+             (game as any)["#round"] = 2;
+             (game as any)["#currentState"] = { type: 'Day', runPhase: vi.fn(), transition: vi.fn() };
 
              // Generate state for remaining mafia member using actual ID
              const state = game.generateVisibleGameState(mafia1Id); 
@@ -758,8 +759,9 @@ describe('Game', () => {
             nightMafiaId2 = players.find(p => p.name === 'MafiaN2')!.id;
 
             // Simulate moving to Night Phase for memory recording etc.
-            nightTestGame["#round"] = 1;
-            nightTestGame["#currentState"] = new NightPhase(); // Use actual phase if needed
+            // Bypass type check for test setup
+            (nightTestGame as any)["#round"] = 1;
+            (nightTestGame as any)["#currentState"] = new NightPhase(); // Use actual phase if needed
         });
 
         const getNightAgentMock = (playerId: PlayerId) => {

@@ -321,6 +321,7 @@ describe('OpenAIAgent', () => {
         const memoryWithHistory: AgentMemory = {
             investigationResults: [],
             killHistory: [],
+            saveHistory: [],
             voteHistory: [
                 { round: 1, votes: new Map([[player1Id, player2Id]]) }
             ],
