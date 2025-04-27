@@ -8,6 +8,7 @@
     "prestart": "pnpm run build && pnpm run translate",
     "start": "PORT=3100 next start",
     "lint": "next lint",
+    "test": "vitest run",
     "translate": "tsx scripts/generate-translations.ts"
   },
   "dependencies": {
