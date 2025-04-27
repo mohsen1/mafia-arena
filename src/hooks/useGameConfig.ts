@@ -79,7 +79,12 @@ export interface PlayerInitializationData {
 }
 
 // Remove availableModels from arguments, we import them now
-export function useGameConfig(lang: Locale) {
+export function useGameConfig(
+    lang: Locale,
+    useSeparateMafiaConfig: boolean, // Flag to indicate separate config
+    mafiaProviderSelection?: string, // Optional Mafia provider
+    mafiaModelSelection?: string     // Optional Mafia model
+) {
     const { t } = useTranslation('translation');
     const router = useRouter();
 
@@ -361,6 +366,15 @@ export function useGameConfig(lang: Locale) {
             providerValue: agentProvider,
         };
 
+        // Create specific Mafia config if the flag is set and values are provided
+        const mafiaAgentConfig = useSeparateMafiaConfig && mafiaProviderSelection && mafiaModelSelection
+            ? {
+                // TODO: Improve agentType mapping
+                agentType: mafiaProviderSelection === 'groq' ? 'Groq' : 'OpenAI',
+                modelName: mafiaModelSelection,
+                providerValue: mafiaProviderSelection,
+            }
+            : agentConfig; // Otherwise, use the same config as town
 
         // Prepare the setup data for the server action
         const setupData: StartGameSetupData = {
@@ -372,7 +386,7 @@ export function useGameConfig(lang: Locale) {
             humanRolePreference: humanRoleSelection, // Pass the preferred role
             // Use the same config for both for now, differentiate later if needed
             townAgentConfig: agentConfig,
-            mafiaAgentConfig: agentConfig, // Use the same config for Mafia
+            mafiaAgentConfig: mafiaAgentConfig, // Use the potentially separate Mafia config
         };
 
         try {
@@ -409,6 +423,9 @@ export function useGameConfig(lang: Locale) {
         globalProviderSelection, // Added provider
         globalModelSelection,
         lang,
+        useSeparateMafiaConfig, // Include flag in dependencies
+        mafiaProviderSelection, // Include Mafia provider
+        mafiaModelSelection,    // Include Mafia model
         humanPlayerName,
         humanRoleSelection,
         t,
@@ -467,5 +484,6 @@ export function useGameConfig(lang: Locale) {
         updateHumanPlayerName,
         selectedGameThemeKey,
         setSelectedGameThemeKey,
+        setCharacterSlots, // Expose the setter
     };
 }

@@ -14,6 +14,7 @@ import {
 } from "@/lib/i18n/settings";
 import {
   AlertTriangle,
+  Bot,
   CheckCircle2,
   Languages,
   Loader2,
@@ -21,7 +22,7 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react";
-import { type FormEvent, useCallback, useMemo } from "react";
+import { type FormEvent, useCallback, useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import { ProviderModelSelector } from "./ProviderModelSelector"; // Import the new component
@@ -51,6 +52,11 @@ export interface StartGameFormProps {
 export default function StartGameForm({ lang }: StartGameFormProps) {
   // Use the hook to get the t function
   const { t } = useTranslation();
+  const [useSeparateAIModelForMafia, setUseSeparateAIModelForMafia] = useState(false);
+  
+  // Initialize Mafia provider state - will be synced later if needed
+  const [mafiaProviderSelection, setMafiaProviderSelection] = useState<string>("");
+  const [mafiaModelSelection, setMafiaModelSelection] = useState<string>("");
 
   const {
     characterSlots,
@@ -61,13 +67,17 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     configValidation,
     canAttemptStart,
     totalSlots,
-    globalModelSelection,
+    globalProviderSelection, // Get global provider from hook
+    globalModelSelection,    // Get global model from hook
     availableProviders,
+    availableModelsByProvider,
+    isAudioEnabled,
     addPlayerSlot,
     removePlayerSlot,
     updateSlotProviderAndModel,
     updateAllProvidersAndModels,
     updateSlotRole,
+    toggleAudioEnabled,
     handleGenerateAndStartGame,
     isLoadingNextTurn,
     isHumanJoining,
@@ -76,7 +86,24 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     updateHumanPlayerName,
     selectedGameThemeKey,   // Get selected theme
     setSelectedGameThemeKey, // Get theme setter
-  } = useGameConfig(lang);
+    setCharacterSlots,        // Get the setter from the hook
+  } = useGameConfig(
+    lang,
+    useSeparateAIModelForMafia, // Pass the flag
+    mafiaProviderSelection,     // Pass Mafia provider state
+    mafiaModelSelection         // Pass Mafia model state
+  );
+
+  // Effect to initialize and sync Mafia provider/model
+  useEffect(() => {
+    // Initialize Mafia state with global state when component mounts or global changes
+    // But only if the separate config isn't already active
+    if (!useSeparateAIModelForMafia && globalProviderSelection && globalModelSelection) {
+      setMafiaProviderSelection(globalProviderSelection);
+      setMafiaModelSelection(globalModelSelection);
+    }
+    // Only run when global selections change OR when the checkbox is toggled
+  }, [globalProviderSelection, globalModelSelection, useSeparateAIModelForMafia]);
 
   // New combined handler for the ProviderModelSelector
   const handleGlobalProviderModelChange = useCallback(
@@ -130,6 +157,10 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
 
         {/* Use the new ProviderModelSelector for global settings */}
         <div className="mb-6 max-w-lg mx-auto">
+          <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1">
+            <Bot size={16} className="me-1" />
+            {t("AI Engine", "AI Engine")}:
+          </Label>
           <ProviderModelSelector
             idPrefix="global"
             selectedModel={globalModelSelection}
@@ -138,8 +169,50 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           />
         </div>
 
+        {/* Checkbox to choose a different AI Engine for Mafia players */}
+        <div className="mb-2 max-w-lg mx-auto">
+          <Checkbox
+            id="mafia-engine-checkbox"
+            checked={useSeparateAIModelForMafia}
+            onCheckedChange={() => setUseSeparateAIModelForMafia(!useSeparateAIModelForMafia)}
+            disabled={isSubmitting}
+            aria-label={t("UseDifferentEngineForMafiaLabel", "Use a separate AI engine for Mafia players")}
+          />
+          <Label
+            htmlFor="mafia-engine-checkbox"
+            className="ms-2 inline text-sm font-medium text-muted-foreground whitespace-nowrap cursor-pointer"
+          >
+            {t("UseDifferentEngineForMafiaLabel", "Use a separate AI engine for Mafia players")}
+          </Label>
+        </div>
+
+        {useSeparateAIModelForMafia && (
+          <div className="mb-6 max-w-lg mx-auto">
+            <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1">
+              {t("MafiaEngineLabel", "Mafia AI Engine")}:
+            </Label>
+            <ProviderModelSelector
+              idPrefix="mafia"
+              selectedProviderValue={mafiaProviderSelection}
+              selectedModel={mafiaModelSelection}
+              onProviderModelChange={(provider, model) => {
+                setMafiaProviderSelection(provider);
+                setMafiaModelSelection(model);
+                setCharacterSlots(prevSlots =>
+                  prevSlots.map(slot =>
+                    slot.roleSelection === RoleName.Mafia && !slot.isHuman
+                      ? { ...slot, provider: provider, aiModel: model, isGenerated: false }
+                      : slot
+                  )
+                );
+              }}
+              disabled={isSubmitting}
+            />
+          </div>
+        )}
+
         {/* Language Selector - Use the new component */}
-        <div className="mb-6 flex flex-col items-start justify-center gap-1 max-w-lg mx-auto">
+        <div className="mt-4 mb-6 flex flex-col items-start justify-center gap-1 max-w-lg mx-auto">
           <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1">
             <Languages size={16} className="me-1" />
             {t("GameLanguageLabel", "Game Language")}:
