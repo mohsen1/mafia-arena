@@ -25,6 +25,14 @@ import { type FormEvent, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import { ProviderModelSelector } from "./ProviderModelSelector"; // Import the new component
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const availableRolesForSelection: RoleName[] = [
   RoleName.Villager,
@@ -118,44 +126,6 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
         <h2 className="text-2xl font-bold mb-6 text-foreground text-center">
           {t("ConfigureNewGameTitle", "Configure New Game")}
         </h2>
-
-        {/* Player Count Adjustment - Use Formatter */}
-        <div className="mb-4 flex items-center justify-center gap-4">
-          <Label className="text-sm font-medium text-muted-foreground">
-            {t("PlayersLabel", "Players")}:
-          </Label>
-          {/* Format the totalSlots number */}
-          <span className="text-lg font-semibold text-foreground w-10 text-center">
-            {numberFormatter.format(totalSlots)}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={addPlayerSlot}
-            disabled={isLoading}
-            aria-label={t("AddPlayerSlotLabel", "Add player slot")}
-          >
-            <UserPlus className="h-4 w-4 mr-1" />
-            <span>{t("AddPlayerButtonLabel", "Add")}</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() =>
-              totalSlots > 0 &&
-              removePlayerSlot(
-                characterSlots[characterSlots.length - 1].clientId
-              )
-            }
-            disabled={isLoading || totalSlots <= 5}
-            aria-label={t("RemovePlayerSlotLabel", "Remove last player slot")}
-          >
-            <Trash2 className="h-4 w-4 mr-1 text-red-500" />
-            <span className="text-red-500">
-              {t("RemovePlayerButtonLabel", "Remove")}
-            </span>
-          </Button>
-        </div>
 
         {/* Use the new ProviderModelSelector for global settings */}
         <div className="mb-6 max-w-lg mx-auto">
@@ -264,23 +234,118 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
             </p>
           )}
 
+          {/* Player Count Adjustment - Use Formatter */}
+          <div className="mb-4 flex items-center justify-center gap-4">
+            <Label className="text-sm font-medium text-muted-foreground">
+              {t("PlayersLabel", "Players")}:
+            </Label>
+            {/* Format the totalSlots number */}
+            <span className="text-lg font-semibold text-foreground w-10 text-center">
+              {numberFormatter.format(totalSlots)}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={addPlayerSlot}
+              disabled={isLoading}
+              aria-label={t("AddPlayerSlotLabel", "Add player slot")}
+            >
+              <UserPlus className="h-4 w-4 mr-1" />
+              <span>{t("AddPlayerButtonLabel", "Add")}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() =>
+                totalSlots > 0 &&
+                removePlayerSlot(
+                  characterSlots[characterSlots.length - 1].clientId
+                )
+              }
+              disabled={isLoading || totalSlots <= 5}
+              aria-label={t("RemovePlayerSlotLabel", "Remove last player slot")}
+            >
+              <Trash2 className="h-4 w-4 mr-1 text-red-500" />
+              <span className="text-red-500">
+                {t("RemovePlayerButtonLabel", "Remove")}
+              </span>
+            </Button>
+          </div>
+
+          {/* Status/Error Message Area */}
+          <div className="h-10 text-center flex items-center justify-center px-2 mt-4 mb-2 text-sm">
+            {errorMsg ? (
+              <p className="text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-4 w-4" /> {t(errorMsg, errorMsg)}
+              </p>
+            ) : isSubmitting ? (
+              <p className="text-primary flex items-center gap-1">
+                <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                {t(infoMsg || "ProcessingLabel", infoMsg || "Processing...")}
+              </p>
+            ) : configValidation.isValid ? (
+              <p className="text-success flex items-center gap-1">
+                <CheckCircle2 className="h-4 w-4" />{" "}
+                {`${t(
+                  "ConfigLooksGood_Prefix",
+                  "Configuration looks good"
+                )} ${t(
+                  "ConfigLooksGood_Suffix",
+                  "(Ready to Generate & Start)"
+                )}`}
+              </p>
+            ) : initialSlotsSet ? (
+              <p className="text-warning flex items-center gap-1">
+                <AlertTriangle className="h-4 w-4" />{" "}
+                {t(
+                  configValidation.message || "ConfigInvalid",
+                  configValidation.message || ""
+                )}
+              </p>
+            ) : (
+              <p className="text-muted-foreground italic">
+                {t(
+                  "InitialConfigPrompt",
+                  "Configure player slots, roles, providers, and models."
+                )}
+              </p>
+            )}
+          </div>
+
           {initialSlotsSet && characterSlots.length > 0 && (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pe-2">
-              {characterSlots.map((slot, index) => (
-                <CharacterSlotItem
-                  key={slot.clientId}
-                  slot={slot}
-                  index={index}
-                  isHuman={slot.isHuman ?? false}
-                  availableRoles={availableRolesForSelection}
-                  isSubmitting={isLoading}
-                  canRemove={characterSlots.length > 5}
-                  onUpdateRole={updateSlotRole}
-                  onUpdateProviderAndModel={updateSlotProviderAndModel}
-                  onRemove={removePlayerSlot}
-                />
-              ))}
-            </ul>
+            <Table className="pe-2">
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead className="w-[150px]">
+                    {t("TableHeader_Character", "Character")}
+                  </TableHead>
+                  <TableHead>{t("TableHeader_Role", "Role")}</TableHead>
+                  <TableHead>
+                    {t("TableHeader_Provider", "AI Provider")}
+                  </TableHead>
+                  <TableHead>{t("TableHeader_Model", "AI Model")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("TableHeader_Actions", "Actions")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {characterSlots.map((slot, index) => (
+                  <CharacterSlotItem
+                    key={slot.clientId}
+                    slot={slot}
+                    index={index}
+                    isHuman={slot.isHuman ?? false}
+                    availableRoles={availableRolesForSelection}
+                    isSubmitting={isLoading}
+                    canRemove={characterSlots.length > 5}
+                    onUpdateRole={updateSlotRole}
+                    onUpdateProviderAndModel={updateSlotProviderAndModel}
+                    onRemove={removePlayerSlot}
+                  />
+                ))}
+              </TableBody>
+            </Table>
           )}
           {initialSlotsSet && characterSlots.length === 0 && (
             <p className="text-center text-sm text-muted-foreground italic py-4">
@@ -292,43 +357,6 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           )}
         </div>
       )}
-
-      {/* Status/Error Message Area */}
-      <div className="h-10 text-center flex items-center justify-center px-2 mt-4 mb-2 text-sm">
-        {errorMsg ? (
-          <p className="text-destructive flex items-center gap-1">
-            <AlertTriangle className="h-4 w-4" /> {t(errorMsg, errorMsg)}
-          </p>
-        ) : isSubmitting ? (
-          <p className="text-primary flex items-center gap-1">
-            <Loader2 className="h-4 w-4 animate-spin" />{" "}
-            {t(infoMsg || "ProcessingLabel", infoMsg || "Processing...")}
-          </p>
-        ) : configValidation.isValid ? (
-          <p className="text-success flex items-center gap-1">
-            <CheckCircle2 className="h-4 w-4" />{" "}
-            {`${t("ConfigLooksGood_Prefix", "Configuration looks good")} ${t(
-              "ConfigLooksGood_Suffix",
-              "(Ready to Generate & Start)"
-            )}`}
-          </p>
-        ) : initialSlotsSet ? (
-          <p className="text-warning flex items-center gap-1">
-            <AlertTriangle className="h-4 w-4" />{" "}
-            {t(
-              configValidation.message || "ConfigInvalid",
-              configValidation.message || ""
-            )}
-          </p>
-        ) : (
-          <p className="text-muted-foreground italic">
-            {t(
-              "InitialConfigPrompt",
-              "Configure player slots, roles, providers, and models."
-            )}
-          </p>
-        )}
-      </div>
     </form>
   );
 }
