@@ -319,12 +319,20 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
                   <TableHead className="w-[150px]">
                     {t("TableHeader_Character", "Character")}
                   </TableHead>
-                  <TableHead>{t("TableHeader_Role", "Role")}</TableHead>
-                  <TableHead>
+                  {/* Hide Role header on mobile */}
+                  <TableHead className="hidden md:table-cell">
+                    {t("TableHeader_Role", "Role")}
+                  </TableHead>
+                  {/* Hide AI Provider header on mobile */}
+                  <TableHead className="hidden md:table-cell">
                     {t("TableHeader_Provider", "AI Provider")}
                   </TableHead>
-                  <TableHead>{t("TableHeader_Model", "AI Model")}</TableHead>
-                  <TableHead className="text-right">
+                  {/* Hide AI Model header on mobile */}
+                  <TableHead className="hidden md:table-cell">
+                    {t("TableHeader_Model", "AI Model")}
+                  </TableHead>
+                  {/* Hide Actions header on mobile */}
+                  <TableHead className="text-right hidden md:table-cell">
                     {t("TableHeader_Actions", "Actions")}
                   </TableHead>
                 </TableRow>
