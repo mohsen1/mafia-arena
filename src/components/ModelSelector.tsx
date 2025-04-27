@@ -7,15 +7,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ModelDefinition } from "@/lib/models";
 
 // Define Dictionary type locally or import if shared
 type Dictionary = {
   [key: string]: string | Dictionary;
 };
 
+
 interface ModelSelectorProps {
   id?: string;
-  models: string[];
+  models: ModelDefinition[]; // Updated to accept ModelDefinition objects
   selectedModel: string;
   onModelChange: (newModel: string) => void;
   placeholder?: string;
@@ -47,12 +49,13 @@ export default function ModelSelector({
       <SelectContent>
         {models.length === 0 ? (
           <SelectItem value="loading" disabled>
-            Loading...
+            {/* TODO: Use translation key */} Loading models...
           </SelectItem>
         ) : (
-          models.map((modelId) => (
-            <SelectItem key={modelId} value={modelId}>
-              {modelId}
+          // Map over ModelDefinition objects
+          models.map((model) => (
+            <SelectItem key={model.value} value={model.value}>
+              {model.title} {/* Display model title */}
             </SelectItem>
           ))
         )}

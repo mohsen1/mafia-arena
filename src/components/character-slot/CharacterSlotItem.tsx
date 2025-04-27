@@ -7,31 +7,38 @@ import { useTranslation } from 'react-i18next'; // Import hook
 import { cn } from "@/lib/utils";
 import { CharacterSlotHeader } from './CharacterSlotHeader';
 import { CharacterSlotSelectors } from './CharacterSlotSelectors';
+// Import provider/model types (assuming they are exported from hook or defined globally)
+import type { ProviderDefinition, ModelDefinition } from "@/hooks/useGameConfig";
 
 interface CharacterSlotItemProps {
   slot: ConfigCharacterSlot;
   isHuman: boolean;
   index: number;
-  availableModels: string[];
+  availableProviders: ProviderDefinition[]; // New: List of providers
+  availableModelsByProvider: Record<string, ModelDefinition[]>; // New: Models map
   availableRoles: RoleName[];
   isSubmitting: boolean;
   canRemove: boolean;
   onUpdateRole: (clientId: string, newRole: RoleName) => void;
-  onUpdateModel: (clientId: string, newModel: string) => void;
+  // New: Handler for provider and model updates
+  onUpdateProviderAndModel: (clientId: string, provider: string, newModel: string) => void;
   onRemove: (clientId: string) => void;
+  // Removed: availableModels, onUpdateModel
 }
 
 export function CharacterSlotItem({
   slot,
   isHuman,
   index,
-  availableModels,
+  availableProviders, // New prop
+  availableModelsByProvider, // New prop
   availableRoles,
   isSubmitting,
   canRemove,
   onUpdateRole,
-  onUpdateModel,
+  onUpdateProviderAndModel, // New prop
   onRemove,
+  // Removed props are not destructured
 }: CharacterSlotItemProps) {
   const { t } = useTranslation();
 
@@ -57,12 +64,14 @@ export function CharacterSlotItem({
       <CharacterSlotSelectors
         slot={slot}
         isHuman={isHuman}
-        availableModels={availableModels}
+        availableProviders={availableProviders} // Pass down
+        availableModelsByProvider={availableModelsByProvider} // Pass down
         availableRoles={availableRoles}
         isSubmitting={isSubmitting}
         onUpdateRole={onUpdateRole}
-        onUpdateModel={onUpdateModel}
+        onUpdateProviderAndModel={onUpdateProviderAndModel} // Pass down new handler
         t={t}
+        // Removed: availableModels, onUpdateModel
       />
     </li>
   );

@@ -8,22 +8,33 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useGameConfig } from "@/hooks/useGameConfig";
 
-import { type LanguageCode, mapLanguageCodeToLongCode } from "@/lib/i18n/settings";
+import {
+  type LanguageCode,
+  mapLanguageCodeToLongCode,
+} from "@/lib/i18n/settings";
 import { RoleName } from "@/lib/engine/interfaces/IRole";
 import {
   AlertTriangle,
   Bot,
   CheckCircle2,
+  CloudCog,
+  Languages,
   Loader2,
   Settings2,
   Trash2,
   UserPlus,
 } from "lucide-react";
 import { type FormEvent, useCallback, useMemo } from "react";
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import ModelSelector from "./ModelSelector";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const availableRolesForSelection: RoleName[] = [
   RoleName.Villager,
@@ -38,10 +49,7 @@ export interface StartGameFormProps {
 }
 
 // Update component signature
-export default function StartGameForm({
-  lang,
-}: StartGameFormProps) {
-
+export default function StartGameForm({ lang }: StartGameFormProps) {
   // Use the hook to get the t function
   const { t } = useTranslation();
 
@@ -54,11 +62,14 @@ export default function StartGameForm({
     configValidation,
     canAttemptStart,
     totalSlots,
+    globalProviderSelection,
     globalModelSelection,
+    availableProviders,
+    availableModelsByProvider,
     addPlayerSlot,
     removePlayerSlot,
-    updateSlotModel,
-    updateAllModels,
+    updateSlotProviderAndModel,
+    updateAllProvidersAndModels,
     updateSlotRole,
     handleGenerateAndStartGame,
     isLoadingNextTurn,
@@ -66,7 +77,39 @@ export default function StartGameForm({
     humanPlayerName,
     toggleHumanJoining,
     updateHumanPlayerName,
-  } = useGameConfig(availableModels, lang);
+  } = useGameConfig(lang);
+
+  // Get the models available for the currently selected global provider
+  const currentGlobalModels = useMemo(() => {
+    return availableModelsByProvider[globalProviderSelection] ?? [];
+  }, [availableModelsByProvider, globalProviderSelection]);
+
+  // Handler for changing the global provider
+  const handleGlobalProviderChange = useCallback(
+    (newProviderValue: string) => {
+      const modelsForNewProvider =
+        availableModelsByProvider[newProviderValue] ?? [];
+      // Find a default model (e.g., the first one) for the new provider
+      const defaultModel =
+        modelsForNewProvider.find((m) =>
+          m.title.toLowerCase().includes("default")
+        )?.value ??
+        modelsForNewProvider[0]?.value ??
+        ""; // Fallback if no models
+      // Update both provider and model globally
+      updateAllProvidersAndModels(newProviderValue, defaultModel);
+    },
+    [availableModelsByProvider, updateAllProvidersAndModels]
+  );
+
+  // Handler for changing the global model
+  const handleGlobalModelChange = useCallback(
+    (newModelValue: string) => {
+      // Update model, keeping the current provider
+      updateAllProvidersAndModels(globalProviderSelection, newModelValue);
+    },
+    [globalProviderSelection, updateAllProvidersAndModels]
+  );
 
   // Use lang prop for numberFormatter
   const numberFormatter = useMemo(() => {
@@ -84,12 +127,10 @@ export default function StartGameForm({
       event.preventDefault();
       handleGenerateAndStartGame();
     },
-    [handleGenerateAndStartGame],
+    [handleGenerateAndStartGame]
   );
 
-  console.log(
-    `[StartGameForm] Language from useGameConfig: ${lang}`,
-  ); // Log language from hook
+  console.log(`[StartGameForm] Language from useGameConfig: ${lang}`); // Log language from hook
 
   // Combine submission state
   const isLoading = isSubmitting || isLoadingNextTurn;
@@ -98,7 +139,7 @@ export default function StartGameForm({
   if (errorMsg) {
     return (
       <div className="text-red-500 p-4">
-          {t("ErrorPrefix", "Error")}: {t(errorMsg, errorMsg)}
+        {t("ErrorPrefix", "Error")}: {t(errorMsg, errorMsg)}
       </div>
     );
   }
@@ -136,7 +177,7 @@ export default function StartGameForm({
             onClick={() =>
               totalSlots > 0 &&
               removePlayerSlot(
-                characterSlots[characterSlots.length - 1].clientId,
+                characterSlots[characterSlots.length - 1].clientId
               )
             }
             disabled={isLoading || totalSlots <= 5}
@@ -149,31 +190,67 @@ export default function StartGameForm({
           </Button>
         </div>
 
-        {/* Global Model Selector */}
-        <div className="mb-6 flex flex-col items-start justify-start gap-2 max-w-96 mx-auto">
-          <Label
-            htmlFor="global-model"
-            className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
-          >
-            <Bot size={16} />
-            {t("GlobalAIModelLabel", "Global AI Model")}:
-          </Label>
-          <ModelSelector
-            id="global-model"
-            models={availableModels}
-            selectedModel={globalModelSelection}
-            onModelChange={updateAllModels}
-            placeholder={t(
-              "SelectGlobalModelPlaceholder",
-              "Select global model",
-            )}
-            disabled={isSubmitting}
-          />
+        {/* Global Provider & Model Selectors Wrapper */}
+        <div className="mb-6 flex flex-col items-start justify-center gap-2 max-w-lg mx-auto">
+          {/* Provider Selector */}
+          <div className="flex flex-col items-start justify-start gap-1 w-full">
+            <Label
+              htmlFor="global-provider"
+              className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
+            >
+              <CloudCog size={16} />
+              {t("GlobalAIProviderLabel", "Global AI Provider")}:
+            </Label>
+            <Select
+              value={globalProviderSelection}
+              onValueChange={handleGlobalProviderChange}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger id="global-provider" className="w-full">
+                <SelectValue
+                  placeholder={t("SelectProviderPlaceholder", "Select provider")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {availableProviders.map((provider) => (
+                  <SelectItem key={provider.value} value={provider.value}>
+                    {provider.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Model Selector */}
+          <div className="flex flex-col items-start justify-start gap-1 w-full">
+            <Label
+              htmlFor="global-model"
+              className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
+            >
+              <Bot size={16} />
+              {t("GlobalAIModelLabel", "Global AI Model")}:
+            </Label>
+            <ModelSelector
+              id="global-model"
+              models={currentGlobalModels}
+              selectedModel={globalModelSelection}
+              onModelChange={handleGlobalModelChange}
+              placeholder={t("SelectGlobalModelPlaceholder", "Select model")}
+              disabled={isSubmitting || currentGlobalModels.length === 0}
+            />
+          </div>
         </div>
 
         {/* Language Selector - Use the new component */}
-        <LanguageSelector currentLang={lang} />
-
+        <div className="mb-6 flex flex-col items-start justify-center gap-1 max-w-lg mx-auto">
+          <Label
+            className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
+          >
+            <Languages size={16} className="me-1" />
+            {t("GameLanguageLabel", "Game Language")}:
+          </Label>
+          <LanguageSelector currentLang={lang} />
+        </div>
 
         {/* Human Player Join Option */}
         <div className="mb-6 flex items-center justify-center gap-3">
@@ -182,7 +259,10 @@ export default function StartGameForm({
             checked={isHumanJoining}
             onCheckedChange={toggleHumanJoining}
             disabled={isLoading}
-            aria-label={t("ToggleHumanPlayerJoinLabel", "Toggle joining as a human player")}
+            aria-label={t(
+              "ToggleHumanPlayerJoinLabel",
+              "Toggle joining as a human player"
+            )}
           />
           <Label
             htmlFor="human-join"
@@ -195,7 +275,10 @@ export default function StartGameForm({
         {/* Human Player Name Input (Conditional) */}
         {isHumanJoining && (
           <div className="mb-6 flex flex-col items-center justify-center gap-2 max-w-xs mx-auto">
-            <Label htmlFor="human-name" className="text-sm font-medium text-muted-foreground">
+            <Label
+              htmlFor="human-name"
+              className="text-sm font-medium text-muted-foreground"
+            >
               {t("YourPlayerNameLabel", "Your Player Name")}:
             </Label>
             <Input
@@ -220,7 +303,7 @@ export default function StartGameForm({
             disabled={!canAttemptStart || isSubmitting || isLoading}
             aria-label={t(
               "GenerateAndStartGameButton",
-              "Generate characters and start new game",
+              "Generate characters and start new game"
             )}
           >
             {isSubmitting ? (
@@ -242,32 +325,36 @@ export default function StartGameForm({
             <Settings2 className="h-5 w-5" />{" "}
             {t("CharacterSetupLabel", "Character Setup")}
           </h3>
-          {!initialSlotsSet && availableModels.length > 0 && (
+          {!initialSlotsSet && availableProviders.length > 0 && (
             <div className="flex justify-center items-center h-20 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />{" "}
               {t("LoadingSetupLabel", "Loading setup...")}
             </div>
           )}
-          {availableModels.length === 0 && !initialSlotsSet && (
+          {!initialSlotsSet && availableProviders.length === 0 && (
             <p className="text-center text-sm text-warning">
-              {t("WaitingForModelsLabel", "Waiting for available AI models...")}
+              {t(
+                "WaitingForProvidersLabel",
+                "Waiting for available AI providers..."
+              )}
             </p>
           )}
 
           {initialSlotsSet && characterSlots.length > 0 && (
-            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pr-2">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-muted pe-2">
               {characterSlots.map((slot, index) => (
                 <CharacterSlotItem
-                  isHuman={slot.isHuman ?? false}
                   key={slot.clientId}
                   slot={slot}
                   index={index}
-                  availableModels={availableModels}
+                  isHuman={slot.isHuman ?? false}
+                  availableProviders={availableProviders}
+                  availableModelsByProvider={availableModelsByProvider}
                   availableRoles={availableRolesForSelection}
                   isSubmitting={isLoading}
                   canRemove={characterSlots.length > 5}
                   onUpdateRole={updateSlotRole}
-                  onUpdateModel={updateSlotModel}
+                  onUpdateProviderAndModel={updateSlotProviderAndModel}
                   onRemove={removePlayerSlot}
                 />
               ))}
@@ -277,7 +364,7 @@ export default function StartGameForm({
             <p className="text-center text-sm text-muted-foreground italic py-4">
               {t(
                 "AddPlayerSlotsPrompt",
-                "Use the '+' button to add player slots (minimum 5).",
+                "Use the '+' button to add player slots (minimum 5)."
               )}
             </p>
           )}
@@ -293,26 +380,29 @@ export default function StartGameForm({
         ) : isSubmitting ? (
           <p className="text-primary flex items-center gap-1">
             <Loader2 className="h-4 w-4 animate-spin" />{" "}
-            {t(infoMsg || 'ProcessingLabel', infoMsg || 'Processing...')}
+            {t(infoMsg || "ProcessingLabel", infoMsg || "Processing...")}
           </p>
         ) : configValidation.isValid ? (
           <p className="text-success flex items-center gap-1">
             <CheckCircle2 className="h-4 w-4" />{" "}
             {`${t("ConfigLooksGood_Prefix", "Configuration looks good")} ${t(
               "ConfigLooksGood_Suffix",
-              "(Ready to Generate & Start)",
+              "(Ready to Generate & Start)"
             )}`}
           </p>
         ) : initialSlotsSet ? (
           <p className="text-warning flex items-center gap-1">
             <AlertTriangle className="h-4 w-4" />{" "}
-            {t(configValidation.message || 'ConfigInvalid', configValidation.message || "")}
+            {t(
+              configValidation.message || "ConfigInvalid",
+              configValidation.message || ""
+            )}
           </p>
         ) : (
           <p className="text-muted-foreground italic">
             {t(
               "InitialConfigPrompt",
-              "Configure player slots, roles, and models.",
+              "Configure player slots, roles, providers, and models."
             )}
           </p>
         )}

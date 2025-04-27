@@ -1,3 +1,15 @@
+export interface ModelDefinition {
+  title: string;
+  value: string;
+}
+
+export interface ProviderDefinition {
+  title: string;
+  value: string;
+  endpoint: string;
+  apiKeyEnvVar: string;
+}
+
 // Example Models (User-friendly names)
 export const openAIModels = [
   { title: "GPT-4.1 Mini (Default, Fast)", value: "gpt-4.1-mini" },
@@ -59,19 +71,19 @@ export const openAIProviders = [
     apiKeyEnvVar: "OPENAI_API_KEY", // Expected env var
   },
   {
-    title: "Local Ollama (http://localhost:11434)",
+    title: "Local Ollama",
     value: "ollama_local",
     endpoint: "http://localhost:11434/v1", // Common Ollama endpoint
     apiKeyEnvVar: "OLLAMA_API_KEY", // Ollama might need 'ollama' or can be optional
   },
   {
-    title: "Fireworks AI (Requires FIREWORKS_API_KEY)",
+    title: "Fireworks AI",
     value: "fireworks",
     endpoint: "https://api.fireworks.ai/inference/v1",
     apiKeyEnvVar: "FIREWORKS_API_KEY",
   },
   {
-    title: "Groq API (Requires GROQ_API_KEY)",
+    title: "Groq",
     value: "groq",
     endpoint: "https://api.groq.com/openai/v1", // Groq uses OpenAI-compatible endpoint
     apiKeyEnvVar: "GROQ_API_KEY",

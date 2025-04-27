@@ -10,14 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Languages } from "lucide-react";
 
 interface LanguageSelectorProps {
   currentLang: Locale;
+  id?: string;
 }
 
-export default function LanguageSelector({ currentLang }: LanguageSelectorProps) {
+export default function LanguageSelector({ currentLang, id }: LanguageSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -44,28 +43,17 @@ export default function LanguageSelector({ currentLang }: LanguageSelectorProps)
   };
 
   return (
-    <div className="mb-6 flex flex-col items-start justify-start gap-2 max-w-96 mx-auto">
-      <Label
-        htmlFor="language-select"
-        className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
-      >
-        <Languages size={16} />
-        {/* TODO: Translate this label if needed */}
-        Game Language:
-      </Label>
-      <Select value={currentLang} onValueChange={handleLanguageChange}>
-        <SelectTrigger id="language-select" className="w-full">
-          <SelectValue placeholder="Select language" />
-        </SelectTrigger>
-        <SelectContent>
-          {/* Map over all supported languages */}
-          {Object.entries(supportedLanguagesInfo).map(([code, { label }]) => (
-            <SelectItem key={code} value={code}>
-              {label} {/* Display native language label */}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={currentLang} onValueChange={handleLanguageChange}>
+      <SelectTrigger id={id} className="w-full">
+        <SelectValue placeholder="Select language" />
+      </SelectTrigger>
+      <SelectContent>
+        {Object.entries(supportedLanguagesInfo).map(([code, { label }]) => (
+          <SelectItem key={code} value={code}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 } 
