@@ -1,26 +1,22 @@
-import { Game } from './core/Game';
-import { MafiaRole } from './roles/MafiaRole';
-import { VillagerRole } from './roles/VillagerRole';
+import * as dotenv from 'dotenv';
+import process from 'process'; // Import process for argv
+import prompts from 'prompts'; // Import prompts
+import { ClaudeAgent } from './agents/ClaudeAgent'; // Import ClaudeAgent
 import { DummyAIAgent } from './agents/DummyAIAgent'; // Import Dummy AI
+import { GeminiAgent } from './agents/GeminiAgent'; // Import GeminiAgent
 import { HumanAgent } from './agents/HumanAgent';
+import { OpenAIAgent } from './agents/OpenAIAgent'; // Import OpenAI Agent
+import { Game } from './core/Game';
+import type { IAgent } from './interfaces/IAgent'; // Ensure IAgent is imported
+import type { PlayerId } from './interfaces/IPlayer'; // Import PlayerId
+import type { IRole } from './interfaces/IRole';
+import { Themes } from './interfaces/Theme'; // Import Themes from Theme.ts
 import { ConsoleRenderer } from './rendering/ConsoleRenderer';
 import { MarkdownRenderer } from './rendering/MarkdownRenderer';
-import { SeerRole } from './roles/SeerRole';
 import { DoctorRole } from './roles/DoctorRole';
-import type { IRole } from './interfaces/IRole';
-import { OpenAIAgent } from './agents/OpenAIAgent'; // Import OpenAI Agent
-import { ClaudeAgent } from './agents/ClaudeAgent'; // Import ClaudeAgent
-import { GeminiAgent } from './agents/GeminiAgent'; // Import GeminiAgent
-import * as dotenv from 'dotenv';
-import prompts from 'prompts'; // Import prompts
-import { Themes } from './interfaces/Theme'; // Import Themes from Theme.ts
-import { Persona } from './interfaces/Persona'; // Import Persona from Persona.ts
-import { RoleName } from './interfaces/IRole'; // Import RoleName from IRole.ts
-import type { PlayerId } from './interfaces/IPlayer'; // Import PlayerId
-import { Player } from './core/Player';
-import type { IAgent } from './interfaces/IAgent'; // Ensure IAgent is imported
-import type { Allegiance } from './interfaces/IRole'; // Import Allegiance
-import process from 'process'; // Import process for argv
+import { MafiaRole } from './roles/MafiaRole';
+import { SeerRole } from './roles/SeerRole';
+import { VillagerRole } from './roles/VillagerRole';
 
 // Load environment variables from .env file
 dotenv.config();

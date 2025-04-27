@@ -3,11 +3,6 @@ import type { StartGameSetupData } from "@/lib/interfaces/actions.types";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
 import { RoleName } from "@/lib/engine/interfaces/IRole";
 import type { Persona } from "@/lib/engine/interfaces/Persona";
-import type { ValidationResult } from "@/lib/validators/gameConfigValidator";
-import {
-  validateGameConfiguration,
-  validateGeneratedGameSetup,
-} from "@/lib/validators/gameConfigValidator";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LanguageCode as Locale } from "@/lib/i18n/settings";
 import { useTranslation } from "react-i18next";
@@ -203,6 +198,7 @@ export function useGameConfig(
         return updatedSlots;
       });
     },
+    []
   );
 
   const updateSlotModel = useCallback(
@@ -215,6 +211,7 @@ export function useGameConfig(
         ),
       );
     },
+    []
   );
 
   const updateAllModels = useCallback(
@@ -224,6 +221,7 @@ export function useGameConfig(
         prev.map((slot) => slot.isHuman ? slot : { ...slot, aiModel: newModel, isGenerated: false }),
       );
     },
+    [setGlobalModelSelection]
   );
 
   const updateSlotRole = useCallback(
@@ -236,6 +234,7 @@ export function useGameConfig(
         ),
       );
     },
+    []
   );
 
   const toggleAudioEnabled = useCallback(() => {

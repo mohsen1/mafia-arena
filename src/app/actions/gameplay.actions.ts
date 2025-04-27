@@ -1,6 +1,11 @@
 "use server";
 
-import type { FilteredGameState } from "@/lib/interfaces/gameState.types"; // Assuming type location
+import type { FilteredGameState } from "@/lib/interfaces/client.types";
+
+
+
+
+
 // TODO: Import necessary functions and classes:
 // import { Game } from "@/lib/game/Game";
 // import { loadGameData, saveGameData } from "@/lib/db/gameData";

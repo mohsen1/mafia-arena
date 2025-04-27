@@ -31,7 +31,7 @@ vi.mock('openai', async (importActual) => {
 
 // --- Mock Prompts ---
 // Keep this mock here as it doesn't depend on the OpenAI mock timing
-vi.mock('../../src/prompts', () => ({
+vi.mock('@/lib/engine/prompts', () => ({
     getSystemPrompt: vi.fn(() => 'Mock System Prompt'),
     getUserPrompt: vi.fn(() => 'Mock User Prompt'),
     getPersonaGenerationPrompt: vi.fn(() => 'Mock Persona Gen Prompt'),
@@ -61,7 +61,7 @@ describe('OpenAIAgent', () => {
         mockCreate = (mockedOpenAI as any).__mockCreate; // Get the exported mock function
         MockOpenAIConstructor = (mockedOpenAI as any).__MockOpenAIConstructor; // Get constructor mock
 
-        const mockedPrompts = await import('../../src/prompts');
+        const mockedPrompts = await import('@/lib/engine/prompts');
         getSystemPrompt = mockedPrompts.getSystemPrompt as Mock;
         getUserPrompt = mockedPrompts.getUserPrompt as Mock;
         getPersonaGenerationPrompt = mockedPrompts.getPersonaGenerationPrompt as Mock; // Get the mock

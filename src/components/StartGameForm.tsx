@@ -53,8 +53,6 @@ export default function StartGameForm({
     errorMsg,
     infoMsg,
     initialSlotsSet,
-    postGenValidationMsg,
-    isPostGenValid,
     configValidation,
     canAttemptStart,
     totalSlots,
@@ -298,23 +296,6 @@ export default function StartGameForm({
           <p className="text-primary flex items-center gap-1">
             <Loader2 className="h-4 w-4 animate-spin" />{" "}
             {t(infoMsg || 'ProcessingLabel', infoMsg || 'Processing...')}
-          </p>
-        ) : postGenValidationMsg ? (
-          <p
-            className={`flex items-center gap-1 ${
-              isPostGenValid === true
-                ? "text-success"
-                : isPostGenValid === false
-                  ? "text-warning"
-                  : "text-muted-foreground"
-            }`}
-          >
-            {isPostGenValid === true ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : isPostGenValid === false ? (
-              <AlertTriangle className="h-4 w-4" />
-            ) : null}
-            {t(postGenValidationMsg, postGenValidationMsg)}{" "}
           </p>
         ) : configValidation.isValid ? (
           <p className="text-success flex items-center gap-1">

@@ -150,6 +150,9 @@ importers:
       '@types/prompt':
         specifier: ^1.1.9
         version: 1.1.9
+      '@types/prompts':
+        specifier: ^2.4.9
+        version: 2.4.9
       '@types/react':
         specifier: ^19.1.0
         version: 19.1.0
@@ -1174,6 +1177,9 @@ packages:
 
   '@types/prompt@1.1.9':
     resolution: {integrity: sha512-Yl0hzOWGDNCo2JHA8s7g7e9higzonlP/MssTMAIAwYmA7GugrB5WZ1DmrfrpJyJY8Y5UHFr8uaXDlxiyHt2jbg==}
+
+  '@types/prompts@2.4.9':
+    resolution: {integrity: sha512-qTxFi6Buiu8+50/+3DGIWLHM6QuWsEKugJnnP6iv2Mc4ncxE4A/OJkjuVOA+5X0X1S/nq5VJRa8Lu+nwcvbrKA==}
 
   '@types/react-dom@19.1.2':
     resolution: {integrity: sha512-XGJkWF41Qq305SKWEILa1O8vzhb3aOo3ogBlSmiqNko/WmRb6QIaweuZCXjKygVDXpzXb5wyxKTSOsmkuqj+Qw==}
@@ -4435,6 +4441,11 @@ snapshots:
     dependencies:
       '@types/node': 20.17.30
       '@types/revalidator': 0.3.12
+
+  '@types/prompts@2.4.9':
+    dependencies:
+      '@types/node': 20.17.30
+      kleur: 3.0.3
 
   '@types/react-dom@19.1.2(@types/react@19.1.0)':
     dependencies:

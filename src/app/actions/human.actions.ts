@@ -1,8 +1,8 @@
 "use server";
 
 import type { HumanActionPayload } from "@/lib/interfaces/actions.types"; // Assuming type location
-import type { FilteredGameState } from "@/lib/interfaces/gameState.types"; // Assuming type location
-import { advanceGameStateAction } from "./gameplay.actions.ts";
+import type { FilteredGameState } from "@/lib/interfaces/client.types"; // Assuming type location
+import { advanceGameStateAction } from "./gameplay.actions";
 // TODO: Import necessary functions and classes:
 // import { Game } from "@/lib/game/Game";
 // import { loadGameData, saveGameData } from "@/lib/db/gameData";

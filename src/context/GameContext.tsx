@@ -22,16 +22,18 @@ import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
 // Import GameState, ChatMessage, Player
 // import { GameState, ChatMessage, Player } from "@/lib/types/game";
 // Import GameState
-import type { FilteredGameState, ClientMessage } from "@/lib/interfaces/client.types";
+import type { FilteredGameState, ClientMessage } from "@/lib/interfaces/gameState.types";
+// Import HumanActionPayload
+import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
 
-// Define the payload type based on the server action
+// Define the payload type based on the server action - REMOVED Local Definition
 // This should match the definition in GameClient.tsx and the expected server action input
-type HumanActionPayload =
-  | { type: "message"; content: string } // Renamed from 'chat' to align with PlayerAction
-  | { type: "vote"; targetPlayerId: string | null } // Allow null for abstain
-  | { type: "mafiaKill"; targetPlayerId: string } // Specific night actions
-  | { type: "doctorSave"; targetPlayerId: string | null }
-  | { type: "seerInvestigate"; targetPlayerId: string | null };
+// type HumanActionPayload =
+//   | { type: "message"; content: string } // Renamed from 'chat' to align with PlayerAction
+//   | { type: "vote"; targetPlayerId: string | null } // Allow null for abstain
+//   | { type: "mafiaKill"; targetPlayerId: string } // Specific night actions
+//   | { type: "doctorSave"; targetPlayerId: string | null }
+//   | { type: "seerInvestigate"; targetPlayerId: string | null };
 
 // Define the shape of the context state
 interface GameContextState {
@@ -55,7 +57,8 @@ interface GameContextState {
   toggleAudioGloballyEnabled: () => void;
   // Add the missing function type
   reportAudioFinished: (messageId: string) => void;
-  submitHumanAction: (payload: HumanActionPayload) => Promise<void>; // Type definition here uses the local HumanActionPayload
+  // Use imported HumanActionPayload type
+  submitHumanAction: (payload: HumanActionPayload) => Promise<void>;
 }
 
 // Create the context with a default undefined value
@@ -66,7 +69,8 @@ interface GameProviderProps {
   children: ReactNode;
   initialGameState: FilteredGameState;
   boundRunGameTurnAction: () => Promise<void>; // Pre-bound server action
-  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<void>; // Prop uses local HumanActionPayload
+  // Use imported HumanActionPayload type
+  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<void>;
 }
 
 // Create the provider component
@@ -320,17 +324,21 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const reportAudioFinished = useCallback(
     (messageId: string) => {
       console.log(
-        `[Context] Audio finished report for messageId: ${messageId}`,
+        `[Context] Audio finished report for messageId (timestamp): ${messageId}`,
       );
 
-      const latestLogMessageId = gameState?.conversationLog?.[0]?.id;
+      // Get the latest message object
+      const latestLogMessage = gameState?.log?.[0];
+      // Compare the passed messageId (timestamp) with the latest message's timestamp
+      const isLatestMessage = latestLogMessage && messageId === latestLogMessage.timestamp;
 
+      // Pass the original messageId (timestamp) to unregister
       unregisterStopAudio(messageId);
 
       if (
         isAutoRunning &&
         isAudioGloballyEnabled &&
-        messageId === latestLogMessageId &&
+        isLatestMessage && // Use the comparison result here
         !isLoadingNextTurn &&
         !gameState?.pendingHumanAction
       ) {
@@ -361,19 +369,19 @@ export const GameProvider: React.FC<GameProviderProps> = ({
           }, 500);
         } else {
           console.log(
-            "[Context reportAudioFinished] AutoRun ON, Audio ON: Game is over.",
+            `[Context reportAudioFinished] AutoRun ON, Audio ON: Game is over.`,
           );
         }
       } else {
         console.log(
-          `[Context reportAudioFinished] Audio finished, but not proceeding to next turn (isAutoRunning: ${isAutoRunning}, isAudioEnabled: ${isAudioGloballyEnabled}, messageId: ${messageId}, isLatest: ${messageId === latestLogMessageId}, isLoading: ${isLoadingNextTurn}, PendingHumanAction: ${gameState?.pendingHumanAction})`,
+          `[Context reportAudioFinished] Audio finished, but not proceeding to next turn (isAutoRunning: ${isAutoRunning}, isAudioEnabled: ${isAudioGloballyEnabled}, messageTimestamp: ${messageId}, isLatest: ${isLatestMessage}, isLoading: ${isLoadingNextTurn}, PendingHumanAction: ${gameState?.pendingHumanAction})`,
         );
       }
     },
     [
       isAutoRunning,
       isLoadingNextTurn,
-      gameState?.conversationLog,
+      gameState?.log,
       gameState?.phase,
       gameState?.pendingHumanAction,
       runNextTurnAction,

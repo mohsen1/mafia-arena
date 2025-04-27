@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback } from 'react';
-import type { FilteredGameState, FilteredPlayer } from "@/lib/interfaces/client.types";
-import type { PendingHumanAction } from "@/lib/interfaces/actions.types";
-import type { PlayerId } from "@/lib/engine/interfaces/IPlayer";
+import { useState, useCallback, useMemo } from 'react';
+import { useGameContext } from '@/context/GameContext';
+import type { FilteredGameState, FilteredPlayer, PlayerId } from "@/lib/interfaces/gameState.types";
+import type { HumanActionPayload, PendingHumanAction } from "@/lib/interfaces/actions.types";
+import { PlayerStatus } from "@/lib/engine/interfaces/IPlayer";
 import { RoleName } from "@/lib/engine/interfaces/IRole";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,42 +12,36 @@ import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
 import { ScrollArea } from './ui/scroll-area';
 import Image from 'next/image';
-import { sendChatMessageAction, sendWerewolfChatMessageAction } from '@/app/actions/chatActions';
 import { cn } from '@/lib/utils';
-import type { PlayerAction } from "@/lib/engine/interfaces/IAgent";
 
-type HumanActionPayload =
-  | { type: "message"; content: string } 
-  | { type: "vote"; targetPlayerId: string | null }
-  | { type: "mafiaKill"; targetPlayerId: string }
-  | { type: "doctorSave"; targetPlayerId: string | null }
-  | { type: "seerInvestigate"; targetPlayerId: string | null };
-
-interface HumanChatInputProps {
-  gameState: FilteredGameState;
-  humanPlayerId: PlayerId;
-  isPlayerTurn: boolean;
-  onSubmitAction: (payload: HumanActionPayload) => Promise<void>;
-}
-
-export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn, onSubmitAction }: HumanChatInputProps) {
+export default function HumanChatInput() {
   const { t } = useTranslation();
+  const { gameState, submitHumanAction, isLoadingNextTurn } = useGameContext();
+
   const [inputValue, setInputValue] = useState('');
   const [selectedTarget, setSelectedTarget] = useState<PlayerId | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const gameId = gameState.gameId;
 
-  const pendingAction = gameState.pendingHumanAction;
-  const humanPlayer = gameState.players[humanPlayerId];
+  const gameId = gameState?.id;
+  const humanPlayerId = gameState?.humanPlayerId;
+  const pendingAction = gameState?.pendingHumanAction;
+  const humanPlayer = useMemo(() => 
+    humanPlayerId ? gameState?.players.find(p => p.id === humanPlayerId) : undefined,
+    [gameState?.players, humanPlayerId]
+  );
+  
+  const isPlayerTurn = pendingAction?.playerId === humanPlayerId;
 
   const handleSubmit = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
-    if (!pendingAction || isSubmitting || !gameId || !humanPlayerId) return;
+    if (!pendingAction || !isPlayerTurn || isSubmitting || !gameId || !humanPlayerId) {
+      console.warn("Submit cancelled:", { pendingAction, isPlayerTurn, isSubmitting, gameId, humanPlayerId });
+      return;
+    }
 
     setIsSubmitting(true);
     
-    let actionToSend: PlayerAction | null = null;
-    let payloadForServer: HumanActionPayload | null = null;
+    let payload: HumanActionPayload | null = null;
 
     try {
       if (pendingAction.allowedActions.includes('message')) {
@@ -54,59 +49,40 @@ export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn,
             setIsSubmitting(false);
             return;
           }
-          actionToSend = { type: 'message', content: inputValue };
-          payloadForServer = { type: 'message', content: inputValue };
+          payload = { type: 'message', content: inputValue };
           setInputValue('');
 
       } else if (pendingAction.allowedActions.includes('vote')) {
-          if (!selectedTarget) {
+          if (selectedTarget === undefined || selectedTarget === null) {
               console.warn("No target selected for vote.");
               setIsSubmitting(false);
               return; 
           }
-          actionToSend = { type: 'vote', targetPlayerId: selectedTarget };
-          payloadForServer = { type: 'vote', targetPlayerId: selectedTarget };
+          payload = { type: 'vote', targetPlayerId: selectedTarget };
           setSelectedTarget(null);
 
-      } else if (humanPlayer?.role) {
+      } else {
           const nightActionType = pendingAction.allowedActions.find(a => 
               a === 'mafiaKill' || a === 'doctorSave' || a === 'seerInvestigate'
           );
           if (nightActionType) {
-             if (!selectedTarget && nightActionType !== 'doctorSave') {
-                console.warn(`No target selected for ${nightActionType}.`);
+             if (selectedTarget === undefined || (selectedTarget === null && nightActionType !== 'doctorSave')) {
+                console.warn(`No target selected or invalid null target for ${nightActionType}.`);
                 setIsSubmitting(false);
                 return; 
              }
-            switch (nightActionType) {
-                case 'mafiaKill':
-                    actionToSend = { type: 'mafiaKill', targetPlayerId: selectedTarget! };
-                    payloadForServer = { type: 'mafiaKill', targetPlayerId: selectedTarget! };
-                    break;
-                case 'doctorSave':
-                    actionToSend = { type: 'doctorSave', targetPlayerId: selectedTarget };
-                    payloadForServer = { type: 'doctorSave', targetPlayerId: selectedTarget };
-                    break;
-                case 'seerInvestigate':
-                    actionToSend = { type: 'seerInvestigate', targetPlayerId: selectedTarget! };
-                    payloadForServer = { type: 'seerInvestigate', targetPlayerId: selectedTarget! };
-                    break;
-            }
-            if (payloadForServer) {
-              setSelectedTarget(null);
-            } else if (pendingAction.allowedActions.includes('noAction')) {
-                console.log("Determined action: noAction");
-            }
+             payload = { type: nightActionType, targetPlayerId: selectedTarget } as HumanActionPayload;
+             setSelectedTarget(null);
+          } else {
+             console.error("Could not determine valid action from pendingAction:", pendingAction);
           }
       }
 
-      if (payloadForServer) {
-          console.log("Sending payload to server action:", payloadForServer);
-          await onSubmitAction(payloadForServer);
-      } else if (actionToSend) {
-         console.error('Could not determine payload for server based on action:', actionToSend);
+      if (payload) {
+          console.log("Submitting human action:", payload);
+          await submitHumanAction(payload);
       } else {
-         console.error('Could not determine any action to send based on pendingAction:', pendingAction);
+         console.error('Could not construct payload from pendingAction:', pendingAction);
       }
 
     } catch (error) {
@@ -116,35 +92,35 @@ export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn,
     }
   }, [
     pendingAction, 
+    isPlayerTurn,
     inputValue, 
     selectedTarget, 
     isSubmitting, 
     gameId,
     humanPlayerId,
-    onSubmitAction,
-    humanPlayer?.role
+    submitHumanAction
   ]);
 
-  if (!humanPlayer || humanPlayer.status === 'Dead') {
-    return null;
-  }
+  const livingPlayers = useMemo(() => 
+      gameState?.players.filter(p => p.status === PlayerStatus.Alive) ?? [], 
+      [gameState?.players]
+  );
 
-  const getTargetOptions = (): FilteredPlayer[] => {
-    if (!pendingAction) return [];
+  const getTargetOptions = useCallback((): FilteredPlayer[] => {
+    if (!pendingAction || !humanPlayerId) return [];
     
-    const livingPlayers = gameState.livingPlayerIds
-        .map((id: PlayerId) => gameState.players[id])
-        .filter((p): p is FilteredPlayer => !!p && p.status === 'Alive');
+    if (pendingAction.validTargets && pendingAction.validTargets.length > 0) {
+        return livingPlayers.filter(p => pendingAction.validTargets!.includes(p.id));
+    }
 
     if (pendingAction.allowedActions.includes('vote')) {
         return livingPlayers.filter(p => p.id !== humanPlayerId);
-    } else if (humanPlayer?.role) {
+    } else {
         const nightActionType = pendingAction.allowedActions.find(a => 
               a === 'mafiaKill' || a === 'doctorSave' || a === 'seerInvestigate'
-          );
+        );
         switch (nightActionType) {
-          case 'mafiaKill':
-            return livingPlayers.filter(p => p.allegiance !== 'Mafia');
+          case 'mafiaKill': 
           case 'seerInvestigate':
             return livingPlayers.filter(p => p.id !== humanPlayerId);
           case 'doctorSave':
@@ -152,14 +128,18 @@ export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn,
           default:
             return [];
         }
-    } else {
-        return [];
     }
-  };
+  }, [pendingAction, humanPlayerId, livingPlayers]);
 
   const targetOptions = getTargetOptions();
 
+  if (!gameState || !humanPlayerId || !humanPlayer || humanPlayer.status === PlayerStatus.Dead) {
+    return null; 
+  }
+
   const renderInput = () => {
+    const disabled = !isPlayerTurn || isSubmitting || isLoadingNextTurn;
+    
     if (!pendingAction) {
       return (
         <div className="p-4 border-t text-center text-muted-foreground italic">
@@ -193,12 +173,12 @@ export default function HumanChatInput({ gameState, humanPlayerId, isPlayerTurn,
                  onChange={(e) => setInputValue(e.target.value)}
                  placeholder={placeholder}
                  aria-label={ariaLabel}
-                 disabled={!isPlayerTurn || isSubmitting}
+                 disabled={disabled}
                  className={cn("flex-grow", isWWChat && "border-red-500/50 focus:ring-red-500/50")}
                />
                <Button 
                  type="submit" 
-                 disabled={!isPlayerTurn || isSubmitting || !inputValue.trim()}
+                 disabled={disabled || !inputValue.trim()}
                  variant={isWWChat ? 'destructive' : 'default'}
                >
                  {isSubmitting ? t('SendingButtonLabel', 'Sending...') : buttonLabel}

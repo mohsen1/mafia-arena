@@ -1,5 +1,6 @@
-import { getGroqModels } from "@/lib/groq/api";
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+// import { getGroqModels } from "@/lib/groq/api"; // Removed import
+import { getOpenAIModels } from "@/lib/openai/api";
 
 /**
  * API route handler to fetch available Groq models securely on the server.
