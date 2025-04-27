@@ -29,7 +29,7 @@ export default function Home({ params: paramsPromise }: PageProps) {
   const { t } = useTranslation();
 
   // State for server-fetched data
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
+
   const [existingGames, /* setExistingGames */ ] = useState<FilteredGameState[]>([]);
 
 
@@ -47,7 +47,7 @@ export default function Home({ params: paramsPromise }: PageProps) {
       </h1>
 
       {/* Pass necessary props to StartGameForm */}
-      <StartGameForm availableModels={availableModels} lang={lang} />
+      <StartGameForm lang={lang} />
 
       {existingGames.length > 0 && (
         <div className="w-full mb-8">

@@ -34,13 +34,11 @@ const availableRolesForSelection: RoleName[] = [
 
 // Define props, removing translations
 export interface StartGameFormProps {
-  availableModels: string[];
   lang: LanguageCode;
 }
 
 // Update component signature
 export default function StartGameForm({
-  availableModels,
   lang,
 }: StartGameFormProps) {
 
