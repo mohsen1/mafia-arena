@@ -310,6 +310,97 @@ describe('DayPhase', () => {
         expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
      });
 
+    it('should handle votes for dead players as abstentions', async () => {
+        // --- Setup ---
+        const deadPlayerId = 'p-dead';
+        const voterId = 'p-voter';
+
+        const voter = createMockDayPlayer(voterId, new VillagerRole(), { getAction: vi.fn() } as any);
+        // Mock a dead player representation (needed for getPlayer lookup perhaps)
+        const deadPlayer = createMockDayPlayer(deadPlayerId, new VillagerRole(), { getAction: vi.fn() } as any);
+        deadPlayer.kill(); // Mark as dead
+
+        players = [voter]; // Only one alive voter
+        const allPlayersMap = new Map([[voterId, voter], [deadPlayerId, deadPlayer]]);
+
+        mockGame.getAlivePlayers.mockReturnValue(players);
+        mockGame.getPlayer.mockImplementation((id) => allPlayersMap.get(id)); // Need map to find dead player
+        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* state */ }));
+        mockGame.round = 2; // Skip intro
+
+        // Mock actions: discuss noAction, vote for dead player
+        const voteAction: PlayerAction = { type: 'vote', targetPlayerId: deadPlayerId };
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce({ type: 'noAction' })
+            .mockResolvedValueOnce(voteAction);
+
+        // --- Run Phase ---
+        await dayPhase.runPhase(mockGame as unknown as Game);
+
+        // --- Assertions ---
+        // Verify log message indicates invalid vote
+        expect(mockGame.logMessage).toHaveBeenCalledWith(
+            voterId,
+            expect.stringContaining(`tried to vote for invalid target (${deadPlayerId})`),
+            MessageVisibility.Public
+        );
+
+        // Verify recorded vote is null (abstain)
+        const expectedVotesMap = new Map([[voterId, null]]);
+        expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
+
+        // Verify no kill happened
+        expect(mockGame.killPlayer).not.toHaveBeenCalled();
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("No one is executed"), MessageVisibility.Public);
+        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
+    });
+
+    it('should handle unexpected action types during voting as abstentions', async () => {
+        // --- Setup ---
+        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
+        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), { getAction: vi.fn() } as any);
+        players = [player1, player2];
+
+        mockGame.getAlivePlayers.mockReturnValue(players);
+        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
+        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* state */ }));
+        mockGame.round = 2; // Skip intro
+
+        // Mock actions:
+        // Discussion: Both noAction
+        // Voting: p1 votes p2, p2 returns a message action
+        const voteAction: PlayerAction = { type: 'vote', targetPlayerId: player2Id };
+        const messageAction: PlayerAction = { type: 'message', content: 'Wait, I change my mind!' };
+
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce({ type: 'noAction' }) // p1 discuss
+            .mockResolvedValueOnce({ type: 'noAction' }); // p2 discuss
+        mockGame.requestPlayerAction
+            .mockResolvedValueOnce(voteAction)    // p1 vote
+            .mockResolvedValueOnce(messageAction); // p2 returns message during vote
+
+        // --- Run Phase ---
+        await dayPhase.runPhase(mockGame as unknown as Game);
+
+        // --- Assertions ---
+        // Verify p1's vote log
+        expect(mockGame.logMessage).toHaveBeenCalledWith(player1Id, expect.stringContaining(`votes for ${player2.name}`), MessageVisibility.Public);
+
+        // Verify p2's action is logged as abstain
+        expect(mockGame.logMessage).toHaveBeenCalledWith(player2Id, expect.stringContaining("abstains from voting."), MessageVisibility.Public);
+        // Crucially, ensure the message content wasn't logged during voting phase
+        expect(mockGame.logMessage).not.toHaveBeenCalledWith(player2Id, messageAction.content, MessageVisibility.Public);
+
+        // Verify recorded votes (p1 -> p2, p2 -> null)
+        const expectedVotesMap = new Map([[player1Id, player2Id], [player2Id, null]]);
+        expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
+
+        // Verify no kill happened (need majority of 2, only 1 vote cast)
+        expect(mockGame.killPlayer).not.toHaveBeenCalled();
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("did not reach a majority"), MessageVisibility.Public);
+        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
+    });
+
     it('should transition to NightPhase', () => {
         const nextPhase = dayPhase.transition(mockGame as unknown as Game);
         expect(nextPhase).toBeInstanceOf(NightPhase);
