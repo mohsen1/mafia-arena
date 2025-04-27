@@ -62,36 +62,89 @@ export const groqModels = [
   { title: "Allam 2 7B (SDAIA, Preview)", value: "allam-2-7b" },
 ];
 
-// Fireworks AI Models (Selection based on provided list) 
+// Fireworks AI Models (Selection based on provided list)
 // TODO: enhance
 export const fireworksModels: ModelDefinition[] = [
-  // Llama 4
-  { title: "Llama 4 Maverick Instruct (Basic)", value: "accounts/fireworks/models/llama-4-maverick-instruct-basic" }, 
-  { title: "Llama 4 Scout Instruct (Basic)", value: "accounts/fireworks/models/llama-4-scout-instruct-basic" }, 
-  // Llama 3.x / 3.1 / 3.2 / 3.3
-  { title: "Llama 3.1 405B Instruct", value: "accounts/fireworks/models/llama-v3p1-405b-instruct" }, 
-  { title: "Llama 3.1 70B Instruct", value: "accounts/fireworks/models/llama-v3p1-70b-instruct" }, 
-  { title: "Llama 3.1 8B Instruct", value: "accounts/fireworks/models/llama-v3p1-8b-instruct" },   
-  { title: "Llama 3.3 70B Instruct", value: "accounts/fireworks/models/llama-3p3-70b-instruct" }, 
-  // Deepseek
-  { title: "DeepSeek V2 Instruct", value: "accounts/fireworks/models/deepseek-v2-instruct" }, 
-  { title: "DeepSeek Coder V2 Instruct", value: "accounts/fireworks/models/deepseek-coder-v2-instruct" }, 
-  { title: "Deepseek R1 Distill Llama 70b", value: "accounts/fireworks/models/deepseek-r1-distill-llama-70b" }, 
-  // Qwen
-  { title: "Qwen2.5 72B Instruct", value: "accounts/fireworks/models/qwen2p5-72b-instruct" }, 
-  { title: "Qwen2.5 14B Instruct", value: "accounts/fireworks/models/qwen2p5-14b-instruct" }, 
-  { title: "Qwen2.5 7B Instruct", value: "accounts/fireworks/models/qwen2p5-7b-instruct" }, 
-  // Mistral/Mixtral
-  { title: "Mixtral MoE 8x22B Instruct", value: "accounts/fireworks/models/mixtral-8x22b-instruct" }, 
-  { title: "Mistral Nemo Instruct 2407", value: "accounts/fireworks/models/mistral-nemo-instruct-2407" }, 
-  { title: "Hermes 2 Pro Mistral 7B", value: "accounts/fireworks/models/hermes-2-pro-mistral-7b" }, 
-  // Gemma
-  { title: "Gemma 2 9B Instruct", value: "accounts/fireworks/models/gemma2-9b-instruct" }, 
-  // Other Notable
-  { title: "FireLLaVA-13B", value: "accounts/fireworks/models/firellava-13b" }, 
-  { title: "FireFunction V2", value: "accounts/fireworks/models/firefunction-v2" }, 
-  { title: "DBRX Instruct", value: "accounts/fireworks/models/dbrx-instruct" }, 
-  { title: "Phi 3 Mini 128K Instruct", value: "accounts/fireworks/models/phi-3-mini-128k-instruct" }, 
+  {
+    title: "Meta Llama 4 Maverick Instruct (Basic)",
+    value: "fireworks/llama4-maverick-instruct-basic",
+  },
+  {
+    title: "Meta Llama 4 Scout Instruct (Basic)",
+    value: "fireworks/llama4-scout-instruct-basic",
+  },
+  {
+    title: "Meta Llama 3.1 405B Instruct",
+    value: "fireworks/llama-v3p1-405b-instruct",
+  },
+  {
+    title: "DeepSeek R1 (Fast)",
+    value: "fireworks/deepseek-r1-fast",
+  },
+  {
+    title: "DeepSeek V3",
+    value: "fireworks/deepseek-v3",
+  },
+  {
+    title: "Yi Large",
+    value: "yi-01-ai/yi-large",
+  },
+  {
+    title: "Qwen 2.5 72B Instruct",
+    value: "fireworks/qwen2p5-72b-instruct",
+  },
+  {
+    title: "Firefunction-v2",
+    value: "fireworks/firefunction-v2",
+  },
+  {
+    title: "f1 (Preview)",
+    value: "fireworks/f1-preview",
+  },
+  {
+    title: "Mixtral MoE 8x22B Instruct",
+    value: "fireworks/mixtral-8x22b-instruct",
+  },
+  {
+    title: "Mixtral MoE 8x7B Instruct",
+    value: "fireworks/mixtral-8x7b-instruct",
+  },
+  {
+    title: "Firefunction-v1",
+    value: "fireworks/firefunction-v1",
+  },
+  {
+    title: "f1-mini (Preview)",
+    value: "fireworks/f1-mini-preview",
+  },
+  {
+    title: "Meta Llama 2 70B Chat",
+    value: "fireworks/llama-2-70b-chat",
+  },
+  {
+    title: "Guanaco 65B",
+    value: "fireworks/guanaco-65b",
+  },
+  {
+    title: "Xwin-LM 70B",
+    value: "fireworks/xwin-lm-70b",
+  },
+  {
+    title: "Vicuna 33B",
+    value: "fireworks/vicuna-33b",
+  },
+  {
+    title: "WizardLM 70B",
+    value: "fireworks/wizardlm-70b",
+  },
+  {
+    title: "Qwen QwQ 32B (Preview)",
+    value: "fireworks/qwen-qwq-32b-preview",
+  },
+  {
+    title: "Falcon 40B Instruct",
+    value: "fireworks/falcon-40b-instruct",
+  },
 ];
 
 // Example OpenAI Providers/Endpoints
@@ -143,11 +196,11 @@ export const availableProviders: ProviderDefinition[] = [
 
 // Combine all models into a lookup structure, exported for use
 export const availableModelsByProvider: Record<string, ModelDefinition[]> = {
-    openai: openAIModels,
-    fireworks: fireworksModels,
-    groq: groqModels,
-    claude: claudeModels, // Ensure claudeModels is imported/defined if used
-    gemini: geminiModels, // Ensure geminiModels is imported/defined if used
-    // Add other mappings as needed, ensure keys match provider values
-    // ollama_local: [], // Example placeholder
+  openai: openAIModels,
+  fireworks: fireworksModels,
+  groq: groqModels,
+  claude: claudeModels, // Ensure claudeModels is imported/defined if used
+  gemini: geminiModels, // Ensure geminiModels is imported/defined if used
+  // Add other mappings as needed, ensure keys match provider values
+  // ollama_local: [], // Example placeholder
 };

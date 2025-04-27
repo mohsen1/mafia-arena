@@ -344,6 +344,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
                     slot={slot}
                     index={index}
                     isHuman={slot.isHuman ?? false}
+                    humanPlayerName={slot.isHuman ? humanPlayerName : undefined}
                     availableRoles={availableRolesForSelection}
                     isSubmitting={isLoading}
                     canRemove={characterSlots.length > 5}

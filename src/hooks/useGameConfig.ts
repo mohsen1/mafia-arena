@@ -208,8 +208,8 @@ export function useGameConfig(lang: Locale) {
 
         setCharacterSlots(initialSlots);
         setInitialSlotsSet(true);
-    // Removed availableModels from dependencies, added globalProviderSelection
-    }, [globalProviderSelection, globalModelSelection, initialSlotsSet, isHumanJoining, humanRoleSelection, humanPlayerName, t]);
+    // Remove humanPlayerName from dependencies to prevent re-initialization on name change
+    }, [globalProviderSelection, globalModelSelection, initialSlotsSet, isHumanJoining, humanRoleSelection, t]);
 
     const configValidation = useMemo(() => {
         const isValid = characterSlots.length >= 5; // Ensure minimum 5 players
@@ -328,14 +328,9 @@ export function useGameConfig(lang: Locale) {
 
 
     const updateHumanPlayerName = useCallback((name: string) => {
+        // Only update the dedicated state, not the entire slots array
         setHumanPlayerName(name);
-        setCharacterSlots(slots => slots.map(slot => {
-            if (slot.isHuman && slot.profile) {
-                return { ...slot, profile: { ...slot.profile, characterName: name || t('DefaultHumanPlayerName', {}) } };
-            }
-            return slot;
-        }));
-    }, [t]);
+    }, []);
 
     const handleGenerateAndStartGame = useCallback(async () => {
         const humanSlot = characterSlots.find(slot => slot.isHuman);
