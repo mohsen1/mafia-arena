@@ -1,8 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: false
----
-use pnpm
-use modern typescript
-after each edit run `pnpm tsc` and `pnpm vitest run` to ensure changes are good
