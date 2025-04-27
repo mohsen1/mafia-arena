@@ -126,10 +126,15 @@ export function useGameConfig(lang: Locale) {
     }, [globalProviderSelection, defaultModelForProvider]);
 
 
-    // Effect to initialize character slots
+    // Effect to initialize or update character slots based on global selections or human joining
     useEffect(() => {
-        // Wait until provider and model are selected
-        if (initialSlotsSet || !globalProviderSelection || !globalModelSelection) return;
+        // Wait until provider and model have values (can happen after initial mount)
+        if (!globalProviderSelection || !globalModelSelection) {
+            console.log("[useGameConfig Init Effect] Waiting for global provider/model selection.");
+            return;
+        }
+
+        console.log(`[useGameConfig Init Effect] Running with globalProvider=${globalProviderSelection}, globalModel=${globalModelSelection}, isHumanJoining=${isHumanJoining}`);
 
         // Determine total players and roles list from config
         const roleDist = { ...DEFAULT_GAME_SETTINGS.roleDistribution } as Record<RoleName, number>;
@@ -266,15 +271,27 @@ export function useGameConfig(lang: Locale) {
         []
     );
 
-    // Update all AI slots to the new global provider and model
+    // Update global state AND directly update the provider/model in existing slots
     const updateAllProvidersAndModels = useCallback(
-        (provider: string, newModel: string) => {
-            setGlobalProviderSelection(provider);
+        (newProvider: string, newModel: string) => {
+            console.log(`[useGameConfig] updateAllProvidersAndModels: Setting global provider to ${newProvider}, model to ${newModel}`);
+            setGlobalProviderSelection(newProvider);
             setGlobalModelSelection(newModel);
-            setCharacterSlots((prev) =>
-                prev.map((slot) => slot.isHuman ? slot : { ...slot, provider: provider, aiModel: newModel, isGenerated: false }),
-            );
+
+            // Directly update the character slots array with the new values
+            // This avoids relying on the useEffect re-initialization and preserves other slot data (like role)
+            setCharacterSlots((prevSlots) => {
+                console.log(`[useGameConfig] updateAllProvidersAndModels: Updating characterSlots state.`);
+                const updatedSlots = prevSlots.map((slot) =>
+                    slot.isHuman
+                        ? slot
+                        : { ...slot, provider: newProvider, aiModel: newModel, isGenerated: false }
+                );
+                console.log(`[useGameConfig] updateAllProvidersAndModels: Updated slots:`, updatedSlots);
+                return updatedSlots;
+            });
         },
+        // Dependencies remain setters, as this logic uses the arguments directly
         [setGlobalProviderSelection, setGlobalModelSelection]
     );
 

@@ -5,19 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useGameConfig } from "@/hooks/useGameConfig";
 
+import { RoleName } from "@/lib/engine/interfaces/IRole";
 import {
   type LanguageCode,
   mapLanguageCodeToLongCode,
 } from "@/lib/i18n/settings";
-import { RoleName } from "@/lib/engine/interfaces/IRole";
 import {
   AlertTriangle,
-  Bot,
   CheckCircle2,
-  CloudCog,
   Languages,
   Loader2,
   Settings2,
@@ -27,14 +24,7 @@ import {
 import { type FormEvent, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
-import ModelSelector from "./ModelSelector";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ProviderModelSelector } from "./ProviderModelSelector"; // Import the new component
 
 const availableRolesForSelection: RoleName[] = [
   RoleName.Villager,
@@ -62,10 +52,8 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     configValidation,
     canAttemptStart,
     totalSlots,
-    globalProviderSelection,
     globalModelSelection,
     availableProviders,
-    availableModelsByProvider,
     addPlayerSlot,
     removePlayerSlot,
     updateSlotProviderAndModel,
@@ -73,42 +61,21 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     updateSlotRole,
     handleGenerateAndStartGame,
     isLoadingNextTurn,
-    isHumanJoining, // Destructure new state
+    isHumanJoining,
     humanPlayerName,
     toggleHumanJoining,
     updateHumanPlayerName,
   } = useGameConfig(lang);
 
-  // Get the models available for the currently selected global provider
-  const currentGlobalModels = useMemo(() => {
-    return availableModelsByProvider[globalProviderSelection] ?? [];
-  }, [availableModelsByProvider, globalProviderSelection]);
-
-  // Handler for changing the global provider
-  const handleGlobalProviderChange = useCallback(
-    (newProviderValue: string) => {
-      const modelsForNewProvider =
-        availableModelsByProvider[newProviderValue] ?? [];
-      // Find a default model (e.g., the first one) for the new provider
-      const defaultModel =
-        modelsForNewProvider.find((m) =>
-          m.title.toLowerCase().includes("default")
-        )?.value ??
-        modelsForNewProvider[0]?.value ??
-        ""; // Fallback if no models
-      // Update both provider and model globally
-      updateAllProvidersAndModels(newProviderValue, defaultModel);
+  // New combined handler for the ProviderModelSelector
+  const handleGlobalProviderModelChange = useCallback(
+    (provider: string, model: string) => {
+      console.log(
+        `[StartGameForm] handleGlobalProviderModelChange: provider=${provider}, model=${model}`
+      );
+      updateAllProvidersAndModels(provider, model);
     },
-    [availableModelsByProvider, updateAllProvidersAndModels]
-  );
-
-  // Handler for changing the global model
-  const handleGlobalModelChange = useCallback(
-    (newModelValue: string) => {
-      // Update model, keeping the current provider
-      updateAllProvidersAndModels(globalProviderSelection, newModelValue);
-    },
-    [globalProviderSelection, updateAllProvidersAndModels]
+    [updateAllProvidersAndModels] // Dependency is the function from the hook
   );
 
   // Use lang prop for numberFormatter
@@ -190,62 +157,19 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           </Button>
         </div>
 
-        {/* Global Provider & Model Selectors Wrapper */}
-        <div className="mb-6 flex flex-col items-start justify-center gap-2 max-w-lg mx-auto">
-          {/* Provider Selector */}
-          <div className="flex flex-col items-start justify-start gap-1 w-full">
-            <Label
-              htmlFor="global-provider"
-              className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
-            >
-              <CloudCog size={16} />
-              {t("GlobalAIProviderLabel", "Global AI Provider")}:
-            </Label>
-            <Select
-              value={globalProviderSelection}
-              onValueChange={handleGlobalProviderChange}
-              disabled={isSubmitting}
-            >
-              <SelectTrigger id="global-provider" className="w-full text-left">
-                <SelectValue
-                  placeholder={t("SelectProviderPlaceholder", "Select provider")}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {availableProviders.map((provider) => (
-                  <SelectItem key={provider.value} value={provider.value}>
-                    {provider.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Model Selector */}
-          <div className="flex flex-col items-start justify-start gap-1 w-full">
-            <Label
-              htmlFor="global-model"
-              className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
-            >
-              <Bot size={16} />
-              {t("GlobalAIModelLabel", "Global AI Model")}:
-            </Label>
-            <ModelSelector
-              id="global-model"
-              models={currentGlobalModels}
-              selectedModel={globalModelSelection}
-              onModelChange={handleGlobalModelChange}
-              placeholder={t("SelectGlobalModelPlaceholder", "Select model")}
-              disabled={isSubmitting || currentGlobalModels.length === 0}
-            />
-          </div>
+        {/* Use the new ProviderModelSelector for global settings */}
+        <div className="mb-6 max-w-lg mx-auto">
+          <ProviderModelSelector
+            idPrefix="global"
+            selectedModel={globalModelSelection}
+            onProviderModelChange={handleGlobalProviderModelChange}
+            disabled={isSubmitting}
+          />
         </div>
 
         {/* Language Selector - Use the new component */}
         <div className="mb-6 flex flex-col items-start justify-center gap-1 max-w-lg mx-auto">
-          <Label
-            className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
-          >
+          <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1">
             <Languages size={16} className="me-1" />
             {t("GameLanguageLabel", "Game Language")}:
           </Label>
@@ -348,8 +272,6 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
                   slot={slot}
                   index={index}
                   isHuman={slot.isHuman ?? false}
-                  availableProviders={availableProviders}
-                  availableModelsByProvider={availableModelsByProvider}
                   availableRoles={availableRolesForSelection}
                   isSubmitting={isLoading}
                   canRemove={characterSlots.length > 5}

@@ -122,3 +122,32 @@ export const openAIProviders: ProviderDefinition[] = [
   },
   // Add other providers like Groq, Together AI, custom endpoints etc.
 ];
+
+export const availableProviders: ProviderDefinition[] = [
+  ...openAIProviders,
+
+  // Non-OpenAI Providers
+  {
+    title: "Claude",
+    value: "claude",
+    endpoint: "https://api.anthropic.com/v1", // Claude uses Anthropic endpoint
+    apiKeyEnvVar: "ANTHROPIC_API_KEY",
+  },
+  {
+    title: "Gemini",
+    value: "gemini",
+    endpoint: "https://generativelanguage.googleapis.com/v1beta", // Gemini uses Google endpoint
+    apiKeyEnvVar: "GEMINI_API_KEY",
+  },
+];
+
+// Combine all models into a lookup structure, exported for use
+export const availableModelsByProvider: Record<string, ModelDefinition[]> = {
+    openai: openAIModels,
+    fireworks: fireworksModels,
+    groq: groqModels,
+    claude: claudeModels, // Ensure claudeModels is imported/defined if used
+    gemini: geminiModels, // Ensure geminiModels is imported/defined if used
+    // Add other mappings as needed, ensure keys match provider values
+    // ollama_local: [], // Example placeholder
+};

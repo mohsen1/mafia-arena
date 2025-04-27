@@ -1,55 +1,42 @@
 "use client";
 
-import React, { useCallback, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { ConfigCharacterSlot, ProviderDefinition, ModelDefinition } from "@/hooks/useGameConfig";
+import type { ConfigCharacterSlot } from "@/hooks/useGameConfig";
 import type { RoleName } from "@/lib/engine/interfaces/IRole";
-import type { TFunction } from "i18next";
-import { Bot, CloudCog } from "lucide-react";
-import ModelSelector from "../ModelSelector";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { ProviderModelSelector } from "../ProviderModelSelector";
+
 
 interface CharacterSlotSelectorsProps {
   slot: ConfigCharacterSlot;
   isHuman: boolean;
-  availableProviders: ProviderDefinition[];
-  availableModelsByProvider: Record<string, ModelDefinition[]>;
   availableRoles: RoleName[];
   isSubmitting: boolean;
   onUpdateRole: (clientId: string, newRole: RoleName) => void;
   onUpdateProviderAndModel: (clientId: string, provider: string, newModel: string) => void;
-  t: TFunction;
 }
 
 export function CharacterSlotSelectors({
   slot,
   isHuman,
-  availableProviders,
-  availableModelsByProvider,
   availableRoles,
   isSubmitting,
   onUpdateRole,
   onUpdateProviderAndModel,
-  t,
 }: CharacterSlotSelectorsProps) {
-  const currentSlotModels = useMemo(() => {
-    return availableModelsByProvider[slot.provider] ?? [];
-  }, [availableModelsByProvider, slot.provider]);
+  const { t } = useTranslation();
 
-  const handleSlotProviderChange = useCallback((newProviderValue: string) => {
-    const modelsForNewProvider = availableModelsByProvider[newProviderValue] ?? [];
-    const defaultModel = modelsForNewProvider.find(m => m.title.toLowerCase().includes("default"))?.value
-                        ?? modelsForNewProvider[0]?.value
-                        ?? "";
-    onUpdateProviderAndModel(slot.clientId, newProviderValue, defaultModel);
-  }, [availableModelsByProvider, onUpdateProviderAndModel, slot.clientId]);
-
-  const handleSlotModelChange = useCallback((newModelValue: string) => {
-    onUpdateProviderAndModel(slot.clientId, slot.provider, newModelValue);
-  }, [onUpdateProviderAndModel, slot.clientId, slot.provider]);
+  const handleSlotProviderModelChange = useCallback(
+    (provider: string, model: string) => {
+      console.log(`[CharacterSlotSelectors] handleSlotProviderModelChange called for slot ${slot.clientId}`, {provider, model});
+      onUpdateProviderAndModel(slot.clientId, provider, model);
+    },
+    [onUpdateProviderAndModel, slot.clientId]
+  );
 
   return (
     <div className="flex flex-col items-center gap-2 w-full">
-      {/* Role Selector */}
       <div className="w-full">
         <label htmlFor={`role-${slot.clientId}`} className="sr-only">
           {t("SelectRolePlaceholder", "Select role")}
@@ -73,53 +60,16 @@ export function CharacterSlotSelectors({
         </Select>
       </div>
 
-      {/* Provider Selector */}
       {!isHuman && (
-        <div className="w-full">
-          <label htmlFor={`provider-${slot.clientId}`} className="sr-only">
-            {t("SelectProviderPlaceholder", "Select provider")}
-          </label>
-          <Select
-            value={slot.provider}
-            onValueChange={handleSlotProviderChange}
-            required
-            disabled={isHuman || isSubmitting || availableProviders.length === 0}
-          >
-            <SelectTrigger 
-              className="text-xs h-9 flex items-center justify-between w-full" 
-              id={`provider-${slot.clientId}`}
-            >
-              <SelectValue placeholder={t("SelectProviderPlaceholder", "Select provider")}>
-                <CloudCog className="w-3 h-3 me-1 text-muted-foreground" />
-                {availableProviders.find(p => p.value === slot.provider)?.title || t("SelectProviderPlaceholder", "Select provider")}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {availableProviders.map((provider) => (
-                <SelectItem key={provider.value} value={provider.value} className="text-xs">
-                  {provider.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {/* Model Selector */}
-      {!isHuman && (
-        <div className="w-full">
-          <label htmlFor={`model-${slot.clientId}`} className="sr-only">
-            {t("SelectModelPlaceholder", "Select model")}
-          </label>
-          <ModelSelector
-            id={`model-${slot.clientId}`}
-            models={currentSlotModels}
-            selectedModel={slot.aiModel}
-            onModelChange={handleSlotModelChange}
-            placeholder={t("SelectModelPlaceholder", "Select model")}
-            disabled={isHuman || isSubmitting || currentSlotModels.length === 0}
-          />
-        </div>
+        <ProviderModelSelector
+          idPrefix={`slot-${slot.clientId}`}
+          selectedModel={slot.aiModel}
+          onProviderModelChange={handleSlotProviderModelChange}
+          disabled={isSubmitting}
+          className="flex-col !items-start w-full !gap-2 sm:!flex-col"
+          labelClassName="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1"
+          selectTriggerClassName="w-full text-xs h-9"
+        />
       )}
     </div>
   );
