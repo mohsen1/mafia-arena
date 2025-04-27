@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Message } from '../../src/core/Message';
-import { MessageVisibility } from '../../src/interfaces/IMessage';
-import { type PlayerId } from '../../src/interfaces/IPlayer';
-import type { GamePhaseType } from '../../src/interfaces/IGamePhase';
+import { Message } from '@/lib/engine/core/Message';
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+import { type PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import type { GamePhaseType } from '@/lib/engine/interfaces/IGamePhase';
 
 describe('Message', () => {
     it('should create a message with required properties', () => {

@@ -15,7 +15,7 @@ export interface AgentMemory {
 
     // Game events relevant to all (but stored per agent)
     voteHistory: Array<{ round: number; votes: ReadonlyMap<PlayerId, PlayerId | null> }>;
-    killHistory: Array<{ round: number; killedPlayerId: PlayerId | null }>;
+    killHistory: Array<{ round: number; phase: GamePhaseType; killedPlayerId: PlayerId | null }>;
 
     // Full conversation history visible to this agent
     messageHistory: ReadonlyArray<IMessage>;

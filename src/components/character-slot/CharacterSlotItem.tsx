@@ -1,7 +1,8 @@
 "use client"; // Ensure this is a client component
 
 import React from "react";
-import type { ConfigCharacterSlot, Role } from "@/lib/types/game";
+import type { ConfigCharacterSlot } from "@/hooks/useGameConfig";
+import type { RoleName } from "@/lib/engine/interfaces/IRole";
 import { useTranslation } from 'react-i18next'; // Import hook
 import { cn } from "@/lib/utils";
 import { CharacterSlotHeader } from './CharacterSlotHeader';
@@ -12,10 +13,10 @@ interface CharacterSlotItemProps {
   isHuman: boolean;
   index: number;
   availableModels: string[];
-  availableRoles: Role[];
+  availableRoles: RoleName[];
   isSubmitting: boolean;
   canRemove: boolean;
-  onUpdateRole: (clientId: string, newRole: Role) => void;
+  onUpdateRole: (clientId: string, newRole: RoleName) => void;
   onUpdateModel: (clientId: string, newModel: string) => void;
   onRemove: (clientId: string) => void;
 }

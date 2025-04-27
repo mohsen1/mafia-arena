@@ -1,12 +1,12 @@
 // tests/prompts.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getSystemPrompt, getUserPrompt } from '../../src/prompts';
-import { createInitialMemory, type AgentMemory } from '../../src/interfaces/AgentMemory';
-import { RoleName } from '../../src/interfaces/IRole';
-import type { VisibleGameState } from '../../src/interfaces/GameState';
-import type { PlayerAction } from '../../src/interfaces/IAgent';
-import { Message } from '../../src/core/Message';
-import { MessageVisibility } from '../../src/interfaces/IMessage';
+import { getSystemPrompt, getUserPrompt } from '@/lib/engine/prompts';
+import { createInitialMemory, type AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
+import { RoleName } from '@/lib/engine/interfaces/IRole';
+import type { VisibleGameState } from '@/lib/engine/interfaces/GameState';
+import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import { Message } from '@/lib/engine/core/Message';
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 
 describe('Prompts', () => {
 

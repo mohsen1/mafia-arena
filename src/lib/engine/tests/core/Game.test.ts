@@ -1,21 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Game } from '../../src/core/Game';
-import { Player } from '../../src/core/Player';
-import { ConversationLog } from '../../src/core/ConversationLog';
-import { PlayerStatus, type PlayerId } from '../../src/interfaces/IPlayer';
-import { RoleName } from '../../src/interfaces/IRole';
-import type { IAgent, PlayerAction } from '../../src/interfaces/IAgent';
-import type { IRole } from '../../src/interfaces/IRole';
-import { MessageVisibility } from '../../src/interfaces/IMessage';
-import { InitializationPhase } from '../../src/phases/InitializationPhase';
-import { GameOverPhase } from '../../src/phases/GameOverPhase';
-import { MafiaRole } from '../../src/roles/MafiaRole';
-import { VillagerRole } from '../../src/roles/VillagerRole';
-import { DoctorRole } from '../../src/roles/DoctorRole';
-import { SeerRole } from '../../src/roles/SeerRole';
-import { Message } from '../../src/core/Message';
-import { createInitialMemory } from '../../src/interfaces/AgentMemory';
-import { NightPhase } from '../../src/phases/NightPhase';
+import { Game } from '@/lib/engine/core/Game';
+import { Player } from '@/lib/engine/core/Player';
+import { ConversationLog } from '@/lib/engine/core/ConversationLog';
+import { PlayerStatus, type PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import { RoleName } from '@/lib/engine/interfaces/IRole';
+import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import type { IRole } from '@/lib/engine/interfaces/IRole';
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+import { InitializationPhase } from '@/lib/engine/phases/InitializationPhase';
+import { GameOverPhase } from '@/lib/engine/phases/GameOverPhase';
+import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
+import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
+import { DoctorRole } from '@/lib/engine/roles/DoctorRole';
+import { SeerRole } from '@/lib/engine/roles/SeerRole';
+import { Message } from '@/lib/engine/core/Message';
+import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
+import { NightPhase } from '@/lib/engine/phases/NightPhase';
 
 // Mock role implementations
 const mockVillagerRole: IRole = {

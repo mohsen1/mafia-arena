@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useGameConfig } from "@/hooks/useGameConfig";
 
 import { type LanguageCode, mapLanguageCodeToLongCode } from "@/lib/i18n/settings";
-import type { Role } from "@/lib/types/game";
+import { RoleName } from "@/lib/engine/interfaces/IRole";
 import {
   AlertTriangle,
   Bot,
@@ -25,11 +25,11 @@ import LanguageSelector from "./LanguageSelector";
 import ModelSelector from "./ModelSelector";
 
 
-const availableRolesForSelection: Role[] = [
-  "Villager",
-  "Werewolf",
-  "Seer",
-  "Doctor",
+const availableRolesForSelection: RoleName[] = [
+  RoleName.Villager,
+  RoleName.Mafia,
+  RoleName.Seer,
+  RoleName.Doctor,
 ];
 
 // Define props, removing translations

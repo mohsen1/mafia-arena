@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { Player } from '../../src/core/Player';
-import { PlayerStatus, type PlayerId } from '../../src/interfaces/IPlayer';
-import { RoleName } from '../../src/interfaces/IRole';
-import type { IAgent, PlayerAction } from '../../src/interfaces/IAgent';
-import type { IRole } from '../../src/interfaces/IRole';
-import type { VisibleGameState } from '../../src/interfaces/GameState';
-import { createInitialMemory } from '../../src/interfaces/AgentMemory';
-import { DEFAULT_PERSONA } from '../../src/interfaces/Persona';
+import { Player } from '@/lib/engine/core/Player';
+import { PlayerStatus, type PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import { RoleName } from '@/lib/engine/interfaces/IRole';
+import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import type { IRole } from '@/lib/engine/interfaces/IRole';
+import type { VisibleGameState } from '@/lib/engine/interfaces/GameState';
+import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
+import { DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
 
 // Mock Role implementation
 const mockVillagerRole: IRole = {

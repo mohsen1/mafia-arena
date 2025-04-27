@@ -1,7 +1,7 @@
 import type { GamePhaseType } from "../interfaces/IGamePhase";
 import  { type IMessage, MessageVisibility } from "../interfaces/IMessage";
 import type { PlayerId } from "../interfaces/IPlayer";
-import { RoleName } from "../interfaces/IRole";
+import { RoleName, type Allegiance } from "../interfaces/IRole";
 
 export class ConversationLog {
     #messages: IMessage[] = [];
@@ -15,7 +15,7 @@ export class ConversationLog {
         round?: number;
         phase?: GamePhaseType;
         visibility?: MessageVisibility | MessageVisibility[];
-        relevantToPlayer?: { id: PlayerId, role: RoleName }; // Filter based on what a player should see
+        relevantToPlayer?: { id: PlayerId, role: RoleName, allegiance: Allegiance };
     }): ReadonlyArray<IMessage> {
         let filtered = [...this.#messages]; // Copy
 
@@ -30,11 +30,10 @@ export class ConversationLog {
             filtered = filtered.filter(m => visibilities.includes(m.visibility));
         }
         if (filter?.relevantToPlayer) {
-             const { id, role } = filter.relevantToPlayer;
-             const isMafia = role === RoleName.Mafia;
+             const { id, allegiance } = filter.relevantToPlayer;
              filtered = filtered.filter(m =>
                 m.visibility === MessageVisibility.Public ||
-                (m.visibility === MessageVisibility.Mafia && isMafia)
+                (m.visibility === MessageVisibility.Mafia && allegiance === 'Mafia')
                 // || m.recipientId === id // For future private messages
              );
         }

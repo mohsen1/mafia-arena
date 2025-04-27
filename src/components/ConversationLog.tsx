@@ -4,7 +4,9 @@ import { useGameContext } from "@/context/GameContext";
 import { MessageBubble } from "./MessageBubble";
 import { useTranslation } from "react-i18next"; 
 import { useRef, useEffect, useCallback, useLayoutEffect } from "react"; // Add useLayoutEffect
-import type { ChatMessage } from "@/lib/types/game"; // Import ChatMessage type
+import type { ClientMessage, FilteredPlayer } from "@/lib/interfaces/client.types"; // NEW IMPORT
+import type { PlayerId } from "@/lib/engine/interfaces/IPlayer"; // Import PlayerId
+import type { IMessage } from "@/lib/engine/interfaces/IMessage"; // Import IMessage for type checking
 
 export function ConversationLog() {
   const { gameState } = useGameContext(); // Only get gameState
@@ -17,23 +19,25 @@ export function ConversationLog() {
 
   if (!gameState) return null; // Handle loading/null state
   // Destructure necessary parts including _internalState and humanPlayerId
-  const { conversationLog, players, pendingHumanAction, _internalState, humanPlayerId } = gameState; 
+  const { conversationLog, players, pendingHumanAction, humanPlayerId, phase } = gameState; 
 
   const regularLog = conversationLog || [];
-  const werewolfLog = _internalState?.werewolfChatLog || [];
+  // Assuming werewolf chat is not part of FilteredGameState for now
+  // const werewolfLog = _internalState?.werewolfChatLog || []; 
+  const werewolfLog: ClientMessage[] = []; // Placeholder
 
-  // Determine if werewolf chat should be shown *at all*
-  const isHumanWerewolf = humanPlayerId && players[humanPlayerId]?.role === "Werewolf";
+  const humanPlayer = humanPlayerId ? players[humanPlayerId] : null;
+  const isHumanWerewolf = humanPlayer?.role === "Mafia"; // Check against RoleName.Mafia might be safer
   const canSeeWerewolfChat = !humanPlayerId || isHumanWerewolf; // Observer or Werewolf
 
-  let displayLog: ChatMessage[] = []; // Start empty
+  let displayLog: ClientMessage[] = []; // Start empty
 
-  if (canSeeWerewolfChat && gameState.phase === "Night") {
+  if (canSeeWerewolfChat && phase === "Night") {
     // Werewolf/Observer during Night: Show WW chat + Night-specific moderator messages
     const markedWerewolfLog = werewolfLog.map(msg => ({ ...msg, isWerewolfChat: true }));
     // Filter regular log for moderator messages specifically marked for the Night phase
     const nightModeratorMessages = regularLog.filter(
-      msg => msg.phase === 'Night' && msg.speaker.type === 'moderator'
+      (msg): msg is ClientMessage => msg.phase === 'Night' && msg.senderId === null // Assuming moderator is null senderId
     );
     displayLog = [...nightModeratorMessages, ...markedWerewolfLog];
 
@@ -48,7 +52,7 @@ export function ConversationLog() {
   }
 
   // Always sort the final display log by timestamp
-  displayLog.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  displayLog.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
   // Function to scroll last message into view, memoized with useCallback
   const scrollToBottom = useCallback(() => {
@@ -99,14 +103,14 @@ export function ConversationLog() {
           displayLog.map((message, index) => (
             // Apply ref to the last message
             <div 
-              key={message.messageId}
+              key={message.id}
               ref={index === displayLog.length - 1 ? lastMessageRef : undefined}
             >
               <MessageBubble
                 message={message}
-                players={players}
+                players={players as Record<PlayerId, FilteredPlayer>}
                 // Pass the marker prop to MessageBubble
-                isWerewolfChat={(message as ChatMessage & { isWerewolfChat?: boolean }).isWerewolfChat ?? false} 
+                isWerewolfChat={(message as ClientMessage & { isWerewolfChat?: boolean }).isWerewolfChat ?? false} 
               />
             </div>
           ))

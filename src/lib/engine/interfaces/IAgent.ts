@@ -4,6 +4,7 @@ import { Persona } from './Theme';
 import { RoleName } from './IRole';
 import { VisibleGameState } from './GameState';
 import { Message } from '../core/Message';
+import { PendingHumanAction } from '../../interfaces/actions.types';
 
 export type PlayerAction =
     | { type: 'message'; content: string }
@@ -11,7 +12,8 @@ export type PlayerAction =
     | { type: 'mafiaKill'; targetPlayerId: PlayerId }
     | { type: 'doctorSave'; targetPlayerId: PlayerId | null } // null for no save
     | { type: 'seerInvestigate'; targetPlayerId: PlayerId | null } // null for no investigation
-    | { type: 'noAction' }; // For roles with no night action
+    | { type: 'noAction' } // For roles with no night action
+    | { type: 'humanActionRequired'; pendingAction: PendingHumanAction }; // Signal for human input
 
 /**
  * Interface for all game agents (AI or Human).

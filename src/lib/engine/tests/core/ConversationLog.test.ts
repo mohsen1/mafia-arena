@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ConversationLog } from '../../src/core/ConversationLog';
-import { Message } from '../../src/core/Message';
-import { MessageVisibility } from '../../src/interfaces/IMessage';
-import { type PlayerId } from '../../src/interfaces/IPlayer';
-import { RoleName } from '../../src/interfaces/IRole';
+import { ConversationLog } from '@/lib/engine/core/ConversationLog';
+import { Message } from '@/lib/engine/core/Message';
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+import { type PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import { RoleName } from '@/lib/engine/interfaces/IRole';
 
 // Helper to create messages easily using the actual Message class
 const createMsg = (

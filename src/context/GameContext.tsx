@@ -22,18 +22,21 @@ import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
 // Import GameState, ChatMessage, Player
 // import { GameState, ChatMessage, Player } from "@/lib/types/game";
 // Import GameState
-import type { GameState } from "@/lib/types/game";
+import type { FilteredGameState, ClientMessage } from "@/lib/interfaces/client.types";
 
 // Define the payload type based on the server action
+// This should match the definition in GameClient.tsx and the expected server action input
 type HumanActionPayload =
-  | { type: "chat"; content: string }
-  | { type: "vote"; targetPlayerId: string }
-  | { type: "nightAction"; targetPlayerId: string };
+  | { type: "message"; content: string } // Renamed from 'chat' to align with PlayerAction
+  | { type: "vote"; targetPlayerId: string | null } // Allow null for abstain
+  | { type: "mafiaKill"; targetPlayerId: string } // Specific night actions
+  | { type: "doctorSave"; targetPlayerId: string | null }
+  | { type: "seerInvestigate"; targetPlayerId: string | null };
 
 // Define the shape of the context state
 interface GameContextState {
-  gameState: GameState | null;
-  setGameState: Dispatch<SetStateAction<GameState | null>>;
+  gameState: FilteredGameState | null;
+  setGameState: Dispatch<SetStateAction<FilteredGameState | null>>;
   isAutoRunning: boolean;
   toggleAutoRun: () => void;
   isLoadingNextTurn: boolean;
@@ -52,7 +55,7 @@ interface GameContextState {
   toggleAudioGloballyEnabled: () => void;
   // Add the missing function type
   reportAudioFinished: (messageId: string) => void;
-  submitHumanAction: (payload: HumanActionPayload) => Promise<void>; // Add the human action submitter
+  submitHumanAction: (payload: HumanActionPayload) => Promise<void>; // Type definition here uses the local HumanActionPayload
 }
 
 // Create the context with a default undefined value
@@ -61,9 +64,9 @@ const GameContext = createContext<GameContextState | undefined>(undefined);
 // Define props for the provider
 interface GameProviderProps {
   children: ReactNode;
-  initialGameState: GameState;
+  initialGameState: FilteredGameState;
   boundRunGameTurnAction: () => Promise<void>; // Pre-bound server action
-  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<void>; // Add prop for bound human action
+  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<void>; // Prop uses local HumanActionPayload
 }
 
 // Create the provider component
@@ -73,7 +76,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   boundRunGameTurnAction,
   boundSubmitHumanAction, // Destructure the new prop
 }) => {
-  const [gameState, setGameState] = useState<GameState | null>(
+  const [gameState, setGameState] = useState<FilteredGameState | null>(
     initialGameState,
   );
   const [isAutoRunning, setIsAutoRunning] = useState<boolean>(false);
@@ -121,8 +124,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
   // Function to be called by MessageBubble to clear the stop function
   const unregisterStopAudio = useCallback(
-    (/* messageId: string */) => {
-      // Optional: Check messageId if needed, but generally clearing is fine
+    (messageId: string) => {
       stopAudioCallbackRef.current = null;
     },
     [],
@@ -321,9 +323,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         `[Context] Audio finished report for messageId: ${messageId}`,
       );
 
-      const latestLogMessageId = gameState?.conversationLog?.[0]?.messageId;
+      const latestLogMessageId = gameState?.conversationLog?.[0]?.id;
 
-      unregisterStopAudio(/* messageId: string */);
+      unregisterStopAudio(messageId);
 
       if (
         isAutoRunning &&

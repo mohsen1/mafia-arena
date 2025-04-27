@@ -1,15 +1,15 @@
 // tests/phases/DayPhase.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { DayPhase } from '../../src/phases/DayPhase';
-import { Game } from '../../src/core/Game';
-import { Player } from '../../src/core/Player';
-import { IRole } from '../../src/interfaces/IRole';
-import { VillagerRole } from '../../src/roles/VillagerRole';
-import { MafiaRole } from '../../src/roles/MafiaRole';
-import { type IAgent, type PlayerAction } from '../../src/interfaces/IAgent';
-import { type PlayerId } from '../../src/interfaces/IPlayer';
-import { MessageVisibility } from '../../src/interfaces/IMessage';
-import { NightPhase } from '../../src/phases/NightPhase';
+import { DayPhase } from '@/lib/engine/phases/DayPhase';
+import { Game } from '@/lib/engine/core/Game';
+import { Player } from '@/lib/engine/core/Player';
+import { IRole } from '@/lib/engine/interfaces/IRole';
+import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
+import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
+import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import { type PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+import { NightPhase } from '@/lib/engine/phases/NightPhase';
 
 // Mock Game class
 const mockGame = {

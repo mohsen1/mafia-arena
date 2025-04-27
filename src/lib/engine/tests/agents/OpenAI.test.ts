@@ -1,12 +1,12 @@
 // tests/agents/OpenAIAgent.test.ts
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
-import { OpenAIAgent } from '../../src/agents/OpenAIAgent';
-import type { VisibleGameState } from '../../src/interfaces/GameState';
-import type { PlayerAction } from '../../src/interfaces/IAgent';
-import { createInitialMemory, type AgentMemory, type AIConversationLog } from '../../src/interfaces/AgentMemory';
-import { RoleName } from '../../src/interfaces/IRole';
-import { PlayerStatus } from '../../src/interfaces/IPlayer';
-import { Persona, DEFAULT_PERSONA } from '../../src/interfaces/Persona';
+import { OpenAIAgent } from '@/lib/engine/agents/OpenAIAgent';
+import type { VisibleGameState } from '@/lib/engine/interfaces/GameState';
+import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import { createInitialMemory, type AgentMemory, type AIConversationLog } from '@/lib/engine/interfaces/AgentMemory';
+import { RoleName } from '@/lib/engine/interfaces/IRole';
+import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
+import { Persona, DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
 
 // --- Mock OpenAI library ---
 vi.mock('openai', async (importActual) => {

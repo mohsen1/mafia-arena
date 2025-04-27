@@ -2,16 +2,17 @@
 
 import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { ConfigCharacterSlot, Role } from "@/lib/types/game";
+import type { ConfigCharacterSlot } from "@/hooks/useGameConfig";
+import type { RoleName } from "@/lib/engine/interfaces/IRole";
 import type { TFunction } from "i18next";
 
 interface CharacterSlotSelectorsProps {
   slot: ConfigCharacterSlot;
   isHuman: boolean;
   availableModels: string[];
-  availableRoles: Role[];
+  availableRoles: RoleName[];
   isSubmitting: boolean;
-  onUpdateRole: (clientId: string, newRole: Role) => void;
+  onUpdateRole: (clientId: string, newRole: RoleName) => void;
   onUpdateModel: (clientId: string, newModel: string) => void;
   t: TFunction;
 }
@@ -35,7 +36,7 @@ export function CharacterSlotSelectors({
         </label>
         <Select
           value={slot.roleSelection}
-          onValueChange={(newRole) => onUpdateRole(slot.clientId, newRole as Role)}
+          onValueChange={(newRole) => onUpdateRole(slot.clientId, newRole as RoleName)}
           required
           disabled={isSubmitting}
         >

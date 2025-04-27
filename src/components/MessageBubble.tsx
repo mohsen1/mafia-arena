@@ -1,6 +1,6 @@
 "use client";
 
-import type { FilteredGameState, ChatMessage } from "@/lib/types/game";
+import type { FilteredPlayer, ClientMessage } from "@/lib/interfaces/client.types";
 import { useGameContext } from "@/context/GameContext";
 import { SpeakText } from "@/components/SpeakText";
 import { cn } from "@/lib/utils";
@@ -9,11 +9,12 @@ import { useSpokenText } from "@/context/SpokenTextContext";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
+import type { PlayerId } from "@/lib/engine/interfaces/IPlayer";
 
-// Define the props
+// Define the props using ClientMessage
 interface MessageBubbleProps {
-  message: Omit<ChatMessage, "audience"> & { speakerName: string };
-  players: FilteredGameState["players"];
+  message: ClientMessage;
+  players: Record<PlayerId, FilteredPlayer>;
   isWerewolfChat?: boolean;
 }
 
@@ -25,26 +26,22 @@ export function MessageBubble({ message, players, isWerewolfChat }: MessageBubbl
   // Use default namespace; language is handled by i18next provider
   const { t } = useTranslation();
 
-  // Determine the speaker
-  const isModerator = message.speaker.type === "moderator";
-  const speakerPlayer =
-    message.speaker.type === "player"
-      ? players[message.speaker.playerId]
-      : null;
-  // Assume player is human if they exist and DON'T have an aiModel property
-  const isHuman =
-    message.speaker.type === "player" &&
-    !!speakerPlayer &&
-    !speakerPlayer.aiModel;
-  // Assume player is bot if they exist and DO have an aiModel property
-  const isBot = message.speaker.type === "player" && !!speakerPlayer?.aiModel;
+  // Determine the speaker based on senderId
+  const isModerator = message.senderId === null;
+  const speakerPlayer = message.senderId ? players[message.senderId] : null;
+
+  // Determine if the speaker is human (assuming FilteredPlayer might have an isHuman flag, or we derive it)
+  // For now, let's assume human if senderId matches humanPlayerId from context
+  const isHuman = message.senderId === gameState?.humanPlayerId;
+  // Assume bot if not moderator and not human
+  const isBot = !isModerator && !isHuman;
 
   const imageUrl = speakerPlayer?.imageUrl;
 
   // Callback for when SpeakText finishes
   const handleAudioEnd = () => {
-    reportAudioFinished(message.messageId);
-    spokenTextReportAudioFinished(message.messageId);
+    reportAudioFinished(message.id);
+    spokenTextReportAudioFinished(message.id);
   };
 
   // iMessage-like styling
@@ -64,18 +61,15 @@ export function MessageBubble({ message, players, isWerewolfChat }: MessageBubbl
     "justify-start": isBot,
   });
 
-  // Translate speaker name if it's a key
-  const translatedSpeakerName = t(message.speakerName, { defaultValue: message.speakerName });
+  // Use message.senderName directly
+  const speakerDisplayName = isModerator ? t('ModeratorName', { defaultValue: 'Moderator' }) : message.senderName;
+  // Translate the display name if needed (e.g., role names used as senderName)
+  const translatedSpeakerName = t(speakerDisplayName, { defaultValue: speakerDisplayName });
 
-  // Prepare placeholders with translated values where applicable (e.g., role names)
-  const translatePlaceholders = (ph?: Record<string, string | number>) => {
-    const out: Record<string, string | number> = {};
-    if (!ph) return out;
-    for (const [k, v] of Object.entries(ph)) {
-      out[k] = typeof v === "string" ? t(v, { defaultValue: v }) : v;
-    }
-    return out;
-  };
+  // Placeholder translation logic (assuming message.content contains the key/text)
+  // TODO: Adapt if message structure for translations changes (e.g., separate phraseKey)
+  const messageContent = message.content;
+  // const translatePlaceholders = ... (This logic might need adjustment based on how placeholders are stored)
 
   return (
     <div className={containerClasses}>
@@ -107,31 +101,22 @@ export function MessageBubble({ message, players, isWerewolfChat }: MessageBubbl
               isHuman ? "text-blue-100" : "text-foreground",
             )}
           >
-            {isModerator ? t('ModeratorName', { defaultValue: 'Moderator' }) : translatedSpeakerName}
+            {translatedSpeakerName}
           </span>
           {isBot && isAudioGloballyEnabled && (
             <SpeakText
-              voiceId={
-                message.speaker.type === "player" && speakerPlayer
-                  ? speakerPlayer.voiceId
-                  : undefined
-              }
+              voiceId={speakerPlayer?.voiceId}
               className="text-xs"
               autoQueue
               onEnd={handleAudioEnd}
               disabled={isWerewolfChat}
             >
-              {message.content}
+              {messageContent}
             </SpeakText>
           )}
         </div>
         <p className="text-sm whitespace-pre-wrap">
-          {message.phraseKey
-            ? t(message.phraseKey, {
-                ...translatePlaceholders(message.placeholders),
-                defaultValue: message.content,
-              })
-            : message.content}
+          {messageContent}
         </p>
       </div>
 

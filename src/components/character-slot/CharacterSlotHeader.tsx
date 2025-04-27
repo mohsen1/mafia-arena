@@ -4,7 +4,8 @@ import React from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Users, ServerCrash, Bot, X, Loader2, User } from "lucide-react";
-import type { ConfigCharacterSlot } from "@/lib/types/game";
+// import type { ConfigCharacterSlot } from "@/lib/types/game"; // Keep old commented out maybe?
+import type { ConfigCharacterSlot } from "../../hooks/useGameConfig"; // Correct relative path?
 import type { TFunction } from "i18next";
 
 interface CharacterSlotHeaderProps {

@@ -3,7 +3,9 @@
 import Image from "next/image";
 import { PlayerCard } from "@/components/PlayerCard";
 import { useGameContext } from "@/context/GameContext"; // Import context hook
-import type { Player } from "@/lib/types/game"; // Import Player type
+// import type { Player } from "@/lib/types/game"; // OLD IMPORT
+import type { FilteredPlayer } from "@/lib/interfaces/client.types"; // NEW IMPORT
+import type { PlayerId } from "@/lib/engine/interfaces/IPlayer"; // Import PlayerId
 
 import Link from "next/link";
 // Import from react-i18next
@@ -25,13 +27,13 @@ export function GameSidebar() {
   const { players, livingPlayerIds, deadPlayerIds } = gameState;
 
   const livingPlayers = livingPlayerIds
-    .map((id: string) => players[id]) // Add type for id
-    .filter((p): p is Player => !!p); // Type guard already ensures p is Player
+    .map((id: PlayerId) => players[id]) // Use PlayerId
+    .filter((p): p is FilteredPlayer => !!p); // Use FilteredPlayer
 
   // Calculate dead players
   const deadPlayers = deadPlayerIds
-    .map((id: string) => players[id])
-    .filter((p): p is Player => !!p);
+    .map((id: PlayerId) => players[id]) // Use PlayerId
+    .filter((p): p is FilteredPlayer => !!p); // Use FilteredPlayer
   if (!players) return null;
 
   return (
@@ -59,7 +61,7 @@ export function GameSidebar() {
       <div className="flex-grow p-2 overflow-y-auto">
         <div className="space-y-1">
           {/* Map over all players */}
-          {livingPlayers.map((player: Player) => (
+          {livingPlayers.map((player: FilteredPlayer) => (
             <PlayerCard key={player.id} player={player} />
           ))}
           {/* Remove separate rendering for living/dead players */}
@@ -71,7 +73,7 @@ export function GameSidebar() {
                 {/* Use translation key */}
                 {t("DeadPlayersTitle", "Dead Players")}
               </h3>
-              {deadPlayers.map((player: Player) => (
+              {deadPlayers.map((player: FilteredPlayer) => (
                 <PlayerCard key={player.id} player={player} />
               ))}
             </>

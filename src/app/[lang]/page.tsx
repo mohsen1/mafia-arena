@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react'; // Import hooks
 // import Link from "next/link"; // Removed unused Link import
-import type { FilteredGameState } from "@/lib/types/game";
+import type { FilteredGameState } from "@/lib/interfaces/client.types";
 // import { getGroqModels } from "@/lib/groq/api";
 // import { deleteGameAction } from "@/app/actions/index"; // Server Actions need care in Client Components
 // import { Button } from "@/components/ui/button"; // Removed unused Button import

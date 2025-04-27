@@ -1,0 +1,104 @@
+import fs from 'fs/promises';
+import path from 'path';
+import type { SerializableGameState } from './interfaces/persistence.types';
+
+const SAVE_DIR = path.join(process.cwd(), 'game_saves');
+
+// Ensure save directory exists
+const ensureSaveDir = async () => {
+    try {
+        await fs.mkdir(SAVE_DIR, { recursive: true });
+    } catch (error) {
+        console.error('Failed to create save directory:', error);
+        throw new Error('Failed to initialize persistence layer.');
+    }
+};
+
+const getFilePath = (gameId: string): string => {
+    // Basic sanitization to prevent path traversal
+    if (gameId.includes('..') || gameId.includes('/') || gameId.includes('\\')) {
+        throw new Error(`Invalid gameId for file path: ${gameId}`);
+    }
+    return path.join(SAVE_DIR, `${gameId}.json`);
+};
+
+/**
+ * Loads game state from a JSON file.
+ * @param gameId The ID of the game to load.
+ * @returns The loaded SerializableGameState or null if not found.
+ */
+export async function loadGameData(gameId: string): Promise<SerializableGameState | null> {
+    await ensureSaveDir();
+    const filePath = getFilePath(gameId);
+    try {
+        const data = await fs.readFile(filePath, 'utf-8');
+        // TODO: Implement proper deserialization for Date, Map, Set if needed
+        // Example: Reviver function for JSON.parse
+        const gameState: SerializableGameState = JSON.parse(data);
+        return gameState;
+    } catch (error: any) {
+        if (error.code === 'ENOENT') {
+            console.log(`No save file found for gameId: ${gameId}`);
+            return null;
+        }
+        console.error(`Failed to load game data for ${gameId}:`, error);
+        throw new Error(`Failed to load game data: ${error.message}`);
+    }
+}
+
+/**
+ * Saves game state to a JSON file.
+ * @param gameId The ID of the game to save.
+ * @param gameState The game state object to save.
+ */
+export async function saveGameData(gameId: string, gameState: SerializableGameState): Promise<void> {
+    await ensureSaveDir();
+    const filePath = getFilePath(gameId);
+    try {
+        // TODO: Implement proper serialization for Date, Map, Set if needed
+        // Example: Replacer function for JSON.stringify
+        const data = JSON.stringify(gameState, null, 2); // Pretty print JSON
+        await fs.writeFile(filePath, data, 'utf-8');
+        console.log(`Game data saved for gameId: ${gameId}`);
+    } catch (error: any) {
+        console.error(`Failed to save game data for ${gameId}:`, error);
+        throw new Error(`Failed to save game data: ${error.message}`);
+    }
+}
+
+/**
+ * Deletes a game save file.
+ * @param gameId The ID of the game to delete.
+ */
+export async function deleteGameData(gameId: string): Promise<void> {
+    await ensureSaveDir();
+    const filePath = getFilePath(gameId);
+    try {
+        await fs.unlink(filePath);
+        console.log(`Game data deleted for gameId: ${gameId}`);
+    } catch (error: any) {
+        if (error.code === 'ENOENT') {
+            console.log(`No save file to delete for gameId: ${gameId}`);
+            return; // It's already gone, success!
+        }
+        console.error(`Failed to delete game data for ${gameId}:`, error);
+        throw new Error(`Failed to delete game data: ${error.message}`);
+    }
+}
+
+/**
+ * Lists available game save IDs.
+ * @returns An array of game IDs.
+ */
+export async function listSavedGames(): Promise<string[]> {
+    await ensureSaveDir();
+    try {
+        const files = await fs.readdir(SAVE_DIR);
+        return files
+            .filter(file => file.endsWith('.json'))
+            .map(file => file.replace('.json', ''));
+    } catch (error: any) {
+        console.error('Failed to list saved games:', error);
+        throw new Error(`Failed to list saved games: ${error.message}`);
+    }
+} 

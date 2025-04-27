@@ -1,6 +1,8 @@
 import dedent from "dedent";
 import type { LanguageName } from "@/lib/i18n/settings";
-import type { Role } from "@/lib/types/game";
+// import type { Role } from "@/lib/types/game";
+import type { RoleName } from "@/lib/engine/interfaces/IRole";
+import type { Persona } from "@/lib/engine/interfaces/Persona";
 
 export const GENERATE_TITLE_AND_DESCRIPTION_SYSTEM_PROMPT = dedent`
   You are a creative assistant tasked with generating a thematic title and a short, evocative
@@ -20,7 +22,7 @@ export const GENERATE_TITLE_AND_DESCRIPTION_USER_PROMPT = (
   Respond ONLY with the JSON object.`;
 
 export const GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT = (
-  role: Role,
+  role: RoleName,
   existingCharsContext: string,
   language: LanguageName,
 ) =>
@@ -363,11 +365,11 @@ export const VOTING_PROMPT = (
 
 // New prompt generator for Title/Description
 export const GAME_TITLE_DESCRIPTION_PROMPT = (
-  playerDetails: { name: string; persona: string }[],
+  playerDetails: { name: string; persona: Persona }[],
   language: LanguageName,
 ): string => {
   const characterList = playerDetails
-    .map((p) => `- ${p.name}: ${p.persona.split("\n")[0]}`) // Use only the first line (Name)
+    .map((p) => `- ${p.name}: ${p.persona.backstory.split("\n")[0]}`)
     .join("\n");
 
   return dedent`Based on the following cast of characters:
@@ -379,7 +381,7 @@ export const GAME_TITLE_DESCRIPTION_PROMPT = (
   Do not add any other text, explanations, or translations. Format your response exactly like this:
   Title: [Your Title in ${language}]
   Description: [Your Description in ${language}]
-  `; // Removed trailing newline characters before backtick
+  `;
 };
 
 // --- UI Translation Prompt ---

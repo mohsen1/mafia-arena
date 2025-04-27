@@ -1,7 +1,7 @@
 "use client"; // Make this a client component to use the hook
 
 import Link from "next/link";
-import type { FilteredGameState } from "@/lib/types/game";
+import type { FilteredGameState } from "@/lib/interfaces/client.types";
 import { deleteGameAction } from "@/app/actions/index";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -20,19 +20,19 @@ export default function GameCard({ game }: GameCardProps) {
     <li className="flex justify-between items-start gap-4">
       <div className="flex-grow">
         <h3 className="text-lg font-semibold mb-1">
-          <Link href={`/${game.gameId}`} className="hover:underline">
-            {game.title || t("DefaultGameTitle", "Untitled Game")}
+          <Link href={`/${game.language}/game/${game.gameId}`} className="hover:underline">
+            {game.themeTitle || t("DefaultGameTitle", "Untitled Game")}
           </Link>
         </h3>
-        {game.description && (
+        {game.themeDescription && (
           <p className="text-sm text-muted-foreground italic mb-2">
-            {game.description}
+            {game.themeDescription}
           </p>
         )}
         <p className="text-xs text-muted-foreground">
           {t("GamePhaseLabel", "Phase")}:{" "}
           <span className="font-medium capitalize">
-            {t(`GamePhase${game.phase}`, game.phase)}
+            {t(`GamePhase_${game.phase}`, game.phase)}
           </span>{" "}
           | {t("RoundLabel", "Round")}:{" "}
           <span className="font-medium">{game.round}</span> |

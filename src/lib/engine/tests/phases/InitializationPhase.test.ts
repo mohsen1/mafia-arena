@@ -1,14 +1,14 @@
 // tests/phases/InitializationPhase.test.ts
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { InitializationPhase } from '../../src/phases/InitializationPhase';
-import { DayPhase } from '../../src/phases/DayPhase';
-import type { Game } from '../../src/core/Game';
+import { InitializationPhase } from '@/lib/engine/phases/InitializationPhase';
+import { DayPhase } from '@/lib/engine/phases/DayPhase';
+import type { Game } from '@/lib/engine/core/Game';
 // Removed Player import as we mock the instance, not the class
-import { MessageVisibility } from '../../src/interfaces/IMessage';
-import type { PlayerId } from '../../src/interfaces/IPlayer';
-import { DEFAULT_PERSONA } from '../../src/interfaces/Persona';
-import { type IAgent, type PlayerAction } from '../../src/interfaces/IAgent';
-import { type Persona } from '../../src/interfaces/Persona';
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import { DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
+import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import { type Persona } from '@/lib/engine/interfaces/Persona';
 
 // Mock Agent interfaces/classes for testing
 interface MockableAgent extends IAgent {

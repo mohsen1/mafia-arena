@@ -6,17 +6,19 @@ import { GameSidebar } from "@/components/GameSidebar";
 import HumanChatInput from "@/components/HumanChatInput";
 import { GameProvider, useGameContext } from "@/context/GameContext";
 import { SpokenTextProvider } from "@/context/SpokenTextContext";
-import type { GameState } from "@/lib/types/game";
+import type { FilteredGameState } from "@/lib/interfaces/client.types";
 import { useTranslation } from 'react-i18next';
 
 // Define the payload type based on the server action
 type HumanActionPayload =
-  | { type: "chat"; content: string }
-  | { type: "vote"; targetPlayerId: string }
-  | { type: "nightAction"; targetPlayerId: string };
+  | { type: "message"; content: string }
+  | { type: "vote"; targetPlayerId: string | null }
+  | { type: "mafiaKill"; targetPlayerId: string }
+  | { type: "doctorSave"; targetPlayerId: string | null }
+  | { type: "seerInvestigate"; targetPlayerId: string | null };
 
 interface GameClientProps {
-  initialGameState: GameState;
+  initialGameState: FilteredGameState;
   gameId: string;
   boundRunGameTurnAction: () => Promise<void>;
   boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<void>;

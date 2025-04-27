@@ -2,59 +2,239 @@ import type { IPlayer, PlayerId, PlayerStatus, PublicPlayerInfo } from '../inter
 import { Player } from './Player';
 import type { IGamePhase, GamePhaseType } from '../interfaces/IGamePhase';
 import { InitializationPhase } from '../phases/InitializationPhase';
+import { DayPhase } from '../phases/DayPhase';
+import { NightPhase } from '../phases/NightPhase';
 import { GameOverPhase } from '../phases/GameOverPhase';
 import type { IGameRenderer } from '../interfaces/IGameRenderer';
 import { ConversationLog } from './ConversationLog';
 import { type IMessage, MessageVisibility } from '../interfaces/IMessage';
 import { Message } from './Message';
 import type { VisibleGameState } from '../interfaces/GameState';
-import { RoleName } from '../interfaces/IRole';
+import { RoleName, type IRole, type Allegiance } from '../interfaces/IRole';
 import { v4 as uuidv4 } from 'uuid';
 import type { IAgent, PlayerAction } from '../interfaces/IAgent';
 import { HumanAgent } from '../agents/HumanAgent';
-import type { IRole } from '../interfaces/IRole';
 import { type GameTheme, Themes } from '../interfaces/Theme';
 import { type AgentMemory, createInitialMemory } from '../interfaces/AgentMemory';
+import { DEFAULT_PERSONA } from '../interfaces/Persona';
+
+import type { SerializableGameState, SerializablePlayer, AgentConfig } from '../../interfaces/persistence.types';
+import { createAgentInstance } from '@/lib/agentFactory';
+import { MafiaRole } from '../roles/MafiaRole';
+import { VillagerRole } from '../roles/VillagerRole';
+import { DoctorRole } from '../roles/DoctorRole';
+import { SeerRole } from '../roles/SeerRole';
+import type { PendingHumanAction } from '../../interfaces/actions.types';
+import type { LanguageName } from '../../i18n/settings';
+
+import { OpenAIAgent } from '../agents/OpenAIAgent';
+
+const roleClassMap: Record<RoleName, new () => IRole> = {
+    [RoleName.Mafia]: MafiaRole,
+    [RoleName.Villager]: VillagerRole,
+    [RoleName.Doctor]: DoctorRole,
+    [RoleName.Seer]: SeerRole,
+};
+
+const phaseInstanceMap: Record<GamePhaseType, new (...args: any[]) => IGamePhase> = {
+    'Init': InitializationPhase,
+    'Day': DayPhase,
+    'Night': NightPhase,
+    'GameOver': GameOverPhase,
+};
+
+function getAgentConfigFromInstance(agent: IAgent): AgentConfig {
+    if (agent instanceof OpenAIAgent) {
+        let providerValue = 'openai';
+        const endpoint = (agent as any).apiBase;
+        const modelName = (agent as any).model;
+        if (endpoint?.includes('groq.com')) providerValue = 'groq';
+        else if (endpoint?.includes('localhost:11434')) providerValue = 'ollama_local';
+        else if (endpoint?.includes('fireworks.ai')) providerValue = 'fireworks';
+        return { agentType: agent.agentName || 'OpenAI', modelName, providerValue };
+    }
+    else if (agent instanceof HumanAgent) {
+         return { agentType: 'Human' };
+     }
+     else {
+         return { agentType: 'Dummy' };
+     }
+ }
 
 export class Game {
-    public readonly id: string = uuidv4();
+    public id: string;
     #players = new Map<PlayerId, Player>();
     #currentState: IGamePhase;
     #renderers: IGameRenderer[] = [];
     #conversationLog = new ConversationLog();
     #round = 0;
-    public readonly language: string;
-    public readonly theme: GameTheme;
-    // Store memory for each agent
+    #humanPlayerId: PlayerId | null = null;
+    #lastPhaseResults: SerializableGameState['_phaseResults'] = {};
+    public language: LanguageName;
+    public theme: GameTheme;
     #agentMemories = new Map<PlayerId, AgentMemory>();
+    #createdAt: number;
 
     constructor(
         playerSetups: { name: string; agent: IAgent; role: IRole }[],
-        themeName: string = 'UK_VILLAGE_1900S',
-        language: string = 'en'
+        themeKey: string = 'UK_VILLAGE_1900S',
+        language: LanguageName = 'en'
     ) {
-        // Add validation for minimum player count
-        if (playerSetups.length < 3) {
-            throw new Error('Not enough players to start a game.');
+        if (playerSetups.length < 1) {
+            this.id = uuidv4();
+            this.theme = Themes[themeKey] || Themes['UK_VILLAGE_1900S'];
+            this.language = language;
+            this.#currentState = new InitializationPhase();
+            this.#createdAt = Date.now();
+            return;
         }
 
-        this.theme = Themes[themeName];
-        if (!this.theme) {
-            throw new Error(`Selected theme "${themeName}" not found.`);
+        if (playerSetups.length < 3) {
+            throw new Error('Not enough players to start a new game (minimum 3).');
         }
+
+        this.id = uuidv4();
+        this.#createdAt = Date.now();
         this.language = language;
+        this.theme = Themes[themeKey];
+        if (!this.theme) throw new Error(`Invalid theme key: ${themeKey}`);
+
+        this.#players = new Map();
+        this.#agentMemories = new Map();
+        this.#humanPlayerId = null;
+
         playerSetups.forEach((setup, index) => {
-            // Sanitize name: remove quotes and convert to lowercase, replace spaces with hyphens
             const sanitizedName = setup.name.toLowerCase().replace(/"/g, '').replace(/\s+/g, '-');
-            const playerId: PlayerId = `player-${index + 1}-${sanitizedName}`;
-            // PlayerId is now passed via gameState in getAction
+            const roleNameStr = setup.role.name.toString().toLowerCase();
+            const playerId: PlayerId = `player-${index + 1}-${roleNameStr}-${sanitizedName}`;
             const player = new Player(playerId, setup.name, setup.role, setup.agent);
             this.#players.set(playerId, player);
-            this.#agentMemories.set(playerId, createInitialMemory()); // Initialize memory
+            this.#agentMemories.set(playerId, createInitialMemory());
+            if (setup.agent instanceof HumanAgent) {
+                if (this.#humanPlayerId) console.warn("Multiple HumanAgents detected.");
+                this.#humanPlayerId = playerId;
+            }
         });
 
-        // Initial state
         this.#currentState = new InitializationPhase();
+        this.#round = 0;
+        this.#conversationLog = new ConversationLog();
+        console.log(`New game ${this.id} created.`);
+    }
+
+    public static loadFromState(state: SerializableGameState): Game {
+        const game = new Game([], state.themeKey, state.language);
+
+        game.id = state.gameId;
+        game.#createdAt = state.createdAt;
+        game.#round = state.round;
+        game.#humanPlayerId = state.humanPlayerId;
+        game.#lastPhaseResults = state._phaseResults || {};
+
+        game.#players.clear();
+        game.#agentMemories.clear();
+        Object.values(state.players).forEach(pState => {
+            const agent = createAgentInstance(pState.agentConfig, pState.id);
+            const RoleClass = roleClassMap[pState.roleName];
+            if (!RoleClass) throw new Error(`LoadError: Cannot deserialize role: ${pState.roleName}`);
+            const roleInstance = new RoleClass();
+
+            const player = new Player(pState.id, pState.name, roleInstance, agent);
+            if (pState.status === 'Dead') player.kill();
+            player.agent.persona = pState.persona || DEFAULT_PERSONA;
+
+            game.#players.set(pState.id, player);
+
+            const loadedMemory = state.agentMemories[pState.id] || createInitialMemory();
+            game.#agentMemories.set(pState.id, loadedMemory);
+        });
+
+        game.#conversationLog = new ConversationLog();
+        state.conversationLog.forEach(msgData => {
+            const timestamp = typeof msgData.timestamp === 'string'
+                ? new Date(msgData.timestamp)
+                : new Date(msgData.timestamp);
+
+            const message = new Message(
+                msgData.round, msgData.phase, msgData.senderId, msgData.senderName,
+                msgData.content, msgData.visibility, msgData.recipientId
+            );
+            (message as any).id = msgData.id;
+            (message as any).timestamp = timestamp;
+
+            game.#conversationLog.addMessage(message);
+        });
+
+        const PhaseClass = phaseInstanceMap[state.phase];
+        if (!PhaseClass) throw new Error(`LoadError: Cannot deserialize phase: ${state.phase}`);
+        if (state.phase === 'GameOver') {
+            if (!state.winCondition) throw new Error("LoadError: Cannot load GameOver phase without win condition.");
+            game.#currentState = new GameOverPhase((state.winCondition.outcome as any));
+        } else {
+            game.#currentState = new PhaseClass();
+        }
+
+        console.log(`Game ${game.id} loaded from state (Round: ${game.#round}, Phase: ${game.#currentState.type})`);
+        return game;
+    }
+
+    public getCurrentSerializableState(pendingAction: PendingHumanAction | null = null): SerializableGameState {
+        const playersState: Record<PlayerId, SerializablePlayer> = {};
+        this.#players.forEach((player, id) => {
+            const agentConfig = getAgentConfigFromInstance(player.agent);
+            playersState[id] = {
+                id: player.id,
+                name: player.name,
+                status: player.status,
+                roleName: player.role.name,
+                allegiance: player.role.allegiance,
+                agentConfig: agentConfig,
+                persona: player.agent.persona || DEFAULT_PERSONA,
+            };
+        });
+
+        const agentMemoriesRecord: Record<PlayerId, AgentMemory> = {};
+        this.#agentMemories.forEach((memory, id) => {
+            agentMemoriesRecord[id] = memory;
+        });
+
+        const winCondition = this.#currentState instanceof GameOverPhase
+            ? { outcome: (this.#currentState as GameOverPhase).winner, message: "Game Over!" }
+            : null;
+
+        const themeKey = Object.keys(Themes).find(key => Themes[key] === this.theme) || 'UK_VILLAGE_1900S';
+
+        const state: SerializableGameState = {
+            gameId: this.id,
+            createdAt: this.#createdAt,
+            updatedAt: Date.now(),
+            themeKey: themeKey,
+            language: this.language,
+            round: this.#round,
+            phase: this.getCurrentPhaseType(),
+            players: playersState,
+            livingPlayerIds: this.getAlivePlayers().map(p => p.id),
+            deadPlayerIds: Array.from(this.#players.values()).filter(p => !p.isAlive()).map(p => p.id),
+            conversationLog: this.#conversationLog.getAllMessages().map(msg => ({
+                 ...msg,
+                 timestamp: msg.timestamp
+             })),
+            agentMemories: agentMemoriesRecord,
+            winCondition: winCondition,
+            humanPlayerId: this.#humanPlayerId,
+            pendingHumanAction: pendingAction,
+            _phaseResults: this.#lastPhaseResults,
+        };
+
+        return state;
+    }
+
+    public getLastPhaseResults(): SerializableGameState['_phaseResults'] {
+        return this.#lastPhaseResults;
+    }
+
+    public setPhaseResults(results: Partial<SerializableGameState['_phaseResults']>): void {
+        this.#lastPhaseResults = { ...this.#lastPhaseResults, ...results };
     }
 
     addRenderer(renderer: IGameRenderer): void {
@@ -68,8 +248,6 @@ export class Game {
         for (const renderer of this.#renderers) {
             if (typeof renderer[method] === 'function') {
                 try {
-                    // The any cast remains, as handling the specific union type dynamically is complex
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (renderer[method] as any)(...args);
                 } catch (error) {
                     console.error(`Renderer error in method ${String(method)}:`, error);
@@ -82,7 +260,7 @@ export class Game {
         senderId: PlayerId | null,
         content: string,
         visibility: MessageVisibility,
-        phaseOverride?: GamePhaseType // Sometimes needed if logged after phase change
+        phaseOverride?: GamePhaseType
     ): IMessage {
         const sender = senderId ? this.#players.get(senderId) : null;
         const message = new Message(
@@ -94,15 +272,10 @@ export class Game {
             visibility
         );
         this.#conversationLog.addMessage(message);
-        // Notify renderers ONLY if the message should be public or if they handle specific visibilities
-        // The renderer itself should decide if it displays Mafia chat etc.
-        // A more robust approach might pass the visibility hint to the renderer.
         if (visibility === MessageVisibility.Public) {
              this.notifyRenderers('renderMessage', message);
         } else if (visibility === MessageVisibility.Mafia) {
-             // Special handling maybe needed in renderer, or filter based on context
-             // For now, let console renderer show it with a tag
-             this.notifyRenderers('renderMessage', message); // Simple approach for now
+             this.notifyRenderers('renderMessage', message);
         }
 
         return message;
@@ -110,37 +283,53 @@ export class Game {
 
     async runGameLoop(): Promise<void> {
         this.notifyRenderers('renderGameStart', this.getPublicPlayerMap(), this.id);
+
+        await this.ensurePersonasGenerated();
+
         while (!(this.#currentState instanceof GameOverPhase)) {
             if (this.#currentState.type !== 'Init' && this.#currentState.type !== this.getCurrentPhaseType()) {
-                 // Handle potential state inconsistencies if needed
                  console.warn("State type mismatch detected");
             }
 
-            if (this.#currentState.type === 'Day') { // Increment round at the start of Day
+            if (this.#currentState.type === 'Day') {
                 this.#round++;
                 this.notifyRenderers('renderRoundStart', this.#round);
             }
 
             this.notifyRenderers('renderPhaseStart', this.getCurrentPhaseType(), this.round);
 
-            // Execute the current phase's logic
             await this.#currentState.runPhase(this);
 
-            // Check for game over conditions *before* transitioning
             const winner = this.checkWinCondition();
             if (winner) {
                 this.#currentState = new GameOverPhase(winner);
                  this.notifyRenderers('renderPhaseStart', this.getCurrentPhaseType(), this.round);
-                await this.#currentState.runPhase(this); // Run the GameOver phase logic
+                await this.#currentState.runPhase(this);
             } else {
-                 // Transition to the next state
                  this.#currentState = this.#currentState.transition(this);
             }
         }
          this.notifyRenderers('renderNarration', "Game Loop Finished.");
     }
 
-    // --- State Accessors and Mutators (called by Phases) ---
+    async ensurePersonasGenerated(): Promise<void> {
+        const personaGenerationPromises: Promise<void>[] = [];
+        const themeDescription = this.theme.description;
+
+        this.#players.forEach(player => {
+            if (player.agent.persona?.name === DEFAULT_PERSONA.name &&
+                typeof player.agent.generatePersona === 'function') {
+                console.log(`Generating persona for ${player.name} (${player.id})...`);
+                personaGenerationPromises.push(player.agent.generatePersona(themeDescription));
+            }
+        });
+
+        if (personaGenerationPromises.length > 0) {
+            console.log(`Waiting for ${personaGenerationPromises.length} personas to be generated...`);
+            await Promise.all(personaGenerationPromises);
+            console.log("Persona generation complete.");
+        }
+    }
 
     getPlayer(id: PlayerId): Player | undefined {
         return this.#players.get(id);
@@ -160,6 +349,10 @@ export class Game {
 
      getAliveVillagers(): Player[] {
         return Array.from(this.#players.values()).filter(p => p.isAlive() && p.role.name === RoleName.Villager);
+    }
+
+    getTownRoles(): Player[] {
+        return Array.from(this.#players.values()).filter(p => p.isAlive() && p.role.allegiance === 'Town');
     }
 
     getPublicPlayerMap(): ReadonlyMap<PlayerId, PublicPlayerInfo> {
@@ -184,17 +377,10 @@ export class Game {
         return this.#conversationLog;
     }
 
-    // Added getter for agent memories
     getAgentMemories(): ReadonlyMap<PlayerId, AgentMemory> {
         return this.#agentMemories;
     }
 
-    /**
-     * Requests an action from a player.
-     * If the player has a HumanAgent, it uses the first available renderer
-     * that implements `promptHumanInput`. Otherwise, it calls the player's
-     * `decideAction` method.
-     */
     async requestPlayerAction(player: Player, allowedActions: PlayerAction['type'][]): Promise<PlayerAction> {
         if (!player.isAlive()) {
             console.warn(`Attempted to request action from dead player ${player.id}`);
@@ -202,32 +388,26 @@ export class Game {
         }
 
         if (player.agent instanceof HumanAgent) {
-            const humanPrompter = this.#renderers.find(r => typeof r.promptHumanInput === 'function');
-            if (humanPrompter?.promptHumanInput) {
-                 // Generate the state needed JUST for the prompt context (less than full decideAction state?)
-                 // For now, pass the public info.
-                 // TODO: promptHumanInput might need more context than just publicPlayerInfo.
-                 const playerInfo = player.getPublicRepresentation(); 
-                try {
-                     // Pass necessary context for the prompt (e.g., list of targets)
-                     // This needs refinement - the renderer needs to know who to list!
-                    return await humanPrompter.promptHumanInput(playerInfo, allowedActions);
-                } catch (error) {
-                    console.error(`Error prompting human player ${player.id}:`, error);
-                    return { type: 'noAction' }; // Default safe action on error
-                }
-            } else {
-                console.error(`Human player ${player.id} requires a renderer with promptHumanInput, but none found.`);
-                return { type: 'noAction' }; // Cannot get input
-            }
+            console.log(`Requesting action from Human player ${player.id}. Allowed: ${allowedActions.join(', ')}`);
+            const pendingAction: PendingHumanAction = {
+                playerId: player.id,
+                allowedActions: allowedActions,
+                prompt: `Your action is required (${allowedActions.join('/')}).`
+            };
+            return { type: 'humanActionRequired', pendingAction: pendingAction };
         } else {
-            // For AI agents, generate their visible state and call decideAction
+            console.log(`Requesting action from AI player ${player.name} (${player.id}). Allowed: ${allowedActions.join(', ')}`);
             const gameState = this.generateVisibleGameState(player.id);
-            return await player.decideAction(gameState, allowedActions);
+            try {
+                const action = await player.decideAction(gameState, allowedActions);
+                console.log(`AI ${player.name} (${player.id}) decided action: ${JSON.stringify(action)}`);
+                return action;
+            } catch(error) {
+                 console.error(`Error getting action from AI ${player.name} (${player.id}):`, error);
+                 return { type: 'noAction' };
+            }
         }
     }
-
-    // --- Game Logic Helpers ---
 
     killPlayer(playerId: PlayerId, reason: string): void {
         const player = this.#players.get(playerId);
@@ -241,21 +421,16 @@ export class Game {
 
     checkWinCondition(): 'Mafia' | 'Town' | null {
         const aliveMafiaCount = this.getAliveMafia().length;
-        // Count ALL alive Town members (Villagers, Doctors, Seers, etc.)
-        const aliveTownCount = this.getAlivePlayers().filter(p => p.role.allegiance === 'Town').length;
+        const aliveTownCount = this.getTownRoles().length;
 
-        if (aliveMafiaCount === 0 && aliveTownCount > 0) { // Ensure Town still has members
+        if (aliveMafiaCount === 0 && aliveTownCount > 0) {
             return 'Town';
         }
-        // Check if Mafia count is >= total Town count OR if Town count is 0
         if (aliveMafiaCount >= aliveTownCount || aliveTownCount === 0) {
-            // Make sure there are still mafia alive to win
-            return aliveMafiaCount > 0 ? 'Mafia' : null; // Mafia wins if they exist, otherwise null (stalemate?)
+            return aliveMafiaCount > 0 ? 'Mafia' : null;
         }
-        return null; // No winner yet
+        return null;
     }
-
-    // --- Memory Update Methods ---
 
     recordVoteResultsInMemory(votes: ReadonlyMap<PlayerId, PlayerId | null>): void {
         const voteRecord = { round: this.round, votes };
@@ -265,48 +440,50 @@ export class Game {
     }
 
     recordKillInMemory(killedPlayerId: PlayerId | null): void {
-        const killRecord = { round: this.round, killedPlayerId };
+        const killRecord = { round: this.round, phase: this.getCurrentPhaseType(), killedPlayerId };
         this.#agentMemories.forEach(memory => {
-            memory.killHistory.push(killRecord);
+            if (!memory.killHistory.some(k => k.round === this.round && k.phase === killRecord.phase)) {
+                 memory.killHistory.push(killRecord);
+            }
         });
     }
 
-    recordSeerResultInMemory(seerId: PlayerId, targetId: PlayerId, allegiance: 'Mafia' | 'Town'): void {
+    recordSeerResultInMemory(seerId: PlayerId, targetId: PlayerId, allegiance: Allegiance): void {
         const memory = this.#agentMemories.get(seerId);
         if (memory) {
-            memory.investigationResults.push({ round: this.round, targetId, allegiance });
+             const resultRecord = { round: this.round, targetId, allegiance };
+             if (!memory.investigationResults.some(r => r.round === this.round && r.targetId === targetId)) {
+                 memory.investigationResults.push(resultRecord);
+             }
         }
     }
 
     recordDoctorSaveInMemory(doctorId: PlayerId, savedPlayerId: PlayerId | null): void {
         const memory = this.#agentMemories.get(doctorId);
         if (memory) {
-            memory.saveHistory.push({ round: this.round, savedPlayerId });
+             const saveRecord = { round: this.round, savedPlayerId };
+             if (!memory.saveHistory.some(s => s.round === this.round)) {
+                 memory.saveHistory.push(saveRecord);
+             }
         }
     }
 
-    // Creates the specific view of the game state for a given player
     generateVisibleGameState(playerId: PlayerId): VisibleGameState {
         const player = this.getPlayer(playerId);
         if (!player) throw new Error(`Player ${playerId} not found for generating state.`);
 
         const isMafia = player.role.name === RoleName.Mafia;
 
-        // Get agent-specific memory
         const agentMemory = this.#agentMemories.get(playerId);
         if (!agentMemory) {
-             // Should not happen if initialized correctly
              console.error(`Memory not found for player ${playerId}!`);
              throw new Error(`Memory not found for player ${playerId}`);
         }
 
-        // Update message history within the memory object before generating state
-        // Get ALL relevant messages, no arbitrary limit
         agentMemory.messageHistory = this.#conversationLog.getMessages({
-             relevantToPlayer: { id: playerId, role: player.role.name }
+             relevantToPlayer: { id: playerId, role: player.role.name, allegiance: player.role.allegiance }
         });
 
-        // Base visible state
         const state: VisibleGameState = {
              gameId: this.id,
             round: this.round,
@@ -316,18 +493,18 @@ export class Game {
                 name: player.name,
                 status: player.status,
                 role: player.role.name,
-                isMafia: isMafia,
-                persona: player.agent.persona
+                 allegiance: player.role.allegiance,
+                isMafia: player.role.allegiance === 'Mafia',
+                persona: player.agent.persona || DEFAULT_PERSONA
             },
-            players: this.getPublicPlayerArray(), // Only public info
+            players: this.getPublicPlayerArray(),
             alivePlayerIds: new Set(this.getAlivePlayers().map(p => p.id)),
             language: this.language,
-            // Conditionally add Mafia member list
-             ...(isMafia && { mafiaPlayerIds: new Set(this.getAliveMafia().map(p => p.id)) }),
+            ...(isMafia && { mafiaPlayerIds: new Set(this.getAliveMafia().map(p => p.id)) }),
              themeName: this.theme.name,
-            memory: agentMemory // Pass the agent's specific memory
+            memory: agentMemory
         };
 
-        return Object.freeze(state); // Make it immutable
+        return state;
     }
 }

@@ -1,13 +1,9 @@
 import { generateCharacterAction, startGameAction } from "@/app/actions/index";
 import type { StartGameInputData } from "@/app/actions/gameSetup";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
-import type {
-  AICharacterProfile,
-  ConfigCharacterSlot,
-  PlayerInitializationData,
-  Role,
-  ValidationResult,
-} from "@/lib/types/game";
+import { RoleName } from "@/lib/engine/interfaces/IRole";
+import type { Persona } from "@/lib/engine/interfaces/Persona";
+import type { ValidationResult } from "@/lib/validators/gameConfigValidator";
 import {
   validateGameConfiguration,
   validateGeneratedGameSetup,
@@ -16,10 +12,35 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LanguageCode as Locale } from "@/lib/i18n/settings";
 import { useTranslation } from "react-i18next";
 
-// Type Guard for checking if an object is an error
-// const isError = (e: unknown): e is { error: string } => {
-//   return typeof e === "object" && e !== null && "error" in e;
-// };
+export interface UICharacterProfile {
+  characterName: string;
+  gender: string;
+  ageCategory: string;
+  shortBio: string;
+}
+
+export interface ConfigCharacterSlot {
+  clientId: string;
+  aiModel: string;
+  roleSelection: RoleName;
+  assignedRole?: RoleName;
+  isGenerated: boolean;
+  isHuman?: boolean;
+  profile?: Partial<UICharacterProfile>;
+  imageUrl?: string | null;
+  generationError?: string;
+  persona?: Persona;
+}
+
+export interface PlayerInitializationData {
+    role: RoleName;
+    profile: UICharacterProfile;
+    aiModel: string;
+    imageUrl?: string | null;
+    persona?: Persona;
+    voiceId?: string;
+    isHuman: boolean;
+}
 
 export function useGameConfig(
   availableModels: string[],
@@ -43,8 +64,8 @@ export function useGameConfig(
   const [isPostGenValid, setIsPostGenValid] = useState<boolean | null>(null);
   const [isLoadingNextTurn /*, setIsLoadingNextTurn */] = useState(false);
   const [isHumanJoining, setIsHumanJoining] = useState<boolean>(false);
-  const [humanRoleSelection, setHumanRoleSelection] = useState<Role>(
-    DEFAULT_GAME_SETTINGS.roleDistribution && Object.keys(DEFAULT_GAME_SETTINGS.roleDistribution)[0] as Role
+  const [humanRoleSelection, setHumanRoleSelection] = useState<RoleName>(
+    (DEFAULT_GAME_SETTINGS.roleDistribution && Object.keys(DEFAULT_GAME_SETTINGS.roleDistribution)[0] as RoleName) || RoleName.Villager
   );
   const [humanPlayerName, setHumanPlayerName] = useState<string>("");
 
@@ -88,19 +109,18 @@ export function useGameConfig(
       return;
 
     // Determine total players and roles list from config
-    const roleDist = { ...DEFAULT_GAME_SETTINGS.roleDistribution };
-    // If human joins, remove one slot of their selected role for AI generation
+    const roleDist = { ...DEFAULT_GAME_SETTINGS.roleDistribution } as Record<RoleName, number>;
     if (isHumanJoining && roleDist[humanRoleSelection] > 0) {
       roleDist[humanRoleSelection]--;
     }
     const defaultNumPlayersFromConfig = calculateNumPlayers(
-      DEFAULT_GAME_SETTINGS.roleDistribution,
+      DEFAULT_GAME_SETTINGS.roleDistribution as Record<RoleName, number>,
     );
     const initialPlayerCount = Math.max(5, defaultNumPlayersFromConfig);
 
     // Build roles array for AI slots
-    const defaultRoles: Role[] = Object.entries(roleDist).flatMap(
-      ([role, count]) => Array(count).fill(role as Role)
+    const defaultRoles: RoleName[] = Object.entries(roleDist).flatMap(
+      ([role, count]) => Array(count).fill(role as RoleName)
     );
 
     // Shuffle roles for randomness
@@ -114,11 +134,11 @@ export function useGameConfig(
     }).map((_, index) => {
       // Assign human slot at index 0 if joining
       if (isHumanJoining && index === 0) {
-        return { clientId: crypto.randomUUID(), aiModel: "", roleSelection: humanRoleSelection, isGenerated: false, isHuman: true, profile: { characterName: humanPlayerName } as Partial<AICharacterProfile> };
+        return { clientId: crypto.randomUUID(), aiModel: "", roleSelection: humanRoleSelection, isGenerated: false, isHuman: true, profile: { characterName: humanPlayerName } as Partial<UICharacterProfile> };
       }
       // AI slot index offset when human at front
       const aiIndex = isHumanJoining ? index - 1 : index;
-      const roleSelection = defaultRoles[aiIndex] || "Villager";
+      const roleSelection = defaultRoles[aiIndex] || RoleName.Villager;
       return {
         clientId: crypto.randomUUID(),
         aiModel: globalModelSelection,
@@ -145,8 +165,9 @@ export function useGameConfig(
       {
         clientId: crypto.randomUUID(),
         aiModel: globalModelSelection,
-        roleSelection: "Villager",
+        roleSelection: RoleName.Villager,
         isGenerated: false,
+        isHuman: false,
       },
     ]);
     resetPostGenState();
@@ -194,7 +215,7 @@ export function useGameConfig(
   );
 
   const updateSlotRole = useCallback(
-    (clientId: string, newRole: Role) => {
+    (clientId: string, newRole: RoleName) => {
       setCharacterSlots((prev) =>
         prev.map((slot) =>
           slot.clientId === clientId
@@ -251,7 +272,7 @@ export function useGameConfig(
 
     setCharacterSlots(currentSlots);
 
-    const generatedProfiles: AICharacterProfile[] = [];
+    const generatedProfiles: UICharacterProfile[] = [];
     // We'll generate only AI slots, start with AI slots needing generation
     const aiSlotsToGenerate = currentSlots.filter(slot => !slot.isHuman);
     const generatedAiSlots: ConfigCharacterSlot[] = []; // Store successfully generated AI slots
@@ -302,7 +323,7 @@ export function useGameConfig(
           };
 
           if (generatedResult.profile) {
-            generatedProfiles.push(generatedResult.profile);
+            generatedProfiles.push(generatedResult.profile as UICharacterProfile);
           }
         } catch (err: unknown) {
           const errorMessage =
@@ -371,7 +392,7 @@ export function useGameConfig(
                  gender: slot.profile.gender || "female",
                  ageCategory: slot.profile.ageCategory || "young",
                  shortBio: slot.profile.shortBio || t("DefaultHumanBio"),
-               } as AICharacterProfile,
+               } as UICharacterProfile,
                aiModel: "", // No AI model for human
                imageUrl: slot.imageUrl || null,
                voiceId: undefined,
@@ -385,7 +406,7 @@ export function useGameConfig(
            if (slot.isGenerated && !slot.generationError && slot.profile && slot.assignedRole && slot.persona) {
              return {
                role: slot.assignedRole,
-               profile: slot.profile,
+               profile: slot.profile as UICharacterProfile,
                aiModel: slot.aiModel,
                imageUrl: slot.imageUrl,
                persona: slot.persona, // Persona is required and present for generated AI
@@ -450,7 +471,7 @@ export function useGameConfig(
   }, [initialSlotsSet, characterSlots, t]);
 
   // Expose role selection update
-  const updateHumanRoleSelection = useCallback((role: Role) => {
+  const updateHumanRoleSelection = useCallback((role: RoleName) => {
     setHumanRoleSelection(role);
     setInitialSlotsSet(false);
     resetPostGenState();

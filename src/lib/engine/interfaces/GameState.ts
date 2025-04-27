@@ -16,7 +16,8 @@ export interface VisibleGameState {
         readonly name: string;
         readonly status: PlayerStatus;
         readonly role: RoleName; // The player knows their own role
-        readonly isMafia: boolean; // Convenience flag
+        readonly allegiance: 'Mafia' | 'Town'; // Added allegiance
+        readonly isMafia: boolean; // Convenience flag (can be derived from allegiance)
         readonly persona?: Persona;
     };
     readonly players: ReadonlyArray<PublicPlayerInfo>; // Public info of all players

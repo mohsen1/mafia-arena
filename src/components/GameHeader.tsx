@@ -17,17 +17,19 @@ export function GameHeader() {
 
   if (!gameState) return null; 
 
-  const { title, description, phase, round, winCondition } = gameState;
+  // Use themeTitle and themeDescription from FilteredGameState
+  const { themeTitle, themeDescription, phase, round, winCondition } = gameState;
 
   return (
     <div className="p-4 space-y-3 flex-shrink-0"> 
       <div> 
         <h1 className="text-xl font-bold mb-1 truncate"> 
-          {/* Use key from the appropriate namespace (now lang code) */}
-          {title || t("WerewolfAITitle")}
+          {/* Use themeTitle or default */}
+          {themeTitle || t("WerewolfAITitle")}
         </h1>
         
-        {description && (
+        {/* Use themeDescription */}
+        {themeDescription && (
           <div> {/* Wrapper div for description and toggle button */}
             <p 
               className={[
@@ -35,7 +37,7 @@ export function GameHeader() {
                 !isDescriptionExpanded ? "line-clamp-1 mb-0" : "mb-1" // Apply line clamp and adjust margin
               ].join(" ")}
             >
-              {description}
+              {themeDescription}
             </p>
             {/* Toggle button */} 
             <button 

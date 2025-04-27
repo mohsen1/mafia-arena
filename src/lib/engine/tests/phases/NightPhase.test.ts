@@ -1,17 +1,17 @@
 // tests/phases/NightPhase.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { NightPhase } from '../../src/phases/NightPhase';
-import { Game } from '../../src/core/Game'; // We need Game to mock its methods
-import { Player } from '../../src/core/Player';
-import { IRole, RoleName } from '../../src/interfaces/IRole';
-import { DoctorRole } from '../../src/roles/DoctorRole';
-import { SeerRole } from '../../src/roles/SeerRole';
-import { MafiaRole } from '../../src/roles/MafiaRole';
-import { VillagerRole } from '../../src/roles/VillagerRole';
-import { type IAgent, type PlayerAction } from '../../src/interfaces/IAgent';
-import { type PlayerId } from '../../src/interfaces/IPlayer';
-import { MessageVisibility } from '../../src/interfaces/IMessage';
-import { DayPhase } from '../../src/phases/DayPhase';
+import { NightPhase } from '@/lib/engine/phases/NightPhase';
+import { Game } from '@/lib/engine/core/Game'; // We need Game to mock its methods
+import { Player } from '@/lib/engine/core/Player';
+import { IRole, RoleName } from '@/lib/engine/interfaces/IRole';
+import { DoctorRole } from '@/lib/engine/roles/DoctorRole';
+import { SeerRole } from '@/lib/engine/roles/SeerRole';
+import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
+import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
+import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import { type PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+import { DayPhase } from '@/lib/engine/phases/DayPhase';
 
 // Mock the Game class methods that the phase interacts with
 const mockGame = {

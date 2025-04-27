@@ -1,4 +1,3 @@
-import type { AICharacterProfile, Role } from "@/lib/types/game";
 import { OpenAI } from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { cleanAIResponse, extractJSONFromText } from "@/lib/utils/stringUtils";
@@ -7,6 +6,11 @@ import {
   GAME_TITLE_DESCRIPTION_PROMPT,
 } from "./PROMPTS";
 import type { LanguageName } from "@/lib/i18n/settings";
+
+// NEW IMPORTS
+import type { RoleName } from "@/lib/engine/interfaces/IRole";
+import type { UICharacterProfile } from "@/hooks/useGameConfig";
+import type { Persona } from "@/lib/engine/interfaces/Persona";
 
 // --- Initialize OpenAI Client ---
 
@@ -114,7 +118,7 @@ export const getAIResponse: GetAIResponseFunction = async (
  * Generates a game title and description based on player details using AI.
  */
 export async function getAIGameTitleAndDescription(
-  playerDetails: { name: string; persona: string }[],
+  playerDetails: { name: string; persona: Persona }[],
   settings: { model: string; temperature?: number },
   language: LanguageName
 ): Promise<{ title: string; description: string }> {
@@ -210,15 +214,14 @@ export async function getAIGameTitleAndDescription(
  * @param model The AI model to use.
  * @param language The language of the character profile.
  * @param existingProfiles Optional array of already generated profiles to ensure diversity.
- * @returns A generated AICharacterProfile or null if generation fails.
+ * @returns A generated UICharacterProfile including a Persona or null if generation fails.
  */
 export async function generateAICharacterProfile(
-  role: Role,
+  role: RoleName,
   model: string,
   language: LanguageName,
-  existingProfiles?: AICharacterProfile[] // Keep existing profiles for diversity check
-): Promise<(AICharacterProfile & { persona: string }) | null> {
-  // Return type now includes persona
+  existingProfiles?: UICharacterProfile[]
+): Promise<(UICharacterProfile & { persona: Persona }) | null> {
   console.log(
     `Requesting AI profile generation for role: ${role} in ${language} using model: ${model}${
       existingProfiles && existingProfiles.length > 0
@@ -227,15 +230,12 @@ export async function generateAICharacterProfile(
     }`
   );
 
-  // Construct context about existing characters, focusing on names and shortBios for diversity
   let existingCharsContext = "";
   if (existingProfiles && existingProfiles.length > 0) {
     const existingSummaries = existingProfiles
       .map(
         (p) =>
-          `- ${p.characterName} (${p.gender}, ${
-            p.ageCategory
-          }, ${p.shortBio.substring(0, 50)}...)` // Use shortBio for context
+          `- ${p.characterName} (${p.gender}, ${p.ageCategory}, ${p.shortBio.substring(0, 50)}...)`
       )
       .join("\n");
     const existingNames = existingProfiles
@@ -244,7 +244,6 @@ export async function generateAICharacterProfile(
     existingCharsContext = `\n\nExisting Characters (DO NOT REUSE NAMES OR EXACT BIOS):\n${existingSummaries}\n\nNames to avoid: ${existingNames}\n`;
   }
 
-  // Use the imported prompt function, passing language
   const systemPrompt = GENERATE_AI_CHARACTER_PROFILE_SYSTEM_PROMPT(
     role,
     existingCharsContext,
@@ -259,7 +258,6 @@ export async function generateAICharacterProfile(
   let responseJsonString: string | undefined;
 
   try {
-    // Use the existing getAIResponse but expect JSON
     responseJsonString = await getAIResponse(
       messages,
       "character-generation",
@@ -278,33 +276,52 @@ export async function generateAICharacterProfile(
     const cleanedContent = cleanAIResponse(responseJsonString);
     const cleanedJsonString = extractJSONFromText(cleanedContent);
 
-    // Use a type assertion here, assuming the AI adheres to the prompt
-    const profile = JSON.parse(cleanedJsonString) as AICharacterProfile;
+    // Expect the AI to return fields matching Persona and UICharacterProfile
+    // We might need to adjust the prompt (PROMPTS.ts) to request specific Persona fields
+    const parsedResponse = JSON.parse(cleanedJsonString) as {
+      characterName: string;
+      gender: string;
+      ageCategory: string;
+      shortBio: string;
+      // Assume prompt asks for these Persona fields:
+      backstory: string;
+      personalityTraits: string[]; 
+    };
 
-    // Basic validation for the new simplified structure
+    // Basic validation for the parsed structure
     if (
-      !profile.characterName ||
-      !profile.shortBio ||
-      !profile.gender ||
-      !profile.ageCategory
+      !parsedResponse.characterName ||
+      !parsedResponse.shortBio ||
+      !parsedResponse.gender ||
+      !parsedResponse.ageCategory ||
+      !parsedResponse.backstory || // Validate persona fields
+      !parsedResponse.personalityTraits
     ) {
       throw new Error(
-        "Generated JSON is missing required fields (characterName, shortBio, gender, ageCategory)."
+        "Generated JSON is missing required fields (characterName, shortBio, gender, ageCategory, backstory, personalityTraits)."
       );
     }
 
-    // Construct full persona string from the simplified profile
-    const fullPersona =
-      `Name: ${profile.characterName}\n` +
-      `Gender: ${profile.gender}\n` +
-      `Age Category: ${profile.ageCategory}\n` +
-      `Bio & Personality: ${profile.shortBio}`;
+    // Construct the UI profile part
+    const profile: UICharacterProfile = {
+        characterName: parsedResponse.characterName,
+        gender: parsedResponse.gender,
+        ageCategory: parsedResponse.ageCategory,
+        shortBio: parsedResponse.shortBio,
+    };
+
+    // Construct the Persona object
+    const persona: Persona = {
+        name: parsedResponse.characterName, // Use characterName for persona name
+        backstory: parsedResponse.backstory,
+        personalityTraits: parsedResponse.personalityTraits,
+    };
 
     console.log(
       `Successfully generated profile for ${profile.characterName} (${role})`
     );
-    // Return the parsed profile and the derived full persona
-    return { ...profile, persona: fullPersona };
+    return { ...profile, persona: persona }; // Return combined profile and Persona object
+
   } catch (error: unknown) {
     // Type error as unknown
     const errorMessage = error instanceof Error ? error.message : String(error);
