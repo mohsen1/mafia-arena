@@ -276,7 +276,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           <div className="h-10 text-center flex items-center justify-center px-2 mt-4 mb-2 text-sm">
             {errorMsg ? (
               <p className="text-destructive flex items-center gap-1">
-                <AlertTriangle className="h-4 w-4" /> {t(errorMsg, errorMsg)}
+                <AlertTriangle className="h-8 w-8" /> {t(errorMsg, errorMsg)}
               </p>
             ) : isSubmitting ? (
               <p className="text-primary flex items-center gap-1">
@@ -284,8 +284,8 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
                 {t(infoMsg || "ProcessingLabel", infoMsg || "Processing...")}
               </p>
             ) : configValidation.isValid ? (
-              <p className="text-success flex items-center gap-1">
-                <CheckCircle2 className="h-4 w-4" />{" "}
+              <p className="text-success flex items-center gap-1 text-start">
+                <CheckCircle2 className="h-8 w-8" />{" "}
                 {`${t(
                   "ConfigLooksGood_Prefix",
                   "Configuration looks good"
@@ -296,7 +296,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
               </p>
             ) : initialSlotsSet ? (
               <p className="text-warning flex items-center gap-1">
-                <AlertTriangle className="h-4 w-4" />{" "}
+                <AlertTriangle className="h-8 w-8" />{" "}
                 {t(
                   configValidation.message || "ConfigInvalid",
                   configValidation.message || ""
