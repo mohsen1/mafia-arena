@@ -60,7 +60,7 @@ export function CharacterSlotSelectors({
           required
           disabled={isSubmitting}
         >
-          <SelectTrigger className="w-full text-xs h-9" id={`role-${slot.clientId}`}>
+          <SelectTrigger className="w-full text-xs h-9 text-left" id={`role-${slot.clientId}`}>
             <SelectValue placeholder={t("SelectRolePlaceholder", "Select role")} />
           </SelectTrigger>
           <SelectContent>
@@ -85,9 +85,14 @@ export function CharacterSlotSelectors({
             required
             disabled={isHuman || isSubmitting || availableProviders.length === 0}
           >
-            <SelectTrigger className="w-full text-xs h-9" id={`provider-${slot.clientId}`}>
-              <CloudCog className="w-3 h-3 me-1 text-muted-foreground" />
-              <SelectValue placeholder={t("SelectProviderPlaceholder", "Select provider")} />
+            <SelectTrigger 
+              className="text-xs h-9 flex items-center justify-between w-full" 
+              id={`provider-${slot.clientId}`}
+            >
+              <SelectValue placeholder={t("SelectProviderPlaceholder", "Select provider")}>
+                <CloudCog className="w-3 h-3 me-1 text-muted-foreground" />
+                {availableProviders.find(p => p.value === slot.provider)?.title || t("SelectProviderPlaceholder", "Select provider")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {availableProviders.map((provider) => (

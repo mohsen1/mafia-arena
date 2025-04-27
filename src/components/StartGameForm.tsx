@@ -206,7 +206,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
               onValueChange={handleGlobalProviderChange}
               disabled={isSubmitting}
             >
-              <SelectTrigger id="global-provider" className="w-full">
+              <SelectTrigger id="global-provider" className="w-full text-left">
                 <SelectValue
                   placeholder={t("SelectProviderPlaceholder", "Select provider")}
                 />

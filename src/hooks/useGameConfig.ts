@@ -15,6 +15,7 @@ import {
     geminiModels,
     groqModels,
     openAIProviders,
+    fireworksModels,
 } from "@/lib/models";
 
 // Define types locally based on the structure in @/lib/models.ts
@@ -34,7 +35,7 @@ export interface ProviderDefinition {
 const availableModelsByProvider: Record<string, ModelDefinition[]> = {
     openai: openAIModels,
     // ollama_local: [], // Add specific Ollama models if known, or handle dynamically
-    fireworks: [], // Add specific Fireworks models if known
+    fireworks: fireworksModels, // Add mapping for fireworks
     groq: groqModels,
     claude: claudeModels, // Need corresponding provider definition
     gemini: geminiModels, // Need corresponding provider definition
