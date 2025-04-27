@@ -126,5 +126,7 @@
   "DeadPlayersTitle": "Dead Players",
   "ModeratorEliminatedSeer": "{{name}} has been eliminated by the village. They were a Seer.",
   "ModeratorNightBeginsInterpolated": "Night {{day}} begins as darkness falls upon the village.",
-  "LoadingNextTurn": "Loading next turn..."
+  "LoadingNextTurn": "Loading next turn...",
+  "GameThemeLabel": "Game Theme",
+  "SelectGameThemePlaceholder": "Select a theme"
 } 

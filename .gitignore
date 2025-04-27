@@ -48,3 +48,4 @@ next-env.d.ts
 # DB!
 data/**
 screenshots/
+game_saves/

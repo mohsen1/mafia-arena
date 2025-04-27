@@ -25,6 +25,7 @@ import { type FormEvent, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import { ProviderModelSelector } from "./ProviderModelSelector"; // Import the new component
+import { GameThemeSelector } from "./GameThemeSelector"; // Import the GameThemeSelector
 import {
   Table,
   TableBody,
@@ -73,6 +74,8 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     humanPlayerName,
     toggleHumanJoining,
     updateHumanPlayerName,
+    selectedGameThemeKey,   // Get selected theme
+    setSelectedGameThemeKey, // Get theme setter
   } = useGameConfig(lang);
 
   // New combined handler for the ProviderModelSelector
@@ -104,8 +107,6 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     },
     [handleGenerateAndStartGame]
   );
-
-  console.log(`[StartGameForm] Language from useGameConfig: ${lang}`); // Log language from hook
 
   // Combine submission state
   const isLoading = isSubmitting || isLoadingNextTurn;
@@ -144,6 +145,15 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
             {t("GameLanguageLabel", "Game Language")}:
           </Label>
           <LanguageSelector currentLang={lang} />
+        </div>
+
+        {/* Game Theme Selector - Use the new component */}
+        <div className="mb-6 max-w-lg mx-auto">
+          <GameThemeSelector
+            selectedThemeKey={selectedGameThemeKey}
+            onThemeChange={setSelectedGameThemeKey}
+            disabled={isSubmitting}
+          />
         </div>
 
         {/* Human Player Join Option */}

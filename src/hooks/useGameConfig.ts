@@ -3,6 +3,7 @@ import type { StartGameSetupData } from "@/lib/interfaces/actions.types";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
 import { RoleName } from "@/lib/engine/interfaces/IRole";
 import type { Persona } from "@/lib/engine/interfaces/Persona";
+import { type GameTheme, Themes } from "@/lib/engine/interfaces/Theme";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LanguageCode as Locale } from "@/lib/i18n/settings";
 import { useTranslation } from "react-i18next";
@@ -81,6 +82,10 @@ export interface PlayerInitializationData {
 export function useGameConfig(lang: Locale) {
     const { t } = useTranslation('translation');
     const router = useRouter();
+
+    // State for selected game theme
+    const firstThemeKey = Object.keys(Themes)[0] || 'UK_VILLAGE_1900S'; // Fallback
+    const [selectedGameThemeKey, setSelectedGameThemeKey] = useState<string>(firstThemeKey);
 
     // State for global provider and model
     const [globalProviderSelection, setGlobalProviderSelection] =
@@ -297,11 +302,11 @@ export function useGameConfig(lang: Locale) {
 
 
     const updateSlotRole = useCallback(
-        (clientId: string, newRole: RoleName) => {
+        (clientId: string, roleName: RoleName) => {
             setCharacterSlots((prev) =>
                 prev.map((slot) =>
                     slot.clientId === clientId
-                        ? { ...slot, roleSelection: newRole, isGenerated: false }
+                        ? { ...slot, roleSelection: roleName, isGenerated: false }
                         : slot,
                 ),
             );
@@ -360,7 +365,7 @@ export function useGameConfig(lang: Locale) {
         // Prepare the setup data for the server action
         const setupData: StartGameSetupData = {
             playerCount: characterSlots.length,
-            themeKey: "classic", // TODO: Make theme selectable in UI
+            themeKey: selectedGameThemeKey,
             language: lang,
             humanPlayerName: humanPlayerName || undefined,
             humanPlayerIndex: humanPlayerIndex,
@@ -408,6 +413,7 @@ export function useGameConfig(lang: Locale) {
         humanRoleSelection,
         t,
         router,
+        selectedGameThemeKey,
     ]);
 
     useEffect(() => {
@@ -459,6 +465,7 @@ export function useGameConfig(lang: Locale) {
         updateHumanRoleSelection,
         toggleHumanJoining,
         updateHumanPlayerName,
-        // Removed updateSlotModel, updateAllModels
+        selectedGameThemeKey,
+        setSelectedGameThemeKey,
     };
 }
