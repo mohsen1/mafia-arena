@@ -1,0 +1,21 @@
+/// <reference types="vitest" />
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tsconfigPaths from 'vite-tsconfig-paths';
+
+export default defineConfig({
+  plugins: [
+    react(), // Assuming you might have React components to test, keep if needed
+    tsconfigPaths(), // Add this plugin
+  ],
+  test: {
+    globals: true, // Optional: Use if you prefer global test functions (describe, it, etc.)
+    environment: 'jsdom', // Or 'node' if not testing DOM-related code
+    setupFiles: './vitest.setup.ts', // Optional: if you have setup files
+    // Add any other Vitest specific options here
+    deps: {
+      // Ensure server-side dependencies are handled correctly if needed
+      // Example: external: ['@/lib/engine/.*'] if engine code uses Node-specific APIs not available in test env
+    }
+  },
+}); 

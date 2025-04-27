@@ -9,8 +9,31 @@ dotenv.config();
 // Update import paths for TS
 import { languages, supportedLanguagesInfo, type LanguageCode } from '../src/lib/i18n/settings';
 import { getAIResponse } from '../src/lib/ai/openaiService'; 
-import { TRANSLATE_DICTIONARY_PROMPT } from '../src/lib/ai/PROMPTS'; 
+
 import { cleanAIResponse, extractJSONFromText } from '../src/lib/utils/stringUtils'; 
+import dedent from 'dedent';
+
+/**
+ * Generates the system prompt for translating a dictionary JSON.
+ */
+export const getPrompt = (
+  sourceDictionaryJsonString: string,
+  targetLanguage: string
+) => {
+  return dedent`You are an expert translation assistant specializing in game localization.
+  Your task is to translate the VALUES of the following JSON dictionary from English
+  to the target language: **<targetLanguage>${targetLanguage}</targetLanguage>**.\n\n
+
+  **RULES:**\n  1.  Translate ONLY the string values associated with each key.\n  2.  Keep the JSON keys EXACTLY the same.\n  3.  Maintain the original JSON structure (key-value pairs).\n  4.  Preserve any placeholder variables like \`{{variableName}}\` exactly as they appear in the original English value.\n  5.  Ensure the output is ONLY a single, valid JSON object containing the translated key-value pairs.\n  6.  Use natural and contextually appropriate translations for a Werewolf/Mafia style social deduction game.\n\n
+
+  **English Dictionary JSON:**
+  \`\`\`json
+  <sourceDictionary>${sourceDictionaryJsonString}</sourceDictionary>
+  \`\`\`\n\n
+
+  Respond ONLY with the translated JSON object for the target language (<targetLanguage>${targetLanguage}</targetLanguage>).
+  Do NOT include any explanatory text, apologies, or markdown formatting outside the JSON object.`;
+};
 
 // --- Configuration ---
 const __filename = fileURLToPath(import.meta.url);
@@ -85,7 +108,7 @@ async function translateDictionary(dictToTranslate: Dictionary, targetLangCode: 
 
   try {
     const sourceJsonString = JSON.stringify(dictToTranslate, null, 2);
-    const systemPrompt = TRANSLATE_DICTIONARY_PROMPT(sourceJsonString, targetLangName);
+    const systemPrompt = getPrompt(sourceJsonString, targetLangName);
     const messages = [{ role: 'system' as const, content: systemPrompt }];
 
     responseString = await getAIResponse(

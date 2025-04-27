@@ -31,8 +31,7 @@ export default function Home({ params: paramsPromise }: PageProps) {
   // State for server-fetched data
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [existingGames, /* setExistingGames */ ] = useState<FilteredGameState[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // Add error state
+
 
   // TODO: hardcode availableModels (provider and model)
 
@@ -40,13 +39,6 @@ export default function Home({ params: paramsPromise }: PageProps) {
   const werewolfAITitle = t("WerewolfAITitle", "Werewolf AI");
   const existingGamesHeading = t("ExistingGamesTitle", "Existing Games");
 
-  // Handle loading and error states
-  if (loading) {
-      return <div className="p-4 text-center">{t('Loading', 'Loading...')}</div>;
-  }
-  if (error) {
-      return <div className="p-4 text-center text-destructive">{t('ErrorLoadingData', 'Error loading data')}: {error}</div>;
-  }
 
   return (
     <main className=" mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen">
