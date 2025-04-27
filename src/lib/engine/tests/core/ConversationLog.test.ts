@@ -102,13 +102,13 @@ describe('ConversationLog', () => {
         });
 
         it('should filter messages relevant to a Villager', () => {
-            const villagerView = conversationLog.getMessages({ relevantToPlayer: { id: player1Id, role: RoleName.Villager } });
+            const villagerView = conversationLog.getMessages({ relevantToPlayer: { id: player1Id, role: RoleName.Villager, allegiance: 'Town' } });
             expect(villagerView.length).toBe(3); // Only public messages
             expect(villagerView).toEqual([msg1, msg2, msg5]);
         });
 
         it('should filter messages relevant to a Mafia member', () => {
-            const mafiaView = conversationLog.getMessages({ relevantToPlayer: { id: player2Id, role: RoleName.Mafia } });
+            const mafiaView = conversationLog.getMessages({ relevantToPlayer: { id: player2Id, role: RoleName.Mafia, allegiance: 'Mafia' } });
             expect(mafiaView.length).toBe(5); // Public + Mafia messages
             expect(mafiaView).toEqual([msg1, msg2, msg3, msg4, msg5]);
         });
@@ -138,5 +138,20 @@ describe('ConversationLog', () => {
              const noMatchPhase = conversationLog.getMessages({ phase: 'Init' });
              expect(noMatchPhase.length).toBe(0);
          });
+
+        it('should filter messages based on relevance to player', () => {
+            const villagerView = conversationLog.getMessages({ relevantToPlayer: { id: player1Id, role: RoleName.Villager, allegiance: 'Town' } });
+            expect(villagerView.length).toBe(2); // Public + own private
+            expect(villagerView.some(msg => msg.content === 'Public message')).toBe(true);
+            expect(villagerView.some(msg => msg.content === 'Private message to P1')).toBe(true);
+
+            const mafiaView = conversationLog.getMessages({ relevantToPlayer: { id: player2Id, role: RoleName.Mafia, allegiance: 'Mafia' } });
+            expect(mafiaView.length).toBe(3); // Public + own private + Mafia chat
+            expect(mafiaView.some(msg => msg.content === 'Mafia only message')).toBe(true);
+            expect(mafiaView.some(msg => msg.content === 'Private message to P2')).toBe(true);
+
+            const observerView = conversationLog.getMessages({});
+            expect(observerView.length).toBe(4); // Should see all messages
+        });
     });
 });

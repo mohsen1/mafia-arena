@@ -1,6 +1,6 @@
 "use client";
 
-import type { FilteredPlayer, ClientMessage } from "@/lib/interfaces/client.types";
+import type { FilteredPlayer, ClientMessage } from "@/lib/interfaces/gameState.types";
 import { useGameContext } from "@/context/GameContext";
 import { SpeakText } from "@/components/SpeakText";
 import { cn } from "@/lib/utils";

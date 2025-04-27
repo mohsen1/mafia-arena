@@ -1,26 +1,20 @@
-import type { LanguageCode } from "@/lib/i18n/settings";
+import type { LanguageCode, LanguageName } from "@/lib/i18n/settings";
 import type { RoleName, Allegiance } from "../engine/interfaces/IRole";
 import type { PlayerStatus } from "../engine/interfaces/IPlayer";
+import type { GamePhaseType as EngineGamePhaseType } from "../engine/interfaces/IGamePhase";
+export type GamePhaseType = EngineGamePhaseType;
+import { MessageVisibility } from "../engine/interfaces/IMessage";
+import type { PlayerAction } from "../engine/interfaces/IAgent";
 
 /** Unique identifier for a player. */
 export type PlayerId = string;
 
-/** Represents the type of phase the game is currently in. */
-export type GamePhaseType = "Initialization" | "Night" | "Day" | "Voting" | "GameOver";
-
-/** Represents possible actions a human player might need to take. */
-export type HumanActionType = "message" | "vote" | "mafiaKill" | "doctorSave" | "seerInvestigate";
-
 /** Information about a pending action required from the human player. */
 export interface PendingHumanAction {
   playerId: PlayerId;
-  /** The specific type(s) of action(s) allowed. */
-  allowedActions: HumanActionType[];
-  /** Optional message/prompt related to the action (e.g., "Vote for who to eliminate."). */
+  allowedActions: PlayerAction['type'][];
   prompt?: string;
-  /** Optional list of valid target player IDs, if applicable (e.g., for voting, night actions). */
   validTargets?: PlayerId[];
-  /** Optional timeout timestamp (ISO string or number) */
   timeout?: string | number;
 }
 
@@ -33,12 +27,11 @@ export interface BasePlayerState {
 
 /** Player state information filtered for the client (public view). */
 export interface FilteredPlayer extends BasePlayerState {
-  // Add any other publicly visible player properties here
-  // Example: isOnline?: boolean;
   /** Optional: Player's role (might only be included for the player themselves). */
   role?: RoleName;
   /** Optional: URL for the player's avatar image. */
   imageUrl?: string | null;
+  voiceId?: string;
 }
 
 /** Player state information including potentially sensitive details. */
@@ -46,23 +39,20 @@ export interface SerializablePlayer extends BasePlayerState {
   role: RoleName;
   allegiance: Allegiance;
   isHuman: boolean;
-  // Persona might be included here or handled separately depending on filtering
-  // persona?: any; // Use actual Persona type
-  // agentConfig?: AgentConfig; // Include if needed server-side
 }
 
-/** Structure for messages exchanged during the game. */
+/** Structure for messages exchanged during the game (Client view). */
 export interface ClientMessage {
-  senderId: PlayerId;
-  /** The name of the sender (denormalized for easy display). */
+  id: string;
+  round: number;
+  phase: GamePhaseType;
+  senderId: PlayerId | null;
   senderName: string;
   content: string;
-  /** ISO timestamp string */
   timestamp: string;
-  /** Optional: Indicates if the message is only visible to certain players (e.g., Mafia). */
-  visibility?: "all" | "mafia" | RoleName;
-  /** Optional: Type of message (e.g., chat, system announcement, action result) */
+  visibility?: MessageVisibility | "mafia";
   type?: "chat" | "system" | "action";
+  recipientId?: PlayerId;
 }
 
 /** Base interface for the overall game state. */
@@ -79,9 +69,9 @@ interface BaseGameState {
   /** ISO timestamp string for last update. */
   lastUpdatedAt: string;
   /** Optional: Winner information if the game is over. */
-  winner?: Allegiance | null;
+  winner?: string | null;
   /** Language code for the game. */
-  language: LanguageCode;
+  language: LanguageName;
   /** Theme identifier (e.g., 'classic', 'sci-fi'). */
   themeKey: string;
 }
@@ -98,8 +88,6 @@ export interface SerializableGameState extends BaseGameState {
   pendingHumanAction: PendingHumanAction | null;
   /** ID of the human player, if one exists. */
   humanPlayerId: PlayerId | null;
-  // Add any other internal state needed for saving/loading
-  // Example: internalVoteCounts?: Record<PlayerId, PlayerId>;
 }
 
 /**
@@ -107,13 +95,13 @@ export interface SerializableGameState extends BaseGameState {
  * Excludes sensitive information like hidden roles, full personas, internal agent state.
  */
 export interface FilteredGameState extends BaseGameState {
-  players: FilteredPlayer[];
-  /** Filtered message log (e.g., removing Mafia-only messages for non-Mafia players). */
-  log: ClientMessage[]; // Filtering might happen dynamically based on recipient
-  /** Information about the pending human action, if any. */
+  players: Record<PlayerId, FilteredPlayer>;
+  log: ClientMessage[];
   pendingHumanAction: PendingHumanAction | null;
-  /** ID of the human player, if one exists and the client needs to know. */
-  humanPlayerId?: PlayerId | null; // Optional depending on client needs
-  // Add any other state needed by the client UI
-  // Example: selfPlayerInfo?: FilteredPlayer & { role: RoleName }; // Info about the client's own player
+  humanPlayerId?: PlayerId | null;
+  livingPlayerIds?: PlayerId[];
+  deadPlayerIds?: PlayerId[];
+  themeTitle?: string;
+  themeDescription?: string;
+  winCondition?: string | null;
 } 

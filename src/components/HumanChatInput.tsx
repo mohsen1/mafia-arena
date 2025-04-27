@@ -26,7 +26,9 @@ export default function HumanChatInput() {
   const humanPlayerId = gameState?.humanPlayerId;
   const pendingAction = gameState?.pendingHumanAction;
   const humanPlayer = useMemo(() => 
-    humanPlayerId ? gameState?.players.find(p => p.id === humanPlayerId) : undefined,
+    humanPlayerId && gameState?.players 
+      ? Object.values(gameState.players).find((p: FilteredPlayer) => p.id === humanPlayerId) 
+      : undefined,
     [gameState?.players, humanPlayerId]
   );
   
@@ -102,7 +104,9 @@ export default function HumanChatInput() {
   ]);
 
   const livingPlayers = useMemo(() => 
-      gameState?.players.filter(p => p.status === PlayerStatus.Alive) ?? [], 
+      gameState?.players 
+        ? Object.values(gameState.players).filter((p: FilteredPlayer) => p.status === PlayerStatus.Alive) 
+        : [], 
       [gameState?.players]
   );
 
@@ -110,11 +114,11 @@ export default function HumanChatInput() {
     if (!pendingAction || !humanPlayerId) return [];
     
     if (pendingAction.validTargets && pendingAction.validTargets.length > 0) {
-        return livingPlayers.filter(p => pendingAction.validTargets!.includes(p.id));
+        return livingPlayers.filter((p: FilteredPlayer) => pendingAction.validTargets!.includes(p.id));
     }
 
     if (pendingAction.allowedActions.includes('vote')) {
-        return livingPlayers.filter(p => p.id !== humanPlayerId);
+        return livingPlayers.filter((p: FilteredPlayer) => p.id !== humanPlayerId);
     } else {
         const nightActionType = pendingAction.allowedActions.find(a => 
               a === 'mafiaKill' || a === 'doctorSave' || a === 'seerInvestigate'
@@ -122,7 +126,7 @@ export default function HumanChatInput() {
         switch (nightActionType) {
           case 'mafiaKill': 
           case 'seerInvestigate':
-            return livingPlayers.filter(p => p.id !== humanPlayerId);
+            return livingPlayers.filter((p: FilteredPlayer) => p.id !== humanPlayerId);
           case 'doctorSave':
             return livingPlayers; 
           default:

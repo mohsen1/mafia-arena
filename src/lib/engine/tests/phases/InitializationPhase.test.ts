@@ -8,31 +8,47 @@ import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
 import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
-import { type Persona } from '@/lib/engine/interfaces/Persona';
+import type { Persona } from '@/lib/engine/interfaces/Persona';
+import { RoleName } from '@/lib/engine/interfaces/IRole';
 
 // Mock Agent interfaces/classes for testing
 interface MockableAgent extends IAgent {
-    generatePersona?: Mock<[string], Promise<void>>;
-    getAction: Mock<any[], Promise<PlayerAction>>;
+    generatePersona?: Mock;
+    getAction: Mock;
 }
 
 class MockLLMAgent implements MockableAgent {
     readonly id: PlayerId;
     readonly agentName = 'MockLLMAgent';
-    persona: Persona = DEFAULT_PERSONA;
+    isLLM = true as const; // Mark as LLM
+    persona: Persona | undefined = undefined;
     generatePersona = vi.fn().mockImplementation(async (themeDesc: string) => {
         this.persona = { name: `Generated ${this.id}`, backstory: `Theme: ${themeDesc}`, personalityTraits: ['Generated'] };
     });
     getAction = vi.fn().mockResolvedValue({ type: 'noAction' });
+    updateMemory = vi.fn().mockResolvedValue(undefined); // Add missing method if needed by IAgent
     constructor(id: PlayerId) { this.id = id; }
 }
 
 class MockNonLLMAgent implements MockableAgent {
     readonly id: PlayerId;
     readonly agentName = 'MockNonLLMAgent';
-    persona: Persona = DEFAULT_PERSONA;
+    isLLM = false as const; // Mark as non-LLM
+    persona: Persona | undefined = undefined;
+    generatePersona = undefined; // Non-LLM doesn't generate persona
     getAction = vi.fn().mockResolvedValue({ type: 'noAction' });
+    updateMemory = vi.fn().mockResolvedValue(undefined); // Add missing method if needed by IAgent
     constructor(id: PlayerId) { this.id = id; }
+}
+
+// Mock Player interface
+interface MockPlayer {
+    id: PlayerId;
+    name: string;
+    agent: MockLLMAgent | MockNonLLMAgent;
+    setName: Mock;
+    getRole: () => RoleName;
+    setPersona: (persona: Persona) => void;
 }
 
 // Mock Game methods used by the phase
@@ -45,9 +61,9 @@ describe('InitializationPhase', () => {
     let mockAgent2: MockNonLLMAgent;
     let mockAgent3: MockLLMAgent;
     // Mock plain player-like objects with the properties needed by the phase
-    let mockPlayerObj1: { id: PlayerId, name: string, agent: MockLLMAgent, setName: Mock<[string], void> };
-    let mockPlayerObj2: { id: PlayerId, name: string, agent: MockNonLLMAgent, setName: Mock<[string], void> };
-    let mockPlayerObj3: { id: PlayerId, name: string, agent: MockLLMAgent, setName: Mock<[string], void> };
+    let mockPlayerObj1: { id: PlayerId, name: string, agent: MockLLMAgent, setName: Mock };
+    let mockPlayerObj2: { id: PlayerId, name: string, agent: MockNonLLMAgent, setName: Mock };
+    let mockPlayerObj3: { id: PlayerId, name: string, agent: MockLLMAgent, setName: Mock };
 
     // Mock Game instance with necessary properties/methods
     let mockGameInstance: Partial<Game>;

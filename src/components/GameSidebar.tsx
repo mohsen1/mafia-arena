@@ -26,13 +26,14 @@ export function GameSidebar() {
 
   const { players, livingPlayerIds, deadPlayerIds } = gameState;
 
-  const livingPlayers = livingPlayerIds
-    .map((id: PlayerId) => players[id]) // Use PlayerId
+  // Handle possibly undefined ID lists and players record
+  const livingPlayers = (livingPlayerIds ?? []) // Default to empty array if undefined
+    .map((id: PlayerId) => players?.[id]) // Use optional chaining for players
     .filter((p): p is FilteredPlayer => !!p); // Use FilteredPlayer
 
   // Calculate dead players
-  const deadPlayers = deadPlayerIds
-    .map((id: PlayerId) => players[id]) // Use PlayerId
+  const deadPlayers = (deadPlayerIds ?? []) // Default to empty array if undefined
+    .map((id: PlayerId) => players?.[id]) // Use optional chaining for players
     .filter((p): p is FilteredPlayer => !!p); // Use FilteredPlayer
   if (!players) return null;
 

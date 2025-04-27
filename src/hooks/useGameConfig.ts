@@ -274,11 +274,13 @@ export function useGameConfig(
 
     // TODO: Define actual AgentConfig based on UI selections or defaults
     // These should ideally come from some advanced settings UI later
+    // Construct config matching persistence.types.ts structure
     const defaultAgentConfig: AgentConfig = {
-      model: globalModelSelection,
-      provider: 'openai', // Or determine dynamically based on model selection
-      // personalityPrompt: "...", // Optional: Add default prompts if needed
-      // jsonMode: true, // If required by the agent implementation
+      // Determine agentType based on model/provider if possible, or default
+      // This logic might need refinement based on how models/providers are selected
+      agentType: 'OpenAI', // Example default agent type
+      modelName: globalModelSelection, 
+      providerValue: 'openai', // Example default provider value
     };
 
     // Prepare the setup data for the server action

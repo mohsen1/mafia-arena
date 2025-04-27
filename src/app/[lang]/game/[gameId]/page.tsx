@@ -16,7 +16,7 @@ const loadGameData = async (gameId: string): Promise<FilteredGameState | null> =
     // Return minimal valid FilteredGameState or null
     if (gameId === "not-found") return null;
     return { 
-        id: gameId, phase: 'Night', round: 1, players: [], log: [], 
+        id: gameId, phase: 'Night', round: 1, players: {}, log: [], 
         pendingHumanAction: null, createdAt: new Date().toISOString(), 
         lastUpdatedAt: new Date().toISOString(), language: 'en', themeKey: 'classic', winner: null 
     };

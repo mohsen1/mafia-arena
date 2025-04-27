@@ -24,12 +24,12 @@ const mockMafiaRole: IRole = {
 };
 
 // Mock agent factory - Updated to match IAgent
-const createMockAgent = (id: PlayerId = 'mock-agent-id'): IAgent & { getAction: Mock<any[], unknown> } => ({
-    id: id,
-    agentName: 'MockAgent',
-    persona: { ...DEFAULT_PERSONA }, // Add default persona
-    getAction: vi.fn().mockResolvedValue({ type: 'noAction' } as PlayerAction),
-    // generatePersona: vi.fn().mockResolvedValue(undefined), // Optional: mock if needed
+const createMockAgent = (id: PlayerId = 'mock-agent-id'): IAgent & { getAction: Mock } => ({
+    id,
+    agentName: `MockAgent-${id}`,
+    persona: undefined,
+    getAction: vi.fn().mockResolvedValue({ type: 'noAction' }), // Default mock implementation
+    generatePersona: vi.fn().mockResolvedValue(undefined),
 });
 
 describe('Player', () => {
@@ -90,6 +90,7 @@ describe('Player', () => {
                     status: PlayerStatus.Alive,
                     role: RoleName.Villager,
                     isMafia: false,
+                    allegiance: 'Town'
                 },
                 players: [{ id: playerId, name: playerName, status: PlayerStatus.Alive }],
                 alivePlayerIds: new Set([playerId]),

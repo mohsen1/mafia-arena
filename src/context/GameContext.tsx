@@ -43,7 +43,7 @@ interface GameContextState {
   toggleAutoRun: () => void;
   isLoadingNextTurn: boolean;
   setIsLoadingNextTurn: Dispatch<SetStateAction<boolean>>;
-  runNextTurnAction: () => Promise<void>; // Function to trigger the server action
+  runNextTurnAction: () => Promise<FilteredGameState | { error: string }>;
   stopCurrentAudio: () => void; // Function to stop whatever MessageBubble is playing
   registerStopAudio: (messageId: string, stopFn: () => void) => void;
   unregisterStopAudio: (messageId: string) => void;
@@ -58,7 +58,7 @@ interface GameContextState {
   // Add the missing function type
   reportAudioFinished: (messageId: string) => void;
   // Use imported HumanActionPayload type
-  submitHumanAction: (payload: HumanActionPayload) => Promise<void>;
+  submitHumanAction: (payload: HumanActionPayload) => Promise<FilteredGameState | { error: string }>;
 }
 
 // Create the context with a default undefined value
@@ -68,9 +68,9 @@ const GameContext = createContext<GameContextState | undefined>(undefined);
 interface GameProviderProps {
   children: ReactNode;
   initialGameState: FilteredGameState;
-  boundRunGameTurnAction: () => Promise<void>; // Pre-bound server action
-  // Use imported HumanActionPayload type
-  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<void>;
+  // Update expected return type for bound actions to match server actions
+  boundRunGameTurnAction: () => Promise<FilteredGameState | { error: string }>; 
+  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<FilteredGameState | { error: string }>; 
 }
 
 // Create the provider component
@@ -160,18 +160,20 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   }, [stopCurrentAudio]);
 
   // --- Moved runNextTurnAction definition UP ---
-  const runNextTurnAction = useCallback(async () => {
+  const runNextTurnAction = useCallback(async (): Promise<FilteredGameState | { error: string }> => {
     if (gameState?.phase === "GameOver") {
       console.log("[Context] Game is over, skipping next turn action trigger.");
       if (isAutoRunning) {
         setIsAutoRunning(false);
       }
-      return;
+      // Return current state or an error if state is null
+      return gameState ?? { error: "Game state is null" }; 
     }
 
     if (isLoadingNextTurn) {
       console.log("[Context] Next turn already loading, skipping.");
-      return;
+      // Return current state or an error if state is null
+      return gameState ?? { error: "Game state is null" }; 
     }
     console.log("[Context] Running next turn action...");
 
@@ -181,10 +183,14 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
     setIsLoadingNextTurn(true);
     try {
-      await boundRunGameTurnAction();
-      console.log("[Context] Next turn action triggered.");
+      const result = await boundRunGameTurnAction();
+      console.log("[Context] Next turn action triggered.", result);
+      return result;
     } catch (error) {
       console.error("[Context] Error running next turn action:", error);
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    } finally {
+      setIsLoadingNextTurn(false);
     }
   }, [
     gameState?.phase,
@@ -390,6 +396,23 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     ],
   );
 
+  // --- Define submitHumanAction similarly ---
+  const submitHumanActionInternal = useCallback(async (payload: HumanActionPayload) => {
+     console.log("[Context] Submitting human action...", payload);
+     setIsLoadingNextTurn(true); // Assume submission might trigger loading
+     try {
+        const result = await boundSubmitHumanAction(payload);
+        console.log("[Context] Human action submitted.", result);
+        // TODO: Handle the returned state/error
+        return result;
+     } catch (error) {
+        console.error("[Context] Error submitting human action:", error);
+        return { error: error instanceof Error ? error.message : "Unknown error" }; 
+     } finally {
+        setIsLoadingNextTurn(false);
+     }
+  }, [boundSubmitHumanAction]);
+
   const value: GameContextState = {
     gameState,
     setGameState, // Provide setter if direct manipulation is needed, though usually avoid
@@ -397,7 +420,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     toggleAutoRun,
     isLoadingNextTurn,
     setIsLoadingNextTurn,
-    runNextTurnAction,
+    // Expose the internal functions with correct return types
+    runNextTurnAction: runNextTurnAction, 
     stopCurrentAudio,
     // Expose registration functions for MessageBubble
     registerStopAudio,
@@ -409,7 +433,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     toggleAudioGloballyEnabled,
     // Add the missing function
     reportAudioFinished,
-    submitHumanAction: boundSubmitHumanAction, // Provide the function in the context
+    submitHumanAction: submitHumanActionInternal, // Expose the internal function
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

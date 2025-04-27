@@ -34,35 +34,7 @@ export default function Home({ params: paramsPromise }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null); // Add error state
 
-  // Fetch data on the client from the API route
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        setError(null); // Clear previous errors
-
-        // Fetch models from the API endpoint
-        const response = await fetch('/api/models');
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({})); // Try to parse error, default to empty obj
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setAvailableModels(data.models || []); // Set models from response
-
-        // TODO: Fetch existing games (replace placeholder)
-        // const games = await fetchExistingGames();
-        // setExistingGames(games);
-
-      } catch (err) {
-        console.error("Failed to fetch initial data:", err);
-        setError(err instanceof Error ? err.message : "An unknown error occurred");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []); // Empty dependency array ensures this runs once on mount
+  // TODO: hardcode availableModels (provider and model)
 
   // Use t directly for page-level translations
   const werewolfAITitle = t("WerewolfAITitle", "Werewolf AI");

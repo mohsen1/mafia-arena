@@ -83,7 +83,7 @@ describe('OpenAIAgent', () => {
             round: 2,
             phase: 'Day',
             language: 'en',
-            self: { id: testPlayerId, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive },
+            self: { id: testPlayerId, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive, allegiance: 'Town' },
             players: [{ id: testPlayerId, name: 'Test Agent', status: PlayerStatus.Alive }],
             alivePlayerIds: new Set([testPlayerId]),
             memory: createInitialMemory(),
@@ -268,7 +268,7 @@ describe('OpenAIAgent', () => {
             round: 3,
             phase: 'Night',
             language: 'en',
-            self: { id: mafiaPlayerId, name: 'Test Mafia Agent', role: RoleName.Mafia, isMafia: true, status: PlayerStatus.Alive },
+            self: { id: mafiaPlayerId, name: 'Test Mafia Agent', role: RoleName.Mafia, isMafia: true, status: PlayerStatus.Alive, allegiance: 'Mafia' },
             players: [
                 { id: mafiaPlayerId, name: 'Test Mafia Agent', status: PlayerStatus.Alive },
                 { id: villagerPlayerId, name: 'Villager One', status: PlayerStatus.Alive }
@@ -340,7 +340,7 @@ describe('OpenAIAgent', () => {
             round: 2,
             phase: 'Day',
             language: 'en',
-            self: { id: player1Id, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive },
+            self: { id: player1Id, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive, allegiance: 'Town' },
             players: [
                 { id: player1Id, name: 'Test Agent', status: PlayerStatus.Alive },
                 { id: player2Id, name: 'Player 2', status: PlayerStatus.Alive }

@@ -2,25 +2,54 @@
 
 import Link from "next/link";
 import type { FilteredGameState } from "@/lib/interfaces/client.types";
-import { deleteGameAction } from "@/app/actions/index";
+import { deleteGameAction } from "@/app/actions/management.actions";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useTranslation } from 'react-i18next'; // Import the hook
+import { useState } from 'react'; // Import useState for loading state
 
-// Define props - only needs the game object now
+// Define props
 interface GameCardProps {
   game: FilteredGameState;
+  onDelete?: (gameId: string) => void; // Optional callback after deletion
 }
 
-export default function GameCard({ game }: GameCardProps) {
-  const deleteThisGame = deleteGameAction.bind(null, game.gameId);
+export default function GameCard({ game, onDelete }: GameCardProps) {
   const { t } = useTranslation(); // Use the hook
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // onClick handler for the delete button
+  const handleDeleteClick = async () => {
+    if (isDeleting) return;
+    // Confirm deletion
+    if (!confirm(t('ConfirmDeleteGame', `Are you sure you want to delete game ${game.gameId}?`))) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const result = await deleteGameAction(game.gameId); 
+      if (result.success) {
+        console.log(`Game ${game.gameId} deleted.`);
+        onDelete?.(game.gameId); // Call callback if provided
+        // Optionally trigger a client-side refresh or state update
+      } else {
+        // Handle deletion failure (e.g., show error message)
+        console.error("Failed to delete game:", result.error);
+        alert(t('DeleteGameError', `Failed to delete game: ${result.error}`));
+      }
+    } catch (error) {
+      console.error("Error calling deleteGameAction:", error);
+      alert(t('DeleteGameError', `An error occurred while deleting the game.`));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
-    <li className="flex justify-between items-start gap-4">
+    <li className="flex justify-between items-start gap-4 p-4 border rounded-lg shadow-sm bg-card">
       <div className="flex-grow">
         <h3 className="text-lg font-semibold mb-1">
-          <Link href={`/${game.language}/game/${game.gameId}`} className="hover:underline">
+          <Link href={`/${game.language}/game/${game.gameId}`} className="hover:underline text-primary">
             {game.themeTitle || t("DefaultGameTitle", "Untitled Game")}
           </Link>
         </h3>
@@ -46,11 +75,17 @@ export default function GameCard({ game }: GameCardProps) {
           </span>
         </p>
       </div>
-      <form action={deleteThisGame} className="flex-shrink-0">
-        <Button type="submit" variant="outline" size="sm">
-          {t("DeleteButton", "Delete")}
+      <div className="flex-shrink-0">
+        <Button 
+          type="button" 
+          variant="outline" 
+          size="sm"
+          onClick={handleDeleteClick}
+          disabled={isDeleting}
+        >
+          {isDeleting ? t('DeletingButtonLabel', 'Deleting...') : t("DeleteButton", "Delete")}
         </Button>
-      </form>
+      </div>
     </li>
   );
 } 

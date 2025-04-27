@@ -26,6 +26,7 @@ import { DoctorRole } from '../roles/DoctorRole';
 import { SeerRole } from '../roles/SeerRole';
 import type { PendingHumanAction } from '../../interfaces/actions.types';
 import type { LanguageName } from '../../i18n/settings';
+import type { HumanActionPayload } from '../../interfaces/actions.types';
 
 import { OpenAIAgent } from '../agents/OpenAIAgent';
 
@@ -74,6 +75,9 @@ export class Game {
     public theme: GameTheme;
     #agentMemories = new Map<PlayerId, AgentMemory>();
     #createdAt: number;
+    #pendingHumanAction: PendingHumanAction | null = null;
+    #humanVotes: Map<PlayerId, PlayerId | null> = new Map();
+    #humanNightActions: Map<PlayerId, HumanActionPayload> = new Map();
 
     constructor(
         playerSetups: { name: string; agent: IAgent; role: IRole }[],
@@ -199,7 +203,7 @@ export class Game {
         });
 
         const winCondition = this.#currentState instanceof GameOverPhase
-            ? { outcome: (this.#currentState as GameOverPhase).winner, message: "Game Over!" }
+            ? { outcome: (this.#currentState as any).winner, message: "Game Over!" }
             : null;
 
         const themeKey = Object.keys(Themes).find(key => Themes[key] === this.theme) || 'UK_VILLAGE_1900S';
@@ -394,6 +398,7 @@ export class Game {
                 allowedActions: allowedActions,
                 prompt: `Your action is required (${allowedActions.join('/')}).`
             };
+            this.setPendingHumanAction(pendingAction);
             return { type: 'humanActionRequired', pendingAction: pendingAction };
         } else {
             console.log(`Requesting action from AI player ${player.name} (${player.id}). Allowed: ${allowedActions.join(', ')}`);
@@ -506,5 +511,42 @@ export class Game {
         };
 
         return state;
+    }
+
+    public getCurrentPhase(): IGamePhase {
+        return this.#currentState;
+    }
+
+    public getPendingHumanAction(): PendingHumanAction | null {
+        return this.#pendingHumanAction;
+    }
+
+    public setPendingHumanAction(action: PendingHumanAction | null): void {
+        this.#pendingHumanAction = action;
+    }
+
+    public clearPendingHumanAction(): void {
+        this.setPendingHumanAction(null);
+    }
+
+    public advanceToPhase(nextPhase: IGamePhase): void {
+        if (this.#currentState.type === 'Night' && nextPhase.type === 'Day') {
+            this.#round++;
+        }
+        this.#currentState = nextPhase;
+        this.#pendingHumanAction = null;
+        this.#humanVotes.clear();
+        this.#humanNightActions.clear();
+        console.log(`Advanced to phase: ${this.#currentState.type}, Round: ${this.#round}`);
+    }
+    
+    public recordHumanVote(voterId: PlayerId, targetId: PlayerId | null): void {
+        console.log(`Recording human vote: ${voterId} votes for ${targetId}`);
+        this.#humanVotes.set(voterId, targetId);
+    }
+    
+    public recordHumanNightAction(playerId: PlayerId, payload: HumanActionPayload): void {
+        console.log(`Recording human night action: ${playerId} performs ${payload.type}`);
+        this.#humanNightActions.set(playerId, payload);
     }
 }

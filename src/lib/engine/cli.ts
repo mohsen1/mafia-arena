@@ -145,45 +145,48 @@ async function interactiveSetup(): Promise<{
          {
              type: 'number',
              name: 'playerCount',
-             message: 'How many players in total?',
+             message: 'Number of AI players (Min 3):',
              initial: 5,
-             min: 3,
-             validate: value => value >= 3 ? true : 'Minimum 3 players required'
+             validate: (value: number) => value >= 3 ? true : 'Minimum 3 players required'
          },
          {
-             type: 'select',
-             name: 'themeKey',
-             message: 'Choose a game theme:',
-             choices: Object.keys(Themes).map(key => ({
-                 title: `${Themes[key].name}: (${Themes[key].description})`,
-                 value: key
-             })),
-             initial: 0
+             type: 'text',
+             name: 'theme',
+             message: 'Enter game theme (e.g., Classic, Fantasy, Sci-Fi):',
+             initial: 'Classic Werewolf'
          },
          {
              type: 'confirm',
-             name: 'includeHuman',
-             message: 'Include a Human player? (Will be Player 1)',
+             name: 'humanJoin',
+             message: 'Do you want to join as a human player?',
              initial: false
          },
+         {
+             type: (prev: boolean) => prev ? 'text' : null, 
+             name: 'humanName',
+             message: 'Enter your player name:',
+             validate: (value: string) => value.trim().length > 0 ? true : 'Name cannot be empty'
+         },
+         {
+             type: 'text',
+             name: 'townModel',
+             message: 'Enter AI Model for Town members (e.g., gpt-4o):',
+             initial: 'gpt-4o',
+             validate: (value: string) => value.trim().length > 0 ? true : 'Model name cannot be empty'
+         },
+         {
+             type: 'text',
+             name: 'mafiaModel',
+             message: 'Enter AI Model for Mafia members (e.g., gpt-4o):',
+             initial: 'gpt-4o',
+             validate: (value: string) => value.trim().length > 0 ? true : 'Model name cannot be empty'
+         }
     ], { onCancel: () => process.exit(0) });
 
     const playerCount = initialSetup.playerCount;
-    const themeKey = initialSetup.themeKey;
-    const humanPlayerIndex = initialSetup.includeHuman ? 0 : -1; 
-    let humanPlayerName: string | undefined = undefined;
-
-    // Prompt for human player name if included
-    if (humanPlayerIndex === 0) {
-        const nameResponse = await prompts({
-            type: 'text',
-            name: 'humanName',
-            message: 'Enter the name for the Human player (Player 1):',
-            initial: 'You',
-            validate: value => value.trim().length > 0 ? true : 'Name cannot be empty'
-        }, { onCancel: () => process.exit(0) });
-        humanPlayerName = nameResponse.humanName.trim();
-    }
+    const themeKey = initialSetup.theme;
+    const humanPlayerIndex = initialSetup.humanJoin ? 0 : -1; 
+    let humanPlayerName: string | undefined = initialSetup.humanName;
 
     console.log("\n--- Configure AI Player Groups ---");
 

@@ -3,63 +3,76 @@
 import { useGameContext } from "@/context/GameContext";
 import { MessageBubble } from "./MessageBubble";
 import { useTranslation } from "react-i18next"; 
-import { useRef, useEffect, useCallback, useLayoutEffect } from "react"; // Add useLayoutEffect
-import type { ClientMessage, FilteredPlayer } from "@/lib/interfaces/client.types"; // NEW IMPORT
-import type { PlayerId } from "@/lib/engine/interfaces/IPlayer"; // Import PlayerId
+import { useRef, useEffect, useCallback, useLayoutEffect, useMemo } from "react"; // Add useLayoutEffect and useMemo
+import type { ClientMessage, FilteredGameState, FilteredPlayer, PlayerId } from "@/lib/interfaces/gameState.types"; // NEW IMPORT
 import type { IMessage } from "@/lib/engine/interfaces/IMessage"; // Import IMessage for type checking
+import { RoleName } from "@/lib/engine/interfaces/IRole"; // Fix RoleName import path
+import { MessageVisibility } from "@/lib/engine/interfaces/IMessage";
 
 export function ConversationLog() {
-  const { gameState } = useGameContext(); // Only get gameState
+  const { gameState } = useGameContext();
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevPendingActionRef = useRef<unknown>(null);
 
-  // Use standard hook, assuming context/provider is set up elsewhere
   const { t } = useTranslation('translation'); // Keep namespace for now
 
-  if (!gameState) return null; // Handle loading/null state
-  // Destructure necessary parts including _internalState and humanPlayerId
-  const { conversationLog, players, pendingHumanAction, humanPlayerId, phase } = gameState; 
-
-  const regularLog = conversationLog || [];
-  // Assuming werewolf chat is not part of FilteredGameState for now
-  // const werewolfLog = _internalState?.werewolfChatLog || []; 
-  const werewolfLog: ClientMessage[] = []; // Placeholder
-
-  const humanPlayer = humanPlayerId ? players[humanPlayerId] : null;
-  const isHumanWerewolf = humanPlayer?.role === "Mafia"; // Check against RoleName.Mafia might be safer
-  const canSeeWerewolfChat = !humanPlayerId || isHumanWerewolf; // Observer or Werewolf
-
-  let displayLog: ClientMessage[] = []; // Start empty
-
-  if (canSeeWerewolfChat && phase === "Night") {
-    // Werewolf/Observer during Night: Show WW chat + Night-specific moderator messages
-    const markedWerewolfLog = werewolfLog.map(msg => ({ ...msg, isWerewolfChat: true }));
-    // Filter regular log for moderator messages specifically marked for the Night phase
-    const nightModeratorMessages = regularLog.filter(
-      (msg): msg is ClientMessage => msg.phase === 'Night' && msg.senderId === null // Assuming moderator is null senderId
-    );
-    displayLog = [...nightModeratorMessages, ...markedWerewolfLog];
-
-  } else if (canSeeWerewolfChat) {
-    // Werewolf/Observer during Day/Voting/etc.: Show combined public + WW chat
-    const markedWerewolfLog = werewolfLog.map(msg => ({ ...msg, isWerewolfChat: true }));
-    displayLog = [...regularLog, ...markedWerewolfLog]; // Combine all
-
-  } else {
-    // Non-Werewolf: Show only public messages
-    displayLog = [...regularLog];
+  if (!gameState) {
+    return <div>{t('LoadingLog', 'Loading conversation...')}</div>; 
   }
 
-  // Always sort the final display log by timestamp
-  displayLog.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  const { log, players, pendingHumanAction, humanPlayerId, phase } = gameState;
+
+  const playersRecord: Record<PlayerId, FilteredPlayer> = players;
+  const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
+
+  const filteredLog = useMemo(() => {
+    const isVisible = (msg: ClientMessage): boolean => {
+      // Show messages with public visibility
+      if (msg.visibility === MessageVisibility.Public) return true;
+      // Show messages without explicit visibility (assume public)
+      if (msg.visibility === undefined) return true; 
+
+      // During Night, apply role-based visibility
+      if (phase === 'Night') {
+          // Show messages visible to mafia if player is mafia
+          if (humanPlayer?.role === RoleName.Mafia && msg.visibility === MessageVisibility.Mafia) return true;
+          // Show messages sent by the human player (e.g., private confirmations)
+          if (msg.senderId === humanPlayerId) return true;
+      } else {
+          // During Day/Other phases, potentially show Mafia messages if player is Mafia?
+          // Adjust this rule as needed. For now, assume Mafia chat is only visible at night.
+          // if (humanPlayer?.role === RoleName.Mafia && msg.visibility === MessageVisibility.Mafia) return true;
+      }
+
+      // Hide other messages (private, or mafia messages for non-mafia)
+      return false;
+    };
+
+    // Filter the log based on visibility rules
+    return log.filter(isVisible);
+
+  }, [log, phase, humanPlayerId, humanPlayer?.role]);
+
+  const isHumanWerewolf = humanPlayer?.role === RoleName.Mafia; // Use RoleName enum
+  const canSeeWerewolfChat = !humanPlayerId || isHumanWerewolf; // Observer or Werewolf
+
+  // Simplify displayLog logic - use filteredLog directly
+  // The isVisible function should already handle mafia/public visibility
+  // We might need to add back werewolf chat specific logic if it's stored separately
+  let displayLog = filteredLog; 
+
+  // Memoize the final display log (reversed for display)
+  const displayLogMemo = useMemo(() => {
+      return displayLog.slice().reverse(); // Reverse for display order (latest at bottom)
+  }, [displayLog]);
 
   // Function to scroll last message into view, memoized with useCallback
   const scrollToBottom = useCallback(() => {
-    if (lastMessageRef.current && displayLog.length > 0) {
+    if (lastMessageRef.current && displayLogMemo.length > 0) {
       lastMessageRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [displayLog.length]);
+  }, [displayLogMemo.length]);
   
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -99,18 +112,17 @@ export function ConversationLog() {
   return (
     <div ref={containerRef} className="flex-grow bg-background p-4 overflow-y-auto"> 
       <div className="space-y-4"> {/* Removed padding-top */}
-        {displayLog.length > 0 ? (
-          displayLog.map((message, index) => (
+        {displayLogMemo.length > 0 ? (
+          displayLogMemo.map((message, index) => (
             // Apply ref to the last message
             <div 
-              key={message.id}
-              ref={index === displayLog.length - 1 ? lastMessageRef : undefined}
+              key={message.timestamp}
+              ref={index === displayLogMemo.length - 1 ? lastMessageRef : undefined}
             >
               <MessageBubble
                 message={message}
-                players={players as Record<PlayerId, FilteredPlayer>}
-                // Pass the marker prop to MessageBubble
-                isWerewolfChat={(message as ClientMessage & { isWerewolfChat?: boolean }).isWerewolfChat ?? false} 
+                players={playersRecord}
+                isWerewolfChat={message.visibility === MessageVisibility.Mafia} 
               />
             </div>
           ))

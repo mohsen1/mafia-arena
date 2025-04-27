@@ -14,8 +14,8 @@ interface GameClientProps {
   initialGameState: FilteredGameState;
   gameId: string;
   lang: string;
-  boundAdvanceGameStateAction: () => Promise<void>;
-  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<void>;
+  boundAdvanceGameStateAction: () => Promise<FilteredGameState | { error: string }>;
+  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<FilteredGameState | { error: string }>;
 }
 
 function GameLayout() {

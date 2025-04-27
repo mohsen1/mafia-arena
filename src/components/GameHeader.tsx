@@ -61,8 +61,8 @@ export function GameHeader() {
         <div className="mt-1">
           {winCondition && (
             <span className="text-lg font-bold text-success">
-              {/* Assuming outcome strings might be translation keys */} 
-              {t(`Outcome${winCondition.outcome.replace(/\s/g, '')}`, { defaultValue: winCondition.outcome })}
+              {/* Assuming outcome strings might be translation keys */}
+              {t(`Outcome${winCondition.replace(/\s/g, '')}`, { defaultValue: winCondition })}
             </span>
           )}
           {phase === "GameOver" && !winCondition && (
