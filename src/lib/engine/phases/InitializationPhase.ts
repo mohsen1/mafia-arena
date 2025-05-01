@@ -70,7 +70,7 @@ export class InitializationPhase extends AbstractGamePhase {
         game.logMessage(null, "Roles assigned. Ready to begin.", MessageVisibility.Public, this.type);
     }
 
-    transition(game: Game): AbstractGamePhase {
+    transition(_game: Game): AbstractGamePhase {
         // After initialization, always go to the first Day phase
         return new DayPhase();
     }

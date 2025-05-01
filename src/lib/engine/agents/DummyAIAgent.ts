@@ -47,10 +47,10 @@ export class DummyAIAgent implements IAgent {
                 const potentialTargets = aliveOthers.filter(id => 
                     !gameState.mafiaPlayerIds?.has(id) && id !== this.id
                 ); 
-                // Select any alive player other than self
-                const anyAliveTarget = aliveOthers.length > 0 
-                    ? aliveOthers[Math.floor(Math.random() * aliveOthers.length)]
-                    : null; // Handle case where no others are alive
+                // Select any alive player other than self (removed unused variable)
+                // const anyAliveTarget = aliveOthers.length > 0 
+                //     ? aliveOthers[Math.floor(Math.random() * aliveOthers.length)]
+                //     : null; // Handle case where no others are alive
 
                 if (selfRole === RoleName.Mafia && potentialTargets.length > 0) {
                     const targetId = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];

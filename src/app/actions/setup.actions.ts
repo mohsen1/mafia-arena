@@ -2,20 +2,19 @@
 
 // TODO: Update these paths based on actual project structure
 import { Game } from '@/lib/engine/core/Game'; 
-import { assignRoles } from '@/lib/engine/core/utils'; // Assuming role assignment logic moved
+import { assignRoles } from '@/lib/engine/core/utils';
 import type { RoleName } from '@/lib/engine/interfaces/IRole';
 import { Themes } from '@/lib/engine/interfaces/Theme';
-import { createAgentInstance } from '@/lib/agentFactory'; // Assuming agent factory exists
-import type { SerializableGameState, SerializablePlayer, AgentConfig } from '@/lib/interfaces/persistence.types'; // Assuming persistence types exist
+import type { SerializableGameState, SerializablePlayer, AgentConfig } from '@/lib/interfaces/persistence.types';
 import { saveGameData } from '@/lib/persistence'; // Assuming persistence functions exist
-import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
+import { createInitialMemory, type AgentMemory } from '@/lib/engine/interfaces/AgentMemory'; // Import AgentMemory type
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import type { LanguageName } from '@/lib/i18n/settings';
-import crypto from 'node:crypto';
 // import { createPhaseExecutionContext } from '@/lib/gameContextHelper'; // Context helper likely not needed directly here
 import { filterGameStateForClient } from '@/lib/visibilityHelper'; // New helper needed
-import type { FilteredGameState } from '@/lib/interfaces/gameState.types'; // Use updated FilteredGameState type
+import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
+import crypto from 'node:crypto';
 
 // Define input type more robustly
 // TODO: This should likely live in actions.types.ts
@@ -43,7 +42,7 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
         const roles = assignRoles(setupData.playerCount); // Use role assignment utility
         const players: Record<PlayerId, SerializablePlayer> = {};
         const livingPlayerIds: PlayerId[] = [];
-        const agentMemories: Record<PlayerId, any> = {}; // Use 'any' for AgentMemory temporarily
+        const agentMemories: Record<PlayerId, AgentMemory> = {}; // Use 'any' for AgentMemory temporarily
         let humanPlayerId: PlayerId | null = null;
 
         // Create Serializable Players based on setupData
@@ -56,14 +55,12 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
 
             let playerName = `Player ${i + 1}`; // Default name
             let agentConfig: AgentConfig;
-            let isHuman = false;
 
             // Assign human player if configured (assuming index 0)
             if (setupData.humanPlayer && i === 0) {
                 humanPlayerId = playerId;
                 playerName = setupData.humanPlayer.name;
                 agentConfig = { agentType: 'Human' }; // Special config for human
-                isHuman = true;
             } else {
                 // Assign AI agent config based on role allegiance
                 agentConfig = roleInstance.allegiance === 'Mafia' ? setupData.mafiaAgentConfig : setupData.townAgentConfig;

@@ -4,28 +4,16 @@
 import type { FilteredGameState } from "@/lib/interfaces/gameState.types"; // Use gameState.types
 import { loadGameData, saveGameData } from '@/lib/persistence'; // Assuming persistence functions
 import { Game } from '@/lib/engine/core/Game'; // For loadFromState
-import { DayPhase } from '@/lib/engine/phases/DayPhase';
-import { NightPhase } from '@/lib/engine/phases/NightPhase';
 import { GameOverPhase } from '@/lib/engine/phases/GameOverPhase';
-import { InitializationPhase } from '@/lib/engine/phases/InitializationPhase';
-import type { IGamePhase, GamePhaseType } from '@/lib/engine/interfaces/IGamePhase';
 import { filterGameStateForClient } from '@/lib/visibilityHelper'; // Use the helper
 import type { SerializableGameState } from "@/lib/interfaces/persistence.types"; // Use persistence type
-
-// Map phase types to their classes
-const phaseInstanceMap: Record<string, new (...args: any[]) => IGamePhase> = { // Use string index signature
-    'Init': InitializationPhase,
-    'Day': DayPhase,
-    'Night': NightPhase,
-    'GameOver': GameOverPhase,
-};
 
 export async function advanceGameStateAction(gameId: string): Promise<FilteredGameState | { error: string }> {
     console.log(`advanceGameStateAction called for gameId: ${gameId}`);
 
     try {
         // 1. Load state
-        let loadedState = await loadGameData(gameId);
+        const loadedState = await loadGameData(gameId);
         if (!loadedState) {
             throw new Error(`Game not found: ${gameId}`);
         }

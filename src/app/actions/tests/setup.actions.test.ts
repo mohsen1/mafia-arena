@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { startGameAction, StartGameSetupData } from '../setup.actions';
-import { Themes } from '@/lib/engine/interfaces/Theme'; // Themes not directly used in test logic
+import { startGameAction, type StartGameSetupData } from '../setup.actions';
 import { assignRoles } from '@/lib/engine/core/utils';
 import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory'; // Import memory helpers
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';

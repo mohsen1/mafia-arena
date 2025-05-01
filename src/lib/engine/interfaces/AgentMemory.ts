@@ -1,6 +1,5 @@
 import type { PlayerId } from "./IPlayer";
 import type { IMessage } from "./IMessage";
-import type { AIModelConfig, AIProviderConfig } from './AIConfig';
 import type { PlayerAction } from './IAgent';
 import type { GamePhaseType } from './IGamePhase';
 

@@ -17,19 +17,22 @@ export function GameHeader() {
 
   if (!gameState) return null; 
 
-  // Use themeTitle and themeDescription from FilteredGameState
-  const { themeTitle, themeDescription, phase, round, winCondition } = gameState;
+  // Use title and description from FilteredGameState
+  const { title, description, phase, round, winCondition } = gameState;
+
+  // Translate phase and win condition
+  const translatedPhase = t(phase, { defaultValue: phase });
 
   return (
     <div className="p-4 space-y-3 flex-shrink-0"> 
       <div> 
         <h1 className="text-xl font-bold mb-1 truncate"> 
-          {/* Use themeTitle or default */}
-          {themeTitle || t("WerewolfAITitle")}
+          {/* Use title or default */}
+          {title || t("WerewolfAITitle")}
         </h1>
         
-        {/* Use themeDescription */}
-        {themeDescription && (
+        {/* Use description */}
+        {description && (
           <div> {/* Wrapper div for description and toggle button */}
             <p 
               className={[
@@ -37,7 +40,7 @@ export function GameHeader() {
                 !isDescriptionExpanded ? "line-clamp-1 mb-0" : "mb-1" // Apply line clamp and adjust margin
               ].join(" ")}
             >
-              {themeDescription}
+              {description}
             </p>
             {/* Toggle button */} 
             <button 
@@ -55,7 +58,7 @@ export function GameHeader() {
           <span className="font-semibold">{round}</span> |{" "}
           <span className="font-semibold capitalize">
             {/* Assuming phase names might be translation keys */}
-            {t(`GamePhase${phase}`, { defaultValue: phase })}
+            {translatedPhase}
           </span>
         </p>
         <div className="mt-1">

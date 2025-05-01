@@ -25,11 +25,14 @@ export function cleanAIResponse(response: string): string {
   cleanedResponse = cleanedResponse.replace(/`/g, "");
 
   cleanedResponse = cleanedResponse.replace(
-    /^(?:Reasoning|Thought|Thinking|Analysis):\s*/i,
+    /^\s*(?:Reasoning|Thought|Thinking|Analysis):\s*/i,
     "",
   );
 
-  cleanedResponse = cleanedResponse.trim().replace(/\n{3,}/g, "\n\n");
+  // Collapse multiple newlines first
+  cleanedResponse = cleanedResponse.replace(/\n{3,}/g, "\n\n");
+  // Trim whitespace at the very end
+  cleanedResponse = cleanedResponse.trim();
 
   return cleanedResponse;
 }

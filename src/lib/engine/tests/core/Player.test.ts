@@ -16,7 +16,7 @@ const mockVillagerRole: IRole = {
     description: 'Mock Villager',
 };
 
-const mockMafiaRole: IRole = {
+const _mockMafiaRole: IRole = {
     name: RoleName.Mafia,
     allegiance: 'Mafia',
     canPerformNightAction: true,

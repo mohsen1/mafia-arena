@@ -38,9 +38,9 @@ const createMockDayPlayer = (id: PlayerId, role: IRole, agent: IAgent): Player =
 describe('DayPhase', () => {
     let dayPhase: DayPhase;
     let players: Player[];
-    let player1Id: PlayerId = 'p1';
-    let player2Id: PlayerId = 'p2';
-    let player3Id: PlayerId = 'p3'; // Mafia
+    const player1Id: PlayerId = 'p1';
+    const player2Id: PlayerId = 'p2';
+    const player3Id: PlayerId = 'p3'; // Mafia
 
     beforeEach(() => {
         vi.clearAllMocks();

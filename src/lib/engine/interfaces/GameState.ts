@@ -1,8 +1,8 @@
+// Using only type imports
 import type { PublicPlayerInfo, PlayerId, PlayerStatus } from "./IPlayer";
 import type { GamePhaseType } from "./IGamePhase";
 import type { RoleName } from "./IRole";
-import type { IMessage } from "./IMessage";
-import type { Persona } from "./Theme";
+import type { Persona } from "./Persona";
 import type { AgentMemory } from "./AgentMemory";
 
 // Represents the game state information passed TO an agent.

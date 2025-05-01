@@ -81,7 +81,7 @@ async function interactiveSetup(): Promise<{
              message: 'Number of AI players (Min 3):',
              initial: 5,
              validate: (value: number) => value >= 3 ? true : 'Minimum 3 players required'
-         },
+         }, // Keep any type for prompt callback
          {
              type: 'text',
              name: 'theme',
@@ -119,7 +119,7 @@ async function interactiveSetup(): Promise<{
     const playerCount = initialSetup.playerCount;
     const themeKey = initialSetup.theme;
     const humanPlayerIndex = initialSetup.humanJoin ? 0 : -1; 
-    let humanPlayerName: string | undefined = initialSetup.humanName;
+    const humanPlayerName: string | undefined = initialSetup.humanName;
 
     console.log("\n--- Configure AI Player Groups ---");
 
@@ -211,22 +211,28 @@ async function interactiveSetup(): Promise<{
 
 // --- Role Assignment Function ---
 function assignRoles(playerCount: number): IRole[] {
-    let rolesToAssign: IRole[];
-    const mafiaCount = Math.max(1, Math.floor(playerCount / 3.5)); // Example ratio
-    const doctorCount = playerCount >= 5 ? 1 : 0;
-    const seerCount = playerCount >= 4 ? 1 : 0;
-    const villagerCount = playerCount - mafiaCount - doctorCount - seerCount;
+  const mafiaCount = Math.max(1, Math.floor(playerCount / 3.5)); // Example ratio
+  const doctorCount = playerCount >= 5 ? 1 : 0;
+  const seerCount = playerCount >= 5 ? 1 : 0;
+  const villagerCount = playerCount - mafiaCount - doctorCount - seerCount;
 
-    if (villagerCount < 0) {
-        throw new Error(`Role assignment error for ${playerCount} players. Check logic.`);
-    }
-    rolesToAssign = [];
-    for (let i = 0; i < mafiaCount; i++) rolesToAssign.push(new MafiaRole());
-    if (doctorCount > 0) rolesToAssign.push(new DoctorRole());
-    if (seerCount > 0) rolesToAssign.push(new SeerRole());
-    for (let i = 0; i < villagerCount; i++) rolesToAssign.push(new VillagerRole());
-    rolesToAssign.sort(() => Math.random() - 0.5); // Shuffle roles
-    return rolesToAssign;
+  const rolesToAssign: IRole[] = [];
+  
+  // Add roles based on counts
+  for (let i = 0; i < mafiaCount; i++) {
+    rolesToAssign.push(new MafiaRole());
+  }
+  for (let i = 0; i < doctorCount; i++) {
+    rolesToAssign.push(new DoctorRole());
+  }
+  for (let i = 0; i < seerCount; i++) {
+    rolesToAssign.push(new SeerRole());
+  }
+  for (let i = 0; i < villagerCount; i++) {
+    rolesToAssign.push(new VillagerRole());
+  }
+
+  return rolesToAssign;
 }
 
 // --- Main Game Function (Reverted to use Group Config) ---

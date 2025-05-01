@@ -30,7 +30,6 @@ import { GameThemeSelector } from "./GameThemeSelector"; // Import the GameTheme
 import {
   Table,
   TableBody,
-  TableCaption,
   TableHead,
   TableHeader,
   TableRow,
@@ -67,19 +66,15 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     configValidation,
     canAttemptStart,
     totalSlots,
-    globalProviderSelection, // Get global provider from hook
-    globalModelSelection,    // Get global model from hook
+    globalProviderSelection,
+    globalModelSelection,
     availableProviders,
-    availableModelsByProvider,
-    isAudioEnabled,
     addPlayerSlot,
     removePlayerSlot,
     updateSlotProviderAndModel,
     updateAllProvidersAndModels,
     updateSlotRole,
-    toggleAudioEnabled,
     handleGenerateAndStartGame,
-    isLoadingNextTurn,
     isHumanJoining,
     humanPlayerName,
     toggleHumanJoining,
@@ -136,7 +131,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
   );
 
   // Combine submission state
-  const isLoading = isSubmitting || isLoadingNextTurn;
+  const isLoading = isSubmitting;
 
   // Conditional error rendering using t helper or direct access
   if (errorMsg) {
@@ -162,7 +157,8 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
             {t("AI Engine", "AI Engine")}:
           </Label>
           <ProviderModelSelector
-            idPrefix="global"
+            idPrefix="global-provider"
+            selectedProviderValue={globalProviderSelection}
             selectedModel={globalModelSelection}
             onProviderModelChange={handleGlobalProviderModelChange}
             disabled={isSubmitting}
@@ -192,7 +188,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
               {t("MafiaEngineLabel", "Mafia AI Engine")}:
             </Label>
             <ProviderModelSelector
-              idPrefix="mafia"
+              idPrefix="mafia-provider"
               selectedProviderValue={mafiaProviderSelection}
               selectedModel={mafiaModelSelection}
               onProviderModelChange={(provider, model) => {
@@ -277,7 +273,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
             type="submit"
             className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer max-w-xs mx-auto"
             size="lg"
-            disabled={!canAttemptStart || isSubmitting || isLoading}
+            disabled={!canAttemptStart || isSubmitting}
             aria-label={t(
               "GenerateAndStartGameButton",
               "Generate characters and start new game"

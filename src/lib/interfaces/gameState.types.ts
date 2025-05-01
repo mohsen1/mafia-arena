@@ -1,10 +1,11 @@
-import type { LanguageCode, LanguageName } from "@/lib/i18n/settings";
+import type { LanguageName } from "@/lib/i18n/settings";
 import type { RoleName, Allegiance } from "../engine/interfaces/IRole";
 import type { PlayerStatus } from "../engine/interfaces/IPlayer";
 import type { GamePhaseType as EngineGamePhaseType } from "../engine/interfaces/IGamePhase";
 export type GamePhaseType = EngineGamePhaseType;
-import { MessageVisibility } from "../engine/interfaces/IMessage";
+import type { MessageVisibility } from "../engine/interfaces/IMessage";
 import type { PlayerAction } from "../engine/interfaces/IAgent";
+import type { SerializableGameState as PersistenceSerializableGameState } from "./persistence.types";
 
 /** Unique identifier for a player. */
 export type PlayerId = string;
@@ -101,7 +102,9 @@ export interface FilteredGameState extends BaseGameState {
   humanPlayerId?: PlayerId | null;
   livingPlayerIds?: PlayerId[];
   deadPlayerIds?: PlayerId[];
-  themeTitle?: string;
-  themeDescription?: string;
+  canSeeWerewolfChat?: boolean;
+  canSeeDeadChat?: boolean;
+  availableVoices?: string[];
+  _rawStateForDebug?: PersistenceSerializableGameState;
   winCondition?: string | null;
 } 

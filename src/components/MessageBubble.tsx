@@ -8,7 +8,6 @@ import { Bot, User } from "lucide-react";
 import { useSpokenText } from "@/context/SpokenTextContext";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
-import { useMemo } from "react";
 import type { PlayerId } from "@/lib/engine/interfaces/IPlayer";
 
 // Define the props using ClientMessage

@@ -201,6 +201,7 @@ export function CharacterSlotItem({
             <TableCell>
               <ProviderModelSelector
                 {...providerModelSelectorProps}
+                agentConfig={null}
                 idPrefix={`slot-${slot.clientId}-pv-desktop`}
                 mode="provider"
               />
@@ -208,6 +209,7 @@ export function CharacterSlotItem({
             <TableCell>
               <ProviderModelSelector
                 {...providerModelSelectorProps}
+                agentConfig={null}
                 idPrefix={`slot-${slot.clientId}-md-desktop`}
                 mode="model"
               />
@@ -275,6 +277,7 @@ export function CharacterSlotItem({
                 </Label>
                 <ProviderModelSelector
                     {...providerModelSelectorProps}
+                    agentConfig={null}
                     idPrefix={`slot-${slot.clientId}-pv-mobile`}
                     mode="provider"
                 />
@@ -286,6 +289,7 @@ export function CharacterSlotItem({
                 </Label>
                 <ProviderModelSelector
                     {...providerModelSelectorProps}
+                    agentConfig={null}
                     idPrefix={`slot-${slot.clientId}-md-mobile`}
                     mode="model"
                 />

@@ -1,17 +1,16 @@
 "use client";
 
-import { Label } from "@/components/ui/label";
+import React, { useState, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Bot, CloudCog } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 // Import data directly from models.ts
 import {
     availableModelsByProvider,
-    availableProviders,
-    type ProviderDefinition
+    availableProviders
 } from "@/lib/models";
 
 interface ProviderModelSelectorProps {
@@ -21,9 +20,9 @@ interface ProviderModelSelectorProps {
   onProviderModelChange: (provider: string, model: string) => void;
   className?: string;
   disabled?: boolean;
-  labelClassName?: string;
   selectTriggerClassName?: string;
   mode?: 'both' | 'provider' | 'model';
+
 }
 
 export function ProviderModelSelector({
@@ -33,9 +32,9 @@ export function ProviderModelSelector({
   onProviderModelChange,
   className,
   disabled = false,
-  labelClassName = "text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1",
   selectTriggerClassName = "w-full text-xs h-9",
   mode = 'both',
+  // agentConfig,
 }: ProviderModelSelectorProps) {
     const [internalProviderValue, setInternalProviderValue] = useState<string>(
       selectedProviderValue ?? availableProviders[0]?.value ?? ""

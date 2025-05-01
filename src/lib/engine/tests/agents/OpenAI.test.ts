@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import { OpenAIAgent } from '@/lib/engine/agents/OpenAIAgent';
 import type { VisibleGameState } from '@/lib/engine/interfaces/GameState';
 import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
-import { createInitialMemory, type AgentMemory, type AIConversationLog } from '@/lib/engine/interfaces/AgentMemory';
+import { createInitialMemory, type AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import { Persona, DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
@@ -15,7 +15,7 @@ vi.mock('openai', async (importActual) => {
     const mockCreate = vi.fn();
     const mockCompletions = { create: mockCreate };
     const mockChat = { completions: mockCompletions };
-    const MockOpenAI = vi.fn((config) => {
+    const MockOpenAI = vi.fn((_config) => {
         // You could store or assert config.apiKey, config.baseURL here if needed
         return { chat: mockChat };
     });
@@ -58,7 +58,7 @@ describe('OpenAIAgent', () => {
 
         // Dynamically import the mocked components AFTER vi.mock has run
         const mockedOpenAI = await import('openai');
-        mockCreate = (mockedOpenAI as any).__mockCreate; // Get the exported mock function
+        mockCreate = (mockedOpenAI as any).__mockCreate as Mock; // Get the exported mock function
         MockOpenAIConstructor = (mockedOpenAI as any).__MockOpenAIConstructor; // Get constructor mock
 
         const mockedPrompts = await import('@/lib/engine/prompts');

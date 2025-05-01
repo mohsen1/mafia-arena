@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useGameContext } from '@/context/GameContext';
-import type { FilteredGameState, FilteredPlayer, PlayerId } from "@/lib/interfaces/gameState.types";
-import type { HumanActionPayload, PendingHumanAction } from "@/lib/interfaces/actions.types";
+import type { FilteredPlayer, PlayerId } from "@/lib/interfaces/gameState.types";
+import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
 import { PlayerStatus } from "@/lib/engine/interfaces/IPlayer";
 import { RoleName } from "@/lib/engine/interfaces/IRole";
 import { Button } from '@/components/ui/button';

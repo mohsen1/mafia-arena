@@ -21,7 +21,7 @@ export class GameOverPhase extends AbstractGamePhase {
         game.notifyRenderers('renderGameOver', this.winner, finalState);
     }
 
-    transition(game: Game): AbstractGamePhase {
+    transition(_game: Game): AbstractGamePhase {
         // No transition from GameOver, but we need to implement the abstract method
         return this; // Remain in GameOver phase
     }

@@ -1,9 +1,6 @@
-import { Debugger } from 'debug';
 import { PlayerId } from './IPlayer';
 import { Persona } from './Theme';
-import { RoleName } from './IRole';
 import { VisibleGameState } from './GameState';
-import { Message } from '../core/Message';
 import { PendingHumanAction } from '../../interfaces/actions.types';
 
 export type PlayerAction =

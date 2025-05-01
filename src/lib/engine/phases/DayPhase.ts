@@ -80,7 +80,7 @@ export class DayPhase extends AbstractGamePhase {
         let maxVotes = 0;
         let playersToExecute: PlayerId[] = [];
 
-        for (const [voterId, targetId] of votes.entries()) {
+        for (const [_voterId, targetId] of votes.entries()) {
             if (targetId !== null) {
                 const currentVotes = (voteCounts.get(targetId) || 0) + 1;
                 voteCounts.set(targetId, currentVotes);
@@ -115,7 +115,63 @@ export class DayPhase extends AbstractGamePhase {
         game.recordVoteResultsInMemory(votes);
     }
 
-    transition(game: Game): AbstractGamePhase {
+    processVotes(game: Game, votes: Map<PlayerId, PlayerId | null>): void {
+        const voteCounts = new Map<PlayerId, number>();
+        let maxVotes = 0;
+        let playersToExecute: PlayerId[] = [];
+
+        for (const [_voterId, targetId] of votes.entries()) {
+            if (targetId !== null) {
+                const currentVotes = (voteCounts.get(targetId) || 0) + 1;
+                voteCounts.set(targetId, currentVotes);
+                
+                if (currentVotes > maxVotes) {
+                    maxVotes = currentVotes;
+                    playersToExecute = [targetId];
+                } else if (currentVotes === maxVotes) {
+                    playersToExecute.push(targetId);
+                }
+            }
+        }
+
+        // Log the vote results
+        game.logMessage(null, "## Vote Results", MessageVisibility.Public, this.type);
+        for (const [playerId, targetId] of votes.entries()) {
+            const voter = game.getPlayer(playerId);
+            if (!voter) continue;
+            
+            if (targetId === null) {
+                game.logMessage(null, `- ${voter.name} abstained.`, MessageVisibility.Public, this.type);
+            } else {
+                const target = game.getPlayer(targetId);
+                if (!target) continue;
+                game.logMessage(null, `- ${voter.name} voted for ${target.name}.`, MessageVisibility.Public, this.type);
+            }
+        }
+
+        // Execute the player(s) if we have a majority
+        if (playersToExecute.length > 0 && maxVotes > Math.floor(votes.size / 2)) {
+            // If tie, execute nobody (mafia win condition check will handle edge cases)
+            if (playersToExecute.length === 1) {
+                const playerToExecute = playersToExecute[0];
+                const playerObj = game.getPlayer(playerToExecute);
+                if (playerObj) {
+                    game.logMessage(null, `${playerObj.name} has been executed by the town.`, MessageVisibility.Public, this.type);
+                    game.killPlayer(playerToExecute, "execution");
+                }
+            } else {
+                // Handle tie in votes (nobody executed)
+                game.logMessage(null, "The vote resulted in a tie. Nobody was executed today.", MessageVisibility.Public, this.type);
+            }
+        } else {
+            game.logMessage(null, "No majority reached in the vote. Nobody was executed today.", MessageVisibility.Public, this.type);
+        }
+        
+        // Record vote results in memory
+        game.recordVoteResultsInMemory(votes);
+    }
+
+    transition(_game: Game): AbstractGamePhase {
         return new NightPhase();
     }
 }

@@ -5,21 +5,15 @@ import type { IAgent } from './engine/interfaces/IAgent';
 // Import known agent classes
 import { OpenAIAgent } from './engine/agents/OpenAIAgent';
 import { HumanAgent } from './engine/agents/HumanAgent';
+// Import the actual DummyAIAgent
+import { DummyAIAgent } from './engine/agents/DummyAIAgent';
 // import { ClaudeAgent } from './engine/agents/ClaudeAgent'; // Placeholder
 // import { GeminiAgent } from './engine/agents/GeminiAgent'; // Placeholder
-// import { DummyAgent } from './engine/agents/DummyAgent'; // Placeholder
 
-// Placeholder for DummyAgent if not defined elsewhere
-class DummyAgent implements IAgent {
-    constructor(public readonly id: PlayerId) {}
-    agentName = 'DummyAgent';
-    persona = undefined;
-    async getAction(): Promise<PlayerAction> {
-        return { type: 'noAction' };
-    }
-}
+// Remove internal DummyAgent definition
+
 // Import PlayerAction if needed by DummyAgent
-import type { PlayerAction } from './engine/interfaces/IAgent';
+// import type { PlayerAction } from './engine/interfaces/IAgent'; // Likely not needed here anymore
 
 /**
  * Creates an agent instance based on the provided configuration.
@@ -53,13 +47,12 @@ export function createAgentInstance(agentConfig: AgentConfig, playerId: PlayerId
             console.log(`Creating HumanAgent for ${playerId}`);
             return new HumanAgent(playerId);
 
-        case 'Dummy':
         default:
-            console.log(`Creating DummyAgent for ${playerId} (Type: ${agentConfig.agentType})`);
-            // Use a default DummyAgent or log a warning for unknown types
+            console.log(`Creating DummyAIAgent for ${playerId} (Type: ${agentConfig.agentType})`); // Log correct name
+            // Use a default DummyAIAgent or log a warning for unknown types
             if (agentConfig.agentType !== 'Dummy') {
-                console.warn(`Unknown agentType "${agentConfig.agentType}" requested for ${playerId}. Falling back to DummyAgent.`);
+                console.warn(`Unknown agentType "${agentConfig.agentType}" requested for ${playerId}. Falling back to DummyAIAgent.`);
             }
-            return new DummyAgent(playerId);
+            return new DummyAIAgent(playerId); // Use imported DummyAIAgent
     }
 } 

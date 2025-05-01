@@ -1,9 +1,11 @@
-import type { SerializableGameState, SerializablePlayer } from "./interfaces/persistence.types";
-import type { FilteredGameState, FilteredPlayer, PlayerId, ClientMessage, GamePhaseType } from "./interfaces/gameState.types";
+import type { SerializableGameState } from "./interfaces/persistence.types";
+import type { FilteredGameState, FilteredPlayer, PlayerId, ClientMessage } from "./interfaces/gameState.types";
 import { Themes } from "./engine/interfaces/Theme";
-import { RoleName, Allegiance } from "./engine/interfaces/IRole";
+import { RoleName } from "./engine/interfaces/IRole";
 import { MessageVisibility } from "./engine/interfaces/IMessage";
-import type { LanguageCode, LanguageName } from "./i18n/settings";
+import type { ChatMessage } from "./engine/interfaces/ChatMessage";
+import type { IGame } from "./engine/interfaces/IGame";
+import { type PlayerId } from "./engine/interfaces/IPlayer";
 
 /**
  * Filters the complete serializable game state into a view suitable for sending to a specific client.
@@ -20,7 +22,7 @@ export function filterGameStateForClient(
 ): FilteredGameState {
     
     const playersRecord: Record<PlayerId, FilteredPlayer> = {};
-    Object.values(fullState.players).forEach((p: SerializablePlayer) => {
+    for (const p of Object.values(fullState.players)) {
         const filteredPlayer: FilteredPlayer = {
             id: p.id,
             name: p.name,
@@ -29,7 +31,7 @@ export function filterGameStateForClient(
             imageUrl: undefined,
         };
         playersRecord[p.id] = filteredPlayer;
-    });
+    }
 
     const filteredLog: ClientMessage[] = fullState.conversationLog.map(msg => ({
         id: msg.id,
@@ -40,7 +42,7 @@ export function filterGameStateForClient(
         content: msg.content,
         timestamp: msg.timestamp.toISOString(),
         visibility: msg.visibility,
-        type: (msg as any).type,
+        type: (msg as any).type, // Keep 'as any' to handle potential extended message properties
         recipientId: msg.recipientId,
     })).filter(msg => {
         if (msg.visibility === MessageVisibility.Mafia) {
@@ -50,7 +52,7 @@ export function filterGameStateForClient(
         return true;
     });
 
-    const theme = Themes[fullState.themeKey] || Themes['UK_VILLAGE_1900S'];
+    const theme = Themes[fullState.themeKey] || Themes.UK_VILLAGE_1900S;
 
     const filteredState: FilteredGameState = {
         id: fullState.gameId,
@@ -70,6 +72,10 @@ export function filterGameStateForClient(
         livingPlayerIds: fullState.livingPlayerIds,
         deadPlayerIds: fullState.deadPlayerIds,
         winCondition: fullState.winCondition?.outcome ?? null,
+        canSeeWerewolfChat: false,
+        canSeeDeadChat: true,
+        availableVoices: [],
+        _rawStateForDebug: process.env.NODE_ENV === 'development' ? fullState : undefined,
     };
 
     return filteredState;

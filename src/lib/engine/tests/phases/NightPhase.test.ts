@@ -1,15 +1,15 @@
 // tests/phases/NightPhase.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NightPhase } from '@/lib/engine/phases/NightPhase';
-import { Game } from '@/lib/engine/core/Game'; // We need Game to mock its methods
+import type { Game } from '@/lib/engine/core/Game'; // We need Game to mock its methods
 import { Player } from '@/lib/engine/core/Player';
-import { IRole, RoleName } from '@/lib/engine/interfaces/IRole';
+import type { IRole } from '@/lib/engine/interfaces/IRole';
 import { DoctorRole } from '@/lib/engine/roles/DoctorRole';
 import { SeerRole } from '@/lib/engine/roles/SeerRole';
 import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
 import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
 import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
-import { type PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import { DayPhase } from '@/lib/engine/phases/DayPhase';
 
@@ -48,10 +48,10 @@ const createMockPhasePlayer = (id: PlayerId, role: IRole, action: PlayerAction):
 describe('NightPhase', () => {
     let nightPhase: NightPhase;
     let players: Player[];
-    let mafiaId: PlayerId = 'p-mafia';
-    let doctorId: PlayerId = 'p-doctor';
-    let seerId: PlayerId = 'p-seer';
-    let villagerId: PlayerId = 'p-villager';
+    const mafiaId: PlayerId = 'p-mafia';
+    const doctorId: PlayerId = 'p-doctor';
+    const seerId: PlayerId = 'p-seer';
+    const villagerId: PlayerId = 'p-villager';
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -75,7 +75,7 @@ describe('NightPhase', () => {
         mockGame.getAlivePlayers.mockReturnValue(players);
         mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
         mockGame.generateVisibleGameState.mockImplementation((id) => ({
-             self: { id, role: players.find(p=>p.id===id)!.role.name, isMafia: id === mafiaId },
+             self: { id, role: players.find(p => p.id === id)?.role.name ?? 'Unknown', isMafia: id === mafiaId },
              //... other necessary gameState properties
         }));
 

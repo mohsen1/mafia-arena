@@ -53,7 +53,7 @@ export function assignRoles(playerCount: number): IRole[] {
     if (playerCount < 3) {
         throw new Error("Cannot assign roles for fewer than 3 players.");
     }
-    let rolesToAssign: IRole[];
+    const rolesToAssign: IRole[] = [];
     // Example distribution: Adjust ratios as needed for balance
     const mafiaCount = Math.max(1, Math.floor(playerCount / 3.5)); 
     const doctorCount = playerCount >= 5 ? 1 : 0;
@@ -64,7 +64,6 @@ export function assignRoles(playerCount: number): IRole[] {
         throw new Error(`Role assignment error: Negative villager count (${villagerCount}) for ${playerCount} players.`);
     }
     
-    rolesToAssign = [];
     for (let i = 0; i < mafiaCount; i++) rolesToAssign.push(new MafiaRole());
     if (doctorCount > 0) rolesToAssign.push(new DoctorRole());
     if (seerCount > 0) rolesToAssign.push(new SeerRole());

@@ -3,9 +3,8 @@
 import { useGameContext } from "@/context/GameContext";
 import { MessageBubble } from "./MessageBubble";
 import { useTranslation } from "react-i18next"; 
-import { useRef, useEffect, useCallback, useLayoutEffect, useMemo } from "react"; // Add useLayoutEffect and useMemo
-import type { ClientMessage, FilteredGameState, FilteredPlayer, PlayerId } from "@/lib/interfaces/gameState.types"; // NEW IMPORT
-import type { IMessage } from "@/lib/engine/interfaces/IMessage"; // Import IMessage for type checking
+import { useRef, useEffect, useCallback, useLayoutEffect, useMemo } from "react";
+import type { ClientMessage, FilteredPlayer, PlayerId } from "@/lib/interfaces/gameState.types";
 import { RoleName } from "@/lib/engine/interfaces/IRole"; // Fix RoleName import path
 import { MessageVisibility } from "@/lib/engine/interfaces/IMessage";
 
@@ -17,97 +16,72 @@ export function ConversationLog() {
 
   const { t } = useTranslation('translation'); // Keep namespace for now
 
-  if (!gameState) {
-    return <div>{t('LoadingLog', 'Loading conversation...')}</div>; 
-  }
-
-  const { log, players, pendingHumanAction, humanPlayerId, phase } = gameState;
-
-  const playersRecord: Record<PlayerId, FilteredPlayer> = players;
-  const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
-
+  // Filter log based on visibility
   const filteredLog = useMemo(() => {
+    if (!gameState) return []; // Return empty if gameState is null
+    const { log, players, phase, humanPlayerId } = gameState;
+    const playersRecord: Record<PlayerId, FilteredPlayer> = players;
+    const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
+
     const isVisible = (msg: ClientMessage): boolean => {
-      // Show messages with public visibility
       if (msg.visibility === MessageVisibility.Public) return true;
-      // Show messages without explicit visibility (assume public)
-      if (msg.visibility === undefined) return true; 
-
-      // During Night, apply role-based visibility
+      if (msg.visibility === undefined) return true;
       if (phase === 'Night') {
-          // Show messages visible to mafia if player is mafia
           if (humanPlayer?.role === RoleName.Mafia && msg.visibility === MessageVisibility.Mafia) return true;
-          // Show messages sent by the human player (e.g., private confirmations)
           if (msg.senderId === humanPlayerId) return true;
-      } else {
-          // During Day/Other phases, potentially show Mafia messages if player is Mafia?
-          // Adjust this rule as needed. For now, assume Mafia chat is only visible at night.
-          // if (humanPlayer?.role === RoleName.Mafia && msg.visibility === MessageVisibility.Mafia) return true;
       }
-
-      // Hide other messages (private, or mafia messages for non-mafia)
       return false;
     };
-
-    // Filter the log based on visibility rules
     return log.filter(isVisible);
+  }, [gameState]); // Depend on the whole gameState object
 
-  }, [log, phase, humanPlayerId, humanPlayer?.role]);
-
-  const isHumanWerewolf = humanPlayer?.role === RoleName.Mafia; // Use RoleName enum
-  const canSeeWerewolfChat = !humanPlayerId || isHumanWerewolf; // Observer or Werewolf
-
-  // Simplify displayLog logic - use filteredLog directly
-  // The isVisible function should already handle mafia/public visibility
-  // We might need to add back werewolf chat specific logic if it's stored separately
-  let displayLog = filteredLog; 
-
-  // Memoize the final display log (reversed for display)
+  // Memoize the reversed display log
   const displayLogMemo = useMemo(() => {
-      return displayLog.slice().reverse(); // Reverse for display order (latest at bottom)
-  }, [displayLog]);
+      return filteredLog.slice().reverse();
+  }, [filteredLog]);
 
-  // Function to scroll last message into view, memoized with useCallback
+  // Memoized scroll function
   const scrollToBottom = useCallback(() => {
     if (lastMessageRef.current && displayLogMemo.length > 0) {
       lastMessageRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [displayLogMemo.length]);
-  
-  // Scroll to bottom when messages change
+
+  // Scroll effect based on scroll function
   useEffect(() => {
     scrollToBottom();
   }, [scrollToBottom]);
-  
-  // Use a separate effect to detect changes in pendingHumanAction
+
+  // Scroll effect for pending action changes
   useEffect(() => {
-    // If pendingHumanAction has changed
-    if (JSON.stringify(prevPendingActionRef.current) !== JSON.stringify(pendingHumanAction)) {
-      setTimeout(scrollToBottom, 100); // Add small delay to ensure DOM is updated
-      prevPendingActionRef.current = pendingHumanAction;
+    if (!gameState) return; // Need gameState here too
+    if (JSON.stringify(prevPendingActionRef.current) !== JSON.stringify(gameState.pendingHumanAction)) {
+      setTimeout(scrollToBottom, 100);
+      prevPendingActionRef.current = gameState.pendingHumanAction;
     }
-  }, [scrollToBottom, pendingHumanAction]);
-  
-  // Use MutationObserver to detect DOM changes in parent container
+  }, [scrollToBottom, gameState]); // Depend on the whole gameState
+
+  // Layout effect for resize observer
   useLayoutEffect(() => {
     if (!containerRef.current) return;
-    
-    // Create a MutationObserver to watch for changes to the parent container's layout
     const parentNode = containerRef.current.parentElement;
     if (!parentNode) return;
-    
     const resizeObserver = new ResizeObserver(() => {
-      setTimeout(scrollToBottom, 50); // Small delay to ensure layout is complete
+      setTimeout(scrollToBottom, 50);
     });
-    
-    // Observe both our container and its parent
     resizeObserver.observe(containerRef.current);
     resizeObserver.observe(parentNode);
-    
     return () => {
       resizeObserver.disconnect();
     };
   }, [scrollToBottom]);
+
+  if (!gameState) {
+    return <div>{t('LoadingLog', 'Loading conversation...')}</div>; 
+  }
+
+  // Get players record after the gameState check
+  const playersRecord: Record<PlayerId, FilteredPlayer> = gameState.players;
 
   return (
     <div ref={containerRef} className="flex-grow bg-background p-4 overflow-y-auto"> 

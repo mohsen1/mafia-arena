@@ -1,5 +1,5 @@
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import type { SerializableGameState } from './interfaces/persistence.types';
 
 const SAVE_DIR = path.join(process.cwd(), 'game_saves');
@@ -36,13 +36,13 @@ export async function loadGameData(gameId: string): Promise<SerializableGameStat
         // Example: Reviver function for JSON.parse
         const gameState: SerializableGameState = JSON.parse(data);
         return gameState;
-    } catch (error: any) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'ENOENT') {
             console.log(`No save file found for gameId: ${gameId}`);
             return null;
         }
         console.error(`Failed to load game data for ${gameId}:`, error);
-        throw new Error(`Failed to load game data: ${error.message}`);
+        throw new Error(`Failed to load game data: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
@@ -60,9 +60,9 @@ export async function saveGameData(gameId: string, gameState: SerializableGameSt
         const data = JSON.stringify(gameState, null, 2); // Pretty print JSON
         await fs.writeFile(filePath, data, 'utf-8');
         console.log(`Game data saved for gameId: ${gameId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(`Failed to save game data for ${gameId}:`, error);
-        throw new Error(`Failed to save game data: ${error.message}`);
+        throw new Error(`Failed to save game data: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
@@ -76,13 +76,14 @@ export async function deleteGameData(gameId: string): Promise<void> {
     try {
         await fs.unlink(filePath);
         console.log(`Game data deleted for gameId: ${gameId}`);
-    } catch (error: any) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'ENOENT') {
             console.log(`No save file to delete for gameId: ${gameId}`);
-            return; // It's already gone, success!
+            return;
         }
         console.error(`Failed to delete game data for ${gameId}:`, error);
-        throw new Error(`Failed to delete game data: ${error.message}`);
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to delete game data: ${message}`);
     }
 }
 
@@ -97,8 +98,9 @@ export async function listSavedGames(): Promise<string[]> {
         return files
             .filter(file => file.endsWith('.json'))
             .map(file => file.replace('.json', ''));
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Failed to list saved games:', error);
-        throw new Error(`Failed to list saved games: ${error.message}`);
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to list saved games: ${message}`);
     }
 } 

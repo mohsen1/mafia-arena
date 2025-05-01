@@ -29,7 +29,7 @@ export class ConsoleRenderer implements IGameRenderer {
         console.log(chalk.bgGreen.black.bold(`\n 🔄 ROUND ${round} 🔄 \n`));
     }
 
-    renderPhaseStart(phase: GamePhaseType, round: number): void {
+    renderPhaseStart(phase: GamePhaseType, _round: number): void {
         let emoji = '';
         let color = chalk.white;
         

@@ -145,7 +145,7 @@ export class MarkdownRenderer implements IGameRenderer {
             for (const playerInfo of finalState.playerDetails) {
                 // Access memory via the assumed structure in finalState.
                 // IMPORTANT: This requires `createPublicFinalState` in GameOverPhase to add this data.
-                const memory = (finalState as any).memories?.[playerInfo.id] as AgentMemory | undefined;
+                const memory = finalState.memories?.[playerInfo.id] as AgentMemory | undefined;
 
                 if (memory && memory.aiConversationLogs && memory.aiConversationLogs.length > 0) {
                     foundLogs = true;

@@ -167,7 +167,7 @@ export class NightPhase extends AbstractGamePhase {
         // 4. Resolve Night Actions (Save -> Kill -> Investigate)
         // ---------------------------------------
         let playerKilledTonight: PlayerId | null = null;
-        let savedPlayerId: PlayerId | null = doctorSaveTarget;
+        const savedPlayerId: PlayerId | null = doctorSaveTarget;
         let actualKillTarget: PlayerId | null = finalMafiaKillTarget;
 
         // Apply Doctor Save
@@ -214,7 +214,7 @@ export class NightPhase extends AbstractGamePhase {
        game.notifyRenderers('renderNightResults', playerKilledTonight);
     }
 
-    transition(game: Game): AbstractGamePhase {
+    transition(_game: Game): AbstractGamePhase {
         return new DayPhase();
     }
 }

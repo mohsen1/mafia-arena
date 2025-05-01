@@ -1,15 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { advanceGameStateAction } from '../gameplay.actions';
 import { loadGameData, saveGameData } from '@/lib/persistence';
-import { Game } from '@/lib/engine/core/Game';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
 import type { SerializableGameState } from '@/lib/interfaces/persistence.types';
 import type { FilteredGameState, PendingHumanAction } from '@/lib/interfaces/gameState.types';
 import type { PendingHumanAction as ActionPendingAction } from '@/lib/interfaces/actions.types';
-import type { IGamePhase, GamePhaseType } from '@/lib/engine/interfaces/IGamePhase';
+import type { IGamePhase } from '@/lib/engine/interfaces/IGamePhase';
 import { DayPhase } from '@/lib/engine/phases/DayPhase'; // Import concrete phase for mocking transitions
-import { NightPhase } from '@/lib/engine/phases/NightPhase';
-import { GameOverPhase } from '@/lib/engine/phases/GameOverPhase';
 
 // --- Define mock functions used by vi.mock factories FIRST ---
 // REMOVED - Define inside factory
@@ -279,7 +276,6 @@ describe('gameplay.actions', () => {
              updatedAt: Date.now() + 500, 
              pendingHumanAction: pa, // Type should now match
          }));
-         const stateWithPendingAction = mockGetCurrentSerializableState(mockPendingActionMafia);
 
         // Ensure the filtered state mock uses the correct type
         const filteredDeferredState: FilteredGameState = { ...mockFilteredState, pendingHumanAction: mockPendingActionMafia, phase: mockLoadedState.phase };

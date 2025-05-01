@@ -3,11 +3,12 @@ import type { IAgent, PlayerAction } from '../interfaces/IAgent';
 import type { VisibleGameState } from '../interfaces/GameState';
 import type { PlayerId } from '../interfaces/IPlayer';
 import { getSystemPrompt, getUserPrompt, getPersonaGenerationPrompt } from '../prompts'; // Added getPersonaGenerationPrompt
-import { Persona, DEFAULT_PERSONA } from '../interfaces/Persona'; // Corrected import path and added DEFAULT_PERSONA
+import { DEFAULT_PERSONA } from '../interfaces/Persona'; // Import the value
+import type { Persona } from '../interfaces/Persona'; // Import the type
 import * as dotenv from 'dotenv'; // Import dotenv
 import debug from 'debug'; // Import debug
 import { RoleName, type Allegiance } from '../interfaces/IRole'; // Import RoleName and Allegiance
-import type { AgentMemory, AIConversationLog } from '../interfaces/AgentMemory'; // Corrected import path
+import type { AgentMemory } from '../interfaces/AgentMemory'; // Corrected import path
 
 // Create a specific debugger instance
 const log = debug('mafia:agent:gemini');
@@ -133,8 +134,8 @@ export class GeminiAgent implements IAgent {
         const userPrompt = getUserPrompt(promptInputState, allowedActions); 
         const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
-        // Use original memory for logging the current AI conversation
-        const memoryForLogging = gameState.memory;
+        // Use original memory for logging the current AI conversation (removed unused variable)
+        // const memoryForLogging = gameState.memory;
 
         // TODO: Add logging for Gemini agent similar to OpenAI agent
         // const logEntry: Partial<AIConversationLog> = {

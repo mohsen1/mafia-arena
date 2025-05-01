@@ -1,6 +1,6 @@
 "use client"; // Make this a Client Component
 
-import { useState, useEffect, use } from 'react'; // Import hooks
+import { useState, use } from 'react'; // Import hooks
 // import Link from "next/link"; // Removed unused Link import
 import type { FilteredGameState } from "@/lib/interfaces/client.types";
 // import { getGroqModels } from "@/lib/groq/api";

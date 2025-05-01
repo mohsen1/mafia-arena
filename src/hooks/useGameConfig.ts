@@ -1,13 +1,13 @@
 import { startGameAction } from "@/app/actions/setup.actions";
 import type { StartGameSetupData } from "@/lib/interfaces/actions.types";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
-import { RoleName } from "@/lib/engine/interfaces/IRole";
+import { RoleName } from "@/lib/engine/interfaces/IRole"; // Added missing import
 import type { Persona } from "@/lib/engine/interfaces/Persona";
-import { type GameTheme, Themes } from "@/lib/engine/interfaces/Theme";
+import { Themes } from "@/lib/engine/interfaces/Theme";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LanguageCode as Locale } from "@/lib/i18n/settings";
 import { useTranslation } from "react-i18next";
-import { AgentConfig } from "@/lib/interfaces/agent.types";
+import type { AgentConfig } from "@/lib/interfaces/agent.types";
 import { useRouter } from 'next/navigation';
 // Import model and provider definitions
 import {
@@ -218,8 +218,7 @@ export function useGameConfig(
 
         setCharacterSlots(initialSlots);
         setInitialSlotsSet(true);
-    // Remove humanPlayerName from dependencies to prevent re-initialization on name change
-    }, [globalProviderSelection, globalModelSelection, initialSlotsSet, isHumanJoining, humanRoleSelection, t]);
+    }, [globalProviderSelection, globalModelSelection, isHumanJoining, humanRoleSelection, t, humanPlayerName]);
 
     const configValidation = useMemo(() => {
         const isValid = characterSlots.length >= 5; // Ensure minimum 5 players
@@ -291,18 +290,17 @@ export function useGameConfig(
             // Directly update the character slots array with the new values
             // This avoids relying on the useEffect re-initialization and preserves other slot data (like role)
             setCharacterSlots((prevSlots) => {
-                console.log(`[useGameConfig] updateAllProvidersAndModels: Updating characterSlots state.`);
+                console.log("[useGameConfig] updateAllProvidersAndModels: Updating characterSlots state.");
                 const updatedSlots = prevSlots.map((slot) =>
                     slot.isHuman
                         ? slot
                         : { ...slot, provider: newProvider, aiModel: newModel, isGenerated: false }
                 );
-                console.log(`[useGameConfig] updateAllProvidersAndModels: Updated slots:`, updatedSlots);
+                console.log("[useGameConfig] updateAllProvidersAndModels: Updated slots:", updatedSlots);
                 return updatedSlots;
             });
         },
-        // Dependencies remain setters, as this logic uses the arguments directly
-        [setGlobalProviderSelection, setGlobalModelSelection]
+        []
     );
 
 
@@ -398,7 +396,7 @@ export function useGameConfig(
                 throw new Error(result.error);
             }
 
-            if (result && result.gameId && result.initialState) {
+            if (result?.gameId && result?.initialState) {
                 setInfoMsg(t("GameStartedSuccessInfo", {}));
                 router.push(`/game/${result.gameId}`);
             } else {
@@ -444,8 +442,7 @@ export function useGameConfig(
                 setIsHumanJoining(false); // Ensure consistency
             }
         }
-    // Added globalProviderSelection dependency
-    }, [initialSlotsSet, characterSlots, t, globalProviderSelection]);
+    }, [initialSlotsSet, characterSlots, t]);
 
     // Expose role selection update
     const updateHumanRoleSelection = useCallback((role: RoleName) => {

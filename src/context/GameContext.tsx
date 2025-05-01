@@ -22,7 +22,7 @@ import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
 // Import GameState, ChatMessage, Player
 // import { GameState, ChatMessage, Player } from "@/lib/types/game";
 // Import GameState
-import type { FilteredGameState, ClientMessage } from "@/lib/interfaces/gameState.types";
+import type { FilteredGameState } from "@/lib/interfaces/gameState.types";
 // Import HumanActionPayload
 import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
 
@@ -127,12 +127,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   );
 
   // Function to be called by MessageBubble to clear the stop function
-  const unregisterStopAudio = useCallback(
-    (messageId: string) => {
-      stopAudioCallbackRef.current = null;
-    },
-    [],
-  );
+  const unregisterStopAudio = useCallback(() => {
+    stopAudioCallbackRef.current = null;
+  }, []);
 
   const stopCurrentAudio = useCallback(() => {
     console.log(
@@ -159,7 +156,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     });
   }, [stopCurrentAudio]);
 
-  // --- Moved runNextTurnAction definition UP ---
+  // Function to run the next turn in the game
   const runNextTurnAction = useCallback(async (): Promise<FilteredGameState | { error: string }> => {
     if (gameState?.phase === "GameOver") {
       console.log("[Context] Game is over, skipping next turn action trigger.");
@@ -193,7 +190,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       setIsLoadingNextTurn(false);
     }
   }, [
-    gameState?.phase,
+    gameState,
     isAutoRunning,
     isLoadingNextTurn,
     boundRunGameTurnAction,
@@ -201,7 +198,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     isAudioGloballyEnabled,
     spokenTextCurrentlySpeakingId,
   ]);
-  // --- End moved runNextTurnAction ---
 
   const toggleAutoRun = useCallback(() => {
     setIsAutoRunning((prev) => {
@@ -274,13 +270,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       // Use a minimal setTimeout to ensure this runs after the current render cycle
       const timerId = setTimeout(() => runNextTurnAction(), 10); // Short delay
       return () => clearTimeout(timerId); // Cleanup timeout if dependencies change
-    } else {
-       console.log("[Context useEffect] Conditions not met for triggering next turn.", {
-            phase: gameState?.phase,
-            isLoadingNextTurn,
-            pendingHumanAction: gameState?.pendingHumanAction
-       });
     }
+    
+    console.log("[Context useEffect] Conditions not met for triggering next turn.", {
+      phase: gameState?.phase,
+      isLoadingNextTurn,
+      pendingHumanAction: gameState?.pendingHumanAction
+    });
   // Dependencies: Trigger whenever the state relevant to these conditions changes.
   }, [gameState?.phase, gameState?.pendingHumanAction, isLoadingNextTurn, runNextTurnAction]);
   // --- End Auto-run Effect ---
@@ -339,7 +335,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       const isLatestMessage = latestLogMessage && messageId === latestLogMessage.timestamp;
 
       // Pass the original messageId (timestamp) to unregister
-      unregisterStopAudio(messageId);
+      unregisterStopAudio();
 
       if (
         isAutoRunning &&
@@ -375,7 +371,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
           }, 500);
         } else {
           console.log(
-            `[Context reportAudioFinished] AutoRun ON, Audio ON: Game is over.`,
+            "[Context reportAudioFinished] AutoRun ON, Audio ON: Game is over.",
           );
         }
       } else {
@@ -398,19 +394,19 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
   // --- Define submitHumanAction similarly ---
   const submitHumanActionInternal = useCallback(async (payload: HumanActionPayload) => {
-     console.log("[Context] Submitting human action...", payload);
-     setIsLoadingNextTurn(true); // Assume submission might trigger loading
-     try {
-        const result = await boundSubmitHumanAction(payload);
-        console.log("[Context] Human action submitted.", result);
-        // TODO: Handle the returned state/error
-        return result;
-     } catch (error) {
-        console.error("[Context] Error submitting human action:", error);
-        return { error: error instanceof Error ? error.message : "Unknown error" }; 
-     } finally {
-        setIsLoadingNextTurn(false);
-     }
+    console.log("[Context] Submitting human action...", payload);
+    setIsLoadingNextTurn(true); // Assume submission might trigger loading
+    try {
+      const result = await boundSubmitHumanAction(payload);
+      console.log("[Context] Human action submitted.", result);
+      // TODO: Handle the returned state/error
+      return result;
+    } catch (error) {
+      console.error("[Context] Error submitting human action:", error);
+      return { error: error instanceof Error ? error.message : "Unknown error" }; 
+    } finally {
+      setIsLoadingNextTurn(false);
+    }
   }, [boundSubmitHumanAction]);
 
   const value: GameContextState = {
