@@ -1,220 +1,429 @@
-import  { AbstractGamePhase } from './AbstractGamePhase';
+import { AbstractGamePhase } from './AbstractGamePhase';
 import type { Game } from '../core/Game';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
 import { DayPhase } from './DayPhase';
 import type { PlayerAction } from '../interfaces/IAgent';
-import type { PlayerId } from '../interfaces/IPlayer';
-import  { MessageVisibility } from '../interfaces/IMessage';
-import { RoleName } from '../interfaces/IRole';
+import type { PlayerId, Player } from '../interfaces/IPlayer';
+import { MessageVisibility } from '../interfaces/IMessage';
+import { RoleName, Allegiance } from '../interfaces/IRole';
 
 export class NightPhase extends AbstractGamePhase {
     readonly type: GamePhaseType = 'Night';
 
-    async runPhase(game: Game): Promise<void> {
-        game.logMessage(null, "Night falls. Silence descends...", MessageVisibility.Public);
+    // --- Phase State ---
+    #mafiaVotes: Map<PlayerId, PlayerId | null> = new Map();
+    #doctorSaveTarget: PlayerId | null = null;
+    #seerInvestigationTarget: PlayerId | null = null;
+    #seerPlayerId: PlayerId | null = null;
+    #finalMafiaKillTarget: PlayerId | null = null;
+    // Store list of players who need to act in other steps
+    #otherNightRoles: Player[] = []; 
 
-        const alivePlayers = game.getAlivePlayers();
-        const aliveMafia = alivePlayers.filter(p => p.role.name === RoleName.Mafia);
-        const otherNightRoles = alivePlayers.filter(p => p.role.canPerformNightAction && p.role.name !== RoleName.Mafia);
+    async runStep(game: Game): Promise<void> {
+        const step = game.getPhaseStep();
+        const index = game.getNextPlayerIndexToAction();
 
-        const actions = new Map<PlayerId, PlayerAction>(); // Stores final actions (kill, save, investigate)
-        const mafiaVotes = new Map<PlayerId, PlayerId>(); // MafiaId -> TargetId
-        let doctorSaveTarget: PlayerId | null = null;
-        let seerInvestigationTarget: PlayerId | null = null;
-        let seerPlayerId: PlayerId | null = null;
+        console.log(`NightPhase.runStep: Step=${step}, Index=${index}`);
 
-        // ---------------------------------------
-        // 1. Mafia Discussion Phase (Optional - can be handled by agents)
-        // ---------------------------------------
-        if (aliveMafia.length > 0) {
-             game.logMessage(null, "The Mafia convenes...", MessageVisibility.Mafia);
-             const discussionAllowedActions: PlayerAction['type'][] = ['message', 'noAction'];
-             for (const mafiaPlayer of aliveMafia) {
-                 // Human prompt handled by game.requestPlayerAction
-                 // const gameState = game.generateVisibleGameState(mafiaPlayer.id);
-                 // game.logMessage(null, `(${mafiaPlayer.name}) Discuss now...`, MessageVisibility.Private); // Maybe confusing?
-                 const action = await game.requestPlayerAction(mafiaPlayer, discussionAllowedActions); // Use new method
-                 if (action.type === 'message') {
-                     game.logMessage(mafiaPlayer.id, action.content, MessageVisibility.Mafia);
-                 }
+        // Ensure players lists are up-to-date if needed at the start of a step
+        const aliveMafia = game.getAlivePlayers().filter(p => p.role.name === RoleName.Mafia);
+
+        switch (step) {
+            case 'Start':
+                this.resetPhaseState();
+                game.logMessage(null, "Night falls. Silence descends...", MessageVisibility.Public);
+                if (aliveMafia.length > 0) {
+                    game.setPhaseStep('MafiaDiscussion');
+                } else {
+                    game.setPhaseStep('OtherActionsStart'); // Skip Mafia steps if none exist
+                }
+                game.setNextPlayerIndexToAction(0);
+                break;
+
+            case 'MafiaDiscussion':
+                if (index === 0) { // Log only once
+                    game.logMessage(null, "The Mafia convenes...", MessageVisibility.Mafia);
+                }
+                await this.handlePlayerAction(
+                    game, index, aliveMafia, 
+                    ['message', 'noAction'], 
+                    'MafiaVoting' // Next step after discussion
+                );
+                break;
+
+            case 'MafiaVoting':
+                if (index === 0) { // Log only once
+                    game.logMessage(null, "Mafia discussion concludes. Time to choose a target.", MessageVisibility.Mafia);
+                }
+                await this.handlePlayerAction(
+                    game, index, aliveMafia, 
+                    ['mafiaKill', 'noAction'], 
+                    'ConsolidateMafiaVote' // Next step after voting
+                );
+                break;
+
+            case 'ConsolidateMafiaVote':
+                this.consolidateMafiaVotes(game);
+                game.setPhaseStep('OtherActionsStart');
+                game.setNextPlayerIndexToAction(0);
+                break;
+
+            case 'OtherActionsStart':
+                this.#otherNightRoles = game.getAlivePlayers().filter(p => 
+                    p.role.canPerformNightAction && p.role.name !== RoleName.Mafia
+                );
+                console.log(`NightPhase: Found ${this.#otherNightRoles.length} other roles with night actions.`);
+                game.setPhaseStep('OtherActionsLoop');
+                game.setNextPlayerIndexToAction(0);
+                 // If no other actions, skip straight to resolve
+                if (this.#otherNightRoles.length === 0) {
+                    game.setPhaseStep('ResolveNight');
+                }
+                break;
+
+            case 'OtherActionsLoop':
+                // Use the stored list #otherNightRoles
+                await this.handlePlayerAction(
+                    game, index, this.#otherNightRoles, 
+                    [], // Allowed actions determined dynamically inside handlePlayerAction
+                    'ResolveNight' // Next step after all other actions
+                );
+                break;
+            
+            case 'ResolveNight':
+                console.log("NightPhase: Resolving night actions...");
+                this.resolveNightActions(game);
+                game.setPhaseStep('Finished');
+                game.setNextPlayerIndexToAction(0);
+                break;
+
+            case 'Finished':
+                {
+                    console.log("NightPhase: Finished step reached. Transitioning...");
+                    const nextPhaseType = this.transition(game);
+                    // Pass winner if transitioning to GameOver
+                    const winner = nextPhaseType === 'GameOver' ? game.checkWinCondition() : undefined;
+                    game.advanceToPhase(nextPhaseType, winner);
+                    break;
+                }
+
+            default:
+                console.error(`Unknown phase step in NightPhase: ${step}`);
+                game.setPhaseStep('Finished');
+                game.setNextPlayerIndexToAction(0);
+        }
+    }
+
+    /** Resets internal state at the beginning of the phase */
+    private resetPhaseState(): void {
+        this.#mafiaVotes.clear();
+        this.#doctorSaveTarget = null;
+        this.#seerInvestigationTarget = null;
+        this.#seerPlayerId = null;
+        this.#finalMafiaKillTarget = null;
+        this.#otherNightRoles = [];
+    }
+
+    /** Helper to handle requesting/processing action for one player */
+    private async handlePlayerAction(
+        game: Game,
+        index: number,
+        players: Player[], // Use full Player objects now
+        allowedActions: PlayerAction['type'][],
+        nextStep: string
+    ): Promise<void> {
+        const currentStep = game.getPhaseStep();
+
+        if (index >= players.length) {
+            // Finished this step for all relevant players
+            let logMsg = `${currentStep} complete.`;
+             if (currentStep === 'MafiaVoting') logMsg = "Mafia voting complete.";
+             else if (currentStep === 'OtherActionsLoop') logMsg = "Other night actions complete.";
+            
+             // Log completion differently based on step
+             if (currentStep === 'MafiaDiscussion' || currentStep === 'MafiaVoting') {
+                 if (players.length > 0) game.logMessage(null, logMsg, MessageVisibility.Mafia);
+             } else if (currentStep !== 'OtherActionsStart') { // Don't log for the start step
+                  // Public log? Or maybe no log needed here?
+                  // console.log(logMsg); 
              }
-             game.logMessage(null, "Mafia discussion concludes. Time to choose a target.", MessageVisibility.Mafia);
+
+            game.setPhaseStep(nextStep); 
+            game.setNextPlayerIndexToAction(0);
+            return;
         }
 
-        // ---------------------------------------
-        // 2. Collect Night Actions (Mafia Vote + Other Roles)
-        // ---------------------------------------
-        const actionPromises: Promise<void>[] = [];
+        const player = players[index];
+        if (!player || !player.isAlive()) { // Extra check for safety
+            console.warn(`NightPhase.handlePlayerAction: Player ${player?.id} at index ${index} invalid or dead. Skipping.`);
+            game.setNextPlayerIndexToAction(index + 1); // Skip invalid/dead player
+            return;
+        }
 
-        // --- Mafia Voting ---
-        const mafiaVotePromises = aliveMafia.map(async (mafiaPlayer) => {
-             // Human prompt handled by game.requestPlayerAction
-             // const gameState = game.generateVisibleGameState(mafiaPlayer.id);
-             const votingAllowedActions: PlayerAction['type'][] = ['mafiaKill', 'noAction'];
-             const action = await game.requestPlayerAction(mafiaPlayer, votingAllowedActions); // Use new method
-             actions.set(mafiaPlayer.id, action); // Store the action
+        // Determine allowed actions dynamically if needed (e.g., for OtherActionsLoop)
+        if (currentStep === 'OtherActionsLoop') {
+            allowedActions = ['noAction']; // Start with default
+            if (player.role.name === RoleName.Doctor) {
+                allowedActions = ['doctorSave', 'noAction'];
+            } else if (player.role.name === RoleName.Seer) {
+                allowedActions = ['seerInvestigate', 'noAction'];
+            }
+             // Add other roles here...
+        }
 
-             if (action.type === 'mafiaKill') {
-                 const targetPlayer = game.getPlayer(action.targetPlayerId);
-                 if (targetPlayer?.isAlive() && targetPlayer.role.allegiance !== 'Mafia') {
-                     mafiaVotes.set(mafiaPlayer.id, action.targetPlayerId);
-                     game.logMessage(mafiaPlayer.id, `votes to kill ${targetPlayer.name}.`, MessageVisibility.Mafia);
-                 } else if (targetPlayer?.isAlive() && targetPlayer.role.allegiance === 'Mafia') {
-                    game.logMessage(mafiaPlayer.id, `attempted to vote for fellow Mafia member ${targetPlayer.name}. Vote ignored.`, MessageVisibility.Mafia);
+        if (allowedActions.length === 0) { // Should not happen if logic is correct
+             console.error(`NightPhase.handlePlayerAction: No allowed actions determined for player ${player.id} in step ${currentStep}. Skipping.`);
+             game.setNextPlayerIndexToAction(index + 1);
+             return;
+         }
+
+        const action = await game.requestPlayerAction(player, allowedActions);
+        
+        if (action.type !== 'humanActionRequired') {
+            this.processAction(game, player.id, action);
+            game.setNextPlayerIndexToAction(index + 1); 
+        } 
+        // Human action deferred, index not incremented
+    }
+
+     /** Helper to process a completed action (AI or submitted Human) */
+     public processAction(game: Game, playerId: PlayerId, action: PlayerAction): void {
+         const player = game.getPlayer(playerId);
+         if (!player) return;
+ 
+         const currentStep = game.getPhaseStep();
+         console.log(`NightPhase.processAction: Processing ${action.type} from ${player.name} during ${currentStep}`);
+ 
+         switch (action.type) {
+             case 'message': // Mafia Discussion
+                 if (currentStep === 'MafiaDiscussion') {
+                     game.logMessage(player.id, action.content, MessageVisibility.Mafia);
                  } else {
-                     const invalidTargetName = action.targetPlayerId ?? 'unknown';
-                     game.logMessage(mafiaPlayer.id, `attempted an invalid kill vote (${invalidTargetName}).`, MessageVisibility.Mafia);
+                     console.warn(`Unexpected message from ${playerId} during ${currentStep}`);
                  }
-             } else {
-                 game.logMessage(mafiaPlayer.id, 'chooses not to vote for a kill.', MessageVisibility.Mafia);
-             }
-        });
-        actionPromises.push(...mafiaVotePromises);
-
-         // --- Other Night Roles ---
-         const otherRolePromises = otherNightRoles.map(async (player) => {
-             // Human prompt handled by game.requestPlayerAction
-             // const gameState = game.generateVisibleGameState(player.id);
-
-             let nightAllowedActions: PlayerAction['type'][] = ['noAction']; // Default
-             if (player.role.name === RoleName.Doctor) {
-                 nightAllowedActions = ['doctorSave', 'noAction'];
-             } else if (player.role.name === RoleName.Seer) {
-                 nightAllowedActions = ['seerInvestigate', 'noAction'];
-             }
-
-             const action = await game.requestPlayerAction(player, nightAllowedActions); // Use new method
-             actions.set(player.id, action); // Store the action
-
-             // Handle specific actions
-             if (action.type === 'doctorSave') {
-                 if (action.targetPlayerId) {
+                 break;
+             case 'mafiaKill': // Mafia Voting
+                 if (currentStep === 'MafiaVoting') {
                      const targetPlayer = game.getPlayer(action.targetPlayerId);
-                      if (targetPlayer?.isAlive()) {
-                         doctorSaveTarget = action.targetPlayerId;
-                         game.logMessage(player.id, `decides to protect someone.`, MessageVisibility.Private); // Log privately
+                     if (targetPlayer?.isAlive() && targetPlayer.role.allegiance !== 'Mafia') {
+                         this.#mafiaVotes.set(playerId, action.targetPlayerId);
+                         game.logMessage(player.id, `votes to kill ${targetPlayer.name}.`, MessageVisibility.Mafia);
+                     } else if (targetPlayer?.isAlive() && targetPlayer.role.allegiance === 'Mafia') {
+                        game.logMessage(player.id, `attempted to vote for fellow Mafia member ${targetPlayer.name}. Vote ignored.`, MessageVisibility.Mafia);
+                        this.#mafiaVotes.set(playerId, null); // Record as abstain/invalid
                      } else {
-                          game.logMessage(player.id, `attempted to save an invalid target.`, MessageVisibility.Private);
+                         const invalidTargetName = action.targetPlayerId ?? 'unknown';
+                         game.logMessage(player.id, `attempted an invalid kill vote (${invalidTargetName}). Vote ignored.`, MessageVisibility.Mafia);
+                         this.#mafiaVotes.set(playerId, null); // Record as abstain/invalid
                      }
                  } else {
-                      game.logMessage(player.id, `chooses not to save anyone tonight.`, MessageVisibility.Private);
+                     console.warn(`Unexpected mafiaKill from ${playerId} during ${currentStep}`);
                  }
-             } else if (action.type === 'seerInvestigate') {
-                 if (action.targetPlayerId) {
-                     const targetPlayer = game.getPlayer(action.targetPlayerId);
-                     if (targetPlayer?.isAlive()) {
-                         seerInvestigationTarget = action.targetPlayerId;
-                         seerPlayerId = player.id;
-                          game.logMessage(player.id, `decides to investigate someone.`, MessageVisibility.Private); // Log privately
+                 break;
+            case 'doctorSave': // Other Actions
+                if (currentStep === 'OtherActionsLoop') {
+                     if (action.targetPlayerId) {
+                         const targetPlayer = game.getPlayer(action.targetPlayerId);
+                         if (targetPlayer?.isAlive()) {
+                             this.#doctorSaveTarget = action.targetPlayerId;
+                             game.logMessage(player.id, `decides to protect someone.`, MessageVisibility.Private); 
+                         } else {
+                             game.logMessage(player.id, `attempted to save an invalid target.`, MessageVisibility.Private);
+                         }
                      } else {
-                          game.logMessage(player.id, `attempted to investigate an invalid target.`, MessageVisibility.Private);
+                         game.logMessage(player.id, `chooses not to save anyone tonight.`, MessageVisibility.Private);
+                     }
+                } else {
+                     console.warn(`Unexpected doctorSave from ${playerId} during ${currentStep}`);
+                 }
+                 break;
+             case 'seerInvestigate': // Other Actions
+                 if (currentStep === 'OtherActionsLoop') {
+                     if (action.targetPlayerId) {
+                         const targetPlayer = game.getPlayer(action.targetPlayerId);
+                         if (targetPlayer?.isAlive()) {
+                             this.#seerInvestigationTarget = action.targetPlayerId;
+                             this.#seerPlayerId = playerId;
+                             game.logMessage(player.id, `decides to investigate someone.`, MessageVisibility.Private);
+                         } else {
+                             game.logMessage(player.id, `attempted to investigate an invalid target.`, MessageVisibility.Private);
+                         }
+                     } else {
+                         game.logMessage(player.id, `chooses not to investigate anyone tonight.`, MessageVisibility.Private);
                      }
                  } else {
-                     game.logMessage(player.id, `chooses not to investigate anyone tonight.`, MessageVisibility.Private);
+                     console.warn(`Unexpected seerInvestigate from ${playerId} during ${currentStep}`);
                  }
+                 break;
+             case 'noAction': // Can happen in MafiaDiscussion, MafiaVoting, OtherActionsLoop
+                 if (currentStep === 'MafiaVoting') {
+                      this.#mafiaVotes.set(playerId, null); // Explicitly record no vote
+                      game.logMessage(player.id, 'chooses not to vote for a kill.', MessageVisibility.Mafia);
+                 } else if (currentStep === 'MafiaDiscussion') {
+                      game.logMessage(player.id, 'says nothing.', MessageVisibility.Mafia);
+                 } else if (currentStep === 'OtherActionsLoop') {
+                      // Maybe log based on role?
+                      game.logMessage(player.id, 'performs no special action tonight.', MessageVisibility.Private);
+                 }
+                 break;
+         }
+     }
+
+    /** Consolidate Mafia kill votes */
+    private consolidateMafiaVotes(game: Game): void {
+        this.#finalMafiaKillTarget = null;
+        if (this.#mafiaVotes.size === 0) {
+            if (game.getAliveMafia().length > 0) {
+                game.logMessage(null, "The Mafia did not cast any votes.", MessageVisibility.Mafia);
+            }
+             return; // No votes to consolidate
+         }
+
+        const killVoteCounts = new Map<PlayerId, number>();
+        let maxVotes = 0;
+        let finalTargets: PlayerId[] = [];
+
+        for (const targetId of this.#mafiaVotes.values()) {
+            if (targetId === null) continue; // Skip abstain/invalid votes
+
+            // Ensure target is still valid (alive, not mafia)
+            const targetPlayer = game.getPlayer(targetId);
+             if (!targetPlayer?.isAlive() || targetPlayer.role.allegiance === 'Mafia') {
+                 console.log(`Mafia vote target ${targetId} is no longer valid.`);
+                 continue; 
              }
-             // No explicit handling needed for noAction here
-         });
-         actionPromises.push(...otherRolePromises);
 
-        // Wait for all actions/votes to be decided
-        await Promise.all(actionPromises);
-
-        // ---------------------------------------
-        // 3. Process Mafia Kill Vote (Consolidate Votes)
-        // ---------------------------------------
-        let finalMafiaKillTarget: PlayerId | null = null;
-        if (mafiaVotes.size > 0) {
-            const killVoteCounts = new Map<PlayerId, number>();
-            let maxVotes = 0;
-            let finalTargets: PlayerId[] = [];
-
-            for (const targetId of mafiaVotes.values()) {
-                const count = (killVoteCounts.get(targetId) || 0) + 1;
-                killVoteCounts.set(targetId, count);
-                if (count > maxVotes) {
-                    maxVotes = count;
-                    finalTargets = [targetId];
-                } else if (count === maxVotes) {
-                    // Simplest tie-break: first to reach max wins. Could be randomized.
-                    finalTargets.push(targetId); // Keep track if randomization needed
+            const count = (killVoteCounts.get(targetId) || 0) + 1;
+            killVoteCounts.set(targetId, count);
+            if (count > maxVotes) {
+                maxVotes = count;
+                finalTargets = [targetId];
+            } else if (count === maxVotes) {
+                if (!finalTargets.includes(targetId)) { // Avoid duplicates
+                     finalTargets.push(targetId);
                 }
             }
-            // If tied, just pick the first one. Could add random tie-breaking here.
-            finalMafiaKillTarget = finalTargets[0] ?? null;
-
-            if (finalMafiaKillTarget) {
-                 game.logMessage(null, "The Mafia has chosen their target.", MessageVisibility.Mafia);
-                 // Log summary for Mafia (optional)
-                 let voteSummary = "Mafia Kill Vote Summary:\n";
-                 for (const [voterId, targetId] of mafiaVotes.entries()) {
-                     const voterName = game.getPlayer(voterId)?.name ?? voterId;
-                     const targetName = game.getPlayer(targetId)?.name ?? targetId;
-                     voteSummary += `- ${voterName} voted for ${targetName}\n`;
-                 }
-                  const finalTargetName = game.getPlayer(finalMafiaKillTarget)?.name ?? finalMafiaKillTarget;
-                 voteSummary += `Result: The chosen target is ${finalTargetName}.`;
-                 game.logMessage(null, voteSummary, MessageVisibility.Mafia);
-            } else {
-                 game.logMessage(null, "The Mafia votes resulted in no kill target (tie or no votes).", MessageVisibility.Mafia);
-            }
-
-        } else if (aliveMafia.length > 0) {
-             game.logMessage(null, "The Mafia exists but did not successfully vote to kill anyone.", MessageVisibility.Mafia);
         }
 
-         // ---------------------------------------
-        // 4. Resolve Night Actions (Save -> Kill -> Investigate)
-        // ---------------------------------------
+        // Tie-breaking: If tied, no kill occurs. Requires strict majority.
+        const mafiaCount = game.getAliveMafia().length;
+        const majorityThreshold = Math.floor(mafiaCount / 2) + 1;
+
+        if (maxVotes >= majorityThreshold && finalTargets.length === 1) {
+            this.#finalMafiaKillTarget = finalTargets[0];
+        } else {    
+            this.#finalMafiaKillTarget = null; // Tie or no majority
+        }
+
+        // Log result to Mafia
+        let voteSummary = "Mafia Kill Vote Summary:\n";
+        for (const [voterId, targetId] of this.#mafiaVotes.entries()) {
+            const voterName = game.getPlayer(voterId)?.name ?? voterId;
+            const targetName = targetId ? (game.getPlayer(targetId)?.name ?? targetId) : "(abstain/invalid)";
+            voteSummary += `- ${voterName} voted for ${targetName}\n`;
+        }
+
+        if (this.#finalMafiaKillTarget) {
+            const finalTargetName = game.getPlayer(this.#finalMafiaKillTarget)?.name ?? this.#finalMafiaKillTarget;
+            voteSummary += `Result: The chosen target is ${finalTargetName}.`;
+            game.logMessage(null, "The Mafia has chosen their target.", MessageVisibility.Mafia);
+        } else if (maxVotes > 0 && finalTargets.length > 1) {
+             const tiedNames = finalTargets.map(id => game.getPlayer(id)?.name ?? id).join(', ');
+             voteSummary += `Result: Vote tied between ${tiedNames}. No kill tonight.`;
+              game.logMessage(null, "Mafia vote resulted in a tie. No kill tonight.", MessageVisibility.Mafia);
+        } else if (maxVotes > 0 && maxVotes < majorityThreshold) {
+            voteSummary += `Result: No majority reached. No kill tonight.`;
+            game.logMessage(null, "Mafia vote did not reach majority. No kill tonight.", MessageVisibility.Mafia);
+        } else { // maxVotes === 0
+             voteSummary += `Result: No valid votes cast. No kill tonight.`;
+             game.logMessage(null, "The Mafia cast no valid votes. No kill tonight.", MessageVisibility.Mafia);
+        }
+        game.logMessage(null, voteSummary, MessageVisibility.Mafia); // Log detailed summary
+    }
+
+    /** Resolve saves, kills, investigations */
+    private resolveNightActions(game: Game): void {
         let playerKilledTonight: PlayerId | null = null;
-        const savedPlayerId: PlayerId | null = doctorSaveTarget;
-        let actualKillTarget: PlayerId | null = finalMafiaKillTarget;
+        const savedPlayerId = this.#doctorSaveTarget;
+        let actualKillTarget = this.#finalMafiaKillTarget;
+
+        let killMessage = "";
 
         // Apply Doctor Save
         if (savedPlayerId && actualKillTarget === savedPlayerId) {
-            game.logMessage(null, "Someone was attacked, but the Doctor saved them!", MessageVisibility.Public);
+            const savedPlayer = game.getPlayer(savedPlayerId);
+             killMessage = `${savedPlayer?.name ?? savedPlayerId} was attacked, but the Doctor saved them!`;
             actualKillTarget = null; // Kill is prevented
+            console.log(`Save successful: ${savedPlayerId}`);
         }
 
         // Process Kill
-        if (actualKillTarget !== null) {
+        if (actualKillTarget) {
              const targetPlayer = game.getPlayer(actualKillTarget);
-             if (targetPlayer && targetPlayer.isAlive()){ // Check again if target still alive (edge case)
+             if (targetPlayer?.isAlive()){ 
                    playerKilledTonight = actualKillTarget;
+                   // Kill message is generated by game.killPlayer
                    game.killPlayer(playerKilledTonight, "was killed during the night.");
+             } else {
+                 console.log(`Kill target ${actualKillTarget} was already dead.`);
+                 // Don't set playerKilledTonight if target was already dead
              }
         } 
 
        // Process Seer Investigation & record result in Seer's memory
-       if (seerInvestigationTarget && seerPlayerId) {
-           const targetPlayer = game.getPlayer(seerInvestigationTarget);
-           const seer = game.getPlayer(seerPlayerId);
-           if (targetPlayer && seer?.isAlive()) { // Ensure seer is still alive
-               const allegiance = targetPlayer.role.allegiance;
-               game.recordSeerResultInMemory(seerPlayerId, seerInvestigationTarget, allegiance);
-               // Result revealed to seer via gameState in next phase's decideAction call
-               game.logMessage(null, `The Seer investigates...`, MessageVisibility.Private); // Generic private log
+       let investigationResult: Allegiance | null = null;
+       if (this.#seerInvestigationTarget && this.#seerPlayerId) {
+           const targetPlayer = game.getPlayer(this.#seerInvestigationTarget);
+           const seer = game.getPlayer(this.#seerPlayerId);
+           if (targetPlayer && seer?.isAlive()) { 
+               investigationResult = targetPlayer.role.allegiance;
+               game.recordSeerResultInMemory(this.#seerPlayerId, this.#seerInvestigationTarget, investigationResult);
+               // Result revealed to seer via gameState. Provide feedback here?
+                game.logMessage(
+                    null, 
+                    `Your investigation revealed that ${targetPlayer.name} is aligned with the ${investigationResult}.`, 
+                    MessageVisibility.Private, 
+                    this.#seerPlayerId // Send only to the seer
+                );
+               console.log(`Seer ${this.#seerPlayerId} investigated ${this.#seerInvestigationTarget}, result: ${investigationResult}`);
+           } else {
+                 console.log(`Seer (${this.#seerPlayerId}) or Target (${this.#seerInvestigationTarget}) is invalid/dead.`);
            }
        }
 
-       game.recordKillInMemory(playerKilledTonight); // Record null if no one died
-
-       // ---------------------------------------
-       // 5. Announce Public Night Results
-       // ---------------------------------------
+       // Announce Public Night Results
        game.logMessage(null, "Dawn breaks.", MessageVisibility.Public);
-       // Kill message is handled by killPlayer, no need to repeat unless saved
-       if (!playerKilledTonight && finalMafiaKillTarget && savedPlayerId === finalMafiaKillTarget) {
-            // Already announced save
+       if (killMessage) {
+           game.logMessage(null, killMessage, MessageVisibility.Public);
        } else if (!playerKilledTonight) {
-           // Announce if no one died (either no kill attempt, or Mafia is gone)
+            // Announce if no one died (and wasn't saved)
            game.logMessage(null, "The night passed without any casualties.", MessageVisibility.Public);
        }
+        // Kill announcement for non-saved players happens in game.killPlayer
+
+       // Store results for persistence and potential AI use
+       game.setPhaseResults({
+           killedPlayerId: playerKilledTonight,
+           savedPlayerId: savedPlayerId,
+           seerInvestigation: this.#seerInvestigationTarget && investigationResult 
+                ? { targetId: this.#seerInvestigationTarget, allegiance: investigationResult } 
+                : null,
+       });
+
+       game.recordKillInMemory(playerKilledTonight); // Record null if no one died
+        // doctor save and seer results already recorded in their respective memory methods
+        // We might need dedicated methods like recordDoctorSaveInMemory if not already present
 
        game.notifyRenderers('renderNightResults', playerKilledTonight);
     }
 
-    transition(_game: Game): AbstractGamePhase {
-        return new DayPhase();
+    // Update transition to return GamePhaseType
+    transition(game: Game): GamePhaseType {
+        // Check win condition before transitioning
+        const winner = game.checkWinCondition();
+        if (winner) {
+            return 'GameOver';
+        }
+        return 'Day';
     }
 }

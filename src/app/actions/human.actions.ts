@@ -5,8 +5,8 @@ import type { FilteredGameState } from "@/lib/interfaces/gameState.types"; // Us
 import { advanceGameStateAction } from "./gameplay.actions";
 import { loadGameData, saveGameData } from '@/lib/persistence'; // Assuming persistence functions
 import { Game } from '@/lib/engine/core/Game'; // Use engine Game class
-import { RoleName } from '@/lib/engine/interfaces/IRole';
-import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+// import { RoleName } from '@/lib/engine/interfaces/IRole'; // No longer directly needed
+// import { MessageVisibility } from '@/lib/engine/interfaces/IMessage'; // No longer directly needed
 
 export async function submitHumanAction(
     gameId: string,
@@ -20,17 +20,19 @@ export async function submitHumanAction(
         if (!loadedState) {
             throw new Error(`Game not found: ${gameId}`);
         }
-        console.log("Loaded game state:", loadedState);
+        // console.log("Loaded game state:", loadedState); // Keep log brief
 
         // 2. Verify Pending Action
         const pending = loadedState.pendingHumanAction;
         if (!pending) {
             console.warn(`SubmitHumanAction: No pending human action for game ${gameId}. Ignoring.`);
-            // Attempt to advance state anyway, in case the load was slightly stale
-            // return filterGameStateForClient(loadedState); // Return current state
+            // Advance state anyway, might resolve stale state or trigger next AI
              return await advanceGameStateAction(gameId);
         }
-
+         // Ensure action is for the correct player
+         if (pending.playerId !== payload.playerId) {
+             return { error: `Action submitted by wrong player. Expected ${pending.playerId}, got ${payload.playerId}` };
+         }
         // Ensure the submitted action type is one of the allowed ones
         if (!pending.allowedActions.includes(payload.type)) {
              return { error: `Invalid action type submitted. Expected one of ${pending.allowedActions.join(', ')}, got ${payload.type}` };
@@ -38,79 +40,46 @@ export async function submitHumanAction(
         console.log("Pending action verified.");
 
         // 3. Rehydrate game instance
-        const game = Game.loadFromState(loadedState); // Use static method
+        const game = Game.loadFromState(loadedState); 
         console.log("Game rehydrated.");
 
-        // 4. Find human player
-        const humanPlayerId = loadedState.humanPlayerId;
-        if (!humanPlayerId) {
-             throw new Error("Human player ID not found in game state.");
+        // 4. Find human player (already verified by pending.playerId check)
+        const humanPlayerId = pending.playerId;
+        // const humanPlayer = game.getPlayer(humanPlayerId); // Not strictly needed now
+
+        // 5. Get Current Phase Instance
+        const currentPhaseInstance = game.getCurrentPhase();
+        if (!currentPhaseInstance) {
+            throw new Error(`Could not get phase instance for phase ${game.getCurrentPhaseType()}`);
         }
-        const humanPlayer = game.getPlayer(humanPlayerId); // Use game method
-        if (!humanPlayer) {
-            throw new Error(`Human player with ID ${humanPlayerId} not found in rehydrated game.`);
+        // Ensure the phase instance has the processAction method
+        if (typeof (currentPhaseInstance as any).processAction !== 'function') {
+            throw new Error(`Phase ${game.getCurrentPhaseType()} does not have a processAction method.`);
         }
-        console.log("Human player found:", humanPlayerId);
 
-        // 5. Clear pending action on the *rehydrated game instance*
-        game.clearPendingHumanAction(); // Add this method to Game class
-        console.log("Pending human action cleared in game instance.");
+        // 6. Apply Human Action using Phase Logic
+        console.log(`Applying human action via phase logic: ${payload.type}`);
+        (currentPhaseInstance as any).processAction(game, humanPlayerId, payload);
+        console.log("Human action processed by phase.");
 
+        // 7. Clear pending action on the game instance
+        game.clearPendingHumanAction();
+        console.log("Pending human action cleared.");
 
-        // 6. Apply Human Action to Game State (using Game methods)
-        console.log(`Applying human action: ${payload.type}`);
-        switch (payload.type) {
-            case "message":
-                if (typeof payload.content === 'string') {
-                    // Determine visibility based on phase/role if needed
-                    const visibility = game.getCurrentPhaseType() === 'Night' && humanPlayer.role.name === RoleName.Mafia
-                        ? MessageVisibility.Mafia
-                        : MessageVisibility.Public;
-                    game.logMessage(humanPlayerId, payload.content, visibility); // Use game method
-                } else {
-                     throw new Error("Invalid payload for message action: content missing or not string.");
-                }
-                break;
-            case "vote":
-                 // Vote action just records intent. DayPhase processes votes.
-                 if (payload.targetPlayerId === undefined) { // Check if targetPlayerId is missing or null (null might be valid for abstain)
-                      throw new Error("Invalid payload for vote action: targetPlayerId missing.");
-                 }
-                 game.recordHumanVote(humanPlayerId, payload.targetPlayerId); // Add this method to Game
-                break;
-            // Handle night actions similarly - record intent for NightPhase to process
-            case "mafiaKill":
-                 if (typeof payload.targetPlayerId !== 'string') throw new Error("Invalid mafiaKill payload: targetPlayerId must be a string.");
-                 game.recordHumanNightAction(humanPlayerId, payload); // Add this method to Game
-                 break;
-            case "doctorSave":
-                 // targetPlayerId can be null here
-                 if (payload.targetPlayerId !== null && typeof payload.targetPlayerId !== 'string') throw new Error("Invalid doctorSave payload: targetPlayerId must be string or null.");
-                 game.recordHumanNightAction(humanPlayerId, payload);
-                 break;
-            case "seerInvestigate":
-                 // targetPlayerId can be null here (maybe? or should it always require a target?)
-                  if (payload.targetPlayerId === undefined || payload.targetPlayerId === null) throw new Error("Invalid seerInvestigate payload: targetPlayerId is required.");
-                 game.recordHumanNightAction(humanPlayerId, payload);
-                 break;
-            default:
-                // Ensure type safety for exhaustiveness check
-                const exhaustiveCheck: never = payload.type;
-                console.warn(`Unsupported human action type: ${exhaustiveCheck}`);
-                 throw new Error(`Unsupported human action type: ${exhaustiveCheck}`);
+        // 8. Increment Player Index **AFTER** processing the action
+        const currentIndex = game.getNextPlayerIndexToAction();
+        game.setNextPlayerIndexToAction(currentIndex + 1);
+        console.log(`Player index incremented from ${currentIndex} to ${currentIndex + 1}.`);
 
-        }
-        console.log("Human action applied to game state.");
+        // 9. Serialize Updated State (action applied, pending cleared, index incremented)
+        const stateAfterHumanAction = game.getCurrentSerializableState();
+        console.log("Serialized state after human action."); // Keep log brief
 
-        // 7. Serialize Intermediate State
-        const stateWithHumanAction = game.getCurrentSerializableState(); // Get updated state from game
-        console.log("Serialized intermediate state:"); // Keep log brief
+        // 10. Save Updated State
+        await saveGameData(gameId, stateAfterHumanAction);
+        console.log("Updated game state saved.");
 
-        // 8. Save Intermediate State
-        await saveGameData(gameId, stateWithHumanAction);
-        console.log("Intermediate game state saved.");
-
-        // 9. Trigger Game Advancement
+        // 11. Trigger Game Advancement (will run step for the *next* index)
         console.log("Triggering game advancement...");
         return await advanceGameStateAction(gameId);
 

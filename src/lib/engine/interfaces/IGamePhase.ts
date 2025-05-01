@@ -1,19 +1,32 @@
-import type { Game } from '../core/Game'; // Forward declaration/type import
+import type { Game } from '../core/Game';
 
-export type GamePhaseType = 'Init' | 'Day' | 'Night' | 'GameOver';
+/**
+ * Represents a distinct phase of the game (e.g., Day, Night).
+ */
+
+// Define the possible game phase types
+export type GamePhaseType = 
+    | 'Init'        // Initial setup phase
+    | 'Briefing'    // Presenting roles and initial info
+    | 'FirstNight'  // Special first night (e.g., Mafia meet)
+    | 'Day'         // Discussion and voting
+    | 'Night'       // Night actions (kill, save, investigate)
+    | 'GameOver';   // Game conclusion
 
 export interface IGamePhase {
-    readonly type: GamePhaseType;
-    /**
-     * Execute the logic for this phase (e.g., collect votes, process actions).
-     * @param game The main game instance.
-     */
-    runPhase(game: Game): Promise<void>;
+    readonly type: GamePhaseType; 
 
     /**
-     * Determine and transition to the next game phase.
-     * @param game The main game instance.
-     * @returns The next game phase instance.
+     * Executes the logic for a single step within this phase.
+     * @param game The current game instance.
+     * @returns A promise that resolves when the step's logic is complete.
      */
-    transition(game: Game): IGamePhase;
+    runStep(game: Game): Promise<void>;
+
+    /**
+     * Determines the next phase based on the current game state.
+     * @param game The current game instance.
+     * @returns The type of the next game phase.
+     */
+    transition(game: Game): GamePhaseType;
 }

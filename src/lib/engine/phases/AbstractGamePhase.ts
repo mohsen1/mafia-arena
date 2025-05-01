@@ -3,6 +3,6 @@ import type { Game } from '../core/Game';
 
 export abstract class AbstractGamePhase implements IGamePhase {
     abstract readonly type: GamePhaseType;
-    abstract runPhase(game: Game): Promise<void>;
-    abstract transition(game: Game): IGamePhase;
+    abstract runStep(game: Game): Promise<void>;
+    abstract transition(game: Game): GamePhaseType;
 }

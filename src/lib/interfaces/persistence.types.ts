@@ -52,4 +52,8 @@ export interface SerializableGameState {
         seerInvestigation?: { targetId: PlayerId; allegiance: Allegiance } | null;
         lastDayElimination?: PlayerId | null;
     };
-} 
+    /** Current step within the active phase */
+    phaseStep: string;
+    /** Index of the next player to act within the current phase step */
+    nextPlayerIndexToAction: number;
+}

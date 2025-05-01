@@ -19,7 +19,8 @@ export function ConversationLog() {
   // Filter log based on visibility
   const filteredLog = useMemo(() => {
     if (!gameState) return []; // Return empty if gameState is null
-    const { log, players, phase, humanPlayerId } = gameState;
+    
+    const { log = [], players, phase, humanPlayerId } = gameState;
     const playersRecord: Record<PlayerId, FilteredPlayer> = players;
     const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
 
@@ -32,8 +33,9 @@ export function ConversationLog() {
       }
       return false;
     };
+    
     return log.filter(isVisible);
-  }, [gameState]); // Depend on the whole gameState object
+  }, [gameState]); // Keep dependency on full gameState to avoid linter issues
 
   // Memoize the reversed display log
   const displayLogMemo = useMemo(() => {
@@ -55,11 +57,12 @@ export function ConversationLog() {
   // Scroll effect for pending action changes
   useEffect(() => {
     if (!gameState) return; // Need gameState here too
+    
     if (JSON.stringify(prevPendingActionRef.current) !== JSON.stringify(gameState.pendingHumanAction)) {
       setTimeout(scrollToBottom, 100);
       prevPendingActionRef.current = gameState.pendingHumanAction;
     }
-  }, [scrollToBottom, gameState]); // Depend on the whole gameState
+  }, [scrollToBottom, gameState]); // Keep dependency on full gameState
 
   // Layout effect for resize observer
   useLayoutEffect(() => {
@@ -85,13 +88,13 @@ export function ConversationLog() {
 
   return (
     <div ref={containerRef} className="flex-grow bg-background p-4 overflow-y-auto"> 
-      <div className="space-y-4"> {/* Removed padding-top */}
+      <div className="space-y-4">
         {displayLogMemo.length > 0 ? (
           displayLogMemo.map((message, index) => (
-            // Apply ref to the last message
+            // Apply ref to the first item in displayLogMemo (latest chronological message)
             <div 
-              key={message.timestamp}
-              ref={index === displayLogMemo.length - 1 ? lastMessageRef : undefined}
+              key={message.id}
+              ref={index === 0 ? lastMessageRef : undefined}
             >
               <MessageBubble
                 message={message}
@@ -101,7 +104,6 @@ export function ConversationLog() {
             </div>
           ))
         ) : (
-          // No need to check isWaitingForVotes anymore
           <p className="text-muted-foreground italic text-center py-4">
             {t("EmptyConversationLog")}
           </p>

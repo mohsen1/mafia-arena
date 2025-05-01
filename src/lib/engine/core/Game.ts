@@ -88,6 +88,8 @@ export class Game {
     #pendingHumanAction: PendingHumanAction | null = null;
     #humanVotes: Map<PlayerId, PlayerId | null> = new Map();
     #humanNightActions: Map<PlayerId, HumanActionPayload> = new Map();
+    #phaseStep: string = 'Start';
+    #nextPlayerIndexToAction: number = 0;
 
     constructor(
         playerSetups: { name: string; agent: IAgent; role: IRole }[],
@@ -147,6 +149,8 @@ export class Game {
         game.#round = state.round;
         game.#humanPlayerId = state.humanPlayerId;
         game.#lastPhaseResults = state._phaseResults || {};
+        game.#phaseStep = state.phaseStep || 'Start';
+        game.#nextPlayerIndexToAction = state.nextPlayerIndexToAction ?? 0;
 
         game.#players.clear();
         game.#agentMemories.clear();
@@ -177,20 +181,15 @@ export class Game {
                 msgData.round, msgData.phase, msgData.senderId, msgData.senderName,
                 msgData.content, msgData.visibility, msgData.recipientId
             );
-            (message as any).id = msgData.id;
-            (message as any).timestamp = timestamp;
-
             game.#conversationLog.addMessage(message);
         });
 
         const PhaseClass = phaseInstanceMap[state.phase];
         if (!PhaseClass) throw new Error(`LoadError: Cannot deserialize phase: ${state.phase}`);
-        if (state.phase === 'GameOver') {
-            if (!state.winCondition) throw new Error("LoadError: Cannot load GameOver phase without win condition.");
-            game.#currentState = new GameOverPhase((state.winCondition.outcome as any));
-        } else {
-            game.#currentState = new PhaseClass();
-        }
+        
+        const phaseInstance = game.createPhaseInstance(state.phase, state.winCondition?.outcome as ('Mafia' | 'Town' | undefined));
+        if (!phaseInstance) throw new Error(`LoadError: Failed to create instance for phase ${state.phase}`);
+        game.#currentState = phaseInstance;
 
         console.log(`Game ${game.id} loaded from state (Round: ${game.#round}, Phase: ${game.#currentState.type})`);
         return game;
@@ -232,7 +231,6 @@ export class Game {
                 content: msg.content,
                 visibility: msg.visibility,
                 recipientId: msg.recipientId,
-                type: (msg as any).type,
                 timestamp: msg.timestamp instanceof Date 
                             ? msg.timestamp.toISOString() 
                             : String(msg.timestamp)
@@ -256,6 +254,8 @@ export class Game {
             humanPlayerId: this.#humanPlayerId,
             pendingHumanAction: pendingAction,
             _phaseResults: this.#lastPhaseResults,
+            phaseStep: this.#phaseStep,
+            nextPlayerIndexToAction: this.#nextPlayerIndexToAction,
         };
 
         return state;
@@ -557,17 +557,84 @@ export class Game {
         this.setPendingHumanAction(null);
     }
 
-    public advanceToPhase(nextPhase: IGamePhase): void {
-        if (this.#currentState.type === 'Night' && nextPhase.type === 'Day') {
-            this.#round++;
+    public advanceToPhase(nextPhaseType: GamePhaseType, winner?: 'Mafia' | 'Town'): void {
+        if (nextPhaseType === 'GameOver' && !winner) {
+            console.error("Winner must be provided when advancing to GameOver phase.");
+            const currentWinner = this.checkWinCondition();
+            if (!currentWinner) {
+                 console.error("Cannot advance to GameOver: No winner determined.");
+                 return;
+            }
+            winner = currentWinner;
+            console.warn(`Winner determined as ${winner} before advancing to GameOver.`);
         }
-        this.#currentState = nextPhase;
+
+        const nextPhaseInstance = this.createPhaseInstance(nextPhaseType, winner);
+        if (!nextPhaseInstance) {
+            console.error(`Cannot advance to invalid phase type: ${nextPhaseType}`);
+            return;
+        }
+
+        if (this.#currentState.type === 'Night' && nextPhaseInstance.type === 'Day') {
+            this.#round++;
+            console.log(`Starting Round ${this.#round}`);
+            this.notifyRenderers('renderRoundStart', this.#round);
+        }
+        this.#currentState = nextPhaseInstance;
         this.#pendingHumanAction = null;
         this.#humanVotes.clear();
         this.#humanNightActions.clear();
+        this.#phaseStep = 'Start';
+        this.#nextPlayerIndexToAction = 0;
+        this.#lastPhaseResults = {};
+
         console.log(`Advanced to phase: ${this.#currentState.type}, Round: ${this.#round}`);
+        this.notifyRenderers('renderPhaseStart', this.#currentState.type, this.#round);
+    }
+
+    private createPhaseInstance(phaseType: GamePhaseType, winner?: 'Mafia' | 'Town'): IGamePhase | null {
+        const PhaseClass = phaseInstanceMap[phaseType];
+        if (!PhaseClass) return null;
+        
+        if (phaseType === 'GameOver') {
+            if (!winner) {
+                console.error("Winner argument is required to create GameOverPhase instance.");
+                return null;
+            }
+            try {
+                 return new PhaseClass(winner); 
+            } catch (e) {
+                 console.error("Error creating GameOverPhase:", e);
+                 return null;
+            }
+        }
+        
+        return new PhaseClass();
+    }
+
+    public getPhaseStep(): string {
+        return this.#phaseStep;
+    }
+
+    public setPhaseStep(step: string): void {
+        console.log(`Game Step changing from ${this.#phaseStep} to ${step}`);
+        this.#phaseStep = step;
+    }
+
+    public getNextPlayerIndexToAction(): number {
+        return this.#nextPlayerIndexToAction;
+    }
+
+    public setNextPlayerIndexToAction(index: number): void {
+        console.log(`Next player index changing from ${this.#nextPlayerIndexToAction} to ${index}`);
+        this.#nextPlayerIndexToAction = index;
     }
     
+    public getVotes(): ReadonlyMap<PlayerId, PlayerId | null> {
+        console.warn("Game.getVotes() currently only returns recorded human votes.");
+        return this.#humanVotes; 
+    }
+
     public recordHumanVote(voterId: PlayerId, targetId: PlayerId | null): void {
         console.log(`Recording human vote: ${voterId} votes for ${targetId}`);
         this.#humanVotes.set(voterId, targetId);

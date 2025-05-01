@@ -163,17 +163,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       if (isAutoRunning) {
         setIsAutoRunning(false);
       }
-      // Return current state or an error if state is null
       return gameState ?? { error: "Game state is null" }; 
     }
 
     if (isLoadingNextTurn) {
       console.log("[Context] Next turn already loading, skipping.");
-      // Return current state or an error if state is null
       return gameState ?? { error: "Game state is null" }; 
     }
     console.log("[Context] Running next turn action...");
 
+    // Stop audio if running automatically
     if (isAudioGloballyEnabled && spokenTextCurrentlySpeakingId) {
       stopCurrentAudio();
     }
@@ -181,10 +180,25 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     setIsLoadingNextTurn(true);
     try {
       const result = await boundRunGameTurnAction();
-      console.log("[Context] Next turn action triggered.", result);
+      console.log("[Context] Next turn action completed.", result);
+      
+      // Update state ONLY if the result is valid game state
+      if (result && !('error' in result)) {
+        setGameState(result); // Update state based on the returned result
+      } else if (result && 'error' in result) {
+        console.error("[Context] Server action returned error:", result.error);
+        // Stop auto-run on error
+        if (isAutoRunning) {
+          setIsAutoRunning(false);
+        }
+      }
       return result;
     } catch (error) {
       console.error("[Context] Error running next turn action:", error);
+      // Stop auto-run on error
+      if (isAutoRunning) {
+        setIsAutoRunning(false);
+      }
       return { error: error instanceof Error ? error.message : "Unknown error" };
     } finally {
       setIsLoadingNextTurn(false);
@@ -248,78 +262,87 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
   // Update context state if initialGameState prop changes (due to server revalidation)
   useEffect(() => {
-    console.log("[Context] Game state prop updated, updating context state.");
+    console.log("[Context useEffect - State Update] Game state prop updated, updating context state.");
     setGameState(initialGameState);
-    setIsLoadingNextTurn(false); // Assume new state means loading is finished
+    // Reset loading ONLY if needed - let the finally block in runNextTurnAction handle it
+    // setIsLoadingNextTurn(false);
   }, [initialGameState]);
 
-  // --- Effect to automatically run next turn for AI ---
+  // --- SEPARATE useEffect for Auto-Run Logic when audio is ENABLED ---
   useEffect(() => {
-    // Conditions to trigger next AI turn:
-    // 1. Game is not over.
-    // 2. Not currently loading the next turn.
-    // 3. No action is pending from the human player.
-    // 4. Auto-run is enabled OR it's an AI's turn (we trigger regardless if no human action is pending)
-    const shouldTriggerNextTurn = 
-      gameState?.phase !== "GameOver" &&
-      !isLoadingNextTurn &&
-      !gameState?.pendingHumanAction;
-
-    if (shouldTriggerNextTurn) {
-      console.log("[Context useEffect] Conditions met, triggering runNextTurnAction.");
-      // Use a minimal setTimeout to ensure this runs after the current render cycle
-      const timerId = setTimeout(() => runNextTurnAction(), 10); // Short delay
-      return () => clearTimeout(timerId); // Cleanup timeout if dependencies change
-    }
-    
-    console.log("[Context useEffect] Conditions not met for triggering next turn.", {
-      phase: gameState?.phase,
-      isLoadingNextTurn,
-      pendingHumanAction: gameState?.pendingHumanAction
-    });
-  // Dependencies: Trigger whenever the state relevant to these conditions changes.
-  }, [gameState?.phase, gameState?.pendingHumanAction, isLoadingNextTurn, runNextTurnAction]);
-  // --- End Auto-run Effect ---
-
-  // Effect to handle AUTOPLAY when IDLE (conditions depend on audio setting)
-  useEffect(() => {
-    // Condition 1: AutoRun ON, Audio OFF, Idle -> Run Next
+    // Condition: AutoRun ON, Audio ENABLED, Idle (no audio playing), AND Game Not Over, Not Loading, No Human Action Pending
     if (
-      isAutoRunning &&
-      !isAudioGloballyEnabled &&
-      spokenTextCurrentlySpeakingId === null &&
-      !isLoadingNextTurn &&
-      !gameState?.pendingHumanAction
+        isAutoRunning &&
+        isAudioGloballyEnabled &&
+        spokenTextCurrentlySpeakingId === null && // Check if audio is IDLE
+        !isLoadingNextTurn &&
+        gameState && // Ensure gameState is not null
+        !gameState.pendingHumanAction &&
+        gameState.phase !== 'GameOver'
     ) {
-      if (gameState?.phase !== "GameOver") {
         console.log(
-          "[Context Effect Idle Check] AutoRun ON, Audio OFF, Idle, No Human Action -> Triggering next turn.",
+            "[Context useEffect - AutoRun Audio Idle] Triggering next turn after audio finished/idle."
         );
-        const timeoutId = setTimeout(() => {
-          // Double-check conditions after delay
-          if (
-            isAutoRunning &&
-            !isAudioGloballyEnabled &&
-            spokenTextCurrentlySpeakingId === null &&
-            !isLoadingNextTurn &&
-            !gameState?.pendingHumanAction &&
-            gameState?.phase !== "GameOver"
-          ) {
-            runNextTurnAction();
-          }
-        }, 150); // Delay for audio disabled case
-        return () => clearTimeout(timeoutId);
-      }
+        // Add a small delay to prevent overly rapid turns after audio stops
+        const timerId = setTimeout(() => {
+            // Re-check conditions before actually running
+            if ( isAutoRunning &&
+                 isAudioGloballyEnabled &&
+                 spokenTextCurrentlySpeakingId === null &&
+                 !isLoadingNextTurn &&
+                 gameState &&
+                 !gameState.pendingHumanAction &&
+                 gameState.phase !== 'GameOver')
+             {
+                 runNextTurnAction();
+             }
+        }, 500); // 500ms delay
+        return () => clearTimeout(timerId);
     }
-    // Dependencies: Check all conditions used
   }, [
-    isAutoRunning,
-    isAudioGloballyEnabled,
-    spokenTextCurrentlySpeakingId,
-    isLoadingNextTurn,
-    runNextTurnAction,
-    gameState?.phase,
-    gameState?.pendingHumanAction,
+      isAutoRunning,
+      isAudioGloballyEnabled,
+      spokenTextCurrentlySpeakingId, // Trigger when audio finishes (becomes null)
+      isLoadingNextTurn,
+      gameState, // Re-check game state conditions
+      runNextTurnAction,
+  ]);
+
+  // --- SEPARATE useEffect for Auto-Run Logic when audio is DISABLED ---
+  useEffect(() => {
+     // Condition: AutoRun ON, Audio DISABLED, Not Loading, AND Game Not Over, No Human Action Pending
+    if (
+        isAutoRunning &&
+        !isAudioGloballyEnabled && // Specifically when audio is OFF
+        !isLoadingNextTurn &&
+        gameState && // Ensure gameState is not null
+        !gameState.pendingHumanAction &&
+        gameState.phase !== 'GameOver'
+    ) {
+        console.log(
+            "[Context useEffect - AutoRun No Audio] Triggering next turn (audio disabled)."
+        );
+        // Add a slightly longer delay when audio is off to simulate "reading" time
+        const timerId = setTimeout(() => {
+             // Re-check conditions before actually running
+             if ( isAutoRunning &&
+                  !isAudioGloballyEnabled &&
+                  !isLoadingNextTurn &&
+                  gameState &&
+                  !gameState.pendingHumanAction &&
+                  gameState.phase !== 'GameOver')
+              {
+                  runNextTurnAction();
+              }
+         }, 1500); // 1.5 second delay
+        return () => clearTimeout(timerId);
+    }
+  }, [
+      isAutoRunning,
+      isAudioGloballyEnabled, // Trigger when audio state changes
+      isLoadingNextTurn,
+      gameState, // Re-check game state conditions
+      runNextTurnAction,
   ]);
 
   // Function called by MessageBubble (via SpeakText onEnd) when audio finishes
@@ -399,7 +422,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     try {
       const result = await boundSubmitHumanAction(payload);
       console.log("[Context] Human action submitted.", result);
-      // TODO: Handle the returned state/error
+      // Update state if valid result
+      if (result && !('error' in result)) {
+        setGameState(result);
+      }
       return result;
     } catch (error) {
       console.error("[Context] Error submitting human action:", error);
