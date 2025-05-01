@@ -3,13 +3,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DayPhase } from '@/lib/engine/phases/DayPhase';
 import { Game } from '@/lib/engine/core/Game';
 import { Player } from '@/lib/engine/core/Player';
-import { IRole } from '@/lib/engine/interfaces/IRole';
+import { IRole, RoleName } from '@/lib/engine/interfaces/IRole';
 import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
 import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
 import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import { type PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import { NightPhase } from '@/lib/engine/phases/NightPhase';
+import { AgentConfig } from '@/lib/interfaces/agent.types';
 
 // Mock Game class
 const mockGame = {
@@ -31,8 +32,9 @@ const mockGame = {
 
 // Mock Player and Agent - Changed 3rd param from action: PlayerAction to agent: IAgent
 const createMockDayPlayer = (id: PlayerId, role: IRole, agent: IAgent): Player => {
-    // Use the provided agent directly
-    return new Player(id, `Test ${role.name} ${id}`, role, agent);
+    // Add mock agent config
+    const mockAgentConfig: AgentConfig = { agentType: 'Test' }; 
+    return new Player(id, `Test ${role.name} ${id}`, role, agent, mockAgentConfig);
 };
 
 describe('DayPhase', () => {

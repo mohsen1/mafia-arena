@@ -51,7 +51,7 @@ export default function HumanChatInput() {
             setIsSubmitting(false);
             return;
           }
-          payload = { type: 'message', content: inputValue };
+          payload = { playerId: humanPlayerId, type: 'message', content: inputValue };
           setInputValue('');
 
       } else if (pendingAction.allowedActions.includes('vote')) {
@@ -60,7 +60,7 @@ export default function HumanChatInput() {
               setIsSubmitting(false);
               return; 
           }
-          payload = { type: 'vote', targetPlayerId: selectedTarget };
+          payload = { playerId: humanPlayerId, type: 'vote', targetPlayerId: selectedTarget };
           setSelectedTarget(null);
 
       } else {
@@ -73,18 +73,22 @@ export default function HumanChatInput() {
                 setIsSubmitting(false);
                 return; 
              }
-             payload = { type: nightActionType, targetPlayerId: selectedTarget } as HumanActionPayload;
+             payload = { 
+               playerId: humanPlayerId, 
+               type: nightActionType, 
+               targetPlayerId: selectedTarget 
+             }; 
              setSelectedTarget(null);
-          } else {
-             console.error("Could not determine valid action from pendingAction:", pendingAction);
           }
       }
 
       if (payload) {
-          console.log("Submitting human action:", payload);
-          await submitHumanAction(payload);
+        console.log("Submitting human action:", payload);
+        await submitHumanAction(payload);
+        setInputValue('');
+        setSelectedTarget(null);
       } else {
-         console.error('Could not construct payload from pendingAction:', pendingAction);
+        console.error("Could not determine valid action payload from pendingAction:", pendingAction);
       }
 
     } catch (error) {
@@ -113,25 +117,26 @@ export default function HumanChatInput() {
   const getTargetOptions = useCallback((): FilteredPlayer[] => {
     if (!pendingAction || !humanPlayerId) return [];
     
-    if (pendingAction.validTargets && pendingAction.validTargets.length > 0) {
-        return livingPlayers.filter((p: FilteredPlayer) => pendingAction.validTargets!.includes(p.id));
+    const validTargetsSet = pendingAction.validTargets ? new Set(pendingAction.validTargets) : null;
+    if (validTargetsSet) {
+        return livingPlayers.filter((p: FilteredPlayer) => validTargetsSet.has(p.id));
     }
 
     if (pendingAction.allowedActions.includes('vote')) {
         return livingPlayers.filter((p: FilteredPlayer) => p.id !== humanPlayerId);
-    } else {
-        const nightActionType = pendingAction.allowedActions.find(a => 
-              a === 'mafiaKill' || a === 'doctorSave' || a === 'seerInvestigate'
-        );
-        switch (nightActionType) {
-          case 'mafiaKill': 
-          case 'seerInvestigate':
-            return livingPlayers.filter((p: FilteredPlayer) => p.id !== humanPlayerId);
-          case 'doctorSave':
-            return livingPlayers; 
-          default:
-            return [];
-        }
+    } 
+    
+    const nightActionType = pendingAction.allowedActions.find(a => 
+          a === 'mafiaKill' || a === 'doctorSave' || a === 'seerInvestigate'
+    );
+    switch (nightActionType) {
+      case 'mafiaKill': 
+      case 'seerInvestigate':
+        return livingPlayers.filter((p: FilteredPlayer) => p.id !== humanPlayerId);
+      case 'doctorSave':
+        return livingPlayers; 
+      default:
+        return [];
     }
   }, [pendingAction, humanPlayerId, livingPlayers]);
 
@@ -178,7 +183,7 @@ export default function HumanChatInput() {
                  placeholder={placeholder}
                  aria-label={ariaLabel}
                  disabled={disabled}
-                 className={cn("flex-grow", isWWChat && "border-red-500/50 focus:ring-red-500/50")}
+                 className={cn("flex-grow", isWWChat && "border-destructive/50 focus:ring-destructive/50")}
                />
                <Button 
                  type="submit" 
@@ -189,11 +194,13 @@ export default function HumanChatInput() {
                </Button>
              </form>
         );
-    } else if (showTargetSelector) {
+    } 
+    
+    if (showTargetSelector) {
         const actionType = pendingAction.allowedActions.find(a => 
             a === 'vote' || a === 'mafiaKill' || a === 'doctorSave' || a === 'seerInvestigate'
         );
-        const playerRoleDisplay = humanPlayer?.role ? t(humanPlayer.role, humanPlayer.role) : 'Unknown Role';
+        const playerRoleDisplay = humanPlayer?.role ? t(humanPlayer.role, humanPlayer.role) : t('UnknownRole', 'Unknown Role');
         const title = actionType === 'vote' 
               ? t('VoteTitle', 'Vote for Elimination') 
               : t('NightActionTitle', `Night Action (${playerRoleDisplay})`);
@@ -212,12 +219,15 @@ export default function HumanChatInput() {
         return (
             <div className="p-4 border-t flex flex-col gap-3 h-full overflow-hidden">
               <h4 className="font-semibold text-center">{title}</h4>
-              <ScrollArea className="flex-1 max-h-48 border rounded-md">
+              <ScrollArea className="flex-1 max-h-[calc(100%-80px)] border rounded-md">
                 <div className="p-2 space-y-1">
                   {targetOptions.map((player) => (
                     <Label 
                       key={player.id} 
-                      className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted/50 ${selectedTarget === player.id ? 'bg-muted font-medium' : ''}`}
+                      className={cn(
+                        "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted/50",
+                        selectedTarget === player.id ? 'bg-muted font-medium' : ''
+                      )}
                     >
                       <input
                         type="radio"
@@ -225,7 +235,7 @@ export default function HumanChatInput() {
                         value={player.id}
                         checked={selectedTarget === player.id}
                         onChange={() => setSelectedTarget(player.id)}
-                        disabled={!isPlayerTurn || isSubmitting}
+                        disabled={disabled}
                         className="accent-primary"
                       />
                       {player.imageUrl ? (
@@ -237,7 +247,7 @@ export default function HumanChatInput() {
                           className="rounded-full"
                         />
                       ) : (
-                         <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">?</div>
+                         <div className="w-6 h-6 rounded-full bg-neutral-300 flex items-center justify-center text-xs text-neutral-600">?</div>
                       )}
                       <span>{player.name}</span>
                     </Label>
@@ -245,7 +255,10 @@ export default function HumanChatInput() {
                   {canSkipNightAction && (
                        <Label 
                           key="skip-save" 
-                          className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted/50 ${selectedTarget === null ? 'bg-muted font-medium' : ''}`}
+                          className={cn(
+                            "flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted/50",
+                            selectedTarget === null ? 'bg-muted font-medium' : ''
+                          )}
                         >
                           <input
                             type="radio"
@@ -253,35 +266,34 @@ export default function HumanChatInput() {
                             value="__null__"
                             checked={selectedTarget === null}
                             onChange={() => setSelectedTarget(null)}
-                            disabled={!isPlayerTurn || isSubmitting}
+                            disabled={disabled}
                             className="accent-primary"
                           />
-                          <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">-</div>
+                          <div className="w-6 h-6 rounded-full bg-neutral-300 flex items-center justify-center text-xs text-neutral-600">-</div>
                           <span>{t("DoNotSaveLabel", "(Do not save anyone)")}</span>
                         </Label>
                   )}
                 </div>
               </ScrollArea>
               <Button 
-                onClick={() => handleSubmit()} 
-                disabled={!isPlayerTurn || isSubmitting || (selectedTarget === undefined && !canSkipNightAction) || (selectedTarget === undefined && canSkipNightAction && selectedTarget !== null) }
+                onClick={() => handleSubmit()}
+                disabled={disabled || (selectedTarget === undefined && (!canSkipNightAction || selectedTarget !== null))}
               >
                 {isSubmitting ? t('ConfirmingButtonLabel', 'Confirming...') : buttonLabel}
               </Button>
             </div>
         );
     } 
-    else {
-        return (
-            <div className="p-4 border-t text-center text-muted-foreground italic">
-              {pendingAction?.prompt || t('WaitingLabel', "Waiting...")}
-            </div>
-        );
-    }
+
+    return (
+        <div className="p-4 border-t text-center text-muted-foreground italic">
+          {pendingAction?.prompt || t('WaitingLabel', "Waiting...")}
+        </div>
+    );
   };
 
   return (
-    <div className="bg-card shadow-sm">
+    <div>
       {renderInput()}
     </div>
   );

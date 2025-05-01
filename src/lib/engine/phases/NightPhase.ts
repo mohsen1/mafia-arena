@@ -3,7 +3,8 @@ import type { Game } from '../core/Game';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
 import { DayPhase } from './DayPhase';
 import type { PlayerAction } from '../interfaces/IAgent';
-import type { PlayerId, Player } from '../interfaces/IPlayer';
+import type { PlayerId } from '../interfaces/IPlayer';
+import { Player } from '../core/Player';
 import { MessageVisibility } from '../interfaces/IMessage';
 import { RoleName, Allegiance } from '../interfaces/IRole';
 
@@ -101,9 +102,13 @@ export class NightPhase extends AbstractGamePhase {
                 {
                     console.log("NightPhase: Finished step reached. Transitioning...");
                     const nextPhaseType = this.transition(game);
-                    // Pass winner if transitioning to GameOver
-                    const winner = nextPhaseType === 'GameOver' ? game.checkWinCondition() : undefined;
-                    game.advanceToPhase(nextPhaseType, winner);
+                    // Pass winner if transitioning to GameOver, ensuring null becomes undefined
+                    let winnerArg: 'Mafia' | 'Town' | undefined = undefined;
+                    if (nextPhaseType === 'GameOver') {
+                        const determinedWinner = game.checkWinCondition();
+                        winnerArg = determinedWinner === null ? undefined : determinedWinner;
+                    }
+                    game.advanceToPhase(nextPhaseType, winnerArg); // Pass correctly typed winner
                     break;
                 }
 
@@ -133,6 +138,8 @@ export class NightPhase extends AbstractGamePhase {
         nextStep: string
     ): Promise<void> {
         const currentStep = game.getPhaseStep();
+        // Declare actions for this specific player
+        let playerAllowedActions = allowedActions;
 
         if (index >= players.length) {
             // Finished this step for all relevant players
@@ -162,22 +169,22 @@ export class NightPhase extends AbstractGamePhase {
 
         // Determine allowed actions dynamically if needed (e.g., for OtherActionsLoop)
         if (currentStep === 'OtherActionsLoop') {
-            allowedActions = ['noAction']; // Start with default
+            playerAllowedActions = ['noAction']; // Assign to the new variable
             if (player.role.name === RoleName.Doctor) {
-                allowedActions = ['doctorSave', 'noAction'];
+                playerAllowedActions = ['doctorSave', 'noAction']; // Assign to new variable
             } else if (player.role.name === RoleName.Seer) {
-                allowedActions = ['seerInvestigate', 'noAction'];
+                playerAllowedActions = ['seerInvestigate', 'noAction']; // Assign to new variable
             }
              // Add other roles here...
         }
 
-        if (allowedActions.length === 0) { // Should not happen if logic is correct
+        if (playerAllowedActions.length === 0) { // Check the new variable
              console.error(`NightPhase.handlePlayerAction: No allowed actions determined for player ${player.id} in step ${currentStep}. Skipping.`);
              game.setNextPlayerIndexToAction(index + 1);
              return;
          }
 
-        const action = await game.requestPlayerAction(player, allowedActions);
+        const action = await game.requestPlayerAction(player, playerAllowedActions); // Use new variable
         
         if (action.type !== 'humanActionRequired') {
             this.processAction(game, player.id, action);
@@ -226,12 +233,12 @@ export class NightPhase extends AbstractGamePhase {
                          const targetPlayer = game.getPlayer(action.targetPlayerId);
                          if (targetPlayer?.isAlive()) {
                              this.#doctorSaveTarget = action.targetPlayerId;
-                             game.logMessage(player.id, `decides to protect someone.`, MessageVisibility.Private); 
+                             game.logMessage(player.id, 'decides to protect someone.', MessageVisibility.Private);
                          } else {
-                             game.logMessage(player.id, `attempted to save an invalid target.`, MessageVisibility.Private);
+                             game.logMessage(player.id, 'attempted to save an invalid target.', MessageVisibility.Private);
                          }
                      } else {
-                         game.logMessage(player.id, `chooses not to save anyone tonight.`, MessageVisibility.Private);
+                         game.logMessage(player.id, 'chooses not to save anyone tonight.', MessageVisibility.Private);
                      }
                 } else {
                      console.warn(`Unexpected doctorSave from ${playerId} during ${currentStep}`);
@@ -244,12 +251,12 @@ export class NightPhase extends AbstractGamePhase {
                          if (targetPlayer?.isAlive()) {
                              this.#seerInvestigationTarget = action.targetPlayerId;
                              this.#seerPlayerId = playerId;
-                             game.logMessage(player.id, `decides to investigate someone.`, MessageVisibility.Private);
+                             game.logMessage(player.id, 'decides to investigate someone.', MessageVisibility.Private);
                          } else {
-                             game.logMessage(player.id, `attempted to investigate an invalid target.`, MessageVisibility.Private);
+                             game.logMessage(player.id, 'attempted to investigate an invalid target.', MessageVisibility.Private);
                          }
                      } else {
-                         game.logMessage(player.id, `chooses not to investigate anyone tonight.`, MessageVisibility.Private);
+                         game.logMessage(player.id, 'chooses not to investigate anyone tonight.', MessageVisibility.Private);
                      }
                  } else {
                      console.warn(`Unexpected seerInvestigate from ${playerId} during ${currentStep}`);
@@ -332,10 +339,10 @@ export class NightPhase extends AbstractGamePhase {
              voteSummary += `Result: Vote tied between ${tiedNames}. No kill tonight.`;
               game.logMessage(null, "Mafia vote resulted in a tie. No kill tonight.", MessageVisibility.Mafia);
         } else if (maxVotes > 0 && maxVotes < majorityThreshold) {
-            voteSummary += `Result: No majority reached. No kill tonight.`;
+            voteSummary += 'Result: No majority reached. No kill tonight.';
             game.logMessage(null, "Mafia vote did not reach majority. No kill tonight.", MessageVisibility.Mafia);
         } else { // maxVotes === 0
-             voteSummary += `Result: No valid votes cast. No kill tonight.`;
+             voteSummary += 'Result: No valid votes cast. No kill tonight.';
              game.logMessage(null, "The Mafia cast no valid votes. No kill tonight.", MessageVisibility.Mafia);
         }
         game.logMessage(null, voteSummary, MessageVisibility.Mafia); // Log detailed summary
@@ -380,10 +387,9 @@ export class NightPhase extends AbstractGamePhase {
                game.recordSeerResultInMemory(this.#seerPlayerId, this.#seerInvestigationTarget, investigationResult);
                // Result revealed to seer via gameState. Provide feedback here?
                 game.logMessage(
-                    null, 
+                    this.#seerPlayerId, // Send message TO the seer
                     `Your investigation revealed that ${targetPlayer.name} is aligned with the ${investigationResult}.`, 
-                    MessageVisibility.Private, 
-                    this.#seerPlayerId // Send only to the seer
+                    MessageVisibility.Private // Keep private
                 );
                console.log(`Seer ${this.#seerPlayerId} investigated ${this.#seerInvestigationTarget}, result: ${investigationResult}`);
            } else {
@@ -419,9 +425,8 @@ export class NightPhase extends AbstractGamePhase {
 
     // Update transition to return GamePhaseType
     transition(game: Game): GamePhaseType {
-        // Check win condition before transitioning
-        const winner = game.checkWinCondition();
-        if (winner) {
+        // Night transitions to Day unless the game is over
+        if (game.checkWinCondition()) {
             return 'GameOver';
         }
         return 'Day';

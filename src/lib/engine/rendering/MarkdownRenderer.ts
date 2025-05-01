@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { format } from 'date-fns';
 import { type AgentMemory, type AIConversationLog } from '../interfaces/AgentMemory';
+import type { SerializableGameState } from '../interfaces/GameState';
 
 export class MarkdownRenderer implements IGameRenderer {
     private gameId = '';
@@ -74,7 +75,7 @@ export class MarkdownRenderer implements IGameRenderer {
     }
 
     renderVoteResults(votes: Map<PlayerId, PlayerId | null>, executedPlayerId: PlayerId | null): void {
-        this.appendToMarkdown(`#### Vote Results`);
+        this.appendToMarkdown('#### Vote Results');
         
         // Create a vote table
         let voteTable = '| Voter | Target |\n|-------|--------|\n';
@@ -89,17 +90,17 @@ export class MarkdownRenderer implements IGameRenderer {
         if (executedPlayerId) {
             this.appendToMarkdown(`**Execution Result**: ${executedPlayerId} was executed by town vote.`);
         } else {
-            this.appendToMarkdown(`**Execution Result**: No one was executed.`);
+            this.appendToMarkdown('**Execution Result**: No one was executed.');
         }
     }
 
     renderNightResults(killedPlayerId: PlayerId | null): void {
-        this.appendToMarkdown(`#### Night Results`);
+        this.appendToMarkdown('#### Night Results');
         
         if (killedPlayerId) {
             this.appendToMarkdown(`**${killedPlayerId}** was killed during the night.`);
         } else {
-            this.appendToMarkdown(`Everyone survived the night.`);
+            this.appendToMarkdown('Everyone survived the night.');
         }
     }
 
@@ -107,79 +108,68 @@ export class MarkdownRenderer implements IGameRenderer {
         this.appendToMarkdown(`**Player Update**: ${player.name} status changed from ${oldStatus} to ${newStatus}.`);
     }
 
-    renderGameOver(winner: string, finalState: VisibleGameState): void {
-        this.appendToMarkdown(`## Game Over`);
-        this.appendToMarkdown(`**Winner: ${winner}**`);
+    renderGameOver(winner: 'Mafia' | 'Town' | null, finalState: SerializableGameState): void {
+        this.appendToMarkdown('## Game Over');
+        this.appendToMarkdown(`**Winner: ${winner ?? 'Undetermined'}**`);
         
-        // Create a final player table with roles (now revealed)
-        this.appendToMarkdown(`### Final Player Status`);
+        this.appendToMarkdown('### Final Player Status');
         
         let playerTable = '| Player | Status | Role | Allegiance |\n|--------|--------|------|------------|\n';
         
-        if (finalState.playerDetails) {
-            for (const player of finalState.playerDetails) {
-                playerTable += `| ${player.name} | ${player.status} | ${player.role} | ${player.allegiance} |\n`;
+        const players = Object.values(finalState.players || {}) as SerializablePlayer[];
+        if (players.length > 0) {
+            for (const player of players) {
+                playerTable += `| ${player.name} | ${player.status} | ${player.roleName} | ${player.allegiance} |\n`;
             }
         } else {
-            // Fallback to just the public info
-            for (const player of finalState.players) {
-                playerTable += `| ${player.name} | ${player.status} | ? | ? |\n`;
-            }
+            playerTable += '| (No Player Data) | - | - | - |\n';
         }
         
         this.appendToMarkdown(playerTable);
         
-        // Add game summary
-        this.appendToMarkdown(`### Game Summary`);
+        this.appendToMarkdown('### Game Summary');
         this.appendToMarkdown(`- **Game ID**: ${this.gameId}`);
         this.appendToMarkdown(`- **Rounds Played**: ${finalState.round}`);
-        this.appendToMarkdown(`- **Winner**: ${winner}`);
+        this.appendToMarkdown(`- **Winner**: ${winner ?? 'Undetermined'}`);
         this.appendToMarkdown(`- **End Time**: ${new Date().toLocaleString()}`);
         
-        // --- NEW: AI Conversation Logs --- 
-        this.appendToMarkdown(`## AI Agent Conversation Logs`);
+        this.appendToMarkdown('## AI Agent Conversation Logs');
 
-        // Check if detailed player info is available
-        if (finalState.playerDetails && finalState.playerDetails.length > 0) {
-            let foundLogs = false;
-            for (const playerInfo of finalState.playerDetails) {
-                // Access memory via the assumed structure in finalState.
-                // IMPORTANT: This requires `createPublicFinalState` in GameOverPhase to add this data.
-                const memory = finalState.memories?.[playerInfo.id] as AgentMemory | undefined;
+        const agentMemories = finalState.agentMemories || {};
+        let foundLogs = false;
 
-                if (memory && memory.aiConversationLogs && memory.aiConversationLogs.length > 0) {
+        if (players.length > 0) {
+            for (const playerInfo of players) { 
+                const memory = agentMemories[playerInfo.id]; 
+
+                if (memory?.aiConversationLogs && memory.aiConversationLogs.length > 0) {
                     foundLogs = true;
-                    this.appendToMarkdown(`### Logs for ${playerInfo.name} (${playerInfo.id} - Role: ${playerInfo.role || 'Unknown'})`);
+                    this.appendToMarkdown(`### Logs for ${playerInfo.name} (${playerInfo.id} - Role: ${playerInfo.roleName || 'Unknown'})`);
                     memory.aiConversationLogs.forEach((log: AIConversationLog, index: number) => {
                         this.appendToMarkdown(`#### Log Entry ${index + 1} (Round ${log.round}, ${log.phase})`);
                         this.appendToMarkdown(`- **Timestamp:** ${log.timestamp ? format(log.timestamp, 'yyyy-MM-dd HH:mm:ss.SSS') : 'N/A'}`);
                         this.appendToMarkdown(`- **Model:** ${log.model || 'N/A'}`);
-                        this.appendToMarkdown(`- **System Prompt:**`);
-                        this.appendToMarkdown('```txt\n' + (log.prompt.system || '(None)') + '\n```'); // Use txt for generic prompts
-                        this.appendToMarkdown(`- **User Prompt:**`);
-                        this.appendToMarkdown('```txt\n' + (log.prompt.user || '(None)') + '\n```'); // Changed from json to txt for user prompt
-                        this.appendToMarkdown(`- **Raw Response:**`);
-                        this.appendToMarkdown('```json\n' + (log.response.raw || '(None)') + '\n```'); // Assume raw response is JSON
+                        this.appendToMarkdown('- **System Prompt:**');
+                        this.appendToMarkdown(`\`\`\`txt\n${log.prompt.system || '(None)'}\n\`\`\``);
+                        this.appendToMarkdown('- **User Prompt:**');
+                        this.appendToMarkdown(`\`\`\`txt\n${log.prompt.user || '(None)'}\n\`\`\``);
+                        this.appendToMarkdown('- **Raw Response:**');
+                        this.appendToMarkdown(`\`\`\`json\n${log.response.raw || '(None)'}\n\`\`\``);
                         if (log.response.parsedAction) {
                             this.appendToMarkdown(`- **Parsed Action:** \`\`\`json\n${JSON.stringify(log.response.parsedAction, null, 2)}\n\`\`\``);
                         }
                         if (log.response.error) {
-                            this.appendToMarkdown(`- **Error:**`);
-                            this.appendToMarkdown('```\n' + log.response.error + '\n```');
+                            this.appendToMarkdown('- **Error:**');
+                            this.appendToMarkdown(`\`\`\`\n${log.response.error}\n\`\`\``);
                         }
-                        this.appendToMarkdown(`---`); // Separator between log entries
+                        this.appendToMarkdown('---');
                     });
-                } else if (memory && (!memory.aiConversationLogs || memory.aiConversationLogs.length === 0)) {
-                    // Optionally log if an AI agent had no recorded conversations
-                    // Check if player was supposed to be AI (e.g., not Human type if available)
-                    // We don't have agent type here, so maybe just skip or add a generic note.
                 }
             }
-            if (!foundLogs) {
-                this.appendToMarkdown(`*No AI conversation logs were recorded or made available in the final game state.*`);
-            }
-        } else {
-            this.appendToMarkdown(`*Could not retrieve detailed player information to display AI logs.*`);
+        }
+
+        if (!foundLogs) {
+            this.appendToMarkdown('*No AI conversation logs were recorded or available in the final game state.*');
         }
 
         console.log(`Markdown log file saved to: ${this.outputFile}`);

@@ -52,7 +52,9 @@ describe('filterGameStateForClient', () => {
             winCondition: null,
             humanPlayerId: null,
             pendingHumanAction: null,
-            _phaseResults: { killedPlayerId: null }
+            _phaseResults: { killedPlayerId: null },
+            phaseStep: 'Start',
+            nextPlayerIndexToAction: 0
         };
     });
 

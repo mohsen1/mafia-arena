@@ -12,6 +12,7 @@ import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import { DayPhase } from '@/lib/engine/phases/DayPhase';
+import { AgentConfig } from '@/lib/interfaces/agent.types';
 
 // Mock the Game class methods that the phase interacts with
 const mockGame = {
@@ -39,7 +40,9 @@ const createMockPhasePlayer = (id: PlayerId, role: IRole, action: PlayerAction):
         // Keep the mock action setup for simplicity in test definition, even if not directly used
         getAction: vi.fn().mockResolvedValue(action)
     };
-    const player = new Player(id, `Test ${role.name} ${id}`, role, agent);
+    // Add mock agent config
+    const mockAgentConfig: AgentConfig = { agentType: 'Test' }; 
+    const player = new Player(id, `Test ${role.name} ${id}`, role, agent, mockAgentConfig);
     vi.spyOn(player, 'kill');
     return player;
 };

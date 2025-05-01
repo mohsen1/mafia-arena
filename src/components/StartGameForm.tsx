@@ -101,13 +101,13 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
 
   // New combined handler for the ProviderModelSelector
   const handleGlobalProviderModelChange = useCallback(
-    (provider: string, model: string) => {
+    (provider: string /*, model: string */) => { // Remove model from args
       console.log(
-        `[StartGameForm] handleGlobalProviderModelChange: provider=${provider}, model=${model}`
+        `[StartGameForm] handleGlobalProviderModelChange: provider=${provider}` // Log only provider
       );
-      updateAllProvidersAndModels(provider, model);
+      updateAllProvidersAndModels(provider); // Call with only provider
     },
-    [updateAllProvidersAndModels] // Dependency is the function from the hook
+    [updateAllProvidersAndModels]
   );
 
   // Use lang prop for numberFormatter

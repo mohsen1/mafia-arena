@@ -5,6 +5,7 @@ import type { IMessage } from '@/lib/engine/interfaces/IMessage'; // Reusable en
 import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory'; // Reusable? Ensure serializability
 import type { LanguageName } from '@/lib/i18n/settings';
 import type { Persona } from '@/lib/engine/interfaces/Persona'; // Reusable engine type
+import type { MessageVisibility } from '@/lib/engine/interfaces/IMessage'; // Import MessageVisibility
 
 // Import other necessary application-specific types
 import type { PendingHumanAction } from './actions.types'; // Assuming definition moved
@@ -27,6 +28,20 @@ export interface SerializablePlayer {
     allegiance: Allegiance;
     agentConfig: AgentConfig;
     persona: Persona; // Store the generated/assigned persona
+    isHuman: boolean;
+}
+
+// Define a type for serialized messages with string timestamps
+export interface SerializedMessage {
+    id: string;
+    round: number;
+    phase: GamePhaseType;
+    senderId: PlayerId | null;
+    senderName: string;
+    content: string;
+    visibility: MessageVisibility; // Assuming MessageVisibility is serializable
+    recipientId?: PlayerId;
+    timestamp: string; // Use string for serialized state
 }
 
 // The main state object to be saved/loaded
@@ -41,7 +56,7 @@ export interface SerializableGameState {
     players: Record<PlayerId, SerializablePlayer>;
     livingPlayerIds: PlayerId[];
     deadPlayerIds: PlayerId[];
-    conversationLog: IMessage[]; // Reuses engine type (check date serialization)
+    conversationLog: SerializedMessage[]; // Use the new SerializedMessage type here
     agentMemories: Record<PlayerId, AgentMemory>; // Reuses engine type (check map/set serialization)
     winCondition: { outcome: string; message: string } | null; // Simplified structure
     humanPlayerId: PlayerId | null;

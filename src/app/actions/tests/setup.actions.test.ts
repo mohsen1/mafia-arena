@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { startGameAction, type StartGameSetupData } from '../setup.actions';
+import { startGameAction } from '../setup.actions';
 import { assignRoles } from '@/lib/engine/core/utils';
 import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory'; // Import memory helpers
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import type { IRole } from '@/lib/engine/interfaces/IRole'; // Import IRole for mock type
 import { RoleName } from '@/lib/engine/interfaces/IRole'; // Import RoleName enum/type
-import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
-import type { AgentConfig, SerializableGameState } from '@/lib/interfaces/persistence.types';
+import type { FilteredGameState, FilteredPlayer, PlayerId } from '@/lib/interfaces/gameState.types';
+import type { SerializableGameState, SerializablePlayer } from '@/lib/interfaces/persistence.types';
+import type { StartGameSetupData } from '@/lib/interfaces/actions.types'; // Correct path
 import { saveGameData } from '@/lib/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
+import type { AgentConfig } from '@/lib/interfaces/agent.types'; // Changed to type import
 
 
 // Mock dependencies
@@ -104,19 +106,25 @@ describe('setup.actions', () => {
   describe('startGameAction', () => {
     const mockGameId = '123e4567-e89b-12d3-a456-426614174000';
     const mockTimestamp = 1678886400000;
-    // Correct AgentConfig structure
     const mockMafiaConfig: AgentConfig = { agentType: 'LLM', modelName: 'gpt-4', providerValue: 'openai' };
     const mockTownConfig: AgentConfig = { agentType: 'LLM', modelName: 'claude-3', providerValue: 'anthropic' };
 
+    // Construct setup data using the `players` array structure
     const baseSetupData: StartGameSetupData = {
-      themeKey: 'StandardWerewolf', // Keep using themeKey as input
+      themeKey: 'StandardWerewolf',
       language: 'en',
-      playerCount: 5,
-      mafiaAgentConfig: mockMafiaConfig,
-      townAgentConfig: mockTownConfig,
+      players: [
+        // Define 5 players for the base case
+        { name: 'AI Player 1', rolePreference: RoleName.Mafia, isHuman: false, imageUrl: null, agentConfig: mockMafiaConfig },
+        { name: 'AI Player 2', rolePreference: RoleName.Villager, isHuman: false, imageUrl: null, agentConfig: mockTownConfig },
+        { name: 'AI Player 3', rolePreference: RoleName.Seer, isHuman: false, imageUrl: null, agentConfig: mockTownConfig },
+        { name: 'AI Player 4', rolePreference: RoleName.Villager, isHuman: false, imageUrl: null, agentConfig: mockTownConfig },
+        { name: 'AI Player 5', rolePreference: RoleName.Villager, isHuman: false, imageUrl: null, agentConfig: mockTownConfig },
+      ],
     };
 
-    // Mock roles returned by assignRoles
+    // Mock roles returned by assignRoles (assuming it now takes the setup data)
+    // Keep the mock roles as before for now
     const mockAssignedRoles = [
       mockWerewolfRole,
       mockVillagerRole,
@@ -126,7 +134,7 @@ describe('setup.actions', () => {
     ];
 
      // Define a more complete mock state based on setup.actions logic
-     // Use RoleName enum/type for roleName property
+     // ... mockInitialSerializableState (ensure isHuman is present)
      const mockInitialSerializableState: SerializableGameState = {
         gameId: mockGameId,
         createdAt: mockTimestamp,
@@ -136,17 +144,15 @@ describe('setup.actions', () => {
         round: 0,
         phase: 'Init',
         players: {
-            'player-1-mafia': { id: 'player-1-mafia', name: 'AI Player 1', status: PlayerStatus.Alive, roleName: RoleName.Mafia, allegiance: 'Mafia', agentConfig: mockMafiaConfig, persona: { name: 'AI Player 1', backstory: '', personalityTraits: [] } },
-            'player-2-villager': { id: 'player-2-villager', name: 'AI Player 2', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 2', backstory: '', personalityTraits: [] } },
-            'player-3-seer': { id: 'player-3-seer', name: 'AI Player 3', status: PlayerStatus.Alive, roleName: RoleName.Seer, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 3', backstory: '', personalityTraits: [] } },
-            'player-4-villager': { id: 'player-4-villager', name: 'AI Player 4', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 4', backstory: '', personalityTraits: [] } },
-            'player-5-villager': { id: 'player-5-villager', name: 'AI Player 5', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 5', backstory: '', personalityTraits: [] } },
+            'player-1-mafia': { id: 'player-1-mafia', name: 'AI Player 1', status: PlayerStatus.Alive, roleName: RoleName.Mafia, allegiance: 'Mafia', agentConfig: mockMafiaConfig, persona: { name: 'AI Player 1', backstory: '', personalityTraits: [] }, isHuman: false },
+            'player-2-villager': { id: 'player-2-villager', name: 'AI Player 2', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 2', backstory: '', personalityTraits: [] }, isHuman: false },
+            'player-3-seer': { id: 'player-3-seer', name: 'AI Player 3', status: PlayerStatus.Alive, roleName: RoleName.Seer, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 3', backstory: '', personalityTraits: [] }, isHuman: false },
+            'player-4-villager': { id: 'player-4-villager', name: 'AI Player 4', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 4', backstory: '', personalityTraits: [] }, isHuman: false },
+            'player-5-villager': { id: 'player-5-villager', name: 'AI Player 5', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 5', backstory: '', personalityTraits: [] }, isHuman: false },
         },
-        // Use generated player IDs based on index and role name string
         livingPlayerIds: ['player-1-mafia', 'player-2-villager', 'player-3-seer', 'player-4-villager', 'player-5-villager'],
         deadPlayerIds: [],
         conversationLog: [],
-        // Use createInitialMemory structure
         agentMemories: {
             'player-1-mafia': createInitialMemory(),
             'player-2-villager': createInitialMemory(),
@@ -158,25 +164,47 @@ describe('setup.actions', () => {
         humanPlayerId: null,
         pendingHumanAction: null,
         _phaseResults: {},
+        phaseStep: 'Start',
+        nextPlayerIndexToAction: 0,
     };
-
-    // Mock state *after* persona generation (simulate name changes)
+    
+    // ... mockStateAfterPersonaGen (ensure isHuman is present)
     const mockStateAfterPersonaGen: SerializableGameState = {
-        ...mockInitialSerializableState,
-        players: { // Assume names got updated
-            'player-1-mafia': { ...mockInitialSerializableState.players['player-1-mafia'], name: 'Willy Wolf', persona: { name: 'Willy Wolf', backstory: 'Awooo', personalityTraits: ['Hairy'] } },
-            'player-2-villager': { ...mockInitialSerializableState.players['player-2-villager'], name: 'Vince Villager', persona: { name: 'Vince Villager', backstory: 'Just a villager', personalityTraits: ['Simple'] } },
-            'player-3-seer': { ...mockInitialSerializableState.players['player-3-seer'], name: 'Sally Seer', persona: { name: 'Sally Seer', backstory: 'Sees things', personalityTraits: ['Observant'] } },
-            'player-4-villager': { ...mockInitialSerializableState.players['player-4-villager'], name: 'Vinny Villager 2', persona: { name: 'Vinny Villager 2', backstory: 'Another villager', personalityTraits: ['Plain'] } },
-            'player-5-villager': { ...mockInitialSerializableState.players['player-5-villager'], name: 'Vicky Villager 3', persona: { name: 'Vicky Villager 3', backstory: 'Yet another villager', personalityTraits: ['Quiet'] } },
+        // ... (copy structure, ensure isHuman is present in players)
+        gameId: mockGameId,
+        createdAt: mockTimestamp,
+        updatedAt: mockTimestamp + 1000,
+        themeKey: baseSetupData.themeKey,
+        language: baseSetupData.language,
+        round: 0,
+        phase: 'Init', // Still Init after persona gen
+        players: {
+             'player-1-mafia': { id: 'player-1-mafia', name: 'Willy Wolf', status: PlayerStatus.Alive, roleName: RoleName.Mafia, allegiance: 'Mafia', agentConfig: mockMafiaConfig, persona: { name: 'Willy Wolf', backstory: 'Awooo', personalityTraits: ['Hairy'] }, isHuman: false },
+            'player-2-villager': { id: 'player-2-villager', name: 'Vince Villager', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'Vince Villager', backstory: 'Just a villager', personalityTraits: ['Simple'] }, isHuman: false },
+            'player-3-seer': { id: 'player-3-seer', name: 'Sally Seer', status: PlayerStatus.Alive, roleName: RoleName.Seer, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'Sally Seer', backstory: 'Sees things', personalityTraits: ['Observant'] }, isHuman: false },
+            'player-4-villager': { id: 'player-4-villager', name: 'Vinny Villager 2', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'Vinny Villager 2', backstory: 'Another villager', personalityTraits: ['Plain'] }, isHuman: false },
+            'player-5-villager': { id: 'player-5-villager', name: 'Vicky Villager 3', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'Vicky Villager 3', backstory: 'Yet another villager', personalityTraits: ['Quiet'] }, isHuman: false },
         },
+        livingPlayerIds: mockInitialSerializableState.livingPlayerIds,
+        deadPlayerIds: [],
+        conversationLog: [],
+        agentMemories: mockInitialSerializableState.agentMemories,
+        winCondition: null,
+        humanPlayerId: null,
+        pendingHumanAction: null,
+        _phaseResults: {},
+        phaseStep: 'Start',
+        nextPlayerIndexToAction: 0,
     };
-
-    // Mock state *after* persona gen AND phase transition
+    
+    // ... mockStateAfterInitPhase
     const mockStateAfterInitPhase: SerializableGameState = {
-        ...mockStateAfterPersonaGen,
+        // ... (copy structure)
+         ...mockStateAfterPersonaGen,
         round: 1,
         phase: 'Night',
+        phaseStep: 'Start',
+        nextPlayerIndexToAction: 0,
     };
 
     const mockFilteredState: FilteredGameState = {
@@ -187,18 +215,10 @@ describe('setup.actions', () => {
         livingPlayerIds: mockStateAfterInitPhase.livingPlayerIds,
         humanPlayerId: null,
         log: [],
-        // Removed properties not part of FilteredGameState type definition
-        // myRole: null,
-        // myAllegiance: null,
-        // myPlayerId: null,
         pendingHumanAction: null,
         winCondition: null,
         themeKey: baseSetupData.themeKey,
-        language: baseSetupData.language, // Ensure language is included
-        // isPlayerAlive: true, // Not part of type
-        // isPlayerTurn: false, // Not part of type
-        // availableActions: [], // Not part of type
-         // Include other known properties from BaseGameState based on filterGameStateForClient implementation
+        language: baseSetupData.language,
          title: undefined, 
          description: undefined, 
          createdAt: new Date(mockTimestamp).toISOString(), 
@@ -208,13 +228,14 @@ describe('setup.actions', () => {
     };
 
     it('should successfully create and initialize a game', async () => {
-      // Use the default export mock for setting return value
+      // ... (mocks: crypto, time, assignRoles)
       const cryptoMock = (await import('node:crypto')).default;
       vi.mocked(cryptoMock.randomUUID).mockReturnValue(mockGameId);
       vi.setSystemTime(mockTimestamp);
-      vi.mocked(assignRoles).mockReturnValue(mockAssignedRoles); // Use the defined mock roles
+      // Mock assignRoles to return roles based on the *number* of players
+      vi.mocked(assignRoles).mockReturnValue(mockAssignedRoles.slice(0, baseSetupData.players.length));
 
-      // Setup mocks for the game instance methods *before* calling the action
+      // Setup mocks for the game instance methods
       mockGetCurrentSerializableState.mockReturnValue(mockStateAfterPersonaGen);
       vi.mocked(saveGameData).mockResolvedValue(undefined);
       vi.mocked(filterGameStateForClient).mockReturnValue(mockFilteredState);
@@ -222,7 +243,8 @@ describe('setup.actions', () => {
       const result = await startGameAction(baseSetupData);
 
       expect(vi.mocked(cryptoMock.randomUUID)).toHaveBeenCalledTimes(1);
-      expect(assignRoles).toHaveBeenCalledWith(baseSetupData.playerCount);
+      // Check assignRoles is called with the correct player count
+      expect(assignRoles).toHaveBeenCalledWith(baseSetupData.players.length);
 
       // Check the state passed to the static loadFromState method
       expect(mockLoadFromState).toHaveBeenCalledWith(expect.objectContaining({
@@ -260,21 +282,26 @@ describe('setup.actions', () => {
 
      it('should handle human player configuration', async () => {
         const humanSetupData: StartGameSetupData = {
-            ...baseSetupData,
-            playerCount: 3,
-            humanPlayer: { name: 'Human Dave', roleName: RoleName.Villager }, // Use RoleName
+            themeKey: 'StandardWerewolf',
+            language: 'en',
+            players: [
+                 { name: 'Human Dave', rolePreference: RoleName.Villager, isHuman: true, imageUrl: null, agentConfig: { agentType: 'Human' } },
+                 { name: 'AI Player 2', rolePreference: RoleName.Mafia, isHuman: false, imageUrl: null, agentConfig: mockMafiaConfig },
+                 { name: 'AI Player 3', rolePreference: RoleName.Villager, isHuman: false, imageUrl: null, agentConfig: mockTownConfig },
+            ],
         };
         // Ensure human is assigned the correct role instance (index 0)
         const humanMockAssignedRoles = [mockVillagerRole, mockWerewolfRole, mockVillagerRole];
-        // Expected ID for human player (index 0, role Villager)
-        const humanPlayerId = `player-1-villager`;
+        // Expected ID for human player (constructed based on index 0, role Villager)
+        const humanPlayerId = 'player-1-villager-human-dave'; // Example ID construction
 
         const cryptoMock = (await import('node:crypto')).default;
         vi.mocked(cryptoMock.randomUUID).mockReturnValue(mockGameId);
         vi.setSystemTime(mockTimestamp);
-        vi.mocked(assignRoles).mockReturnValue(humanMockAssignedRoles);
+        // Mock assignRoles based on the number of players in humanSetupData
+        vi.mocked(assignRoles).mockReturnValue(humanMockAssignedRoles.slice(0, humanSetupData.players.length));
 
-        // Mock initial state with human player
+        // Mock initial state with human player (ensure isHuman is present)
         const mockStateWithHumanInitial: SerializableGameState = {
             gameId: mockGameId,
             createdAt: mockTimestamp,
@@ -284,10 +311,9 @@ describe('setup.actions', () => {
             round: 0,
             phase: 'Init',
             players: {
-                [humanPlayerId]: { id: humanPlayerId, name: 'Human Dave', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: { agentType: 'Human' }, persona: { name: 'Human Dave', backstory: '', personalityTraits: [] } },
-                // Correct IDs based on index and role name string
-                'player-2-mafia': { id: 'player-2-mafia', name: 'AI Player 2', status: PlayerStatus.Alive, roleName: RoleName.Mafia, allegiance: 'Mafia', agentConfig: mockMafiaConfig, persona: { name: 'AI Player 2', backstory: '', personalityTraits: [] } },
-                'player-3-villager': { id: 'player-3-villager', name: 'AI Player 3', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 3', backstory: '', personalityTraits: [] } },
+                [humanPlayerId]: { id: humanPlayerId, name: 'Human Dave', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: { agentType: 'Human' }, persona: { name: 'Human Dave', backstory: '', personalityTraits: [] }, isHuman: true },
+                'player-2-mafia': { id: 'player-2-mafia', name: 'AI Player 2', status: PlayerStatus.Alive, roleName: RoleName.Mafia, allegiance: 'Mafia', agentConfig: mockMafiaConfig, persona: { name: 'AI Player 2', backstory: '', personalityTraits: [] }, isHuman: false },
+                'player-3-villager': { id: 'player-3-villager', name: 'AI Player 3', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: mockTownConfig, persona: { name: 'AI Player 3', backstory: '', personalityTraits: [] }, isHuman: false },
             },
             livingPlayerIds: [humanPlayerId, 'player-2-mafia', 'player-3-villager'],
             deadPlayerIds: [],
@@ -301,24 +327,34 @@ describe('setup.actions', () => {
             humanPlayerId: humanPlayerId,
             pendingHumanAction: null,
             _phaseResults: {},
+            phaseStep: 'Start',
+            nextPlayerIndexToAction: 0,
         };
 
-        const mockStateAfterPersonaWithHuman = {
-             ...mockStateWithHumanInitial,
+        const mockStateAfterPersonaWithHuman: SerializableGameState = {
+             // ... (copy structure, ensure isHuman is present)
+            ...mockStateWithHumanInitial,
+             updatedAt: mockTimestamp + 1000,
             players: {
                 ...mockStateWithHumanInitial.players,
-                 'player-2-mafia': { ...mockStateWithHumanInitial.players['player-2-mafia'], name: 'Willy Wolf 2', persona: { name: 'Willy Wolf 2', backstory: 'Awooo 2', personalityTraits: ['Furry'] }},
-                 'player-3-villager': { ...mockStateWithHumanInitial.players['player-3-villager'], name: 'Vince Villager 2', persona: { name: 'Vince Villager 2', backstory: 'Just another villager', personalityTraits: ['Normal'] }},
+                 'player-2-mafia': { ...mockStateWithHumanInitial.players['player-2-mafia'], name: 'Willy Wolf 2', persona: { name: 'Willy Wolf 2', backstory: 'Awooo 2', personalityTraits: ['Furry'] }, isHuman: false },
+                 'player-3-villager': { ...mockStateWithHumanInitial.players['player-3-villager'], name: 'Vince Villager 2', persona: { name: 'Vince Villager 2', backstory: 'Just another villager', personalityTraits: ['Normal'] }, isHuman: false },
             },
+            phaseStep: 'Start',
+            nextPlayerIndexToAction: 0,
         };
 
-         const mockStateAfterInitWithHuman = {
+         const mockStateAfterInitWithHuman: SerializableGameState = {
+            // ... (copy structure)
             ...mockStateAfterPersonaWithHuman,
             round: 1,
             phase: 'Night',
+            phaseStep: 'Start',
+            nextPlayerIndexToAction: 0,
          };
 
         const mockFilteredStateWithHuman: FilteredGameState = {
+             // ... (copy structure, remove phaseStep/nextPlayerIndexToAction)
              id: mockGameId,
              round: 1,
              phase: 'Night',
@@ -326,18 +362,10 @@ describe('setup.actions', () => {
              livingPlayerIds: mockStateAfterInitWithHuman.livingPlayerIds,
              humanPlayerId: humanPlayerId,
              log: [],
-             // Removed properties not part of FilteredGameState type definition
-             // myRole: RoleName.Villager,
-             // myAllegiance: 'Town',
-             // myPlayerId: humanPlayerId,
              pendingHumanAction: null,
              winCondition: null,
              themeKey: humanSetupData.themeKey,
-             language: humanSetupData.language, // Ensure language is included
-             // isPlayerAlive: true, // Not part of type
-             // isPlayerTurn: false, // Not part of type
-             // availableActions: [], // Not part of type
-             // Include other known properties from BaseGameState based on filterGameStateForClient implementation
+             language: humanSetupData.language,
              title: undefined, 
              description: undefined, 
              createdAt: new Date(mockTimestamp).toISOString(), 
@@ -353,6 +381,7 @@ describe('setup.actions', () => {
 
         const result = await startGameAction(humanSetupData);
 
+        // Check loadFromState
         expect(mockLoadFromState).toHaveBeenCalledWith(expect.objectContaining({
              humanPlayerId: humanPlayerId,
              players: expect.objectContaining({
@@ -368,12 +397,14 @@ describe('setup.actions', () => {
                  }),
              }),
         }));
+        // Check saveGameData
         expect(saveGameData).toHaveBeenCalledWith(mockGameId, expect.objectContaining({
              humanPlayerId: humanPlayerId,
              phase: 'Night',
              round: 1,
              players: mockStateAfterInitWithHuman.players,
         }));
+        // Check filterGameStateForClient
         expect(filterGameStateForClient).toHaveBeenCalledWith(expect.objectContaining({
             humanPlayerId: humanPlayerId,
             phase: 'Night',
@@ -383,12 +414,13 @@ describe('setup.actions', () => {
         expect(result).toEqual({ gameId: mockGameId, initialState: mockFilteredStateWithHuman });
     });
 
-    it('should return an error if playerCount is less than 3', async () => {
-      const invalidSetupData = { ...baseSetupData, playerCount: 2 };
+    it('should return an error if player count is less than 3', async () => {
+      // Adapt setup data to use the players array
+      const invalidSetupData = { ...baseSetupData, players: baseSetupData.players.slice(0, 2) }; 
       const result = await startGameAction(invalidSetupData);
       expect(result).toEqual({ error: 'Minimum 3 players required.' });
       expect(saveGameData).not.toHaveBeenCalled();
-      expect(mockLoadFromState).not.toHaveBeenCalled(); // Check static mock
+      expect(mockLoadFromState).not.toHaveBeenCalled(); 
     });
 
     it('should return an error if themeKey is invalid', async () => {

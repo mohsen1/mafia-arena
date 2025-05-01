@@ -62,6 +62,7 @@ export interface StartGameErrorResult {
  * Payload for actions submitted by a human player.
  */
 export interface HumanActionPayload {
+  playerId: PlayerId;
   /** The type of action being performed. */
   type: "message" | "vote" | "mafiaKill" | "doctorSave" | "seerInvestigate";
   /** Content of the message, if type is 'message'. */

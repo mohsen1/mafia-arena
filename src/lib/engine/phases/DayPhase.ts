@@ -44,8 +44,8 @@ export class DayPhase extends AbstractGamePhase {
                      await this.handlePlayerAction(game, index, alivePlayers, ['message', 'noAction'], 'Voting');
                      break; // Exit after handling one player or deferring
                  }
-                // Fallthrough to Discussion if round > 1
-                 
+                break; // Added break here to prevent fallthrough
+
             case 'Discussion':
                 if (index === 0 && game.round > 1) { // Log message only once at the start of discussion
                     game.logMessage(null, "Discussion phase:", MessageVisibility.Public);
@@ -68,11 +68,12 @@ export class DayPhase extends AbstractGamePhase {
                 break;
 
             case 'Finished':
-                 console.log("DayPhase: Finished step reached. Transitioning...");
-                 // Transition logic is now handled within this step
-                 const nextPhaseType = this.transition(game);
-                 game.advanceToPhase(nextPhaseType); // Pass the type
-                 break;
+                { // Added braces for scope
+                     console.log("DayPhase: Finished step reached. Transitioning...");
+                     const nextPhaseType = this.transition(game);
+                     game.advanceToPhase(nextPhaseType); // Pass the type
+                     break;
+                } // Added braces for scope
 
             default:
                 console.error(`Unknown phase step in DayPhase: ${step}`);
@@ -176,7 +177,7 @@ export class DayPhase extends AbstractGamePhase {
             if (targetId !== null) {
                 // Ensure the target still exists and is alive before counting vote
                 const targetPlayer = game.getPlayer(targetId);
-                 if (targetPlayer && targetPlayer.isAlive()) {
+                 if (targetPlayer?.isAlive()) { // Apply optional chaining here
                     const currentVotes = (voteCounts.get(targetId) || 0) + 1;
                     voteCounts.set(targetId, currentVotes);
 
@@ -232,7 +233,11 @@ export class DayPhase extends AbstractGamePhase {
         this.#votes.clear(); 
     }
 
-    transition(_game: Game): GamePhaseType {
+    transition(game: Game): GamePhaseType {
+        // Day always transitions to Night unless the game is over
+        if (game.checkWinCondition()) {
+            return 'GameOver';
+        }
         return 'Night';
     }
 }

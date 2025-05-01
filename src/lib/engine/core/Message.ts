@@ -1,4 +1,4 @@
-import { type IMessage, MessageVisibility } from "../interfaces/IMessage";
+import { type IMessage, type MessageVisibility } from "../interfaces/IMessage";
 import { type PlayerId } from "../interfaces/IPlayer";
 import { type GamePhaseType } from "../interfaces/IGamePhase";
 import { v4 as uuidv4 } from 'uuid'; // Use uuid for unique IDs
@@ -14,9 +14,11 @@ export class Message implements IMessage {
         public readonly senderName: string, // Store name directly
         public readonly content: string,
         public readonly visibility: MessageVisibility,
-        public readonly recipientId?: PlayerId
+        public readonly recipientId?: PlayerId,
+        timestamp?: Date // Make timestamp optional
     ) {
         this.id = uuidv4();
-        this.timestamp = new Date();
+        // Use provided timestamp if available, otherwise create new one
+        this.timestamp = timestamp instanceof Date ? timestamp : new Date(); 
     }
 }

@@ -37,8 +37,13 @@ const roleClassMap: Record<RoleName, new () => IRole> = {
     [RoleName.Seer]: SeerRole,
 };
 
-const phaseInstanceMap: Record<GamePhaseType, new (...args: any[]) => IGamePhase> = {
+// Allow null for unimplemented phases
+type PhaseConstructor = (new (...args: any[]) => IGamePhase) | null;
+
+const phaseInstanceMap: Record<GamePhaseType, PhaseConstructor> = {
     'Init': InitializationPhase,
+    'Briefing': null, // TODO: Implement BriefingPhase
+    'FirstNight': null, // TODO: Implement FirstNightPhase
     'Day': DayPhase,
     'Night': NightPhase,
     'GameOver': GameOverPhase,
@@ -48,28 +53,29 @@ function getAgentConfigFromInstance(agent: IAgent): AgentConfig {
     if (agent instanceof OpenAIAgent) {
         let providerValue = 'openai';
         let agentTypeValue = 'OpenAI';
-        const endpoint = (agent as any).apiBase;
-        const modelName = (agent as any).model;
+        const agentAny = agent as unknown as { apiBase?: string; model?: string };
+        const endpoint = agentAny.apiBase;
+        const modelName = agentAny.model;
 
         if (endpoint?.includes('groq.com')) {
             providerValue = 'groq';
             agentTypeValue = 'Groq';
-        } else if (endpoint?.includes('localhost:11434')) {
+        }
+        if (endpoint?.includes('localhost:11434')) {
             providerValue = 'ollama_local';
             agentTypeValue = 'Ollama';
-        } else if (endpoint?.includes('fireworks.ai')) {
+        }
+        if (endpoint?.includes('fireworks.ai')) {
             providerValue = 'fireworks';
             agentTypeValue = 'Fireworks';
         }
 
         return { agentType: agentTypeValue, modelName, providerValue };
     }
-    else if (agent instanceof HumanAgent) {
+    if (agent instanceof HumanAgent) {
          return { agentType: 'Human' };
      }
-     else {
-         return { agentType: 'Dummy' };
-     }
+     return { agentType: 'Dummy' };
  }
 
 export class Game {
@@ -88,17 +94,21 @@ export class Game {
     #pendingHumanAction: PendingHumanAction | null = null;
     #humanVotes: Map<PlayerId, PlayerId | null> = new Map();
     #humanNightActions: Map<PlayerId, HumanActionPayload> = new Map();
-    #phaseStep: string = 'Start';
-    #nextPlayerIndexToAction: number = 0;
+    #phaseStep = 'Start';
+    #nextPlayerIndexToAction = 0;
+    #winningTeam: 'Mafia' | 'Town' | null = null;
+    #rolesAssigned = false;
+    #personasGenerated = false;
+    #initialMemoriesCreated = false;
 
     constructor(
         playerSetups: { name: string; agent: IAgent; role: IRole }[],
-        themeKey: string = 'UK_VILLAGE_1900S',
+        themeKey = 'UK_VILLAGE_1900S',
         language: LanguageName = 'en'
     ) {
         if (playerSetups.length < 1) {
             this.id = uuidv4();
-            this.theme = Themes[themeKey] || Themes['UK_VILLAGE_1900S'];
+            this.theme = Themes[themeKey] || Themes.UK_VILLAGE_1900S;
             this.language = language;
             this.#currentState = new InitializationPhase();
             this.#createdAt = Date.now();
@@ -135,6 +145,10 @@ export class Game {
             }
         });
 
+        this.#rolesAssigned = true;
+        this.#personasGenerated = false;
+        this.#initialMemoriesCreated = false;
+
         this.#currentState = new InitializationPhase();
         this.#round = 0;
         this.#conversationLog = new ConversationLog();
@@ -151,10 +165,15 @@ export class Game {
         game.#lastPhaseResults = state._phaseResults || {};
         game.#phaseStep = state.phaseStep || 'Start';
         game.#nextPlayerIndexToAction = state.nextPlayerIndexToAction ?? 0;
+        const outcome = state.winCondition?.outcome;
+        game.#winningTeam = outcome === 'Mafia' || outcome === 'Town' ? outcome : null;
+        game.#rolesAssigned = state.phase !== 'Init';
+        game.#personasGenerated = state.phase !== 'Init';
+        game.#initialMemoriesCreated = state.phase !== 'Init';
 
         game.#players.clear();
         game.#agentMemories.clear();
-        Object.values(state.players).forEach(pState => {
+        for (const pState of Object.values(state.players)) {
             const agentConfig = pState.agentConfig;
             const agent = createAgentInstance(agentConfig, pState.id);
             const RoleClass = roleClassMap[pState.roleName];
@@ -169,27 +188,29 @@ export class Game {
 
             const loadedMemory = state.agentMemories[pState.id] || createInitialMemory();
             game.#agentMemories.set(pState.id, loadedMemory);
-        });
+        }
 
         game.#conversationLog = new ConversationLog();
-        state.conversationLog.forEach(msgData => {
-            const timestamp = typeof msgData.timestamp === 'string'
-                ? new Date(msgData.timestamp)
-                : new Date(msgData.timestamp);
+        for (const msgData of state.conversationLog) {
+            const timestampInput = msgData.timestamp as string | number | Date;
+            const timestamp = timestampInput instanceof Date ? timestampInput : new Date(timestampInput);
 
             const message = new Message(
                 msgData.round, msgData.phase, msgData.senderId, msgData.senderName,
-                msgData.content, msgData.visibility, msgData.recipientId
+                msgData.content, msgData.visibility, msgData.recipientId,
+                timestamp
             );
             game.#conversationLog.addMessage(message);
-        });
+        }
 
         const PhaseClass = phaseInstanceMap[state.phase];
         if (!PhaseClass) throw new Error(`LoadError: Cannot deserialize phase: ${state.phase}`);
         
-        const phaseInstance = game.createPhaseInstance(state.phase, state.winCondition?.outcome as ('Mafia' | 'Town' | undefined));
+        const winnerArg = game.#winningTeam === null ? undefined : game.#winningTeam;
+        const phaseInstance = game.createPhaseInstance(state.phase, winnerArg);
         if (!phaseInstance) throw new Error(`LoadError: Failed to create instance for phase ${state.phase}`);
         game.#currentState = phaseInstance;
+        game.#pendingHumanAction = state.pendingHumanAction || null;
 
         console.log(`Game ${game.id} loaded from state (Round: ${game.#round}, Phase: ${game.#currentState.type})`);
         return game;
@@ -207,6 +228,7 @@ export class Game {
                 allegiance: player.role.allegiance,
                 agentConfig: agentConfig,
                 persona: player.agent.persona || DEFAULT_PERSONA,
+                isHuman: player.agent instanceof HumanAgent,
             };
         });
 
@@ -215,27 +237,16 @@ export class Game {
             agentMemoriesRecord[id] = memory;
         });
 
-        const winCondition = this.#currentState instanceof GameOverPhase
-            ? { outcome: (this.#currentState as any).winner, message: "Game Over!" }
+        const winCondition = this.#winningTeam
+            ? { outcome: this.#winningTeam, message: "Game Over!" }
             : null;
 
         const themeKey = Object.keys(Themes).find(key => Themes[key] === this.theme) || 'UK_VILLAGE_1900S';
 
-        const serializableLog = this.#conversationLog.getAllMessages().map(msg => {
-            return {
-                id: msg.id,
-                round: msg.round,
-                phase: msg.phase,
-                senderId: msg.senderId,
-                senderName: msg.senderName,
-                content: msg.content,
-                visibility: msg.visibility,
-                recipientId: msg.recipientId,
-                timestamp: msg.timestamp instanceof Date 
-                            ? msg.timestamp.toISOString() 
-                            : String(msg.timestamp)
-            };
-        });
+        const serializableLog = this.#conversationLog.getAllMessages().map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp.toISOString()
+        }));
 
         const state: SerializableGameState = {
             gameId: this.id,
@@ -248,7 +259,7 @@ export class Game {
             players: playersState,
             livingPlayerIds: this.getAlivePlayers().map(p => p.id),
             deadPlayerIds: Array.from(this.#players.values()).filter(p => !p.isAlive()).map(p => p.id),
-            conversationLog: serializableLog as IMessage[],
+            conversationLog: serializableLog,
             agentMemories: agentMemoriesRecord,
             winCondition: winCondition,
             humanPlayerId: this.#humanPlayerId,
@@ -275,12 +286,12 @@ export class Game {
 
     notifyRenderers<T extends keyof IGameRenderer>(
         method: T,
-        ...args: Parameters<Extract<IGameRenderer[T], (...args: any[]) => any>>
+        ...args: IGameRenderer[T] extends (...args: any[]) => any ? Parameters<IGameRenderer[T]> : never
     ): void {
         for (const renderer of this.#renderers) {
             if (typeof renderer[method] === 'function') {
                 try {
-                    (renderer[method] as any)(...args);
+                    (renderer[method] as (...args: any[]) => any)(...args);
                 } catch (error) {
                     console.error(`Renderer error in method ${String(method)}:`, error);
                 }
@@ -314,47 +325,72 @@ export class Game {
     }
 
     async runGameLoop(): Promise<void> {
+        console.log("Starting game loop...");
         this.notifyRenderers('renderGameStart', this.getPublicPlayerMap(), this.id);
 
-        await this.ensurePersonasGenerated();
+        while (this.getCurrentPhaseType() !== 'GameOver') {
+            const currentPhase = this.#currentState;
+            const currentPhaseType = currentPhase.type;
+            console.log(`\n--- Starting Game Loop Iteration: Round ${this.#round}, Phase ${currentPhaseType}, Step ${this.#phaseStep} ---`);
 
-        while (!(this.#currentState instanceof GameOverPhase)) {
-            if (this.#currentState.type !== 'Init' && this.#currentState.type !== this.getCurrentPhaseType()) {
-                 console.warn("State type mismatch detected");
+            if (currentPhaseType === 'Day' && this.#phaseStep === 'Start') {
+                if(this.#round === 0 || this.#currentState.type !== 'Day') {
+                    this.#round++;
+                    console.log(`Starting Round ${this.#round}`);
+                    this.notifyRenderers('renderRoundStart', this.#round);
+                }
             }
 
-            if (this.#currentState.type === 'Day') {
-                this.#round++;
-                this.notifyRenderers('renderRoundStart', this.#round);
+            this.notifyRenderers('renderPhaseStart', currentPhaseType, this.#round);
+
+            try {
+                console.log(`Executing runStep for phase: ${currentPhaseType}`);
+                await currentPhase.runStep(this); 
+                console.log(`Finished runStep for phase: ${currentPhaseType}`);
+            } catch (error) {
+                console.error(`Error during phase step execution (${currentPhaseType}):`, error);
+                this.logEvent(`Critical error during ${currentPhaseType} phase step. Game cannot safely continue.`);
+                this.#winningTeam = null;
+                this.advanceToPhase('GameOver', undefined); 
+                break;
             }
 
-            this.notifyRenderers('renderPhaseStart', this.getCurrentPhaseType(), this.round);
-
-            await this.#currentState.runPhase(this);
+            if (this.getPendingHumanAction()) {
+                console.log("Game loop paused, waiting for human action.");
+                break;
+            }
 
             const winner = this.checkWinCondition();
             if (winner) {
-                this.#currentState = new GameOverPhase(winner);
-                 this.notifyRenderers('renderPhaseStart', this.getCurrentPhaseType(), this.round);
-                await this.#currentState.runPhase(this);
+                console.log(`Win condition met: ${winner} wins.`);
+                if (currentPhaseType !== 'GameOver') {
+                    this.setWinCondition(winner); 
+                    this.advanceToPhase('GameOver', winner);
+                } else {
+                    console.log("Already in GameOver phase. Loop will terminate.");
+                }
             } else {
-                 this.#currentState = this.#currentState.transition(this);
+                const nextPhaseType = this.#currentState.transition(this);
+                console.log(`Transitioning from ${this.#currentState.type} to ${nextPhaseType}`);
+                this.advanceToPhase(nextPhaseType, undefined); 
             }
         }
-         this.notifyRenderers('renderNarration', "Game Loop Finished.");
+        
+        console.log(`--- Game Loop Finished: Phase ${this.getCurrentPhaseType()} ---`);
+        this.notifyRenderers('renderGameOver', this.#winningTeam, this.getCurrentSerializableState());
     }
 
     async ensurePersonasGenerated(): Promise<void> {
         const personaGenerationPromises: Promise<void>[] = [];
         const themeDescription = this.theme.description;
 
-        this.#players.forEach(player => {
+        for (const player of this.#players.values()) {
             if (player.agent.persona?.name === DEFAULT_PERSONA.name &&
                 typeof player.agent.generatePersona === 'function') {
                 console.log(`Generating persona for ${player.name} (${player.id})...`);
                 personaGenerationPromises.push(player.agent.generatePersona(themeDescription));
             }
-        });
+        }
 
         if (personaGenerationPromises.length > 0) {
             console.log(`Waiting for ${personaGenerationPromises.length} personas to be generated...`);
@@ -389,7 +425,9 @@ export class Game {
 
     getPublicPlayerMap(): ReadonlyMap<PlayerId, PublicPlayerInfo> {
          const map = new Map<PlayerId, PublicPlayerInfo>();
-         this.#players.forEach(p => map.set(p.id, p.getPublicRepresentation()));
+         for (const p of this.#players.values()) {
+            map.set(p.id, p.getPublicRepresentation());
+         }
          return map;
     }
 
@@ -428,23 +466,22 @@ export class Game {
             };
             this.setPendingHumanAction(pendingAction);
             return { type: 'humanActionRequired', pendingAction: pendingAction };
-        } else {
-            console.log(`Requesting action from AI player ${player.name} (${player.id}). Allowed: ${allowedActions.join(', ')}`);
-            const gameState = this.generateVisibleGameState(player.id);
-            try {
-                const action = await player.decideAction(gameState, allowedActions);
-                console.log(`AI ${player.name} (${player.id}) decided action: ${JSON.stringify(action)}`);
-                return action;
-            } catch(error) {
-                 console.error(`Error getting action from AI ${player.name} (${player.id}):`, error);
-                 return { type: 'noAction' };
-            }
+        }
+        console.log(`Requesting action from AI player ${player.name} (${player.id}). Allowed: ${allowedActions.join(', ')}`);
+        const gameState = this.generateVisibleGameState(player.id);
+        try {
+            const action = await player.decideAction(gameState, allowedActions);
+            console.log(`AI ${player.name} (${player.id}) decided action: ${JSON.stringify(action)}`);
+            return action;
+        } catch(error) {
+             console.error(`Error getting action from AI ${player.name} (${player.id}):`, error);
+             return { type: 'noAction' };
         }
     }
 
     killPlayer(playerId: PlayerId, reason: string): void {
         const player = this.#players.get(playerId);
-        if (player && player.isAlive()) {
+        if (player?.isAlive()) {
             const oldStatus = player.status;
             player.kill();
             this.logMessage(null, `${player.name} (${player.role.name}) ${reason}`, MessageVisibility.Public);
@@ -467,18 +504,18 @@ export class Game {
 
     recordVoteResultsInMemory(votes: ReadonlyMap<PlayerId, PlayerId | null>): void {
         const voteRecord = { round: this.round, votes };
-        this.#agentMemories.forEach(memory => {
+        for (const memory of this.#agentMemories.values()) {
             memory.voteHistory.push(voteRecord);
-        });
+        }
     }
 
     recordKillInMemory(killedPlayerId: PlayerId | null): void {
         const killRecord = { round: this.round, phase: this.getCurrentPhaseType(), killedPlayerId };
-        this.#agentMemories.forEach(memory => {
+        for (const memory of this.#agentMemories.values()) {
             if (!memory.killHistory.some(k => k.round === this.round && k.phase === killRecord.phase)) {
                  memory.killHistory.push(killRecord);
             }
-        });
+        }
     }
 
     recordSeerResultInMemory(seerId: PlayerId, targetId: PlayerId, allegiance: Allegiance): void {
@@ -557,19 +594,20 @@ export class Game {
         this.setPendingHumanAction(null);
     }
 
-    public advanceToPhase(nextPhaseType: GamePhaseType, winner?: 'Mafia' | 'Town'): void {
-        if (nextPhaseType === 'GameOver' && !winner) {
+    public advanceToPhase(nextPhaseType: GamePhaseType, winnerInput?: 'Mafia' | 'Town'): void {
+        let determinedWinner = winnerInput;
+        if (nextPhaseType === 'GameOver' && !determinedWinner) {
             console.error("Winner must be provided when advancing to GameOver phase.");
-            const currentWinner = this.checkWinCondition();
-            if (!currentWinner) {
+            const checkedWinner = this.checkWinCondition();
+            if (!checkedWinner) {
                  console.error("Cannot advance to GameOver: No winner determined.");
                  return;
             }
-            winner = currentWinner;
-            console.warn(`Winner determined as ${winner} before advancing to GameOver.`);
+            determinedWinner = checkedWinner;
+            console.warn(`Winner determined as ${determinedWinner} before advancing to GameOver.`);
         }
 
-        const nextPhaseInstance = this.createPhaseInstance(nextPhaseType, winner);
+        const nextPhaseInstance = this.createPhaseInstance(nextPhaseType, determinedWinner);
         if (!nextPhaseInstance) {
             console.error(`Cannot advance to invalid phase type: ${nextPhaseType}`);
             return;
@@ -592,24 +630,36 @@ export class Game {
         this.notifyRenderers('renderPhaseStart', this.#currentState.type, this.#round);
     }
 
-    private createPhaseInstance(phaseType: GamePhaseType, winner?: 'Mafia' | 'Town'): IGamePhase | null {
+    private createPhaseInstance(phaseType: GamePhaseType, winnerInput?: 'Mafia' | 'Town'): IGamePhase | null {
         const PhaseClass = phaseInstanceMap[phaseType];
         if (!PhaseClass) return null;
         
         if (phaseType === 'GameOver') {
-            if (!winner) {
+            let effectiveWinner = winnerInput;
+            if (!effectiveWinner) {
                 console.error("Winner argument is required to create GameOverPhase instance.");
-                return null;
+                const currentWinner = this.checkWinCondition();
+                if (!currentWinner) {
+                    console.error("Cannot create GameOverPhase: No winner determined.");
+                    return null;
+                }
+                effectiveWinner = currentWinner;
+                console.warn(`Winner determined as ${effectiveWinner} when creating GameOverPhase.`);
             }
             try {
-                 return new PhaseClass(winner); 
+                 return new PhaseClass(effectiveWinner); 
             } catch (e) {
                  console.error("Error creating GameOverPhase:", e);
                  return null;
             }
         }
         
-        return new PhaseClass();
+        try {
+            return new PhaseClass();
+        } catch (e) {
+            console.error(`Error creating phase instance for ${phaseType}:`, e);
+            return null;
+        }
     }
 
     public getPhaseStep(): string {
@@ -643,5 +693,54 @@ export class Game {
     public recordHumanNightAction(playerId: PlayerId, payload: HumanActionPayload): void {
         console.log(`Recording human night action: ${playerId} performs ${payload.type}`);
         this.#humanNightActions.set(playerId, payload);
+    }
+
+    public logEvent(content: string): IMessage {
+        return this.logMessage(null, content, MessageVisibility.Public);
+    }
+
+    public setWinCondition(winner: 'Mafia' | 'Town'): void {
+        if (!this.#winningTeam) {
+            console.log(`Setting win condition: ${winner} wins.`);
+            this.#winningTeam = winner;
+        }
+    }
+
+    public isRolesAssigned(): boolean {
+        return this.#rolesAssigned;
+    }
+
+    public markRolesAssigned(): void {
+        if (!this.#rolesAssigned) {
+            console.log("Marking roles as assigned.");
+            this.#rolesAssigned = true;
+        }
+    }
+
+    public isPersonasGenerated(): boolean {
+        return this.#personasGenerated;
+    }
+
+    public markPersonasGenerated(): void {
+        if (!this.#personasGenerated) {
+            console.log("Marking personas as generated.");
+            this.#personasGenerated = true;
+        }
+    }
+
+    public isInitialMemoriesCreated(): boolean {
+        return this.#initialMemoriesCreated;
+    }
+
+    public createInitialAgentMemories(): void {
+        if (this.#initialMemoriesCreated) return;
+        console.log("Creating initial memories for all agents...");
+        this.#players.forEach((player, id) => {
+            if (!this.#agentMemories.has(id)) {
+                this.#agentMemories.set(id, createInitialMemory());
+            }
+        });
+        this.#initialMemoriesCreated = true;
+        console.log("Initial memories created.");
     }
 }

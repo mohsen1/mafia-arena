@@ -5,11 +5,47 @@ import { DayPhase } from './DayPhase'; // Import next phase
 import  { MessageVisibility } from '../interfaces/IMessage';
 import { HumanAgent } from '../agents/HumanAgent'; // Import HumanAgent
 import debug from 'debug';
+// Assuming these imports are correct now or handled elsewhere
+// import { assignRolesAndGoals } from '../core/roleAssignment'; 
+// import { generatePersonas } from '../core/personaGeneration'; 
 
 const log = debug('mafia:phases:init');
 
 export class InitializationPhase extends AbstractGamePhase {
     readonly type: GamePhaseType = 'Init';
+    private initializationComplete = false;
+
+    async runStep(game: Game): Promise<void> {
+        console.log("[InitPhase] Starting game initialization...");
+
+        // Step 1: Assign Roles & Goals 
+        if (!game.isRolesAssigned()) { // Use getter
+            console.log("[InitPhase] Assigning roles and goals... (Placeholder)");
+            // await assignRolesAndGoals(game); // Actual logic needed here
+            game.markRolesAssigned(); // Use setter
+        }
+
+        // Step 2: Generate Personas
+        if (!game.isPersonasGenerated()) { // Use getter
+             console.log("[InitPhase] Generating player personas... (Placeholder)");
+            // await generatePersonas(game); // Actual logic needed here
+            await game.ensurePersonasGenerated(); // Use existing Game method
+            game.markPersonasGenerated(); // Use setter
+        }
+        
+        // Step 3: Create initial memories
+        if (!game.isInitialMemoriesCreated()) { // Use getter
+            console.log("[InitPhase] Creating initial agent memories...");
+            game.createInitialAgentMemories(); // Use new Game method
+        }
+
+        // Log initial setup
+        game.logEvent("Game setup complete. The first night begins...");
+
+        this.initializationComplete = true;
+        game.setPhaseStep('SetupComplete'); // Indicate setup is done via step
+        console.log("[InitPhase] Initialization complete.");
+    }
 
     async runPhase(game: Game): Promise<void> {
         game.logMessage(null, "Initializing game...", MessageVisibility.Public, this.type);
@@ -70,8 +106,13 @@ export class InitializationPhase extends AbstractGamePhase {
         game.logMessage(null, "Roles assigned. Ready to begin.", MessageVisibility.Public, this.type);
     }
 
-    transition(_game: Game): AbstractGamePhase {
-        // After initialization, always go to the first Day phase
-        return new DayPhase();
+    transition(game: Game): GamePhaseType {
+        // Once initialization is complete, transition to the first night
+        if (this.initializationComplete) {
+            return 'Night'; // Go to Night phase after Init
+        } 
+        // Remain in Init phase if runStep hasn't completed
+        console.warn("[InitPhase] Transition called before initialization complete. Remaining in Init.");
+        return 'Init'; // Use string literal
     }
 }
