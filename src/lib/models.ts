@@ -39,7 +39,7 @@ export const geminiModels = [
 // Groq Models
 export const groqModels = [
   // Production Models
-  { title: "Gemma 2 9B IT (Google)", value: "gemma2-9b-it" },
+  { title: "Gemma 2 9B IT (Google, Default)", value: "gemma2-9b-it" },
   { title: "Llama 3.3 70B Versatile (Meta)", value: "llama-3.3-70b-versatile" },
   { title: "Llama 3.1 8B Instant (Meta)", value: "llama-3.1-8b-instant" },
   { title: "Llama3 70B (Meta, 8K Context)", value: "llama3-70b-8192" },

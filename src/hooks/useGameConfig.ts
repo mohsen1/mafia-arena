@@ -45,7 +45,28 @@ const availableModelsByProvider: Record<string, ModelDefinition[]> = {
 };
 
 // Use imported providers directly
-const availableProviders: ProviderDefinition[] = openAIProviders; // Assuming openAIProviders covers all needed for now
+// const availableProviders: ProviderDefinition[] = openAIProviders; // Assuming openAIProviders covers all needed for now
+// Fetch all available providers (adjust logic if needed)
+const availableProviders: ProviderDefinition[] = [
+    ...openAIProviders,
+    // Add Claude, Gemini etc. if they are represented in ProviderDefinition format
+    // Example:
+    // { title: "Claude API", value: "claude", endpoint: "...", apiKeyEnvVar: "ANTHROPIC_API_KEY" },
+    // { title: "Gemini API", value: "gemini", endpoint: "...", apiKeyEnvVar: "GEMINI_API_KEY" },
+].filter(p => availableModelsByProvider[p.value]?.length > 0 || p.value === 'ollama_local'); // Filter providers with models or ollama
+
+// Helper function to get the default model for a provider
+const getDefaultModelForProvider = (providerValue: string): string => {
+    if (providerValue === 'groq') {
+        return 'gemma2-9b-it'; // Specific default for Groq
+    }
+    const models = availableModelsByProvider[providerValue];
+    if (models && models.length > 0) {
+        const defaultModel = models.find(m => m.title.toLowerCase().includes("default"));
+        return defaultModel?.value ?? models[0].value;
+    }
+    return ""; // Fallback
+};
 
 export interface UICharacterProfile {
     characterName: string;
@@ -110,11 +131,13 @@ export function useGameConfig(
     const firstThemeKey = Object.keys(Themes)[0] || 'UK_VILLAGE_1900S'; // Fallback
     const [selectedGameThemeKey, setSelectedGameThemeKey] = useState<string>(firstThemeKey);
 
-    // State for global provider and model
+    // Define the initial provider
+    const initialProvider = 'groq';
+    
+    // State for global provider and model, initialized together
     const [globalProviderSelection, setGlobalProviderSelection] =
-        // Explicitly default provider to 'groq'
-        useState<string>('groq');
-    const [globalModelSelection, setGlobalModelSelection] = useState<string>(""); // Will be set based on provider
+        useState<string>(initialProvider);
+    const [globalModelSelection, setGlobalModelSelection] = useState<string>(() => getDefaultModelForProvider(initialProvider)); // Initialize with default model
 
     const [characterSlots, setCharacterSlots] = useState<ConfigCharacterSlot[]>(
         [],
@@ -129,29 +152,6 @@ export function useGameConfig(
     const [humanRoleSelection, setHumanRoleSelection] = useState<RoleName>(
         (DEFAULT_GAME_SETTINGS.roleDistribution && Object.keys(DEFAULT_GAME_SETTINGS.roleDistribution)[0] as RoleName) || RoleName.Villager
     );
-
-    // Determine default model based on the selected global provider
-    const defaultModelForProvider = useMemo(() => {
-        const models = availableModelsByProvider[globalProviderSelection];
-        if (models && models.length > 0) {
-            // Try to find a 'default' model or just take the first one
-            const defaultModel = models.find(m => m.title.toLowerCase().includes("default"));
-            return defaultModel?.value ?? models[0].value;
-        }
-        return ""; // Fallback if no models for provider
-    }, [globalProviderSelection]);
-
-    // Set the global model selection when the provider or default model changes
-    useEffect(() => {
-        // Explicitly default to gemma2-9b-it if the provider is groq
-        if (globalProviderSelection === 'groq') {
-            setGlobalModelSelection('gemma2-9b-it');
-        } else {
-            // Otherwise, use the calculated default model for the selected provider
-            setGlobalModelSelection(defaultModelForProvider);
-        }
-    }, [globalProviderSelection, defaultModelForProvider]);
-
 
     // Effect to initialize or update character slots based on global selections or human joining
     useEffect(() => {
@@ -355,14 +355,15 @@ export function useGameConfig(
     );
 
     // Update global state AND directly update the provider/model in existing slots
+    // Also update the model selection based on the new provider
     const updateAllProvidersAndModels = useCallback(
-        (newProvider: string, newModel: string) => {
-            console.log(`[useGameConfig] updateAllProvidersAndModels: Setting global provider to ${newProvider}, model to ${newModel}`);
+        (newProvider: string) => {
+            const newModel = getDefaultModelForProvider(newProvider);
+            console.log(`[useGameConfig] updateAllProvidersAndModels: Setting global provider to ${newProvider}, calculated default model to ${newModel}`);
             setGlobalProviderSelection(newProvider);
             setGlobalModelSelection(newModel);
 
             // Directly update the character slots array with the new values
-            // This avoids relying on the useEffect re-initialization and preserves other slot data (like role)
             setCharacterSlots((prevSlots) => {
                 console.log("[useGameConfig] updateAllProvidersAndModels: Updating characterSlots state.");
                 const updatedSlots = prevSlots.map((slot) =>
@@ -374,7 +375,7 @@ export function useGameConfig(
                 return updatedSlots;
             });
         },
-        []
+        [] // No dependencies needed as getDefaultModelForProvider is stable
     );
 
 
