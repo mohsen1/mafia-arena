@@ -74,11 +74,10 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     updateSlotProviderAndModel,
     updateAllProvidersAndModels,
     updateSlotRole,
+    updateSlotName,
+    updateSlotImageUrl,
     handleGenerateAndStartGame,
     isHumanJoining,
-    humanPlayerName,
-    toggleHumanJoining,
-    updateHumanPlayerName,
     selectedGameThemeKey,   // Get selected theme
     setSelectedGameThemeKey, // Get theme setter
     setCharacterSlots,        // Get the setter from the hook
@@ -230,7 +229,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           <Checkbox
             id="human-join"
             checked={isHumanJoining}
-            onCheckedChange={toggleHumanJoining}
+            onCheckedChange={() => {}}
             disabled={isLoading}
             aria-label={t(
               "ToggleHumanPlayerJoinLabel",
@@ -257,8 +256,13 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
             <Input
               id="human-name"
               type="text"
-              value={humanPlayerName}
-              onChange={(e) => updateHumanPlayerName(e.target.value)}
+              value={characterSlots.find(slot => slot.isHuman)?.profile?.characterName || ''}
+              onChange={(e) => {
+                const humanSlot = characterSlots.find(slot => slot.isHuman);
+                if (humanSlot) {
+                  updateSlotName(humanSlot.clientId, e.target.value);
+                }
+              }}
               placeholder={t("EnterYourNamePlaceholder", "Enter your name")}
               disabled={isLoading}
               required // Ensure a name is provided if joining
@@ -423,13 +427,14 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
                     slot={slot}
                     index={index}
                     isHuman={slot.isHuman ?? false}
-                    humanPlayerName={slot.isHuman ? humanPlayerName : undefined}
                     availableRoles={availableRolesForSelection}
                     isSubmitting={isLoading}
                     canRemove={characterSlots.length > 5}
                     onUpdateRole={updateSlotRole}
                     onUpdateProviderAndModel={updateSlotProviderAndModel}
                     onRemove={removePlayerSlot}
+                    onUpdateName={updateSlotName}
+                    onUpdateImageUrl={updateSlotImageUrl}
                   />
                 ))}
               </TableBody>

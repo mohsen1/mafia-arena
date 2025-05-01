@@ -129,7 +129,6 @@ export function useGameConfig(
     const [humanRoleSelection, setHumanRoleSelection] = useState<RoleName>(
         (DEFAULT_GAME_SETTINGS.roleDistribution && Object.keys(DEFAULT_GAME_SETTINGS.roleDistribution)[0] as RoleName) || RoleName.Villager
     );
-    const [humanPlayerName, setHumanPlayerName] = useState<string>("");
 
     // Determine default model based on the selected global provider
     const defaultModelForProvider = useMemo(() => {
@@ -211,6 +210,7 @@ export function useGameConfig(
         }
 
         // Create initial slots based on final structure
+        let playerIndex = 1; // Start numbering players from 1
         const initialSlots: ConfigCharacterSlot[] = [];
         if (isHumanJoining) {
             initialSlots.push({
@@ -220,8 +220,10 @@ export function useGameConfig(
                 roleSelection: humanRoleSelection,
                 isGenerated: false,
                 isHuman: true,
-                profile: { characterName: humanPlayerName || t('DefaultHumanPlayerName', {}) } as Partial<UICharacterProfile>
+                // Assign default human name initially
+                profile: { characterName: t('DefaultHumanPlayerName', `Player ${playerIndex}`) }
             });
+            playerIndex++;
         }
         for (let i = 0; i < numAiPlayers; i++) {
             initialSlots.push({
@@ -231,22 +233,49 @@ export function useGameConfig(
                 roleSelection: aiRoles[i] || RoleName.Villager, // Assign shuffled role
                 isGenerated: false,
                 isHuman: false,
+                // Assign default AI name initially
+                profile: { characterName: t('DefaultAIPlayerName', `Player ${playerIndex}`) }
             });
+            playerIndex++;
         }
 
         setCharacterSlots(initialSlots);
         setInitialSlotsSet(true);
-    }, [globalProviderSelection, globalModelSelection, isHumanJoining, humanRoleSelection, t, humanPlayerName]);
+    }, [globalProviderSelection, globalModelSelection, isHumanJoining, humanRoleSelection, t]);
 
     const configValidation = useMemo(() => {
-        const isValid = characterSlots.length >= 5; // Ensure minimum 5 players
-        const message = isValid ? null : t("MinPlayerValidationError", { min: 5 });
-        // Add more validation: check if provider/model is set for all AI slots
-        const aiSlotsValid = characterSlots.every(slot => slot.isHuman || (slot.provider && slot.aiModel));
-        if (isValid && !aiSlotsValid) {
-             return { isValid: false, message: t("ProviderModelMissingValidationError", "Provider/Model must be set for all AI players.") };
+        let isValid = characterSlots.length >= 5; // Ensure minimum 5 players
+        let message = isValid ? null : t("MinPlayerValidationError", { min: 5 });
+
+        if (isValid) {
+            // Add more validation: check if provider/model is set for all AI slots
+            const aiSlotsValid = characterSlots.every(slot => slot.isHuman || (slot.provider && slot.aiModel));
+            if (!aiSlotsValid) {
+                isValid = false;
+                message = t("ProviderModelMissingValidationError", "Provider/Model must be set for all AI players.");
+            }
         }
-        return { isValid: isValid && aiSlotsValid, message };
+
+        if (isValid) {
+            // NEW: Check for duplicate names (case-insensitive)
+            const names = characterSlots.map(slot => slot.profile?.characterName?.trim().toLowerCase() || '');
+            const uniqueNames = new Set(names.filter(name => name !== '')); // Filter out empty names before checking uniqueness
+            if (uniqueNames.size !== names.filter(name => name !== '').length) {
+                isValid = false;
+                message = t("DuplicatePlayerNameValidationError", "Player names must be unique.");
+            }
+        }
+        
+        if (isValid) {
+            // NEW: Check for empty names
+            const hasEmptyName = characterSlots.some(slot => !slot.profile?.characterName?.trim());
+            if (hasEmptyName) {
+                isValid = false;
+                message = t("EmptyPlayerNameValidationError", "Player names cannot be empty.");
+            }
+        }
+
+        return { isValid, message };
     }, [characterSlots, t]);
 
     const canAttemptStart = configValidation.isValid && !isSubmitting;
@@ -274,7 +303,6 @@ export function useGameConfig(
                 const updatedSlots = prev.filter((c) => c.clientId !== clientIdToRemove);
                 if (slotToRemove?.isHuman) {
                     setIsHumanJoining(false);
-                    setHumanPlayerName("");
                     // Maybe re-trigger initial slot setup if human removed?
                     // setInitialSlotsSet(false);
                 }
@@ -293,6 +321,34 @@ export function useGameConfig(
                         ? { ...slot, provider: provider, aiModel: newModel, isGenerated: false }
                         : slot,
                 ),
+            );
+        },
+        []
+    );
+
+    // NEW: Update a single slot's name
+    const updateSlotName = useCallback(
+        (clientId: string, newName: string) => {
+            setCharacterSlots((prev) =>
+                prev.map((slot) =>
+                    slot.clientId === clientId
+                        ? { ...slot, profile: { ...slot.profile, characterName: newName } }
+                        : slot
+                )
+            );
+        },
+        []
+    );
+
+     // NEW: Update a single slot's image URL
+     const updateSlotImageUrl = useCallback(
+        (clientId: string, newImageUrl: string | null) => {
+            setCharacterSlots((prev) =>
+                prev.map((slot) =>
+                    slot.clientId === clientId
+                        ? { ...slot, imageUrl: newImageUrl }
+                        : slot
+                )
             );
         },
         []
@@ -344,7 +400,7 @@ export function useGameConfig(
         setIsHumanJoining((prev) => {
             const becomingHuman = !prev;
             if (!becomingHuman) {
-                setHumanPlayerName("");
+                // REMOVED: setHumanPlayerName("");
             }
             setInitialSlotsSet(false); // Force re-initialization
             setCharacterSlots([]); // Clear existing slots
@@ -353,9 +409,11 @@ export function useGameConfig(
     }, []);
 
 
-    const updateHumanPlayerName = useCallback((name: string) => {
-        // Only update the dedicated state, not the entire slots array
-        setHumanPlayerName(name);
+    // Expose role selection update
+    const updateHumanRoleSelection = useCallback((role: RoleName) => {
+        setHumanRoleSelection(role);
+        setInitialSlotsSet(false); // Force re-initialization
+        setCharacterSlots([]); // Clear existing slots
     }, []);
 
     const handleGenerateAndStartGame = useCallback(async () => {
@@ -392,17 +450,29 @@ export function useGameConfig(
             }
             : agentConfig; // Otherwise, use the same config as town
 
-        // Prepare the setup data for the server action
+        // --- Prepare the setup data for the server action ---
         const setupData: StartGameSetupData = {
-            playerCount: characterSlots.length,
+             // Map character slots to the structure expected by startGameAction
+            players: characterSlots.map((slot, index) => ({
+                name: slot.profile?.characterName || `Player ${index + 1}`, // Use slot name or fallback
+                rolePreference: slot.roleSelection,
+                isHuman: slot.isHuman ?? false,
+                imageUrl: slot.imageUrl ?? null, // Pass image URL
+                agentConfig: slot.isHuman
+                    ? { agentType: 'Human' } // Human config
+                    : slot.roleSelection === RoleName.Mafia // Determine AI config based on role
+                        ? mafiaAgentConfig
+                        : agentConfig, // Use town/general config
+            })),
             themeKey: selectedGameThemeKey,
             language: lang,
-            humanPlayerName: humanPlayerName || undefined,
-            humanPlayerIndex: humanPlayerIndex,
-            humanRolePreference: humanRoleSelection, // Pass the preferred role
-            // Use the same config for both for now, differentiate later if needed
-            townAgentConfig: agentConfig,
-            mafiaAgentConfig: mafiaAgentConfig, // Use the potentially separate Mafia config
+            // Deprecated fields below - players array above replaces them
+            // playerCount: characterSlots.length,
+            // humanPlayerName: humanPlayerName || undefined, // REMOVED
+            // humanPlayerIndex: humanPlayerIndex, // REMOVED
+            // humanRolePreference: humanRoleSelection, // Moved into players array
+            // townAgentConfig: agentConfig, // Moved into players array
+            // mafiaAgentConfig: mafiaAgentConfig, // Moved into players array
         };
 
         try {
@@ -442,8 +512,6 @@ export function useGameConfig(
         useSeparateMafiaConfig, // Include flag in dependencies
         mafiaProviderSelection, // Include Mafia provider
         mafiaModelSelection,    // Include Mafia model
-        humanPlayerName,
-        humanRoleSelection,
         t,
         router,
         selectedGameThemeKey,
@@ -455,19 +523,12 @@ export function useGameConfig(
             const humanSlot = characterSlots.find(slot => slot.isHuman);
             if (humanSlot) {
                 setIsHumanJoining(true);
-                setHumanPlayerName(humanSlot.profile?.characterName || t("DefaultHumanPlayerName", {}));
+                // REMOVED: setHumanPlayerName(...)
             } else {
                 setIsHumanJoining(false); // Ensure consistency
             }
         }
-    }, [initialSlotsSet, characterSlots, t]);
-
-    // Expose role selection update
-    const updateHumanRoleSelection = useCallback((role: RoleName) => {
-        setHumanRoleSelection(role);
-        setInitialSlotsSet(false); // Force re-initialization
-        setCharacterSlots([]); // Clear existing slots
-    }, []);
+    }, [initialSlotsSet, characterSlots]);
 
     return {
         characterSlots,
@@ -489,14 +550,15 @@ export function useGameConfig(
         updateSlotProviderAndModel, // Renamed/Added
         updateAllProvidersAndModels, // Renamed/Added
         updateSlotRole,
+        // NEW Functions
+        updateSlotName,
+        updateSlotImageUrl,
         toggleAudioEnabled,
         handleGenerateAndStartGame,
         isHumanJoining,
-        humanPlayerName,
         humanRoleSelection,
         updateHumanRoleSelection,
         toggleHumanJoining,
-        updateHumanPlayerName,
         selectedGameThemeKey,
         setSelectedGameThemeKey,
         setCharacterSlots, // Expose the setter

@@ -1,6 +1,6 @@
 "use client"; // Ensure this is a client component
 
-import React from "react";
+import React, { useState } from "react";
 import type { ConfigCharacterSlot } from "@/hooks/useGameConfig";
 import type { RoleName } from "@/lib/engine/interfaces/IRole";
 import { useTranslation } from 'react-i18next'; // Import hook
@@ -8,91 +8,207 @@ import { cn } from "@/lib/utils";
 import { TableCell, TableRow } from "@/components/ui/table";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Users, ServerCrash, Bot, X, Loader2, User } from "lucide-react";
+import { Users, ServerCrash, Bot, X, Loader2, User, ImagePlus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProviderModelSelector } from "../ProviderModelSelector";
-import { Label } from "@/components/ui/label"; // Add Label import
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input"; // Import Input
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"; // Import Popover components
+
+// Hardcoded image paths (consider fetching dynamically later)
+const characterImagePaths = [
+  // Female - Old
+  "/images/characters/female/old/unnamed.png",
+  "/images/characters/female/old/unnamed-1.png",
+  "/images/characters/female/old/unnamed-8.png",
+  "/images/characters/female/old/unnamed-12.png",
+  "/images/characters/female/old/unnamed-13.png",
+  "/images/characters/female/old/unnamed-14.png",
+  // Female - Young
+  "/images/characters/female/young/unnamed.png",
+  "/images/characters/female/young/unnamed-1.png",
+  "/images/characters/female/young/unnamed-3.png",
+  "/images/characters/female/young/unnamed-4.png",
+  "/images/characters/female/young/unnamed-5.png",
+  "/images/characters/female/young/unnamed-6.png",
+  "/images/characters/female/young/unnamed-7.png",
+  "/images/characters/female/young/unnamed-8.png",
+  "/images/characters/female/young/unnamed-9.png",
+  // Male - Old
+  "/images/characters/male/old/unnamed-2.png",
+  "/images/characters/male/old/unnamed-3.png",
+  "/images/characters/male/old/unnamed-7.png",
+  "/images/characters/male/old/unnamed-9.png",
+  "/images/characters/male/old/unnamed-10.png",
+  "/images/characters/male/old/unnamed-11.png",
+  // Male - Young
+  "/images/characters/male/young/unnamed.png",
+  "/images/characters/male/young/unnamed-0.png",
+  "/images/characters/male/young/unnamed-1.png",
+  "/images/characters/male/young/unnamed-2.png",
+  "/images/characters/male/young/unnamed-3.png",
+  "/images/characters/male/young/unnamed-4.png",
+  "/images/characters/male/young/unnamed-6.png",
+];
 
 interface CharacterSlotItemProps {
   slot: ConfigCharacterSlot;
   isHuman: boolean;
   index: number;
-  humanPlayerName?: string; // Add optional prop for human player name
   availableRoles: RoleName[];
   isSubmitting: boolean;
   canRemove: boolean;
   onUpdateRole: (clientId: string, newRole: RoleName) => void;
   onUpdateProviderAndModel: (clientId: string, provider: string, newModel: string) => void;
   onRemove: (clientId: string) => void;
+  onUpdateName: (clientId: string, newName: string) => void;
+  onUpdateImageUrl: (clientId: string, newImageUrl: string | null) => void;
 }
 
 // --- Helper Component for Character Info (reusable for both layouts) ---
 interface CharacterInfoProps {
   slot: ConfigCharacterSlot;
   isHuman: boolean;
-  humanPlayerName?: string;
+  isSubmitting: boolean;
+  onUpdateName: (clientId: string, newName: string) => void;
+  onUpdateImageUrl: (clientId: string, newImageUrl: string | null) => void;
 }
 
-const CharacterInfo: React.FC<CharacterInfoProps> = ({ slot, isHuman, humanPlayerName }) => {
+const CharacterInfo: React.FC<CharacterInfoProps> = ({ slot, isHuman, isSubmitting, onUpdateName, onUpdateImageUrl }) => {
   const { t } = useTranslation();
+  const [isImagePopoverOpen, setIsImagePopoverOpen] = useState(false);
+
+  const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdateName(slot.clientId, event.target.value);
+  };
+
+  // Placeholder for image selection logic
+  const handleImageSelect = (selectedImage: string | null) => {
+    onUpdateImageUrl(slot.clientId, selectedImage);
+    setIsImagePopoverOpen(false); // Close popover after selection
+    console.log("Image selected for slot:", slot.clientId, selectedImage);
+  };
+
+  const currentName = slot.profile?.characterName || (isHuman ? t("HumanPlayerLabel", "You") : t("AIPlayerLabel", "AI"));
+  const currentImageUrl = slot.imageUrl;
+
   return (
     <div className="flex items-center gap-3 min-w-0">
-      {isHuman && !slot.isGenerated && !slot.generationError ? (
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-            <User className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <span className="font-medium text-sm text-foreground truncate">
-            {humanPlayerName !== undefined ? humanPlayerName : (slot.profile?.characterName || t("HumanPlayerLabel", "You"))}
-          </span>
-        </div>
-      ) : !isHuman && !slot.isGenerated && !slot.generationError ? (
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-            <Bot className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <span className="font-medium text-sm text-muted-foreground">
-            {t("AIPlayerLabel", "AI")}
-          </span>
-        </div>
-      ) : slot.imageUrl && !slot.generationError ? (
-        <>
-          <Image
-            src={slot.imageUrl}
-            alt={slot.profile?.characterName || "Character"}
-            width={40}
-            height={40}
-            className="rounded-full object-cover w-10 h-10 flex-shrink-0"
-          />
-          <div className="truncate min-w-0">
-            {isHuman && (
-              <span className="inline-flex items-center gap-1 me-1 text-xs text-primary font-semibold">
-                <User className="inline-block h-3 w-3 me-0.5 text-primary" aria-label={t("HumanPlayerIndicatorLabel", "Human Player")} />
-                {t("HumanPlayerLabel", "You")}
-              </span>
-            )}
+      {/* Image/Icon Section */} 
+      <div className="relative flex-shrink-0">
+        {currentImageUrl ? (
+           <Image
+             src={currentImageUrl}
+             alt={currentName}
+             width={40}
+             height={40}
+             className="rounded-full object-cover w-10 h-10 border"
+           />
+         ) : isHuman ? (
+           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border">
+             <User className="h-5 w-5 text-muted-foreground" />
+           </div>
+         ) : (
+           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border">
+             <Bot className="h-5 w-5 text-muted-foreground" />
+           </div>
+         )
+        }
+        {/* Image Selection Popover */}
+        <Popover open={isImagePopoverOpen} onOpenChange={setIsImagePopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-background bg-muted hover:bg-muted/80 p-0.5"
+              disabled={isSubmitting}
+              aria-label={t("SelectPlayerImageAriaLabel", "Select player image")}
+            >
+              <ImagePlus className="h-3 w-3 text-muted-foreground" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 max-h-96 overflow-y-auto p-2">
+            <div className="grid grid-cols-5 gap-2">
+              {characterImagePaths.map((path) => (
+                <button
+                  key={path}
+                  type="button"
+                  className={cn(
+                    "rounded-md overflow-hidden focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border border-transparent",
+                    currentImageUrl === path ? "ring-2 ring-primary ring-offset-2 border-primary" : "hover:border-muted-foreground"
+                  )}
+                  onClick={() => handleImageSelect(path)}
+                  aria-label={`${t("SelectImageAriaLabel", "Select Image")} ${path.split('/').pop()}`}
+                >
+                  <Image
+                    src={path}
+                    alt={`Character ${path.split('/').pop()}`}
+                    width={48}
+                    height={48}
+                    className="object-cover w-12 h-12"
+                  />
+                </button>
+              ))}
+             {/* Optional: Button to clear selection */}
+             <button
+                key="clear"
+                type="button"
+                className={cn(
+                  "flex items-center justify-center rounded-md border border-dashed text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 w-12 h-12",
+                   !currentImageUrl ? "ring-2 ring-primary ring-offset-2 border-primary" : "hover:border-muted-foreground"
+                )}
+                onClick={() => handleImageSelect(null)}
+                aria-label={t("ClearImageSelectionAriaLabel", "Clear image selection")}
+             >
+                <X className="h-5 w-5" />
+             </button>
+            </div>
+          </PopoverContent>
+        </Popover>
+       </div>
+
+      {/* Name Input Section */} 
+      <div className="flex-grow min-w-0">
+         {slot.isGenerated && !slot.generationError && slot.profile?.characterName ? (
+            // Display generated name if available (non-editable for now)
             <span
               className="font-medium truncate block text-sm text-foreground"
-              title={humanPlayerName !== undefined ? humanPlayerName : (slot.profile?.characterName || (isHuman ? t("HumanPlayerLabel", "You") : t("PendingGenerationLabel", "Pending generation")))}
+              title={slot.profile.characterName}
             >
-              {humanPlayerName !== undefined ? humanPlayerName : (slot.profile?.characterName || (isHuman ? t("HumanPlayerLabel", "You") : t("PendingGenerationLabel", "Pending generation")))}
+              {slot.profile.characterName}
             </span>
-          </div>
-        </>
-      ) : slot.generationError ? (
-        <div className="flex items-center text-destructive text-sm flex-grow gap-2">
-          <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
-            <ServerCrash className="h-5 w-5 text-destructive" />
-          </div>
-          <span className="truncate" title={slot.generationError}>
-            {t("GenerationErrorPrefix", "Error")}: {slot.generationError}
-          </span>
-        </div>
-      ) : (
-        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-          <Users className="h-5 w-5 text-muted-foreground" />
-        </div>
-      )}
+         ) : slot.generationError ? (
+             <div className="flex items-center text-destructive text-sm gap-2">
+               <ServerCrash className="h-5 w-5 text-destructive flex-shrink-0" />
+               <span className="truncate" title={slot.generationError}>
+                 {t("GenerationErrorPrefix", "Error")}: {slot.generationError}
+               </span>
+             </div>
+         ) : (
+            // Editable Name Input
+            <Input
+              id={`name-${slot.clientId}`}
+              type="text"
+              value={currentName}
+              onChange={handleNameChange}
+              placeholder={t("PlayerNamePlaceholder", "Enter name")}
+              className="h-9 text-sm font-medium" // Adjust styling as needed
+              disabled={isSubmitting}
+              aria-label={t("PlayerNameAriaLabel", "Player name")}
+            />
+         )}
+
+         {isHuman && (
+             <span className="text-xs text-primary font-semibold block mt-0.5">
+                {t("HumanPlayerLabel", "(You)")}
+             </span>
+         )}
+      </div>
+
     </div>
   );
 };
@@ -102,13 +218,14 @@ export function CharacterSlotItem({
   slot,
   isHuman,
   index,
-  humanPlayerName,
   availableRoles,
   isSubmitting,
   canRemove,
   onUpdateRole,
   onUpdateProviderAndModel,
   onRemove,
+  onUpdateName,
+  onUpdateImageUrl,
 }: CharacterSlotItemProps) {
   const { t } = useTranslation();
 
@@ -166,8 +283,14 @@ export function CharacterSlotItem({
         data-state={isHuman ? "selected" : undefined}
       >
         {/* Character Cell */}
-        <TableCell className="font-medium w-[150px]">
-          <CharacterInfo slot={slot} isHuman={isHuman} humanPlayerName={humanPlayerName} />
+        <TableCell className="font-medium w-[250px]"> {/* Increased width for name input */}
+          <CharacterInfo
+             slot={slot}
+             isHuman={isHuman}
+             isSubmitting={isSubmitting}
+             onUpdateName={onUpdateName}
+             onUpdateImageUrl={onUpdateImageUrl}
+          />
         </TableCell>
 
         {/* Role Cell */}
@@ -201,7 +324,6 @@ export function CharacterSlotItem({
             <TableCell>
               <ProviderModelSelector
                 {...providerModelSelectorProps}
-                agentConfig={null}
                 idPrefix={`slot-${slot.clientId}-pv-desktop`}
                 mode="provider"
               />
@@ -209,7 +331,6 @@ export function CharacterSlotItem({
             <TableCell>
               <ProviderModelSelector
                 {...providerModelSelectorProps}
-                agentConfig={null}
                 idPrefix={`slot-${slot.clientId}-md-desktop`}
                 mode="model"
               />
@@ -232,9 +353,15 @@ export function CharacterSlotItem({
         )}
          data-state={isHuman ? "selected" : undefined}
       >
-        {/* Character Info */} 
-        <div className="flex justify-between items-center">
-          <CharacterInfo slot={slot} isHuman={isHuman} humanPlayerName={humanPlayerName} />
+        {/* Character Info & Remove Button */} 
+        <div className="flex justify-between items-start">
+          <CharacterInfo
+             slot={slot}
+             isHuman={isHuman}
+             isSubmitting={isSubmitting}
+             onUpdateName={onUpdateName}
+             onUpdateImageUrl={onUpdateImageUrl}
+           />
            {/* Move remove button here for mobile next to character info */}
            <div className="ms-2 flex-shrink-0">{removeButton}</div>
         </div>
@@ -277,7 +404,6 @@ export function CharacterSlotItem({
                 </Label>
                 <ProviderModelSelector
                     {...providerModelSelectorProps}
-                    agentConfig={null}
                     idPrefix={`slot-${slot.clientId}-pv-mobile`}
                     mode="provider"
                 />
@@ -289,7 +415,6 @@ export function CharacterSlotItem({
                 </Label>
                 <ProviderModelSelector
                     {...providerModelSelectorProps}
-                    agentConfig={null}
                     idPrefix={`slot-${slot.clientId}-md-mobile`}
                     mode="model"
                 />

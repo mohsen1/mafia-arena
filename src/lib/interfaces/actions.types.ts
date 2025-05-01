@@ -18,14 +18,24 @@ export interface PendingHumanAction {
  * Data required to initialize and start a new game.
  */
 export interface StartGameSetupData {
-  playerCount: number;
   themeKey: string;
   language: LanguageCode;
-  humanPlayerName?: string;
-  humanPlayerIndex: number; // -1 if no human player
-  humanRolePreference?: RoleName; // Optional role preference for the human
-  townAgentConfig: AgentConfig; // Configuration for Town AI agents
-  mafiaAgentConfig: AgentConfig; // Configuration for Mafia AI agents
+
+  players: Array<{
+    name: string;
+    rolePreference: RoleName;
+    isHuman: boolean;
+    imageUrl: string | null;
+    agentConfig: AgentConfig; // Specific config for this player (Human or AI variant)
+  }>;
+
+  // DEPRECATED Fields - replaced by `players` array
+  // playerCount: number;
+  // humanPlayerName?: string;
+  // humanPlayerIndex: number; // -1 if no human player
+  // humanRolePreference?: RoleName; // Optional role preference for the human
+  // townAgentConfig: AgentConfig; // Configuration for Town AI agents
+  // mafiaAgentConfig: AgentConfig; // Configuration for Mafia AI agents
   // Optional: Add specific role distribution settings if needed
   // roleSettings?: Partial<Record<RoleName, number>>;
 }
