@@ -10,6 +10,8 @@ import { DummyAIAgent } from './engine/agents/DummyAIAgent';
 // import { ClaudeAgent } from './engine/agents/ClaudeAgent'; // Placeholder
 // import { GeminiAgent } from './engine/agents/GeminiAgent'; // Placeholder
 
+import { openAIProviders } from './models';
+
 // Remove internal DummyAgent definition
 
 // Import PlayerAction if needed by DummyAgent
@@ -22,16 +24,32 @@ import { DummyAIAgent } from './engine/agents/DummyAIAgent';
  * @returns An instance of the specified agent conforming to IAgent.
  */
 export function createAgentInstance(agentConfig: AgentConfig, playerId: PlayerId): IAgent {
+    let apiBase: string | undefined = undefined;
+    let apiKey: string | undefined = undefined;
+
+    // Find provider definition based on providerValue
+    const providerDef = openAIProviders.find(p => p.value === agentConfig.providerValue);
+    if (providerDef) {
+        apiBase = providerDef.endpoint;
+        apiKey = providerDef.apiKeyEnvVar ? process.env[providerDef.apiKeyEnvVar] : undefined;
+        // Special case for Ollama local: API key is often optional
+        if (providerDef.value === 'ollama_local' && (!apiKey || apiKey === 'OLLAMA_API_KEY')) {
+            apiKey = undefined;
+        }
+    } else if (agentConfig.agentType === 'OpenAI') {
+        // Fallback to OpenAI defaults if providerValue missing but type is OpenAI
+        console.warn(`Provider value missing for OpenAI type agent ${playerId}. Using default OpenAI endpoint.`);
+        apiBase = process.env.OPENAI_API_BASE;
+        apiKey = process.env.OPENAI_API_KEY;
+    }
+
     switch (agentConfig.agentType) {
         case 'OpenAI':
         case 'Groq': // Treat Groq/Ollama/etc. compatible as OpenAIAgent for now
         case 'Ollama':
         case 'Fireworks':
-            // TODO: Need a way to reconstruct apiBase and apiKey from providerValue/modelName?
-            // For now, use defaults or environment variables as OpenAIAgent constructor does.
-            // The constructor handles undefined apiKey.
-            console.log(`Creating OpenAIAgent for ${playerId} (Type: ${agentConfig.agentType}, Model: ${agentConfig.modelName})`);
-            return new OpenAIAgent(playerId, agentConfig.modelName);
+            console.log(`Creating OpenAIAgent for ${playerId} (Type: ${agentConfig.agentType}, Model: ${agentConfig.modelName}, Provider: ${agentConfig.providerValue})`);
+            return new OpenAIAgent(playerId, agentConfig.modelName, apiBase, apiKey);
         
         // case 'Claude':
         //     console.log(`Creating ClaudeAgent for ${playerId} (Model: ${agentConfig.modelName})`);

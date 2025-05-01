@@ -47,12 +47,22 @@ const phaseInstanceMap: Record<GamePhaseType, new (...args: any[]) => IGamePhase
 function getAgentConfigFromInstance(agent: IAgent): AgentConfig {
     if (agent instanceof OpenAIAgent) {
         let providerValue = 'openai';
+        let agentTypeValue = 'OpenAI';
         const endpoint = (agent as any).apiBase;
         const modelName = (agent as any).model;
-        if (endpoint?.includes('groq.com')) providerValue = 'groq';
-        else if (endpoint?.includes('localhost:11434')) providerValue = 'ollama_local';
-        else if (endpoint?.includes('fireworks.ai')) providerValue = 'fireworks';
-        return { agentType: agent.agentName || 'OpenAI', modelName, providerValue };
+
+        if (endpoint?.includes('groq.com')) {
+            providerValue = 'groq';
+            agentTypeValue = 'Groq';
+        } else if (endpoint?.includes('localhost:11434')) {
+            providerValue = 'ollama_local';
+            agentTypeValue = 'Ollama';
+        } else if (endpoint?.includes('fireworks.ai')) {
+            providerValue = 'fireworks';
+            agentTypeValue = 'Fireworks';
+        }
+
+        return { agentType: agentTypeValue, modelName, providerValue };
     }
     else if (agent instanceof HumanAgent) {
          return { agentType: 'Human' };
@@ -111,7 +121,10 @@ export class Game {
             const sanitizedName = setup.name.toLowerCase().replace(/"/g, '').replace(/\s+/g, '-');
             const roleNameStr = setup.role.name.toString().toLowerCase();
             const playerId: PlayerId = `player-${index + 1}-${roleNameStr}-${sanitizedName}`;
-            const player = new Player(playerId, setup.name, setup.role, setup.agent);
+            
+            const agentConfig = getAgentConfigFromInstance(setup.agent);
+            
+            const player = new Player(playerId, setup.name, setup.role, setup.agent, agentConfig);
             this.#players.set(playerId, player);
             this.#agentMemories.set(playerId, createInitialMemory());
             if (setup.agent instanceof HumanAgent) {
@@ -138,12 +151,13 @@ export class Game {
         game.#players.clear();
         game.#agentMemories.clear();
         Object.values(state.players).forEach(pState => {
-            const agent = createAgentInstance(pState.agentConfig, pState.id);
+            const agentConfig = pState.agentConfig;
+            const agent = createAgentInstance(agentConfig, pState.id);
             const RoleClass = roleClassMap[pState.roleName];
             if (!RoleClass) throw new Error(`LoadError: Cannot deserialize role: ${pState.roleName}`);
             const roleInstance = new RoleClass();
 
-            const player = new Player(pState.id, pState.name, roleInstance, agent);
+            const player = new Player(pState.id, pState.name, roleInstance, agent, agentConfig);
             if (pState.status === 'Dead') player.kill();
             player.agent.persona = pState.persona || DEFAULT_PERSONA;
 
@@ -185,7 +199,7 @@ export class Game {
     public getCurrentSerializableState(pendingAction: PendingHumanAction | null = null): SerializableGameState {
         const playersState: Record<PlayerId, SerializablePlayer> = {};
         this.#players.forEach((player, id) => {
-            const agentConfig = getAgentConfigFromInstance(player.agent);
+            const agentConfig = player.initialAgentConfig;
             playersState[id] = {
                 id: player.id,
                 name: player.name,
@@ -208,6 +222,23 @@ export class Game {
 
         const themeKey = Object.keys(Themes).find(key => Themes[key] === this.theme) || 'UK_VILLAGE_1900S';
 
+        const serializableLog = this.#conversationLog.getAllMessages().map(msg => {
+            return {
+                id: msg.id,
+                round: msg.round,
+                phase: msg.phase,
+                senderId: msg.senderId,
+                senderName: msg.senderName,
+                content: msg.content,
+                visibility: msg.visibility,
+                recipientId: msg.recipientId,
+                type: (msg as any).type,
+                timestamp: msg.timestamp instanceof Date 
+                            ? msg.timestamp.toISOString() 
+                            : String(msg.timestamp)
+            };
+        });
+
         const state: SerializableGameState = {
             gameId: this.id,
             createdAt: this.#createdAt,
@@ -219,10 +250,7 @@ export class Game {
             players: playersState,
             livingPlayerIds: this.getAlivePlayers().map(p => p.id),
             deadPlayerIds: Array.from(this.#players.values()).filter(p => !p.isAlive()).map(p => p.id),
-            conversationLog: this.#conversationLog.getAllMessages().map(msg => ({
-                 ...msg,
-                 timestamp: msg.timestamp
-             })),
+            conversationLog: serializableLog as IMessage[],
             agentMemories: agentMemoriesRecord,
             winCondition: winCondition,
             humanPlayerId: this.#humanPlayerId,

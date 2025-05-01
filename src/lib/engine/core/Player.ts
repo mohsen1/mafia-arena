@@ -3,22 +3,26 @@ import type { IRole } from "../interfaces/IRole";
 import type { IAgent } from "../interfaces/IAgent";
 import type { VisibleGameState } from "../interfaces/GameState";
 import type { PlayerAction } from "../interfaces/IAgent";
+import type { AgentConfig } from "../../interfaces/persistence.types";
 
 export class Player implements IPlayer {
     readonly #agent: IAgent;
     #status: PlayerStatus = PlayerStatus.Alive;
     readonly #role: IRole; // Role is private!
     #name: string; // Make name mutable internally
+    readonly #initialAgentConfig: AgentConfig; // Store the config used to create the agent
 
     constructor(
         public readonly id: PlayerId,
         initialName: string, // Use initialName for constructor
         role: IRole, // Inject role
-        agent: IAgent // Inject agent
+        agent: IAgent, // Inject agent
+        initialAgentConfig: AgentConfig // Store initial agent config
     ) {
         this.#role = role;
         this.#agent = agent;
         this.#name = initialName; // Assign initial name
+        this.#initialAgentConfig = initialAgentConfig;
     }
 
     get name(): string {
@@ -47,6 +51,10 @@ export class Player implements IPlayer {
 
     get agent(): IAgent {
         return this.#agent;
+    }
+    
+    get initialAgentConfig(): AgentConfig {
+        return this.#initialAgentConfig;
     }
 
     isAlive(): boolean {

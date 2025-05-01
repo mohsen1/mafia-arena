@@ -108,6 +108,7 @@ export function ProviderModelSelector({
       {(mode === 'both' || mode === 'model') && (
         <div className={cn("flex flex-col items-start justify-start gap-1 w-full", mode === 'both' ? "sm:w-1/2" : "")}>
           <Select
+            defaultValue={selectedModel}
             value={selectedModel}
             onValueChange={handleModelChange}
             disabled={disabled || currentModels.length === 0}

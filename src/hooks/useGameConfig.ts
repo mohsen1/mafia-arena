@@ -18,6 +18,7 @@ import {
     openAIProviders,
     fireworksModels,
 } from "@/lib/models";
+import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
 
 // Define types locally based on the structure in @/lib/models.ts
 export interface ModelDefinition {
@@ -77,6 +78,23 @@ export interface PlayerInitializationData {
     voiceId?: string;
     isHuman: boolean;
 }
+
+// Helper function to map provider value to agent type string expected by factory
+const getAgentTypeFromProvider = (providerValue?: string): string => {
+    if (!providerValue) return 'Dummy'; // Default or handle error
+    switch (providerValue) {
+        case 'groq': return 'Groq';
+        case 'ollama_local': return 'Ollama';
+        case 'fireworks': return 'Fireworks';
+        case 'openai': return 'OpenAI';
+        // Add mappings for Claude/Gemini if they have providerValues
+        // case 'anthropic': return 'Claude';
+        // case 'google': return 'Gemini';
+        default:
+            console.warn(`Unknown provider value "${providerValue}" in useGameConfig. Defaulting agentType to OpenAI.`);
+            return 'OpenAI'; // Or perhaps 'Dummy' or throw error
+    }
+};
 
 // Remove availableModels from arguments, we import them now
 export function useGameConfig(
@@ -358,8 +376,8 @@ export function useGameConfig(
 
         // TODO: Allow different configs for Town/Mafia later
         const agentConfig: AgentConfig = {
-            // agentType needs mapping from providerValue if possible
-            agentType: agentProvider === 'groq' ? 'Groq' : 'OpenAI', // Simple mapping, needs improvement
+            // Use mapping function
+            agentType: getAgentTypeFromProvider(agentProvider),
             modelName: agentModel,
             providerValue: agentProvider,
         };
@@ -367,8 +385,8 @@ export function useGameConfig(
         // Create specific Mafia config if the flag is set and values are provided
         const mafiaAgentConfig = useSeparateMafiaConfig && mafiaProviderSelection && mafiaModelSelection
             ? {
-                // TODO: Improve agentType mapping
-                agentType: mafiaProviderSelection === 'groq' ? 'Groq' : 'OpenAI',
+                // Use mapping function
+                agentType: getAgentTypeFromProvider(mafiaProviderSelection),
                 modelName: mafiaModelSelection,
                 providerValue: mafiaProviderSelection,
             }

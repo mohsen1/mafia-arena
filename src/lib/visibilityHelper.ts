@@ -1,11 +1,9 @@
+import { RoleName } from "./engine/interfaces/IRole";
+import { Themes } from "./engine/interfaces/Theme";
+import { MessageVisibility } from "./engine/interfaces/IMessage";
 import type { SerializableGameState } from "./interfaces/persistence.types";
 import type { FilteredGameState, FilteredPlayer, PlayerId, ClientMessage } from "./interfaces/gameState.types";
-import { Themes } from "./engine/interfaces/Theme";
-import { RoleName } from "./engine/interfaces/IRole";
-import { MessageVisibility } from "./engine/interfaces/IMessage";
-import type { ChatMessage } from "./engine/interfaces/ChatMessage";
-import type { IGame } from "./engine/interfaces/IGame";
-import { type PlayerId } from "./engine/interfaces/IPlayer";
+import type { IMessage } from "./engine/interfaces/IMessage";
 
 /**
  * Filters the complete serializable game state into a view suitable for sending to a specific client.
@@ -40,7 +38,7 @@ export function filterGameStateForClient(
         senderId: msg.senderId,
         senderName: msg.senderName,
         content: msg.content,
-        timestamp: msg.timestamp.toISOString(),
+        timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : String(msg.timestamp),
         visibility: msg.visibility,
         type: (msg as any).type, // Keep 'as any' to handle potential extended message properties
         recipientId: msg.recipientId,
@@ -75,7 +73,6 @@ export function filterGameStateForClient(
         canSeeWerewolfChat: false,
         canSeeDeadChat: true,
         availableVoices: [],
-        _rawStateForDebug: process.env.NODE_ENV === 'development' ? fullState : undefined,
     };
 
     return filteredState;

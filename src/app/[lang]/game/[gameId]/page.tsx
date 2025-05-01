@@ -3,6 +3,8 @@
 // import { submitHumanAction } from "@/app/actions/humanActions";
 // import { gameStateManager } from "@/lib/state/gameStateManager";
 
+import { use } from 'react';
+
 // Import new actions
 import { advanceGameStateAction } from "@/app/actions/gameplay.actions";
 import { submitHumanAction } from "@/app/actions/human.actions";
@@ -31,13 +33,15 @@ import type { LanguageCode } from "@/lib/i18n/settings";
 // import { dir } from 'i18next';
 
 interface GamePageProps {
-  params: { gameId: string; lang: LanguageCode }; // Params are usually directly available, not a Promise
+  params: Promise<{ gameId: string; lang: LanguageCode }>;
 }
 
-export default async function GamePage({ params }: GamePageProps) { // Adjusted params destructuring
-  const { gameId, lang } = params; // Get lang as well
-  // Load state using new function
-  const initialGameState = await loadGameData(gameId);
+export default function GamePage({ params: paramsPromise }: GamePageProps) {
+  const params = use(paramsPromise);
+  const { gameId, lang } = params;
+  
+  // Load state using new function - wrapping in use() since loadGameData is async
+  const initialGameState = use(loadGameData(gameId));
 
   if (!initialGameState) {
     notFound();
