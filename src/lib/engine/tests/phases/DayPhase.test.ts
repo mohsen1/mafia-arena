@@ -12,23 +12,22 @@ import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import { NightPhase } from '@/lib/engine/phases/NightPhase';
 import { AgentConfig } from '@/lib/interfaces/agent.types';
 
-// Mock Game class
-const mockGame = {
+// Mock Game function (assuming a similar helper exists or can be added)
+const createMockGame = () => ({
     logMessage: vi.fn(),
     generateVisibleGameState: vi.fn(),
     getPlayer: vi.fn(),
     getAlivePlayers: vi.fn(),
-    getMostVotedPlayer: vi.fn(),
-    resetVotes: vi.fn(),
-    recordVoteInMemory: vi.fn(),
-    getVotes: vi.fn().mockReturnValue(new Map()), // Start with empty votes
-    notifyRenderers: vi.fn(),
-    getGamePhase: vi.fn().mockReturnValue('Day'), // Simulate being in Day phase initially
+    getAlivePlayersNotHuman: vi.fn(), // Need this for round 1 intros
     killPlayer: vi.fn(),
-    round: 2,
     recordVoteResultsInMemory: vi.fn(),
     requestPlayerAction: vi.fn().mockResolvedValue({ type: 'noAction' }),
-};
+    notifyRenderers: vi.fn(),
+    round: 2, // Default round
+    checkWinCondition: vi.fn().mockReturnValue(null), // For transition
+    advanceToPhase: vi.fn(), // For transition
+});
+type MockGame = ReturnType<typeof createMockGame>;
 
 // Mock Player and Agent - Changed 3rd param from action: PlayerAction to agent: IAgent
 const createMockDayPlayer = (id: PlayerId, role: IRole, agent: IAgent): Player => {
@@ -39,6 +38,7 @@ const createMockDayPlayer = (id: PlayerId, role: IRole, agent: IAgent): Player =
 
 describe('DayPhase', () => {
     let dayPhase: DayPhase;
+    let mockGame: MockGame;
     let players: Player[];
     const player1Id: PlayerId = 'p1';
     const player2Id: PlayerId = 'p2';
@@ -47,21 +47,7 @@ describe('DayPhase', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         dayPhase = new DayPhase();
-
-        // Reset mock game state for each test
-        mockGame.getAlivePlayers.mockReset();
-        mockGame.getPlayer.mockReset();
-        mockGame.generateVisibleGameState.mockReset();
-        mockGame.logMessage.mockReset();
-        mockGame.resetVotes.mockReset();
-        mockGame.recordVoteInMemory.mockReset();
-        mockGame.getVotes.mockReset().mockReturnValue(new Map());
-        mockGame.getMostVotedPlayer.mockReset();
-        mockGame.notifyRenderers.mockReset();
-        mockGame.getGamePhase.mockReset().mockReturnValue('Day');
-        mockGame.killPlayer.mockReset();
-        mockGame.round = 2;
-        mockGame.recordVoteResultsInMemory.mockReset();
+        mockGame = createMockGame();
     });
 
     it('should collect votes, log them, tally, execute player with majority, and record results', async () => {
@@ -403,9 +389,16 @@ describe('DayPhase', () => {
         expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
     });
 
-    it('should transition to NightPhase', () => {
+    it('should transition to NightPhase if no win condition', () => {
+        mockGame.checkWinCondition.mockReturnValue(null);
         const nextPhase = dayPhase.transition(mockGame as unknown as Game);
-        expect(nextPhase).toBeInstanceOf(NightPhase);
+        expect(nextPhase).toBe('Night');
+    });
+
+    it('should transition to GameOverPhase if win condition met', () => {
+        mockGame.checkWinCondition.mockReturnValue('Mafia');
+        const nextPhase = dayPhase.transition(mockGame as unknown as Game);
+        expect(nextPhase).toBe('GameOver');
     });
 
     // Add more tests:

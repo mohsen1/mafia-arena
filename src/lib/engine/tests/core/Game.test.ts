@@ -984,3 +984,16 @@ describe('Game', () => {
 
     // TODO: Add tests for runGameLoop (more complex, requires mocking phases)
 });
+
+describe('Game Night Phase Logic (Complex)', () => {
+    // ... (setup similar to Day Phase, but with roles having night actions)
+
+    it('should handle Mafia kill correctly', async () => {
+        // ... complex setup ...
+        // Pass phase type string, not instance
+        nightTestGame.advanceToPhase('Night');
+
+        // Mock agent actions: Mafia votes, Doctor saves, Seer investigates
+        // ... mock setup ...
+    });
+});

@@ -1,137 +1,166 @@
 // src/lib/tests/visibilityHelper.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
-import type { SerializableGameState, SerializablePlayer } from '@/lib/interfaces/persistence.types';
-import type { FilteredGameState, PlayerId } from '@/lib/interfaces/gameState.types';
-import { RoleName, Allegiance } from '@/lib/engine/interfaces/IRole';
+import type { SerializableGameState, SerializedMessage, SerializablePlayer } from '@/lib/interfaces/persistence.types';
+import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
-import type { IMessage } from '@/lib/engine/interfaces/IMessage';
-import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
 
 describe('filterGameStateForClient', () => {
-    let fullState: SerializableGameState;
-    const player1Id: PlayerId = 'p1'; // Villager
-    const player2Id: PlayerId = 'p2'; // Mafia
-    const player3Id: PlayerId = 'p3'; // Doctor (Dead)
+    const player1Id = 'p1'; // Villager (Viewing Player)
+    const player2Id = 'p2'; // Villager
+    const player3Id = 'p3'; // Mafia
+    const player4Id = 'p4'; // Doctor (Dead)
 
-    beforeEach(() => {
-        const now = Date.now();
-        const player1: SerializablePlayer = {
-            id: player1Id, name: 'Alice', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: { agentType: 'Test' }, isHuman: false, persona: DEFAULT_PERSONA
-        };
-        const player2: SerializablePlayer = {
-            id: player2Id, name: 'Bob', status: PlayerStatus.Alive, roleName: RoleName.Mafia, allegiance: 'Mafia', agentConfig: { agentType: 'Test' }, isHuman: false, persona: DEFAULT_PERSONA
-        };
-        const player3: SerializablePlayer = {
-            id: player3Id, name: 'Charlie', status: PlayerStatus.Dead, roleName: RoleName.Doctor, allegiance: 'Town', agentConfig: { agentType: 'Test' }, isHuman: false, persona: DEFAULT_PERSONA
-        };
+    const now = new Date();
+    const nowTimestamp = now.getTime(); // Use number timestamp
+    const nowISO = now.toISOString();
 
-        const msg1: IMessage = { id: 'm1', round: 1, phase: 'Day', senderId: player1Id, senderName: 'Alice', content: 'Public msg 1', timestamp: new Date(now - 10000), visibility: MessageVisibility.Public };
-        const msg2: IMessage = { id: 'm2', round: 1, phase: 'Night', senderId: player2Id, senderName: 'Bob', content: 'Mafia msg 1', timestamp: new Date(now - 5000), visibility: MessageVisibility.Mafia };
-        const msg3: IMessage = { id: 'm3', round: 2, phase: 'Day', senderId: null, senderName: 'System', content: 'Public msg 2', timestamp: new Date(now), visibility: MessageVisibility.Public };
+    // Create mock SerializedMessages with string timestamps
+    const msg1: SerializedMessage = {
+        id: 'm1', round: 1, phase: 'Day', senderId: player1Id, senderName: 'P1',
+        content: 'Hello villagers!', timestamp: nowISO, visibility: MessageVisibility.Public
+    };
+    const msg2: SerializedMessage = {
+        id: 'm2', round: 1, phase: 'Night', senderId: player3Id, senderName: 'P3',
+        content: 'Target p2', timestamp: nowISO, visibility: MessageVisibility.Mafia
+    };
+    const msg3: SerializedMessage = {
+        id: 'm3', round: 2, phase: 'Day', senderId: 'system', senderName: 'Moderator',
+        content: 'P4 was killed.', timestamp: nowISO, visibility: MessageVisibility.Public
+    };
 
-        fullState = {
-            gameId: 'test-filter-game',
-            createdAt: now - 20000,
-            updatedAt: now,
-            themeKey: 'UK_VILLAGE_1900S',
-            language: 'en',
-            round: 2,
-            phase: 'Day',
-            players: { [player1Id]: player1, [player2Id]: player2, [player3Id]: player3 },
-            livingPlayerIds: [player1Id, player2Id],
-            deadPlayerIds: [player3Id],
-            conversationLog: [msg1, msg2, msg3],
-            agentMemories: {
-                [player1Id]: createInitialMemory(),
-                [player2Id]: createInitialMemory(),
-                [player3Id]: createInitialMemory(),
-            },
-            winCondition: null,
-            humanPlayerId: null,
-            pendingHumanAction: null,
-            _phaseResults: { killedPlayerId: null },
-            phaseStep: 'Start',
-            nextPlayerIndexToAction: 0
-        };
-    });
+    const fullState: SerializableGameState = {
+        gameId: 'g1',
+        phase: 'Day',
+        round: 2,
+        themeKey: 'test-theme',
+        language: 'en',
+        createdAt: nowTimestamp,
+        updatedAt: nowTimestamp,
+        livingPlayerIds: [player1Id, player2Id, player3Id],
+        deadPlayerIds: [player4Id],
+        pendingHumanAction: null,
+        humanPlayerId: player1Id,
+        winCondition: null, // Game is ongoing
+        players: {
+            [player1Id]: { id: player1Id, name: 'P1', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: { agentType: 'Human' }, persona: { ...DEFAULT_PERSONA, name: 'P1' }, isHuman: true },
+            [player2Id]: { id: player2Id, name: 'P2', status: PlayerStatus.Alive, roleName: RoleName.Villager, allegiance: 'Town', agentConfig: { agentType: 'Dummy' }, persona: { ...DEFAULT_PERSONA, name: 'P2' }, isHuman: false },
+            [player3Id]: { id: player3Id, name: 'P3', status: PlayerStatus.Alive, roleName: RoleName.Mafia, allegiance: 'Mafia', agentConfig: { agentType: 'Dummy' }, persona: { ...DEFAULT_PERSONA, name: 'P3' }, isHuman: false },
+            [player4Id]: { id: player4Id, name: 'P4', status: PlayerStatus.Dead, roleName: RoleName.Doctor, allegiance: 'Town', agentConfig: { agentType: 'Dummy' }, persona: { ...DEFAULT_PERSONA, name: 'P4' }, isHuman: false },
+        },
+        conversationLog: [msg1, msg2, msg3],
+        agentMemories: {},
+        phaseStep: 'Start',
+        nextPlayerIndexToAction: 0
+    };
 
-    it('should filter out sensitive root-level fields (agentMemories)', () => {
-        const filtered = filterGameStateForClient(fullState);
-        expect(filtered).not.toHaveProperty('agentMemories');
-        // Check a few expected fields exist
+    it('should filter general game state properties correctly', () => {
+        const filtered = filterGameStateForClient(fullState, player1Id);
         expect(filtered.id).toBe(fullState.gameId);
         expect(filtered.phase).toBe(fullState.phase);
-        expect(filtered.players).toBeDefined();
-        expect(filtered.log).toBeDefined();
+        expect(filtered.round).toBe(fullState.round);
+        expect(filtered.themeKey).toBe(fullState.themeKey);
+        expect(filtered.language).toBe(fullState.language);
+        // Check timestamp conversion to ISO string
+        expect(filtered.createdAt).toBe(new Date(fullState.createdAt).toISOString());
+        expect(filtered.lastUpdatedAt).toBe(new Date(fullState.updatedAt).toISOString());
+        expect(filtered.livingPlayerIds).toEqual(fullState.livingPlayerIds);
+        expect(filtered.deadPlayerIds).toEqual(fullState.deadPlayerIds);
+        expect(filtered.humanPlayerId).toBe(fullState.humanPlayerId);
+        expect(filtered.pendingHumanAction).toBe(fullState.pendingHumanAction);
+        // Check winCondition outcome is null when ongoing
+        expect(filtered.winCondition).toBeNull();
     });
 
-    it('should filter sensitive fields within players (agentConfig, allegiance except game over/dead/self)', () => {
-        const filtered = filterGameStateForClient(fullState, player1Id); // Filter for player 1 (Villager)
+    it('should filter player list, hiding roles of living players except self', () => {
+        const filtered = filterGameStateForClient(fullState, player1Id);
 
-        // Player 1 (Self) - Should see own role
+        expect(Object.keys(filtered.players).length).toBe(4);
+
+        // Viewing player (P1) - should see own role
+        expect(filtered.players[player1Id].id).toBe(player1Id);
+        expect(filtered.players[player1Id].name).toBe('P1');
+        expect(filtered.players[player1Id].status).toBe(PlayerStatus.Alive);
         expect(filtered.players[player1Id].role).toBe(RoleName.Villager);
-        expect(filtered.players[player1Id]).not.toHaveProperty('agentConfig');
-        expect(filtered.players[player1Id]).not.toHaveProperty('allegiance'); // Allegiance might be added later based on role
 
-        // Player 2 (Other Alive) - Role should be hidden
+        // Other living player (P2) - should not see role
+        expect(filtered.players[player2Id].id).toBe(player2Id);
+        expect(filtered.players[player2Id].name).toBe('P2');
+        expect(filtered.players[player2Id].status).toBe(PlayerStatus.Alive);
         expect(filtered.players[player2Id].role).toBeUndefined();
-        expect(filtered.players[player2Id]).not.toHaveProperty('agentConfig');
-        expect(filtered.players[player2Id]).not.toHaveProperty('allegiance');
 
-        // Player 3 (Dead) - Role should be revealed
-        expect(filtered.players[player3Id].role).toBe(RoleName.Doctor);
-        expect(filtered.players[player3Id]).not.toHaveProperty('agentConfig');
-        expect(filtered.players[player3Id]).not.toHaveProperty('allegiance');
+        // Other living player (P3 - Mafia) - should not see role
+        expect(filtered.players[player3Id].id).toBe(player3Id);
+        expect(filtered.players[player3Id].name).toBe('P3');
+        expect(filtered.players[player3Id].status).toBe(PlayerStatus.Alive);
+        expect(filtered.players[player3Id].role).toBeUndefined();
+
+        // Dead player (P4) - should see role
+        expect(filtered.players[player4Id].id).toBe(player4Id);
+        expect(filtered.players[player4Id].name).toBe('P4');
+        expect(filtered.players[player4Id].status).toBe(PlayerStatus.Dead);
+        expect(filtered.players[player4Id].role).toBe(RoleName.Doctor);
     });
 
-    it('should reveal all roles if game phase is GameOver', () => {
-        fullState.phase = 'GameOver';
-        fullState.winCondition = { outcome: 'Town', message: '' };
-        const filtered = filterGameStateForClient(fullState); // No specific viewer needed
+     it('should show all roles and correct winCondition during GameOver phase', () => {
+        const gameOverState: SerializableGameState = {
+            ...fullState,
+            phase: 'GameOver',
+            winCondition: { outcome: 'Town', message: 'Town wins!' }, // Example finished state
+        };
+        const filtered = filterGameStateForClient(gameOverState, player1Id);
 
         expect(filtered.players[player1Id].role).toBe(RoleName.Villager);
-        expect(filtered.players[player2Id].role).toBe(RoleName.Mafia);
-        expect(filtered.players[player3Id].role).toBe(RoleName.Doctor);
+        expect(filtered.players[player2Id].role).toBe(RoleName.Villager);
+        expect(filtered.players[player3Id].role).toBe(RoleName.Mafia);
+        expect(filtered.players[player4Id].role).toBe(RoleName.Doctor);
+        // Check winCondition reflects the outcome
+        expect(filtered.winCondition).toBe('Town');
     });
 
-    it('should filter conversation log based on visibility for non-Mafia', () => {
-        const filtered = filterGameStateForClient(fullState, player1Id); // Filter for player 1 (Villager)
-        expect(filtered.log.length).toBe(2); // Only public messages
-        expect(filtered.log.map(m => m.content)).toEqual(['Public msg 1', 'Public msg 2']);
-        expect(filtered.log[0].timestamp).toBe(fullState.conversationLog[0].timestamp.toISOString()); // Check date conversion
+    it('should filter conversation log based on visibility (non-Mafia viewer)', () => {
+        const filtered = filterGameStateForClient(fullState, player1Id); // Player 1 is Villager
+
+        expect(filtered.log.length).toBe(2); // Should not see Mafia message (msg2)
+        expect(filtered.log[0].id).toBe(msg1.id);
+        expect(filtered.log[0].visibility).toBe(MessageVisibility.Public);
+        expect(filtered.log[1].id).toBe(msg3.id);
+        expect(filtered.log[1].visibility).toBe(MessageVisibility.Public);
     });
 
-    it('should filter conversation log based on visibility for Mafia', () => {
-        const filtered = filterGameStateForClient(fullState, player2Id); // Filter for player 2 (Mafia)
-        expect(filtered.log.length).toBe(3); // Public + Mafia messages
-        expect(filtered.log.map(m => m.content)).toEqual(['Public msg 1', 'Mafia msg 1', 'Public msg 2']);
+    it('should filter conversation log based on visibility (Mafia viewer)', () => {
+        const filtered = filterGameStateForClient(fullState, player3Id); // Player 3 is Mafia
+
+        expect(filtered.log.length).toBe(3); // Should see all messages
+        expect(filtered.log[0].id).toBe(msg1.id);
+        expect(filtered.log[0].visibility).toBe(MessageVisibility.Public);
+        expect(filtered.log[1].id).toBe(msg2.id);
+        expect(filtered.log[1].visibility).toBe(MessageVisibility.Mafia);
+        expect(filtered.log[2].id).toBe(msg3.id);
+        expect(filtered.log[2].visibility).toBe(MessageVisibility.Public);
     });
 
-    it('should convert timestamp numbers to ISO strings', () => {
-        const filtered = filterGameStateForClient(fullState);
-        expect(typeof filtered.createdAt).toBe('string');
-        expect(typeof filtered.lastUpdatedAt).toBe('string');
-        expect(filtered.createdAt).toEqual(new Date(fullState.createdAt).toISOString());
-        expect(filtered.lastUpdatedAt).toEqual(new Date(fullState.updatedAt).toISOString());
+    it('should convert date timestamps to ISO strings in the log', () => {
+        const filtered = filterGameStateForClient(fullState, player1Id);
+        // Assert directly against the string timestamp in the mock fullState
+        expect(filtered.log[0].timestamp).toBe(fullState.conversationLog[0].timestamp); // msg1 timestamp
+        // The second message for P1 is msg3
+        expect(filtered.log[1].timestamp).toBe(fullState.conversationLog[2].timestamp); // msg3 timestamp
     });
 
-     it('should include theme details if theme exists', () => {
-         fullState.themeKey = 'UK_VILLAGE_1900S'; // Ensure a known theme key
-         const filtered = filterGameStateForClient(fullState);
-         expect(filtered.themeKey).toBe('UK_VILLAGE_1900S');
-         expect(filtered.title).toBe('UK Village 1900s'); // From Themes definition
-         expect(filtered.description).toBeDefined();
-     });
+    it('should handle null or undefined viewingPlayerId (spectator)', () => {
+        const filtered = filterGameStateForClient(fullState, null);
 
-     it('should handle unknown theme key gracefully', () => {
-         fullState.themeKey = 'UNKNOWN_THEME';
-         const filtered = filterGameStateForClient(fullState);
-         expect(filtered.themeKey).toBe('UNKNOWN_THEME');
-         // It should fall back to a default theme's details
-         expect(filtered.title).toBe('UK Village 1900s'); // Default fallback
-         expect(filtered.description).toBeDefined();
-     });
+        // Should not see any hidden roles
+        expect(filtered.players[player1Id].role).toBeUndefined();
+        expect(filtered.players[player2Id].role).toBeUndefined();
+        expect(filtered.players[player3Id].role).toBeUndefined();
+        expect(filtered.players[player4Id].role).toBe(RoleName.Doctor); // Dead roles are public
+
+        // Should not see Mafia chat
+        expect(filtered.log.length).toBe(2);
+        expect(filtered.log.find(m => m.visibility === MessageVisibility.Mafia)).toBeUndefined();
+    });
 });

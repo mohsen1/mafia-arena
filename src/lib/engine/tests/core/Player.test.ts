@@ -7,6 +7,9 @@ import type { IRole } from '@/lib/engine/interfaces/IRole';
 import type { VisibleGameState } from '@/lib/engine/interfaces/GameState';
 import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
+import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
+import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
+import type { AgentConfig } from '@/lib/interfaces/persistence.types';
 
 // Mock Role implementation
 const mockVillagerRole: IRole = {
@@ -37,11 +40,18 @@ describe('Player', () => {
     let playerName: string;
     let mockAgent: ReturnType<typeof createMockAgent>;
     let player: Player;
+    const mockAgentConfig: AgentConfig = { agentType: "Dummy" }; // Add mock config
 
     beforeEach(() => {
         playerName = 'Test Player';
         mockAgent = createMockAgent(); // Agent ID matches player ID
-        player = new Player(playerId, playerName, mockVillagerRole, mockAgent);
+        player = new Player(
+            playerId,
+            playerName,
+            mockVillagerRole,
+            mockAgent,
+            mockAgentConfig // Pass mock config
+        );
     });
 
     it('should initialize with correct properties and Alive status', () => {

@@ -14,18 +14,29 @@ import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import { DayPhase } from '@/lib/engine/phases/DayPhase';
 import { AgentConfig } from '@/lib/interfaces/agent.types';
 
-// Mock the Game class methods that the phase interacts with
-const mockGame = {
+// Mock Game function
+const createMockGame = () => ({
     logMessage: vi.fn(),
     generateVisibleGameState: vi.fn(),
     getPlayer: vi.fn(),
     getAlivePlayers: vi.fn(),
+    getAliveMafia: vi.fn(), // Added for NightPhase
+    getAlivePlayersWithRoles: vi.fn().mockReturnValue(new Map()), // Added for NightPhase
     killPlayer: vi.fn(),
     recordKillInMemory: vi.fn(),
     recordSeerResultInMemory: vi.fn(),
-    notifyRenderers: vi.fn(), // Mock renderer notifications if needed
+    recordDoctorSaveInMemory: vi.fn(), // Added for NightPhase
+    notifyRenderers: vi.fn(),
     requestPlayerAction: vi.fn().mockResolvedValue({ type: 'noAction' }),
-};
+    // Add other methods if needed by NightPhase
+    round: 1, // Example default
+    currentState: null as IGamePhase | null, // Add currentState property
+    checkWinCondition: vi.fn().mockReturnValue(null), // Added for transition
+    advanceToPhase: vi.fn(), // Added for transition
+});
+
+// Type for the mock game object
+type MockGame = ReturnType<typeof createMockGame>;
 
 // Mock Player and Agent - Reverted: Keep action for easier setup, though agent.getAction won't be called directly
 const createMockPhasePlayer = (id: PlayerId, role: IRole, action: PlayerAction): Player => {
@@ -50,6 +61,7 @@ const createMockPhasePlayer = (id: PlayerId, role: IRole, action: PlayerAction):
 
 describe('NightPhase', () => {
     let nightPhase: NightPhase;
+    let mockGame: MockGame; // Use the defined type for the mock
     let players: Player[];
     const mafiaId: PlayerId = 'p-mafia';
     const doctorId: PlayerId = 'p-doctor';
@@ -57,8 +69,10 @@ describe('NightPhase', () => {
     const villagerId: PlayerId = 'p-villager';
 
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
+        mockGame = createMockGame(); // Use the helper function
         nightPhase = new NightPhase();
+        mockGame.currentState = nightPhase; // Assign to the mock property
     });
 
     it('should collect actions from all night-action roles', async () => {
@@ -89,6 +103,7 @@ describe('NightPhase', () => {
             .mockResolvedValueOnce(expectedDoctorAction) // Doctor Action
             .mockResolvedValueOnce(expectedSeerAction);  // Seer Action
 
+        // Restore cast to Game
         await nightPhase.runPhase(mockGame as unknown as Game);
 
         // Verify requestPlayerAction was called correctly
@@ -121,7 +136,7 @@ describe('NightPhase', () => {
             .mockResolvedValueOnce(expectedMafiaAction) // Mafia Vote
             .mockResolvedValueOnce(expectedDoctorAction); // Doctor Save
 
-        await nightPhase.runPhase(mockGame as unknown as Game);
+        await nightPhase.runPhase(mockGame);
 
         // Verify killPlayer was NOT called because the save succeeded
         expect(mockGame.killPlayer).not.toHaveBeenCalled();
@@ -160,7 +175,7 @@ describe('NightPhase', () => {
             .mockResolvedValueOnce(expectedMafiaAction) // Mafia Vote
             .mockResolvedValueOnce(expectedDoctorAction); // Doctor Save
 
-        await nightPhase.runPhase(mockGame as unknown as Game);
+        await nightPhase.runPhase(mockGame);
 
         // Verify killPlayer *was* called for the villager
         expect(mockGame.killPlayer).toHaveBeenCalledWith(villagerId, expect.any(String));
@@ -188,7 +203,7 @@ describe('NightPhase', () => {
             .mockResolvedValueOnce({type: 'noAction'}) // Mafia Vote
             .mockResolvedValueOnce(expectedSeerAction); // Seer Investigate
 
-        await nightPhase.runPhase(mockGame as unknown as Game);
+        await nightPhase.runPhase(mockGame);
 
         // Verify recordSeerResultInMemory was called with correct details
         expect(mockGame.recordSeerResultInMemory).toHaveBeenCalledWith(
@@ -221,7 +236,7 @@ describe('NightPhase', () => {
              .mockResolvedValueOnce(expectedMessageAction) // Mafia Discussion (message)
              .mockResolvedValueOnce(expectedVoteAction); // Mafia Vote (noAction)
 
-         await nightPhase.runPhase(mockGame as unknown as Game);
+         await nightPhase.runPhase(mockGame);
 
          // Verify logMessage was called with Mafia visibility for the SENT message
          expect(mockGame.logMessage).toHaveBeenCalledWith(
@@ -262,7 +277,7 @@ describe('NightPhase', () => {
             .mockResolvedValueOnce(mafia1Action)        // m1 vote
             .mockResolvedValueOnce(mafia2Action);       // m2 vote
 
-        await nightPhase.runPhase(mockGame as unknown as Game);
+        await nightPhase.runPhase(mockGame);
 
         // Assert: killPlayer should be called for villager1Id (first target in tie)
         expect(mockGame.killPlayer).toHaveBeenCalledWith(villager1Id, expect.any(String));
@@ -275,9 +290,18 @@ describe('NightPhase', () => {
         expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining(`chosen target is ${villagerPlayer1.name}`), MessageVisibility.Mafia);
     });
 
-    it('should transition to DayPhase', () => {
-        const nextPhase = nightPhase.transition(mockGame as unknown as Game);
-        expect(nextPhase).toBeInstanceOf(DayPhase);
+    it('should transition to DayPhase if no win condition', () => {
+        mockGame.checkWinCondition.mockReturnValue(null); // Ensure no winner
+        const nextPhase = nightPhase.transition(mockGame);
+        // Check the *type* returned, not instance
+        expect(nextPhase).toBe('Day'); 
+    });
+
+    it('should transition to GameOverPhase if win condition met', () => {
+        mockGame.checkWinCondition.mockReturnValue('Town'); // Simulate winner
+        const nextPhase = nightPhase.transition(mockGame);
+        // Check the *type* returned, not instance
+        expect(nextPhase).toBe('GameOver'); 
     });
 
     // Add tests for Mafia vote tallying, tie-breaking (if any), invalid targets etc.

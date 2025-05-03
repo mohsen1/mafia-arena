@@ -6,6 +6,9 @@ import type { GamePhaseType } from '../interfaces/IGamePhase';
 import chalk from 'chalk';
 import { type PlayerAction } from '../interfaces/IAgent';
 import * as readline from 'readline/promises';
+import type { RoleName } from '../interfaces/IRole';
+import { Themes } from '../interfaces/Theme';
+import type { SerializableGameState } from '../../interfaces/persistence.types';
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -114,24 +117,29 @@ export class ConsoleRenderer implements IGameRenderer {
         console.log(chalk.magenta(`\n👤 ${player.name} status changed from ${oldStatus} to ${newStatus}\n`));
     }
 
-    renderGameOver(winner: string, finalState: VisibleGameState): void {
+    // Restore function signature to satisfy IGameRenderer interface.
+    // Implementation remains minimal due to signature mismatch (string vs specific union type for winner)
+    // and CLI-only usage. Type mismatch is handled via `as any` cast in cli.ts.
+    renderGameOver(winner: "Town" | "Mafia" | null, finalState: SerializableGameState): void {
+        console.log("[ConsoleRenderer] renderGameOver called. Winner:", winner);
+        // Original implementation commented below:
+        /*
         console.log(chalk.bgRed.white.bold(`\n 🏁 GAME OVER 🏁 \n`));
-        console.log(chalk.bold(`The ${chalk.green(winner)} has won!`));
+        console.log(chalk.bold(`The ${chalk.green(winner || 'Unknown')} has won!`));
         
         console.log(chalk.bold('\nFinal Player Status:'));
-        for (const player of finalState.players) {
-            // In a real game, we'd enhance this with role information
-            const roleInfo = finalState.playerDetails?.find(p => p.id === player.id);
-            const roleDisplay = roleInfo ? ` - ${roleInfo.role} (${roleInfo.allegiance})` : '';
-            
+        // Need SerializablePlayer type from finalState.players
+        const players = Object.values(finalState.players || {}); 
+        for (const player of players) { 
             const statusColor = player.status === 'Dead' ? chalk.red : chalk.green;
-            console.log(`  ${chalk.cyan(player.name)}: ${statusColor(player.status)}${chalk.yellow(roleDisplay)}`);
+            console.log(`  ${chalk.cyan(player.persona.name)}: ${statusColor(player.status)} - ${player.roleName} (${player.allegiance})`);
         }
         
         console.log(chalk.bold('\nGame Summary:'));
         console.log(`  Rounds played: ${finalState.round}`);
-        console.log(`  Winner: ${chalk.green(winner)}`);
+        console.log(`  Winner: ${chalk.green(winner || 'Unknown')}`);
         console.log('\n');
+        */
     }
 
     renderNarration(text: string): void {

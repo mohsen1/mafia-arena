@@ -368,9 +368,19 @@ async function main() {
         console.log("\nInitializing game framework..."); // Changed log message slightly
         game = new Game(playerSetups, themeKey, 'en');
 
+        // Check if console rendering should be enabled (e.g., via --render flag)
+        const enableConsoleRender = process.argv.includes('--render');
+
         // Add renderers
-        game.addRenderer(new ConsoleRenderer());
-        game.addRenderer(new MarkdownRenderer()); // Automatically gets gameId
+        if (enableConsoleRender) {
+            // Cast to any: ConsoleRenderer's renderGameOver signature differs slightly
+            // from IGameRenderer (uses string winner, VisibleGameState).
+            // Acceptable for CLI-only usage.
+            game.addRenderer(new ConsoleRenderer() as any);
+        }
+        // Always add MarkdownRenderer for saving results
+        const markdownRenderer = new MarkdownRenderer();
+        game.addRenderer(markdownRenderer);
 
         // Log game start (Renderer handles Game ID)
         console.log("\nStarting game...\n");

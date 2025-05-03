@@ -3,11 +3,11 @@ import { IMessage, MessageVisibility } from '../interfaces/IMessage';
 import type { PlayerId, PublicPlayerInfo } from '../interfaces/IPlayer';
 import type { VisibleGameState } from '../interfaces/GameState';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import fs from 'fs';
+import path from 'path';
 import { format } from 'date-fns';
 import { type AgentMemory, type AIConversationLog } from '../interfaces/AgentMemory';
-import type { SerializableGameState } from '../interfaces/GameState';
+import type { SerializableGameState, SerializablePlayer } from '../../interfaces/persistence.types';
 
 export class MarkdownRenderer implements IGameRenderer {
     private gameId = '';
@@ -108,24 +108,18 @@ export class MarkdownRenderer implements IGameRenderer {
         this.appendToMarkdown(`**Player Update**: ${player.name} status changed from ${oldStatus} to ${newStatus}.`);
     }
 
-    renderGameOver(winner: 'Mafia' | 'Town' | null, finalState: SerializableGameState): void {
-        this.appendToMarkdown('## Game Over');
-        this.appendToMarkdown(`**Winner: ${winner ?? 'Undetermined'}**`);
-        
-        this.appendToMarkdown('### Final Player Status');
-        
-        let playerTable = '| Player | Status | Role | Allegiance |\n|--------|--------|------|------------|\n';
-        
+    renderGameOver(winner: "Town" | "Mafia" | null, finalState: SerializableGameState): void {
+        this.appendToMarkdown('## 🏁 Game Over 🏁');
+        this.appendToMarkdown(`\n**Winning Team: ${winner || 'Unknown'}**\n`);
+        this.appendToMarkdown('### Final Player Roles');
+        this.appendToMarkdown('| Player Name | Role | Allegiance | Status |');
+        this.appendToMarkdown('|---|---|---|---|');
         const players = Object.values(finalState.players || {}) as SerializablePlayer[];
-        if (players.length > 0) {
-            for (const player of players) {
-                playerTable += `| ${player.name} | ${player.status} | ${player.roleName} | ${player.allegiance} |\n`;
-            }
-        } else {
-            playerTable += '| (No Player Data) | - | - | - |\n';
+        players.sort((a, b) => a.persona.name.localeCompare(b.persona.name));
+        for (const player of players) {
+            this.appendToMarkdown(`| ${player.persona.name} | ${player.roleName} | ${player.allegiance} | ${player.status} |`);
         }
-        
-        this.appendToMarkdown(playerTable);
+        this.appendToMarkdown('\n');
         
         this.appendToMarkdown('### Game Summary');
         this.appendToMarkdown(`- **Game ID**: ${this.gameId}`);

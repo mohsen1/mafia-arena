@@ -48,12 +48,9 @@ export function filterGameStateForClient(
       senderId: msg.senderId,
       senderName: msg.senderName,
       content: msg.content,
-      timestamp:
-        msg.timestamp instanceof Date
-          ? msg.timestamp.toISOString()
-          : String(msg.timestamp),
+      timestamp: msg.timestamp,
       visibility: msg.visibility,
-      type: (msg as any).type, // Keep 'as any' to handle potential extended message properties
+      type: (msg as any).type,
       recipientId: msg.recipientId,
     }))
     .filter((msg) => {

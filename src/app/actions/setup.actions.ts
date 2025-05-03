@@ -85,6 +85,7 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
                 }, 
                 // Add imageUrl directly if SerializablePlayer supports it
                 // imageUrl: playerSetup.imageUrl ?? undefined,
+                isHuman: playerSetup.isHuman,
             };
             livingPlayerIds.push(playerId);
             agentMemories[playerId] = createInitialMemory();
