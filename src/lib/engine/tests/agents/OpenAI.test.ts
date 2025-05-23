@@ -7,6 +7,7 @@ import { createInitialMemory, type AgentMemory } from '@/lib/engine/interfaces/A
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import { Persona, DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
+import { OpenAI } from 'openai';
 
 // --- Mock OpenAI library ---
 vi.mock('openai', async (importActual) => {
@@ -84,10 +85,19 @@ describe('OpenAIAgent', () => {
             phase: 'Day',
             language: 'en',
             self: { id: testPlayerId, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive, allegiance: 'Town' },
-            players: [{ id: testPlayerId, name: 'Test Agent', status: PlayerStatus.Alive }],
+            players: [{ id: testPlayerId, name: 'Test Agent', status: PlayerStatus.Alive, isHuman: false, imageUrl: null }],
             alivePlayerIds: new Set([testPlayerId]),
             memory: createInitialMemory(),
-            themeName: 'Default'
+            themeName: 'Default',
+            currentGameState: {
+                id: 'test-game',
+                phase: 'Day',
+                round: 1,
+                players: [{ id: testPlayerId, name: 'Test Agent', status: PlayerStatus.Alive, isHuman: false, imageUrl: null }],
+                humanPlayerId: null,
+                log: [],
+                pendingHumanAction: null
+            }
         };
     });
 

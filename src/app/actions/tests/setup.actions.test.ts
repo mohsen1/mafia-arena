@@ -1,17 +1,35 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { startGameAction } from '../setup.actions';
+import type { StartGameSetupData } from '@/lib/interfaces/actions.types'; // Import from central location
 import { assignRoles } from '@/lib/engine/core/utils';
 import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory'; // Import memory helpers
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import type { IRole } from '@/lib/engine/interfaces/IRole'; // Import IRole for mock type
 import { RoleName } from '@/lib/engine/interfaces/IRole'; // Import RoleName enum/type
-import type { FilteredGameState, FilteredPlayer, PlayerId } from '@/lib/interfaces/gameState.types';
+import type { FilteredGameState, FilteredPlayer, PlayerId, GamePhaseType } from '@/lib/interfaces/gameState.types';
 import type { SerializableGameState, SerializablePlayer } from '@/lib/interfaces/persistence.types';
-import type { StartGameSetupData } from '@/lib/interfaces/actions.types'; // Correct path
 import { saveGameData } from '@/lib/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
 import type { AgentConfig } from '@/lib/interfaces/agent.types'; // Changed to type import
+import { Game } from '@/lib/engine/core/Game'; // Import Game
+import type { StartGameSetupData as CentralStartGameSetupData } from '@/lib/interfaces/actions.types'; // Import type from central location
 
+// --- Types for Mocks (moved to very top level) ---
+type MockGameInstanceMethodsSetup = {
+  ensurePersonasGenerated: Mock<() => Promise<void>>;
+  createInitialAgentMemories: Mock<() => void>;
+  getCurrentPhase: Mock<() => { type: GamePhaseType; runStep: Mock; transition: Mock }>;
+  getCurrentSerializableState: Mock<() => SerializableGameState>;
+  advanceToPhase: Mock<(phase: GamePhaseType) => void>;
+  logEvent: Mock<(message: string) => void>;
+  markRolesAssigned: Mock<() => void>;
+  markPersonasGenerated: Mock<() => void>;
+  isRolesAssigned: Mock<() => boolean>;
+  isPersonasGenerated: Mock<() => boolean>;
+  isInitialMemoriesCreated: Mock<() => boolean>;
+  _initPhaseRunStep: Mock<() => Promise<void>>; 
+  _initPhaseTransition: Mock<() => GamePhaseType>; 
+};
 
 // Mock dependencies
 vi.mock('node:crypto', () => ({
@@ -30,28 +48,50 @@ vi.mock('@/lib/persistence', () => ({
 // Mock Themes BEFORE Game mock
 vi.mock('@/lib/engine/interfaces/Theme', () => ({
   Themes: {
-    // Provide mocks for themes used in tests
     StandardWerewolf: { key: 'StandardWerewolf', name: 'Mock Standard Werewolf', description: 'Mock Desc' },
-    // Add other themes if needed by tests
+    UK_VILLAGE_1900S: { key: 'UK_VILLAGE_1900S', name: 'UK Village 1900s', description: 'A quaint village.' },
   }
 }));
 
-// --- Mock Game Class AFTER defining the functions it uses ---
-// Define mocks INSIDE the factory
-vi.mock('@/lib/engine/core/Game', () => {
-  const mockEnsurePersonasGenerated_inner = vi.fn();
-  const mockGetCurrentSerializableState_inner = vi.fn();
-  const mockLoadFromState_inner = vi.fn().mockReturnValue({
-    ensurePersonasGenerated: mockEnsurePersonasGenerated_inner,
-    getCurrentSerializableState: mockGetCurrentSerializableState_inner,
-  });
+// --- Mock Game Class and its methods ---
+vi.mock('@/lib/engine/core/Game', async (importOriginal) => {
+  const originalModule = await importOriginal<typeof Game>();
+  const mockInitPhaseRunStepFactory = vi.fn().mockResolvedValue(undefined);
+  const mockInitPhaseTransitionFactory = vi.fn().mockReturnValue('Day' as GamePhaseType);
+
+  const gameInstanceMockObject: MockGameInstanceMethodsSetup = {
+    ensurePersonasGenerated: vi.fn().mockResolvedValue(undefined),
+    createInitialAgentMemories: vi.fn(),
+    getCurrentPhase: vi.fn().mockReturnValue({
+      type: 'Init' as GamePhaseType,
+      runStep: mockInitPhaseRunStepFactory,
+      transition: mockInitPhaseTransitionFactory,
+    }),
+    getCurrentSerializableState: vi.fn().mockImplementation(() => ({
+      gameId: 'mock-id', phase: 'Day', round: 1, players: {}, livingPlayerIds: [], deadPlayerIds: [],
+      conversationLog: [], agentMemories: {}, winCondition: null, humanPlayerId: null,
+      pendingHumanAction: null, _phaseResults: {}, phaseStep: 'Start', nextPlayerIndexToAction: 0,
+      createdAt: Date.now(), updatedAt: Date.now(), themeKey: 'default', language: 'en',
+    }as SerializableGameState)),
+    advanceToPhase: vi.fn(),
+    logEvent: vi.fn(),
+    markRolesAssigned: vi.fn(),
+    markPersonasGenerated: vi.fn(),
+    isRolesAssigned: vi.fn().mockReturnValue(false),
+    isPersonasGenerated: vi.fn().mockReturnValue(false),
+    isInitialMemoriesCreated: vi.fn().mockReturnValue(false),
+    _initPhaseRunStep: mockInitPhaseRunStepFactory,
+    _initPhaseTransition: mockInitPhaseTransitionFactory,
+  };
 
   return {
-    Game: class MockGame { // Mock the class directly
-      static loadFromState = mockLoadFromState_inner; // Assign the mock static method
-      ensurePersonasGenerated = mockEnsurePersonasGenerated_inner;
-      getCurrentSerializableState = mockGetCurrentSerializableState_inner;
-    }
+    ...originalModule, // Spread original module to keep other exports if any
+    Game: {
+      // Mock static createNewGame to return an object with our mocked instance methods
+      createNewGame: vi.fn().mockReturnValue(gameInstanceMockObject),
+      // Mock static loadFromState (though not used by startGameAction, good for consistency)
+      loadFromState: vi.fn().mockReturnValue(gameInstanceMockObject),
+    },
   };
 });
 
@@ -67,40 +107,61 @@ const mockSeerRole: IRole = { name: RoleName.Seer, allegiance: 'Town', canPerfor
 
 
 describe('setup.actions', () => {
-  // Need to access the inner mock functions for resets/assertions if Game wasn't imported directly
-  // Alternatively, import the mocked Game and access methods through it.
-  // Let's try importing the mocked Game.
-  let mockEnsurePersonasGenerated: ReturnType<typeof vi.fn>;
-  let mockGetCurrentSerializableState: ReturnType<typeof vi.fn>;
-  let mockLoadFromState: ReturnType<typeof vi.fn>;
+  let mockStaticLoadFromStateSetup: Mock;
+  let gameInstanceInternalMocks: any; // To access nested mocks
+  let gameInstance: ReturnType<typeof mockStaticLoadFromStateSetup>; // Declare gameInstance here
 
   beforeEach(async () => {
-    // Dynamically import the mocked Game to access its mocked static/instance methods
-    const { Game: MockedGame } = await import('@/lib/engine/core/Game');
-    // Assign mocks for clarity in tests - note these are the *inner* mocks defined in the factory
-    mockLoadFromState = MockedGame.loadFromState as ReturnType<typeof vi.fn>; 
-    // Instance methods are on the object returned by loadFromState in this case
-    const mockInstance = mockLoadFromState();
-    mockEnsurePersonasGenerated = mockInstance.ensurePersonasGenerated as ReturnType<typeof vi.fn>;
-    mockGetCurrentSerializableState = mockInstance.getCurrentSerializableState as ReturnType<typeof vi.fn>;
-    
     vi.clearAllMocks();
-    // Reset mocks using the assigned variables
-    mockLoadFromState.mockClear().mockReturnValue({ // Ensure return value is reset
-        ensurePersonasGenerated: mockEnsurePersonasGenerated.mockClear().mockResolvedValue(undefined),
-        getCurrentSerializableState: mockGetCurrentSerializableState.mockClear(),
-    });
-    mockEnsurePersonasGenerated.mockClear().mockResolvedValue(undefined);
-    mockGetCurrentSerializableState.mockClear();
 
-    // Reset other mocks
-    vi.mocked(assignRoles).mockClear();
+    const GameMockModule = await import('@/lib/engine/core/Game');
+    mockStaticLoadFromStateSetup = GameMockModule.Game.loadFromState as Mock;
+    
+    // Reset the methods on the *instance* that loadFromState returns
+    gameInstance = mockStaticLoadFromStateSetup(); // Assign gameInstance here
+    gameInstanceInternalMocks = gameInstance._mocks; // Access nested mocks
+
+    // Clear all method mocks on the instance
+    for (const mockFn of Object.values(gameInstance)) {
+        if (typeof mockFn === 'function' && vi.isMockFunction(mockFn)) {
+            mockFn.mockClear();
+        }
+    }
+    // Reset nested mocks
+    if (gameInstanceInternalMocks) {
+        gameInstanceInternalMocks.mockInitPhaseRunStep.mockClear().mockResolvedValue(undefined);
+        gameInstanceInternalMocks.mockInitPhaseTransition.mockClear().mockReturnValue('Day' as GamePhaseType);
+    }
+    // Re-apply default implementations for getCurrentPhase etc. on the main instance
+    let currentPhaseForTest: GamePhaseType = 'Init';
+    const initPhaseInstance = { type: 'Init', runStep: gameInstanceInternalMocks?.mockInitPhaseRunStep || vi.fn(), transition: gameInstanceInternalMocks?.mockInitPhaseTransition || vi.fn() };
+    const dayPhaseInstance = { type: 'Day', runStep: vi.fn(), transition: vi.fn() };
+    
+    gameInstance.getCurrentPhase.mockImplementation(() => {
+        if (currentPhaseForTest === 'Init') return initPhaseInstance;
+        return dayPhaseInstance;
+    });
+    gameInstance.advanceToPhase.mockImplementation((nextPhase: GamePhaseType) => {
+        currentPhaseForTest = nextPhase;
+    });
+    gameInstance.getCurrentSerializableState.mockImplementation(() => ({
+        gameId: 'mock-game-id',
+        phase: currentPhaseForTest,
+        round: currentPhaseForTest === 'Day' ? 1 : 0,
+        players: {}, livingPlayerIds: [], deadPlayerIds: [], conversationLog: [],
+        agentMemories: {}, winCondition: null, humanPlayerId: null, pendingHumanAction: null,
+        _phaseResults: {}, phaseStep: 'Start', nextPlayerIndexToAction: 0,
+        createdAt: Date.now(), updatedAt: Date.now(), themeKey: 'StandardWerewolf', language: 'en',
+    }));
+    gameInstance.isRolesAssigned.mockReturnValue(false);
+    gameInstance.isPersonasGenerated.mockReturnValue(false);
+    gameInstance.isInitialMemoriesCreated.mockReturnValue(false);
+
+
     vi.mocked(saveGameData).mockClear();
     vi.mocked(filterGameStateForClient).mockClear();
-    // Reset both the named and default crypto mock
-    vi.mocked((await import('node:crypto')).randomUUID).mockClear();
-    vi.mocked((await import('node:crypto')).default.randomUUID).mockClear(); 
-
+    const cryptoMock = (await import('node:crypto')).default; 
+    vi.mocked(cryptoMock.randomUUID).mockClear();
   });
 
   describe('startGameAction', () => {
@@ -236,7 +297,7 @@ describe('setup.actions', () => {
       vi.mocked(assignRoles).mockReturnValue(mockAssignedRoles.slice(0, baseSetupData.players.length));
 
       // Setup mocks for the game instance methods
-      mockGetCurrentSerializableState.mockReturnValue(mockStateAfterPersonaGen);
+      mockStaticLoadFromStateSetup.mockReturnValue(mockStateAfterPersonaGen);
       vi.mocked(saveGameData).mockResolvedValue(undefined);
       vi.mocked(filterGameStateForClient).mockReturnValue(mockFilteredState);
 
@@ -247,7 +308,7 @@ describe('setup.actions', () => {
       expect(assignRoles).toHaveBeenCalledWith(baseSetupData.players.length);
 
       // Check the state passed to the static loadFromState method
-      expect(mockLoadFromState).toHaveBeenCalledWith(expect.objectContaining({
+      expect(mockStaticLoadFromStateSetup).toHaveBeenCalledWith(expect.objectContaining({
         gameId: mockGameId,
         createdAt: mockTimestamp,
         phase: 'Init',
@@ -260,8 +321,17 @@ describe('setup.actions', () => {
       }));
 
       // Check instance method calls
-      expect(mockEnsurePersonasGenerated).toHaveBeenCalledTimes(1);
-      expect(mockGetCurrentSerializableState).toHaveBeenCalledTimes(1);
+      expect(gameInstance.isRolesAssigned).toHaveBeenCalled();
+      expect(gameInstance.markRolesAssigned).toHaveBeenCalled();
+      expect(gameInstance.isPersonasGenerated).toHaveBeenCalled();
+      expect(gameInstance.ensurePersonasGenerated).toHaveBeenCalled();
+      expect(gameInstance.markPersonasGenerated).toHaveBeenCalled();
+      expect(gameInstance.isInitialMemoriesCreated).toHaveBeenCalled();
+      expect(gameInstance.createInitialAgentMemories).toHaveBeenCalled();
+      expect(gameInstance.getCurrentPhase).toHaveBeenCalled(); // Called by the action to run initPhase.runStep
+      expect(gameInstanceInternalMocks.mockInitPhaseRunStep).toHaveBeenCalledTimes(1);
+      expect(gameInstanceInternalMocks.mockInitPhaseTransition).toHaveBeenCalledTimes(1);
+      expect(gameInstance.advanceToPhase).toHaveBeenCalledWith('Day');
 
       // Check the state passed to saveGameData
       expect(saveGameData).toHaveBeenCalledWith(mockGameId, expect.objectContaining({
@@ -375,14 +445,14 @@ describe('setup.actions', () => {
         };
 
         // Setup mocks for this specific test case
-        mockGetCurrentSerializableState.mockReturnValue(mockStateAfterPersonaWithHuman);
+        mockStaticLoadFromStateSetup.mockReturnValue(mockStateAfterPersonaWithHuman);
         vi.mocked(saveGameData).mockResolvedValue(undefined);
         vi.mocked(filterGameStateForClient).mockReturnValue(mockFilteredStateWithHuman);
 
         const result = await startGameAction(humanSetupData);
 
         // Check loadFromState
-        expect(mockLoadFromState).toHaveBeenCalledWith(expect.objectContaining({
+        expect(mockStaticLoadFromStateSetup).toHaveBeenCalledWith(expect.objectContaining({
              humanPlayerId: humanPlayerId,
              players: expect.objectContaining({
                 [humanPlayerId]: expect.objectContaining({
@@ -420,7 +490,7 @@ describe('setup.actions', () => {
       const result = await startGameAction(invalidSetupData);
       expect(result).toEqual({ error: 'Minimum 3 players required.' });
       expect(saveGameData).not.toHaveBeenCalled();
-      expect(mockLoadFromState).not.toHaveBeenCalled(); 
+      expect(mockStaticLoadFromStateSetup).not.toHaveBeenCalled(); 
     });
 
     it('should return an error if themeKey is invalid', async () => {
@@ -429,7 +499,7 @@ describe('setup.actions', () => {
       const result = await startGameAction(invalidSetupData);
       expect(result).toEqual({ error: 'Invalid theme key: InvalidTheme' });
       expect(saveGameData).not.toHaveBeenCalled();
-      expect(mockLoadFromState).not.toHaveBeenCalled();
+      expect(mockStaticLoadFromStateSetup).not.toHaveBeenCalled();
     });
 
     it('should return an error if saveGameData fails', async () => {
@@ -438,41 +508,37 @@ describe('setup.actions', () => {
         vi.setSystemTime(mockTimestamp);
         vi.mocked(assignRoles).mockReturnValue(mockAssignedRoles);
 
-        mockGetCurrentSerializableState.mockReturnValue(mockStateAfterPersonaGen);
+        mockStaticLoadFromStateSetup.mockReturnValue(mockStateAfterPersonaGen);
         const saveError = new Error('Database connection failed');
         vi.mocked(saveGameData).mockRejectedValue(saveError);
 
         const result = await startGameAction(baseSetupData);
 
-        expect(mockLoadFromState).toHaveBeenCalled(); // Load should still happen
-        expect(mockEnsurePersonasGenerated).toHaveBeenCalled();
-        expect(mockGetCurrentSerializableState).toHaveBeenCalled();
+        expect(mockStaticLoadFromStateSetup).toHaveBeenCalled(); // Load should still happen
+        expect(gameInstanceInternalMocks.mockInitPhaseRunStep).toHaveBeenCalled();
+        expect(gameInstanceInternalMocks.mockInitPhaseTransition).toHaveBeenCalled();
         expect(saveGameData).toHaveBeenCalled(); // Attempt to save
         expect(result).toEqual({ error: 'Database connection failed' });
         expect(filterGameStateForClient).not.toHaveBeenCalled();
     });
 
-     it('should return an error if ensurePersonasGenerated fails', async () => {
+     it('should return an error if ensurePersonasGenerated (via InitPhase.runStep) fails', async () => {
         const cryptoMock = (await import('node:crypto')).default;
         vi.mocked(cryptoMock.randomUUID).mockReturnValue(mockGameId);
         vi.setSystemTime(mockTimestamp);
-        vi.mocked(assignRoles).mockReturnValue(mockAssignedRoles);
+        // vi.mocked(assignRoles).mockReturnValue(mockAssignedRoles); // No longer called
         const personaError = new Error('Persona generation service unavailable');
 
+        const gameInstance = mockStaticLoadFromStateSetup();
         // Mock the method on the *instance* returned by loadFromState to throw
-        mockEnsurePersonasGenerated.mockRejectedValue(personaError);
-        // Need to ensure loadFromState returns the object containing the failing mock
-        mockLoadFromState.mockReturnValue({
-            ensurePersonasGenerated: mockEnsurePersonasGenerated,
-            getCurrentSerializableState: mockGetCurrentSerializableState,
-        });
+        gameInstanceInternalMocks.mockInitPhaseRunStep.mockRejectedValue(personaError);
 
         const result = await startGameAction(baseSetupData);
 
-        expect(mockLoadFromState).toHaveBeenCalled();
-        expect(mockEnsurePersonasGenerated).toHaveBeenCalled();
+        expect(mockStaticLoadFromStateSetup).toHaveBeenCalled();
+        expect(gameInstanceInternalMocks.mockInitPhaseRunStep).toHaveBeenCalled();
         expect(result).toEqual({ error: 'Persona generation service unavailable' });
-        expect(mockGetCurrentSerializableState).not.toHaveBeenCalled(); // Should fail before this
+        expect(gameInstanceInternalMocks.mockInitPhaseTransition).not.toHaveBeenCalled();
         expect(saveGameData).not.toHaveBeenCalled();
         expect(filterGameStateForClient).not.toHaveBeenCalled();
     });

@@ -4,9 +4,9 @@ import type { GamePhaseType } from '../interfaces/IGamePhase';
 import { DayPhase } from './DayPhase';
 import type { PlayerAction } from '../interfaces/IAgent';
 import type { PlayerId } from '../interfaces/IPlayer';
-import { Player } from '../core/Player';
+import type { Player } from '../core/Player';
 import { MessageVisibility } from '../interfaces/IMessage';
-import { RoleName, Allegiance } from '../interfaces/IRole';
+import { RoleName, type Allegiance } from '../interfaces/IRole';
 
 export class NightPhase extends AbstractGamePhase {
     readonly type: GamePhaseType = 'Night';
@@ -279,6 +279,8 @@ export class NightPhase extends AbstractGamePhase {
     /** Consolidate Mafia kill votes */
     private consolidateMafiaVotes(game: Game): void {
         this.#finalMafiaKillTarget = null;
+        
+        // Early return only if no mafia members attempted to vote at all
         if (this.#mafiaVotes.size === 0) {
             if (game.getAliveMafia().length > 0) {
                 game.logMessage(null, "The Mafia did not cast any votes.", MessageVisibility.Mafia);
@@ -289,6 +291,7 @@ export class NightPhase extends AbstractGamePhase {
         const killVoteCounts = new Map<PlayerId, number>();
         let maxVotes = 0;
         let finalTargets: PlayerId[] = [];
+        let validVoteCount = 0;
 
         for (const targetId of this.#mafiaVotes.values()) {
             if (targetId === null) continue; // Skip abstain/invalid votes
@@ -300,6 +303,7 @@ export class NightPhase extends AbstractGamePhase {
                  continue; 
              }
 
+            validVoteCount++;
             const count = (killVoteCounts.get(targetId) || 0) + 1;
             killVoteCounts.set(targetId, count);
             if (count > maxVotes) {
@@ -334,14 +338,14 @@ export class NightPhase extends AbstractGamePhase {
             const finalTargetName = game.getPlayer(this.#finalMafiaKillTarget)?.name ?? this.#finalMafiaKillTarget;
             voteSummary += `Result: The chosen target is ${finalTargetName}.`;
             game.logMessage(null, "The Mafia has chosen their target.", MessageVisibility.Mafia);
-        } else if (maxVotes > 0 && finalTargets.length > 1) {
+        } else if (validVoteCount > 0 && finalTargets.length > 1) {
              const tiedNames = finalTargets.map(id => game.getPlayer(id)?.name ?? id).join(', ');
              voteSummary += `Result: Vote tied between ${tiedNames}. No kill tonight.`;
               game.logMessage(null, "Mafia vote resulted in a tie. No kill tonight.", MessageVisibility.Mafia);
-        } else if (maxVotes > 0 && maxVotes < majorityThreshold) {
+        } else if (validVoteCount > 0 && maxVotes < majorityThreshold) {
             voteSummary += 'Result: No majority reached. No kill tonight.';
             game.logMessage(null, "Mafia vote did not reach majority. No kill tonight.", MessageVisibility.Mafia);
-        } else { // maxVotes === 0
+        } else { // validVoteCount === 0
              voteSummary += 'Result: No valid votes cast. No kill tonight.';
              game.logMessage(null, "The Mafia cast no valid votes. No kill tonight.", MessageVisibility.Mafia);
         }

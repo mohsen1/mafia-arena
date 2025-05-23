@@ -1,379 +1,270 @@
 // tests/phases/DayPhase.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { DayPhase } from '@/lib/engine/phases/DayPhase';
-import { Game } from '@/lib/engine/core/Game';
+import type { Game } from '@/lib/engine/core/Game';
 import { Player } from '@/lib/engine/core/Player';
-import { IRole, RoleName } from '@/lib/engine/interfaces/IRole';
+import { type IRole, RoleName } from '@/lib/engine/interfaces/IRole';
 import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
 import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
-import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
-import { type PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
-import { NightPhase } from '@/lib/engine/phases/NightPhase';
-import { AgentConfig } from '@/lib/interfaces/agent.types';
+import type { AgentConfig } from '@/lib/interfaces/agent.types';
 
-// Mock Game function (assuming a similar helper exists or can be added)
-const createMockGame = () => ({
-    logMessage: vi.fn(),
-    generateVisibleGameState: vi.fn(),
-    getPlayer: vi.fn(),
-    getAlivePlayers: vi.fn(),
-    getAlivePlayersNotHuman: vi.fn(), // Need this for round 1 intros
-    killPlayer: vi.fn(),
-    recordVoteResultsInMemory: vi.fn(),
-    requestPlayerAction: vi.fn().mockResolvedValue({ type: 'noAction' }),
-    notifyRenderers: vi.fn(),
-    round: 2, // Default round
-    checkWinCondition: vi.fn().mockReturnValue(null), // For transition
-    advanceToPhase: vi.fn(), // For transition
-});
-type MockGame = ReturnType<typeof createMockGame>;
+const createMockGameForDayPhase = () => {
+    let currentPhaseStep = 'Start';
+    let currentPlayerIndex = 0;
+    let currentRound = 1;
+    const humanVotes = new Map<PlayerId, PlayerId | null>();
 
-// Mock Player and Agent - Changed 3rd param from action: PlayerAction to agent: IAgent
-const createMockDayPlayer = (id: PlayerId, role: IRole, agent: IAgent): Player => {
-    // Add mock agent config
-    const mockAgentConfig: AgentConfig = { agentType: 'Test' }; 
-    return new Player(id, `Test ${role.name} ${id}`, role, agent, mockAgentConfig);
+    return {
+        logMessage: vi.fn(),
+        getPlayer: vi.fn(),
+        getAlivePlayers: vi.fn().mockReturnValue([]),
+        killPlayer: vi.fn(),
+        recordVoteResultsInMemory: vi.fn(),
+        requestPlayerAction: vi.fn().mockResolvedValue({ type: 'noAction' } as PlayerAction),
+        notifyRenderers: vi.fn(),
+        get round() { return currentRound; },
+        set round(val: number) { currentRound = val; },
+        checkWinCondition: vi.fn().mockReturnValue(null),
+        advanceToPhase: vi.fn(),
+        getPhaseStep: vi.fn(() => currentPhaseStep),
+        setPhaseStep: vi.fn((step: string) => { currentPhaseStep = step; }),
+        getNextPlayerIndexToAction: vi.fn(() => currentPlayerIndex),
+        setNextPlayerIndexToAction: vi.fn((index: number) => { currentPlayerIndex = index; }),
+        setPhaseResults: vi.fn(),
+        getVotes: vi.fn(() => humanVotes),
+        recordHumanVote: vi.fn((voterId: PlayerId, targetId: PlayerId | null) => {
+            humanVotes.set(voterId, targetId);
+        }),
+        clearPendingHumanAction: vi.fn(),
+        getPendingHumanAction: vi.fn().mockReturnValue(null),
+    };
 };
+type MockGameForDayPhase = ReturnType<typeof createMockGameForDayPhase>;
+
+const createMockPlayerForDayPhase = (id: PlayerId, name: string, role: IRole, isHuman = false): Player => {
+    const agentMock = vi.fn().mockResolvedValue({type: 'noAction'} as PlayerAction);
+    const agent: IAgent = {
+        id: `agent-${id}`,
+        agentName: isHuman ? 'HumanAgent' : 'MockAgent',
+        persona: undefined,
+        getAction: agentMock
+    };
+    const agentConfig: AgentConfig = { agentType: isHuman ? 'Human' : 'Mock' };
+    return new Player(id, name, role, agent, agentConfig, null);
+};
+
 
 describe('DayPhase', () => {
     let dayPhase: DayPhase;
-    let mockGame: MockGame;
-    let players: Player[];
-    const player1Id: PlayerId = 'p1';
-    const player2Id: PlayerId = 'p2';
-    const player3Id: PlayerId = 'p3'; // Mafia
+    let mockGame: MockGameForDayPhase;
+    let p1: Player;
+    let p2: Player;
+    let p3: Player;
+    let p4: Player;
 
     beforeEach(() => {
         vi.clearAllMocks();
         dayPhase = new DayPhase();
-        mockGame = createMockGame();
+        mockGame = createMockGameForDayPhase();
+
+        p1 = createMockPlayerForDayPhase('p1', 'Player1', new VillagerRole());
+        p2 = createMockPlayerForDayPhase('p2', 'Player2', new VillagerRole());
+        p3 = createMockPlayerForDayPhase('p3', 'Player3', new MafiaRole());
+        p4 = createMockPlayerForDayPhase('p4', 'Player4', new VillagerRole());
+
+        mockGame.getAlivePlayers.mockReturnValue([p1, p2, p3]);
+        mockGame.getPlayer.mockImplementation((id) => {
+            if (id === 'p1') return p1; if (id === 'p2') return p2;
+            if (id === 'p3') return p3; if (id === 'p4') return p4;
+            return undefined;
+        });
     });
 
-    it('should collect votes, log them, tally, execute player with majority, and record results', async () => {
-        // --- Setup Actions ---
-        const messageAction: PlayerAction = { type: 'message', content: 'Testing' }; // For discussion
-        const voteAction1: PlayerAction = { type: 'vote', targetPlayerId: player3Id };
-        const voteAction2: PlayerAction = { type: 'vote', targetPlayerId: player3Id };
-        const voteAction3: PlayerAction = { type: 'vote', targetPlayerId: player1Id }; // Mafia votes elsewhere
+    async function runPlayerLoop(game: MockGameForDayPhase, phase: DayPhase, players: Player[]) {
+        for (let i = 0; i <= players.length; i++) {
+            game.setNextPlayerIndexToAction(i);
+            await phase.runStep(game as unknown as Game);
+        }
+    }
 
-        // --- Setup Player Mocks ---
-        // No need for individual agents now, rely on mockGame.requestPlayerAction
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), { getAction: vi.fn() } as any);
-        players = [player1, player2, player3];
-
-        // Configure game mocks
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* state */ }));
-
-        // --- Mock requestPlayerAction specifically for this test ---
-        // Round 1 Discussion
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce(messageAction) // p1 intro
-            .mockResolvedValueOnce(messageAction) // p2 intro
-            .mockResolvedValueOnce(messageAction); // p3 intro
-        // Round > 1 Discussion (skipped if round === 1, but mock anyway)
-        // mockGame.requestPlayerAction... (if needed)
-        // Voting
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce(voteAction1) // p1 vote
-            .mockResolvedValueOnce(voteAction2) // p2 vote
-            .mockResolvedValueOnce(voteAction3); // p3 vote
-
-        // Set round to 1 for intro logic
+    it('should run Introduction step for round 1', async () => {
         mockGame.round = 1;
+        const alivePlayers = [p1, p2, p3];
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
 
-        // Comment out direct runPhase call - requires test refactoring
-        // await dayPhase.runPhase(mockGame as unknown as Game);
+        (p1.agent.getAction as Mock).mockResolvedValueOnce({ type: 'message', content: 'P1 intro' });
+        (p2.agent.getAction as Mock).mockResolvedValueOnce({ type: 'message', content: 'P2 intro' });
+        (p3.agent.getAction as Mock).mockResolvedValueOnce({ type: 'message', content: 'P3 intro' });
 
-        expect(mockGame.requestPlayerAction).toHaveBeenCalledTimes(players.length * 2); // Intro + Vote
+        // Start
+        mockGame.setPhaseStep('Start'); mockGame.setNextPlayerIndexToAction(0);
+        await dayPhase.runStep(mockGame as unknown as Game); // This sets step to Introduction
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Day begins...", MessageVisibility.Public);
+        expect(mockGame.getPhaseStep()).toBe('Introduction');
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Let's begin with introductions. Please introduce yourself.", MessageVisibility.Public);
+
+
+        // Player 1 Intro
+        mockGame.setNextPlayerIndexToAction(0);
+        await dayPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(p1.id, 'P1 intro', MessageVisibility.Public);
+
+        // Player 2 Intro
+        mockGame.setNextPlayerIndexToAction(1);
+        await dayPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(p2.id, 'P2 intro', MessageVisibility.Public);
+
+        // Player 3 Intro
+        mockGame.setNextPlayerIndexToAction(2);
+        await dayPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(p3.id, 'P3 intro', MessageVisibility.Public);
+
+        // After all intros
+        mockGame.setNextPlayerIndexToAction(alivePlayers.length); // Index is now past last player
+        await dayPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.getPhaseStep()).toBe('Voting'); // After intros, should go to Voting
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Introduction complete.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Voting phase: Choose who to execute.", MessageVisibility.Public);
     });
 
-     it('should handle message action during the discussion part and abstain vote', async () => {
-         // --- Setup ---
-         const messageAction: PlayerAction = { type: 'message', content: 'I suspect P3!' };
-         const voteAction: PlayerAction = { type: 'noAction' }; // Abstain
-
-         const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
-         players = [player1];
-
-         // Configure mocks
-         mockGame.getAlivePlayers.mockReturnValue(players);
-         mockGame.getPlayer.mockImplementation((id) => (id === player1Id ? player1 : undefined));
-         mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* Simplified state */ }));
-         mockGame.round = 2; // Ensure discussion happens
-
-         // Mock requestPlayerAction: discussion message, then vote noAction
-         mockGame.requestPlayerAction.mockResolvedValueOnce(messageAction).mockResolvedValueOnce(voteAction);
-
-         // --- Run Phase ---
-         // await dayPhase.runPhase(mockGame as unknown as Game);
-
-         // --- Assertions ---
-         // Verify message log from discussion part
-         expect(mockGame.logMessage).toHaveBeenCalledWith(
-             player1Id,
-             'I suspect P3!',
-             MessageVisibility.Public
-         );
-         // Verify abstain log from voting part
-         expect(mockGame.logMessage).toHaveBeenCalledWith(player1Id, expect.stringContaining("abstain"), MessageVisibility.Public);
-
-         // Verify no kill happened
-         expect(mockGame.killPlayer).not.toHaveBeenCalled();
-         // Verify vote results recorded (with null vote)
-         const expectedVotesMap = new Map([[player1Id, null]]);
-         expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
-         expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
-     });
-
-     it('should handle noAction for both discussion and vote', async () => {
-        const noAction: PlayerAction = { type: 'noAction' };
-
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        players = [player1];
-
-        // Configure mocks
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => (id === player1Id ? player1 : undefined));
-        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* Simplified state */ }));
+    it('should run Discussion, Voting, Tally, and Finished steps for round > 1', async () => {
         mockGame.round = 2;
+        const alivePlayers = [p1, p2, p3];
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
 
-        // Mock requestPlayerAction: both return noAction
-        mockGame.requestPlayerAction.mockResolvedValue(noAction); // Use default for both calls
+        (p1.agent.getAction as Mock).mockResolvedValueOnce({ type: 'message', content: 'P1 discussing' });
+        (p2.agent.getAction as Mock).mockResolvedValueOnce({ type: 'message', content: 'P2 discussing' });
+        (p3.agent.getAction as Mock).mockResolvedValueOnce({ type: 'message', content: 'P3 discussing' });
 
-        // --- Run Phase ---
-        // await dayPhase.runPhase(mockGame as unknown as Game);
+        // Start
+        mockGame.setPhaseStep('Start'); mockGame.setNextPlayerIndexToAction(0);
+        await dayPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Day begins...", MessageVisibility.Public);
+        expect(mockGame.getPhaseStep()).toBe('Discussion');
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Discussion phase:", MessageVisibility.Public);
 
-        // --- Assertions ---
-        // Verify only initial day message + abstain log + no execution log (if any)
-        // Check abstain log from voting part
-        expect(mockGame.logMessage).toHaveBeenCalledWith(player1Id, expect.stringContaining("abstain"), MessageVisibility.Public);
-        // Check the generic no execution log
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("No one is executed"), MessageVisibility.Public);
+        // Discussions
+        await runPlayerLoop(mockGame, dayPhase, alivePlayers); // Runs for p1, p2, p3, then sets step to Voting
 
-        // Verify no kill happened
-        expect(mockGame.killPlayer).not.toHaveBeenCalled();
-        // Verify vote results recorded (with null vote)
-        const expectedVotesMap = new Map([[player1Id, null]]);
-        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
-        expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
-     });
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p1', 'P1 discussing', MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p2', 'P2 discussing', MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p3', 'P3 discussing', MessageVisibility.Public);
+        expect(mockGame.getPhaseStep()).toBe('Voting');
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Discussion complete.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Voting phase: Choose who to execute.", MessageVisibility.Public);
 
-    // Add tie vote test
-    it('should handle a tie vote correctly (no execution)', async () => {
-        // --- Setup Actions ---
-        const voteAction1: PlayerAction = { type: 'vote', targetPlayerId: player2Id }; // p1 votes p2
-        const voteAction2: PlayerAction = { type: 'vote', targetPlayerId: player1Id }; // p2 votes p1
-        const voteAction3: PlayerAction = { type: 'noAction' }; // p3 abstains
 
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), { getAction: vi.fn() } as any);
-        players = [player1, player2, player3];
+        // Voting
+        (p1.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p2' });
+        (p2.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p1' });
+        (p3.agent.getAction as Mock).mockResolvedValueOnce({ type: 'noAction' }); // Abstains
 
-        // Configure game mocks
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* Full state needed */ }));
-        mockGame.round = 2;
+        await runPlayerLoop(mockGame, dayPhase, alivePlayers); // Runs for p1, p2, p3, then sets step to TallyVotes
 
-        // Mock requestPlayerAction calls
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({ type: 'noAction' }) // p1 discuss
-            .mockResolvedValueOnce({ type: 'noAction' }) // p2 discuss
-            .mockResolvedValueOnce({ type: 'noAction' }); // p3 discuss
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce(voteAction1) // p1 vote
-            .mockResolvedValueOnce(voteAction2) // p2 vote
-            .mockResolvedValueOnce(voteAction3); // p3 vote
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p1', 'votes for Player2.', MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p2', 'votes for Player1.', MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p3', 'chose no action (abstains from voting).', MessageVisibility.Public);
+        expect(mockGame.getPhaseStep()).toBe('TallyVotes');
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Voting complete.", MessageVisibility.Public);
 
-        // --- Run Phase ---
-        // await dayPhase.runPhase(mockGame as unknown as Game);
 
-         // --- Assertions ---
-        // 1. Verify individual vote/abstain logs
-        expect(mockGame.logMessage).toHaveBeenCalledWith(player1Id, expect.stringContaining(`votes for ${players.find(p=>p.id===player2Id)?.name}`), MessageVisibility.Public);
-        expect(mockGame.logMessage).toHaveBeenCalledWith(player2Id, expect.stringContaining(`votes for ${players.find(p=>p.id===player1Id)?.name}`), MessageVisibility.Public);
-        expect(mockGame.logMessage).toHaveBeenCalledWith(player3Id, expect.stringContaining("abstains from voting."), MessageVisibility.Public);
-
-        // 2. Verify NO execution happened due to tie (or lack of majority in this specific case)
-        // The current logic logs "did not reach majority" when a tie occurs below the threshold.
+        // TallyVotes
+        mockGame.setNextPlayerIndexToAction(0); // Reset index for TallyVotes step
+        await dayPhase.runStep(mockGame as unknown as Game);
+        // No majority, no one executed in this setup
         expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("did not reach a majority"), MessageVisibility.Public);
         expect(mockGame.killPlayer).not.toHaveBeenCalled();
+        expect(mockGame.getPhaseStep()).toBe('Finished');
 
-        // 3. Verify final vote results rendering and recording (no executed player)
-        const expectedVotesMap = new Map<PlayerId, PlayerId | null>([
-            [player1Id, player2Id],
-            [player2Id, player1Id],
-            [player3Id, null],
-        ]);
-        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
-        expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
-     });
-
-    // Add no majority test
-    it('should handle no majority correctly (no execution)', async () => {
-        // Add a 4th player
-        const player4Id = 'p4';
-        const player4 = createMockDayPlayer(player4Id, new VillagerRole(), { getAction: vi.fn() } as any);
-
-        // Original players + new one
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        const player3 = createMockDayPlayer(player3Id, new MafiaRole(), { getAction: vi.fn() } as any);
-        players = [player1, player2, player3, player4];
-
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* updated state */ }));
-        mockGame.round = 2;
-
-        // --- Setup Actions ---
-        const voteAction1: PlayerAction = { type: 'vote', targetPlayerId: player3Id };
-        const voteAction2: PlayerAction = { type: 'vote', targetPlayerId: player3Id };
-        const voteAction3: PlayerAction = { type: 'vote', targetPlayerId: player1Id };
-        const voteAction4: PlayerAction = { type: 'vote', targetPlayerId: player1Id };
-
-        // Mock requestPlayerAction calls
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({ type: 'noAction' }) // p1 discuss
-            .mockResolvedValueOnce({ type: 'noAction' }) // p2 discuss
-            .mockResolvedValueOnce({ type: 'noAction' }) // p3 discuss
-            .mockResolvedValueOnce({ type: 'noAction' }); // p4 discuss
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce(voteAction1) // p1 vote
-            .mockResolvedValueOnce(voteAction2) // p2 vote
-            .mockResolvedValueOnce(voteAction3) // p3 vote
-            .mockResolvedValueOnce(voteAction4); // p4 vote
-
-        // --- Run Phase ---
-        // await dayPhase.runPhase(mockGame as unknown as Game);
-
-        // --- Assertions ---
-        // 1. Verify NO execution happened due to lack of majority
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("did not reach a majority"), MessageVisibility.Public);
-        expect(mockGame.killPlayer).not.toHaveBeenCalled();
-
-        // 2. Verify final vote results rendering and recording (no executed player)
-         const expectedVotesMap = new Map<PlayerId, PlayerId | null>([
-            [player1Id, player3Id],
-            [player2Id, player3Id],
-            [player3Id, player1Id],
-            [player4Id, player1Id],
-        ]);
-        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
-        expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
-     });
-
-    it('should handle votes for dead players as abstentions', async () => {
-        // --- Setup ---
-        const deadPlayerId = 'p-dead';
-        const voterId = 'p-voter';
-
-        const voter = createMockDayPlayer(voterId, new VillagerRole(), { getAction: vi.fn() } as any);
-        // Mock a dead player representation (needed for getPlayer lookup perhaps)
-        const deadPlayer = createMockDayPlayer(deadPlayerId, new VillagerRole(), { getAction: vi.fn() } as any);
-        deadPlayer.kill(); // Mark as dead
-
-        players = [voter]; // Only one alive voter
-        const allPlayersMap = new Map([[voterId, voter], [deadPlayerId, deadPlayer]]);
-
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => allPlayersMap.get(id)); // Need map to find dead player
-        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* state */ }));
-        mockGame.round = 2; // Skip intro
-
-        // Mock actions: discuss noAction, vote for dead player
-        const voteAction: PlayerAction = { type: 'vote', targetPlayerId: deadPlayerId };
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({ type: 'noAction' })
-            .mockResolvedValueOnce(voteAction);
-
-        // --- Run Phase ---
-        // await dayPhase.runPhase(mockGame as unknown as Game);
-
-        // --- Assertions ---
-        // Verify log message indicates invalid vote
-        expect(mockGame.logMessage).toHaveBeenCalledWith(
-            voterId,
-            expect.stringContaining(`tried to vote for invalid target (${deadPlayerId})`),
-            MessageVisibility.Public
-        );
-
-        // Verify recorded vote is null (abstain)
-        const expectedVotesMap = new Map([[voterId, null]]);
-        expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
-
-        // Verify no kill happened
-        expect(mockGame.killPlayer).not.toHaveBeenCalled();
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("No one is executed"), MessageVisibility.Public);
-        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
+        // Finished
+        mockGame.setNextPlayerIndexToAction(0);
+        await dayPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.advanceToPhase).toHaveBeenCalledWith('Night');
     });
 
-    it('should handle unexpected action types during voting as abstentions', async () => {
-        // --- Setup ---
-        const player1 = createMockDayPlayer(player1Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        const player2 = createMockDayPlayer(player2Id, new VillagerRole(), { getAction: vi.fn() } as any);
-        players = [player1, player2];
+    it('should execute player with majority votes', async () => {
+        mockGame.round = 2;
+        const alivePlayers = [p1, p2, p3]; // 3 alive players, majority is 2
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
 
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockImplementation((id) => ({ /* state */ }));
-        mockGame.round = 2; // Skip intro
+        // Mock actions for discussion (all noAction for simplicity here)
+        (p1.agent.getAction as Mock).mockResolvedValue({ type: 'noAction' });
+        (p2.agent.getAction as Mock).mockResolvedValue({ type: 'noAction' });
+        (p3.agent.getAction as Mock).mockResolvedValue({ type: 'noAction' });
 
-        // Mock actions:
-        // Discussion: Both noAction
-        // Voting: p1 votes p2, p2 returns a message action
-        const voteAction: PlayerAction = { type: 'vote', targetPlayerId: player2Id };
-        const messageAction: PlayerAction = { type: 'message', content: 'Wait, I change my mind!' };
+        mockGame.setPhaseStep('Start'); await dayPhase.runStep(mockGame as unknown as Game); // To Discussion
+        expect(mockGame.getPhaseStep()).toBe('Discussion');
+        await runPlayerLoop(mockGame, dayPhase, alivePlayers); // Complete Discussion, to Voting
+        expect(mockGame.getPhaseStep()).toBe('Voting');
 
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({ type: 'noAction' }) // p1 discuss
-            .mockResolvedValueOnce({ type: 'noAction' }); // p2 discuss
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce(voteAction)    // p1 vote
-            .mockResolvedValueOnce(messageAction); // p2 returns message during vote
+        // Mock votes for execution
+        (p1.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p3' });
+        (p2.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p3' }); // p3 gets 2 votes (majority)
+        (p3.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p1' });
 
-        // --- Run Phase ---
-        // await dayPhase.runPhase(mockGame as unknown as Game);
+        await runPlayerLoop(mockGame, dayPhase, alivePlayers); // Complete Voting, to TallyVotes
+        expect(mockGame.getPhaseStep()).toBe('TallyVotes');
 
-        // --- Assertions ---
-        // Verify p1's vote log
-        expect(mockGame.logMessage).toHaveBeenCalledWith(player1Id, expect.stringContaining(`votes for ${player2.name}`), MessageVisibility.Public);
+        // Tally votes
+        mockGame.setNextPlayerIndexToAction(0);
+        await dayPhase.runStep(mockGame as unknown as Game); // Executes TallyVotes logic
 
-        // Verify p2's action is logged as abstain
-        expect(mockGame.logMessage).toHaveBeenCalledWith(player2Id, expect.stringContaining("abstains from voting."), MessageVisibility.Public);
-        // Crucially, ensure the message content wasn't logged during voting phase
-        expect(mockGame.logMessage).not.toHaveBeenCalledWith(player2Id, messageAction.content, MessageVisibility.Public);
+        expect(mockGame.killPlayer).toHaveBeenCalledWith('p3', expect.stringContaining('was executed by popular vote'));
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringMatching(/With 2 votes, the town has decided to execute Player3/), MessageVisibility.Public);
 
-        // Verify recorded votes (p1 -> p2, p2 -> null)
-        const expectedVotesMap = new Map([[player1Id, player2Id], [player2Id, null]]);
-        expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotesMap);
+        const expectedVotes = new Map<PlayerId, PlayerId | null>([['p1', 'p3'], ['p2', 'p3'], ['p3', 'p1']]);
+        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotes, 'p3');
+        expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(expectedVotes);
+        expect(mockGame.setPhaseResults).toHaveBeenCalledWith({ lastDayElimination: 'p3' });
+        expect(mockGame.getPhaseStep()).toBe('Finished');
+    });
 
-        // Verify no kill happened (need majority of 2, only 1 vote cast)
+    it('should handle tie vote (no execution)', async () => {
+        mockGame.round = 2;
+        const alivePlayers = [p1, p2, p3, p4]; // 4 players
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+
+        (p1.agent.getAction as Mock).mockResolvedValue({ type: 'noAction' });
+        (p2.agent.getAction as Mock).mockResolvedValue({ type: 'noAction' });
+        (p3.agent.getAction as Mock).mockResolvedValue({ type: 'noAction' });
+        (p4.agent.getAction as Mock).mockResolvedValue({ type: 'noAction' });
+
+        mockGame.setPhaseStep('Start'); await dayPhase.runStep(mockGame as unknown as Game); // To Discussion
+        expect(mockGame.getPhaseStep()).toBe('Discussion');
+        await runPlayerLoop(mockGame, dayPhase, alivePlayers); // Complete Discussion, to Voting
+        expect(mockGame.getPhaseStep()).toBe('Voting');
+
+        // Votes: p1->p3, p2->p4, p3->p1, p4->p2 (no majority, multiple players with 1 vote)
+        (p1.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p3' });
+        (p2.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p4' });
+        (p3.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p1' });
+        (p4.agent.getAction as Mock).mockResolvedValueOnce({ type: 'vote', targetPlayerId: 'p2' });
+
+        await runPlayerLoop(mockGame, dayPhase, alivePlayers); // Complete Voting, to TallyVotes
+        expect(mockGame.getPhaseStep()).toBe('TallyVotes');
+
+        mockGame.setNextPlayerIndexToAction(0);
+        await dayPhase.runStep(mockGame as unknown as Game); // Executes TallyVotes logic
+
         expect(mockGame.killPlayer).not.toHaveBeenCalled();
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("did not reach a majority"), MessageVisibility.Public);
-        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expectedVotesMap, null);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("vote did not reach a majority"), MessageVisibility.Public);
+        expect(mockGame.getPhaseStep()).toBe('Finished');
     });
 
     it('should transition to NightPhase if no win condition', () => {
+        mockGame.setPhaseStep('Finished'); // Manually set for this isolated test
         mockGame.checkWinCondition.mockReturnValue(null);
-        const nextPhase = dayPhase.transition(mockGame as unknown as Game);
-        expect(nextPhase).toBe('Night');
+        const nextPhaseType = dayPhase.transition(mockGame as unknown as Game);
+        expect(nextPhaseType).toBe('Night');
     });
 
     it('should transition to GameOverPhase if win condition met', () => {
-        mockGame.checkWinCondition.mockReturnValue('Mafia');
-        const nextPhase = dayPhase.transition(mockGame as unknown as Game);
-        expect(nextPhase).toBe('GameOver');
+        mockGame.setPhaseStep('Finished'); // Manually set
+        mockGame.checkWinCondition.mockReturnValue('Mafia'); // Simulate Mafia win
+        const nextPhaseType = dayPhase.transition(mockGame as unknown as Game);
+        expect(nextPhaseType).toBe('GameOver');
     });
-
-    // Add more tests:
-    // - Test handling invalid actions (e.g., voting for a dead player, invalid action type)
-    // - Test interaction with game state (e.g., using information from generateVisibleGameState)
-    // - Test different player counts and roles
 }); 

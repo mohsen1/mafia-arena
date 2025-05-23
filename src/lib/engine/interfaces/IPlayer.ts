@@ -15,10 +15,15 @@ export interface IPlayer {
     getPublicRepresentation(): PublicPlayerInfo; // Info safe to share publicly
 }
 
-// Info safe to share publicly
+/**
+ * Information about a player that is safe to be publicly known.
+ */
 export interface PublicPlayerInfo {
     readonly id: PlayerId;
     readonly name: string;
-    readonly status: PlayerStatus;
-    // Role is intentionally omitted here
+    status: PlayerStatus; // Status can change, so not readonly from game perspective
+    // Role and allegiance are typically not public during the game.
+    // isHuman might be public depending on game settings.
+    readonly isHuman: boolean; // Or a game setting controlled value
+    readonly imageUrl?: string | null; // Added imageUrl as optional
 }

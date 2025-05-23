@@ -29,6 +29,7 @@ export interface SerializablePlayer {
     agentConfig: AgentConfig;
     persona: Persona; // Store the generated/assigned persona
     isHuman: boolean;
+    imageUrl?: string | null; // Added to store image URL
 }
 
 // Define a type for serialized messages with string timestamps

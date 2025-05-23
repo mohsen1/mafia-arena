@@ -34,8 +34,8 @@ export function filterGameStateForClient(
         fullState.phase === "GameOver" ||
         p.status === "Dead"
           ? p.roleName
-          : undefined,
-      imageUrl: undefined,
+          : undefined, // Role is hidden for living players unless it's self or game over
+      imageUrl: p.imageUrl ?? null, // Pass imageUrl from SerializablePlayer
     };
     playersRecord[p.id] = filteredPlayer;
   }
@@ -50,7 +50,6 @@ export function filterGameStateForClient(
       content: msg.content,
       timestamp: msg.timestamp,
       visibility: msg.visibility,
-      type: (msg as any).type,
       recipientId: msg.recipientId,
     }))
     .filter((msg) => {

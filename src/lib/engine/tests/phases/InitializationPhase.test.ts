@@ -117,6 +117,16 @@ describe('InitializationPhase', () => {
             logMessage: mockLogMessage,
             getPlayers: mockGetPlayers,
             theme: { name: 'Test Theme', description: 'A theme for testing' },
+            // Add mocks for methods called by runStep
+            isRolesAssigned: vi.fn().mockReturnValue(false),
+            markRolesAssigned: vi.fn(),
+            isPersonasGenerated: vi.fn().mockReturnValue(false),
+            ensurePersonasGenerated: vi.fn().mockResolvedValue(undefined), // ensurePersonasGenerated is async
+            markPersonasGenerated: vi.fn(),
+            isInitialMemoriesCreated: vi.fn().mockReturnValue(false),
+            createInitialAgentMemories: vi.fn(),
+            logEvent: vi.fn(),
+            setPhaseStep: vi.fn(),
         };
     });
 
@@ -149,8 +159,11 @@ describe('InitializationPhase', () => {
         expect(mockLogMessage).toHaveBeenCalledWith(null, "Roles assigned. Ready to begin.", MessageVisibility.Public, 'Init');
     });
 
-    it('should transition to DayPhase', () => {
-        const nextPhase = initPhase.transition(mockGameInstance as Game);
-        expect(nextPhase).toBeInstanceOf(DayPhase);
+    it('should transition to DayPhase after runStep completes', async () => {
+        // Ensure runStep completes and sets initializationComplete to true
+        await initPhase.runStep(mockGameInstance as Game);
+        
+        const nextPhaseType = initPhase.transition(mockGameInstance as Game);
+        expect(nextPhaseType).toBe('Day'); // Check for phase type string 'Day'
     });
 }); 

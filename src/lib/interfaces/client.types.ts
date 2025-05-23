@@ -1,10 +1,11 @@
-import type { GamePhaseType } from '@/lib/engine/interfaces/IGamePhase';
-import type { RoleName, Allegiance } from '@/lib/engine/interfaces/IRole';
+import type { GamePhaseType, GameWinCondition, PendingHumanAction } from "./gameState.types";
 import type { PlayerId, PublicPlayerInfo } from '@/lib/engine/interfaces/IPlayer';
+import type { Message } from "@/lib/engine/core/Message";
+import type { RoleName } from "@/lib/engine/interfaces/IRole";
 import type { IMessage } from '@/lib/engine/interfaces/IMessage';
 import type { LanguageName } from '@/lib/i18n/settings';
-import type { PendingHumanAction } from './actions.types';
 import type { Persona } from '@/lib/engine/interfaces/Persona';
+import type { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 
 /**
  * Represents a message as seen by the client.
@@ -16,15 +17,16 @@ export type ClientMessage = IMessage;
  * Represents a player's data as seen by the client.
  * Based on PublicPlayerInfo but might add UI-specific flags or role info based on context.
  */
-export interface FilteredPlayer extends PublicPlayerInfo {
-    // Add any client-specific player fields here if needed
-    // Example: isHuman?: boolean;
-    role?: RoleName; // Role might be revealed under certain conditions (e.g., game over)
-    allegiance?: Allegiance; // Allegiance might be revealed
-    persona?: Persona; // Include persona
-    imageUrl?: string | null; // Add optional image URL
-    voiceId?: string; // Add optional voice ID
-    isHuman?: boolean; // Add optional isHuman flag
+export interface FilteredPlayer {
+    readonly id: PlayerId;
+    readonly name: string;
+    readonly status: PlayerStatus; // This should be PlayerStatus from IPlayer
+    readonly isHuman: boolean; // Aligning with PublicPlayerInfo
+    readonly imageUrl?: string | null;
+    readonly roleName?: RoleName;      // Only for self or if revealed
+    readonly isMafia?: boolean;        // Only for self or if revealed to fellow mafia
+    readonly hasNightAction?: boolean; // UI hint, e.g., for displaying action buttons
+    // Add other UI-specific or selectively revealed fields here
 }
 
 /**

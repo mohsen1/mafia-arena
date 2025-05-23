@@ -18,6 +18,8 @@ import { MafiaRole } from './roles/MafiaRole';
 import { SeerRole } from './roles/SeerRole';
 import { VillagerRole } from './roles/VillagerRole';
 import { claudeModels, geminiModels, groqModels, openAIModels, openAIProviders,  } from '../models';
+import fs from 'node:fs';
+import path from 'node:path';
 
 
 // Load environment variables from .env file
@@ -366,7 +368,7 @@ async function main() {
 
         // --- Game Initialization ---
         console.log("\nInitializing game framework..."); // Changed log message slightly
-        game = new Game(playerSetups, themeKey, 'en');
+        game = Game.createNewGame(playerSetups, themeKey, 'en');
 
         // Check if console rendering should be enabled (e.g., via --render flag)
         const enableConsoleRender = process.argv.includes('--render');

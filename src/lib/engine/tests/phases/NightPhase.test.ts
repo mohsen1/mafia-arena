@@ -8,309 +8,290 @@ import { DoctorRole } from '@/lib/engine/roles/DoctorRole';
 import { SeerRole } from '@/lib/engine/roles/SeerRole';
 import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
 import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
-import { type IAgent, type PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import { DayPhase } from '@/lib/engine/phases/DayPhase';
-import { AgentConfig } from '@/lib/interfaces/agent.types';
+import type { AgentConfig } from '@/lib/interfaces/agent.types';
 import type { IGamePhase } from '@/lib/engine/interfaces/IGamePhase'; // Import IGamePhase
+import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
+import { RoleName } from '@/lib/engine/interfaces/IRole';
 
-// Mock Game function
-const createMockGame = () => ({
-    logMessage: vi.fn(),
-    generateVisibleGameState: vi.fn(),
-    getPlayer: vi.fn(),
-    getAlivePlayers: vi.fn(),
-    getAliveMafia: vi.fn(), // Added for NightPhase
-    getAlivePlayersWithRoles: vi.fn().mockReturnValue(new Map()), // Added for NightPhase
-    killPlayer: vi.fn(),
-    recordKillInMemory: vi.fn(),
-    recordSeerResultInMemory: vi.fn(),
-    recordDoctorSaveInMemory: vi.fn(), // Added for NightPhase
-    notifyRenderers: vi.fn(),
-    requestPlayerAction: vi.fn().mockResolvedValue({ type: 'noAction' }),
-    // Add other methods if needed by NightPhase
-    round: 1, // Example default
-    currentState: null as IGamePhase | null, // Use imported IGamePhase
-    checkWinCondition: vi.fn().mockReturnValue(null), // Added for transition
-    advanceToPhase: vi.fn(), // Added for transition
-});
+const createMockGameForNightPhase = () => {
+    let currentPhaseStep = 'Start';
+    let currentPlayerIndex = 0;
+    let currentRound = 1;
 
-// Type for the mock game object
-type MockGame = ReturnType<typeof createMockGame>;
-
-// Mock Player and Agent - Reverted: Keep action for easier setup, though agent.getAction won't be called directly
-const createMockPhasePlayer = (id: PlayerId, role: IRole, action: PlayerAction): Player => {
-    const agent: IAgent = {
-        id: `agent-for-${id}`,
-        agentName: `MockAgent${role.name}`,
-        persona: { // Provide a mock Persona object
-            name: `Mock ${role.name}`,
-            backstory: `A test persona for ${role.name}.`,
-            personalityTraits: ["mock", "test"]
+    // Create a minimal mock game state for agent calls
+    const mockGameState = {
+        gameId: 'test-game',
+        round: 1,
+        phase: 'Night' as const,
+        self: { 
+            id: 'test-player', 
+            name: 'Test', 
+            status: PlayerStatus.Alive, 
+            role: RoleName.Villager, 
+            isMafia: false, 
+            allegiance: 'Town' as const 
         },
-        // Keep the mock action setup for simplicity in test definition, even if not directly used
-        getAction: vi.fn().mockResolvedValue(action)
+        players: [],
+        alivePlayerIds: new Set<string>(),
+        language: 'en' as const,
+        memory: { investigationResults: [], saveHistory: [], voteHistory: [], killHistory: [], messageHistory: [], aiConversationLogs: [] },
+        themeName: 'Test Theme'
     };
-    // Add mock agent config
-    const mockAgentConfig: AgentConfig = { agentType: 'Test' }; 
-    const player = new Player(id, `Test ${role.name} ${id}`, role, agent, mockAgentConfig);
-    vi.spyOn(player, 'kill');
-    return player;
+
+    return {
+        logMessage: vi.fn(),
+        getPlayer: vi.fn(),
+        getAlivePlayers: vi.fn().mockReturnValue([]),
+        getAliveMafia: vi.fn().mockReturnValue([]),
+        killPlayer: vi.fn(),
+        recordKillInMemory: vi.fn(),
+        recordSeerResultInMemory: vi.fn(),
+        recordDoctorSaveInMemory: vi.fn(),
+        notifyRenderers: vi.fn(),
+        requestPlayerAction: vi.fn().mockImplementation(async (player: Player, allowedActions: PlayerAction['type'][]) => {
+            // Delegate to the player's agent instead of always returning noAction
+            return await player.agent.getAction(mockGameState, allowedActions);
+        }),
+        get round() { return currentRound; },
+        set round(val: number) { currentRound = val; },
+        checkWinCondition: vi.fn().mockReturnValue(null),
+        advanceToPhase: vi.fn(),
+        getPhaseStep: vi.fn(() => currentPhaseStep),
+        setPhaseStep: vi.fn((step: string) => { currentPhaseStep = step; }),
+        getNextPlayerIndexToAction: vi.fn(() => currentPlayerIndex),
+        setNextPlayerIndexToAction: vi.fn((index: number) => { currentPlayerIndex = index; }),
+        setPhaseResults: vi.fn(),
+        getPendingHumanAction: vi.fn().mockReturnValue(null), 
+    };
+};
+type MockGameForNightPhase = ReturnType<typeof createMockGameForNightPhase>;
+
+const createMockPlayerForNightPhase = (id: PlayerId, name: string, role: IRole): Player => {
+    const agent: IAgent = { id: `agent-${id}`, agentName: 'MockAgent', persona: undefined, getAction: vi.fn().mockResolvedValue({type: 'noAction'}) };
+    const agentConfig: AgentConfig = { agentType: 'Mock' };
+    return new Player(id, name, role, agent, agentConfig, null);
 };
 
+// Helper to run through a loop of player actions for a given step
+async function runPlayerLoopNight(game: MockGameForNightPhase, phase: NightPhase, players: Player[]) {
+    for (let i = 0; i <= players.length; i++) {
+        game.setNextPlayerIndexToAction(i);
+        await phase.runStep(game as unknown as Game);
+    }
+}
 
 describe('NightPhase', () => {
     let nightPhase: NightPhase;
-    let mockGame: MockGame; // Use the defined type for the mock
-    let players: Player[];
-    const mafiaId: PlayerId = 'p-mafia';
-    const doctorId: PlayerId = 'p-doctor';
-    const seerId: PlayerId = 'p-seer';
-    const villagerId: PlayerId = 'p-villager';
+    let mockGame: MockGameForNightPhase;
+    let mafiaPlayer1: Player;
+    let mafiaPlayer2: Player;
+    let doctorPlayer: Player;
+    let seerPlayer: Player;
+    let villagerPlayer: Player;
 
     beforeEach(() => {
-        vi.resetAllMocks();
-        mockGame = createMockGame(); // Use the helper function
+        vi.clearAllMocks();
         nightPhase = new NightPhase();
-        mockGame.currentState = nightPhase; // Assign to the mock property
+        mockGame = createMockGameForNightPhase();
+
+        mafiaPlayer1 = createMockPlayerForNightPhase('m1', 'Mafia1', new MafiaRole());
+        mafiaPlayer2 = createMockPlayerForNightPhase('m2', 'Mafia2', new MafiaRole());
+        doctorPlayer = createMockPlayerForNightPhase('doc', 'Doctor', new DoctorRole());
+        seerPlayer = createMockPlayerForNightPhase('seer', 'Seer', new SeerRole());
+        villagerPlayer = createMockPlayerForNightPhase('v1', 'Villager1', new VillagerRole());
+
+        mockGame.getPlayer.mockImplementation((id) => {
+            if (id === 'm1') return mafiaPlayer1;
+            if (id === 'm2') return mafiaPlayer2;
+            if (id === 'doc') return doctorPlayer;
+            if (id === 'seer') return seerPlayer;
+            if (id === 'v1') return villagerPlayer;
+            return undefined;
+        });
     });
 
-    it('should collect actions from all night-action roles', async () => {
-        // Define expected actions returned by requestPlayerAction
-        const expectedMafiaAction: PlayerAction = { type: 'mafiaKill', targetPlayerId: villagerId };
-        const expectedDoctorAction: PlayerAction = { type: 'doctorSave', targetPlayerId: villagerId };
-        const expectedSeerAction: PlayerAction = { type: 'seerInvestigate', targetPlayerId: mafiaId };
-        
-        // Setup players - pass dummy action to creator, actual action determined by requestPlayerAction mock
-        const dummyAction: PlayerAction = { type: 'noAction' }; 
-        const mafiaPlayer = createMockPhasePlayer(mafiaId, new MafiaRole(), dummyAction);
-        const doctorPlayer = createMockPhasePlayer(doctorId, new DoctorRole(), dummyAction);
-        const seerPlayer = createMockPhasePlayer(seerId, new SeerRole(), dummyAction);
-        const villagerPlayer = createMockPhasePlayer(villagerId, new VillagerRole(), dummyAction);
-        players = [mafiaPlayer, doctorPlayer, seerPlayer, villagerPlayer];
+    it('should collect actions from all night-action roles (Mafia, Doctor, Seer)', async () => {
+        const alivePlayers = [mafiaPlayer1, mafiaPlayer2, doctorPlayer, seerPlayer, villagerPlayer];
+        const aliveMafia = [mafiaPlayer1, mafiaPlayer2];
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+        mockGame.getAliveMafia.mockReturnValue(aliveMafia);
 
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockImplementation((id) => ({
-             self: { id, role: players.find(p => p.id === id)?.role.name ?? 'Unknown', isMafia: id === mafiaId },
-             //... other necessary gameState properties
-        }));
+        // Start
+        mockGame.setPhaseStep('Start'); await nightPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.getPhaseStep()).toBe('MafiaDiscussion');
 
-        // --- Mock requestPlayerAction --- 
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({ type: 'noAction' }) // Mafia Discussion (assuming default is noAction)
-            .mockResolvedValueOnce(expectedMafiaAction) // Mafia Vote
-            .mockResolvedValueOnce(expectedDoctorAction) // Doctor Action
-            .mockResolvedValueOnce(expectedSeerAction);  // Seer Action
+        // Mafia Discussion
+        (mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ type: 'message', content: 'M1 says hi' });
+        (mafiaPlayer2.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ type: 'message', content: 'M2 says hi' });
+        await runPlayerLoopNight(mockGame, nightPhase, aliveMafia);
+        expect(mockGame.getPhaseStep()).toBe('MafiaVoting');
 
-        // Comment out direct runPhase call - requires test refactoring
-        // await (nightPhase as any).runPhase(mockGame);
+        // Mafia Voting
+        (mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+        (mafiaPlayer2.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+        await runPlayerLoopNight(mockGame, nightPhase, aliveMafia);
+        expect(mockGame.getPhaseStep()).toBe('ConsolidateMafiaVote');
 
-        // Verify requestPlayerAction was called correctly
-        expect(mockGame.requestPlayerAction).toHaveBeenCalledWith(mafiaPlayer, ['message', 'noAction']); // Mafia Discussion
-        expect(mockGame.requestPlayerAction).toHaveBeenCalledWith(mafiaPlayer, ['mafiaKill', 'noAction']); // Mafia Vote
+        // Consolidate Mafia Vote
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.getPhaseStep()).toBe('OtherActionsStart');
+
+        // Other Actions Start
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game);
+        expect(mockGame.getPhaseStep()).toBe('OtherActionsLoop');
+
+        // Other Actions Loop (Doctor then Seer)
+        (doctorPlayer.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ type: 'doctorSave', targetPlayerId: 'doc' });
+        (seerPlayer.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ type: 'seerInvestigate', targetPlayerId: 'm1' });
+        await runPlayerLoopNight(mockGame, nightPhase, [doctorPlayer, seerPlayer]);
+        expect(mockGame.getPhaseStep()).toBe('ResolveNight');
+
+        expect(mockGame.requestPlayerAction).toHaveBeenCalledWith(mafiaPlayer1, expect.arrayContaining(['message', 'noAction']));
+        expect(mockGame.requestPlayerAction).toHaveBeenCalledWith(mafiaPlayer2, expect.arrayContaining(['message', 'noAction']));
+        expect(mockGame.requestPlayerAction).toHaveBeenCalledWith(mafiaPlayer1, expect.arrayContaining(['mafiaKill', 'noAction']));
+        expect(mockGame.requestPlayerAction).toHaveBeenCalledWith(mafiaPlayer2, expect.arrayContaining(['mafiaKill', 'noAction']));
         expect(mockGame.requestPlayerAction).toHaveBeenCalledWith(doctorPlayer, ['doctorSave', 'noAction']);
         expect(mockGame.requestPlayerAction).toHaveBeenCalledWith(seerPlayer, ['seerInvestigate', 'noAction']);
-        // Verify it wasn't called for the villager
         expect(mockGame.requestPlayerAction).not.toHaveBeenCalledWith(villagerPlayer, expect.any(Array));
-        expect(mockGame.requestPlayerAction).toHaveBeenCalledTimes(4); // 1 discuss, 3 actions
     });
 
     it('should process Doctor save correctly (preventing kill)', async () => {
-        const expectedMafiaAction: PlayerAction = { type: 'mafiaKill', targetPlayerId: villagerId };
-        const expectedDoctorAction: PlayerAction = { type: 'doctorSave', targetPlayerId: villagerId }; // Saving the target
-        const dummyAction: PlayerAction = { type: 'noAction' };
+        const alivePlayers = [mafiaPlayer1, doctorPlayer, villagerPlayer];
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+        mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1]);
 
-        const mafiaPlayer = createMockPhasePlayer(mafiaId, new MafiaRole(), dummyAction);
-        const doctorPlayer = createMockPhasePlayer(doctorId, new DoctorRole(), dummyAction);
-        const villagerPlayer = createMockPhasePlayer(villagerId, new VillagerRole(), dummyAction);
-        players = [mafiaPlayer, doctorPlayer, villagerPlayer];
+        (mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ type: 'message', content: 'Kill v1' }) 
+            .mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' }); 
+        (doctorPlayer.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ type: 'doctorSave', targetPlayerId: 'v1' }); 
 
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockReturnValue({ self: {}, players: [], alivePlayerIds: new Set() }); 
+        mockGame.setPhaseStep('Start'); await nightPhase.runStep(mockGame as unknown as Game); 
+        await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1]); 
+        expect(mockGame.getPhaseStep()).toBe('MafiaVoting');
+        await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1]); 
+        expect(mockGame.getPhaseStep()).toBe('ConsolidateMafiaVote');
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); 
+        expect(mockGame.getPhaseStep()).toBe('OtherActionsStart');
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); 
+        expect(mockGame.getPhaseStep()).toBe('OtherActionsLoop');
+        await runPlayerLoopNight(mockGame, nightPhase, [doctorPlayer]); 
+        expect(mockGame.getPhaseStep()).toBe('ResolveNight');
 
-        // Mock requestPlayerAction calls
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({type: 'noAction'}) // Mafia Discussion
-            .mockResolvedValueOnce(expectedMafiaAction) // Mafia Vote
-            .mockResolvedValueOnce(expectedDoctorAction); // Doctor Save
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // ResolveNight
 
-        // Comment out direct runPhase call - requires test refactoring
-        // await nightPhase.runPhase(mockGame);
-
-        // Verify killPlayer was NOT called because the save succeeded
         expect(mockGame.killPlayer).not.toHaveBeenCalled();
-        // Verify save was logged publicly (but not target) - Updated expected message
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("Someone was attacked, but the Doctor saved them!"), MessageVisibility.Public);
-        // Verify kill was recorded as null in memory
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining(`${villagerPlayer.name} was attacked, but the Doctor saved them!`), MessageVisibility.Public);
         expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(null);
-         // Verify night results renderer shows no kill
+        expect(mockGame.recordDoctorSaveInMemory).toHaveBeenCalledWith('doc', 'v1');
         expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderNightResults', null);
     });
 
-     it('should process Mafia kill correctly when no save occurs', async () => {
-        const expectedMafiaAction: PlayerAction = { type: 'mafiaKill', targetPlayerId: villagerId };
-        const expectedDoctorAction: PlayerAction = { type: 'doctorSave', targetPlayerId: doctorId }; // Saving self
-        const dummyAction: PlayerAction = { type: 'noAction' };
+    it('should process Mafia kill correctly when no save occurs', async () => {
+        const alivePlayers = [mafiaPlayer1, doctorPlayer, villagerPlayer];
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+        mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1]);
 
-        const mafiaPlayer = createMockPhasePlayer(mafiaId, new MafiaRole(), dummyAction);
-        const doctorPlayer = createMockPhasePlayer(doctorId, new DoctorRole(), dummyAction);
-        const villagerPlayer = createMockPhasePlayer(villagerId, new VillagerRole(), dummyAction);
-        players = [mafiaPlayer, doctorPlayer, villagerPlayer];
+        (mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ type: 'message', content: 'Kill v1' })
+            .mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+        (doctorPlayer.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ type: 'doctorSave', targetPlayerId: 'doc' }); // Doctor saves self
 
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockReturnValue({ self: {}, players: [], alivePlayerIds: new Set() });
+        mockGame.setPhaseStep('Start'); await nightPhase.runStep(mockGame as unknown as Game);
+        await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1]); // MafiaDiscussion
+        await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1]); // MafiaVoting
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // Consolidate
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // OtherActionsStart
+        await runPlayerLoopNight(mockGame, nightPhase, [doctorPlayer]); // OtherActionsLoop
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // ResolveNight
 
-        // Clear and reset mocks specifically for this test
-        vi.clearAllMocks();
-        mockGame.requestPlayerAction.mockClear(); // Clear specific mock
-        mockGame.killPlayer.mockClear(); 
-        mockGame.recordKillInMemory.mockClear();
-        mockGame.notifyRenderers.mockClear();
-
-        // Mock requestPlayerAction calls in order
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({type: 'noAction'}) // Mafia Discussion
-            .mockResolvedValueOnce(expectedMafiaAction) // Mafia Vote
-            .mockResolvedValueOnce(expectedDoctorAction); // Doctor Save
-
-        // Comment out direct runPhase call - requires test refactoring
-        // await nightPhase.runPhase(mockGame);
-
-        // Verify killPlayer *was* called for the villager
-        expect(mockGame.killPlayer).toHaveBeenCalledWith(villagerId, expect.any(String));
-         // Verify kill was recorded in memory
-        expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(villagerId);
-         // Verify night results renderer shows the kill
-        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderNightResults', villagerId);
+        expect(mockGame.killPlayer).toHaveBeenCalledWith('v1', "was killed during the night.");
+        expect(mockGame.recordKillInMemory).toHaveBeenCalledWith('v1');
+        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderNightResults', 'v1');
     });
 
-    it('should record Seer investigation results in memory', async () => {
-        const expectedSeerAction: PlayerAction = { type: 'seerInvestigate', targetPlayerId: mafiaId };
-        const dummyAction: PlayerAction = { type: 'noAction' };
+    it('should record Seer investigation results in memory and log privately to Seer', async () => {
+        const alivePlayers = [mafiaPlayer1, seerPlayer, villagerPlayer];
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+        mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1]);
 
-        const mafiaPlayer = createMockPhasePlayer(mafiaId, new MafiaRole(), dummyAction);
-        const seerPlayer = createMockPhasePlayer(seerId, new SeerRole(), dummyAction);
-         players = [mafiaPlayer, seerPlayer];
+        (mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValue({ type: 'noAction' }); // Mafia does nothing
+        (seerPlayer.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ type: 'seerInvestigate', targetPlayerId: 'm1' });
 
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-         mockGame.generateVisibleGameState.mockReturnValue({ self: {}, players: [], alivePlayerIds: new Set() });
+        mockGame.setPhaseStep('Start'); await nightPhase.runStep(mockGame as unknown as Game);
+        await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1]); // MafiaDiscussion
+        await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1]); // MafiaVoting
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // Consolidate
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // OtherActionsStart
+        await runPlayerLoopNight(mockGame, nightPhase, [seerPlayer]); // Seer acts
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // ResolveNight
 
-        // Mock requestPlayerAction calls
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({type: 'noAction'}) // Mafia Discussion
-            .mockResolvedValueOnce({type: 'noAction'}) // Mafia Vote
-            .mockResolvedValueOnce(expectedSeerAction); // Seer Investigate
-
-        // Comment out direct runPhase call - requires test refactoring
-        // await nightPhase.runPhase(mockGame);
-
-        // Verify recordSeerResultInMemory was called with correct details
-        expect(mockGame.recordSeerResultInMemory).toHaveBeenCalledWith(
-            seerId,
-            mafiaId,
-            'Mafia' // Expected allegiance of the target
-        );
-         // Verify the private message sent TO the seer
-         expect(mockGame.logMessage).toHaveBeenCalledWith(
-            seerId, // The message is logged TO the seer
-            expect.stringContaining("decides to investigate someone."), // Specific private log content
-            MessageVisibility.Private // Visibility remains private
-         );
+        expect(mockGame.recordSeerResultInMemory).toHaveBeenCalledWith('seer', 'm1', 'Mafia');
+        expect(mockGame.logMessage).toHaveBeenCalledWith('seer', `Your investigation revealed that ${mafiaPlayer1.name} is aligned with the Mafia.`, MessageVisibility.Private);
     });
 
-     it('should handle Mafia message action during the night', async () => {
-         const expectedMessageAction: PlayerAction = { type: 'message', content: 'Let\'s frame the Doctor' };
-         const expectedVoteAction: PlayerAction = { type: 'noAction' }; // Mafia still needs a kill vote action
-         const dummyAction: PlayerAction = { type: 'noAction' };
+    it('should handle Mafia message action during discussion', async () => {
+        mockGame.getAlivePlayers.mockReturnValue([mafiaPlayer1, villagerPlayer]);
+        mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1]);
+        (mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ type: 'message', content: 'targeting v1' });
 
-         const mafiaPlayer = createMockPhasePlayer(mafiaId, new MafiaRole(), dummyAction); 
-         players = [mafiaPlayer];
+        mockGame.setPhaseStep('Start'); await nightPhase.runStep(mockGame as unknown as Game); // To MafiaDiscussion
+        expect(mockGame.getPhaseStep()).toBe('MafiaDiscussion');
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // m1 discusses
 
-         mockGame.getAlivePlayers.mockReturnValue(players);
-         mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-         mockGame.generateVisibleGameState.mockReturnValue({ self: {}, players: [], alivePlayerIds: new Set() });
+        expect(mockGame.logMessage).toHaveBeenCalledWith('m1', 'targeting v1', MessageVisibility.Mafia);
+    });
 
-         // Mock requestPlayerAction calls - **Moved Before runPhase**
-         mockGame.requestPlayerAction
-             .mockResolvedValueOnce(expectedMessageAction) // Mafia Discussion (message)
-             .mockResolvedValueOnce(expectedVoteAction); // Mafia Vote (noAction)
+    it('should handle tied Mafia votes by NOT killing anyone', async () => {
+        const alivePlayers = [mafiaPlayer1, mafiaPlayer2, villagerPlayer, doctorPlayer];
+        mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+        mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1, mafiaPlayer2]);
 
-         // Comment out direct runPhase call - requires test refactoring
-         // await nightPhase.runPhase(mockGame);
+        (mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ type: 'message', content: 'M1 discusses' })
+            .mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+        (mafiaPlayer2.agent.getAction as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ type: 'message', content: 'M2 discusses' })
+            .mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'doc' }); // Different targets
+        (doctorPlayer.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValue({type: 'noAction'});
 
-         // Verify logMessage was called with Mafia visibility for the SENT message
-         expect(mockGame.logMessage).toHaveBeenCalledWith(
-             mafiaId,
-             expectedMessageAction.content, // Check for the correct content
-             MessageVisibility.Mafia
-         );
-         // Ensure no kill processing happened etc.
-         expect(mockGame.killPlayer).not.toHaveBeenCalled();
-         expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(null); // Record no kill occurred
-     });
+        mockGame.setPhaseStep('Start'); await nightPhase.runStep(mockGame as unknown as Game);
+        await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1, mafiaPlayer2]); // MafiaDiscussion
+        expect(mockGame.getPhaseStep()).toBe('MafiaVoting');
+        await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1, mafiaPlayer2]); // MafiaVoting
+        expect(mockGame.getPhaseStep()).toBe('ConsolidateMafiaVote');
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // Consolidate
+        expect(mockGame.getPhaseStep()).toBe('OtherActionsStart');
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // To OtherActionsLoop
+        await runPlayerLoopNight(mockGame, nightPhase, [doctorPlayer]); // Doctor acts
+        expect(mockGame.getPhaseStep()).toBe('ResolveNight');
+        mockGame.setNextPlayerIndexToAction(0); await nightPhase.runStep(mockGame as unknown as Game); // ResolveNight
 
-    it('should handle tied Mafia votes by selecting the first target (deterministic tie-break)', async () => {
-        // Setup: 2 Mafia, 2 Villagers. Mafia tie vote.
-        const mafia1Id = 'p-mafia1';
-        const mafia2Id = 'p-mafia2';
-        const villager1Id = 'p-villager1';
-        const villager2Id = 'p-villager2';
-
-        const mafia1Action: PlayerAction = { type: 'mafiaKill', targetPlayerId: villager1Id };
-        const mafia2Action: PlayerAction = { type: 'mafiaKill', targetPlayerId: villager2Id };
-        const dummyAction: PlayerAction = { type: 'noAction' };
-
-        const mafiaPlayer1 = createMockPhasePlayer(mafia1Id, new MafiaRole(), dummyAction);
-        const mafiaPlayer2 = createMockPhasePlayer(mafia2Id, new MafiaRole(), dummyAction);
-        const villagerPlayer1 = createMockPhasePlayer(villager1Id, new VillagerRole(), dummyAction);
-        const villagerPlayer2 = createMockPhasePlayer(villager2Id, new VillagerRole(), dummyAction);
-        players = [mafiaPlayer1, mafiaPlayer2, villagerPlayer1, villagerPlayer2];
-
-        mockGame.getAlivePlayers.mockReturnValue(players);
-        mockGame.getPlayer.mockImplementation((id) => players.find(p => p.id === id));
-        mockGame.generateVisibleGameState.mockReturnValue({ /* state */ });
-
-        // Mock requestPlayerAction: Discuss (noAction), Vote (m1->v1, m2->v2)
-        mockGame.requestPlayerAction
-            .mockResolvedValueOnce({ type: 'noAction' }) // m1 discuss
-            .mockResolvedValueOnce({ type: 'noAction' }) // m2 discuss
-            .mockResolvedValueOnce(mafia1Action)        // m1 vote
-            .mockResolvedValueOnce(mafia2Action);       // m2 vote
-
-        // Comment out direct runPhase call - requires test refactoring
-        // await nightPhase.runPhase(mockGame);
-
-        // Assert: killPlayer should be called for villager1Id (first target in tie)
-        expect(mockGame.killPlayer).toHaveBeenCalledWith(villager1Id, expect.any(String));
-        expect(mockGame.killPlayer).toHaveBeenCalledTimes(1); // Only one kill despite tie
-        // Verify recorded kill
-        expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(villager1Id);
-        // Verify renderer notification
-        expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderNightResults', villager1Id);
-        // Verify Mafia log mentions the chosen target
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining(`chosen target is ${villagerPlayer1.name}`), MessageVisibility.Mafia);
+        expect(mockGame.killPlayer).not.toHaveBeenCalled();
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, expect.stringContaining("Mafia vote resulted in a tie. No kill tonight."), MessageVisibility.Mafia);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "The night passed without any casualties.", MessageVisibility.Public);
+        expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(null);
     });
 
     it('should transition to DayPhase if no win condition', () => {
-        mockGame.checkWinCondition.mockReturnValue(null); // Ensure no winner
-        // Cast mockGame to any for the transition call
-        const nextPhase = nightPhase.transition(mockGame as any);
-        // Check the *type* returned, not instance
-        expect(nextPhase).toBe('Day');
+        mockGame.setPhaseStep('Finished');
+        mockGame.checkWinCondition.mockReturnValue(null);
+        const nextPhaseType = nightPhase.transition(mockGame as unknown as Game);
+        expect(nextPhaseType).toBe('Day');
     });
 
     it('should transition to GameOverPhase if win condition met', () => {
-        mockGame.checkWinCondition.mockReturnValue('Town'); // Simulate winner
-        // Cast mockGame to any for the transition call
-        const nextPhase = nightPhase.transition(mockGame as any);
-        // Check the *type* returned, not instance
-        expect(nextPhase).toBe('GameOver');
+        mockGame.setPhaseStep('Finished');
+        mockGame.checkWinCondition.mockReturnValue('Town');
+        const nextPhaseType = nightPhase.transition(mockGame as unknown as Game);
+        expect(nextPhaseType).toBe('GameOver');
     });
-
-    // Add tests for Mafia vote tallying, tie-breaking (if any), invalid targets etc.
 });

@@ -49,3 +49,9 @@ next-env.d.ts
 data/**
 screenshots/
 game_saves/
+.aider*
+.env
+.env
+.env
+.env
+.env

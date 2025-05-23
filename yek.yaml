@@ -3,3 +3,4 @@ output_dir: ./data/yek
 
 ignore_patterns:
  - data/**
+ - DESIGN.md

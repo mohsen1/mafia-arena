@@ -9,20 +9,30 @@ import { use } from 'react';
 import { advanceGameStateAction } from "@/app/actions/gameplay.actions";
 import { submitHumanAction } from "@/app/actions/human.actions";
 
-// TODO: Create and import loadGameData function
-// import { loadGameData } from "@/lib/db/gameData"; 
-// Placeholder loadGameData for now
+// Import proper game loading functionality
+import { loadGameData as loadPersistedGameData } from "@/lib/persistence";
+import { filterGameStateForClient } from "@/lib/visibilityHelper";
 import type { FilteredGameState } from "@/lib/interfaces/gameState.types";
+
+// Proper loadGameData function that loads from persistence and filters for client
 const loadGameData = async (gameId: string): Promise<FilteredGameState | null> => {
-    console.log(`Placeholder loadGameData called for ${gameId}`);
-    // Return minimal valid FilteredGameState or null
-    if (gameId === "not-found") return null;
-    return { 
-        id: gameId, phase: 'Night', round: 1, players: {}, log: [], 
-        pendingHumanAction: null, createdAt: new Date().toISOString(), 
-        lastUpdatedAt: new Date().toISOString(), language: 'en', themeKey: 'classic', winner: null 
-    };
-}
+    console.log(`Loading game data for ${gameId}`);
+    try {
+        const persistedState = await loadPersistedGameData(gameId);
+        if (!persistedState) {
+            console.log(`No persisted game found for ${gameId}`);
+            return null;
+        }
+        
+        // Filter the state for client consumption
+        const filteredState = filterGameStateForClient(persistedState, persistedState.humanPlayerId);
+        console.log(`Successfully loaded game ${gameId} - Phase: ${filteredState.phase}, Round: ${filteredState.round}, Players: ${Object.keys(filteredState.players).length}`);
+        return filteredState;
+    } catch (error) {
+        console.error(`Error loading game ${gameId}:`, error);
+        return null;
+    }
+};
 
 import { notFound } from "next/navigation";
 import GameClient from "./GameClient"; // Import the client component

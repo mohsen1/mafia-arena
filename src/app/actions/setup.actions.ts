@@ -2,7 +2,7 @@
 
 // TODO: Update these paths based on actual project structure
 import { Game } from '@/lib/engine/core/Game'; 
-import { assignRoles } from '@/lib/engine/core/utils';
+// import { assignRoles } from '@/lib/engine/core/utils'; // Not directly used, role assignment is complex
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { Themes } from '@/lib/engine/interfaces/Theme';
 import type { SerializableGameState, SerializablePlayer, AgentConfig } from '@/lib/interfaces/persistence.types';
@@ -10,15 +10,95 @@ import { saveGameData } from '@/lib/persistence'; // Assuming persistence functi
 import { createInitialMemory, type AgentMemory } from '@/lib/engine/interfaces/AgentMemory'; // Import AgentMemory type
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
-import type { LanguageName } from '@/lib/i18n/settings';
-// import { createPhaseExecutionContext } from '@/lib/gameContextHelper'; // Context helper likely not needed directly here
+// import type { LanguageName } from '@/lib/i18n/settings'; // Already in StartGameSetupData
 import { filterGameStateForClient } from '@/lib/visibilityHelper'; // New helper needed
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import crypto from 'node:crypto';
 import type { StartGameSetupData } from "@/lib/interfaces/actions.types"; // Use type from central location
+import { DEFAULT_PERSONA, type Persona } from '@/lib/engine/interfaces/Persona';
+import type { InitializationPhase } from '@/lib/engine/phases/InitializationPhase';
+import { selectCharacterImage } from '@/lib/utils/imageUtils'; // Import for auto-image assignment
+import { createAgentInstance } from '@/lib/agentFactory'; // Import for creating agent instances during setup
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage'; // Import MessageVisibility
 
 // Remove local definition, it's now imported
 // export interface StartGameSetupData { ... }
+
+/**
+ * Retry wrapper for AI operations with exponential backoff
+ */
+async function retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    maxRetries = 3,
+    baseDelay = 1000,
+    operationName = 'operation'
+): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`${operationName}: Attempt ${attempt}/${maxRetries}`);
+            return await operation();
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            console.warn(`${operationName}: Attempt ${attempt} failed:`, lastError.message);
+            
+            if (attempt === maxRetries) {
+                console.error(`${operationName}: All ${maxRetries} attempts failed. Final error:`, lastError);
+                throw lastError;
+            }
+            
+            // Exponential backoff: 1s, 2s, 4s, etc.
+            const delay = baseDelay * (2 ** (attempt - 1));
+            console.log(`${operationName}: Waiting ${delay}ms before retry ${attempt + 1}`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    
+    throw lastError || new Error(`${operationName}: Unexpected retry loop exit`);
+}
+
+/**
+ * Generate persona for a single character with retry logic
+ */
+async function generateCharacterPersona(
+    playerName: string, 
+    playerId: PlayerId, 
+    agentConfig: AgentConfig, 
+    themeDescription: string
+): Promise<Persona> {
+    return retryWithBackoff(
+        async () => {
+            console.log(`Generating persona for ${playerName} (${playerId})...`);
+            
+            // Create a temporary agent instance for persona generation
+            const tempAgent = createAgentInstance(agentConfig, playerId);
+            
+            // Check if the agent supports persona generation
+            if (!tempAgent.generatePersona) {
+                console.log(`Agent for ${playerName} doesn't support persona generation, using default`);
+                return DEFAULT_PERSONA;
+            }
+            
+            // Generate the persona
+            await tempAgent.generatePersona(themeDescription);
+            
+            // Validate the generated persona
+            if (!tempAgent.persona || 
+                !tempAgent.persona.name || 
+                tempAgent.persona.name.trim() === '' ||
+                tempAgent.persona.name === DEFAULT_PERSONA.name) {
+                throw new Error(`Invalid persona generated: ${JSON.stringify(tempAgent.persona)}`);
+            }
+            
+            console.log(`✓ Generated persona for ${playerName}: "${tempAgent.persona.name}"`);
+            return tempAgent.persona;
+        },
+        3, // maxRetries
+        1000, // baseDelay (1 second)
+        `Persona generation for ${playerName}`
+    );
+}
 
 export async function startGameAction(setupData: StartGameSetupData): Promise<{ gameId: string; initialState: FilteredGameState } | { error: string }> {
     const gameId = crypto.randomUUID();
@@ -32,23 +112,52 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
         const theme = Themes[setupData.themeKey];
         if (!theme) throw new Error(`Invalid theme key: ${setupData.themeKey}`);
 
-        // Assign roles based on preferences in setupData.players, ensuring distribution constraints
-        // This requires a more complex role assignment logic than just playerCount
-        // Placeholder: For now, we'll assume setupData.players already has valid assigned roles
-        // In a real scenario, you might need to:
-        // 1. Count preferred roles.
-        // 2. Check against game rules/balance.
-        // 3. Assign remaining roles randomly or based on defaults.
+        console.log("🎭 Starting character persona generation...");
+        
+        // Step 1: Generate personas for all AI characters BEFORE game creation
+        const characterPersonas = new Map<string, Persona>();
+        const personaPromises: Promise<void>[] = [];
+        
+        for (let i = 0; i < setupData.players.length; i++) {
+            const playerSetup = setupData.players[i];
+            
+            if (!playerSetup.isHuman) {
+                const tempPlayerId = `temp-${i}`;
+                const promise = generateCharacterPersona(
+                    playerSetup.name,
+                    tempPlayerId,
+                    playerSetup.agentConfig,
+                    theme.description
+                ).then(persona => {
+                    characterPersonas.set(`player-${i}`, persona);
+                }).catch(error => {
+                    console.warn(`Failed to generate persona for ${playerSetup.name}, using fallback:`, error.message);
+                    characterPersonas.set(`player-${i}`, {
+                        name: playerSetup.name,
+                        backstory: `A mysterious resident of the ${theme.name.toLowerCase()}.`,
+                        personalityTraits: ['Enigmatic', 'Quiet', 'Observant']
+                    });
+                });
+                
+                personaPromises.push(promise);
+            }
+        }
+        
+        // Wait for all persona generation to complete
+        console.log(`🎭 Generating personas for ${personaPromises.length} AI characters...`);
+        await Promise.all(personaPromises);
+        console.log("✅ Character persona generation complete!");
+
         const rolesMap: Record<PlayerId, RoleName> = {}; // Will map playerId to RoleName
         const assignedRolesList = setupData.players.map(p => p.rolePreference); // Get roles from setup
         // TODO: Add validation/balancing logic for assignedRolesList here
         
-        const players: Record<PlayerId, SerializablePlayer> = {};
+        const playersForPersistence: Record<PlayerId, SerializablePlayer> = {};
         const livingPlayerIds: PlayerId[] = [];
         const agentMemories: Record<PlayerId, AgentMemory> = {};
         let humanPlayerId: PlayerId | null = null;
 
-        // Create Serializable Players based on the setupData.players array
+        // Step 2: Create Serializable Players with generated personas
         for (let i = 0; i < setupData.players.length; i++) {
             const playerSetup = setupData.players[i];
             const roleName = playerSetup.rolePreference; // Use the role from setup
@@ -67,40 +176,52 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
                 humanPlayerId = playerId;
             }
 
-            players[playerId] = {
-                id: playerId,
+            // Auto-assign character image if not provided
+            let characterImageUrl = playerSetup.imageUrl;
+            if (!characterImageUrl && !playerSetup.isHuman) {
+                try {
+                    // Randomly select gender and age for AI characters
+                    const gender = Math.random() > 0.5 ? 'male' : 'female';
+                    const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
+                    characterImageUrl = await selectCharacterImage(gender, ageCategory);
+                    console.log(`🖼️ Auto-assigned image for ${playerSetup.name}: ${characterImageUrl}`);
+                } catch (error) {
+                    console.warn(`Failed to auto-assign image for ${playerSetup.name}:`, error);
+                    characterImageUrl = null;
+                }
+            }
+
+            // Get the generated persona or use default for human players
+            const generatedPersona = characterPersonas.get(`player-${i}`) || {
                 name: playerSetup.name,
+                backstory: playerSetup.isHuman ? 'A human player' : `A resident of ${theme.name.toLowerCase()}`,
+                personalityTraits: playerSetup.isHuman ? ['Human'] : ['Mysterious']
+            };
+
+            playersForPersistence[playerId] = {
+                id: playerId,
+                name: generatedPersona.name, // Use the generated character name
                 status: PlayerStatus.Alive,
                 roleName: roleName,
-                // Determine allegiance based on roleName - requires role definitions accessible here
-                // Placeholder: Infer allegiance (requires Role definitions or mapping)
-                allegiance: [RoleName.Mafia].includes(roleName) ? 'Mafia' : 'Town', 
+                allegiance: [RoleName.Mafia].includes(roleName) ? 'Mafia' : 'Town',
                 agentConfig: agentConfig,
-                // Use provided name, add imageURL if available
-                persona: { 
-                    name: playerSetup.name, 
-                    backstory: '', 
-                    personalityTraits: [],
-                    // imageUrl: playerSetup.imageUrl ?? undefined // Add image if field exists
-                }, 
-                // Add imageUrl directly if SerializablePlayer supports it
-                // imageUrl: playerSetup.imageUrl ?? undefined,
+                persona: generatedPersona, // Use the fully generated persona
                 isHuman: playerSetup.isHuman,
+                imageUrl: characterImageUrl, // Use auto-assigned or user-selected image
             };
             livingPlayerIds.push(playerId);
             agentMemories[playerId] = createInitialMemory();
         }
 
-        // Construct initial state for saving and loading into Game
-        let initialState: SerializableGameState = {
+        const initialSerializableState: SerializableGameState = {
             gameId,
             createdAt,
             updatedAt: createdAt,
             themeKey: setupData.themeKey,
             language: setupData.language,
             round: 0,
-            phase: 'Init', // Start with Init phase
-            players,
+            phase: 'Init', // Start with Init phase to ensure proper initialization
+            players: playersForPersistence,
             livingPlayerIds,
             deadPlayerIds: [],
             conversationLog: [],
@@ -108,35 +229,54 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
             winCondition: null,
             humanPlayerId,
             pendingHumanAction: null,
-            // Add _phaseResults if needed by persistence type
-             _phaseResults: {}, 
-            // Add missing required fields with defaults
-            phaseStep: 'Start', // Default step for Init or first phase
-            nextPlayerIndexToAction: 0, // Start with the first player
+            _phaseResults: {},
+            phaseStep: 'Start',
+            nextPlayerIndexToAction: 0,
         };
 
-        // --- Run Initialization Phase via Game instance ---
-        // Rehydrate a temporary Game instance to run the Init phase
-        const tempGame = Game.loadFromState(initialState); 
-        await tempGame.ensurePersonasGenerated(); // Handles persona generation & name updates
-
-        // Get the state *after* persona generation and name updates
-        initialState = tempGame.getCurrentSerializableState(); 
-        // --- End Init Phase ---
-
-
-        // Set the next phase after Init (e.g., Day or Night)
-        // Transition logic might be complex, for now assume Night starts first
-        initialState.phase = 'Night'; // Start the first night
-        initialState.round = 1; // First round starts now
-
-        // Save the fully initialized state
-        await saveGameData(gameId, initialState);
-
-        console.log(`Game ${gameId} created and initialized.`);
+        // Rehydrate a Game instance and run proper initialization
+        const game = Game.loadFromState(initialSerializableState);
         
-        // Filter state for client before returning
-        const filteredState = filterGameStateForClient(initialState); 
+        // Since we pre-generated personas, mark them as complete BEFORE running initialization
+        game.markRolesAssigned();
+        game.markPersonasGenerated();
+        game.createInitialAgentMemories();
+        
+        // Get the initialization phase and run it (will skip persona generation since flag is set)
+        const initPhase = game.getCurrentPhase();
+        if (initPhase.type !== 'Init') {
+            throw new Error("Game did not initialize into Init phase correctly.");
+        }
+
+        // Log the game setup with our pre-generated characters
+        console.log("🎮 Setting up game with pre-generated characters...");
+        
+        // Remove all initialization messages - keep chat log clean for gameplay
+        // No welcome messages, no character introductions, no setup chatter
+        
+        // Run the initialization step which will now skip persona generation and just handle transition
+        await initPhase.runStep(game);
+        
+        // Now transition to Day phase
+        const nextPhaseType = initPhase.transition(game);
+        if (nextPhaseType !== 'Day') {
+            console.warn(`Expected transition to Day phase but got: ${nextPhaseType}`);
+        }
+        game.advanceToPhase(nextPhaseType);
+
+        // Log the final player list with generated names
+        console.log("🎮 Final character roster:");
+        for (const player of Object.values(playersForPersistence)) {
+            console.log(`  • ${player.name} (${player.roleName}) - ${player.isHuman ? 'Human' : 'AI'}`);
+        }
+
+        const finalStateToSave = game.getCurrentSerializableState();
+
+        await saveGameData(gameId, finalStateToSave);
+
+        console.log(`🎮 Game ${gameId} created successfully. Starting phase: ${finalStateToSave.phase}, Round: ${finalStateToSave.round}`);
+        
+        const filteredState = filterGameStateForClient(finalStateToSave, finalStateToSave.humanPlayerId);
         return { gameId, initialState: filteredState };
 
     } catch (error) {

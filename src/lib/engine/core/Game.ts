@@ -16,7 +16,7 @@ import type { IAgent, PlayerAction } from '../interfaces/IAgent';
 import { HumanAgent } from '../agents/HumanAgent';
 import { type GameTheme, Themes } from '../interfaces/Theme';
 import { type AgentMemory, createInitialMemory } from '../interfaces/AgentMemory';
-import { DEFAULT_PERSONA } from '../interfaces/Persona';
+import { DEFAULT_PERSONA, type Persona } from '../interfaces/Persona';
 
 import type { SerializableGameState, SerializablePlayer, AgentConfig } from '../../interfaces/persistence.types';
 import { createAgentInstance } from '@/lib/agentFactory';
@@ -38,12 +38,14 @@ const roleClassMap: Record<RoleName, new () => IRole> = {
 };
 
 // Allow null for unimplemented phases
+// For GameOverPhase, it takes an optional winner. Other phases might take other specific args or none.
+// Using a more general type that can encompass these variations.
 type PhaseConstructor = (new (...args: any[]) => IGamePhase) | null;
 
 const phaseInstanceMap: Record<GamePhaseType, PhaseConstructor> = {
     'Init': InitializationPhase,
-    'Briefing': null, // TODO: Implement BriefingPhase
-    'FirstNight': null, // TODO: Implement FirstNightPhase
+    'Briefing': null, 
+    'FirstNight': null, 
     'Day': DayPhase,
     'Night': NightPhase,
     'GameOver': GameOverPhase,
@@ -101,65 +103,81 @@ export class Game {
     #personasGenerated = false;
     #initialMemoriesCreated = false;
 
-    constructor(
+    private constructor(
+        playerSetups: { name: string; agent: IAgent; role: IRole }[] | null, // null for loading
+        themeKey: string,
+        language: LanguageName,
+        gameId?: string, 
+        createdAt?: number
+    ) {
+        this.id = gameId || uuidv4();
+        this.theme = Themes[themeKey] || Themes.UK_VILLAGE_1900S;
+        if (!this.theme) throw new Error(`Invalid theme key: ${themeKey} for game ${this.id}`);
+        this.language = language;
+        this.#createdAt = createdAt || Date.now();
+
+        // Default initializations for all instances
+        this.#players = new Map<PlayerId, Player>();
+        this.#agentMemories = new Map<PlayerId, AgentMemory>();
+        this.#renderers = [];
+        this.#conversationLog = new ConversationLog();
+        this.#round = 0;
+        this.#humanPlayerId = null;
+        this.#lastPhaseResults = {};
+        this.#pendingHumanAction = null;
+        this.#humanVotes = new Map();
+        this.#humanNightActions = new Map();
+        this.#phaseStep = 'Start';
+        this.#nextPlayerIndexToAction = 0;
+        this.#winningTeam = null;
+        this.#rolesAssigned = false;
+        this.#personasGenerated = false;
+        this.#initialMemoriesCreated = false;
+        this.#currentState = new InitializationPhase(); // Default, will be overridden by loadFromState if applicable
+
+        if (playerSetups) { // This is a new game creation
+            if (playerSetups.length < 3) {
+                throw new Error('Not enough players to start a new game (minimum 3).');
+            }
+            
+            playerSetups.forEach((setup, index) => {
+                const sanitizedName = setup.name.toLowerCase().replace(/"/g, '').replace(/\s+/g, '-');
+                const roleNameStr = setup.role.name.toString().toLowerCase();
+                const playerId: PlayerId = `player-${index + 1}-${roleNameStr}-${sanitizedName}`;
+                
+                const agentConfig = getAgentConfigFromInstance(setup.agent);
+                
+                const player = new Player(playerId, setup.name, setup.role, setup.agent, agentConfig, (setup as any).imageUrl /* Assuming imageUrl might be on setup */);
+                this.#players.set(playerId, player);
+                this.#agentMemories.set(playerId, createInitialMemory());
+                if (setup.agent instanceof HumanAgent) {
+                    if (this.#humanPlayerId) console.warn("Multiple HumanAgents detected.");
+                    this.#humanPlayerId = playerId;
+                }
+            });
+
+            this.#rolesAssigned = true; 
+            this.#personasGenerated = false; 
+            this.#initialMemoriesCreated = false; 
+
+            console.log(`New game ${this.id} created.`);
+        } else {
+            // This is for loading, most fields will be set by loadFromState after this constructor
+            console.log(`Game shell ${this.id} created for loading.`);
+        }
+    }
+
+    public static createNewGame(
         playerSetups: { name: string; agent: IAgent; role: IRole }[],
         themeKey = 'UK_VILLAGE_1900S',
         language: LanguageName = 'en'
-    ) {
-        if (playerSetups.length < 1) {
-            this.id = uuidv4();
-            this.theme = Themes[themeKey] || Themes.UK_VILLAGE_1900S;
-            this.language = language;
-            this.#currentState = new InitializationPhase();
-            this.#createdAt = Date.now();
-            return;
-        }
-
-        if (playerSetups.length < 3) {
-            throw new Error('Not enough players to start a new game (minimum 3).');
-        }
-
-        this.id = uuidv4();
-        this.#createdAt = Date.now();
-        this.language = language;
-        this.theme = Themes[themeKey];
-        if (!this.theme) throw new Error(`Invalid theme key: ${themeKey}`);
-
-        this.#players = new Map();
-        this.#agentMemories = new Map();
-        this.#humanPlayerId = null;
-
-        playerSetups.forEach((setup, index) => {
-            const sanitizedName = setup.name.toLowerCase().replace(/"/g, '').replace(/\s+/g, '-');
-            const roleNameStr = setup.role.name.toString().toLowerCase();
-            const playerId: PlayerId = `player-${index + 1}-${roleNameStr}-${sanitizedName}`;
-            
-            const agentConfig = getAgentConfigFromInstance(setup.agent);
-            
-            const player = new Player(playerId, setup.name, setup.role, setup.agent, agentConfig);
-            this.#players.set(playerId, player);
-            this.#agentMemories.set(playerId, createInitialMemory());
-            if (setup.agent instanceof HumanAgent) {
-                if (this.#humanPlayerId) console.warn("Multiple HumanAgents detected.");
-                this.#humanPlayerId = playerId;
-            }
-        });
-
-        this.#rolesAssigned = true;
-        this.#personasGenerated = false;
-        this.#initialMemoriesCreated = false;
-
-        this.#currentState = new InitializationPhase();
-        this.#round = 0;
-        this.#conversationLog = new ConversationLog();
-        console.log(`New game ${this.id} created.`);
+    ): Game {
+        return new Game(playerSetups, themeKey, language);
     }
-
+    
     public static loadFromState(state: SerializableGameState): Game {
-        const game = new Game([], state.themeKey, state.language);
+        const game = new Game(null, state.themeKey, state.language, state.gameId, state.createdAt);
 
-        game.id = state.gameId;
-        game.#createdAt = state.createdAt;
         game.#round = state.round;
         game.#humanPlayerId = state.humanPlayerId;
         game.#lastPhaseResults = state._phaseResults || {};
@@ -167,12 +185,11 @@ export class Game {
         game.#nextPlayerIndexToAction = state.nextPlayerIndexToAction ?? 0;
         const outcome = state.winCondition?.outcome;
         game.#winningTeam = outcome === 'Mafia' || outcome === 'Town' ? outcome : null;
+        
         game.#rolesAssigned = state.phase !== 'Init';
         game.#personasGenerated = state.phase !== 'Init';
         game.#initialMemoriesCreated = state.phase !== 'Init';
 
-        game.#players.clear();
-        game.#agentMemories.clear();
         for (const pState of Object.values(state.players)) {
             const agentConfig = pState.agentConfig;
             const agent = createAgentInstance(agentConfig, pState.id);
@@ -180,17 +197,15 @@ export class Game {
             if (!RoleClass) throw new Error(`LoadError: Cannot deserialize role: ${pState.roleName}`);
             const roleInstance = new RoleClass();
 
-            const player = new Player(pState.id, pState.name, roleInstance, agent, agentConfig);
+            const player = new Player(pState.id, pState.name, roleInstance, agent, agentConfig, pState.imageUrl);
             if (pState.status === 'Dead') player.kill();
             player.agent.persona = pState.persona || DEFAULT_PERSONA;
 
             game.#players.set(pState.id, player);
-
             const loadedMemory = state.agentMemories[pState.id] || createInitialMemory();
             game.#agentMemories.set(pState.id, loadedMemory);
         }
 
-        game.#conversationLog = new ConversationLog();
         for (const msgData of state.conversationLog) {
             const timestampInput = msgData.timestamp as string | number | Date;
             const timestamp = timestampInput instanceof Date ? timestampInput : new Date(timestampInput);
@@ -229,6 +244,7 @@ export class Game {
                 agentConfig: agentConfig,
                 persona: player.agent.persona || DEFAULT_PERSONA,
                 isHuman: player.agent instanceof HumanAgent,
+                imageUrl: player.imageUrl, // Include imageUrl here
             };
         });
 
@@ -286,12 +302,12 @@ export class Game {
 
     notifyRenderers<T extends keyof IGameRenderer>(
         method: T,
-        ...args: IGameRenderer[T] extends (...args: any[]) => any ? Parameters<IGameRenderer[T]> : never
+        ...args: any[] 
     ): void {
         for (const renderer of this.#renderers) {
             if (typeof renderer[method] === 'function') {
                 try {
-                    (renderer[method] as (...args: any[]) => any)(...args);
+                    (renderer[method] as (...a: any[]) => any)(...args);
                 } catch (error) {
                     console.error(`Renderer error in method ${String(method)}:`, error);
                 }
@@ -613,7 +629,7 @@ export class Game {
             return;
         }
 
-        if (this.#currentState.type === 'Night' && nextPhaseInstance.type === 'Day') {
+        if ((this.#currentState.type === 'Night' || this.#currentState.type === 'Init') && nextPhaseInstance.type === 'Day') {
             this.#round++;
             console.log(`Starting Round ${this.#round}`);
             this.notifyRenderers('renderRoundStart', this.#round);

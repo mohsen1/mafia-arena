@@ -7,8 +7,8 @@ import { OpenAIAgent } from './engine/agents/OpenAIAgent';
 import { HumanAgent } from './engine/agents/HumanAgent';
 // Import the actual DummyAIAgent
 import { DummyAIAgent } from './engine/agents/DummyAIAgent';
-// import { ClaudeAgent } from './engine/agents/ClaudeAgent'; // Placeholder
-// import { GeminiAgent } from './engine/agents/GeminiAgent'; // Placeholder
+import { ClaudeAgent } from './engine/agents/ClaudeAgent';
+import { GeminiAgent } from './engine/agents/GeminiAgent';
 
 import { openAIProviders } from './models';
 
@@ -51,15 +51,15 @@ export function createAgentInstance(agentConfig: AgentConfig, playerId: PlayerId
             console.log(`Creating OpenAIAgent for ${playerId} (Type: ${agentConfig.agentType}, Model: ${agentConfig.modelName}, Provider: ${agentConfig.providerValue})`);
             return new OpenAIAgent(playerId, agentConfig.modelName, apiBase, apiKey);
         
-        // case 'Claude':
-        //     console.log(`Creating ClaudeAgent for ${playerId} (Model: ${agentConfig.modelName})`);
-        //     if (!agentConfig.modelName) throw new Error('ClaudeAgent requires modelName');
-        //     return new ClaudeAgent(playerId, agentConfig.modelName);
+        case 'Claude':
+            console.log(`Creating ClaudeAgent for ${playerId} (Model: ${agentConfig.modelName})`);
+            if (!agentConfig.modelName) throw new Error('ClaudeAgent requires modelName');
+            return new ClaudeAgent(playerId, agentConfig.modelName);
             
-        // case 'Gemini':
-        //     console.log(`Creating GeminiAgent for ${playerId} (Model: ${agentConfig.modelName})`);
-        //     if (!agentConfig.modelName) throw new Error('GeminiAgent requires modelName');
-        //     return new GeminiAgent(playerId, agentConfig.modelName);
+        case 'Gemini':
+            console.log(`Creating GeminiAgent for ${playerId} (Model: ${agentConfig.modelName})`);
+            if (!agentConfig.modelName) throw new Error('GeminiAgent requires modelName');
+            return new GeminiAgent(playerId, agentConfig.modelName);
 
         case 'Human':
             console.log(`Creating HumanAgent for ${playerId}`);

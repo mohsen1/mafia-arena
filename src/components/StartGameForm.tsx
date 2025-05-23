@@ -297,7 +297,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
 
       {/* Character Slot List & Configuration - Conditionally hide when submitting */}
       {!isSubmitting && (
-        <div className="my-4 p-4 rounded-md min-h-[200px]">
+        <div className="md:my-4 md:p-4 rounded-md min-h-[200px]">
           <h3 className="text-lg font-medium text-foreground mb-3 text-center flex items-center justify-center gap-2">
             <Settings2 className="h-5 w-5" />{" "}
             {t("CharacterSetupLabel", "Character Setup")}

@@ -1,37 +1,48 @@
 import { PlayerStatus, type IPlayer, type PlayerId, type PublicPlayerInfo } from "../interfaces/IPlayer";
 import type { IRole } from "../interfaces/IRole";
-import type { IAgent } from "../interfaces/IAgent";
+import type { IAgent, PlayerAction } from "../interfaces/IAgent";
 import type { VisibleGameState } from "../interfaces/GameState";
-import type { PlayerAction } from "../interfaces/IAgent";
 import type { AgentConfig } from "../../interfaces/persistence.types";
+import type { Persona } from "../interfaces/Persona";
 
 export class Player implements IPlayer {
-    readonly #agent: IAgent;
+    readonly id: PlayerId;
+    #name: string;
     #status: PlayerStatus = PlayerStatus.Alive;
-    readonly #role: IRole; // Role is private!
-    #name: string; // Make name mutable internally
-    readonly #initialAgentConfig: AgentConfig; // Store the config used to create the agent
+    readonly #role: IRole;
+    readonly #agent: IAgent;
+    readonly #initialAgentConfig: AgentConfig;
+    imageUrl?: string | null;
+    private persona: Persona | null;
+    readonly isHuman: boolean;
 
     constructor(
-        public readonly id: PlayerId,
-        initialName: string, // Use initialName for constructor
-        role: IRole, // Inject role
-        agent: IAgent, // Inject agent
-        initialAgentConfig: AgentConfig // Store initial agent config
+        id: PlayerId,
+        initialName: string,
+        role: IRole,
+        agent: IAgent,
+        initialAgentConfig: AgentConfig,
+        imageUrl?: string | null,
+        status: PlayerStatus = PlayerStatus.Alive,
+        isHuman: boolean = false,
+        persona: Persona | null = null
     ) {
+        this.id = id;
+        this.#name = initialName;
         this.#role = role;
         this.#agent = agent;
-        this.#name = initialName; // Assign initial name
         this.#initialAgentConfig = initialAgentConfig;
+        this.imageUrl = imageUrl;
+        this.#status = status;
+        this.isHuman = isHuman;
+        this.persona = persona;
     }
 
     get name(): string {
         return this.#name;
     }
 
-    // Method to update the name after persona generation
     setName(newName: string): void {
-        // Add validation if needed (e.g., non-empty)
         if (typeof newName === 'string' && newName.trim().length > 0) {
             this.#name = newName.trim();
         } else {
@@ -44,8 +55,6 @@ export class Player implements IPlayer {
     }
 
     get role(): IRole {
-        // Be careful exposing the full role object if it contains sensitive info
-        // Return a copy or specific properties if needed elsewhere
         return this.#role;
     }
 
@@ -68,25 +77,39 @@ export class Player implements IPlayer {
     getPublicRepresentation(): PublicPlayerInfo {
         return {
             id: this.id,
-            name: this.#name, // Use internal name
+            name: this.#name,
             status: this.status,
-            // Note: Role is NOT included here
+            imageUrl: this.imageUrl,
+            isHuman: this.isHuman,
         };
     }
 
-    // Delegate action request to the agent, passing filtered state
     async decideAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         if (!this.isAlive()) {
             console.warn(`Attempted to get action from dead player ${this.id}`);
             return { type: 'noAction' };
         }
         try {
-            // The Game class is responsible for constructing the *correct*
-            // VisibleGameState for this specific player before calling this.
-            return await this.#agent.getAction(gameState, allowedActions);
+            if (typeof this.#agent.getAction === 'function') {
+                return await this.#agent.getAction(gameState, allowedActions);
+            }
+            console.warn(`Agent for player ${this.id} does not have a getAction method. Defaulting to noAction.`);
+            return { type: 'noAction' };
         } catch (error) {
-            console.error(`Error getting action from agent ${this.id} (${this.#name}):`, error); // Include name in error log
-            return { type: 'noAction' }; // Default safe action on error
+            console.error(`Error getting action from agent ${this.id} (${this.#name}):`, error);
+            return { type: 'noAction' };
         }
+    }
+
+    public setPersona(persona: Persona): void {
+        this.persona = persona;
+        this.agent.persona = persona;
+        if (persona.name) {
+            this.setName(persona.name);
+        }
+    }
+
+    getPersona(): Persona | null {
+        return this.persona;
     }
 }

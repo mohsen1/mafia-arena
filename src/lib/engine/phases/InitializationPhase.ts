@@ -40,7 +40,8 @@ export class InitializationPhase extends AbstractGamePhase {
         }
 
         // Log initial setup
-        game.logEvent("Game setup complete. The first night begins...");
+        // Remove initialization message - keep conversation log clean
+        // game.logEvent("Game setup complete. The first day begins with introductions...");
 
         this.initializationComplete = true;
         game.setPhaseStep('SetupComplete'); // Indicate setup is done via step
@@ -48,10 +49,11 @@ export class InitializationPhase extends AbstractGamePhase {
     }
 
     async runPhase(game: Game): Promise<void> {
-        game.logMessage(null, "Initializing game...", MessageVisibility.Public, this.type);
+        // Remove all initialization messages - keep conversation log clean for gameplay
+        // game.logMessage(null, "Initializing game...", MessageVisibility.Public, this.type);
 
         // --- Persona Generation --- //
-        game.logMessage(null, "Generating player personas...", MessageVisibility.Public, this.type);
+        // game.logMessage(null, "Generating player personas...", MessageVisibility.Public, this.type);
         const personaPromises: Promise<void>[] = [];
 
         for (const player of game.getPlayers().values()) {
@@ -88,28 +90,28 @@ export class InitializationPhase extends AbstractGamePhase {
 
         try {
             await Promise.all(personaPromises); // Wait for all LLM agents to finish generating
-            game.logMessage(null, "Persona generation complete.", MessageVisibility.Public, this.type);
+            // game.logMessage(null, "Persona generation complete.", MessageVisibility.Public, this.type);
         } catch (error) {
              log("Error during Promise.all for persona generation: %O", error);
              // Even if Promise.all has an error, the individual catches should have handled fallbacks.
-             game.logMessage(null, "Persona generation had errors, continuing with defaults where needed.", MessageVisibility.Public, this.type);
+             // game.logMessage(null, "Persona generation had errors, continuing with defaults where needed.", MessageVisibility.Public, this.type);
         }
 
         // --- Original Init Phase Logic (e.g., logging players) ---
-        // Log final player list with potentially updated names
-        game.logMessage(null, "\n## Players", MessageVisibility.Public);
-        for (const player of game.getPlayers().values()) {
-            game.logMessage(null, `- ${player.name} (${player.id})`, MessageVisibility.Public);
-        }
+        // Remove all player list and setup messages - keep conversation log clean
+        // game.logMessage(null, "\n## Players", MessageVisibility.Public);
+        // for (const player of game.getPlayers().values()) {
+        //     game.logMessage(null, `- ${player.name} (${player.id})`, MessageVisibility.Public);
+        // }
 
-        game.logMessage(null, "\n### Init Phase (Round 0)", MessageVisibility.Public);
-        game.logMessage(null, "Roles assigned. Ready to begin.", MessageVisibility.Public, this.type);
+        // game.logMessage(null, "\n### Init Phase (Round 0)", MessageVisibility.Public);
+        // game.logMessage(null, "Roles assigned. Ready to begin.", MessageVisibility.Public, this.type);
     }
 
     transition(game: Game): GamePhaseType {
         // Once initialization is complete, transition to the first night
         if (this.initializationComplete) {
-            return 'Night'; // Go to Night phase after Init
+            return 'Day'; // Go to Day phase after Init for introductions
         } 
         // Remain in Init phase if runStep hasn't completed
         console.warn("[InitPhase] Transition called before initialization complete. Remaining in Init.");
