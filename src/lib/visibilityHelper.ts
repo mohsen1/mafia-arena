@@ -16,13 +16,17 @@ import type { IMessage } from "./engine/interfaces/IMessage";
  *
  * @param fullState The complete SerializableGameState.
  * @param viewingPlayerId Optional: The ID of the player for whom the state is being filtered.
- *                          This can be used to include specific details for that player (e.g., their own role).
+ *                          If null/undefined, the user is considered an observer and can see all information.
  * @returns FilteredGameState suitable for the client.
  */
 export function filterGameStateForClient(
   fullState: SerializableGameState,
   viewingPlayerId?: PlayerId | null
 ): FilteredGameState {
+  const isObserver = !viewingPlayerId;
+  const viewingPlayer = viewingPlayerId ? fullState.players[viewingPlayerId] : null;
+  const isViewingPlayerMafia = viewingPlayer?.roleName === RoleName.Mafia;
+
   const playersRecord: Record<PlayerId, FilteredPlayer> = {};
   for (const p of Object.values(fullState.players)) {
     const filteredPlayer: FilteredPlayer = {
@@ -30,11 +34,12 @@ export function filterGameStateForClient(
       name: p.name,
       status: p.status,
       role:
+        isObserver || // Observers can see all roles
         viewingPlayerId === p.id ||
         fullState.phase === "GameOver" ||
         p.status === "Dead"
           ? p.roleName
-          : undefined, // Role is hidden for living players unless it's self or game over
+          : undefined, // Role is hidden for living players unless it's self, observer mode, or game over
       imageUrl: p.imageUrl ?? null, // Pass imageUrl from SerializablePlayer
     };
     playersRecord[p.id] = filteredPlayer;
@@ -54,10 +59,8 @@ export function filterGameStateForClient(
     }))
     .filter((msg) => {
       if (msg.visibility === MessageVisibility.Mafia) {
-        const viewingPlayer = viewingPlayerId
-          ? fullState.players[viewingPlayerId]
-          : null;
-        return viewingPlayer?.roleName === RoleName.Mafia;
+        // Observers can see mafia chat, or if viewing player is mafia
+        return isObserver || isViewingPlayerMafia;
       }
       return true;
     });
@@ -88,7 +91,7 @@ export function filterGameStateForClient(
     livingPlayerIds: fullState.livingPlayerIds,
     deadPlayerIds: fullState.deadPlayerIds,
     winCondition: fullState.winCondition?.outcome ?? null,
-    canSeeWerewolfChat: false,
+    canSeeWerewolfChat: isObserver || isViewingPlayerMafia,
     canSeeDeadChat: true,
     availableVoices: [],
   };

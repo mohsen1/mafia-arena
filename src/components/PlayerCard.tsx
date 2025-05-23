@@ -1,6 +1,6 @@
 'use client';
 
-import type { FilteredPlayer } from "@/lib/interfaces/client.types";
+import type { FilteredPlayer } from "@/lib/interfaces/gameState.types";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { PersonStanding, Skull, User } from "lucide-react";
@@ -26,18 +26,19 @@ export function PlayerCard({ player }: PlayerCardProps) {
       )}
     >
       <div className="relative flex-shrink-0 w-10 h-10">
-        {player.isHuman ? (
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border">
-            <User className="h-5 w-5 text-primary" />
-          </div>
-        ) : (
+        {/* Note: isHuman is not available in FilteredPlayer, so checking if imageUrl exists */}
+        {player.imageUrl ? (
           <Image
-            src={player.imageUrl || "/images/placeholder.png"}
+            src={player.imageUrl}
             alt={t("PlayerImageAltText", { name: player.name })}
             width={40}
             height={40}
             className="rounded-full w-10 h-10 object-cover border"
           />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border">
+            <User className="h-5 w-5 text-primary" />
+          </div>
         )}
         <div
           className={cn(

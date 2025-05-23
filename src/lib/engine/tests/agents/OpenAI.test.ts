@@ -88,16 +88,7 @@ describe('OpenAIAgent', () => {
             players: [{ id: testPlayerId, name: 'Test Agent', status: PlayerStatus.Alive, isHuman: false, imageUrl: null }],
             alivePlayerIds: new Set([testPlayerId]),
             memory: createInitialMemory(),
-            themeName: 'Default',
-            currentGameState: {
-                id: 'test-game',
-                phase: 'Day',
-                round: 1,
-                players: [{ id: testPlayerId, name: 'Test Agent', status: PlayerStatus.Alive, isHuman: false, imageUrl: null }],
-                humanPlayerId: null,
-                log: [],
-                pendingHumanAction: null
-            }
+            themeName: 'Default'
         };
     });
 
@@ -280,8 +271,8 @@ describe('OpenAIAgent', () => {
             language: 'en',
             self: { id: mafiaPlayerId, name: 'Test Mafia Agent', role: RoleName.Mafia, isMafia: true, status: PlayerStatus.Alive, allegiance: 'Mafia' },
             players: [
-                { id: mafiaPlayerId, name: 'Test Mafia Agent', status: PlayerStatus.Alive },
-                { id: villagerPlayerId, name: 'Villager One', status: PlayerStatus.Alive }
+                { id: mafiaPlayerId, name: 'Test Mafia Agent', status: PlayerStatus.Alive, isHuman: false },
+                { id: villagerPlayerId, name: 'Villager One', status: PlayerStatus.Alive, isHuman: false }
             ],
             alivePlayerIds: new Set([mafiaPlayerId, villagerPlayerId]),
             memory: createInitialMemory(), // Start with initial memory, prompts should adapt
@@ -352,8 +343,8 @@ describe('OpenAIAgent', () => {
             language: 'en',
             self: { id: player1Id, name: 'Test Agent', role: RoleName.Villager, isMafia: false, status: PlayerStatus.Alive, allegiance: 'Town' },
             players: [
-                { id: player1Id, name: 'Test Agent', status: PlayerStatus.Alive },
-                { id: player2Id, name: 'Player 2', status: PlayerStatus.Alive }
+                { id: player1Id, name: 'Test Agent', status: PlayerStatus.Alive, isHuman: false },
+                { id: player2Id, name: 'Player 2', status: PlayerStatus.Alive, isHuman: false }
             ],
             alivePlayerIds: new Set([player1Id, player2Id]),
             memory: memoryWithHistory, // Use the pre-populated memory

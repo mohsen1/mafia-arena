@@ -1,7 +1,7 @@
-import type { GamePhaseType, GameWinCondition, PendingHumanAction } from "./gameState.types";
+import type { GamePhaseType, PendingHumanAction } from "./gameState.types";
 import type { PlayerId, PublicPlayerInfo } from '@/lib/engine/interfaces/IPlayer';
 import type { Message } from "@/lib/engine/core/Message";
-import type { RoleName } from "@/lib/engine/interfaces/IRole";
+import type { RoleName, Allegiance } from "@/lib/engine/interfaces/IRole";
 import type { IMessage } from '@/lib/engine/interfaces/IMessage';
 import type { LanguageName } from '@/lib/i18n/settings';
 import type { Persona } from '@/lib/engine/interfaces/Persona';

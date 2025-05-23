@@ -150,17 +150,33 @@ describe('filterGameStateForClient', () => {
         expect(filtered.log[1].timestamp).toBe(fullState.conversationLog[2].timestamp); // msg3 timestamp
     });
 
-    it('should handle null or undefined viewingPlayerId (spectator)', () => {
+    it('should handle null or undefined viewingPlayerId (observer mode)', () => {
         const filtered = filterGameStateForClient(fullState, null);
 
-        // Should not see any hidden roles
-        expect(filtered.players[player1Id].role).toBeUndefined();
-        expect(filtered.players[player2Id].role).toBeUndefined();
-        expect(filtered.players[player3Id].role).toBeUndefined();
-        expect(filtered.players[player4Id].role).toBe(RoleName.Doctor); // Dead roles are public
+        // Observers should see all roles
+        expect(filtered.players[player1Id].role).toBe(RoleName.Villager);
+        expect(filtered.players[player2Id].role).toBe(RoleName.Villager);
+        expect(filtered.players[player3Id].role).toBe(RoleName.Mafia);
+        expect(filtered.players[player4Id].role).toBe(RoleName.Doctor);
 
-        // Should not see Mafia chat
-        expect(filtered.log.length).toBe(2);
-        expect(filtered.log.find(m => m.visibility === MessageVisibility.Mafia)).toBeUndefined();
+        // Observers should see all messages including Mafia chat
+        expect(filtered.log.length).toBe(3);
+        expect(filtered.log.find(m => m.visibility === MessageVisibility.Mafia)).toBeDefined();
+        expect(filtered.log[0].id).toBe(msg1.id);
+        expect(filtered.log[1].id).toBe(msg2.id);
+        expect(filtered.log[2].id).toBe(msg3.id);
+
+        // Check canSeeWerewolfChat flag is set correctly for observers
+        expect(filtered.canSeeWerewolfChat).toBe(true);
+    });
+
+    it('should set canSeeWerewolfChat correctly for mafia players', () => {
+        const filtered = filterGameStateForClient(fullState, player3Id); // Player 3 is Mafia
+        expect(filtered.canSeeWerewolfChat).toBe(true);
+    });
+
+    it('should set canSeeWerewolfChat correctly for non-mafia players', () => {
+        const filtered = filterGameStateForClient(fullState, player1Id); // Player 1 is Villager
+        expect(filtered.canSeeWerewolfChat).toBe(false);
     });
 });

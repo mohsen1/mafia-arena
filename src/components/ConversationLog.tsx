@@ -23,14 +23,16 @@ export function ConversationLog() {
     const { log = [], players, phase, humanPlayerId } = gameState;
     const playersRecord: Record<PlayerId, FilteredPlayer> = players;
     const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
+    const isObserver = !humanPlayerId;
 
     const isVisible = (msg: ClientMessage): boolean => {
       if (msg.visibility === MessageVisibility.Public) return true;
       if (msg.visibility === undefined) return true;
-      if (phase === 'Night') {
-          if (humanPlayer?.role === RoleName.Mafia && msg.visibility === MessageVisibility.Mafia) return true;
-          if (msg.senderId === humanPlayerId) return true;
+      if (msg.visibility === MessageVisibility.Mafia) {
+        // Observers can see mafia chat, or if human player is mafia
+        return isObserver || humanPlayer?.role === RoleName.Mafia;
       }
+      if (msg.senderId === humanPlayerId) return true;
       return false;
     };
     
