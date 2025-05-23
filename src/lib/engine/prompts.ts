@@ -47,20 +47,30 @@ const MAX_MESSAGES_IN_PROMPT = 15; // Example value, adjust as needed
  * @param language The language to generate the persona in (defaults to English if not provided).
  */
 export function getPersonaGenerationPrompt(themeDescription: string, language?: string): string {
-  const languageInstruction = language && language !== 'en' 
-    ? `\n\nIMPORTANT: Generate the persona content (name, backstory, personalityTraits) in ${language}. Use natural, authentic ${language} text that fits the theme.`
-    : '';
-    
+  // Always include language instruction, not just for non-English
+  const targetLanguage = language || 'English';
+  
   return dedent`
     You are a creative writer tasked with generating a character persona for a text-based Mafia game.
-    The game's theme is: "${themeDescription}"${languageInstruction}
+    The game's theme is: "${themeDescription}"
+
+    CRITICAL LANGUAGE REQUIREMENT - THIS OVERRIDES ALL OTHER INSTRUCTIONS:
+    - You MUST generate ALL content (especially the character name) in ${targetLanguage}
+    - The character name MUST be a natural, authentic ${targetLanguage} name - DO NOT use names from the theme's geographical location
+    - If the theme says "UK Village" but the language is Persian, use PERSIAN names, NOT English/Irish/Scottish names
+    - If the theme says "Japanese Village" but the language is Spanish, use SPANISH names, NOT Japanese names  
+    - The character should fit the theme's TIME PERIOD and SOCIAL SETTING, but use ${targetLanguage} names and language
+    - Write the backstory and personality traits in ${targetLanguage}
+    - Ensure all text sounds natural and culturally appropriate for ${targetLanguage} speakers
+
+    Example: For "UK Village 1900s" theme in Persian, create a character with a Persian name who lives in that time period and setting.
 
     Please create a compelling and distinct persona that fits this theme.
     Strive for originality and avoid generic names (like Bob, Jane) or stereotypes unless they are uniquely twisted for the theme.
     Your response MUST be a single, valid JSON object containing the following fields:
-    - name: string (The character's full name, make it unique and fitting)
-    - backstory: string (A brief, one or two-sentence background for the character)
-    - personalityTraits: string[] (An array of 3-5 descriptive personality traits, e.g., ["Observant", "Quiet", "Cunning"])
+    - name: string (The character's full name in ${targetLanguage}, make it unique and fitting)
+    - backstory: string (A brief, one or two-sentence background for the character in ${targetLanguage})
+    - personalityTraits: string[] (An array of 3-5 descriptive personality traits in ${targetLanguage}, e.g., ["Observant", "Quiet", "Cunning"])
 
     Example JSON Output:
     {
@@ -168,21 +178,21 @@ export function getUserPrompt(
     const promptLines: string[] = [];
 
     // Basic Game State
-    promptLines.push(`**Current Game State:**`);
+    promptLines.push('**Current Game State:**');
     promptLines.push(`- Round: ${currentGameState.round}`);
     promptLines.push(`- Phase: ${currentGameState.phase}`);
     promptLines.push(`- Theme: ${currentGameState.themeName || 'Unknown'}`);
     promptLines.push(`- Language: ${currentGameState.language || 'en'}`);
 
     // Your Identity
-    promptLines.push(`\n**Your Identity:**`);
+    promptLines.push('\n**Your Identity:**');
     promptLines.push(`- Player ID: ${currentGameState.self.id}`);
     promptLines.push(`- Player Name: ${currentGameState.self.name}`);
     promptLines.push(`- Your Role: ${currentGameState.self.role}`);
     promptLines.push(`- Your Allegiance: ${currentGameState.self.allegiance}`);
     // Include generated persona details if available
     if (currentGameState.self.persona) {
-        promptLines.push(`\n**Your Persona:**`);
+        promptLines.push('\n**Your Persona:**');
         promptLines.push(`- Name: ${currentGameState.self.persona.name}`); // Usually matches player name, but good to confirm
         promptLines.push(`- Backstory: ${currentGameState.self.persona.backstory}`);
         promptLines.push(`- Traits: ${currentGameState.self.persona.personalityTraits.join(', ')}`);
@@ -193,7 +203,7 @@ export function getUserPrompt(
 
     // Known Information (Role Specific)
     if (currentGameState.self.isMafia && currentGameState.mafiaPlayerIds) {
-        promptLines.push(`\n**Mafia Team:**`);
+        promptLines.push('\n**Mafia Team:**');
         const mafiaNames = currentGameState.mafiaPlayerIds
             .map((id: PlayerId) => {
                 const player = currentGameState.players.find((p: PromptPlayerInfo) => p.id === id);
@@ -203,7 +213,7 @@ export function getUserPrompt(
         promptLines.push(`- Your fellow Mafia members are: ${mafiaNames}`);
     }
     if (currentGameState.seerResults && currentGameState.seerResults.size > 0) {
-        promptLines.push(`\n**Seer Investigations:**`);
+        promptLines.push('\n**Seer Investigations:**');
         currentGameState.seerResults.forEach((result: { isMafia: boolean }, targetId: PlayerId) => {
             const targetName = currentGameState.players.find((p: PromptPlayerInfo) => p.id === targetId)?.name || targetId;
             promptLines.push(`- You investigated ${targetName}: They are ${result.isMafia ? 'Mafia' : 'Not Mafia'}.`);
@@ -227,19 +237,18 @@ export function getUserPrompt(
     // Recent Messages (Public)
     if (currentGameState.messages && currentGameState.messages.length > 0) {
         promptLines.push(`\n**Recent Public Messages (Last ${MAX_MESSAGES_IN_PROMPT}):**`);
-        currentGameState.messages
-            .slice(-MAX_MESSAGES_IN_PROMPT)
-            .forEach((msg: IMessage) => {
-                 const senderName = currentGameState.players.find((p: PromptPlayerInfo) => p.id === msg.senderId)?.name || msg.senderId || 'SYSTEM';
-                 promptLines.push(`- ${senderName}: ${msg.content}`);
-            });
+        const recentMessages = currentGameState.messages.slice(-MAX_MESSAGES_IN_PROMPT);
+        for (const msg of recentMessages) {
+            const senderName = currentGameState.players.find((p: PromptPlayerInfo) => p.id === msg.senderId)?.name || msg.senderId || 'SYSTEM';
+            promptLines.push(`- ${senderName}: ${msg.content}`);
+        }
     } else {
         promptLines.push("\n**Recent Public Messages:** None");
     }
 
     // Game History / Memory - Removed memory.summary access
     if (currentGameState.memory) {
-        promptLines.push(`\n**Your Memory / Game History Summary:**`);
+        promptLines.push('\n**Your Memory / Game History Summary:**');
         if (Object.keys(currentGameState.memory).length > 0) {
              promptLines.push("- *You have some memories recorded.*");
         } else {
@@ -248,13 +257,13 @@ export function getUserPrompt(
     }
 
     // Allowed Actions
-    promptLines.push(`\n**Your Turn:**`);
+    promptLines.push('\n**Your Turn:**');
     if (allowedActions && allowedActions.length > 0) {
         promptLines.push(`You must choose one of the following actions: ${allowedActions.join(', ')}.`);
         promptLines.push("Provide your action as a JSON object matching the examples below.");
 
         // Action Examples (customize based on phase/role)
-        promptLines.push(`\n**Action Format Examples:**`);
+        promptLines.push('\n**Action Format Examples:**');
         if (allowedActions.includes('message')) {
             promptLines.push('- Speak: `{"type": "message", "content": "Your message here..."}`');
         }
@@ -272,7 +281,7 @@ export function getUserPrompt(
         }
         promptLines.push('- Abstain/No Action: `{"type": "noAction"}` (or `{"type": "vote", "targetPlayerId": null}` for voting)');
 
-        promptLines.push(`\n**Important:** Respond ONLY with the JSON object for your chosen action. Include a brief 'reasoning' field within the JSON if possible, explaining your choice concisely.`);
+        promptLines.push('\n**Important:** Respond ONLY with the JSON object for your chosen action. Include a brief \'reasoning\' field within the JSON if possible, explaining your choice concisely.');
 
     } else {
         promptLines.push("No specific actions are available or required right now.");
