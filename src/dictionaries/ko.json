@@ -146,5 +146,19 @@
   "VoteNoMajority": "투표에서 과반수를 얻지 못했습니다. 아무도 처형되지 않습니다.",
   "VoteTieResult": "투표 결과 {{playerNames}} 사이에서 동점이 나왔습니다. 아무도 처형되지 않습니다.",
   "VoteInsufficientVotes": "투표에서 충분한 표가 없었습니다. 아무도 처형되지 않습니다.",
-  "NoVotesCast": "결정적인 투표가 없습니다. 아무도 처형되지 않습니다."
+  "NoVotesCast": "결정적인 투표가 없습니다. 아무도 처형되지 않습니다.",
+  "AI Engine": "인공지능 엔진",
+  "EnterYourNamePlaceholder": "이름을 입력하세요",
+  "JoinAsHumanLabel": "직접 게임에 참여하시겠습니까?",
+  "MafiaEngineLabel": "마피아 인공지능 엔진",
+  "ProcessingLabel": "처리 중...",
+  "TableHeader_Actions": "동작",
+  "TableHeader_Character": "캐릭터",
+  "TableHeader_Model": "인공지능 모델",
+  "TableHeader_Provider": "인공지능 제공자",
+  "TableHeader_Role": "역할",
+  "ToggleHumanPlayerJoinLabel": "인간 플레이어로 참여 토글",
+  "UseDifferentEngineForMafiaLabel": "마피아 플레이어용 별도의 인공지능 엔진 사용",
+  "WaitingForProvidersLabel": "사용 가능한 인공지능 제공자를 기다리는 중...",
+  "YourPlayerNameLabel": "플레이어 이름"
 }

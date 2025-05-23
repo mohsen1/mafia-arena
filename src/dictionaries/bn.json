@@ -146,5 +146,19 @@
   "VoteNoMajority": "ভোট সংখ্যাগরিষ্ঠতা অর্জন করতে পারেনি। কাউকে হত্যা করা হয়নি。",
   "VoteTieResult": "ভোট {{playerNames}} এর মধ্যে টাইয়ে পরিণত হয়েছে। কাউকে হত্যা করা হয়নি。",
   "VoteInsufficientVotes": "ভোটে যথেষ্ট ভোট ছিল না। কাউকে হত্যা করা হয়নি。",
-  "NoVotesCast": "কোন সিদ্ধান্তমূলক ভোট দেওয়া হয়নি। কাউকে হত্যা করা হয়নি।"
+  "NoVotesCast": "কোন সিদ্ধান্তমূলক ভোট দেওয়া হয়নি। কাউকে হত্যা করা হয়নি।",
+  "AI Engine": "এআই ইঞ্জিন",
+  "EnterYourNamePlaceholder": "আপনার নাম লিখুন",
+  "JoinAsHumanLabel": "নিজেই খেলায় যোগ দিন?",
+  "MafiaEngineLabel": "মাফিয়া এআই ইঞ্জিন",
+  "ProcessingLabel": "প্রক্রিয়াধীন...",
+  "TableHeader_Actions": "কর্ম",
+  "TableHeader_Character": "চরিত্র",
+  "TableHeader_Model": "এআই মডেল",
+  "TableHeader_Provider": "এআই প্রদানকারী",
+  "TableHeader_Role": "ভূমিকা",
+  "ToggleHumanPlayerJoinLabel": "মানুষ খেলোয়াড় হিসেবে যোগদান টোগল করুন",
+  "UseDifferentEngineForMafiaLabel": "মাফিয়া খেলোয়াড়দের জন্য আলাদা এআই ইঞ্জিন ব্যবহার করুন",
+  "WaitingForProvidersLabel": "উপলব্ধ এআই প্রদানকারীদের জন্য অপেক্ষা করছি...",
+  "YourPlayerNameLabel": "আপনার খেলোয়াড়ের নাম"
 }

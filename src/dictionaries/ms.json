@@ -146,5 +146,19 @@
   "VoteNoMajority": "Undi tidak mencapai majoriti. Tiada siapa yang dihukum mati.",
   "VoteTieResult": "Undi berakhir dengan seri antara {{playerNames}}. Tiada siapa yang dihukum mati.",
   "VoteInsufficientVotes": "Undi tidak mencukupi. Tiada siapa yang dihukum mati.",
-  "NoVotesCast": "Tiada undi memutuskan yang dicasting. Tiada siapa yang dihukum mati."
+  "NoVotesCast": "Tiada undi memutuskan yang dicasting. Tiada siapa yang dihukum mati.",
+  "AI Engine": "Enjin AI",
+  "EnterYourNamePlaceholder": "Masukkan nama anda",
+  "JoinAsHumanLabel": "Sertai permainan sebagai manusia?",
+  "MafiaEngineLabel": "Enjin AI Mafia",
+  "ProcessingLabel": "Sedang diproses...",
+  "TableHeader_Actions": "Tindakan",
+  "TableHeader_Character": "Watak",
+  "TableHeader_Model": "Model AI",
+  "TableHeader_Provider": "Pembekal AI",
+  "TableHeader_Role": "Peranan",
+  "ToggleHumanPlayerJoinLabel": "Togol penyertaan sebagai pemain manusia",
+  "UseDifferentEngineForMafiaLabel": "Gunakan enjin AI berbeza untuk pemain Mafia",
+  "WaitingForProvidersLabel": "Menunggu pembekal AI yang tersedia...",
+  "YourPlayerNameLabel": "Nama Pemain Anda"
 }

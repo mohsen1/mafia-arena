@@ -146,5 +146,19 @@
   "VoteNoMajority": "Głosowanie nie osiągnęło większości. Nikt nie zostanie stracony.",
   "VoteTieResult": "Głosowanie zakończyło się remisem pomiędzy {{playerNames}}. Nikt nie zostanie stracony.",
   "VoteInsufficientVotes": "Głosowanie miało niewystarczającą ilość głosów. Nikt nie zostanie stracony.",
-  "NoVotesCast": "Nie zostały oddane głosy rozstrzygające. Nikt nie zostanie stracony."
+  "NoVotesCast": "Nie zostały oddane głosy rozstrzygające. Nikt nie zostanie stracony.",
+  "AI Engine": "Silnik AI",
+  "EnterYourNamePlaceholder": "Wprowadź swoje imię",
+  "JoinAsHumanLabel": "Dołącz do gry jako człowiek?",
+  "MafiaEngineLabel": "Silnik AI dla Mafii",
+  "ProcessingLabel": "Przetwarzanie...",
+  "TableHeader_Actions": "Akcje",
+  "TableHeader_Character": "Postać",
+  "TableHeader_Model": "Model AI",
+  "TableHeader_Provider": "Dostawca AI",
+  "TableHeader_Role": "Rola",
+  "ToggleHumanPlayerJoinLabel": "Przełącz dołączanie jako gracz człowiek",
+  "UseDifferentEngineForMafiaLabel": "Użyj oddzielnego silnika AI dla graczy Mafii",
+  "WaitingForProvidersLabel": "Czekam na dostępnych dostawców AI...",
+  "YourPlayerNameLabel": "Twoje imię gracza"
 }

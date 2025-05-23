@@ -38,15 +38,15 @@ export function GameThemeSelector({
         <SelectContent>
           {themeEntries.map(([key, theme]) => (
             <SelectItem key={key} value={key}>
-              {theme.name} {/* Display theme name */}
+              {t(`${key}_name`, theme.name)} {/* Use translation for theme name */}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      {/* Optionally display description */}
-      {Themes[selectedThemeKey]?.description && (
+      {/* Display translated description */}
+      {Themes[selectedThemeKey] && (
           <p className="text-xs text-muted-foreground mt-1 px-1">
-              {Themes[selectedThemeKey].description}
+              {t(`${selectedThemeKey}_description`, Themes[selectedThemeKey].description)}
           </p>
       )}
     </div>

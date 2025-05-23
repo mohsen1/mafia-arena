@@ -146,5 +146,19 @@
   "VoteNoMajority": "投票で多数決に達しませんでした。誰も処刑されません。",
   "VoteTieResult": "投票は{{playerNames}}間で同数となり、誰も処刑されません。",
   "VoteInsufficientVotes": "投票に必要な票数が不足しています。誰も処刑されません。",
-  "NoVotesCast": "決定的な投票は行われませんでした。誰も処刑されません。"
+  "NoVotesCast": "決定的な投票は行われませんでした。誰も処刑されません。",
+  "AI Engine": "AI エンジン",
+  "EnterYourNamePlaceholder": "名前を入力",
+  "JoinAsHumanLabel": "人狼ゲームに参加しますか？",
+  "MafiaEngineLabel": "マフィア AI エンジン",
+  "ProcessingLabel": "処理中...",
+  "TableHeader_Actions": "アクション",
+  "TableHeader_Character": "キャラクター",
+  "TableHeader_Model": "AI モデル",
+  "TableHeader_Provider": "AI プロバイダー",
+  "TableHeader_Role": "役割",
+  "ToggleHumanPlayerJoinLabel": "人狼ゲームに参加することを切り替える",
+  "UseDifferentEngineForMafiaLabel": "マフィア プレーヤー用に別の AI エンジンを使用",
+  "WaitingForProvidersLabel": "利用可能な AI プロバイダーの待機中...",
+  "YourPlayerNameLabel": "あなたのプレイヤー名"
 }

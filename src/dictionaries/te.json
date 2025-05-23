@@ -146,5 +146,19 @@
   "VoteNoMajority": "ఓటు మెజారిటీని చేరుకోలేదు. ఎవరూ ఉరితీయబడరు.",
   "VoteTieResult": "ఓటు {{playerNames}} మధ్య టైలో ముగిసింది. ఎవరూ ఉరితీయబడరు.",
   "VoteInsufficientVotes": "ఓటుకు సరిపడా ఓట్లు లేవు. ఎవరూ ఉరితీయబడరు.",
-  "NoVotesCast": "నిర్ణయాత్మక ఓట్లు వేయబడలేదు. ఎవరూ ఉరితీయబడరు."
+  "NoVotesCast": "నిర్ణయాత్మక ఓట్లు వేయబడలేదు. ఎవరూ ఉరితీయబడరు.",
+  "AI Engine": "AI ఇంజిన్",
+  "EnterYourNamePlaceholder": "మీ పేరు వ్రాయండి",
+  "JoinAsHumanLabel": "మీరు ఆటలో చేరాలా?",
+  "MafiaEngineLabel": "మాఫియా AI ఇంజిన్",
+  "ProcessingLabel": "ప్రాసెసింగ్...",
+  "TableHeader_Actions": "చర్యలు",
+  "TableHeader_Character": "పాత్ర",
+  "TableHeader_Model": "AI మోడల్",
+  "TableHeader_Provider": "AI ప్రొవైడర్",
+  "TableHeader_Role": "పాత్ర",
+  "ToggleHumanPlayerJoinLabel": "మానవ ఆటగాడిగా చేరడాన్ని టాగిల్ చేయండి",
+  "UseDifferentEngineForMafiaLabel": "మాఫియా ఆటగాళ్ళకు వేరే AI ఇంజిన్‌ని ఉపయోగించండి",
+  "WaitingForProvidersLabel": "అందుబాటులో ఉన్న AI ప్రొవైడర్‌ల కోసం వేచి ఉండండి...",
+  "YourPlayerNameLabel": "మీ ఆటగాడి పేరు"
 }

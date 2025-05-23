@@ -146,5 +146,19 @@
   "VoteNoMajority": "Suara tidak mencapai mayoritas. Tidak ada yang dieksekusi.",
   "VoteTieResult": "Suara menghasilkan hasil seri antara {{playerNames}}. Tidak ada yang dieksekusi.",
   "VoteInsufficientVotes": "Suara tidak mencukupi. Tidak ada yang dieksekusi.",
-  "NoVotesCast": "Tidak ada suara penentu yang diberikan. Tidak ada yang dieksekusi."
+  "NoVotesCast": "Tidak ada suara penentu yang diberikan. Tidak ada yang dieksekusi.",
+  "AI Engine": "Mesin AI",
+  "EnterYourNamePlaceholder": "Masukkan nama Anda",
+  "JoinAsHumanLabel": "Gabung ke permainan sendiri?",
+  "MafiaEngineLabel": "Mesin AI Mafia",
+  "ProcessingLabel": "Sedang diproses...",
+  "TableHeader_Actions": "Tindakan",
+  "TableHeader_Character": "Karakter",
+  "TableHeader_Model": "Model AI",
+  "TableHeader_Provider": "Penyedia AI",
+  "TableHeader_Role": "Peran",
+  "ToggleHumanPlayerJoinLabel": "Alihkan bergabung sebagai pemain manusia",
+  "UseDifferentEngineForMafiaLabel": "Gunakan mesin AI terpisah untuk pemain Mafia",
+  "WaitingForProvidersLabel": "Menunggu penyedia AI yang tersedia...",
+  "YourPlayerNameLabel": "Nama Pemain Anda"
 }

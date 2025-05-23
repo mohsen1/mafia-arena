@@ -146,5 +146,19 @@
   "VoteNoMajority": "မဲဆုံးဖြတ်ချက် အများစု မရရှိပါ။ မည်သူ့ကိုမျှ အုပ်ချုပ်ခြင်း မပြုလုပ်ပါ",
   "VoteTieResult": "{{playerNames}} ကြားတွင် {{playerNames}} တို့ အကြား မဲဆုံးဖြတ်ချက် ညီမျှခြင်း ဖြစ်ပေါ်ခဲ့သည်။ မည်သူ့ကိုမျှ အုပ်ချုပ်ခြင်း မပြုလုပ်ပါ",
   "VoteInsufficientVotes": "မဲဆုံးဖြတ်ချက် အလုံလုံလောက်သော မဲ မရှိပါ။ မည်သူ့ကိုမျှ အုပ်ချုပ်ခြင်း မပြုလုပ်ပါ",
-  "NoVotesCast": "ဆုံးဖြတ်ချက် မဲများ မပေးပါ။ မည်သူ့ကိုမျှ အုပ်ချုပ်ခြင်း မပြုလုပ်ပါ"
+  "NoVotesCast": "ဆုံးဖြတ်ချက် မဲများ မပေးပါ။ မည်သူ့ကိုမျှ အုပ်ချုပ်ခြင်း မပြုလုပ်ပါ",
+  "AI Engine": "AI အင်ဂျင်",
+  "EnterYourNamePlaceholder": "နာမည်ကို ရိုက်ထည့်ပါ",
+  "JoinAsHumanLabel": "လူအဖြစ် ပူးပေါင်းရန်",
+  "MafiaEngineLabel": "Mafia AI အင်ဂျင်",
+  "ProcessingLabel": "လုပ်ငန်း လုပ်ဆောင်နေပါသည်...",
+  "TableHeader_Actions": "လှုပ်ရှားမှု",
+  "TableHeader_Character": "ဇာတ်ကောင်",
+  "TableHeader_Model": "AI မော်ဒယ်",
+  "TableHeader_Provider": "AI ဝန်ဆောင်မှု",
+  "TableHeader_Role": "ရိုးရှင်း",
+  "ToggleHumanPlayerJoinLabel": "လူ ကစားသမား အဖြစ် ပူးပေါင်းရန် လုပ်ငန်း လုပ်ဆောင်ပါ",
+  "UseDifferentEngineForMafiaLabel": "Mafia ကစားသမား များ အတွက် ကွဲပြားသော AI အင်ဂျင် အသုံးပြုရန်",
+  "WaitingForProvidersLabel": "AI ဝန်ဆောင်မှု ပေးသူ များ အတွက် စောင့်နေပါသည်...",
+  "YourPlayerNameLabel": "သင့် ကစားသမား နာမည်"
 }

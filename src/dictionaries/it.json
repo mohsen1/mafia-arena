@@ -146,5 +146,19 @@
   "VoteNoMajority": "Il voto non ha raggiunto la maggioranza. Nessuno viene giustiziato.",
   "VoteTieResult": "Il voto ha portato a un pareggio tra {{playerNames}}. Nessuno viene giustiziato.",
   "VoteInsufficientVotes": "Il voto ha avuto voti insufficienti. Nessuno viene giustiziato.",
-  "NoVotesCast": "Non sono stati espressi voti decisivi. Nessuno viene giustiziato."
+  "NoVotesCast": "Non sono stati espressi voti decisivi. Nessuno viene giustiziato.",
+  "AI Engine": "Motore AI",
+  "EnterYourNamePlaceholder": "Inserisci il tuo nome",
+  "JoinAsHumanLabel": "Unisciti al gioco come umano?",
+  "MafiaEngineLabel": "Motore AI della Mafia",
+  "ProcessingLabel": "Elaborazione...",
+  "TableHeader_Actions": "Azioni",
+  "TableHeader_Character": "Personaggio",
+  "TableHeader_Model": "Modello AI",
+  "TableHeader_Provider": "Fornitore AI",
+  "TableHeader_Role": "Ruolo",
+  "ToggleHumanPlayerJoinLabel": "Attiva/disattiva l'ingresso come giocatore umano",
+  "UseDifferentEngineForMafiaLabel": "Utilizza un motore AI separato per i giocatori della Mafia",
+  "WaitingForProvidersLabel": "In attesa di fornitori AI disponibili...",
+  "YourPlayerNameLabel": "Il tuo nome giocatore"
 }

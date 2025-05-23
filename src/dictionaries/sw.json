@@ -146,5 +146,19 @@
   "VoteNoMajority": "Kura haijafikia wengi. Hakuna mtu anayeuliwa.",
   "VoteTieResult": "Kura ilisababisha sare kati ya {{playerNames}}. Hakuna mtu anayeuliwa.",
   "VoteInsufficientVotes": "Kura ilikuwa na kura zisizozunguka. Hakuna mtu anayeuliwa.",
-  "NoVotesCast": "Hakuna kura za kuamua zilizopigwa. Hakuna mtu anayeuliwa."
+  "NoVotesCast": "Hakuna kura za kuamua zilizopigwa. Hakuna mtu anayeuliwa.",
+  "AI Engine": "Mtambo wa AI",
+  "EnterYourNamePlaceholder": "Ingiza jina lako",
+  "JoinAsHumanLabel": "Ungane na mchezo mwenyewe?",
+  "MafiaEngineLabel": "Mtambo wa AI wa Mafia",
+  "ProcessingLabel": "Inatendekeza...",
+  "TableHeader_Actions": "Hatua",
+  "TableHeader_Character": "Tabia",
+  "TableHeader_Model": "Muundo wa AI",
+  "TableHeader_Provider": "Mtoa huduma za AI",
+  "TableHeader_Role": "Jukumu",
+  "ToggleHumanPlayerJoinLabel": "Badilisha kuungana kama mchezaji mwanadamu",
+  "UseDifferentEngineForMafiaLabel": "Tumia mtambo tofauti wa AI kwa wachezaji wa Mafia",
+  "WaitingForProvidersLabel": "Inasubiri watoa huduma za AI waliopo...",
+  "YourPlayerNameLabel": "Jina la Mchezaji wako"
 }

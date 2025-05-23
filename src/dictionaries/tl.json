@@ -146,5 +146,19 @@
   "VoteNoMajority": "Hindi nakamit ng boto ang mayorya. Walang sinuman ang ipinatupad.",
   "VoteTieResult": "Nagbunga ang boto ng patas sa pagitan nina {{playerNames}}. Walang sinuman ang ipinatupad.",
   "VoteInsufficientVotes": "Hindi sapat ang mga boto. Walang sinuman ang ipinatupad.",
-  "NoVotesCast": "Walang mga nagpasyang boto ang naihalal. Walang sinuman ang ipinatupad."
+  "NoVotesCast": "Walang mga nagpasyang boto ang naihalal. Walang sinuman ang ipinatupad.",
+  "AI Engine": "AI Engine",
+  "EnterYourNamePlaceholder": "Ilagay ang iyong pangalan",
+  "JoinAsHumanLabel": "Sumali sa larong ito?",
+  "MafiaEngineLabel": "Mafia AI Engine",
+  "ProcessingLabel": "Nagpoproseso...",
+  "TableHeader_Actions": "Mga Gawain",
+  "TableHeader_Character": "Tauhan",
+  "TableHeader_Model": "Modelong AI",
+  "TableHeader_Provider": "Tagapagbigay ng AI",
+  "TableHeader_Role": "Papel",
+  "ToggleHumanPlayerJoinLabel": "Pagpalit ng pagsali bilang isang manlalarong tao",
+  "UseDifferentEngineForMafiaLabel": "Gumamit ng hiwalay na AI engine para sa mga manlalarong Mafia",
+  "WaitingForProvidersLabel": "Naghihintay ng mga tagapagbigay ng AI...",
+  "YourPlayerNameLabel": "Pangalan ng Manlalaro"
 }

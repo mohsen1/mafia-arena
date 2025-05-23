@@ -146,5 +146,19 @@
   "VoteNoMajority": "Kuri'ar ba ta kai rinjaye ba. Babu wanda aka kashe.",
   "VoteTieResult": "Kuri'ar ta kare a zaben {{playerNames}}. Babu wanda aka kashe.",
   "VoteInsufficientVotes": "Kuri'ar tana da ƙarancin kuri'u. Babu wanda aka kashe.",
-  "NoVotesCast": "Babu kuri'ar da aka kada. Babu wanda aka kashe."
+  "NoVotesCast": "Babu kuri'ar da aka kada. Babu wanda aka kashe.",
+  "AI Engine": "Injini AI",
+  "EnterYourNamePlaceholder": "Shigar sunan ka",
+  "JoinAsHumanLabel": "Shiga cikin wasan ka kai?",
+  "MafiaEngineLabel": "Injini Mafia AI",
+  "ProcessingLabel": "Akwai aikin gwaji...",
+  "TableHeader_Actions": "Ayyuka",
+  "TableHeader_Character": "Halitta",
+  "TableHeader_Model": "Muduli AI",
+  "TableHeader_Provider": "Mai bayar AI",
+  "TableHeader_Role": "Matsayi",
+  "ToggleHumanPlayerJoinLabel": "Juya shiga ka kai a matsayin dan adam",
+  "UseDifferentEngineForMafiaLabel": "Amfani da injini AI daban don 'yan Mafia",
+  "WaitingForProvidersLabel": "Ina jira ga masamu AI...",
+  "YourPlayerNameLabel": "Sunan Dan wasan ka"
 }

@@ -146,5 +146,19 @@
   "VoteNoMajority": "Голосов не хватило для большинства. Никто не будет казнён.",
   "VoteTieResult": "Голосование завершилось ничьей между {{playerNames}}. Никто не будет казнён.",
   "VoteInsufficientVotes": "Голосов оказалось недостаточно. Никто не будет казнён.",
-  "NoVotesCast": "Не было подано решающих голосов. Никто не будет казнён."
+  "NoVotesCast": "Не было подано решающих голосов. Никто не будет казнён.",
+  "AI Engine": "Движок ИИ",
+  "EnterYourNamePlaceholder": "Введите ваше имя",
+  "JoinAsHumanLabel": "Присоединиться к игре самостоятельно?",
+  "MafiaEngineLabel": "Движок ИИ Мафии",
+  "ProcessingLabel": "Обработка...",
+  "TableHeader_Actions": "Действия",
+  "TableHeader_Character": "Персонаж",
+  "TableHeader_Model": "Модель ИИ",
+  "TableHeader_Provider": "Поставщик ИИ",
+  "TableHeader_Role": "Роль",
+  "ToggleHumanPlayerJoinLabel": "Переключить присоединение как игрок-человек",
+  "UseDifferentEngineForMafiaLabel": "Использовать отдельный движок ИИ для игроков Мафии",
+  "WaitingForProvidersLabel": "Ожидание доступных поставщиков ИИ...",
+  "YourPlayerNameLabel": "Имя вашего игрока"
 }

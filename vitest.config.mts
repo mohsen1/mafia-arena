@@ -16,6 +16,14 @@ export default defineConfig({
     deps: {
       // Ensure server-side dependencies are handled correctly if needed
       // Example: external: ['@/lib/engine/.*'] if engine code uses Node-specific APIs not available in test env
-    }
+    },
+    // Clean test output configuration
+    silent: false, // Keep test results visible
+    reporters: ['default'], // Use default reporter for clean output
+    // Disable console output during tests
+    onConsoleLog: () => false, // Suppress all console.log output
+    pool: 'forks', // Use separate processes for better isolation
+    // Optional: limit concurrent tests for cleaner output
+    maxConcurrency: 4,
   },
 }); 

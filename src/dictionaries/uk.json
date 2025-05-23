@@ -146,5 +146,19 @@
   "VoteNoMajority": "Голосування не досягло більшості. Ніхто не страчений.",
   "VoteTieResult": "Голосування завершилося нічиєю між {{playerNames}}. Ніхто не страчений.",
   "VoteInsufficientVotes": "Голосування мало недостатньо голосів. Ніхто не страчений.",
-  "NoVotesCast": "Не було подано вирішальних голосів. Ніхто не страчений."
+  "NoVotesCast": "Не було подано вирішальних голосів. Ніхто не страчений.",
+  "AI Engine": "Двигун штучного інтелекту",
+  "EnterYourNamePlaceholder": "Введіть ваше ім'я",
+  "JoinAsHumanLabel": "Приєднатися до гри самостійно?",
+  "MafiaEngineLabel": "Двигун штучного інтелекту Мафії",
+  "ProcessingLabel": "Обробка...",
+  "TableHeader_Actions": "Дії",
+  "TableHeader_Character": "Персонаж",
+  "TableHeader_Model": "Модель штучного інтелекту",
+  "TableHeader_Provider": "Постачальник штучного інтелекту",
+  "TableHeader_Role": "Роль",
+  "ToggleHumanPlayerJoinLabel": "Перемкнути приєднання як гравець-людина",
+  "UseDifferentEngineForMafiaLabel": "Використовувати окремий двигун штучного інтелекту для гравців Мафії",
+  "WaitingForProvidersLabel": "Чекаючи на доступних постачальників штучного інтелекту...",
+  "YourPlayerNameLabel": "Ім'я вашого гравця"
 }

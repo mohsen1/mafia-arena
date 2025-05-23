@@ -146,5 +146,19 @@
   "VoteNoMajority": "வாக்கு பெரும்பான்மையை எட்டவில்லை. யாரும் தூக்கிலிடப்படவில்லை.",
   "VoteTieResult": "{{playerNames}} இடையே வாக்கு சமநிலையில் முடிந்தது. யாரும் தூக்கிலிடப்படவில்லை.",
   "VoteInsufficientVotes": "வாக்கு போதுமான வாக்குகளை பெறவில்லை. யாரும் தூக்கிலிடப்படவில்லை.",
-  "NoVotesCast": "எந்த முடிவு செய்யும் வாக்கும் போடப்படவில்லை. யாரும் தூக்கிலிடப்படவில்லை."
+  "NoVotesCast": "எந்த முடிவு செய்யும் வாக்கும் போடப்படவில்லை. யாரும் தூக்கிலிடப்படவில்லை.",
+  "AI Engine": "AI இயந்திரம்",
+  "EnterYourNamePlaceholder": "உங்கள் பெயரை உள்ளிடுக",
+  "JoinAsHumanLabel": "ஒரு மனிதராக விளையாட்டில் சேருங்களா?",
+  "MafiaEngineLabel": "மாஃபியா AI இயந்திரம்",
+  "ProcessingLabel": "செயலாக்கம்...",
+  "TableHeader_Actions": "செயல்கள்",
+  "TableHeader_Character": "கதாபாத்திரம்",
+  "TableHeader_Model": "AI மாதிரி",
+  "TableHeader_Provider": "AI வழங்குநர்",
+  "TableHeader_Role": "பாத்திரம்",
+  "ToggleHumanPlayerJoinLabel": "ஒரு மனித வீரராக சேருவதை மாற்று",
+  "UseDifferentEngineForMafiaLabel": "மாஃபியா வீரர்களுக்கு தனியான AI இயந்திரத்தைப் பயன்படுத்து",
+  "WaitingForProvidersLabel": "கிடைக்கும் AI வழங்குநர்களுக்காக காத்திருக்கிறோம்...",
+  "YourPlayerNameLabel": "உங்கள் வீரர் பெயர்"
 }

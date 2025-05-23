@@ -146,5 +146,19 @@
   "VoteNoMajority": "Die Stimmen haben keine Mehrheit erreicht. Niemand wird hingerichtet.",
   "VoteTieResult": "Die Stimmen haben zu einem Unentschieden zwischen {{playerNames}} geführt. Niemand wird hingerichtet.",
   "VoteInsufficientVotes": "Die Stimmen waren unzureichend. Niemand wird hingerichtet.",
-  "NoVotesCast": "Es wurden keine entscheidenden Stimmen abgegeben. Niemand wird hingerichtet."
+  "NoVotesCast": "Es wurden keine entscheidenden Stimmen abgegeben. Niemand wird hingerichtet.",
+  "AI Engine": "KI-Motor",
+  "EnterYourNamePlaceholder": "Geben Sie Ihren Namen ein",
+  "JoinAsHumanLabel": "Spiel selbst beitreten?",
+  "MafiaEngineLabel": "Mafia-KI-Motor",
+  "ProcessingLabel": "Verarbeitung...",
+  "TableHeader_Actions": "Aktionen",
+  "TableHeader_Character": "Charakter",
+  "TableHeader_Model": "KI-Modell",
+  "TableHeader_Provider": "KI-Anbieter",
+  "TableHeader_Role": "Rolle",
+  "ToggleHumanPlayerJoinLabel": "Beitreten als menschlicher Spieler umschalten",
+  "UseDifferentEngineForMafiaLabel": "Für Mafia-Spieler einen separaten KI-Motor verwenden",
+  "WaitingForProvidersLabel": "Warten auf verfügbare KI-Anbieter...",
+  "YourPlayerNameLabel": "Ihr Spielername"
 }

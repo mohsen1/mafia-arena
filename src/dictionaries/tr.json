@@ -146,5 +146,19 @@
   "VoteNoMajority": "Oy çoğunluk sağlanamadı. Hiç kimse idam edilmedi.",
   "VoteTieResult": "Oy {{playerNames}} arasında eşitlik ile sonuçlandı. Hiç kimse idam edilmedi.",
   "VoteInsufficientVotes": "Oy yeterli değildi. Hiç kimse idam edilmedi.",
-  "NoVotesCast": "Hiçbir karar oy kullanılmadı. Hiç kimse idam edilmedi."
+  "NoVotesCast": "Hiçbir karar oy kullanılmadı. Hiç kimse idam edilmedi.",
+  "AI Engine": "AI Motoru",
+  "EnterYourNamePlaceholder": "Adınızı girin",
+  "JoinAsHumanLabel": "Oyuna kendiniz katılmak ister misiniz?",
+  "MafiaEngineLabel": "Mafia AI Motoru",
+  "ProcessingLabel": "İşlem đang...",
+  "TableHeader_Actions": "Hareketler",
+  "TableHeader_Character": "Karakter",
+  "TableHeader_Model": "AI Modeli",
+  "TableHeader_Provider": "AI Sağlayıcı",
+  "TableHeader_Role": "Rol",
+  "ToggleHumanPlayerJoinLabel": "İnsan oyuncu olarak katılma ayarını değiştir",
+  "UseDifferentEngineForMafiaLabel": "Mafia oyuncuları için ayrı bir AI motoru kullan",
+  "WaitingForProvidersLabel": "Mevcut AI sağlayıcılarını bekliyorum...",
+  "YourPlayerNameLabel": "Oyuncu Adınız"
 }

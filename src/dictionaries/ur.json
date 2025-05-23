@@ -146,5 +146,19 @@
   "VoteNoMajority": "ووٹ اکثریت تک نہیں پہنچا۔ کوئی پھانسی نہیں دی جائے گی۔",
   "VoteTieResult": "ووٹ {{playerNames}} کے درمیان ٹائی پر ختم ہوا۔ کوئی پھانسی نہیں دی جائے گی۔",
   "VoteInsufficientVotes": "ووٹ میں کافی ووٹ نہیں تھے۔ کوئی پھانسی نہیں دی جائے گی۔",
-  "NoVotesCast": "کوئی فیصلہ کن ووٹ نہیں دیا گیا۔ کوئی پھانسی نہیں دی جائے گی۔"
+  "NoVotesCast": "کوئی فیصلہ کن ووٹ نہیں دیا گیا۔ کوئی پھانسی نہیں دی جائے گی۔",
+  "AI Engine": "ای آئی انجن",
+  "EnterYourNamePlaceholder": "اپنا نام درج کریں",
+  "JoinAsHumanLabel": "کھیل میں خود شامل ہوں?",
+  "MafiaEngineLabel": "مافیا ای آئی انجن",
+  "ProcessingLabel": "پروسیسنگ ہو رہا ہے...",
+  "TableHeader_Actions": "کارروائیاں",
+  "TableHeader_Character": "کردار",
+  "TableHeader_Model": "ای آئی ماڈل",
+  "TableHeader_Provider": "ای آئی فراہم کرنے والا",
+  "TableHeader_Role": "کردار",
+  "ToggleHumanPlayerJoinLabel": "انسان کھلاڑی کے طور پر شمولیت کو ٹوگل کریں",
+  "UseDifferentEngineForMafiaLabel": "مافیا کھلاڑیوں کے لیے الگ ای آئی انجن کا استعمال کریں",
+  "WaitingForProvidersLabel": "موجودہ ای آئی فراہم کرنے والوں کا انتظار...",
+  "YourPlayerNameLabel": "آپ کا کھلاڑی نام"
 }

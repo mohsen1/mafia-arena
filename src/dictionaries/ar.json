@@ -146,5 +146,19 @@
   "VoteNoMajority": "لم يصل التصويت إلى الأغلبية. لا أحد يُعدم.",
   "VoteTieResult": "انتهى التصويت إلى تعادل بين {{playerNames}}. لا أحد يُعدم.",
   "VoteInsufficientVotes": "كان التصويت قاصرا عن الأصوات. لا أحد يُعدم.",
-  "NoVotesCast": "لم تُقسم أي أصوات حاسمة. لا أحد يُعدم."
+  "NoVotesCast": "لم تُقسم أي أصوات حاسمة. لا أحد يُعدم.",
+  "AI Engine": "محرك الذكاء الاصطناعي",
+  "EnterYourNamePlaceholder": "أدخل اسمك",
+  "JoinAsHumanLabel": "انضم إلى اللعبة بنفسك؟",
+  "MafiaEngineLabel": "محرك الذكاء الاصطناعي للمافيا",
+  "ProcessingLabel": "معالجة...",
+  "TableHeader_Actions": "الإجراءات",
+  "TableHeader_Character": "الشخصية",
+  "TableHeader_Model": "نموذج الذكاء الاصطناعي",
+  "TableHeader_Provider": "مُقدم الذكاء الاصطناعي",
+  "TableHeader_Role": "الدور",
+  "ToggleHumanPlayerJoinLabel": "تبديل الانضمام كلاعب بشري",
+  "UseDifferentEngineForMafiaLabel": "استخدام محرك ذكاء اصطناعي منفصل للاعبين في المافيا",
+  "WaitingForProvidersLabel": "في انتظار مقدمي الذكاء الاصطناعي المتاحين...",
+  "YourPlayerNameLabel": "اسم لاعبك"
 }

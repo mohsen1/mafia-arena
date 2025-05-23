@@ -146,5 +146,19 @@
   "VoteNoMajority": "Phiếu không đạt được đa số. Không ai bị xử tử.",
   "VoteTieResult": "Phiếu dẫn đến hòa giữa {{playerNames}}. Không ai bị xử tử.",
   "VoteInsufficientVotes": "Phiếu không đủ số phiếu. Không ai bị xử tử.",
-  "NoVotesCast": "Không có phiếu quyết định nào được bỏ. Không ai bị xử tử."
+  "NoVotesCast": "Không có phiếu quyết định nào được bỏ. Không ai bị xử tử.",
+  "AI Engine": "Động cơ Trí tuệ Nhân tạo",
+  "EnterYourNamePlaceholder": "Nhập tên của bạn",
+  "JoinAsHumanLabel": "Tham gia trò chơi như một người chơi?",
+  "MafiaEngineLabel": "Động cơ Trí tuệ Nhân tạo của Mafia",
+  "ProcessingLabel": "Đang xử lý...",
+  "TableHeader_Actions": "Hành động",
+  "TableHeader_Character": "Nhân vật",
+  "TableHeader_Model": "Mô hình Trí tuệ Nhân tạo",
+  "TableHeader_Provider": "Nhà cung cấp Trí tuệ Nhân tạo",
+  "TableHeader_Role": "Vai trò",
+  "ToggleHumanPlayerJoinLabel": "Bật/tắt tham gia như một người chơi",
+  "UseDifferentEngineForMafiaLabel": "Sử dụng động cơ Trí tuệ Nhân tạo riêng biệt cho người chơi Mafia",
+  "WaitingForProvidersLabel": "Đang chờ nhà cung cấp Trí tuệ Nhân tạo có sẵn...",
+  "YourPlayerNameLabel": "Tên người chơi của bạn"
 }

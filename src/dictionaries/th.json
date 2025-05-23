@@ -146,5 +146,19 @@
   "VoteNoMajority": "การลงคะแนนไม่ถึงเสียงส่วนใหญ่ ไม่มีใครถูกประหาร.",
   "VoteTieResult": "การลงคะแนนส่งผลให้เกิดการเสมอกันระหว่าง {{playerNames}} ไม่มีใครถูกประหาร.",
   "VoteInsufficientVotes": "การลงคะแนนมีเสียงไม่เพียงพอ ไม่มีใครถูกประหาร.",
-  "NoVotesCast": "ไม่มีการลงคะแนนเสียงที่ตัดสินใจ ไม่มีใครถูกประหาร."
+  "NoVotesCast": "ไม่มีการลงคะแนนเสียงที่ตัดสินใจ ไม่มีใครถูกประหาร.",
+  "AI Engine": "เครื่องมือ AI",
+  "EnterYourNamePlaceholder": "กรอกชื่อของคุณ",
+  "JoinAsHumanLabel": "เข้าร่วมเกมด้วยตนเอง?",
+  "MafiaEngineLabel": "เครื่องมือ AI ของมาเฟีย",
+  "ProcessingLabel": "กำลังประมวลผล...",
+  "TableHeader_Actions": "การกระทำ",
+  "TableHeader_Character": "ตัวละคร",
+  "TableHeader_Model": "แบบจำลอง AI",
+  "TableHeader_Provider": "ผู้ให้บริการ AI",
+  "TableHeader_Role": "บทบาท",
+  "ToggleHumanPlayerJoinLabel": "สลับเข้าร่วมเป็นผู้เล่นมนุษย์",
+  "UseDifferentEngineForMafiaLabel": "ใช้เครื่องมือ AI แยกสำหรับผู้เล่นมาเฟีย",
+  "WaitingForProvidersLabel": "กำลังรอผู้ให้บริการ AI ที่พร้อมใช้...",
+  "YourPlayerNameLabel": "ชื่อผู้เล่นของคุณ"
 }

@@ -146,5 +146,19 @@
   "VoteNoMajority": "Le vote n'a pas atteint une majorité. Personne n'est exécuté.",
   "VoteTieResult": "Le vote a abouti à un match nul entre {{playerNames}}. Personne n'est exécuté.",
   "VoteInsufficientVotes": "Le vote n'a pas obtenu suffisamment de votes. Personne n'est exécuté.",
-  "NoVotesCast": "Aucun vote décisif n'a été émis. Personne n'est exécuté."
+  "NoVotesCast": "Aucun vote décisif n'a été émis. Personne n'est exécuté.",
+  "AI Engine": "Moteur IA",
+  "EnterYourNamePlaceholder": "Entrez votre nom",
+  "JoinAsHumanLabel": "Rejoindre le jeu en personne ?",
+  "MafiaEngineLabel": "Moteur IA de la Mafia",
+  "ProcessingLabel": "Traitement...",
+  "TableHeader_Actions": "Actions",
+  "TableHeader_Character": "Personnage",
+  "TableHeader_Model": "Modèle IA",
+  "TableHeader_Provider": "Fournisseur IA",
+  "TableHeader_Role": "Rôle",
+  "ToggleHumanPlayerJoinLabel": "Basculer pour rejoindre en tant que joueur humain",
+  "UseDifferentEngineForMafiaLabel": "Utiliser un moteur IA distinct pour les joueurs de la Mafia",
+  "WaitingForProvidersLabel": "En attente de fournisseurs IA disponibles...",
+  "YourPlayerNameLabel": "Nom de votre joueur"
 }

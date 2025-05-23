@@ -146,5 +146,19 @@
   "VoteNoMajority": "投票没有达到多数。无人被处决。",
   "VoteTieResult": "投票结果在 {{playerNames}} 之间打平。无人被处决。",
   "VoteInsufficientVotes": "投票票数不足。无人被处决。",
-  "NoVotesCast": "没有决定性投票被投出。无人被处决。"
+  "NoVotesCast": "没有决定性投票被投出。无人被处决。",
+  "AI Engine": "人工智能引擎",
+  "EnterYourNamePlaceholder": "输入你的名字",
+  "JoinAsHumanLabel": "加入游戏作为人类玩家？",
+  "MafiaEngineLabel": "黑手党人工智能引擎",
+  "ProcessingLabel": "处理中...",
+  "TableHeader_Actions": "操作",
+  "TableHeader_Character": "角色",
+  "TableHeader_Model": "人工智能模型",
+  "TableHeader_Provider": "人工智能提供者",
+  "TableHeader_Role": "角色",
+  "ToggleHumanPlayerJoinLabel": "切换加入作为人类玩家",
+  "UseDifferentEngineForMafiaLabel": "为黑手党玩家使用单独的人工智能引擎",
+  "WaitingForProvidersLabel": "等待可用的人工智能提供者...",
+  "YourPlayerNameLabel": "你的玩家名称"
 }

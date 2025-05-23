@@ -146,5 +146,19 @@
   "VoteNoMajority": "मत बहुमत तक नहीं पहुंचा। कोई भी निष्पादित नहीं किया गया।",
   "VoteTieResult": "मत {{playerNames}} के बीच टाई में परिणत हुआ। कोई भी निष्पादित नहीं किया गया।",
   "VoteInsufficientVotes": "मत में पर्याप्त वोट नहीं थे। कोई भी निष्पादित नहीं किया गया।",
-  "NoVotesCast": "कोई निर्णायक वोट नहीं डाले गए। कोई भी निष्पादित नहीं किया गया।"
+  "NoVotesCast": "कोई निर्णायक वोट नहीं डाले गए। कोई भी निष्पादित नहीं किया गया।",
+  "AI Engine": "एआई इंजन",
+  "EnterYourNamePlaceholder": "अपना नाम दर्ज करें",
+  "JoinAsHumanLabel": "स्वयं खेल में शामिल हों?",
+  "MafiaEngineLabel": "माफिया एआई इंजन",
+  "ProcessingLabel": "प्रोसेसिंग...",
+  "TableHeader_Actions": "क्रियाएं",
+  "TableHeader_Character": "पात्र",
+  "TableHeader_Model": "एआई मॉडल",
+  "TableHeader_Provider": "एआई प्रदाता",
+  "TableHeader_Role": "भूमिका",
+  "ToggleHumanPlayerJoinLabel": "मानव खिलाड़ी के रूप में शामिल होने को टॉगल करें",
+  "UseDifferentEngineForMafiaLabel": "माफिया खिलाड़ियों के लिए अलग एआई इंजन का उपयोग करें",
+  "WaitingForProvidersLabel": "उपलब्ध एआई प्रदाताओं की प्रतीक्षा...",
+  "YourPlayerNameLabel": "आपका खिलाड़ी नाम"
 }

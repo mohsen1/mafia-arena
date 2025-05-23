@@ -146,5 +146,19 @@
   "VoteNoMajority": "मतभेद बहुमतापर्यंत पोहोचला नाही. कोणालाही मृत्युदंड नाही.",
   "VoteTieResult": "{{playerNames}} यांच्यातील टायमुळे कोणालाही मृत्युदंड नाही.",
   "VoteInsufficientVotes": "मतदान अपुरे होते. कोणालाही मृत्युदंड नाही.",
-  "NoVotesCast": "निर्णय घेण्यासाठी कोणतीही मते नाहीत. कोणालाही मृत्युदंड नाही."
+  "NoVotesCast": "निर्णय घेण्यासाठी कोणतीही मते नाहीत. कोणालाही मृत्युदंड नाही.",
+  "AI Engine": "एआय इंजिन",
+  "EnterYourNamePlaceholder": "तुमचे नाव टाइप करा",
+  "JoinAsHumanLabel": "स्वतःच्या संगत खेळा?",
+  "MafiaEngineLabel": "माफिया एआय इंजिन",
+  "ProcessingLabel": "प्रोसेसिंग चालू आहे...",
+  "TableHeader_Actions": "क्रिया",
+  "TableHeader_Character": "पात्र",
+  "TableHeader_Model": "एआय मॉडेल",
+  "TableHeader_Provider": "एआय प्रदाता",
+  "TableHeader_Role": "भूमिका",
+  "ToggleHumanPlayerJoinLabel": "मानवी खेळाडू म्हणून सामील होण्याचे बटन",
+  "UseDifferentEngineForMafiaLabel": "माफिया खेळाडूंसाठी वेगळे एआय इंजिन वापरा",
+  "WaitingForProvidersLabel": "उपलब्ध एआय प्रदात्यांची वाट पाहणे...",
+  "YourPlayerNameLabel": "तुमचे खेळाडू नाव"
 }
