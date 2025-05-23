@@ -39,9 +39,9 @@ export function ConversationLog() {
     return log.filter(isVisible);
   }, [gameState]); // Keep dependency on full gameState to avoid linter issues
 
-  // Memoize the reversed display log
+  // Memoize the display log in chronological order (oldest first, newest last)
   const displayLogMemo = useMemo(() => {
-      return filteredLog.slice().reverse();
+      return filteredLog.slice();
   }, [filteredLog]);
 
   // Memoized scroll function
@@ -93,10 +93,10 @@ export function ConversationLog() {
       <div className="space-y-4">
         {displayLogMemo.length > 0 ? (
           displayLogMemo.map((message, index) => (
-            // Apply ref to the first item in displayLogMemo (latest chronological message)
+            // Apply ref to the last item in displayLogMemo (newest chronological message)
             <div 
               key={message.id}
-              ref={index === 0 ? lastMessageRef : undefined}
+              ref={index === displayLogMemo.length - 1 ? lastMessageRef : undefined}
             >
               <MessageBubble
                 message={message}
