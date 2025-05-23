@@ -46,11 +46,11 @@ export class OpenAIAgent implements IAgent {
         log(`Initialized OpenAIAgent ${this.id} with model: ${this.model}, endpoint: ${this.apiBase}`);
     }
 
-    async generatePersona(themeDescription: string): Promise<void> {
+    async generatePersona(themeDescription: string, language?: string): Promise<void> {
         const agentIdForLog = `${this.id} (Persona Gen)`;
-        log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}`);
+        log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}, language: ${language || 'en'}`);
 
-        const personaPrompt = getPersonaGenerationPrompt(themeDescription);
+        const personaPrompt = getPersonaGenerationPrompt(themeDescription, language);
 
         try {
             const completion = await this.openai.chat.completions.create({

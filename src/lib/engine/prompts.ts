@@ -44,11 +44,16 @@ const MAX_MESSAGES_IN_PROMPT = 15; // Example value, adjust as needed
 /**
  * Generates the prompt for an LLM agent to create its persona.
  * @param themeDescription A one-liner describing the game's theme.
+ * @param language The language to generate the persona in (defaults to English if not provided).
  */
-export function getPersonaGenerationPrompt(themeDescription: string): string {
+export function getPersonaGenerationPrompt(themeDescription: string, language?: string): string {
+  const languageInstruction = language && language !== 'en' 
+    ? `\n\nIMPORTANT: Generate the persona content (name, backstory, personalityTraits) in ${language}. Use natural, authentic ${language} text that fits the theme.`
+    : '';
+    
   return dedent`
     You are a creative writer tasked with generating a character persona for a text-based Mafia game.
-    The game's theme is: "${themeDescription}"
+    The game's theme is: "${themeDescription}"${languageInstruction}
 
     Please create a compelling and distinct persona that fits this theme.
     Strive for originality and avoid generic names (like Bob, Jane) or stereotypes unless they are uniquely twisted for the theme.
@@ -76,6 +81,11 @@ export function getSystemPrompt(): string {
     return dedent`
         You are an AI player in a text-based Mafia game (also known as Werewolf), playing a specific persona.
         Your goal is to help your team (Mafia or Town) win while staying in character.
+
+        **IMPORTANT: Language Requirements**
+        - You MUST communicate in the language specified in the game state (see "Language" in your game state).
+        - ALL your messages, thoughts, and reasoning should be in that language.
+        - Stay true to your persona while using the specified language naturally.
 
         **Game Theme:** The game master will provide the current theme (e.g., UK Village 1900s).
 

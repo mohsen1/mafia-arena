@@ -50,11 +50,11 @@ export class GeminiAgent implements IAgent {
         log(`Initialized GeminiAgent ${this.id} with model: ${this.modelName}`);
     }
 
-    async generatePersona(themeDescription: string): Promise<void> {
+    async generatePersona(themeDescription: string, language?: string): Promise<void> {
         const agentIdForLog = `${this.id} (Persona Gen)`;
-        log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}`);
+        log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}, language: ${language || 'en'}`);
 
-        const personaPrompt = getPersonaGenerationPrompt(themeDescription);
+        const personaPrompt = getPersonaGenerationPrompt(themeDescription, language);
 
         try {
             const model = genAI.getGenerativeModel({

@@ -404,7 +404,7 @@ export class Game {
             if (player.agent.persona?.name === DEFAULT_PERSONA.name &&
                 typeof player.agent.generatePersona === 'function') {
                 console.log(`Generating persona for ${player.name} (${player.id})...`);
-                personaGenerationPromises.push(player.agent.generatePersona(themeDescription));
+                personaGenerationPromises.push(player.agent.generatePersona(themeDescription, this.language));
             }
         }
 

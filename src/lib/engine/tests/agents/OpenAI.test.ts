@@ -406,7 +406,7 @@ describe('OpenAIAgent', () => {
 
             await agent.generatePersona(themeDesc);
 
-            expect(getPersonaGenerationPrompt).toHaveBeenCalledWith(themeDesc);
+            expect(getPersonaGenerationPrompt).toHaveBeenCalledWith(themeDesc, undefined);
             expect(mockCreate).toHaveBeenCalledTimes(1);
             expect(mockCreate).toHaveBeenCalledWith({
                 model: testModel,

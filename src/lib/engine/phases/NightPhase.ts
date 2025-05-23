@@ -366,6 +366,13 @@ export class NightPhase extends AbstractGamePhase {
              killMessage = `${savedPlayer?.name ?? savedPlayerId} was attacked, but the Doctor saved them!`;
             actualKillTarget = null; // Kill is prevented
             console.log(`Save successful: ${savedPlayerId}`);
+            // Record the successful save in memory
+            if (this.#doctorSaveTarget) {
+                const doctorPlayer = game.getAlivePlayers().find(p => p.role.name === RoleName.Doctor);
+                if (doctorPlayer) {
+                    game.recordDoctorSaveInMemory(doctorPlayer.id, this.#doctorSaveTarget);
+                }
+            }
         }
 
         // Process Kill

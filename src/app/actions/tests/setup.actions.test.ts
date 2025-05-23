@@ -109,7 +109,7 @@ const mockSeerRole: IRole = { name: RoleName.Seer, allegiance: 'Town', canPerfor
 describe('setup.actions', () => {
   let mockStaticLoadFromStateSetup: Mock;
   let gameInstanceInternalMocks: any; // To access nested mocks
-  let gameInstance: ReturnType<typeof mockStaticLoadFromStateSetup>; // Declare gameInstance here
+  let gameInstance: any; // Declare gameInstance here with proper type
 
   beforeEach(async () => {
     vi.clearAllMocks();

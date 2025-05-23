@@ -147,22 +147,34 @@ describe('gameplay.actions', () => {
             themeKey: 'defaultTheme',
             language: 'en',
         };
-        gameInstanceMock = mockStaticLoadFromState(defaultMockStateForLoad);
+        
+        // Create a mock game instance without calling loadFromState yet
+        gameInstanceMock = {
+            getCurrentPhase: vi.fn(),
+            getCurrentPhaseType: vi.fn(),
+            advanceToPhase: vi.fn(),
+            getCurrentSerializableState: vi.fn(),
+            getPhaseStep: vi.fn(),
+            getNextPlayerIndexToAction: vi.fn(),
+            getPendingHumanAction: vi.fn(),
+            _mocks: {
+                mockPhaseRunStep: vi.fn(),
+                mockPhaseTransition: vi.fn(),
+                mockPhaseInstance: { type: 'Night' as GamePhaseType, runStep: vi.fn(), transition: vi.fn() }
+            }
+        };
+        
         gameInstanceInternalMocks = gameInstanceMock._mocks;
 
-        for (const mockFn of Object.values(gameInstanceMock)) { // Linter: prefer for...of
-            if (typeof mockFn === 'function' && vi.isMockFunction(mockFn)) {
-                mockFn.mockClear();
-            }
-        }
-        gameInstanceInternalMocks.mockPhaseRunStep.mockClear().mockResolvedValue(undefined);
-        gameInstanceInternalMocks.mockPhaseTransition.mockClear().mockReturnValue('Day' as GamePhaseType);
-
+        // Set up default mock implementations
         gameInstanceMock.getCurrentPhase.mockReturnValue(gameInstanceInternalMocks.mockPhaseInstance);
         gameInstanceMock.getCurrentPhaseType.mockReturnValue(gameInstanceInternalMocks.mockPhaseInstance.type);
         gameInstanceMock.getPendingHumanAction.mockReturnValue(null);
+        gameInstanceInternalMocks.mockPhaseRunStep.mockResolvedValue(undefined);
+        gameInstanceInternalMocks.mockPhaseTransition.mockReturnValue('Day' as GamePhaseType);
+        
+        // Set up the static method to return our mock instance
         mockStaticLoadFromState.mockReturnValue(gameInstanceMock);
-
 
         mockLoadedState = {
             gameId: gameId,
@@ -185,7 +197,11 @@ describe('gameplay.actions', () => {
             _phaseResults: {},
         };
 
-        mockStateAfterStep = gameInstanceMock.getCurrentSerializableState(null);
+        // Create a default mock state for getCurrentSerializableState without calling it
+        mockStateAfterStep = {
+            ...mockLoadedState,
+            updatedAt: Date.now() + 1000,
+        };
 
         mockFilteredState = {
             id: gameId,

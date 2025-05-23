@@ -1,7 +1,7 @@
-import { PlayerId } from './IPlayer';
-import { Persona } from './Theme';
-import { VisibleGameState } from './GameState';
-import { PendingHumanAction } from '../../interfaces/actions.types';
+import type { PlayerId } from './IPlayer';
+import type { Persona } from './Theme';
+import type { VisibleGameState } from './GameState';
+import type { PendingHumanAction } from '../../interfaces/actions.types';
 
 export type PlayerAction =
     | { type: 'message'; content: string }
@@ -37,9 +37,10 @@ export interface IAgent {
      * Optional method for LLM-based agents to generate their own persona
      * based on the game theme. It should store the generated persona internally.
      * @param themeDescription A one-liner describing the game's theme.
+     * @param language Optional language code for the persona generation (defaults to English if not provided).
      * @returns A promise that resolves when the persona is generated (or fallback used).
      */
-    generatePersona?(themeDescription: string): Promise<void>;
+    generatePersona?(themeDescription: string, language?: string): Promise<void>;
 
     /**
      * The persona associated with this agent, potentially generated.

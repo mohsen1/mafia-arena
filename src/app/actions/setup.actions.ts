@@ -65,7 +65,8 @@ async function generateCharacterPersona(
     playerName: string, 
     playerId: PlayerId, 
     agentConfig: AgentConfig, 
-    themeDescription: string
+    themeDescription: string,
+    language?: string
 ): Promise<Persona> {
     return retryWithBackoff(
         async () => {
@@ -81,7 +82,7 @@ async function generateCharacterPersona(
             }
             
             // Generate the persona
-            await tempAgent.generatePersona(themeDescription);
+            await tempAgent.generatePersona(themeDescription, language);
             
             // Validate the generated persona
             if (!tempAgent.persona || 
@@ -127,7 +128,8 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
                     playerSetup.name,
                     tempPlayerId,
                     playerSetup.agentConfig,
-                    theme.description
+                    theme.description,
+                    setupData.language
                 ).then(persona => {
                     characterPersonas.set(`player-${i}`, persona);
                 }).catch(error => {

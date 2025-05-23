@@ -2,7 +2,8 @@ import type { IAgent } from '../interfaces/IAgent';
 import type { PlayerAction } from '../interfaces/IAgent';
 import type { VisibleGameState } from '../interfaces/GameState';
 import type { PlayerId } from '../interfaces/IPlayer';
-import { Persona, DEFAULT_PERSONA } from '../interfaces/Persona';
+import type { Persona } from '../interfaces/Persona';
+import { DEFAULT_PERSONA } from '../interfaces/Persona';
 import { Anthropic } from '@anthropic-ai/sdk'; // Ensure this is installed
 import * as dotenv from 'dotenv'; // Import dotenv
 import debug from 'debug'; // Import debug
@@ -19,7 +20,10 @@ dotenv.config();
 const apiKey = process.env.ANTHROPIC_API_KEY;
 let anthropic: Anthropic | null = null;
 if (apiKey) {
-    anthropic = new Anthropic({ apiKey });
+    anthropic = new Anthropic({ 
+        apiKey,
+        dangerouslyAllowBrowser: true // Required for test environments that simulate browser (jsdom)
+    });
 } else {
     log('WARN: ANTHROPIC_API_KEY environment variable not set. ClaudeAgent will not work.');
 }
@@ -45,9 +49,9 @@ export class ClaudeAgent implements IAgent {
         }
     }
 
-    async generatePersona(themeDescription: string): Promise<void> {
+    async generatePersona(themeDescription: string, language?: string): Promise<void> {
         const agentIdForLog = `${this.id} (Persona Gen)`;
-        log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}`);
+        log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}, language: ${language || 'en'}`);
 
         if (!anthropic) {
             log(`ERROR: [${agentIdForLog}] Anthropic client not initialized. Using default persona.`);
@@ -55,7 +59,7 @@ export class ClaudeAgent implements IAgent {
             return;
         }
 
-        const personaPrompt = getPersonaGenerationPrompt(themeDescription);
+        const personaPrompt = getPersonaGenerationPrompt(themeDescription, language);
 
         try {
             const response = await anthropic.messages.create({
@@ -74,7 +78,7 @@ export class ClaudeAgent implements IAgent {
             if (response.content.length > 0 && response.content[0].type === 'text') {
                 responseText = response.content[0].text;
             }
-            const potentialJson = "{" + responseText.trim() + "}"; // Trim inner text before wrapping
+            const potentialJson = `{${responseText.trim()}}`;
 
             if (!responseText) {
                 log(`ERROR: [${agentIdForLog}] Persona generation API response was empty.`);
@@ -157,7 +161,7 @@ export class ClaudeAgent implements IAgent {
             if (response.content.length > 0 && response.content[0].type === 'text') {
                  responseText = response.content[0].text;
             }
-            const potentialJson = "{" + responseText + "}";
+            const potentialJson = `{${responseText}}`;
 
             if (!responseText) {
                 log(`ERROR: [${agentIdForLog} (Claude)] API response was empty.`);
@@ -176,7 +180,8 @@ export class ClaudeAgent implements IAgent {
             if (allowedActions && allowedActions.length > 0 && !allowedActions.includes(action.type)) {
                  log(`WARN: [${agentIdForLog} (Claude)] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`);
                  return { type: 'noAction' };
-            } else if (!allowedActions && action.type !== 'noAction'){
+            }
+            if (!allowedActions && action.type !== 'noAction'){
                  log(`WARN: [${agentIdForLog} (Claude)] Action type '${action.type}' is not allowed (no actions specified). Defaulting to noAction.`);
                  return { type: 'noAction' };
             }

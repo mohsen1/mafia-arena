@@ -49,7 +49,7 @@ export class InitializationPhase extends AbstractGamePhase {
     }
 
     async runPhase(game: Game): Promise<void> {
-        // Remove all initialization messages - keep conversation log clean for gameplay
+        // Remove all initialization messages - keep conversation log clean
         // game.logMessage(null, "Initializing game...", MessageVisibility.Public, this.type);
 
         // --- Persona Generation --- //
@@ -59,7 +59,7 @@ export class InitializationPhase extends AbstractGamePhase {
         for (const player of game.getPlayers().values()) {
            const agent = player.agent;
            if (agent.generatePersona) { // Check if the method exists
-               const promise = agent.generatePersona(game.theme.description)
+               const promise = agent.generatePersona(game.theme.description, game.language)
                    .then(() => {
                        // Persona generated and stored in agent.persona
                        // Update Player name IF persona generation was successful and name is valid

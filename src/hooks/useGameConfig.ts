@@ -487,7 +487,7 @@ export function useGameConfig(
 
             if (result?.gameId && result?.initialState) {
                 setInfoMsg(t("GameStartedSuccessInfo", {}));
-                router.push(`/game/${result.gameId}`);
+                router.push(`/${lang}/game/${result.gameId}`);
             } else {
                 throw new Error(t("StartGameActionUnexpectedResultError", {}));
             }

@@ -75,7 +75,8 @@ describe('Player', () => {
             id: playerId,
             name: playerName,
             status: PlayerStatus.Alive,
-            // IMPORTANT: Role should NOT be here
+            isHuman: false,
+            imageUrl: undefined,
         });
         expect(publicInfo).not.toHaveProperty('role');
         expect(publicInfo).not.toHaveProperty('agent');
@@ -102,7 +103,13 @@ describe('Player', () => {
                     isMafia: false,
                     allegiance: 'Town'
                 },
-                players: [{ id: playerId, name: playerName, status: PlayerStatus.Alive }],
+                players: [{ 
+                    id: playerId, 
+                    name: playerName, 
+                    status: PlayerStatus.Alive,
+                    isHuman: false,
+                    imageUrl: undefined
+                }],
                 alivePlayerIds: new Set([playerId]),
                 memory: createInitialMemory(),
                 themeName: 'Default'

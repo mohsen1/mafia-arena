@@ -6,6 +6,7 @@ import type { PlayerAction } from '../interfaces/IAgent';
 import type { PlayerId } from '../interfaces/IPlayer';
 import { MessageVisibility } from '../interfaces/IMessage';
 import { RoleName } from '../interfaces/IRole'; // Import RoleName if needed for checks
+import { translate } from '../../i18n/server'; // Import server-side translation
 // import { HumanAgent } from '../agents/HumanAgent'; // No longer needed here
 
 export class DayPhase extends AbstractGamePhase {
@@ -23,7 +24,7 @@ export class DayPhase extends AbstractGamePhase {
         switch (step) {
             case 'Start':
                 this.#votes.clear(); // Clear votes at the start of the day
-                game.logMessage(null, "Day begins...", MessageVisibility.Public);
+                game.logMessage(null, translate("DayBegins", game.language), MessageVisibility.Public);
                 if (game.round === 1) {
                     game.setPhaseStep('Introduction');
                 } else {
@@ -39,7 +40,7 @@ export class DayPhase extends AbstractGamePhase {
                      // Don't break, let Discussion handle this turn
                  } else {
                     if (index === 0) { // Log message only once at the start of introductions
-                        game.logMessage(null, "Let's begin with introductions. Please introduce yourself.", MessageVisibility.Public);
+                        game.logMessage(null, translate("IntroductionPrompt", game.language), MessageVisibility.Public);
                     }
                      await this.handlePlayerAction(game, index, alivePlayers, ['message', 'noAction'], 'Voting');
                      break; // Exit after handling one player or deferring
@@ -48,14 +49,14 @@ export class DayPhase extends AbstractGamePhase {
 
             case 'Discussion':
                 if (index === 0 && game.round > 1) { // Log message only once at the start of discussion
-                    game.logMessage(null, "Discussion phase:", MessageVisibility.Public);
+                    game.logMessage(null, translate("DiscussionPhase", game.language), MessageVisibility.Public);
                 }
                 await this.handlePlayerAction(game, index, alivePlayers, ['message', 'noAction'], 'Voting');
                 break; // Exit after handling one player or deferring
 
             case 'Voting':
                 if (index === 0) { // Log message only once at the start of voting
-                     game.logMessage(null, "Voting phase: Choose who to execute.", MessageVisibility.Public);
+                     game.logMessage(null, translate("VotingPhase", game.language), MessageVisibility.Public);
                  }
                 await this.handlePlayerAction(game, index, alivePlayers, ['vote', 'noAction'], 'TallyVotes');
                 break; // Exit after handling one player or deferring
@@ -93,7 +94,15 @@ export class DayPhase extends AbstractGamePhase {
         if (index >= players.length) {
             // Finished this step for all players
             const currentStep = game.getPhaseStep();
-            game.logMessage(null, `${currentStep} complete.`, MessageVisibility.Public);
+            let completeKey = 'Complete'; // fallback
+            if (currentStep === 'Introduction') {
+                completeKey = 'IntroductionComplete';
+            } else if (currentStep === 'Discussion') {
+                completeKey = 'DiscussionComplete';
+            } else if (currentStep === 'Voting') {
+                completeKey = 'VotingComplete';
+            }
+            game.logMessage(null, translate(completeKey, game.language), MessageVisibility.Public);
             game.setPhaseStep(nextStep); // Move to the next defined step
             game.setNextPlayerIndexToAction(0); // Reset index for the next step
             return;
@@ -139,14 +148,14 @@ export class DayPhase extends AbstractGamePhase {
                     const targetPlayer = action.targetPlayerId ? game.getPlayer(action.targetPlayerId) : null;
                     if (action.targetPlayerId === null) {
                         this.#votes.set(player.id, null); 
-                        game.logMessage(player.id, "votes to abstain.", MessageVisibility.Public);
+                        game.logMessage(player.id, translate("VotesToAbstain", game.language), MessageVisibility.Public);
                     } else if (targetPlayer?.isAlive()) { // Check targetPlayer is not undefined AND alive
                         this.#votes.set(player.id, action.targetPlayerId);
-                        game.logMessage(player.id, `votes for ${targetPlayer.name}.`, MessageVisibility.Public);
+                        game.logMessage(player.id, translate("VotesFor", game.language, { playerName: targetPlayer.name }), MessageVisibility.Public);
                     } else {
                         this.#votes.set(player.id, null); // Invalid vote counts as abstain
                         const invalidTargetName = action.targetPlayerId ?? 'unknown';
-                        game.logMessage(player.id, `tried to vote for invalid target (${invalidTargetName}), vote counts as abstain.`, MessageVisibility.Public);
+                        game.logMessage(player.id, translate("VotesInvalidTarget", game.language, { targetName: invalidTargetName }), MessageVisibility.Public);
                     }
                  } else {
                      console.warn(`Received unexpected vote action from ${player.id} during step ${currentStep}`);
@@ -156,9 +165,9 @@ export class DayPhase extends AbstractGamePhase {
             case 'noAction':
                  if (currentStep === 'Voting') {
                      this.#votes.set(player.id, null);
-                     game.logMessage(player.id, "chose no action (abstains from voting).", MessageVisibility.Public);
+                     game.logMessage(player.id, translate("ChoseNoActionVoting", game.language), MessageVisibility.Public);
                  } else if (currentStep === 'Introduction' || currentStep === 'Discussion') {
-                     game.logMessage(player.id, "chose no action.", MessageVisibility.Public);
+                     game.logMessage(player.id, translate("ChoseNoAction", game.language), MessageVisibility.Public);
                  } // else ignore noAction if unexpected
                 break;
             // humanActionRequired should not reach here
@@ -207,18 +216,21 @@ export class DayPhase extends AbstractGamePhase {
             const executedPlayer = game.getPlayer(executedPlayerId);
             const executedPlayerName = executedPlayer?.name ?? executedPlayerId;
             const executedPlayerRole = executedPlayer?.role.name ?? 'Unknown Role';
-            game.logMessage(null, `With ${maxVotes} votes, the town has decided to execute ${executedPlayerName}.`, MessageVisibility.Public);
+            game.logMessage(null, translate("ExecutionDecision", game.language, { voteCount: maxVotes, playerName: executedPlayerName }), MessageVisibility.Public);
              // Kill the player and reveal role AFTER logging the decision
              // The killPlayer method itself logs the role based on game settings/rules
-            game.killPlayer(executedPlayerId, "was executed by popular vote.");
+            game.killPlayer(executedPlayerId, translate("ExecutionReason", game.language));
         } else if (maxVotes > 0 && (playersToExecute.length > 1 || maxVotes < majorityThresholdStrict)) { 
              const tiedNames = playersToExecute.map(id => game.getPlayer(id)?.name ?? id).join(', ');
-             const reason = maxVotes < majorityThresholdStrict 
-                 ? "did not reach a majority" 
-                 : (playersToExecute.length > 1 ? `resulted in a tie between ${tiedNames}` : "insufficient votes");
-             game.logMessage(null, `The vote ${reason}. No one is executed.`, MessageVisibility.Public);
+             if (maxVotes < majorityThresholdStrict) {
+                 game.logMessage(null, translate("VoteNoMajority", game.language), MessageVisibility.Public);
+             } else if (playersToExecute.length > 1) {
+                 game.logMessage(null, translate("VoteTieResult", game.language, { playerNames: tiedNames }), MessageVisibility.Public);
+             } else {
+                 game.logMessage(null, translate("VoteInsufficientVotes", game.language), MessageVisibility.Public);
+             }
         } else { // maxVotes === 0
-            game.logMessage(null, "No deciding votes were cast. No one is executed.", MessageVisibility.Public);
+            game.logMessage(null, translate("NoVotesCast", game.language), MessageVisibility.Public);
         }
 
         // Notify renderers and record results AFTER determining the outcome

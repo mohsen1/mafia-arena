@@ -211,16 +211,28 @@ describe('Game', () => {
              expect(publicMap.size).toBe(5);
              // Check using actual ID
              const p1Public = publicMap.get(villager1Id);
-             expect(p1Public).toEqual({ id: villager1Id, name: playerNames[0], status: PlayerStatus.Alive });
+             expect(p1Public).toEqual({ 
+                 id: villager1Id, 
+                 name: playerNames[0], 
+                 status: PlayerStatus.Alive,
+                 isHuman: false,
+                 imageUrl: undefined
+             });
              expect(p1Public).not.toHaveProperty('role');
          });
 
           it('should get public player array', () => {
              const publicArray = game.getPublicPlayerArray();
-             expect(publicArray.length).toBe(5);
+             expect(publicArray).toHaveLength(5);
              // Check using actual ID
              const p1Public = publicArray.find(p => p.id === villager1Id);
-             expect(p1Public).toEqual({ id: villager1Id, name: playerNames[0], status: PlayerStatus.Alive });
+             expect(p1Public).toEqual({ 
+                 id: villager1Id, 
+                 name: playerNames[0], 
+                 status: PlayerStatus.Alive,
+                 isHuman: false,
+                 imageUrl: undefined
+             });
              expect(p1Public).not.toHaveProperty('role');
          });
     });
@@ -243,7 +255,13 @@ describe('Game', () => {
              expect(state.self.isMafia).toBe(false);
              expect(state.players.length).toBe(5);
              // Check player info using actual ID
-             expect(state.players.find(p => p.id === villager1Id)).toEqual({ id: villager1Id, name: playerNames[0], status: PlayerStatus.Alive });
+             expect(state.players.find(p => p.id === villager1Id)).toEqual({ 
+                 id: villager1Id, 
+                 name: playerNames[0], 
+                 status: PlayerStatus.Alive,
+                 isHuman: false,
+                 imageUrl: undefined
+             });
              expect(state.alivePlayerIds.size).toBe(5);
              expect(state.mafiaPlayerIds).toBeUndefined(); 
          });
@@ -783,7 +801,7 @@ describe('Game', () => {
         });
 
         it('should only request actions from players with night actions when game.requestPlayerAction is called by a phase', async () => {
-            const requestActionSpy = vi.spyOn(nightTestGame, 'requestPlayerAction') as vi.MockedFunction<typeof nightTestGame.requestPlayerAction>;
+            const requestActionSpy = vi.spyOn(nightTestGame, 'requestPlayerAction') as MockedFunction<typeof nightTestGame.requestPlayerAction>;
             const nightPhaseInstance = nightTestGame.getCurrentPhase() as NightPhase;
             expect(nightPhaseInstance).toBeInstanceOf(NightPhase);
 

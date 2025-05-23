@@ -117,6 +117,7 @@ describe('InitializationPhase', () => {
             logMessage: mockLogMessage,
             getPlayers: mockGetPlayers,
             theme: { name: 'Test Theme', description: 'A theme for testing' },
+            language: 'en',
             // Add mocks for methods called by runStep
             isRolesAssigned: vi.fn().mockReturnValue(false),
             markRolesAssigned: vi.fn(),
@@ -137,26 +138,25 @@ describe('InitializationPhase', () => {
     it('should orchestrate persona generation and log appropriately', async () => {
         await initPhase.runPhase(mockGameInstance as Game);
 
-        expect(mockLogMessage).toHaveBeenCalledWith(null, "Initializing game...", MessageVisibility.Public, 'Init');
-        expect(mockLogMessage).toHaveBeenCalledWith(null, "Generating player personas...", MessageVisibility.Public, 'Init');
+        // The implementation intentionally avoids logging initialization messages
+        // to keep the conversation log clean for gameplay
+        expect(mockLogMessage).not.toHaveBeenCalledWith(null, "Initializing game...", MessageVisibility.Public, 'Init');
+        expect(mockLogMessage).not.toHaveBeenCalledWith(null, "Generating player personas...", MessageVisibility.Public, 'Init');
 
         expect(mockAgent1.generatePersona).toHaveBeenCalledTimes(1);
-        expect(mockAgent1.generatePersona).toHaveBeenCalledWith('A theme for testing');
+        expect(mockAgent1.generatePersona).toHaveBeenCalledWith('A theme for testing', 'en');
         expect(mockAgent3.generatePersona).toHaveBeenCalledTimes(1);
-        expect(mockAgent3.generatePersona).toHaveBeenCalledWith('A theme for testing');
+        expect(mockAgent3.generatePersona).toHaveBeenCalledWith('A theme for testing', 'en');
 
         expect(mockPlayerObj1.setName).toHaveBeenCalledWith('Generated p1');
         expect(mockPlayerObj3.setName).toHaveBeenCalledWith('Generated p3');
         expect(mockPlayerObj2.setName).not.toHaveBeenCalled();
 
-        expect(mockLogMessage).toHaveBeenCalledWith(null, "Persona generation complete.", MessageVisibility.Public, 'Init');
-        expect(mockLogMessage).toHaveBeenCalledWith(null, "\n## Players", MessageVisibility.Public);
-        expect(mockLogMessage).toHaveBeenCalledWith(null, expect.stringContaining(`${mockPlayerObj1.name} (p1)`), MessageVisibility.Public);
-        expect(mockLogMessage).toHaveBeenCalledWith(null, expect.stringContaining(`${mockPlayerObj2.name} (p2)`), MessageVisibility.Public);
-        expect(mockLogMessage).toHaveBeenCalledWith(null, expect.stringContaining(`${mockPlayerObj3.name} (p3)`), MessageVisibility.Public);
-
-        expect(mockLogMessage).toHaveBeenCalledWith(null, "\n### Init Phase (Round 0)", MessageVisibility.Public);
-        expect(mockLogMessage).toHaveBeenCalledWith(null, "Roles assigned. Ready to begin.", MessageVisibility.Public, 'Init');
+        // The implementation intentionally avoids these log messages to keep conversation clean
+        expect(mockLogMessage).not.toHaveBeenCalledWith(null, "Persona generation complete.", MessageVisibility.Public, 'Init');
+        expect(mockLogMessage).not.toHaveBeenCalledWith(null, "\n## Players", MessageVisibility.Public);
+        expect(mockLogMessage).not.toHaveBeenCalledWith(null, "\n### Init Phase (Round 0)", MessageVisibility.Public);
+        expect(mockLogMessage).not.toHaveBeenCalledWith(null, "Roles assigned. Ready to begin.", MessageVisibility.Public, 'Init');
     });
 
     it('should transition to DayPhase after runStep completes', async () => {
