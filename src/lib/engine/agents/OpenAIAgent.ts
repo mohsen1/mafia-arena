@@ -21,6 +21,9 @@ const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'; // Use a defaul
 const DEFAULT_API_BASE = process.env.OPENAI_API_BASE || 'https://api.openai.com/v1';
 const DEFAULT_API_KEY = process.env.OPENAI_API_KEY; // API key is now explicitly handled
 
+// Configuration for AI conversation logging (disabled by default to keep game saves small)
+const ENABLE_VERBOSE_AI_LOGGING = process.env.ENABLE_VERBOSE_AI_LOGGING === 'true' || false;
+
 export class OpenAIAgent implements IAgent {
     public readonly id: PlayerId;
     public readonly agentName = 'OpenAIAgent';
@@ -127,12 +130,20 @@ export class OpenAIAgent implements IAgent {
 
         const memoryForLogging = gameState.memory; 
 
-        const logEntry: Partial<AIConversationLog> = {
+        // Only create detailed log entry if verbose logging is enabled
+        const logEntry: Partial<AIConversationLog> = ENABLE_VERBOSE_AI_LOGGING ? {
             round: gameState.round,
             phase: gameState.phase,
             timestamp: new Date(),
             model: this.model,
             prompt: { system: systemPrompt, user: userPrompt },
+            response: { raw: null, parsedAction: null }
+        } : {
+            round: gameState.round,
+            phase: gameState.phase,
+            timestamp: new Date(),
+            model: this.model,
+            prompt: { user: '[Game state omitted - enable ENABLE_VERBOSE_AI_LOGGING=true for full prompts]' },
             response: { raw: null, parsedAction: null }
         };
 
@@ -149,11 +160,23 @@ export class OpenAIAgent implements IAgent {
             });
 
             const responseContent = completion.choices[0]?.message?.content;
-            logEntry.response!.raw = responseContent;
+            
+            // Store minimal response info unless verbose logging is enabled
+            if (ENABLE_VERBOSE_AI_LOGGING) {
+                if (logEntry.response) {
+                    logEntry.response.raw = responseContent;
+                }
+            } else {
+                if (logEntry.response) {
+                    logEntry.response.raw = responseContent ? `[Response omitted - ${responseContent.length} chars]` : null;
+                }
+            }
 
             if (!responseContent) {
                 console.warn(`[Agent ${agentIdForLog}] Received empty response from API.`);
-                logEntry.response!.error = 'Empty API response';
+                if (logEntry.response) {
+                    logEntry.response.error = 'Empty API response';
+                }
                 memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog); 
                 return { type: 'noAction' };
             }
@@ -163,27 +186,35 @@ export class OpenAIAgent implements IAgent {
 
                 if (!allowedActions.includes(parsedAction.type)) {
                     console.warn(`[Agent ${agentIdForLog}] Received disallowed action type '${parsedAction.type}'. Allowed: ${allowedActions.join(', ')}`);
-                    logEntry.response!.parsedAction = parsedAction;
-                    logEntry.response!.error = 'Disallowed action type received';
+                    if (logEntry.response) {
+                        logEntry.response.parsedAction = parsedAction;
+                        logEntry.response.error = 'Disallowed action type received';
+                    }
                     memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
                     return { type: 'noAction' };
                 }
 
-                logEntry.response!.parsedAction = parsedAction;
+                if (logEntry.response) {
+                    logEntry.response.parsedAction = parsedAction;
+                }
                 memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog); 
                 return parsedAction;
 
             } catch (parseError) {
                 console.error(`[Agent ${agentIdForLog}] Failed to parse JSON response: ${responseContent}`, parseError);
-                logEntry.response!.error = `JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
+                if (logEntry.response) {
+                    logEntry.response.error = `JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
+                }
                 memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog); 
                 return { type: 'noAction' };
             }
 
         } catch (error) {
             console.error(`[Agent ${agentIdForLog}] Error calling OpenAI API (model: ${this.model}, endpoint: ${this.apiBase}):`, error);
-            logEntry.response!.raw = null;
-            logEntry.response!.error = `API call failed: ${error instanceof Error ? error.message : String(error)}`;
+            if (logEntry.response) {
+                logEntry.response.raw = null;
+                logEntry.response.error = `API call failed: ${error instanceof Error ? error.message : String(error)}`;
+            }
             memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog); 
             return { type: 'noAction' };
         }

@@ -253,7 +253,8 @@ describe('OpenAIAgent', () => {
          // Check if the error was logged
          expect(mockGameState.memory.aiConversationLogs).toHaveLength(1);
          const log = mockGameState.memory.aiConversationLogs[0];
-         expect(log.response.raw).toEqual(invalidJsonResponse);
+         // Response is omitted by default to keep game saves small
+         expect(log.response.raw).toEqual(`[Response omitted - ${invalidJsonResponse.length} chars]`);
          expect(log.response.error).toContain('JSON parse error');
          expect(log.response.parsedAction).toBeNull(); // No action parsed
     });

@@ -22,7 +22,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
     <div
       className={cn(
         "flex items-center space-x-2 rtl:space-x-reverse p-2 rounded-md",
-        isAlive ? "bg-card" : "opacity-60",
+        isAlive ? "opacity-100" : "opacity-60",
       )}
     >
       <div className="relative flex-shrink-0 w-10 h-10">
@@ -48,9 +48,9 @@ export function PlayerCard({ player }: PlayerCardProps) {
           )}
         >
           {isAlive ? (
-            <PersonStanding size={10} className="text-success-foreground" />
+            <PersonStanding size={10} className="bg-backgroundtext-success-foreground" />
           ) : (
-            <Skull size={10} className="text-muted" />
+            <Skull size={10} className="bg-background text-muted" />
           )}
         </div>
       </div>
