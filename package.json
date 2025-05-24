@@ -2,6 +2,7 @@
   "name": "werewolf-ai",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.7",
   "scripts": {
     "dev": "PORT=3099 next dev --turbopack",
     "dev:test": "PORT=3191 next dev --turbopack",

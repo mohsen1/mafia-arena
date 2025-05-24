@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import type { LanguageCode as Locale } from "@/lib/i18n/settings";
 import { useTranslation } from "react-i18next";
 import type { AgentConfig } from "@/lib/interfaces/agent.types";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 import {
     availableModelsByProvider,
     availableProviders,
