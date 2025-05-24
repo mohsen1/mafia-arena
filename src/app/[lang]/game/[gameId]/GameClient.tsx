@@ -1,7 +1,6 @@
 "use client";
 
 import { ConversationLog } from "@/components/ConversationLog";
-import { GameHeader } from "@/components/GameHeader";
 import { GameSidebar } from "@/components/GameSidebar";
 import HumanChatInput from "@/components/HumanChatInput";
 import { GameProvider, useGameContext } from "@/context/GameContext";

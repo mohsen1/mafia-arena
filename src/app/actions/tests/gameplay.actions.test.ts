@@ -6,10 +6,7 @@ import type { SerializableGameState, SerializedMessage } from '@/lib/interfaces/
 import type { FilteredGameState, PendingHumanAction as FilteredPendingHumanAction, GamePhaseType, ClientMessage, FilteredPlayer } from '@/lib/interfaces/gameState.types';
 import type { PendingHumanAction as ActionPendingHumanAction } from '@/lib/interfaces/actions.types';
 import type { PlayerId } from "@/lib/engine/interfaces/IPlayer"; // Corrected path
-import { Game } from '@/lib/engine/core/Game';
 import type { MessageVisibility } from '@/lib/engine/interfaces/IMessage'; // Corrected path based on Game.ts import
-import { RoleName } from '@/lib/engine/interfaces/IRole';
-import type { Player } from '@/lib/engine/core/Player';
 
 // --- Mocks ---
 vi.mock('@/lib/persistence', () => ({
@@ -22,8 +19,17 @@ vi.mock('@/lib/visibilityHelper', () => ({
 }));
 
 
-// type MockGameInstance = InstanceType<typeof Game>; // Problematic due to private constructor
-type MockGameInstance = any; // Simplified to bypass private constructor issue for now
+// Define a more specific type for the mock game instance
+interface MockGameInstance {
+  getCurrentPhase(): { type: GamePhaseType; runStep: Mock; transition: Mock } | null;
+  getCurrentPhaseType(): GamePhaseType;
+  advanceToPhase(phase: GamePhaseType): void;
+  getCurrentSerializableState(pendingAction?: ActionPendingHumanAction | null): SerializableGameState;
+  getPhaseStep(): string;
+  getNextPlayerIndexToAction(): number;
+  getPendingHumanAction(): ActionPendingHumanAction | null;
+  _mocks: MockGameInternalMocks;
+}
 
 type MockGameInstanceMethods = {
   getCurrentPhase: Mock<() => { type: GamePhaseType; runStep: Mock; transition: Mock } | null>;
@@ -88,16 +94,15 @@ vi.mock('@/lib/engine/core/Game', () => {
   };
 
   return {
-    Game: class MockedGame { // Linter warning: Avoid classes with only static members
-      static loadFromState = vi.fn().mockReturnValue(mockGameInstanceMethodsFactory);
-      // Constructor removed
+    Game: {
+      loadFromState: vi.fn().mockReturnValue(mockGameInstanceMethodsFactory)
     }
   };
 });
 
 vi.mock('@/lib/engine/phases/DayPhase', () => ({ DayPhase: vi.fn(() => ({ type: 'Day' })) }));
 vi.mock('@/lib/engine/phases/NightPhase', () => ({ NightPhase: vi.fn(() => ({ type: 'Night' })) }));
-vi.mock('@/lib/engine/phases/GameOverPhase', () => ({ GameOverPhase: vi.fn((_winner) => ({ type: 'GameOver' })) }));
+vi.mock('@/lib/engine/phases/GameOverPhase', () => ({ GameOverPhase: vi.fn(() => ({ type: 'GameOver' })) }));
 
 
 describe('gameplay.actions', () => {
@@ -124,7 +129,7 @@ describe('gameplay.actions', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
 
-        const { Game: MockedGameClass } = await import('@/lib/engine/core/Game'); // Linter: type-only import?
+        const { Game: MockedGameClass } = await import('@/lib/engine/core/Game');
         mockStaticLoadFromState = MockedGameClass.loadFromState as unknown as Mock<(_loadedState: SerializableGameState) => MockGameInstanceMethods>;
 
         const defaultMockStateForLoad: SerializableGameState = {

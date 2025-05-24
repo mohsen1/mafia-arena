@@ -16,10 +16,8 @@ import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import crypto from 'node:crypto';
 import type { StartGameSetupData } from "@/lib/interfaces/actions.types"; // Use type from central location
 import { DEFAULT_PERSONA, type Persona } from '@/lib/engine/interfaces/Persona';
-import type { InitializationPhase } from '@/lib/engine/phases/InitializationPhase';
 import { selectCharacterImage } from '@/lib/utils/imageUtils'; // Import for auto-image assignment
 import { createAgentInstance } from '@/lib/agentFactory'; // Import for creating agent instances during setup
-import { MessageVisibility } from '@/lib/engine/interfaces/IMessage'; // Import MessageVisibility
 
 // Remove local definition, it's now imported
 // export interface StartGameSetupData { ... }
@@ -151,8 +149,7 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
         console.log("✅ Character persona generation complete!");
 
         const rolesMap: Record<PlayerId, RoleName> = {}; // Will map playerId to RoleName
-        const assignedRolesList = setupData.players.map(p => p.rolePreference); // Get roles from setup
-        // TODO: Add validation/balancing logic for assignedRolesList here
+        // TODO: Add validation/balancing logic for role assignment here
         
         const playersForPersistence: Record<PlayerId, SerializablePlayer> = {};
         const livingPlayerIds: PlayerId[] = [];

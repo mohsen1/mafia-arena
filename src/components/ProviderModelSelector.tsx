@@ -25,7 +25,7 @@ interface ProviderModelSelectorProps {
 
 }
 
-export function ProviderModelSelector({
+export const ProviderModelSelector = React.memo(function ProviderModelSelector({
   idPrefix,
   selectedModel,
   selectedProviderValue,
@@ -34,9 +34,7 @@ export function ProviderModelSelector({
   disabled = false,
   selectTriggerClassName = "w-full text-xs h-9",
   mode = 'both',
-  // agentConfig,
 }: ProviderModelSelectorProps) {
-  // Get t function from hook
   const { t } = useTranslation();
   
   const selectedProvider = useMemo(() => {
@@ -45,23 +43,40 @@ export function ProviderModelSelector({
 
   const currentModels = useMemo(() => {
     return availableModelsByProvider[selectedProvider?.value ?? ""] ?? [];
-  }, [selectedProvider]);
+  }, [selectedProvider?.value]);
+
+  const isSelectedModelValid = useMemo(() => {
+    if (!selectedModel) {
+      return false;
+    }
+    return currentModels.some(model => model.value === selectedModel);
+  }, [selectedModel, currentModels]);
+
+  const validModelValue = isSelectedModelValid ? selectedModel : "";
 
   const handleProviderChange = useCallback((newProviderValue: string) => {
-    const modelsForNewProvider = availableModelsByProvider[newProviderValue] ?? [];
+    const modelsForNewProvider = availableModelsByProvider[newProviderValue];
+    if (!modelsForNewProvider?.length) {
+      console.warn(`No models available for provider: ${newProviderValue}`);
+      return;
+    }
+    
     const defaultModel =
       modelsForNewProvider.find((m) => m.title.toLowerCase().includes("default"))?.value ??
-      modelsForNewProvider[0]?.value ??
-      "";
+      modelsForNewProvider[0].value;
       
     if (mode !== 'model') {
-      onProviderModelChange(newProviderValue, defaultModel);
+      React.startTransition(() => {
+        onProviderModelChange(newProviderValue, defaultModel);
+      });
     }
   }, [onProviderModelChange, mode]);
 
   const handleModelChange = useCallback((newModelValue: string) => {
     if (mode !== 'provider' && selectedProvider) {
-      onProviderModelChange(selectedProvider.value, newModelValue);
+      React.startTransition(() => {
+        onProviderModelChange(selectedProvider.value, newModelValue);
+      });
     } else if (!selectedProvider) {
       console.warn("ProviderModelSelector: Attempted to change model without a provider selected.");
     }
@@ -104,7 +119,8 @@ export function ProviderModelSelector({
       {(mode === 'both' || mode === 'model') && (
         <div className={cn("flex flex-col items-start justify-start gap-1 w-full", mode === 'both' ? "sm:w-1/2" : "")}>
           <Select
-            value={selectedModel}
+            key={`${selectedProvider?.value}-model`}
+            value={validModelValue}
             onValueChange={handleModelChange}
             disabled={disabled || currentModels.length === 0}
           >
@@ -132,4 +148,4 @@ export function ProviderModelSelector({
       )}
     </div>
   );
-} 
+}); 

@@ -20,7 +20,7 @@ export function ConversationLog() {
   const filteredLog = useMemo(() => {
     if (!gameState) return []; // Return empty if gameState is null
     
-    const { log = [], players, phase, humanPlayerId } = gameState;
+    const { log = [], players, humanPlayerId } = gameState;
     const playersRecord: Record<PlayerId, FilteredPlayer> = players;
     const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
     const isObserver = !humanPlayerId;

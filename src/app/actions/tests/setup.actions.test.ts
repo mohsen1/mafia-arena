@@ -1,34 +1,12 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { startGameAction } from '../setup.actions';
 import type { StartGameSetupData } from '@/lib/interfaces/actions.types'; // Import from central location
-import { assignRoles } from '@/lib/engine/core/utils';
-import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory'; // Import memory helpers
-import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
-import type { IRole } from '@/lib/engine/interfaces/IRole'; // Import IRole for mock type
-import { RoleName } from '@/lib/engine/interfaces/IRole'; // Import RoleName enum/type
-import type { FilteredGameState, FilteredPlayer, PlayerId, GamePhaseType } from '@/lib/interfaces/gameState.types';
-import type { SerializableGameState, SerializablePlayer } from '@/lib/interfaces/persistence.types';
+import type { GamePhaseType } from '@/lib/interfaces/gameState.types';
+import type { SerializableGameState } from '@/lib/interfaces/persistence.types';
 import { saveGameData } from '@/lib/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
 import type { AgentConfig } from '@/lib/interfaces/agent.types'; // Changed to type import
-import { Game } from '@/lib/engine/core/Game'; // Import Game
-
-// --- Types for Mocks (moved to very top level) ---
-type MockGameInstanceMethodsSetup = {
-  ensurePersonasGenerated: Mock<() => Promise<void>>;
-  createInitialAgentMemories: Mock<() => void>;
-  getCurrentPhase: Mock<() => { type: GamePhaseType; runStep: Mock; transition: Mock }>;
-  getCurrentSerializableState: Mock<() => SerializableGameState>;
-  advanceToPhase: Mock<(phase: GamePhaseType) => void>;
-  logEvent: Mock<(message: string) => void>;
-  markRolesAssigned: Mock<() => void>;
-  markPersonasGenerated: Mock<() => void>;
-  isRolesAssigned: Mock<() => boolean>;
-  isPersonasGenerated: Mock<() => boolean>;
-  isInitialMemoriesCreated: Mock<() => boolean>;
-  _initPhaseRunStep: Mock<() => Promise<void>>; 
-  _initPhaseTransition: Mock<() => GamePhaseType>; 
-};
+import { RoleName } from '@/lib/engine/interfaces/IRole'; // Import RoleName enum/type
 
 // Mock dependencies
 vi.mock('node:crypto', () => ({
@@ -37,9 +15,7 @@ vi.mock('node:crypto', () => ({
     randomUUID: vi.fn()
   }
 }));
-vi.mock('@/lib/engine/core/utils', () => ({
-  assignRoles: vi.fn(),
-}));
+
 vi.mock('@/lib/persistence', () => ({
   saveGameData: vi.fn(),
 }));
@@ -52,59 +28,9 @@ vi.mock('@/lib/engine/interfaces/Theme', () => ({
   }
 }));
 
-// --- Mock Game Class and its methods ---
-// TEMPORARILY DISABLED TO TEST ACTUAL IMPLEMENTATION
-// vi.mock('@/lib/engine/core/Game', async (importOriginal) => {
-//   const originalModule = await importOriginal<typeof Game>();
-//   const mockInitPhaseRunStepFactory = vi.fn().mockResolvedValue(undefined);
-//   const mockInitPhaseTransitionFactory = vi.fn().mockReturnValue('Day' as GamePhaseType);
-
-//   const gameInstanceMockObject: MockGameInstanceMethodsSetup = {
-//     ensurePersonasGenerated: vi.fn().mockResolvedValue(undefined),
-//     createInitialAgentMemories: vi.fn(),
-//     getCurrentPhase: vi.fn().mockReturnValue({
-//       type: 'Init' as GamePhaseType,
-//       runStep: mockInitPhaseRunStepFactory,
-//       transition: mockInitPhaseTransitionFactory,
-//     }),
-//     getCurrentSerializableState: vi.fn().mockImplementation(() => ({
-//       gameId: 'mock-id', phase: 'Day', round: 1, players: {}, livingPlayerIds: [], deadPlayerIds: [],
-//       conversationLog: [], agentMemories: {}, winCondition: null, humanPlayerId: null,
-//       pendingHumanAction: null, _phaseResults: {}, phaseStep: 'Start', nextPlayerIndexToAction: 0,
-//       createdAt: Date.now(), updatedAt: Date.now(), themeKey: 'default', language: 'en',
-//     }as SerializableGameState)),
-//     advanceToPhase: vi.fn(),
-//     logEvent: vi.fn(),
-//     markRolesAssigned: vi.fn(),
-//     markPersonasGenerated: vi.fn(),
-//     isRolesAssigned: vi.fn().mockReturnValue(false),
-//     isPersonasGenerated: vi.fn().mockReturnValue(false),
-//     isInitialMemoriesCreated: vi.fn().mockReturnValue(false),
-//     _initPhaseRunStep: mockInitPhaseRunStepFactory,
-//     _initPhaseTransition: mockInitPhaseTransitionFactory,
-//   };
-
-//   return {
-//     ...originalModule, // Spread original module to keep other exports if any
-//     Game: {
-//       // Mock static createNewGame to return an object with our mocked instance methods
-//       createNewGame: vi.fn().mockReturnValue(gameInstanceMockObject),
-//       // Mock static loadFromState (though not used by startGameAction, good for consistency)
-//       loadFromState: vi.fn().mockReturnValue(gameInstanceMockObject),
-//     },
-//   };
-// });
-
 vi.mock('@/lib/visibilityHelper', () => ({
   filterGameStateForClient: vi.fn(),
 }));
-
-// --- Mocks for Roles (implementing IRole) ---
-// We need instances that match the IRole interface, specifically name and allegiance
-const mockWerewolfRole: IRole = { name: RoleName.Mafia, allegiance: 'Mafia', canPerformNightAction: true, description: 'Mock Werewolf' };
-const mockVillagerRole: IRole = { name: RoleName.Villager, allegiance: 'Town', canPerformNightAction: false, description: 'Mock Villager' };
-const mockSeerRole: IRole = { name: RoleName.Seer, allegiance: 'Town', canPerformNightAction: true, description: 'Mock Seer' };
-
 
 describe('setup.actions', () => {
   beforeEach(async () => {

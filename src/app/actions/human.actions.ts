@@ -5,8 +5,20 @@ import type { FilteredGameState } from "@/lib/interfaces/gameState.types"; // Us
 import { advanceGameStateAction } from "./gameplay.actions";
 import { loadGameData, saveGameData } from '@/lib/persistence'; // Assuming persistence functions
 import { Game } from '@/lib/engine/core/Game'; // Use engine Game class
+import type { IGamePhase } from '@/lib/engine/interfaces/IGamePhase';
+import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 // import { RoleName } from '@/lib/engine/interfaces/IRole'; // No longer directly needed
 // import { MessageVisibility } from '@/lib/engine/interfaces/IMessage'; // No longer directly needed
+
+// Type guard for phases that have processAction method
+interface ProcessablePhase extends IGamePhase {
+  processAction(game: Game, playerId: PlayerId, action: PlayerAction): void;
+}
+
+function hasProcessAction(phase: IGamePhase): phase is ProcessablePhase {
+  return typeof (phase as ProcessablePhase).processAction === 'function';
+}
 
 export async function submitHumanAction(
     gameId: string,
@@ -53,13 +65,36 @@ export async function submitHumanAction(
             throw new Error(`Could not get phase instance for phase ${game.getCurrentPhaseType()}`);
         }
         // Ensure the phase instance has the processAction method
-        if (typeof (currentPhaseInstance as any).processAction !== 'function') {
+        if (!hasProcessAction(currentPhaseInstance)) {
             throw new Error(`Phase ${game.getCurrentPhaseType()} does not have a processAction method.`);
         }
 
         // 6. Apply Human Action using Phase Logic
         console.log(`Applying human action via phase logic: ${payload.type}`);
-        (currentPhaseInstance as any).processAction(game, humanPlayerId, payload);
+        
+        // Convert HumanActionPayload to PlayerAction format
+        let playerAction: PlayerAction;
+        switch (payload.type) {
+            case 'message':
+                playerAction = { type: 'message', content: payload.content || '' };
+                break;
+            case 'vote':
+                playerAction = { type: 'vote', targetPlayerId: payload.targetPlayerId || null };
+                break;
+            case 'mafiaKill':
+                playerAction = { type: 'mafiaKill', targetPlayerId: payload.targetPlayerId || '' };
+                break;
+            case 'doctorSave':
+                playerAction = { type: 'doctorSave', targetPlayerId: payload.targetPlayerId || null };
+                break;
+            case 'seerInvestigate':
+                playerAction = { type: 'seerInvestigate', targetPlayerId: payload.targetPlayerId || null };
+                break;
+            default:
+                throw new Error(`Unsupported action type: ${payload.type}`);
+        }
+        
+        currentPhaseInstance.processAction(game, humanPlayerId, playerAction);
         console.log("Human action processed by phase.");
 
         // 7. Clear pending action on the game instance

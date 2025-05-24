@@ -48,7 +48,7 @@ Werewolf AI is a modern web-based implementation of the classic social deduction
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/werewolf-ai.git
+git clone https://github.com/mohsen1/werewolf-ai.git
 cd werewolf-ai
 ```
 

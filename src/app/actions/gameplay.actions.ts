@@ -6,7 +6,6 @@ import { loadGameData, saveGameData } from '@/lib/persistence'; // Assuming pers
 import { Game } from '@/lib/engine/core/Game'; // For loadFromState
 // import { GameOverPhase } from '@/lib/engine/phases/GameOverPhase'; // No longer needed here
 import { filterGameStateForClient } from '@/lib/visibilityHelper'; // Use the helper
-import type { SerializableGameState } from "@/lib/interfaces/persistence.types"; // Use persistence type
 
 export async function advanceGameStateAction(gameId: string): Promise<FilteredGameState | { error: string }> {
     console.log(`advanceGameStateAction triggered for gameId: ${gameId}`);
@@ -60,7 +59,7 @@ export async function advanceGameStateAction(gameId: string): Promise<FilteredGa
 
         // 8. Filter & Return
         const filteredState = filterGameStateForClient(finalStateToSave);
-        console.log(`Filtered state returned for ${gameId}. Phase=${filteredState.phase}, Step=${(filteredState as any).phaseStep}`); // Log step for debugging
+        console.log(`Filtered state returned for ${gameId}. Phase=${filteredState.phase}, Step=${finalStateToSave.phaseStep}`); // Log step for debugging
         return filteredState;
 
     } catch (error: unknown) {

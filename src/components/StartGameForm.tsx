@@ -1,11 +1,12 @@
 "use client";
 
-import { CharacterSlotItem, CharacterSlotMobile } from "@/components/character-slot/CharacterSlotItem"; // Import both components
+import React, { type FormEvent, useCallback, useMemo, useState, useEffect } from "react";
+import { CharacterSlotItem, CharacterSlotMobile } from "@/components/character-slot/CharacterSlotItem";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useGameConfig } from "@/hooks/useGameConfig";
+import { useGameConfig, type ConfigCharacterSlot } from "@/hooks/useGameConfig";
 
 import { RoleName } from "@/lib/engine/interfaces/IRole";
 import {
@@ -22,11 +23,10 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react";
-import { type FormEvent, useCallback, useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
-import { ProviderModelSelector } from "./ProviderModelSelector"; // Import the new component
-import { GameThemeSelector } from "./GameThemeSelector"; // Import the GameThemeSelector
+import { ProviderModelSelector } from "./ProviderModelSelector";
+import { GameThemeSelector } from "./GameThemeSelector";
 import {
   Table,
   TableBody,
@@ -46,6 +46,96 @@ const availableRolesForSelection: RoleName[] = [
 export interface StartGameFormProps {
   lang: LanguageCode;
 }
+
+// Memoized components for better performance
+const CharacterSlotList = React.memo(function CharacterSlotList({
+  characterSlots,
+  availableRoles,
+  isSubmitting,
+  onUpdateRole,
+  onUpdateProviderAndModel,
+  onRemove,
+  onUpdateName,
+  onUpdateImageUrl,
+}: {
+  characterSlots: ConfigCharacterSlot[];
+  availableRoles: RoleName[];
+  isSubmitting: boolean;
+  onUpdateRole: (clientId: string, newRole: RoleName) => void;
+  onUpdateProviderAndModel: (clientId: string, provider: string, newModel: string) => void;
+  onRemove: (clientId: string) => void;
+  onUpdateName: (clientId: string, newName: string) => void;
+  onUpdateImageUrl: (clientId: string, newImageUrl: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  
+  const canRemove = useMemo(() => characterSlots.length > 5, [characterSlots.length]);
+  
+  return (
+    <>
+      {/* Desktop Table Layout */}
+      <Table className="pe-2 hidden md:table">
+        <TableHeader className="sticky top-0 bg-background z-10">
+          <TableRow>
+            <TableHead className="w-[150px]">
+              {t("TableHeader_Character", "Character")}
+            </TableHead>
+            <TableHead>
+              {t("TableHeader_Role", "Role")}
+            </TableHead>
+            <TableHead>
+              {t("TableHeader_Provider", "AI Provider")}
+            </TableHead>
+            <TableHead>
+              {t("TableHeader_Model", "AI Model")}
+            </TableHead>
+            <TableHead className="text-right">
+              {t("TableHeader_Actions", "Actions")}
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {characterSlots.map((slot, index) => (
+            <CharacterSlotItem
+              key={slot.clientId}
+              slot={slot}
+              index={index}
+              isHuman={slot.isHuman ?? false}
+              availableRoles={availableRoles}
+              isSubmitting={isSubmitting}
+              canRemove={canRemove}
+              onUpdateRole={onUpdateRole}
+              onUpdateProviderAndModel={onUpdateProviderAndModel}
+              onRemove={onRemove}
+              onUpdateName={onUpdateName}
+              onUpdateImageUrl={onUpdateImageUrl}
+            />
+          ))}
+        </TableBody>
+      </Table>
+
+      {/* Mobile Layout */}
+      <div className="block md:hidden space-y-0">
+        {characterSlots.map((slot, index) => (
+          <CharacterSlotMobile
+            key={slot.clientId}
+            slot={slot}
+            index={index}
+            isHuman={slot.isHuman ?? false}
+            availableRoles={availableRoles}
+            isSubmitting={isSubmitting}
+            canRemove={canRemove}
+            onUpdateRole={onUpdateRole}
+            onUpdateProviderAndModel={onUpdateProviderAndModel}
+            onRemove={onRemove}
+            onUpdateName={onUpdateName}
+            onUpdateImageUrl={onUpdateImageUrl}
+          />
+        ))}
+      </div>
+    </>
+  );
+});
 
 // Update component signature
 export default function StartGameForm({ lang }: StartGameFormProps) {
@@ -387,68 +477,16 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           </div>
 
           {initialSlotsSet && characterSlots.length > 0 && (
-            <>
-              {/* Desktop Table Layout */}
-              <Table className="pe-2 hidden md:table">
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    <TableHead className="w-[150px]">
-                      {t("TableHeader_Character", "Character")}
-                    </TableHead>
-                    <TableHead>
-                      {t("TableHeader_Role", "Role")}
-                    </TableHead>
-                    <TableHead>
-                      {t("TableHeader_Provider", "AI Provider")}
-                    </TableHead>
-                    <TableHead>
-                      {t("TableHeader_Model", "AI Model")}
-                    </TableHead>
-                    <TableHead className="text-right">
-                      {t("TableHeader_Actions", "Actions")}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {characterSlots.map((slot, index) => (
-                    <CharacterSlotItem
-                      key={slot.clientId}
-                      slot={slot}
-                      index={index}
-                      isHuman={slot.isHuman ?? false}
-                      availableRoles={availableRolesForSelection}
-                      isSubmitting={isLoading}
-                      canRemove={characterSlots.length > 5}
-                      onUpdateRole={updateSlotRole}
-                      onUpdateProviderAndModel={updateSlotProviderAndModel}
-                      onRemove={removePlayerSlot}
-                      onUpdateName={updateSlotName}
-                      onUpdateImageUrl={updateSlotImageUrl}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* Mobile Layout */}
-              <div className="block md:hidden space-y-0">
-                {characterSlots.map((slot, index) => (
-                  <CharacterSlotMobile
-                    key={slot.clientId}
-                    slot={slot}
-                    index={index}
-                    isHuman={slot.isHuman ?? false}
-                    availableRoles={availableRolesForSelection}
-                    isSubmitting={isLoading}
-                    canRemove={characterSlots.length > 5}
-                    onUpdateRole={updateSlotRole}
-                    onUpdateProviderAndModel={updateSlotProviderAndModel}
-                    onRemove={removePlayerSlot}
-                    onUpdateName={updateSlotName}
-                    onUpdateImageUrl={updateSlotImageUrl}
-                  />
-                ))}
-              </div>
-            </>
+            <CharacterSlotList
+              characterSlots={characterSlots}
+              availableRoles={availableRolesForSelection}
+              isSubmitting={isLoading}
+              onUpdateRole={updateSlotRole}
+              onUpdateProviderAndModel={updateSlotProviderAndModel}
+              onRemove={removePlayerSlot}
+              onUpdateName={updateSlotName}
+              onUpdateImageUrl={updateSlotImageUrl}
+            />
           )}
           {initialSlotsSet && characterSlots.length === 0 && (
             <p className="text-center text-sm text-muted-foreground italic py-4">

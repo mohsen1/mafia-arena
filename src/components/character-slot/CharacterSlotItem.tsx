@@ -1,6 +1,6 @@
 "use client"; // Ensure this is a client component
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import type { ConfigCharacterSlot } from "@/hooks/useGameConfig";
 import type { RoleName } from "@/lib/engine/interfaces/IRole";
 import { useTranslation } from 'react-i18next'; // Import hook
@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { TableCell, TableRow } from "@/components/ui/table";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Users, ServerCrash, Bot, X, Loader2, User, ImagePlus } from "lucide-react";
+import { ServerCrash, Bot, X, Loader2, User, ImagePlus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProviderModelSelector } from "../ProviderModelSelector";
 import { Label } from "@/components/ui/label";
@@ -82,17 +82,21 @@ const CharacterInfo: React.FC<CharacterInfoProps> = React.memo(({ slot, isHuman,
   const { t } = useTranslation();
   const [isImagePopoverOpen, setIsImagePopoverOpen] = useState(false);
 
-  const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleNameChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     onUpdateName(slot.clientId, event.target.value);
-  };
+  }, [onUpdateName, slot.clientId]);
 
-  // Placeholder for image selection logic
-  const handleImageSelect = (selectedImage: string | null) => {
+  const handleImageSelect = useCallback((selectedImage: string | null) => {
     onUpdateImageUrl(slot.clientId, selectedImage);
-    setIsImagePopoverOpen(false); // Close popover after selection
-  };
+    setIsImagePopoverOpen(false);
+  }, [onUpdateImageUrl, slot.clientId]);
 
-  const currentName = slot.profile?.characterName || (isHuman ? t("HumanPlayerLabel", "You") : t("AIPlayerLabel", "AI"));
+  // Memoize computed values
+  const currentName = useMemo(() => 
+    slot.profile?.characterName || (isHuman ? t("HumanPlayerLabel", "You") : t("AIPlayerLabel", "AI")),
+    [slot.profile?.characterName, isHuman, t]
+  );
+  
   const currentImageUrl = slot.imageUrl;
 
   return (
@@ -189,16 +193,17 @@ const CharacterInfo: React.FC<CharacterInfoProps> = React.memo(({ slot, isHuman,
              </div>
          ) : (
             // Editable Name Input
-            <Input
-              id={`name-${slot.clientId}`}
-              type="text"
-              value={currentName}
-              onChange={handleNameChange}
-              placeholder={t("PlayerNamePlaceholder", "Enter name")}
-              className="h-9 text-sm font-medium" // Adjust styling as needed
-              disabled={isSubmitting}
-              aria-label={t("PlayerNameAriaLabel", "Player name")}
-            />
+            <div className="flex items-center gap-2 w-full">
+              <Input
+                type="text"
+                value={slot.profile?.characterName || ""}
+                onChange={handleNameChange}
+                className="text-xs h-9 flex-1"
+                placeholder={t("CharacterNamePlaceholder", "Character name")}
+                disabled={isSubmitting}
+                required
+              />
+            </div>
          )}
 
          {isHuman && (
@@ -211,6 +216,9 @@ const CharacterInfo: React.FC<CharacterInfoProps> = React.memo(({ slot, isHuman,
     </div>
   );
 });
+
+CharacterInfo.displayName = 'CharacterInfo';
+
 // --- End Helper Component ---
 
 export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
@@ -228,16 +236,20 @@ export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
 }: CharacterSlotItemProps) {
   const { t } = useTranslation();
 
-  const handleRemoveClick = () => {
+  const handleRemoveClick = useCallback(() => {
     onRemove(slot.clientId);
-  };
+  }, [onRemove, slot.clientId]);
 
-  const handleSlotProviderModelChange = (provider: string, model: string) => {
-      onUpdateProviderAndModel(slot.clientId, provider, model);
-  };
+  const handleSlotProviderModelChange = useCallback((provider: string, model: string) => {
+    onUpdateProviderAndModel(slot.clientId, provider, model);
+  }, [onUpdateProviderAndModel, slot.clientId]);
+
+  const handleRoleChange = useCallback((newRole: string) => {
+    onUpdateRole(slot.clientId, newRole as RoleName);
+  }, [onUpdateRole, slot.clientId]);
 
   // Common props for ProviderModelSelector
-  const providerModelSelectorProps = {
+  const providerModelSelectorProps = useMemo(() => ({
     selectedModel: slot.aiModel,
     selectedProviderValue: slot.provider,
     onProviderModelChange: handleSlotProviderModelChange,
@@ -245,7 +257,7 @@ export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
     className: "flex-col !items-start w-full !gap-1",
     labelClassName: "hidden",
     selectTriggerClassName: "w-full text-xs h-9",
-  };
+  }), [slot.aiModel, slot.provider, handleSlotProviderModelChange, isSubmitting]);
 
   // Remove Button
   const removeButton = canRemove && (
@@ -298,7 +310,7 @@ export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
           </Label>
           <Select
               value={slot.roleSelection}
-              onValueChange={(newRole) => onUpdateRole(slot.clientId, newRole as RoleName)}
+              onValueChange={handleRoleChange}
               required
               disabled={isSubmitting}
           >
@@ -365,16 +377,20 @@ export const CharacterSlotItem = React.memo(function CharacterSlotItem({
 }: CharacterSlotItemProps) {
   const { t } = useTranslation();
 
-  const handleRemoveClick = () => {
+  const handleRemoveClick = useCallback(() => {
     onRemove(slot.clientId);
-  };
+  }, [onRemove, slot.clientId]);
 
-  const handleSlotProviderModelChange = (provider: string, model: string) => {
-      onUpdateProviderAndModel(slot.clientId, provider, model);
-  };
+  const handleSlotProviderModelChange = useCallback((provider: string, model: string) => {
+    onUpdateProviderAndModel(slot.clientId, provider, model);
+  }, [onUpdateProviderAndModel, slot.clientId]);
+
+  const handleRoleChange = useCallback((newRole: string) => {
+    onUpdateRole(slot.clientId, newRole as RoleName);
+  }, [onUpdateRole, slot.clientId]);
 
   // Common props for ProviderModelSelector
-  const providerModelSelectorProps = {
+  const providerModelSelectorProps = useMemo(() => ({
     selectedModel: slot.aiModel,
     selectedProviderValue: slot.provider,
     onProviderModelChange: handleSlotProviderModelChange,
@@ -382,7 +398,7 @@ export const CharacterSlotItem = React.memo(function CharacterSlotItem({
     className: "flex-col !items-start w-full !gap-1",
     labelClassName: "hidden",
     selectTriggerClassName: "w-full text-xs h-9",
-  };
+  }), [slot.aiModel, slot.provider, handleSlotProviderModelChange, isSubmitting]);
 
   // Remove Button
   const removeButton = canRemove && (
@@ -430,7 +446,7 @@ export const CharacterSlotItem = React.memo(function CharacterSlotItem({
       <TableCell>
         <Select
           value={slot.roleSelection}
-          onValueChange={(newRole) => onUpdateRole(slot.clientId, newRole as RoleName)}
+          onValueChange={handleRoleChange}
           required
           disabled={isSubmitting}
         >
