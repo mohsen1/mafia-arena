@@ -287,8 +287,8 @@ describe('Game', () => {
 
              // Manually set state for testing
              // Bypass type check for test setup
-             (game as any)["#round"] = 2;
-             (game as any)["#currentState"] = { type: 'Day', runPhase: vi.fn(), transition: vi.fn() };
+             (game as { "#round": number })["#round"] = 2;
+             (game as { "#currentState": { type: string; runPhase: () => void; transition: () => void } })["#currentState"] = { type: 'Day', runPhase: vi.fn(), transition: vi.fn() };
 
              // Generate state for remaining mafia member using actual ID
              const state = game.generateVisibleGameState(mafia1Id); 
@@ -569,7 +569,7 @@ describe('Game', () => {
             
             // Also update the round since advanceToPhase doesn't increment round 
             // when going from Init to Night in the current implementation
-            (game as any)["#round"] = initialRound + 1;
+            (game as { "#round": number })["#round"] = initialRound + 1;
             const newRound = game.round;
             const newPhase = game.getCurrentPhaseType();
             
@@ -699,6 +699,7 @@ describe('Game', () => {
 
          it('logMessage should notify renderers for Public messages', () => {
              const mockRenderer = { renderMessage: vi.fn() };
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
              game.addRenderer(mockRenderer as any);
              game.logMessage(villager1Id, 'Public Msg', MessageVisibility.Public);
              expect(mockRenderer.renderMessage).toHaveBeenCalledTimes(1);
@@ -707,6 +708,7 @@ describe('Game', () => {
 
          it('logMessage should notify renderers for Mafia messages', () => {
              const mockRenderer = { renderMessage: vi.fn() };
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
              game.addRenderer(mockRenderer as any);
              game.logMessage(mafia1Id, 'Mafia Msg', MessageVisibility.Mafia);
              expect(mockRenderer.renderMessage).toHaveBeenCalledTimes(1);
@@ -715,6 +717,7 @@ describe('Game', () => {
 
          it('logMessage should NOT notify renderers for Private messages by default', () => {
             const mockRenderer = { renderMessage: vi.fn() };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             game.addRenderer(mockRenderer as any);
             game.logMessage(villager1Id, 'Private Msg', MessageVisibility.Private);
             expect(mockRenderer.renderMessage).not.toHaveBeenCalled();
@@ -784,8 +787,11 @@ describe('Game', () => {
             nightMafiaId2 = players.find(p => p.name === 'MafiaN2')!.id;
 
             // Mark initial setup steps as complete and advance to Night phase
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (nightTestGame as any).markRolesAssigned();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (nightTestGame as any).markPersonasGenerated();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (nightTestGame as any).createInitialAgentMemories();
             nightTestGame.advanceToPhase('Night');
         });

@@ -199,6 +199,9 @@ export function useGameConfig(
         isHumanJoining, 
         humanRoleSelection, 
         initialSlotsSet,
+        characterSlots,
+        globalModelSelection,
+        globalProviderSelection,
         t,
     ]);
 

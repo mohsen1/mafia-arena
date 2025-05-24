@@ -48,16 +48,6 @@ const aiAgentChoices = [
     { title: 'Dummy AI (Fast, No API needed)', value: 'Dummy' },
 ];
 
-const agentClassMap: Record<AgentChoice, typeof DummyAIAgent | typeof OpenAIAgent | typeof ClaudeAgent | typeof GeminiAgent | typeof HumanAgent> = {
-    Dummy: DummyAIAgent,
-    OpenAI: OpenAIAgent,
-    Claude: ClaudeAgent, 
-    Gemini: GeminiAgent, 
-    Groq: OpenAIAgent, // Uses OpenAIAgent
-    Ollama: OpenAIAgent, // Uses OpenAIAgent
-    Human: HumanAgent,
-};
-
 // --- Type for Group Configuration (needed again) ---
 type AgentGroupConfig = {
     agentType: AgentChoice;
@@ -328,37 +318,34 @@ async function main() {
             // Determine Agent Configuration based on role allegiance or human player
             if (i === humanPlayerIndex) {
                  config = { agentType: 'Human' };
-                 console.log(`   Player ${i+1} (${initialPlayerName}): Human Player`);
             } else if (role.allegiance === 'Mafia') {
                  config = mafiaConfig;
-                 console.log(`   Player ${i+1} (${initialPlayerName}): ${role.name} (Mafia Group AI)`);
             } else { // Town allegiance
                  config = townConfig;
-                 console.log(`   Player ${i+1} (${initialPlayerName}): ${role.name} (Town Group AI)`);
             }
 
             // Instantiate Agent based on determined config
-            const AgentClass = agentClassMap[config.agentType];
             const agentId: PlayerId = `player-${i + 1}-${role.name.toLowerCase()}`; // Generate ID based on index/role
 
-            if (!AgentClass) {
-                 console.warn(`Warning: Could not find agent class for type ${config.agentType}. Defaulting to Dummy.`);
-                 agent = new DummyAIAgent(agentId); // Pass ID
-            } else if (config.agentType === 'Human') {
-                 agent = new HumanAgent(agentId); // Pass ID
-            } else if (['OpenAI', 'Groq', 'Ollama'].includes(config.agentType)) {
-                 const providerApiKey = config.provider?.apiKeyEnvVar ? process.env[config.provider.apiKeyEnvVar] : undefined;
-                 const apiKeyToSend = (config.provider?.value === 'ollama_local' && (!providerApiKey || providerApiKey === 'OLLAMA_API_KEY')) ? undefined : providerApiKey;
-                 // AgentClass is OpenAIAgent for these types
-                 agent = new AgentClass(agentId, config.model as any || 'gpt-4o-mini', config.provider?.endpoint, apiKeyToSend); // Pass ID
+            if (config.agentType === 'Human') {
+                agent = new HumanAgent(agentId);
             } else if (config.agentType === 'Claude') {
-                 agent = new ClaudeAgent(agentId, config.model || 'claude-3-haiku-20240307'); // Pass ID
+                agent = new ClaudeAgent(agentId, config.model || 'claude-3-haiku-20240307');
             } else if (config.agentType === 'Gemini') {
-                 agent = new GeminiAgent(agentId, config.model || 'gemini-1.5-flash'); // Pass ID
+                agent = new GeminiAgent(agentId, config.model || 'gemini-1.5-flash');
+            } else if (['OpenAI', 'Groq', 'Ollama'].includes(config.agentType)) {
+                const providerApiKey = config.provider?.apiKeyEnvVar ? process.env[config.provider.apiKeyEnvVar] : undefined;
+                const apiKeyToSend = (config.provider?.value === 'ollama_local' && (!providerApiKey || providerApiKey === 'OLLAMA_API_KEY')) ? undefined : providerApiKey;
+                agent = new OpenAIAgent(agentId, config.model || 'gpt-4o-mini', config.provider?.endpoint, apiKeyToSend);
+            } else { // Dummy or fallback
+                agent = new DummyAIAgent(agentId);
             }
-            else { // Dummy
-                 agent = new DummyAIAgent(agentId); // Pass ID
-            }
+
+            // Log the created player configuration
+            const agentTypeDisplay = config.agentType === 'Human' ? 'Human Player' : 
+                                   config.agentType === 'Dummy' ? 'Dummy AI' :
+                                   `${config.agentType} AI (${config.model || 'default'})`;
+            console.log(`   Player ${i+1} (${initialPlayerName}): ${role.name} - ${agentTypeDisplay}`);
 
             // Persona generation happens during InitializationPhase
             playerSetups.push({ name: initialPlayerName, role, agent });

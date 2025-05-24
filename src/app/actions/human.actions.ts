@@ -1,92 +1,103 @@
 "use server";
 
-import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
-import type { FilteredGameState } from "@/lib/interfaces/gameState.types";
-import { advanceGameStateAction } from "./gameplay.actions";
-import { loadGameData, saveGameData } from '@/lib/persistence';
 import { Game } from '@/lib/engine/core/Game';
-import type { IGamePhase } from '@/lib/engine/interfaces/IGamePhase';
-import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
-import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
-
-interface ProcessablePhase extends IGamePhase {
-  processAction(game: Game, playerId: PlayerId, action: PlayerAction): void;
-}
-
-function hasProcessAction(phase: IGamePhase): phase is ProcessablePhase {
-  return typeof (phase as ProcessablePhase).processAction === 'function';
-}
+import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
+import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
+import { loadGameData, saveGameData } from '@/lib/db/persistence';
+import { filterGameStateForClient } from '@/lib/visibilityHelper';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/config';
+import { GameService } from '@/lib/db/game.service';
 
 export async function submitHumanAction(
-    gameId: string,
-    payload: HumanActionPayload
+    gameId: string, 
+    humanActionPayload: HumanActionPayload
 ): Promise<FilteredGameState | { error: string }> {
     try {
-        const loadedState = await loadGameData(gameId);
-        if (!loadedState) {
-            throw new Error(`Game not found: ${gameId}`);
+        // Check authentication
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return { error: "Authentication required" };
         }
 
-        const pending = loadedState.pendingHumanAction;
-        if (!pending) {
-             return await advanceGameStateAction(gameId);
-        }
-         if (pending.playerId !== payload.playerId) {
-             return { error: `Action submitted by wrong player. Expected ${pending.playerId}, got ${payload.playerId}` };
-         }
-        if (!pending.allowedActions.includes(payload.type)) {
-             return { error: `Invalid action type submitted. Expected one of ${pending.allowedActions.join(', ')}, got ${payload.type}` };
+        // Check if user owns the game
+        const isOwner = await GameService.isGameOwner(gameId, session.user.id);
+        if (!isOwner) {
+            return { error: "You don't have permission to modify this game" };
         }
 
-        const game = Game.loadFromState(loadedState);
-
-        const humanPlayerId = pending.playerId;
-
-        const currentPhaseInstance = game.getCurrentPhase();
-        if (!currentPhaseInstance) {
-            throw new Error(`Could not get phase instance for phase ${game.getCurrentPhaseType()}`);
+        const gameState = await loadGameData(gameId);
+        if (!gameState) {
+            return { error: "Game not found" };
         }
-        if (!hasProcessAction(currentPhaseInstance)) {
-            throw new Error(`Phase ${game.getCurrentPhaseType()} does not have a processAction method.`);
+
+        if (!gameState.pendingHumanAction) {
+            return { error: "No pending human action found" };
         }
-        
-        let playerAction: PlayerAction;
-        switch (payload.type) {
-            case 'message':
-                playerAction = { type: 'message', content: payload.content || '' };
-                break;
+
+        const game = Game.loadFromState(gameState);
+
+        // Submit the human action based on type
+        switch (humanActionPayload.type) {
             case 'vote':
-                playerAction = { type: 'vote', targetPlayerId: payload.targetPlayerId || null };
+                if (!gameState.pendingHumanAction.allowedActions.includes('vote')) {
+                    return { error: "Vote action not allowed" };
+                }
+                game.recordHumanVote(humanActionPayload.playerId, humanActionPayload.targetPlayerId || null);
                 break;
+
+            case 'message':
+                if (!gameState.pendingHumanAction.allowedActions.includes('message')) {
+                    return { error: "Message action not allowed" };
+                }
+                if (!humanActionPayload.content) {
+                    return { error: "Message content is required" };
+                }
+                // For message actions, we'll use the human night action method with the content
+                game.recordHumanNightAction(humanActionPayload.playerId, humanActionPayload);
+                break;
+
             case 'mafiaKill':
-                playerAction = { type: 'mafiaKill', targetPlayerId: payload.targetPlayerId || '' };
+                if (!gameState.pendingHumanAction.allowedActions.includes('mafiaKill')) {
+                    return { error: "Mafia kill action not allowed" };
+                }
+                game.recordHumanNightAction(humanActionPayload.playerId, humanActionPayload);
                 break;
+
             case 'doctorSave':
-                playerAction = { type: 'doctorSave', targetPlayerId: payload.targetPlayerId || null };
+                if (!gameState.pendingHumanAction.allowedActions.includes('doctorSave')) {
+                    return { error: "Doctor save action not allowed" };
+                }
+                game.recordHumanNightAction(humanActionPayload.playerId, humanActionPayload);
                 break;
+
             case 'seerInvestigate':
-                playerAction = { type: 'seerInvestigate', targetPlayerId: payload.targetPlayerId || null };
+                if (!gameState.pendingHumanAction.allowedActions.includes('seerInvestigate')) {
+                    return { error: "Seer investigate action not allowed" };
+                }
+                game.recordHumanNightAction(humanActionPayload.playerId, humanActionPayload);
                 break;
+
             default:
-                throw new Error(`Unsupported action type: ${payload.type}`);
+                return { error: `Unknown action type: ${humanActionPayload.type}` };
         }
-        
-        currentPhaseInstance.processAction(game, humanPlayerId, playerAction);
 
         game.clearPendingHumanAction();
 
-        const currentIndex = game.getNextPlayerIndexToAction();
-        game.setNextPlayerIndexToAction(currentIndex + 1);
+        const intermediateState = game.getCurrentSerializableState();
+        await saveGameData(gameId, intermediateState);
 
-        const stateAfterHumanAction = game.getCurrentSerializableState();
+        // Continue game loop after human action
+        await game.runGameLoop();
 
-        await saveGameData(gameId, stateAfterHumanAction);
+        const finalState = game.getCurrentSerializableState();
+        await saveGameData(gameId, finalState);
 
-        return await advanceGameStateAction(gameId);
+        const filteredState = filterGameStateForClient(finalState, finalState.humanPlayerId);
+        return filteredState;
 
-    } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Unknown error submitting human action";
-        console.error("Error in submitHumanAction:", message, error);
-        return { error: message };
+    } catch (error) {
+        console.error('Error submitting human action:', error);
+        return { error: error instanceof Error ? error.message : 'Failed to submit action' };
     }
 }

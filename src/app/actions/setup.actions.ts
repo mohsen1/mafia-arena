@@ -4,7 +4,7 @@ import { Game } from '@/lib/engine/core/Game';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { Themes } from '@/lib/engine/interfaces/Theme';
 import type { SerializableGameState, SerializablePlayer, AgentConfig } from '@/lib/interfaces/persistence.types';
-import { saveGameData } from '@/lib/persistence';
+import { createGameData } from '@/lib/db/persistence';
 import { createInitialMemory, type AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
@@ -15,6 +15,8 @@ import type { StartGameSetupData } from "@/lib/interfaces/actions.types";
 import { DEFAULT_PERSONA, type Persona } from '@/lib/engine/interfaces/Persona';
 import { selectCharacterImage } from '@/lib/utils/imageUtils';
 import { createAgentInstance } from '@/lib/agentFactory';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/config';
 
 /**
  * Retry wrapper for AI operations with exponential backoff
@@ -85,6 +87,12 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
     const createdAt = Date.now();
 
     try {
+        // Check authentication
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return { error: "Authentication required to start a game" };
+        }
+
         if (!setupData.players || setupData.players.length < 3) {
            throw new Error("Minimum 3 players required.");
         }
@@ -107,6 +115,7 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
                     setupData.language
                 ).then(persona => {
                     characterPersonas.set(`player-${i}`, persona);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 }).catch(error => {
                     characterPersonas.set(`player-${i}`, {
                         name: playerSetup.name,
@@ -150,6 +159,7 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
                     const gender = Math.random() > 0.5 ? 'male' : 'female';
                     const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
                     characterImageUrl = await selectCharacterImage(gender, ageCategory);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 } catch (error) {
                     characterImageUrl = null;
                 }
@@ -215,7 +225,7 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
 
         const finalStateToSave = game.getCurrentSerializableState();
 
-        await saveGameData(gameId, finalStateToSave);
+        await createGameData(finalStateToSave, session.user.id);
         
         const filteredState = filterGameStateForClient(finalStateToSave, finalStateToSave.humanPlayerId);
         return { gameId, initialState: filteredState };

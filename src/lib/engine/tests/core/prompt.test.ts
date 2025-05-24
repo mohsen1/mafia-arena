@@ -1,8 +1,27 @@
 import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
 import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
+import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { getSystemPrompt, getUserPrompt } from '@/lib/engine/prompts';
 import { beforeEach, describe, expect, it } from 'vitest';
+
+interface MockStateData {
+    round: number;
+    phase: string;
+    language: string;
+    themeName: string;
+    self: {
+        id: PlayerId;
+        name: string;
+        role: RoleName;
+        isMafia: boolean;
+        persona: { name: string; backstory: string; personalityTraits: string[] };
+    };
+    players: Array<{ id: PlayerId; name: string; status: string }>;
+    alivePlayerIds: PlayerId[];
+    mafiaPlayerIds?: PlayerId[];
+    memory: ReturnType<typeof createInitialMemory>;
+}
 
 describe('Prompts', () => {
 
@@ -24,7 +43,7 @@ describe('Prompts', () => {
     });
 
     describe('getUserPrompt', () => {
-        let mockStateData: any; // Use 'any' for easier mocking of state structure
+        let mockStateData: MockStateData;
         let allowedActions: PlayerAction['type'][];
 
         beforeEach(() => {
@@ -54,7 +73,7 @@ describe('Prompts', () => {
         });
 
         it('should generate a prompt containing current round, phase, and language', () => {
-            const prompt = getUserPrompt(mockStateData as any, allowedActions);
+            const prompt = getUserPrompt(mockStateData, allowedActions);
             expect(prompt).toContain('Round: 3');
             expect(prompt).toContain('Phase: Day');
             expect(prompt).toContain('Language: en');
@@ -62,7 +81,7 @@ describe('Prompts', () => {
         });
 
          it('should include persona information if available', () => {
-             const prompt = getUserPrompt(mockStateData as any, allowedActions);
+             const prompt = getUserPrompt(mockStateData, allowedActions);
              // Check within the Identity section
              expect(prompt).toContain('**Your Persona:**');
              // Check for specific fields
@@ -72,7 +91,7 @@ describe('Prompts', () => {
          });
 
         it('should include self role information', () => {
-            const prompt = getUserPrompt(mockStateData as any, allowedActions);
+            const prompt = getUserPrompt(mockStateData, allowedActions);
             // Check within the Identity section
             expect(prompt).toContain('**Your Identity:**');
             expect(prompt).toContain('- Your Role: Villager');
@@ -80,7 +99,7 @@ describe('Prompts', () => {
         });
 
         it('should list alive players', () => {
-             const prompt = getUserPrompt(mockStateData as any, allowedActions);
+             const prompt = getUserPrompt(mockStateData, allowedActions);
              // Check within the Players section
              expect(prompt).toContain('**Players (3 total, 2 alive):**');
              expect(prompt).toContain('- Bartholomew Quill (player-1-bart) (You)');
@@ -91,7 +110,7 @@ describe('Prompts', () => {
          it('should list players with correct status indication in the main list', () => {
               // The current prompt primarily lists *alive* players in the main list.
               // Dead players contribute to the total count but aren't listed there by default.
-              const prompt = getUserPrompt(mockStateData as any, allowedActions);
+              const prompt = getUserPrompt(mockStateData, allowedActions);
               expect(prompt).toContain('**Players (3 total, 2 alive):**');
               // Check that the dead player isn't in the main alive list
               expect(prompt).not.toContain('- Reverend Thomas');
@@ -108,7 +127,7 @@ describe('Prompts', () => {
             mockStateData.players.push({ id: 'player-4-silas', name: 'Silas Blackwood', status: 'Alive' });
             mockStateData.alivePlayerIds.push('player-4-silas');
 
-            const prompt = getUserPrompt(mockStateData as any, allowedActions);
+            const prompt = getUserPrompt(mockStateData, allowedActions);
             expect(prompt).toContain('**Mafia Team:**');
             // Check for names and IDs as formatted
             expect(prompt).toContain('Your fellow Mafia members are: Bartholomew Quill (player-1-bart), Silas Blackwood (player-4-silas)');
@@ -118,7 +137,7 @@ describe('Prompts', () => {
              // Add *some* data to memory to trigger the indicator
              mockStateData.memory.voteHistory.push({ round: 1, votes: new Map([['p1', 'p2']]) });
 
-             const prompt = getUserPrompt(mockStateData as any, allowedActions);
+             const prompt = getUserPrompt(mockStateData, allowedActions);
 
              // Check for the simplified memory indication
              expect(prompt).toContain('**Your Memory / Game History Summary:**');
@@ -129,7 +148,7 @@ describe('Prompts', () => {
          });
 
         it('should include allowed actions and examples', () => {
-             const prompt = getUserPrompt(mockStateData as any, allowedActions);
+             const prompt = getUserPrompt(mockStateData, allowedActions);
              expect(prompt).toContain('**Your Turn:**');
              expect(prompt).toContain('You must choose one of the following actions: message, vote, noAction.');
              expect(prompt).toContain('**Action Format Examples:**');
@@ -153,7 +172,7 @@ describe('Prompts', () => {
          it('should NOT include Round 1 intro instruction text after Round 1', () => {
               mockStateData.round = 2; // Round 2
               allowedActions = ['message'];
-              const prompt = getUserPrompt(mockStateData as any, allowedActions);
+              const prompt = getUserPrompt(mockStateData, allowedActions);
               // Check that the general turn instruction is present, not a R1 specific one
               expect(prompt).toContain('**Your Turn:**');
               expect(prompt).toContain('You must choose one of the following actions: message.');

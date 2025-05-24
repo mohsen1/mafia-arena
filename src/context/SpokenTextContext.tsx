@@ -33,7 +33,6 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState<string | null>(
     null,
   );
-  const [queueVersion, setQueueVersion] = useState(0);
   const playbackQueueRef = useRef<string[]>([]);
   const subscribersRef = useRef<Set<OnDoneSpeakingCallback>>(new Set());
   const [isAudioGloballyEnabled] = useState<boolean>(true);
@@ -74,7 +73,6 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
       }
       if (!playbackQueueRef.current.includes(id)) {
         playbackQueueRef.current.push(id);
-        setQueueVersion((v) => v + 1);
       }
     },
     [isAudioGloballyEnabled],
