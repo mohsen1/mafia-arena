@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Bot, CloudCog } from "lucide-react";
@@ -36,30 +36,26 @@ export function ProviderModelSelector({
   mode = 'both',
   // agentConfig,
 }: ProviderModelSelectorProps) {
-    const [internalProviderValue, setInternalProviderValue] = useState<string>(
-      selectedProviderValue ?? availableProviders[0]?.value ?? ""
-    );
-
   // Get t function from hook
   const { t } = useTranslation();
   
   const selectedProvider = useMemo(() => {
-    return availableProviders.find(p => p.value === internalProviderValue) ?? availableProviders[0];
-  }, [internalProviderValue]);
+    return availableProviders.find(p => p.value === selectedProviderValue) ?? availableProviders[0];
+  }, [selectedProviderValue]);
 
   const currentModels = useMemo(() => {
     return availableModelsByProvider[selectedProvider?.value ?? ""] ?? [];
   }, [selectedProvider]);
 
   const handleProviderChange = useCallback((newProviderValue: string) => {
-    setInternalProviderValue(newProviderValue);
     const modelsForNewProvider = availableModelsByProvider[newProviderValue] ?? [];
     const defaultModel =
       modelsForNewProvider.find((m) => m.title.toLowerCase().includes("default"))?.value ??
       modelsForNewProvider[0]?.value ??
       "";
+      
     if (mode !== 'model') {
-        onProviderModelChange(newProviderValue, defaultModel);
+      onProviderModelChange(newProviderValue, defaultModel);
     }
   }, [onProviderModelChange, mode]);
 
@@ -67,7 +63,7 @@ export function ProviderModelSelector({
     if (mode !== 'provider' && selectedProvider) {
       onProviderModelChange(selectedProvider.value, newModelValue);
     } else if (!selectedProvider) {
-        console.warn("[ProviderModelSelector] Attempted to change model without a provider selected.");
+      console.warn("ProviderModelSelector: Attempted to change model without a provider selected.");
     }
   }, [selectedProvider, onProviderModelChange, mode]);
 
@@ -84,7 +80,7 @@ export function ProviderModelSelector({
       {(mode === 'both' || mode === 'provider') && (
         <div className={cn("flex flex-col items-start justify-start gap-1 w-full", mode === 'both' ? "sm:w-1/2" : "")}>
           <Select
-            value={internalProviderValue}
+            value={selectedProviderValue}
             onValueChange={handleProviderChange}
             disabled={disabled || availableProviders.length === 0}
           >
@@ -108,7 +104,6 @@ export function ProviderModelSelector({
       {(mode === 'both' || mode === 'model') && (
         <div className={cn("flex flex-col items-start justify-start gap-1 w-full", mode === 'both' ? "sm:w-1/2" : "")}>
           <Select
-            defaultValue={selectedModel}
             value={selectedModel}
             onValueChange={handleModelChange}
             disabled={disabled || currentModels.length === 0}

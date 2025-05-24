@@ -12,6 +12,13 @@ export default defineConfig({
     globals: true, // Optional: Use if you prefer global test functions (describe, it, etc.)
     environment: 'jsdom', // Or 'node' if not testing DOM-related code
     setupFiles: './vitest.setup.ts', // Optional: if you have setup files
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.next/**',
+      '**/*.spec.ts', // Exclude Playwright tests
+      '**/tests/**/*.spec.ts', // Exclude Playwright tests in tests directory
+    ],
     // Add any other Vitest specific options here
     deps: {
       // Ensure server-side dependencies are handled correctly if needed

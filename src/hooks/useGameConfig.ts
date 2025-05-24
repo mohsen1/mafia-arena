@@ -1,59 +1,21 @@
 import { startGameAction } from "@/app/actions/setup.actions";
 import type { StartGameSetupData } from "@/lib/interfaces/actions.types";
 import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
-import { RoleName } from "@/lib/engine/interfaces/IRole"; // Added missing import
+import { RoleName } from "@/lib/engine/interfaces/IRole";
 import type { Persona } from "@/lib/engine/interfaces/Persona";
 import { Themes } from "@/lib/engine/interfaces/Theme";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import type { LanguageCode as Locale } from "@/lib/i18n/settings";
 import { useTranslation } from "react-i18next";
 import type { AgentConfig } from "@/lib/interfaces/agent.types";
 import { useRouter } from 'next/navigation';
-// Import model and provider definitions
 import {
-    openAIModels,
-    claudeModels,
-    geminiModels,
-    groqModels,
-    openAIProviders,
-    fireworksModels,
+    availableModelsByProvider,
+    availableProviders,
+    type ModelDefinition,
+    type ProviderDefinition
 } from "@/lib/models";
 import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
-
-// Define types locally based on the structure in @/lib/models.ts
-export interface ModelDefinition {
-    title: string;
-    value: string;
-}
-
-export interface ProviderDefinition {
-    title: string;
-    value: string;
-    endpoint: string;
-    apiKeyEnvVar: string;
-}
-
-// Combine all models into a lookup structure
-const availableModelsByProvider: Record<string, ModelDefinition[]> = {
-    openai: openAIModels,
-    // ollama_local: [], // Add specific Ollama models if known, or handle dynamically
-    fireworks: fireworksModels, // Add mapping for fireworks
-    groq: groqModels,
-    claude: claudeModels, // Need corresponding provider definition
-    gemini: geminiModels, // Need corresponding provider definition
-    // Add mappings for other providers if necessary
-};
-
-// Use imported providers directly
-// const availableProviders: ProviderDefinition[] = openAIProviders; // Assuming openAIProviders covers all needed for now
-// Fetch all available providers (adjust logic if needed)
-const availableProviders: ProviderDefinition[] = [
-    ...openAIProviders,
-    // Add Claude, Gemini etc. if they are represented in ProviderDefinition format
-    // Example:
-    // { title: "Claude API", value: "claude", endpoint: "...", apiKeyEnvVar: "ANTHROPIC_API_KEY" },
-    // { title: "Gemini API", value: "gemini", endpoint: "...", apiKeyEnvVar: "GEMINI_API_KEY" },
-].filter(p => availableModelsByProvider[p.value]?.length > 0 || p.value === 'ollama_local'); // Filter providers with models or ollama
 
 // Helper function to get the default model for a provider
 const getDefaultModelForProvider = (providerValue: string): string => {
@@ -142,6 +104,7 @@ export function useGameConfig(
     const [characterSlots, setCharacterSlots] = useState<ConfigCharacterSlot[]>(
         [],
     );
+
     const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -157,11 +120,8 @@ export function useGameConfig(
     useEffect(() => {
         // Wait until provider and model have values (can happen after initial mount)
         if (!globalProviderSelection || !globalModelSelection) {
-            console.log("[useGameConfig Init Effect] Waiting for global provider/model selection.");
             return;
         }
-
-        console.log(`[useGameConfig Init Effect] Running with globalProvider=${globalProviderSelection}, globalModel=${globalModelSelection}, isHumanJoining=${isHumanJoining}`);
 
         // Determine total players and roles list from config
         const roleDist = { ...DEFAULT_GAME_SETTINGS.roleDistribution } as Record<RoleName, number>;
@@ -244,38 +204,32 @@ export function useGameConfig(
     }, [globalProviderSelection, globalModelSelection, isHumanJoining, humanRoleSelection, t]);
 
     const configValidation = useMemo(() => {
-        let isValid = characterSlots.length >= 5; // Ensure minimum 5 players
-        let message = isValid ? null : t("MinPlayerValidationError", { min: 5 });
-
-        if (isValid) {
-            // Add more validation: check if provider/model is set for all AI slots
-            const aiSlotsValid = characterSlots.every(slot => slot.isHuman || (slot.provider && slot.aiModel));
-            if (!aiSlotsValid) {
-                isValid = false;
-                message = t("ProviderModelMissingValidationError", "Provider/Model must be set for all AI players.");
-            }
+        // Early return for minimum player check
+        if (characterSlots.length < 5) {
+            return { isValid: false, message: t("MinPlayerValidationError", { min: 5 }) };
         }
 
-        if (isValid) {
-            // NEW: Check for duplicate names (case-insensitive)
-            const names = characterSlots.map(slot => slot.profile?.characterName?.trim().toLowerCase() || '');
-            const uniqueNames = new Set(names.filter(name => name !== '')); // Filter out empty names before checking uniqueness
-            if (uniqueNames.size !== names.filter(name => name !== '').length) {
-                isValid = false;
-                message = t("DuplicatePlayerNameValidationError", "Player names must be unique.");
-            }
+        // Check if provider/model is set for all AI slots
+        const aiSlotsValid = characterSlots.every(slot => slot.isHuman || (slot.provider && slot.aiModel));
+        if (!aiSlotsValid) {
+            return { isValid: false, message: t("ProviderModelMissingValidationError", "Provider/Model must be set for all AI players.") };
         }
+
+        // Check for duplicate names (case-insensitive)
+        const nonEmptyNames = characterSlots
+            .map(slot => slot.profile?.characterName?.trim().toLowerCase())
+            .filter(name => name && name.length > 0);
         
-        if (isValid) {
-            // NEW: Check for empty names
-            const hasEmptyName = characterSlots.some(slot => !slot.profile?.characterName?.trim());
-            if (hasEmptyName) {
-                isValid = false;
-                message = t("EmptyPlayerNameValidationError", "Player names cannot be empty.");
-            }
+        if (nonEmptyNames.length !== new Set(nonEmptyNames).size) {
+            return { isValid: false, message: t("DuplicatePlayerNameValidationError", "Player names must be unique.") };
         }
 
-        return { isValid, message };
+        // Check for empty names
+        if (characterSlots.some(slot => !slot.profile?.characterName?.trim())) {
+            return { isValid: false, message: t("EmptyPlayerNameValidationError", "Player names cannot be empty.") };
+        }
+
+        return { isValid: true, message: null };
     }, [characterSlots, t]);
 
     const canAttemptStart = configValidation.isValid && !isSubmitting;
@@ -340,6 +294,28 @@ export function useGameConfig(
         []
     );
 
+    // Debounced version for performance
+    const debounceTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+    
+    const updateSlotNameDebounced = useCallback(
+        (clientId: string, newName: string) => {
+            // Clear existing timer for this slot
+            const existingTimer = debounceTimersRef.current.get(clientId);
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+            }
+            
+            // Set new timer
+            const timer = setTimeout(() => {
+                updateSlotName(clientId, newName);
+                debounceTimersRef.current.delete(clientId);
+            }, 150); // 150ms debounce
+            
+            debounceTimersRef.current.set(clientId, timer);
+        },
+        [updateSlotName]
+    );
+
      // NEW: Update a single slot's image URL
      const updateSlotImageUrl = useCallback(
         (clientId: string, newImageUrl: string | null) => {
@@ -355,29 +331,22 @@ export function useGameConfig(
     );
 
     // Update global state AND directly update the provider/model in existing slots
-    // Also update the model selection based on the new provider
     const updateAllProvidersAndModels = useCallback(
-        (newProvider: string) => {
-            const newModel = getDefaultModelForProvider(newProvider);
-            console.log(`[useGameConfig] updateAllProvidersAndModels: Setting global provider to ${newProvider}, calculated default model to ${newModel}`);
+        (newProvider: string, newModel: string) => {
             setGlobalProviderSelection(newProvider);
             setGlobalModelSelection(newModel);
 
             // Directly update the character slots array with the new values
             setCharacterSlots((prevSlots) => {
-                console.log("[useGameConfig] updateAllProvidersAndModels: Updating characterSlots state.");
-                const updatedSlots = prevSlots.map((slot) =>
-                    slot.isHuman
+                return prevSlots.map((slot) => {
+                    return slot.isHuman
                         ? slot
-                        : { ...slot, provider: newProvider, aiModel: newModel, isGenerated: false }
-                );
-                console.log("[useGameConfig] updateAllProvidersAndModels: Updated slots:", updatedSlots);
-                return updatedSlots;
+                        : { ...slot, provider: newProvider, aiModel: newModel, isGenerated: false };
+                });
             });
         },
-        [] // No dependencies needed as getDefaultModelForProvider is stable
+        [] // Remove dependencies to avoid unnecessary re-creation
     );
-
 
     const updateSlotRole = useCallback(
         (clientId: string, roleName: RoleName) => {
@@ -477,9 +446,7 @@ export function useGameConfig(
         };
 
         try {
-            console.log("Calling startGameAction with:", setupData);
             const result = await startGameAction(setupData);
-            console.log("startGameAction result:", result);
 
             if (result && "error" in result) {
                 throw new Error(result.error);
@@ -493,7 +460,6 @@ export function useGameConfig(
             }
 
         } catch (error: unknown) {
-            console.error("Error starting game:", error);
             const errorMessage =
                 error instanceof Error ? error.message : "StartGameFailedError";
             if (errorMessage.includes("NEXT_REDIRECT")) {
@@ -531,6 +497,16 @@ export function useGameConfig(
         }
     }, [initialSlotsSet, characterSlots]);
 
+    // Cleanup debounce timers on unmount
+    useEffect(() => {
+        return () => {
+            for (const timer of debounceTimersRef.current.values()) {
+                clearTimeout(timer);
+            }
+            debounceTimersRef.current.clear();
+        };
+    }, []);
+
     return {
         characterSlots,
         isSubmitting,
@@ -552,7 +528,7 @@ export function useGameConfig(
         updateAllProvidersAndModels, // Renamed/Added
         updateSlotRole,
         // NEW Functions
-        updateSlotName,
+        updateSlotName: updateSlotNameDebounced, // Use debounced version
         updateSlotImageUrl,
         toggleAudioEnabled,
         handleGenerateAndStartGame,

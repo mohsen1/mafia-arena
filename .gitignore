@@ -55,3 +55,7 @@ game_saves/
 .env
 .env
 .env
+
+# Playwright
+playwright-report/
+test-results/

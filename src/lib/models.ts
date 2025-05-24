@@ -199,8 +199,11 @@ export const availableModelsByProvider: Record<string, ModelDefinition[]> = {
   openai: openAIModels,
   fireworks: fireworksModels,
   groq: groqModels,
-  claude: claudeModels, // Ensure claudeModels is imported/defined if used
-  gemini: geminiModels, // Ensure geminiModels is imported/defined if used
-  // Add other mappings as needed, ensure keys match provider values
-  // ollama_local: [], // Example placeholder
+  claude: claudeModels,
+  gemini: geminiModels,
+  ollama_local: [
+    { title: "Ollama Local Model", value: "llama3.2" }, // Default Ollama model
+    { title: "Codellama", value: "codellama" },
+    { title: "Mistral", value: "mistral" },
+  ],
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { CharacterSlotItem } from "@/components/character-slot/CharacterSlotItem"; // Import the item component
+import { CharacterSlotItem, CharacterSlotMobile } from "@/components/character-slot/CharacterSlotItem"; // Import both components
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -49,11 +49,9 @@ export interface StartGameFormProps {
 
 // Update component signature
 export default function StartGameForm({ lang }: StartGameFormProps) {
-  // Use the hook to get the t function
   const { t } = useTranslation();
   const [useSeparateAIModelForMafia, setUseSeparateAIModelForMafia] = useState(false);
   
-  // Initialize Mafia provider state - will be synced later if needed
   const [mafiaProviderSelection, setMafiaProviderSelection] = useState<string>("");
   const [mafiaModelSelection, setMafiaModelSelection] = useState<string>("");
 
@@ -78,34 +76,27 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     updateSlotImageUrl,
     handleGenerateAndStartGame,
     isHumanJoining,
-    selectedGameThemeKey,   // Get selected theme
-    setSelectedGameThemeKey, // Get theme setter
-    setCharacterSlots,        // Get the setter from the hook
+    selectedGameThemeKey,
+    setSelectedGameThemeKey,
+    setCharacterSlots,
   } = useGameConfig(
     lang,
-    useSeparateAIModelForMafia, // Pass the flag
-    mafiaProviderSelection,     // Pass Mafia provider state
-    mafiaModelSelection         // Pass Mafia model state
+    useSeparateAIModelForMafia,
+    mafiaProviderSelection,
+    mafiaModelSelection
   );
 
   // Effect to initialize and sync Mafia provider/model
   useEffect(() => {
-    // Initialize Mafia state with global state when component mounts or global changes
-    // But only if the separate config isn't already active
     if (!useSeparateAIModelForMafia && globalProviderSelection && globalModelSelection) {
       setMafiaProviderSelection(globalProviderSelection);
       setMafiaModelSelection(globalModelSelection);
     }
-    // Only run when global selections change OR when the checkbox is toggled
   }, [globalProviderSelection, globalModelSelection, useSeparateAIModelForMafia]);
 
-  // New combined handler for the ProviderModelSelector
   const handleGlobalProviderModelChange = useCallback(
-    (provider: string /*, model: string */) => { // Remove model from args
-      console.log(
-        `[StartGameForm] handleGlobalProviderModelChange: provider=${provider}` // Log only provider
-      );
-      updateAllProvidersAndModels(provider); // Call with only provider
+    (provider: string, model: string) => {
+      updateAllProvidersAndModels(provider, model);
     },
     [updateAllProvidersAndModels]
   );
@@ -141,7 +132,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     );
   }
 
-  return (
+  const formJSX = (
     <form onSubmit={handleSubmitWrapper} className="w-full max-w-5xl space-y-6">
       {/* Config container */}
       <div className="mb-6 max-w-2xl mx-auto">
@@ -396,33 +387,52 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           </div>
 
           {initialSlotsSet && characterSlots.length > 0 && (
-            <Table className="pe-2">
-              <TableHeader className="sticky top-0 bg-background z-10">
-                <TableRow>
-                  <TableHead className="w-[150px]">
-                    {t("TableHeader_Character", "Character")}
-                  </TableHead>
-                  {/* Hide Role header on mobile */}
-                  <TableHead className="hidden md:table-cell">
-                    {t("TableHeader_Role", "Role")}
-                  </TableHead>
-                  {/* Hide AI Provider header on mobile */}
-                  <TableHead className="hidden md:table-cell">
-                    {t("TableHeader_Provider", "AI Provider")}
-                  </TableHead>
-                  {/* Hide AI Model header on mobile */}
-                  <TableHead className="hidden md:table-cell">
-                    {t("TableHeader_Model", "AI Model")}
-                  </TableHead>
-                  {/* Hide Actions header on mobile */}
-                  <TableHead className="text-right hidden md:table-cell">
-                    {t("TableHeader_Actions", "Actions")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table Layout */}
+              <Table className="pe-2 hidden md:table">
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="w-[150px]">
+                      {t("TableHeader_Character", "Character")}
+                    </TableHead>
+                    <TableHead>
+                      {t("TableHeader_Role", "Role")}
+                    </TableHead>
+                    <TableHead>
+                      {t("TableHeader_Provider", "AI Provider")}
+                    </TableHead>
+                    <TableHead>
+                      {t("TableHeader_Model", "AI Model")}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {t("TableHeader_Actions", "Actions")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {characterSlots.map((slot, index) => (
+                    <CharacterSlotItem
+                      key={slot.clientId}
+                      slot={slot}
+                      index={index}
+                      isHuman={slot.isHuman ?? false}
+                      availableRoles={availableRolesForSelection}
+                      isSubmitting={isLoading}
+                      canRemove={characterSlots.length > 5}
+                      onUpdateRole={updateSlotRole}
+                      onUpdateProviderAndModel={updateSlotProviderAndModel}
+                      onRemove={removePlayerSlot}
+                      onUpdateName={updateSlotName}
+                      onUpdateImageUrl={updateSlotImageUrl}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Mobile Layout */}
+              <div className="block md:hidden space-y-0">
                 {characterSlots.map((slot, index) => (
-                  <CharacterSlotItem
+                  <CharacterSlotMobile
                     key={slot.clientId}
                     slot={slot}
                     index={index}
@@ -437,8 +447,8 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
                     onUpdateImageUrl={updateSlotImageUrl}
                   />
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
           {initialSlotsSet && characterSlots.length === 0 && (
             <p className="text-center text-sm text-muted-foreground italic py-4">
@@ -452,4 +462,6 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
       )}
     </form>
   );
+
+  return formJSX;
 }

@@ -132,12 +132,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   }, []);
 
   const stopCurrentAudio = useCallback(() => {
-    console.log(
-      "[Context] Attempting to stop current audio via registered callback",
-    );
     stopAudioCallbackRef.current?.(); // Call the registered stop function
-    // No need to clear playing message ID here, let reportAudioFinished or unregister handle it?
-    // Let's keep it for now, ensures state consistency if stop is called mid-play
     stopAudioCallbackRef.current = null; // Clear the callback ref
   }, []);
 
@@ -145,9 +140,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const toggleAudioGloballyEnabled = useCallback(() => {
     setIsAudioGloballyEnabled((prev) => {
       const newState = !prev;
-      console.log(
-        `[Context] Global audio ${newState ? "enabled" : "disabled"}.`,
-      );
       // If disabling audio, stop any currently playing sound
       if (!newState) {
         stopCurrentAudio();
@@ -158,69 +150,34 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
   // Function to run the next turn in the game
   const runNextTurnAction = useCallback(async (): Promise<FilteredGameState | { error: string }> => {
+    // Skip if game is over
     if (gameState?.phase === "GameOver") {
-      console.log("[Context] Game is over, skipping next turn action trigger.");
-      if (isAutoRunning) {
-        setIsAutoRunning(false);
-      }
-      return gameState ?? { error: "Game state is null" }; 
+      return gameState ?? { error: "Game is over" };
     }
 
+    // Skip if already loading to prevent double calls
     if (isLoadingNextTurn) {
-      console.log("[Context] Next turn already loading, skipping.");
-      return gameState ?? { error: "Game state is null" }; 
-    }
-    console.log("[Context] Running next turn action...");
-
-    // Stop audio if running automatically
-    if (isAudioGloballyEnabled && spokenTextCurrentlySpeakingId) {
-      stopCurrentAudio();
+      return gameState ?? { error: "Already loading" };
     }
 
     setIsLoadingNextTurn(true);
     try {
       const result = await boundRunGameTurnAction();
-      console.log("[Context] Next turn action completed.", result);
-      
-      // Update state ONLY if the result is valid game state
       if (result && !('error' in result)) {
-        setGameState(result); // Update state based on the returned result
-      } else if (result && 'error' in result) {
-        console.error("[Context] Server action returned error:", result.error);
-        // Stop auto-run on error
-        if (isAutoRunning) {
-          setIsAutoRunning(false);
-        }
+        setGameState(result);
       }
       return result;
     } catch (error) {
-      console.error("[Context] Error running next turn action:", error);
-      // Stop auto-run on error
-      if (isAutoRunning) {
-        setIsAutoRunning(false);
-      }
       return { error: error instanceof Error ? error.message : "Unknown error" };
     } finally {
       setIsLoadingNextTurn(false);
     }
-  }, [
-    gameState,
-    isAutoRunning,
-    isLoadingNextTurn,
-    boundRunGameTurnAction,
-    stopCurrentAudio,
-    isAudioGloballyEnabled,
-    spokenTextCurrentlySpeakingId,
-  ]);
+  }, [gameState, isLoadingNextTurn, boundRunGameTurnAction]);
 
   const toggleAutoRun = useCallback(() => {
     setIsAutoRunning((prev) => {
       const newState = !prev;
-      console.log("[Context] Toggle AutoRun:", newState);
       if (!newState && spokenTextCurrentlySpeakingId) {
-        console.log(
-          `[Context toggleAutoRun] Pausing auto-run, stopping audio for ${spokenTextCurrentlySpeakingId}`,
-        );
         stopCurrentAudio();
       }
 
@@ -231,9 +188,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         !isLoadingNextTurn &&
         gameState?.phase !== "GameOver"
       ) {
-        console.log(
-          "[Context toggleAutoRun] Kicking off first turn for autoplay with audio enabled.",
-        );
         setTimeout(() => runNextTurnAction(), 0);
       }
 
@@ -243,9 +197,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         !isLoadingNextTurn &&
         gameState?.phase !== "GameOver"
       ) {
-        console.log(
-          "[Context toggleAutoRun] Kicking off first turn for autoplay with audio disabled.",
-        );
         setTimeout(() => runNextTurnAction(), 0);
       }
 
@@ -262,10 +213,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
   // Update context state if initialGameState prop changes (due to server revalidation)
   useEffect(() => {
-    console.log("[Context useEffect - State Update] Game state prop updated, updating context state.");
     setGameState(initialGameState);
-    // Reset loading ONLY if needed - let the finally block in runNextTurnAction handle it
-    // setIsLoadingNextTurn(false);
   }, [initialGameState]);
 
   // --- SEPARATE useEffect for Auto-Run Logic when audio is ENABLED ---
@@ -417,18 +365,15 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
   // --- Define submitHumanAction similarly ---
   const submitHumanActionInternal = useCallback(async (payload: HumanActionPayload) => {
-    console.log("[Context] Submitting human action...", payload);
     setIsLoadingNextTurn(true); // Assume submission might trigger loading
     try {
       const result = await boundSubmitHumanAction(payload);
-      console.log("[Context] Human action submitted.", result);
       // Update state if valid result
       if (result && !('error' in result)) {
         setGameState(result);
       }
       return result;
     } catch (error) {
-      console.error("[Context] Error submitting human action:", error);
       return { error: error instanceof Error ? error.message : "Unknown error" }; 
     } finally {
       setIsLoadingNextTurn(false);

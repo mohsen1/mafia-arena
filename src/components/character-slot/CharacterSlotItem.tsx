@@ -78,7 +78,7 @@ interface CharacterInfoProps {
   onUpdateImageUrl: (clientId: string, newImageUrl: string | null) => void;
 }
 
-const CharacterInfo: React.FC<CharacterInfoProps> = ({ slot, isHuman, isSubmitting, onUpdateName, onUpdateImageUrl }) => {
+const CharacterInfo: React.FC<CharacterInfoProps> = React.memo(({ slot, isHuman, isSubmitting, onUpdateName, onUpdateImageUrl }) => {
   const { t } = useTranslation();
   const [isImagePopoverOpen, setIsImagePopoverOpen] = useState(false);
 
@@ -90,7 +90,6 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ slot, isHuman, isSubmitti
   const handleImageSelect = (selectedImage: string | null) => {
     onUpdateImageUrl(slot.clientId, selectedImage);
     setIsImagePopoverOpen(false); // Close popover after selection
-    console.log("Image selected for slot:", slot.clientId, selectedImage);
   };
 
   const currentName = slot.profile?.characterName || (isHuman ? t("HumanPlayerLabel", "You") : t("AIPlayerLabel", "AI"));
@@ -211,10 +210,10 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ slot, isHuman, isSubmitti
 
     </div>
   );
-};
+});
 // --- End Helper Component ---
 
-export function CharacterSlotItem({
+export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
   slot,
   isHuman,
   index,
@@ -234,7 +233,6 @@ export function CharacterSlotItem({
   };
 
   const handleSlotProviderModelChange = (provider: string, model: string) => {
-      console.log(`[CharacterSlotItem] handleSlotProviderModelChange called for slot ${slot.clientId}`, {provider, model});
       onUpdateProviderAndModel(slot.clientId, provider, model);
   };
 
@@ -249,7 +247,7 @@ export function CharacterSlotItem({
     selectTriggerClassName: "w-full text-xs h-9",
   };
 
-  // Common Remove Button
+  // Remove Button
   const removeButton = canRemove && (
     <Button
       type="button"
@@ -272,156 +270,211 @@ export function CharacterSlotItem({
   );
 
   return (
-    <React.Fragment key={slot.clientId}> {/* Use Fragment to wrap conditional layouts */}
-      {/* --- Desktop Layout (md+) --- */}
-      <TableRow
-        className={cn(
-          "transition-colors hidden md:table-row", // Show only on md+
-          slot.generationError ? "bg-destructive/10 hover:bg-destructive/20" : "hover:bg-muted/50",
-          isHuman ? "border-primary/30 data-[state=selected]:bg-primary/10" : ""
-        )}
-        data-state={isHuman ? "selected" : undefined}
-      >
-        {/* Character Cell */}
-        <TableCell className="font-medium w-[250px]"> {/* Increased width for name input */}
-          <CharacterInfo
-             slot={slot}
-             isHuman={isHuman}
-             isSubmitting={isSubmitting}
-             onUpdateName={onUpdateName}
-             onUpdateImageUrl={onUpdateImageUrl}
-          />
-        </TableCell>
-
-        {/* Role Cell */}
-        <TableCell>
-          <Select
-            value={slot.roleSelection}
-            onValueChange={(newRole) => onUpdateRole(slot.clientId, newRole as RoleName)}
-            required
-            disabled={isSubmitting}
-          >
-            <SelectTrigger className="w-[150px] text-xs h-9 text-left" id={`role-${slot.clientId}-desktop`}>
-              <SelectValue className="truncate" placeholder={t("SelectRolePlaceholder", "Select role")} />
-            </SelectTrigger>
-            <SelectContent>
-              {availableRoles.map((roleId) => (
-                <SelectItem key={roleId} value={roleId} className="text-xs">
-                  {t(roleId, roleId)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </TableCell>
-
-        {/* AI Provider & Model Cells (Conditional) */}
-        {isHuman ? (
-          <TableCell colSpan={2} className="text-muted-foreground italic text-center">
-            {t("HumanControlledLabel", "Human Controlled")}
-          </TableCell>
-        ) : (
-          <>
-            <TableCell>
-              <ProviderModelSelector
-                {...providerModelSelectorProps}
-                idPrefix={`slot-${slot.clientId}-pv-desktop`}
-                mode="provider"
-              />
-            </TableCell>
-            <TableCell>
-              <ProviderModelSelector
-                {...providerModelSelectorProps}
-                idPrefix={`slot-${slot.clientId}-md-desktop`}
-                mode="model"
-              />
-            </TableCell>
-          </>
-        )}
-
-        {/* Action Cell */}
-        <TableCell className="text-right">
-          {removeButton}
-        </TableCell>
-      </TableRow>
-
-      {/* --- Mobile Layout (< md) --- */}
-      <div
-        className={cn(
-          "block md:hidden p-4 border-b space-y-3", // Show only below md, add spacing
-           slot.generationError ? "bg-destructive/10" : "bg-card",
-           isHuman ? "border border-primary/30 data-[state=selected]:bg-primary/10" : ""
-        )}
-         data-state={isHuman ? "selected" : undefined}
-      >
-        {/* Character Info & Remove Button */} 
-        <div className="flex justify-between items-start">
-          <CharacterInfo
-             slot={slot}
-             isHuman={isHuman}
-             isSubmitting={isSubmitting}
-             onUpdateName={onUpdateName}
-             onUpdateImageUrl={onUpdateImageUrl}
-           />
-           {/* Move remove button here for mobile next to character info */}
-           <div className="ms-2 flex-shrink-0">{removeButton}</div>
-        </div>
-
-        {/* Role Selector */} 
-        <div> 
-            <Label htmlFor={`role-${slot.clientId}-mobile`} className="text-xs font-medium text-muted-foreground mb-1 block">
-                {t("TableHeader_Role", "Role")}
-            </Label>
-            <Select
-                value={slot.roleSelection}
-                onValueChange={(newRole) => onUpdateRole(slot.clientId, newRole as RoleName)}
-                required
-                disabled={isSubmitting}
-            >
-                <SelectTrigger className="w-full text-xs h-9 text-left" id={`role-${slot.clientId}-mobile`}>
-                    <SelectValue className="truncate" placeholder={t("SelectRolePlaceholder", "Select role")} />
-                </SelectTrigger>
-                <SelectContent>
-                    {availableRoles.map((roleId) => (
-                        <SelectItem key={roleId} value={roleId} className="text-xs">
-                        {t(roleId, roleId)}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-        </div>
-
-        {/* AI Provider & Model Selectors (Conditional) */} 
-        {isHuman ? (
-          <div className="text-muted-foreground italic text-center text-sm py-2">
-            {t("HumanControlledLabel", "Human Controlled")}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3"> {/* Use grid for side-by-side */} 
-            {/* Provider */}
-            <div>
-                <Label htmlFor={`slot-${slot.clientId}-pv-mobile-trigger`} className="text-xs font-medium text-muted-foreground mb-1 block">
-                    {t("TableHeader_Provider", "AI Provider")}
-                </Label>
-                <ProviderModelSelector
-                    {...providerModelSelectorProps}
-                    idPrefix={`slot-${slot.clientId}-pv-mobile`}
-                    mode="provider"
-                />
-            </div>
-            {/* Model */}
-            <div>
-                <Label htmlFor={`slot-${slot.clientId}-md-mobile-trigger`} className="text-xs font-medium text-muted-foreground mb-1 block">
-                    {t("TableHeader_Model", "AI Model")}
-                </Label>
-                <ProviderModelSelector
-                    {...providerModelSelectorProps}
-                    idPrefix={`slot-${slot.clientId}-md-mobile`}
-                    mode="model"
-                />
-            </div>
-          </div>
-        )}
+    <div
+      className={cn(
+        "p-4 border-b space-y-3",
+        slot.generationError ? "bg-destructive/10" : "bg-card",
+        isHuman ? "border border-primary/30 data-[state=selected]:bg-primary/10" : ""
+      )}
+      data-state={isHuman ? "selected" : undefined}
+    >
+      {/* Character Info & Remove Button */} 
+      <div className="flex justify-between items-start">
+        <CharacterInfo
+           slot={slot}
+           isHuman={isHuman}
+           isSubmitting={isSubmitting}
+           onUpdateName={onUpdateName}
+           onUpdateImageUrl={onUpdateImageUrl}
+         />
+         {/* Move remove button here for mobile next to character info */}
+         <div className="ms-2 flex-shrink-0">{removeButton}</div>
       </div>
-    </React.Fragment>
+
+      {/* Role Selector */} 
+      <div> 
+          <Label htmlFor={`role-${slot.clientId}-mobile`} className="text-xs font-medium text-muted-foreground mb-1 block">
+              {t("TableHeader_Role", "Role")}
+          </Label>
+          <Select
+              value={slot.roleSelection}
+              onValueChange={(newRole) => onUpdateRole(slot.clientId, newRole as RoleName)}
+              required
+              disabled={isSubmitting}
+          >
+              <SelectTrigger className="w-full text-xs h-9 text-left" id={`role-${slot.clientId}-mobile`}>
+                  <SelectValue className="truncate" placeholder={t("SelectRolePlaceholder", "Select role")} />
+              </SelectTrigger>
+              <SelectContent>
+                  {availableRoles.map((roleId) => (
+                      <SelectItem key={roleId} value={roleId} className="text-xs">
+                      {t(roleId, roleId)}
+                      </SelectItem>
+                  ))}
+              </SelectContent>
+          </Select>
+      </div>
+
+      {/* AI Provider & Model Selectors (Conditional) */} 
+      {isHuman ? (
+        <div className="text-muted-foreground italic text-center text-sm py-2">
+          {t("HumanControlledLabel", "Human Controlled")}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {/* Provider */}
+          <div>
+              <Label htmlFor={`slot-${slot.clientId}-pv-mobile-trigger`} className="text-xs font-medium text-muted-foreground mb-1 block">
+                  {t("TableHeader_Provider", "AI Provider")}
+              </Label>
+              <ProviderModelSelector
+                  {...providerModelSelectorProps}
+                  idPrefix={`slot-${slot.clientId}-pv-mobile`}
+                  mode="provider"
+              />
+          </div>
+          {/* Model */}
+          <div>
+              <Label htmlFor={`slot-${slot.clientId}-md-mobile-trigger`} className="text-xs font-medium text-muted-foreground mb-1 block">
+                  {t("TableHeader_Model", "AI Model")}
+              </Label>
+              <ProviderModelSelector
+                  {...providerModelSelectorProps}
+                  idPrefix={`slot-${slot.clientId}-md-mobile`}
+                  mode="model"
+              />
+          </div>
+        </div>
+      )}
+    </div>
   );
-}
+});
+
+export const CharacterSlotItem = React.memo(function CharacterSlotItem({
+  slot,
+  isHuman,
+  index,
+  availableRoles,
+  isSubmitting,
+  canRemove,
+  onUpdateRole,
+  onUpdateProviderAndModel,
+  onRemove,
+  onUpdateName,
+  onUpdateImageUrl,
+}: CharacterSlotItemProps) {
+  const { t } = useTranslation();
+
+  const handleRemoveClick = () => {
+    onRemove(slot.clientId);
+  };
+
+  const handleSlotProviderModelChange = (provider: string, model: string) => {
+      onUpdateProviderAndModel(slot.clientId, provider, model);
+  };
+
+  // Common props for ProviderModelSelector
+  const providerModelSelectorProps = {
+    selectedModel: slot.aiModel,
+    selectedProviderValue: slot.provider,
+    onProviderModelChange: handleSlotProviderModelChange,
+    disabled: isSubmitting,
+    className: "flex-col !items-start w-full !gap-1",
+    labelClassName: "hidden",
+    selectTriggerClassName: "w-full text-xs h-9",
+  };
+
+  // Remove Button
+  const removeButton = canRemove && (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={handleRemoveClick}
+      disabled={isSubmitting}
+      className="p-1 text-muted-foreground hover:text-destructive h-9 w-auto"
+      aria-label={`${t("RemovePlayerSlotAriaLabel", "Remove player slot")} ${index + 1}`}
+    >
+      {isSubmitting ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <>
+          <X className="h-5 w-5" />
+          <span className="ms-1 text-xs">{t("DeleteButtonLabel", "Delete")}</span>
+        </>
+      )}
+    </Button>
+  );
+
+  return (
+    <TableRow
+      className={cn(
+        "transition-colors",
+        slot.generationError ? "bg-destructive/10 hover:bg-destructive/20" : "hover:bg-muted/50",
+        isHuman ? "border-primary/30 data-[state=selected]:bg-primary/10" : ""
+      )}
+      data-state={isHuman ? "selected" : undefined}
+    >
+      {/* Character Cell */}
+      <TableCell className="font-medium w-[250px]">
+        <CharacterInfo
+           slot={slot}
+           isHuman={isHuman}
+           isSubmitting={isSubmitting}
+           onUpdateName={onUpdateName}
+           onUpdateImageUrl={onUpdateImageUrl}
+        />
+      </TableCell>
+
+      {/* Role Cell */}
+      <TableCell>
+        <Select
+          value={slot.roleSelection}
+          onValueChange={(newRole) => onUpdateRole(slot.clientId, newRole as RoleName)}
+          required
+          disabled={isSubmitting}
+        >
+          <SelectTrigger className="w-[150px] text-xs h-9 text-left" id={`role-${slot.clientId}-desktop`}>
+            <SelectValue className="truncate" placeholder={t("SelectRolePlaceholder", "Select role")} />
+          </SelectTrigger>
+          <SelectContent>
+            {availableRoles.map((roleId) => (
+              <SelectItem key={roleId} value={roleId} className="text-xs">
+                {t(roleId, roleId)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+
+      {/* AI Provider & Model Cells (Conditional) */}
+      {isHuman ? (
+        <TableCell colSpan={2} className="text-muted-foreground italic text-center">
+          {t("HumanControlledLabel", "Human Controlled")}
+        </TableCell>
+      ) : (
+        <>
+          <TableCell>
+            <ProviderModelSelector
+              {...providerModelSelectorProps}
+              idPrefix={`slot-${slot.clientId}-pv-desktop`}
+              mode="provider"
+            />
+          </TableCell>
+          <TableCell>
+            <ProviderModelSelector
+              {...providerModelSelectorProps}
+              idPrefix={`slot-${slot.clientId}-md-desktop`}
+              mode="model"
+            />
+          </TableCell>
+        </>
+      )}
+
+      {/* Action Cell */}
+      <TableCell className="text-right">
+        {removeButton}
+      </TableCell>
+    </TableRow>
+  );
+});
