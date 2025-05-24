@@ -1,10 +1,13 @@
 "use client";
 
 import { useTranslation } from 'react-i18next';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
+import { MagicalAIButton } from '@/components/ui/magical-ai-button';
 import Link from 'next/link';
-import { ArrowRight, ArrowLeft, Brain, Globe, Sparkles, Volume2, Save, Gamepad2, Users, Languages, Cpu, Star } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Brain, Globe, Sparkles, Volume2, Save, Gamepad2, Users, Languages, Cpu, Star, LogIn } from 'lucide-react';
 import LanguageSelector from '@/components/LanguageSelector';
+import { Header } from '@/components/Header';
 import { usePathname } from 'next/navigation';
 import type { LanguageCode } from '@/lib/i18n/settings';
 import { supportedLanguagesInfo } from '@/lib/i18n/settings';
@@ -98,6 +101,36 @@ function StatCard({ number, label, icon }: StatCardProps) {
   );
 }
 
+interface AuthCTAButtonProps {
+  currentLang: string;
+  children: React.ReactNode;
+  className?: string;
+  variant?: "default" | "outline";
+}
+
+function AuthCTAButton({ currentLang, children, className = "", variant = "default" }: AuthCTAButtonProps) {
+  const { data: session } = useSession();
+  
+  if (session) {
+    return (
+      <Button asChild size="lg" className={`group ${className}`} variant={variant}>
+        <Link href={`/${currentLang}/new`}>
+          {children}
+        </Link>
+      </Button>
+    );
+  }
+  
+  return (
+    <Button asChild size="lg" className={`group ${className}`} variant={variant}>
+      <Link href={`/${currentLang}/auth/signin`}>
+        <LogIn className="w-5 h-5 me-2" />
+        Sign In to Play
+      </Link>
+    </Button>
+  );
+}
+
 export default function LandingPage() {
   const { t } = useTranslation();
   const pathname = usePathname();
@@ -161,26 +194,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation Bar */}
-      <nav className="relative z-10 bg-background/80 backdrop-blur-sm border-b border-border/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <span className="text-xl font-bold text-foreground">🐺 Werewolf AI</span>
-            </div>
-            <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-4' : 'space-x-4'}`}>
-              <Button variant="ghost" asChild>
-                <Link href="#features">{t('landingNavFeatures')}</Link>
-              </Button>
-              <Button variant="ghost" asChild>
-                <Link href="#how-it-works">{t('landingNavHowItWorks')}</Link>
-              </Button>
-              <Button asChild>
-                <Link href={`/${currentLang}/new`}>{t('landingNavPlayNow')}</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Header currentLang={currentLang} />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
@@ -205,12 +219,10 @@ export default function LandingPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-in fade-in duration-1000 delay-300">
-              <Button asChild size="lg" className="group">
-                <Link href={`/${currentLang}/new`}>
-                  {t('landingHeroCTA')}
-                  <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
-                </Link>
-              </Button>
+              <AuthCTAButton currentLang={currentLang}>
+                {t('landingHeroCTA')}
+                <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
+              </AuthCTAButton>
               <Button variant="outline" size="lg" asChild>
                 <Link href="#features">
                   {t('landingHeroSecondary')}
@@ -414,12 +426,10 @@ export default function LandingPage() {
             {t('landingCtaSubtitle')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button asChild size="lg" className="group">
-              <Link href={`/${currentLang}/new`}>
-                {t('landingCtaButton')}
-                <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
-              </Link>
-            </Button>
+            <AuthCTAButton currentLang={currentLang}>
+              {t('landingCtaButton')}
+              <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
+            </AuthCTAButton>
             <Button variant="outline" size="lg" asChild>
               <a href="https://github.com/mohsen1/werewolf-ai" target="_blank" rel="noopener noreferrer">
                 {t('landingCtaSecondary')}

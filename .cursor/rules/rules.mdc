@@ -13,3 +13,5 @@ use pnpm for package management
 after changes run `pnpm tsc` to ensure no type errors are found
 after changes run `pnpm vitest run` to ensure tests are passing
 when editing translations, only update en.json. the rest is automatically translated from it.
+
+Do not launch the dev server. we always have a dev server running during dev.

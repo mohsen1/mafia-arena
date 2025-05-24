@@ -2,6 +2,7 @@
 
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { SessionProvider } from 'next-auth/react';
 import "../globals.css";
 
 import { type LanguageCode, defaultNS } from "@/lib/i18n/settings";
@@ -38,16 +39,18 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <I18nextProvider i18n={i18nInstance} defaultNS={defaultNS}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
-        </I18nextProvider>
+        <SessionProvider>
+          <I18nextProvider i18n={i18nInstance} defaultNS={defaultNS}>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              {children}
+            </ThemeProvider>
+          </I18nextProvider>
+        </SessionProvider>
       </body>
     </html>
   );
