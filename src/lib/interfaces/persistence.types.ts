@@ -1,7 +1,6 @@
 import type { GamePhaseType } from '@/lib/engine/interfaces/IGamePhase';
 import type { RoleName, Allegiance } from '@/lib/engine/interfaces/IRole';
 import type { PlayerId, PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
-import type { IMessage } from '@/lib/engine/interfaces/IMessage'; // Reusable engine type
 import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory'; // Reusable? Ensure serializability
 import type { LanguageName } from '@/lib/i18n/settings';
 import type { Persona } from '@/lib/engine/interfaces/Persona'; // Reusable engine type

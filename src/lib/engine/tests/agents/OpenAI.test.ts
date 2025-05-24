@@ -1,13 +1,13 @@
-// tests/agents/OpenAIAgent.test.ts
-import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
+
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { OpenAIAgent } from '@/lib/engine/agents/OpenAIAgent';
 import type { VisibleGameState } from '@/lib/engine/interfaces/GameState';
 import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import { createInitialMemory, type AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
-import { Persona, DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
-import { OpenAI } from 'openai';
+import { type Persona, DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
+import type { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 
 // --- Mock OpenAI library ---
 vi.mock('openai', async (importActual) => {
@@ -59,8 +59,8 @@ describe('OpenAIAgent', () => {
 
         // Dynamically import the mocked components AFTER vi.mock has run
         const mockedOpenAI = await import('openai');
-        mockCreate = (mockedOpenAI as any).__mockCreate as Mock; // Get the exported mock function
-        MockOpenAIConstructor = (mockedOpenAI as any).__MockOpenAIConstructor; // Get constructor mock
+        mockCreate = (mockedOpenAI as unknown as { __mockCreate: Mock }).__mockCreate; // Get the exported mock function
+        MockOpenAIConstructor = (mockedOpenAI as unknown as { __MockOpenAIConstructor: Mock }).__MockOpenAIConstructor; // Get constructor mock
 
         const mockedPrompts = await import('@/lib/engine/prompts');
         getSystemPrompt = mockedPrompts.getSystemPrompt as Mock;
@@ -331,7 +331,7 @@ describe('OpenAIAgent', () => {
                 { 
                     id: 'msg1', round: 1, phase: 'Day', senderId: player2Id, 
                     senderName: 'Player 2', content: 'Test message', 
-                    timestamp: new Date(), visibility: 'Public' as any // Cast for simplicity
+                    timestamp: new Date(), visibility: 'Public' as MessageVisibility // Cast for simplicity
                 }
             ],
             aiConversationLogs: [] // Initialize the logs array

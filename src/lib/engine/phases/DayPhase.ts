@@ -1,13 +1,10 @@
 import { AbstractGamePhase } from './AbstractGamePhase';
 import type { Game } from '../core/Game';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
-import { NightPhase } from './NightPhase';
 import type { PlayerAction } from '../interfaces/IAgent';
 import type { PlayerId } from '../interfaces/IPlayer';
 import { MessageVisibility } from '../interfaces/IMessage';
-import { RoleName } from '../interfaces/IRole'; // Import RoleName if needed for checks
 import { translate } from '../../i18n/server'; // Import server-side translation
-// import { HumanAgent } from '../agents/HumanAgent'; // No longer needed here
 
 export class DayPhase extends AbstractGamePhase {
     readonly type: GamePhaseType = 'Day';

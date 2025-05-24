@@ -1,7 +1,6 @@
 // src/lib/engine/tests/core/utils.test.ts
 import { describe, it, expect } from 'vitest';
 import { assignRoles } from '@/lib/engine/core/utils';
-import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
 import { DoctorRole } from '@/lib/engine/roles/DoctorRole';
 import { SeerRole } from '@/lib/engine/roles/SeerRole';

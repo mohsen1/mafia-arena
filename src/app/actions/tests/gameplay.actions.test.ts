@@ -132,27 +132,6 @@ describe('gameplay.actions', () => {
         const { Game: MockedGameClass } = await import('@/lib/engine/core/Game');
         mockStaticLoadFromState = MockedGameClass.loadFromState as unknown as Mock<(_loadedState: SerializableGameState) => MockGameInstanceMethods>;
 
-        const defaultMockStateForLoad: SerializableGameState = {
-            gameId: 'default-mock-id',
-            phase: 'Init',
-            round: 0,
-            players: {},
-            livingPlayerIds: [],
-            deadPlayerIds: [],
-            conversationLog: [],
-            agentMemories: {},
-            winCondition: null,
-            humanPlayerId: null,
-            pendingHumanAction: null,
-            _phaseResults: {},
-            phaseStep: 'Start',
-            nextPlayerIndexToAction: 0,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            themeKey: 'defaultTheme',
-            language: 'en',
-        };
-        
         // Create a mock game instance without calling loadFromState yet
         gameInstanceMock = {
             getCurrentPhase: vi.fn(),

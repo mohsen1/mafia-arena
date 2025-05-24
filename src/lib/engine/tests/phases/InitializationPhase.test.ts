@@ -1,11 +1,10 @@
 // tests/phases/InitializationPhase.test.ts
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { InitializationPhase } from '@/lib/engine/phases/InitializationPhase';
-import { DayPhase } from '@/lib/engine/phases/DayPhase';
 import type { Game } from '@/lib/engine/core/Game';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
-import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
+import type { IAgent } from '@/lib/engine/interfaces/IAgent';
 import type { Persona } from '@/lib/engine/interfaces/Persona';
 
 // Mock Agent interfaces/classes for testing

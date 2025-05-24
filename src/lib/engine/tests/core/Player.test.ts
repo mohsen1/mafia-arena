@@ -6,9 +6,6 @@ import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import type { IRole } from '@/lib/engine/interfaces/IRole';
 import type { VisibleGameState } from '@/lib/engine/interfaces/GameState';
 import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
-import { DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
-import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
-import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
 import type { AgentConfig } from '@/lib/interfaces/persistence.types';
 
 // Mock Role implementation
@@ -19,12 +16,6 @@ const mockVillagerRole: IRole = {
     description: 'Mock Villager',
 };
 
-const _mockMafiaRole: IRole = {
-    name: RoleName.Mafia,
-    allegiance: 'Mafia',
-    canPerformNightAction: true,
-    description: 'Mock Mafia',
-};
 
 // Mock agent factory - Updated to match IAgent
 const createMockAgent = (id: PlayerId = 'mock-agent-id'): IAgent & { getAction: Mock } => ({

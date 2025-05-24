@@ -1,8 +1,6 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { startGameAction } from '../setup.actions';
 import type { StartGameSetupData } from '@/lib/interfaces/actions.types'; // Import from central location
-import type { GamePhaseType } from '@/lib/interfaces/gameState.types';
-import type { SerializableGameState } from '@/lib/interfaces/persistence.types';
 import { saveGameData } from '@/lib/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
 import type { AgentConfig } from '@/lib/interfaces/agent.types'; // Changed to type import

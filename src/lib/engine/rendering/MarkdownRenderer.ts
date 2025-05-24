@@ -1,13 +1,12 @@
 import type { IGameRenderer } from '../interfaces/IGameRenderer';
-import { IMessage, MessageVisibility } from '../interfaces/IMessage';
+import { type IMessage, MessageVisibility } from '../interfaces/IMessage';
 import type { PlayerId, PublicPlayerInfo } from '../interfaces/IPlayer';
-import type { VisibleGameState } from '../interfaces/GameState';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
-import fs from 'fs';
-import path from 'path';
 import { format } from 'date-fns';
-import { type AgentMemory, type AIConversationLog } from '../interfaces/AgentMemory';
+import type { AIConversationLog } from '../interfaces/AgentMemory';
 import type { SerializableGameState, SerializablePlayer } from '../../interfaces/persistence.types';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export class MarkdownRenderer implements IGameRenderer {
     private gameId = '';

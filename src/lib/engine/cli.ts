@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import process from 'process'; // Import process for argv
+import process from 'node:process'; // Import process for argv
 import prompts from 'prompts'; // Import prompts
 import { ClaudeAgent } from './agents/ClaudeAgent'; // Import ClaudeAgent
 import { DummyAIAgent } from './agents/DummyAIAgent'; // Import Dummy AI
@@ -18,8 +18,6 @@ import { MafiaRole } from './roles/MafiaRole';
 import { SeerRole } from './roles/SeerRole';
 import { VillagerRole } from './roles/VillagerRole';
 import { claudeModels, geminiModels, groqModels, openAIModels, openAIProviders,  } from '../models';
-import fs from 'node:fs';
-import path from 'node:path';
 
 
 // Load environment variables from .env file
@@ -50,7 +48,7 @@ const aiAgentChoices = [
     { title: 'Dummy AI (Fast, No API needed)', value: 'Dummy' },
 ];
 
-const agentClassMap: { [key in AgentChoice]: any } = {
+const agentClassMap: Record<AgentChoice, typeof DummyAIAgent | typeof OpenAIAgent | typeof ClaudeAgent | typeof GeminiAgent | typeof HumanAgent> = {
     Dummy: DummyAIAgent,
     OpenAI: OpenAIAgent,
     Claude: ClaudeAgent, 
@@ -375,10 +373,10 @@ async function main() {
 
         // Add renderers
         if (enableConsoleRender) {
-            // Cast to any: ConsoleRenderer's renderGameOver signature differs slightly
+            // Cast to proper type: ConsoleRenderer's renderGameOver signature differs slightly
             // from IGameRenderer (uses string winner, VisibleGameState).
             // Acceptable for CLI-only usage.
-            game.addRenderer(new ConsoleRenderer() as any);
+            game.addRenderer(new ConsoleRenderer() as unknown as import('./interfaces/IGameRenderer').IGameRenderer);
         }
         // Always add MarkdownRenderer for saving results
         const markdownRenderer = new MarkdownRenderer();

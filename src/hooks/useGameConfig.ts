@@ -250,12 +250,18 @@ export function useGameConfig(
     /* eslint-enable react-hooks/exhaustive-deps */
 
     const configValidation = useMemo(() => {
+        const start = performance.now();
+        log('configValidation calculation started');
+        
         // Cache the length to avoid repeated access
         const slotsCount = characterSlots.length;
         
         // Early return for minimum player check
         if (slotsCount < 5) {
-            return { isValid: false, message: t("MinPlayerValidationError", { min: 5 }) };
+            const result = { isValid: false, message: t("MinPlayerValidationError", { min: 5 }) };
+            const end = performance.now();
+            log(`configValidation (min players) completed in ${(end - start).toFixed(2)}ms`);
+            return result;
         }
 
         // Pre-filter AI slots for efficiency
@@ -264,7 +270,10 @@ export function useGameConfig(
         // Check if provider/model is set for all AI slots
         const aiSlotsValid = aiSlots.every(slot => slot.provider && slot.aiModel);
         if (!aiSlotsValid) {
-            return { isValid: false, message: t("ProviderModelMissingValidationError", "Provider/Model must be set for all AI players.") };
+            const result = { isValid: false, message: t("ProviderModelMissingValidationError", "Provider/Model must be set for all AI players.") };
+            const end = performance.now();
+            log(`configValidation (provider/model) completed in ${(end - start).toFixed(2)}ms`);
+            return result;
         }
 
         // Check for duplicate names (case-insensitive) - optimize by using a single pass
@@ -280,17 +289,26 @@ export function useGameConfig(
             
             const lowerName = name.toLowerCase();
             if (nameSet.has(lowerName)) {
-                return { isValid: false, message: t("DuplicatePlayerNameValidationError", "Player names must be unique.") };
+                const result = { isValid: false, message: t("DuplicatePlayerNameValidationError", "Player names must be unique.") };
+                const end = performance.now();
+                log(`configValidation (duplicate names) completed in ${(end - start).toFixed(2)}ms`);
+                return result;
             }
             nameSet.add(lowerName);
         }
         
         // Check for empty names
         if (hasEmptyName) {
-            return { isValid: false, message: t("EmptyPlayerNameValidationError", "Player names cannot be empty.") };
+            const result = { isValid: false, message: t("EmptyPlayerNameValidationError", "Player names cannot be empty.") };
+            const end = performance.now();
+            log(`configValidation (empty names) completed in ${(end - start).toFixed(2)}ms`);
+            return result;
         }
 
-        return { isValid: true, message: null };
+        const result = { isValid: true, message: null };
+        const end = performance.now();
+        log(`configValidation (success) completed in ${(end - start).toFixed(2)}ms`);
+        return result;
     }, [characterSlots, t]);
 
     // Memoize expensive derived values with more granular dependencies
@@ -478,9 +496,6 @@ export function useGameConfig(
     }, []);
 
     const handleGenerateAndStartGame = useCallback(async () => {
-        const humanSlot = characterSlots.find(slot => slot.isHuman);
-        const humanPlayerIndex = humanSlot ? characterSlots.indexOf(humanSlot) : -1;
-
         if (!configValidation.isValid || isSubmitting) return;
 
         setIsSubmitting(true);
@@ -632,3 +647,4 @@ export function useGameConfig(
         setCharacterSlots, // Expose the setter
     };
 }
+

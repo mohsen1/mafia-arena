@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { DayPhase } from '@/lib/engine/phases/DayPhase';
 import type { Game } from '@/lib/engine/core/Game';
 import { Player } from '@/lib/engine/core/Player';
-import { type IRole, RoleName } from '@/lib/engine/interfaces/IRole';
+import type { IRole } from '@/lib/engine/interfaces/IRole';
 import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
 import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
 import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';

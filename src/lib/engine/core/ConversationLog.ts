@@ -30,7 +30,7 @@ export class ConversationLog {
             filtered = filtered.filter(m => visibilities.includes(m.visibility));
         }
         if (filter?.relevantToPlayer) {
-             const { id: _id, allegiance } = filter.relevantToPlayer;
+             const { allegiance } = filter.relevantToPlayer;
              filtered = filtered.filter(m =>
                 m.visibility === MessageVisibility.Public ||
                 (m.visibility === MessageVisibility.Mafia && allegiance === 'Mafia')

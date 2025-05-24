@@ -1,17 +1,21 @@
 "use client";
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Bot, CloudCog } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import debug from 'debug';
 
 // Import data directly from models.ts
 import {
     availableModelsByProvider,
     availableProviders
 } from "@/lib/models";
+
+// Create a specific debugger instance
+const log = debug('werewolf:components:ProviderModelSelector');
 
 interface ProviderModelSelectorProps {
   idPrefix: string;
@@ -36,43 +40,100 @@ export const ProviderModelSelector = React.memo(function ProviderModelSelector({
   mode = 'both',
 }: ProviderModelSelectorProps) {
   const { t } = useTranslation();
+  const renderCountRef = useRef(0);
+  
+  // Only log in development mode and reduce logging frequency
+  if (process.env.NODE_ENV === 'development') {
+    renderCountRef.current++;
+    // Log less frequently to reduce noise, e.g., every 5th render or only if props actually changed
+    if (renderCountRef.current % 5 === 1) { 
+      log(`[${idPrefix}] Render #${renderCountRef.current}, mode: ${mode}, provider: ${selectedProviderValue}, model: ${selectedModel}`);
+    }
+  }
   
   const selectedProvider = useMemo(() => {
-    return availableProviders.find(p => p.value === selectedProviderValue) ?? availableProviders[0];
-  }, [selectedProviderValue]);
+    const start = performance.now();
+    const provider = availableProviders.find(p => p.value === selectedProviderValue) ?? availableProviders[0];
+    if (process.env.NODE_ENV === 'development' && renderCountRef.current % 5 === 1) { // Match logging frequency
+      const end = performance.now();
+      log(`[${idPrefix}] selectedProvider calculation took ${(end - start).toFixed(2)}ms, result: ${provider?.title}`);
+    }
+    return provider;
+  }, [selectedProviderValue, idPrefix]); // idPrefix is stable if clientId is stable
 
   const currentModels = useMemo(() => {
-    return availableModelsByProvider[selectedProvider?.value ?? ""] ?? [];
-  }, [selectedProvider?.value]);
+    const start = performance.now();
+    const models = availableModelsByProvider[selectedProvider?.value ?? ""] ?? [];
+    if (process.env.NODE_ENV === 'development' && renderCountRef.current % 5 === 1) { // Match logging frequency
+      const end = performance.now();
+      log(`[${idPrefix}] currentModels calculation took ${(end - start).toFixed(2)}ms, found ${models.length} models`);
+    }
+    return models;
+  }, [selectedProvider?.value, idPrefix]); // idPrefix is stable
 
   const isSelectedModelValid = useMemo(() => {
+    const start = performance.now();
     if (!selectedModel) {
+      if (process.env.NODE_ENV === 'development' && renderCountRef.current % 5 === 1) {
+          log(`[${idPrefix}] isSelectedModelValid: false (no selectedModel)`);
+      }
       return false;
     }
-    return currentModels.some(model => model.value === selectedModel);
-  }, [selectedModel, currentModels]);
+    const isValid = currentModels.some(model => model.value === selectedModel);
+    if (process.env.NODE_ENV === 'development' && renderCountRef.current % 5 === 1) {
+      const end = performance.now();
+      log(`[${idPrefix}] isSelectedModelValid calculation took ${(end - start).toFixed(2)}ms, result: ${isValid}`);
+      if(!isValid) {
+        log(`[${idPrefix}] Selected model ${selectedModel} not valid for provider ${selectedProvider?.value}`);
+      }
+    }
+    return isValid;
+  }, [selectedModel, currentModels, idPrefix, selectedProvider?.value]); // Added selectedProvider?.value for more accurate logging
 
   const validModelValue = isSelectedModelValid ? selectedModel : "";
 
   const handleProviderChange = useCallback((newProviderValue: string) => {
+    const start = performance.now();
+    if (process.env.NODE_ENV === 'development') {
+      log(`[${idPrefix}] Provider change started: ${selectedProviderValue} -> ${newProviderValue}`);
+    }
+    
     const modelsForNewProvider = availableModelsByProvider[newProviderValue];
     if (!modelsForNewProvider?.length) {
       console.warn(`No models available for provider: ${newProviderValue}`);
+      if (process.env.NODE_ENV === 'development') {
+          log(`[${idPrefix}] Provider change aborted: No models for ${newProviderValue}`);
+      }
       return;
     }
     
     const defaultModel =
       modelsForNewProvider.find((m) => m.title.toLowerCase().includes("default"))?.value ??
       modelsForNewProvider[0].value;
+    
+    if (process.env.NODE_ENV === 'development') {
+        log(`[${idPrefix}] Found ${modelsForNewProvider.length} models for provider ${newProviderValue}, defaultModel: ${defaultModel}`);
+    }
       
     if (mode !== 'model') {
       React.startTransition(() => {
+        if (process.env.NODE_ENV === 'development') {
+            log(`[${idPrefix}] Calling onProviderModelChange(${newProviderValue}, ${defaultModel})`);
+        }
         onProviderModelChange(newProviderValue, defaultModel);
       });
     }
-  }, [onProviderModelChange, mode]);
+    if (process.env.NODE_ENV === 'development') {
+        const end = performance.now();
+        log(`[${idPrefix}] Provider change completed in ${(end - start).toFixed(2)}ms`);
+    }
+  }, [onProviderModelChange, mode, idPrefix, selectedProviderValue]); // selectedProviderValue for logging
 
   const handleModelChange = useCallback((newModelValue: string) => {
+    if (process.env.NODE_ENV === 'development') {
+      log(`[${idPrefix}] Model change: ${selectedModel} -> ${newModelValue}`);
+    }
+    
     if (mode !== 'provider' && selectedProvider) {
       React.startTransition(() => {
         onProviderModelChange(selectedProvider.value, newModelValue);
@@ -80,10 +141,21 @@ export const ProviderModelSelector = React.memo(function ProviderModelSelector({
     } else if (!selectedProvider) {
       console.warn("ProviderModelSelector: Attempted to change model without a provider selected.");
     }
-  }, [selectedProvider, onProviderModelChange, mode]);
+  }, [selectedProvider, onProviderModelChange, mode, idPrefix, selectedModel]); // selectedProvider instance, selectedModel for logging
 
   const providerSelectId = `${idPrefix}-provider`;
   const modelSelectId = `${idPrefix}-model`;
+
+  // Only log component mount/unmount in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      log(`[${idPrefix}] Component mounted`);
+      return () => {
+        log(`[${idPrefix}] Component unmounted`);
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idPrefix]); // idPrefix should be stable if clientId is stable
 
   return (
     <div className={cn(
