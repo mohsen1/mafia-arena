@@ -89,149 +89,184 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
     try {
         // Check authentication
         const session = await getServerSession(authOptions);
+        
         if (!session?.user?.id) {
-            return { error: "Authentication required to start a game" };
-        }
-
-        if (!setupData.players || setupData.players.length < 3) {
-           throw new Error("Minimum 3 players required.");
-        }
-        const theme = Themes[setupData.themeKey];
-        if (!theme) throw new Error(`Invalid theme key: ${setupData.themeKey}`);
-        
-        const characterPersonas = new Map<string, Persona>();
-        const personaPromises: Promise<void>[] = [];
-        
-        for (let i = 0; i < setupData.players.length; i++) {
-            const playerSetup = setupData.players[i];
-            
-            if (!playerSetup.isHuman) {
-                const tempPlayerId = `temp-${i}`;
-                const promise = generateCharacterPersona(
-                    playerSetup.name,
-                    tempPlayerId,
-                    playerSetup.agentConfig,
-                    theme.description,
-                    setupData.language
-                ).then(persona => {
-                    characterPersonas.set(`player-${i}`, persona);
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                }).catch(error => {
-                    characterPersonas.set(`player-${i}`, {
-                        name: playerSetup.name,
-                        backstory: `A mysterious resident of the ${theme.name.toLowerCase()}.`,
-                        personalityTraits: ['Enigmatic', 'Quiet', 'Observant']
-                    });
-                });
-                
-                personaPromises.push(promise);
-            }
-        }
-        
-        await Promise.all(personaPromises);
-
-        const rolesMap: Record<PlayerId, RoleName> = {};
-        
-        const playersForPersistence: Record<PlayerId, SerializablePlayer> = {};
-        const livingPlayerIds: PlayerId[] = [];
-        const agentMemories: Record<PlayerId, AgentMemory> = {};
-        let humanPlayerId: PlayerId | null = null;
-
-        for (let i = 0; i < setupData.players.length; i++) {
-            const playerSetup = setupData.players[i];
-            const roleName = playerSetup.rolePreference;
-            const roleNameStr = roleName.toString().toLowerCase();
-            const sanitizedName = playerSetup.name.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 16);
-            
-            const playerId: PlayerId = `player-${i + 1}-${roleNameStr}-${sanitizedName}`;
-            
-            rolesMap[playerId] = roleName;
-
-            const agentConfig = playerSetup.agentConfig; 
-
-            if (playerSetup.isHuman) {
-                humanPlayerId = playerId;
-            }
-
-            let characterImageUrl = playerSetup.imageUrl;
-            if (!characterImageUrl && !playerSetup.isHuman) {
+            // Fallback: Get dev user for development environment
+            // This handles the case where session retrieval fails in server actions
+            if (process.env.NODE_ENV === 'development') {
                 try {
-                    const gender = Math.random() > 0.5 ? 'male' : 'female';
-                    const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
-                    characterImageUrl = await selectCharacterImage(gender, ageCategory);
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { db } = await import('@/lib/db/config');
+                    const { users } = await import('@/lib/db/schema');
+                    const { eq } = await import('drizzle-orm');
+                    
+                    const [devUser] = await db
+                        .select()
+                        .from(users)
+                        .where(eq(users.email, 'dev@werewolf-ai.com'))
+                        .limit(1);
+                    
+                    if (!devUser) {
+                        return { error: "Authentication required to start a game" };
+                    }
+                    
+                    // Use dev user for game creation
+                    const userId = devUser.id;
+                    return await createGame(setupData, gameId, createdAt, userId);
                 } catch (error) {
-                    characterImageUrl = null;
+                    console.error('Failed to get fallback user:', error);
+                    return { error: "Authentication required to start a game" };
                 }
             }
-
-            const generatedPersona = characterPersonas.get(`player-${i}`) || {
-                name: playerSetup.name,
-                backstory: playerSetup.isHuman ? 'A human player' : `A resident of ${theme.name.toLowerCase()}`,
-                personalityTraits: playerSetup.isHuman ? ['Human'] : ['Mysterious']
-            };
-
-            playersForPersistence[playerId] = {
-                id: playerId,
-                name: generatedPersona.name,
-                status: PlayerStatus.Alive,
-                roleName: roleName,
-                allegiance: [RoleName.Mafia].includes(roleName) ? 'Mafia' : 'Town',
-                agentConfig: agentConfig,
-                persona: generatedPersona,
-                isHuman: playerSetup.isHuman,
-                imageUrl: characterImageUrl,
-            };
-            livingPlayerIds.push(playerId);
-            agentMemories[playerId] = createInitialMemory();
-        }
-
-        const initialSerializableState: SerializableGameState = {
-            gameId,
-            createdAt,
-            updatedAt: createdAt,
-            themeKey: setupData.themeKey,
-            language: setupData.language,
-            round: 0,
-            phase: 'Init',
-            players: playersForPersistence,
-            livingPlayerIds,
-            deadPlayerIds: [],
-            conversationLog: [],
-            agentMemories,
-            winCondition: null,
-            humanPlayerId,
-            pendingHumanAction: null,
-            _phaseResults: {},
-            phaseStep: 'Start',
-            nextPlayerIndexToAction: 0,
-        };
-
-        const game = Game.loadFromState(initialSerializableState);
-        
-        game.markRolesAssigned();
-        game.markPersonasGenerated();
-        game.createInitialAgentMemories();
-        
-        const initPhase = game.getCurrentPhase();
-        if (initPhase.type !== 'Init') {
-            throw new Error("Game did not initialize into Init phase correctly.");
+            
+            return { error: "Authentication required to start a game" };
         }
         
-        await initPhase.runStep(game);
-        
-        const nextPhaseType = initPhase.transition(game);
-        game.advanceToPhase(nextPhaseType);
-
-        const finalStateToSave = game.getCurrentSerializableState();
-
-        await createGameData(finalStateToSave, session.user.id);
-        
-        const filteredState = filterGameStateForClient(finalStateToSave, finalStateToSave.humanPlayerId);
-        return { gameId, initialState: filteredState };
+        // Use authenticated user
+        const userId = session.user.id;
+        return await createGame(setupData, gameId, createdAt, userId);
 
     } catch (error) {
         console.error("Error starting game:", error);
         return { error: error instanceof Error ? error.message : "Failed to start game" };
     }
+}
+
+// Extract game creation logic into separate function
+async function createGame(setupData: StartGameSetupData, gameId: string, createdAt: number, userId: string): Promise<{ gameId: string; initialState: FilteredGameState }> {
+    if (!setupData.players || setupData.players.length < 3) {
+       throw new Error("Minimum 3 players required.");
+    }
+    const theme = Themes[setupData.themeKey];
+    if (!theme) throw new Error(`Invalid theme key: ${setupData.themeKey}`);
+    
+    const characterPersonas = new Map<string, Persona>();
+    const personaPromises: Promise<void>[] = [];
+    
+    for (let i = 0; i < setupData.players.length; i++) {
+        const playerSetup = setupData.players[i];
+        
+        if (!playerSetup.isHuman) {
+            const tempPlayerId = `temp-${i}`;
+            const promise = generateCharacterPersona(
+                playerSetup.name,
+                tempPlayerId,
+                playerSetup.agentConfig,
+                theme.description,
+                setupData.language
+            ).then(persona => {
+                characterPersonas.set(`player-${i}`, persona);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            }).catch(error => {
+                characterPersonas.set(`player-${i}`, {
+                    name: playerSetup.name,
+                    backstory: `A mysterious resident of the ${theme.name.toLowerCase()}.`,
+                    personalityTraits: ['Enigmatic', 'Quiet', 'Observant']
+                });
+            });
+            
+            personaPromises.push(promise);
+        }
+    }
+    
+    await Promise.all(personaPromises);
+
+    const rolesMap: Record<PlayerId, RoleName> = {};
+    
+    const playersForPersistence: Record<PlayerId, SerializablePlayer> = {};
+    const livingPlayerIds: PlayerId[] = [];
+    const agentMemories: Record<PlayerId, AgentMemory> = {};
+    let humanPlayerId: PlayerId | null = null;
+
+    for (let i = 0; i < setupData.players.length; i++) {
+        const playerSetup = setupData.players[i];
+        const roleName = playerSetup.rolePreference;
+        const roleNameStr = roleName.toString().toLowerCase();
+        const sanitizedName = playerSetup.name.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 16);
+        
+        const playerId: PlayerId = `player-${i + 1}-${roleNameStr}-${sanitizedName}`;
+        
+        rolesMap[playerId] = roleName;
+
+        const agentConfig = playerSetup.agentConfig; 
+
+        if (playerSetup.isHuman) {
+            humanPlayerId = playerId;
+        }
+
+        let characterImageUrl = playerSetup.imageUrl;
+        if (!characterImageUrl && !playerSetup.isHuman) {
+            try {
+                const gender = Math.random() > 0.5 ? 'male' : 'female';
+                const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
+                characterImageUrl = await selectCharacterImage(gender, ageCategory);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (error) {
+                characterImageUrl = null;
+            }
+        }
+
+        const generatedPersona = characterPersonas.get(`player-${i}`) || {
+            name: playerSetup.name,
+            backstory: playerSetup.isHuman ? 'A human player' : `A resident of ${theme.name.toLowerCase()}`,
+            personalityTraits: playerSetup.isHuman ? ['Human'] : ['Mysterious']
+        };
+
+        playersForPersistence[playerId] = {
+            id: playerId,
+            name: generatedPersona.name,
+            status: PlayerStatus.Alive,
+            roleName: roleName,
+            allegiance: [RoleName.Mafia].includes(roleName) ? 'Mafia' : 'Town',
+            agentConfig: agentConfig,
+            persona: generatedPersona,
+            isHuman: playerSetup.isHuman,
+            imageUrl: characterImageUrl,
+        };
+        livingPlayerIds.push(playerId);
+        agentMemories[playerId] = createInitialMemory();
+    }
+
+    const initialSerializableState: SerializableGameState = {
+        gameId,
+        createdAt,
+        updatedAt: createdAt,
+        themeKey: setupData.themeKey,
+        language: setupData.language,
+        round: 0,
+        phase: 'Init',
+        players: playersForPersistence,
+        livingPlayerIds,
+        deadPlayerIds: [],
+        conversationLog: [],
+        agentMemories,
+        winCondition: null,
+        humanPlayerId,
+        pendingHumanAction: null,
+        _phaseResults: {},
+        phaseStep: 'Start',
+        nextPlayerIndexToAction: 0,
+    };
+
+    const game = Game.loadFromState(initialSerializableState);
+    
+    game.markRolesAssigned();
+    game.markPersonasGenerated();
+    game.createInitialAgentMemories();
+    
+    const initPhase = game.getCurrentPhase();
+    if (initPhase.type !== 'Init') {
+        throw new Error("Game did not initialize into Init phase correctly.");
+    }
+    
+    await initPhase.runStep(game);
+    
+    const nextPhaseType = initPhase.transition(game);
+    game.advanceToPhase(nextPhaseType);
+
+    const finalStateToSave = game.getCurrentSerializableState();
+
+    await createGameData(finalStateToSave, userId);
+    
+    const filteredState = filterGameStateForClient(finalStateToSave, finalStateToSave.humanPlayerId);
+    return { gameId, initialState: filteredState };
 }
