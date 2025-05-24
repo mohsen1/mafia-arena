@@ -23,11 +23,8 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import type { ReactNode } from "react"; // Import ReactNode as type
+import type { ReactNode } from "react";
 import { useSpokenText } from "@/context/SpokenTextContext";
-// import { Button } from "@/components/ui/button"; // Removed unused import
-// import { PlayIcon, PauseIcon, Loader2 } from "lucide-react"; // Removed unused imports
-// import { useIsVisible } from "@/hooks/useIsVisible"; // Removed incorrect import
 
 // Define type for alignment data based on API response
 interface AlignmentData {
@@ -138,19 +135,16 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
       };
 
       audio.addEventListener("timeupdate", handleTimeUpdate);
-      console.log(`[SpeakText ${componentId}] Added timeupdate listener.`);
 
       // Cleanup listener
       return () => {
         // Check if audio still exists before removing listener
         audio?.removeEventListener("timeupdate", handleTimeUpdate);
-        console.log(`[SpeakText ${componentId}] Removed timeupdate listener.`);
       };
     }, [
       isPlaying,
       alignmentData,
       findCharacterIndexForTime,
-      componentId,
       hasPlaybackCompleted,
     ]);
 
@@ -158,9 +152,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     useEffect(() => {
       // Only register if globally enabled and autoQueue prop is true and not disabled
       if (!disabled && isAudioGloballyEnabled && autoQueue) {
-        console.log(
-          `[SpeakText ${componentId}] Registering for auto-play queue (Audio Enabled).`,
-        );
         registerForAutoPlay(componentId);
       }
     }, [autoQueue, registerForAutoPlay, componentId, isAudioGloballyEnabled, disabled]);
@@ -169,27 +160,17 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
       async (triggeredExternally = false) => {
         // Prevent any action if audio is globally disabled OR component is disabled
         if (disabled || !isAudioGloballyEnabled) {
-          console.log(
-            `[SpeakText ${componentId}] Audio globally disabled or component disabled, preventing play/pause.`,
-          );
           return;
         }
 
         const currentAudio = audioRef.current;
 
         if (!triggeredExternally && isPlaying && currentAudio) {
-          console.log(
-            `[SpeakText ${componentId}] Pausing current playback via button.`,
-          );
           currentAudio.pause();
           // Note: The onpause handler should set isPlaying to false and call doneSpeaking
           return; // Exit early, let onpause handle state changes
         }
 
-        console.log(
-          `[SpeakText ${componentId}] handlePlayPause called. isPlaying (state): ${isPlaying}, canPlay: ${canPlay}, triggeredExternally: ${triggeredExternally}`,
-        );
-        // Reset completion flag on new play attempt
         playbackCompletedRef.current = false;
         setHighlightedCharIndex(-1);
         setAlignmentData(null);
@@ -197,34 +178,17 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
 
         // Request permission ONLY if we are not currently the speaker
         if (currentlySpeakingId !== componentId) {
-          console.log(
-            `[SpeakText ${componentId}] Not current speaker. Attempting to acquire.`,
-          );
           if (canPlay) {
-            console.log(
-              `[SpeakText ${componentId}] Requesting speak permission from context.`,
-            );
             if (!requestToSpeak(componentId)) {
-              console.log(
-                `[SpeakText ${componentId}] Speak permission denied by context.`,
-              );
               setIsLoading(false); // Ensure loading is reset
               return; // Don't proceed if permission denied
             }
-            console.log(
-              `[SpeakText ${componentId}] Speak permission granted by context.`,
-            );
           } else {
-            console.log(
-              `[SpeakText ${componentId}] Cannot play, context reports busy.`,
-            );
             setIsLoading(false); // Ensure loading is reset
             return; // Don't proceed if context is busy
           }
         } else {
-          console.log(
-            `[SpeakText ${componentId}] Already hold speaking permission, proceeding.`,
-          );
+          // Proceed without acquiring permission if already speaking
         }
 
         setIsLoading(true);
@@ -234,18 +198,11 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
             currentAudio?.src && // Optional chaining
             !triggeredExternally
           ) {
-            console.log(`[SpeakText ${componentId}] Resuming paused audio.`);
             playbackCompletedRef.current = false; // Reset flag on resume too
             await currentAudio.play();
             setIsPlaying(true); // Explicitly set playing state on resume
-            console.log(
-              `[SpeakText ${componentId}] Resumed playback successfully.`,
-            );
           } else {
             // --- Fetch new audio or play from beginning ---
-            console.log(
-              `[SpeakText ${componentId}] Requesting new audio WITH timestamps.`,
-            );
             const requestBody = {
               text: textContent,
               voice_id: voiceId,
@@ -256,9 +213,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(requestBody),
             });
-            console.log(
-              `[SpeakText ${componentId}] Fetch response status: ${response.status}`,
-            );
 
             if (!response.ok) {
               let errorText = `HTTP error! status: ${response.status}`;
@@ -285,30 +239,18 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
               );
             }
             setAlignmentData(data.alignment);
-            console.log(
-              `[SpeakText ${componentId}] Alignment data stored. Chars: ${data.alignment.characters.length}`,
-            );
             const audioBlob = base64ToBlob(data.audio_base64);
             const audioUrl = URL.createObjectURL(audioBlob);
-            console.log(
-              `[SpeakText ${componentId}] Created blob URL. Size: ${audioBlob.size}`,
-            );
 
             let audioToPlay = audioRef.current; // Use existing ref if available
 
             // Create or reuse Audio Element
             if (!audioToPlay) {
-              console.log(
-                `[SpeakText ${componentId}] Creating new Audio element.`,
-              );
               audioToPlay = new Audio();
               audioRef.current = audioToPlay; // Assign to ref immediately
               // --- Assign event handlers ONCE ---
               audioToPlay.onended = () => {
                 if (!audioRef.current || playbackCompletedRef.current) return;
-                console.log(
-                  `[SpeakText ${componentId}] Audio ended naturally.`,
-                );
                 playbackCompletedRef.current = true;
                 setIsPlaying(false);
                 setHasPlaybackCompleted(true);
@@ -316,12 +258,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
 
                 // Call the onEnd prop passed from the parent FIRST
                 onEnd?.();
-                console.log(`[SpeakText ${componentId}] Called onEnd prop.`);
-                // THEN call context to release the slot
                 doneSpeaking(componentId);
-                console.log(
-                  `[SpeakText ${componentId}] Called doneSpeaking via onended.`,
-                );
 
                 // Delayed cleanup
                 setTimeout(() => {
@@ -330,9 +267,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                     if (endedAudioUrl?.startsWith("blob:")) {
                       // Optional chaining
                       URL.revokeObjectURL(endedAudioUrl);
-                      console.log(
-                        `[SpeakText ${componentId}] Revoked blob URL on ended (delayed).`,
-                      );
                     }
                     // Clear src only after potential revoke
                     audioRef.current.src = "";
@@ -343,59 +277,30 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                 // Ensure 'e' is renamed to 'event'
                 // Failure path - Check flag first!
                 if (!audioRef.current || playbackCompletedRef.current) {
-                  console.warn(
-                    `[SpeakText ${componentId}] Ignoring error event because playback already completed successfully.`,
-                  );
                   return;
                 }
                 console.error(
                   `[SpeakText ${componentId}] Audio playback error event:`,
                   event,
                 );
-                // setError("Audio playback failed."); // Commented out assignment to unused 'error'
                 setIsPlaying(false);
                 setIsLoading(false);
                 setHighlightedCharIndex(-1);
                 setHasPlaybackCompleted(false);
-                // Release the speaking slot on error too
                 doneSpeaking(componentId);
-                console.log(
-                  `[SpeakText ${componentId}] Called doneSpeaking via onerror.`,
-                );
-
-                // Perform cleanup *after* state updates
-                const errorAudioUrl = audioRef.current?.src; // Optional chaining
-                if (errorAudioUrl?.startsWith("blob:")) {
-                  // Optional chaining
-                  URL.revokeObjectURL(errorAudioUrl);
-                  console.log(
-                    `[SpeakText ${componentId}] Revoked blob URL on error.`,
-                  );
-                }
-                // Clear src only after potential revoke
-                if (audioRef.current) audioRef.current.src = "";
               };
               audioToPlay.onpause = () => {
                 // Check ref existence and isPlaying state *at the time of pause*
                 // Use a temporary variable for isPlaying check to avoid closure issues
                 const wasPlaying = isPlaying;
-                console.log(
-                  `[SpeakText ${componentId}] Audio paused event. isPlaying state was: ${wasPlaying}`,
-                );
-                // Only update state and context if it was genuinely playing before pause
                 if (wasPlaying) {
                   setIsPlaying(false);
                   // Avoid releasing context if pause is due to natural end or error
                   // Checking audioRef.current.ended/error state might be needed if complex races occur
                   if (audioRef.current && !audioRef.current.ended) {
                     doneSpeaking(componentId);
-                    console.log(
-                      `[SpeakText ${componentId}] Released speaking slot via onpause (manual pause).`,
-                    );
                   } else {
-                    console.log(
-                      `[SpeakText ${componentId}] Pause event likely due to end/error, skipping doneSpeaking.`,
-                    );
+                    // If playback has ended naturally, no need to release context
                   }
                 }
               };
@@ -408,20 +313,13 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
               previousSrc !== audioUrl
             ) {
               URL.revokeObjectURL(previousSrc);
-              console.log(
-                `[SpeakText ${componentId}] Revoked previous blob URL.`,
-              );
             }
 
-            console.log(
-              `[SpeakText ${componentId}] Setting audio src and calling play()...`,
-            );
             playbackCompletedRef.current = false; // Ensure reset before play
             audioToPlay.src = audioUrl;
             audioToPlay.currentTime = 0; // Ensure playback starts from beginning
             await audioToPlay.play();
             setIsPlaying(true); // Set state after play() is invoked
-            console.log(`[SpeakText ${componentId}] Playback initiated.`);
           }
         } catch (err) {
           // Use unknown type and check within block
@@ -434,15 +332,9 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
           // Ensure context is released on error only if we successfully acquired it
           if (currentlySpeakingId === componentId) {
             doneSpeaking(componentId);
-            console.log(
-              `[SpeakText ${componentId}] Released speaking slot due to error after acquiring.`,
-            );
           }
         } finally {
           // Ensure isLoading is always reset, regardless of success or failure
-          console.log(
-            `[SpeakText ${componentId}] handlePlayPause finally block. Setting isLoading=false.`,
-          );
           setIsLoading(false);
         }
       },
@@ -463,10 +355,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
 
     // Effect to trigger playback when this component becomes the currentlySpeakingId
     useEffect(() => {
-      console.log(
-        `[SpeakText ${componentId}] Current Speaker Check: currentlySpeakingId=${currentlySpeakingId}`,
-      );
-      // Add check for global audio enabled
       if (
         isAudioGloballyEnabled &&
         currentlySpeakingId === componentId &&
@@ -474,9 +362,6 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         !isPlaying &&
         !audioRef.current?.src
       ) {
-        console.log(
-          `[SpeakText ${componentId}] Current Speaker Effect Triggered (Audio Enabled): Calling handlePlayPause(true).`,
-        );
         handlePlayPause(true); // Trigger playback internally
       }
     }, [
@@ -493,16 +378,8 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
       const audio = audioRef.current;
       const currentId = componentId;
       const wasSpeakingAtRender = currentlySpeakingId === currentId;
-      console.log(
-        `[SpeakText ${currentId}] Cleanup Effect Setup. wasSpeakingAtRender: ${wasSpeakingAtRender}`,
-      );
 
       return () => {
-        console.log(
-          `[SpeakText ${currentId}] Cleanup Effect Run. wasSpeakingAtRender: ${wasSpeakingAtRender}`,
-        );
-        // REMOVED: deregister call
-
         if (audio) {
           audio.pause();
           const src = audio.src;
@@ -516,24 +393,10 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
           audio.ontimeupdate = null;
           audio.src = "";
           audioRef.current = null;
-          console.log(
-            `[SpeakText ${currentId}] Cleaned up audio element on unmount.`,
-          );
-        } else {
-          console.log(
-            `[SpeakText ${currentId}] Audio element already null on unmount cleanup.`,
-          );
         }
         // Only call doneSpeaking if this component WAS the speaker when it rendered
         if (wasSpeakingAtRender) {
-          console.log(
-            `[SpeakText ${currentId}] Calling doneSpeaking on unmount because it was the active speaker.`,
-          );
           doneSpeaking(currentId);
-        } else {
-          console.log(
-            `[SpeakText ${currentId}] Skipping doneSpeaking on unmount because it was not the active speaker.`,
-          );
         }
       };
       // Remove deregister from dependencies

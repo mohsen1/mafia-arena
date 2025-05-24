@@ -4,7 +4,6 @@ import type { SerializableGameState } from './interfaces/persistence.types';
 
 const SAVE_DIR = path.join(process.cwd(), 'game_saves');
 
-// Ensure save directory exists
 const ensureSaveDir = async () => {
     try {
         await fs.mkdir(SAVE_DIR, { recursive: true });
@@ -15,7 +14,6 @@ const ensureSaveDir = async () => {
 };
 
 const getFilePath = (gameId: string): string => {
-    // Basic sanitization to prevent path traversal
     if (gameId.includes('..') || gameId.includes('/') || gameId.includes('\\')) {
         throw new Error(`Invalid gameId for file path: ${gameId}`);
     }
@@ -32,12 +30,10 @@ export async function loadGameData(gameId: string): Promise<SerializableGameStat
     const filePath = getFilePath(gameId);
     try {
         const data = await fs.readFile(filePath, 'utf-8');
-        // TODO: Implement proper deserialization for Date, Map, Set if needed
         const gameState: SerializableGameState = JSON.parse(data);
         return gameState;
     } catch (error: unknown) {
         if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'ENOENT') {
-            console.log(`No save file found for gameId: ${gameId}`);
             return null;
         }
         console.error(`Failed to load game data for ${gameId}:`, error);
@@ -54,10 +50,8 @@ export async function saveGameData(gameId: string, gameState: SerializableGameSt
     await ensureSaveDir();
     const filePath = getFilePath(gameId);
     try {
-        // TODO: Implement proper serialization for Date, Map, Set if needed
-        const data = JSON.stringify(gameState, null, 2); // Pretty print JSON
+        const data = JSON.stringify(gameState, null, 2);
         await fs.writeFile(filePath, data, 'utf-8');
-        console.log(`Game data saved for gameId: ${gameId}`);
     } catch (error: unknown) {
         console.error(`Failed to save game data for ${gameId}:`, error);
         throw new Error(`Failed to save game data: ${error instanceof Error ? error.message : String(error)}`);
@@ -73,10 +67,8 @@ export async function deleteGameData(gameId: string): Promise<void> {
     const filePath = getFilePath(gameId);
     try {
         await fs.unlink(filePath);
-        console.log(`Game data deleted for gameId: ${gameId}`);
     } catch (error: unknown) {
         if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'ENOENT') {
-            console.log(`No save file to delete for gameId: ${gameId}`);
             return;
         }
         console.error(`Failed to delete game data for ${gameId}:`, error);

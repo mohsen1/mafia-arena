@@ -6,14 +6,11 @@ import { cn } from "@/lib/utils";
 import { Bot, CloudCog } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import debug from 'debug';
 
 import {
     availableModelsByProvider,
     availableProviders
 } from "@/lib/models";
-
-const log = debug('werewolf:components:ProviderModelSelector');
 
 interface ProviderModelSelectorProps {
   idPrefix: string;
@@ -38,8 +35,6 @@ export const ProviderModelSelector = React.memo(function ProviderModelSelector({
   mode = 'both',
 }: ProviderModelSelectorProps) {
   const { t } = useTranslation();
-
-
   
   const selectedProvider = useMemo(() => {
     return availableProviders.find(p => p.value === selectedProviderValue) ?? availableProviders[0];
@@ -59,7 +54,6 @@ export const ProviderModelSelector = React.memo(function ProviderModelSelector({
   const handleProviderChange = useCallback((newProviderValue: string) => {
     const modelsForNewProvider = availableModelsByProvider[newProviderValue];
     if (!modelsForNewProvider?.length) {
-      console.warn(`No models available for provider: ${newProviderValue}`);
       return;
     }
     
@@ -79,8 +73,6 @@ export const ProviderModelSelector = React.memo(function ProviderModelSelector({
       React.startTransition(() => {
         onProviderModelChange(selectedProvider.value, newModelValue);
       });
-    } else if (!selectedProvider) {
-      console.warn("ProviderModelSelector: Attempted to change model without a provider selected.");
     }
   }, [selectedProvider, onProviderModelChange, mode]);
 

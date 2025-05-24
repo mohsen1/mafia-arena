@@ -29,7 +29,6 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
     try {
       const result = await deleteGameAction(game.gameId); 
       if (result.success) {
-        console.log(`Game ${game.gameId} deleted.`);
         onDelete?.(game.gameId); // Call callback if provided
         // Optionally trigger a client-side refresh or state update
       } else {
@@ -39,7 +38,7 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
       }
     } catch (error) {
       console.error("Error calling deleteGameAction:", error);
-      alert(t('DeleteGameError', `An error occurred while deleting the game.`));
+      alert(t('DeleteGameError', 'An error occurred while deleting the game.'));
     } finally {
       setIsDeleting(false);
     }

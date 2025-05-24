@@ -37,7 +37,6 @@ export default function HumanChatInput() {
   const handleSubmit = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if (!pendingAction || !isPlayerTurn || isSubmitting || !gameId || !humanPlayerId) {
-      console.warn("Submit cancelled:", { pendingAction, isPlayerTurn, isSubmitting, gameId, humanPlayerId });
       return;
     }
 
@@ -56,7 +55,6 @@ export default function HumanChatInput() {
 
       } else if (pendingAction.allowedActions.includes('vote')) {
           if (selectedTarget === undefined || selectedTarget === null) {
-              console.warn("No target selected for vote.");
               setIsSubmitting(false);
               return; 
           }
@@ -69,7 +67,6 @@ export default function HumanChatInput() {
           );
           if (nightActionType) {
              if (selectedTarget === undefined || (selectedTarget === null && nightActionType !== 'doctorSave')) {
-                console.warn(`No target selected or invalid null target for ${nightActionType}.`);
                 setIsSubmitting(false);
                 return; 
              }
@@ -83,7 +80,6 @@ export default function HumanChatInput() {
       }
 
       if (payload) {
-        console.log("Submitting human action:", payload);
         await submitHumanAction(payload);
         setInputValue('');
         setSelectedTarget(null);

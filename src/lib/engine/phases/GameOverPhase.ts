@@ -13,17 +13,12 @@ export class GameOverPhase extends AbstractGamePhase {
 
     async runStep(game: Game): Promise<void> {
         if (this.winner && game.checkWinCondition() !== this.winner) {
-            console.log(`[GameOverPhase] Setting game win condition to: ${this.winner}`);
             game.setWinCondition(this.winner);
             const winMessage = this.winner === 'Mafia' ? 
                 "The Mafia have eliminated all opposition!" :
                 "The Town has successfully lynched all Mafia members!";
             game.logEvent(`Game Over: ${winMessage}`);
-        } else {
-            console.log('[GameOverPhase] Win condition already set or no winner defined for phase.');
         }
-        
-        console.log("[GameOverPhase] Game step executed.");
         
         game.setPhaseStep('End');
         
