@@ -3,6 +3,7 @@
 import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
   const params = use(paramsPromise);
   const { lang } = params;
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [formData, setFormData] = useState<SignUpFormData>({
     name: '',
@@ -64,10 +66,10 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
       if (signInResult?.ok) {
         router.push(`/${lang}`);
       } else {
-        setError('Account created successfully, but failed to sign in. Please try signing in manually.');
+        setError(t('signUp.accountCreatedButSignInFailed'));
       }
     } catch {
-      setError('An unexpected error occurred. Please try again.');
+      setError(t('signUp.unexpectedError'));
     } finally {
       setIsLoading(false);
     }
@@ -90,10 +92,10 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
                   <ArrowLeft className="w-4 h-4" />
                 </Link>
               </Button>
-              <CardTitle className="text-2xl">Create Account</CardTitle>
+              <CardTitle className="text-2xl">{t('signUp.title')}</CardTitle>
             </div>
             <CardDescription>
-              Sign up to start playing Werewolf AI games
+              {t('signUp.description')}
             </CardDescription>
           </CardHeader>
           
@@ -106,35 +108,35 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{t('signUp.fullName')}</Label>
                 <Input
                   id="name"
                   name="name"
                   type="text"
                   value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="Enter your full name"
+                  placeholder={t('signUp.enterFullName')}
                   required
                   disabled={isLoading}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t('signUp.email')}</Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="Enter your email"
+                  placeholder={t('signUp.enterEmail')}
                   required
                   disabled={isLoading}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('signUp.password')}</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -142,7 +144,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={handleInputChange}
-                    placeholder="Create a strong password"
+                    placeholder={t('signUp.createStrongPassword')}
                     required
                     disabled={isLoading}
                   />
@@ -162,12 +164,12 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Password must be at least 8 characters with uppercase, lowercase, and number
+                  {t('signUp.passwordRequirements')}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">{t('signUp.confirmPassword')}</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
@@ -175,7 +177,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    placeholder="Confirm your password"
+                    placeholder={t('signUp.confirmYourPassword')}
                     required
                     disabled={isLoading}
                   />
@@ -200,12 +202,12 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
                 {isLoading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin me-2" />
-                    Creating Account...
+                    {t('signUp.creatingAccount')}
                   </>
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4 me-2" />
-                    Create Account
+                    {t('signUp.createAccount')}
                   </>
                 )}
               </Button>
@@ -217,7 +219,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
+                  {t('signUp.orContinueWith')}
                 </span>
               </div>
             </div>
@@ -229,7 +231,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
                 disabled={isLoading}
               >
                 <FcGoogle className="w-4 h-4 me-2" />
-                Google
+                {t('signUp.google')}
               </Button>
               <Button
                 variant="outline"
@@ -237,17 +239,17 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
                 disabled={isLoading}
               >
                 <Github className="w-4 h-4 me-2" />
-                GitHub
+                {t('signUp.github')}
               </Button>
             </div>
 
             <div className="text-center text-sm">
-              <span className="text-muted-foreground">Already have an account? </span>
+              <span className="text-muted-foreground">{t('signUp.alreadyHaveAccount')}</span>
               <Link
                 href={`/${lang}/auth/signin`}
                 className="text-primary hover:underline"
               >
-                Sign in
+                {t('signUp.signIn')}
               </Link>
             </div>
           </CardContent>

@@ -1,5 +1,9 @@
+import dotenv from 'dotenv';
 import { OpenAI } from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+
+// Load environment variables
+dotenv.config();
 
 // NEW IMPORTS
 

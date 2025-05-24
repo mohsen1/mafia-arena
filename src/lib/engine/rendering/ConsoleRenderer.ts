@@ -15,7 +15,7 @@ export class ConsoleRenderer implements IGameRenderer {
     #messages: IMessage[] = []; // Store messages for debug/reference
 
     renderGameStart(players: ReadonlyMap<PlayerId, PublicPlayerInfo>, gameId: string): void {
-        console.log(chalk.bgBlue.white.bold('\n 🎮 MAFIA GAME START 🎮 \n'));
+        console.log(chalk.bgBlue.white.bold('\n MAFIA GAME START \n'));
         console.log(chalk.blue(`Game ID: ${gameId}`));
         console.log(chalk.bold('Players:'));
         for (const [id, player] of players.entries()) {
@@ -25,33 +25,33 @@ export class ConsoleRenderer implements IGameRenderer {
     }
 
     renderRoundStart(round: number): void {
-        console.log(chalk.bgGreen.black.bold(`\n 🔄 ROUND ${round} 🔄 \n`));
+        console.log(chalk.bgGreen.black.bold(`\n ROUND ${round} \n`));
     }
 
     renderPhaseStart(phase: GamePhaseType): void {
-        let emoji = '';
+        let phaseLabel = '';
         let color = chalk.white;
         
         switch (phase) {
             case 'Day':
-                emoji = '☀️';
+                phaseLabel = 'DAY';
                 color = chalk.yellow;
                 break;
             case 'Night':
-                emoji = '🌙';
+                phaseLabel = 'NIGHT';
                 color = chalk.blue;
                 break;
             case 'Init':
-                emoji = '🎲';
+                phaseLabel = 'INIT';
                 color = chalk.green;
                 break;
             case 'GameOver':
-                emoji = '🏁';
+                phaseLabel = 'GAME OVER';
                 color = chalk.red;
                 break;
         }
         
-        console.log(color.bold(`\n ${emoji} ${phase.toUpperCase()} PHASE ${emoji} \n`));
+        console.log(color.bold(`\n ${phaseLabel} PHASE \n`));
     }
 
     renderMessage(message: IMessage): void {
@@ -83,7 +83,7 @@ export class ConsoleRenderer implements IGameRenderer {
     }
 
     renderVoteResults(votes: Map<PlayerId, PlayerId | null>, executedPlayerId: PlayerId | null): void {
-        console.log(chalk.bold('\n📊 VOTE RESULTS:'));
+        console.log(chalk.bold('\nVOTE RESULTS:'));
 
         // Display individual votes
         for (const [voterId, targetId] of votes.entries()) {
@@ -93,24 +93,24 @@ export class ConsoleRenderer implements IGameRenderer {
 
         // Display execution result
         if (executedPlayerId) {
-            console.log(chalk.red.bold(`\n⚰️  ${executedPlayerId} was EXECUTED by the town.\n`));
+            console.log(chalk.red.bold(`\n${executedPlayerId} was EXECUTED by the town.\n`));
         } else {
-            console.log(chalk.yellow('\n🤷 No one was executed.\n'));
+            console.log(chalk.yellow('\nNo one was executed.\n'));
         }
     }
 
     renderNightResults(killedPlayerId: PlayerId | null): void {
-        console.log(chalk.bold('\n🌃 NIGHT RESULTS:'));
+        console.log(chalk.bold('\nNIGHT RESULTS:'));
         
         if (killedPlayerId) {
-            console.log(chalk.red.bold(`\n⚰️  ${killedPlayerId} was KILLED during the night.\n`));
+            console.log(chalk.red.bold(`\n${killedPlayerId} was KILLED during the night.\n`));
         } else {
-            console.log(chalk.green('\n✅ Everyone survived the night.\n'));
+            console.log(chalk.green('\nEveryone survived the night.\n'));
         }
     }
 
     renderPlayerStatusUpdate(player: PublicPlayerInfo, oldStatus: string, newStatus: string): void {
-        console.log(chalk.magenta(`\n👤 ${player.name} status changed from ${oldStatus} to ${newStatus}\n`));
+        console.log(chalk.magenta(`\n${player.name} status changed from ${oldStatus} to ${newStatus}\n`));
     }
 
     // Restore function signature to satisfy IGameRenderer interface.
@@ -120,7 +120,7 @@ export class ConsoleRenderer implements IGameRenderer {
         console.log("[ConsoleRenderer] renderGameOver called. Winner:", winner);
         // Original implementation commented below:
         /*
-        console.log(chalk.bgRed.white.bold(`\n 🏁 GAME OVER 🏁 \n`));
+        console.log(chalk.bgRed.white.bold(`\n GAME OVER \n`));
         console.log(chalk.bold(`The ${chalk.green(winner || 'Unknown')} has won!`));
         
         console.log(chalk.bold('\nFinal Player Status:'));
@@ -147,7 +147,7 @@ export class ConsoleRenderer implements IGameRenderer {
     }
 
     async promptHumanInput(playerInfo: PublicPlayerInfo, allowedActions: PlayerAction['type'][]): Promise<PlayerAction> {
-        console.log(chalk.bold.inverse(`\n 🤔 ${playerInfo.name} (${playerInfo.id}) - YOUR ACTION? 🤔 \n`));
+        console.log(chalk.bold.inverse(`\n ${playerInfo.name} (${playerInfo.id}) - YOUR ACTION? \n`));
 
         const options: string[] = [];
         const actionMap = new Map<string, () => Promise<PlayerAction> | PlayerAction>();

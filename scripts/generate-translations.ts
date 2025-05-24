@@ -6,9 +6,16 @@ import { fileURLToPath } from 'node:url';
 // Load environment variables from .env file
 dotenv.config();
 
+// Validate required environment variables
+if (!process.env.GEMINI_API_KEY) {
+  console.error('❌ Error: GEMINI_API_KEY environment variable is required.');
+  console.error('Please set it in your .env file or environment variables.');
+  process.exit(1);
+}
+
 // Update import paths for TS
 import { languages, supportedLanguagesInfo, type LanguageCode } from '../src/lib/i18n/settings';
-import { getAIResponse } from '../src/lib/ai/openaiService'; 
+import { getAIResponse } from '../src/lib/ai/googleService';
 
 import { cleanAIResponse, extractJSONFromText } from '../src/lib/utils/stringUtils'; 
 import dedent from 'dedent';
@@ -23,6 +30,30 @@ export const getPrompt = (
   return dedent`You are an expert translation assistant specializing in game localization.
   Your task is to translate the VALUES of the following JSON dictionary from English
   to the target language: **<targetLanguage>${targetLanguage}</targetLanguage>**.\n\n
+
+  Note that in some languages and cultures this game is called "Mafia" instead of "Werewolf".
+  Mafia is a common name for this game in many languages.
+	•	ar (Arabic) – مافيا (Mafia)
+	•	bn (Bengali) – মাফিয়া (Mafia)
+	•	de (German) – Mafia
+	•	en (English) – Mafia
+	•	fa (Persian) – مافیا (Mafia)
+	•	fr (French) – Mafia (but Loup-Garou also common in France)
+	•	hi (Hindi) – माफिया (Mafia)
+	•	id (Indonesian) – Mafia
+	•	it (Italian) – Mafia
+	•	ja (Japanese) – マフィア (Mafia)
+	•	ko (Korean) – 마피아 게임 (Mafia Game)
+	•	mr (Marathi) – माफिया (Mafia)
+	•	ms (Malay) – Mafia
+	•	pl (Polish) – Mafia
+	•	pt (Portuguese) – Máfia
+	•	ru (Russian) – Мафия (Mafiya)
+	•	tr (Turkish) – Mafya
+	•	uk (Ukrainian) – Мафія
+	•	ur (Urdu) – مافیا (Mafia)
+	•	vi (Vietnamese) – Mafia
+	•	zh (Chinese) – 黑手党游戏 or just 黑手党 (Mafia)
 
   **RULES:**\n  1.  Translate ONLY the string values associated with each key.\n  2.  Keep the JSON keys EXACTLY the same.\n  3.  Maintain the original JSON structure (key-value pairs).\n  4.  Preserve any placeholder variables like \`{{variableName}}\` exactly as they appear in the original English value.\n  5.  Ensure the output is ONLY a single, valid JSON object containing the translated key-value pairs.\n  6.  Use natural and contextually appropriate translations for a Werewolf/Mafia style social deduction game.\n\n
 
@@ -66,7 +97,6 @@ if (specifiedLang) {
   console.log(`Using single language: ${specifiedLang}`);
 }
 const targetLangs = specifiedLang ? [specifiedLang] : languages.filter(lang => lang !== sourceLang);
-const llmModelName = process.env.DEFAULT_TRANSLATION_MODEL || 'meta-llama/Meta-Llama-3-8B-Instruct';
 
 interface Dictionary { [key: string]: string; }
 
@@ -103,46 +133,79 @@ async function translateDictionary(dictToTranslate: Dictionary, targetLangCode: 
   }
 
   const targetLangName = supportedLanguagesInfo[targetLangCode]?.name || targetLangCode;
-  console.log(`\tTranslating ${Object.keys(dictToTranslate).length} missing key(s) to ${targetLangName} (${targetLangCode}) using ${llmModelName}...`);
-  let responseString: string | undefined = undefined;
-
-  try {
-    const sourceJsonString = JSON.stringify(dictToTranslate, null, 2);
-    const systemPrompt = getPrompt(sourceJsonString, targetLangName);
-    const messages = [{ role: 'system' as const, content: systemPrompt }];
-
-    responseString = await getAIResponse(
-      messages,
-      'script-dict-translate-missing',
-      targetLangCode,
-      {
-        model: llmModelName,
-        temperature: 0.1, 
-        response_format: { type: "json_object" },
-      }
-    );
-
-    if (!responseString) throw new Error("LLM returned empty response.");
-
-    const cleanedContent = cleanAIResponse(responseString);
-    const jsonString = extractJSONFromText(cleanedContent);
-    const translatedDict = JSON.parse(jsonString) as Dictionary;
-
-    if (typeof translatedDict !== 'object' || translatedDict === null || Array.isArray(translatedDict)) {
-      throw new Error(`LLM response for ${targetLangCode} was not a valid JSON object.`);
+  const totalKeys = Object.keys(dictToTranslate);
+  const batchSize = 50; // Process 50 keys at a time
+  const batches: Array<{ [key: string]: string }> = [];
+  
+  // Split into batches
+  for (let i = 0; i < totalKeys.length; i += batchSize) {
+    const batchKeys = totalKeys.slice(i, i + batchSize);
+    const batch: { [key: string]: string } = {};
+    for (const key of batchKeys) {
+      batch[key] = dictToTranslate[key];
     }
-
-    console.log(`\t✔️ LLM translation successful for ${targetLangCode}.`);
-    return translatedDict;
-
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`\t❌ Error during LLM translation for ${targetLangCode}:`, message);
-    if (error instanceof SyntaxError && responseString) {
-      console.error("\tRaw LLM Response on parse fail:", responseString);
-    }
-    return null; 
+    batches.push(batch);
   }
+
+  console.log(`\tTranslating ${totalKeys.length} missing key(s) to ${targetLangName} (${targetLangCode}) in ${batches.length} batches...`);
+  
+  const translatedDict: Dictionary = {};
+
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    const batchNumber = i + 1;
+    console.log(`\t  Processing batch ${batchNumber}/${batches.length} (${Object.keys(batch).length} keys)...`);
+    
+    let responseString: string | undefined = undefined;
+
+    try {
+      const sourceJsonString = JSON.stringify(batch, null, 2);
+      const systemPrompt = getPrompt(sourceJsonString, targetLangName);
+      const messages = [{ role: 'system' as const, content: systemPrompt }];
+
+      responseString = await getAIResponse(
+        messages,
+        'script-dict-translate-missing',
+        targetLangCode,
+        {
+          model: 'gemini-2.0-flash-exp',
+          temperature: 0.1, 
+          response_format: { type: "json_object" },
+        }
+      );
+
+      if (!responseString) throw new Error("LLM returned empty response.");
+
+      const cleanedContent = cleanAIResponse(responseString);
+      const jsonString = extractJSONFromText(cleanedContent);
+      const batchTranslatedDict = JSON.parse(jsonString) as Dictionary;
+
+      if (typeof batchTranslatedDict !== 'object' || batchTranslatedDict === null || Array.isArray(batchTranslatedDict)) {
+        throw new Error(`LLM response for ${targetLangCode} batch ${batchNumber} was not a valid JSON object.`);
+      }
+
+      // Merge batch results
+      Object.assign(translatedDict, batchTranslatedDict);
+      console.log(`\t  ✔️ Batch ${batchNumber} completed successfully.`);
+
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`\t  ❌ Error during batch ${batchNumber} translation for ${targetLangCode}:`, message);
+      if (error instanceof SyntaxError && responseString) {
+        console.error("\t  Raw LLM Response on parse fail:", responseString);
+      }
+      // Continue with next batch instead of failing completely
+      console.log('\t  Continuing with next batch...');
+    }
+  }
+
+  if (Object.keys(translatedDict).length === 0) {
+    console.error(`\t❌ No translations were successful for ${targetLangCode}.`);
+    return null;
+  }
+
+  console.log(`\t✔️ LLM translation completed for ${targetLangCode}. Translated ${Object.keys(translatedDict).length}/${totalKeys.length} keys.`);
+  return translatedDict;
 }
 
 // --- Main Execution --- 
@@ -151,6 +214,7 @@ async function translateDictionary(dictToTranslate: Dictionary, targetLangCode: 
   console.log('\n🔄 Starting translation generation process...');
   console.log(`Source dictionary: ${path.basename(sourceFile)}`);
   console.log(`Target languages: ${targetLangs.join(', ')}`);
+  console.log('Using AI model: gemini-1.5-flash');
 
   const sourceDictionary = await loadJson(sourceFile);
   if (!sourceDictionary) {

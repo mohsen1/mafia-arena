@@ -57,6 +57,8 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
 }
 
 function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
+  const { t } = useTranslation();
+  
   return (
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
@@ -68,10 +70,10 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
               <LogIn className="w-12 h-12 text-primary" />
             </div>
             <h1 className="text-4xl font-bold mb-4 text-foreground">
-              Authentication Required
+              {t('auth.authenticationRequired')}
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
-              You need to sign in to create and play Werewolf AI games. Sign in with your Google or GitHub account to get started.
+              {t('auth.authRequiredDescription')}
             </p>
           </div>
           
@@ -79,23 +81,23 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
             <Button asChild size="lg">
               <Link href={`/${lang}/auth/signin`}>
                 <LogIn className="w-5 h-5 me-2" />
-                Sign In to Continue
+                {t('auth.signInToContinue')}
               </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
               <Link href={`/${lang}`}>
-                Back to Home
+                {t('common.backToHome')}
               </Link>
             </Button>
           </div>
           
           <div className="mt-12 p-6 bg-card/50 rounded-lg border">
-            <h3 className="text-lg font-semibold mb-3 text-foreground">Why sign in?</h3>
+            <h3 className="text-lg font-semibold mb-3 text-foreground">{t('auth.whySignIn')}</h3>
             <ul className="text-sm text-muted-foreground space-y-2 text-left">
-              <li>• Save and resume your games across sessions</li>
-              <li>• Create multiple games and manage them easily</li>
-              <li>• Track your game history and statistics</li>
-              <li>• Access advanced game features and settings</li>
+              <li>• {t('auth.whySignInBenefits.0')}</li>
+              <li>• {t('auth.whySignInBenefits.1')}</li>
+              <li>• {t('auth.whySignInBenefits.2')}</li>
+              <li>• {t('auth.whySignInBenefits.3')}</li>
             </ul>
           </div>
         </div>

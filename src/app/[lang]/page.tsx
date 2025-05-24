@@ -78,7 +78,7 @@ interface RoleCardProps {
 function RoleCard({ name, description, icon }: RoleCardProps) {
   return (
     <div className="bg-card/30 backdrop-blur-sm p-6 rounded-lg hover:bg-card/60 transition-all duration-300 hover:scale-105">
-      <div className="text-4xl mb-4 text-center">{icon}</div>
+      <div className="text-lg font-semibold mb-4 text-center text-primary">{icon}</div>
       <h3 className="text-lg font-semibold mb-2 text-center text-foreground">{name}</h3>
       <p className="text-muted-foreground text-sm text-center leading-relaxed">{description}</p>
     </div>
@@ -108,9 +108,10 @@ interface AuthCTAButtonProps {
   variant?: "default" | "outline" | "magical";
   size?: "default" | "sm" | "lg";
   magical?: boolean;
+  t: (key: string) => string;
 }
 
-function AuthCTAButton({ currentLang, children, className = "", variant = "magical", size = "lg", magical = true }: AuthCTAButtonProps) {
+function AuthCTAButton({ currentLang, children, className = "", variant = "magical", size = "lg", magical = true, t }: AuthCTAButtonProps) {
   const { data: session } = useSession();
   
   if (session) {
@@ -137,7 +138,7 @@ function AuthCTAButton({ currentLang, children, className = "", variant = "magic
       <MagicalAIButton asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "magical" : "default"}>
         <Link href={`/${currentLang}/auth/signin`}>
           <LogIn className="w-5 h-5 me-2" />
-          Sign In to Play
+          {t('landingSignInToPlay')}
         </Link>
       </MagicalAIButton>
     );
@@ -147,7 +148,7 @@ function AuthCTAButton({ currentLang, children, className = "", variant = "magic
     <Button asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "default" : variant}>
       <Link href={`/${currentLang}/auth/signin`}>
         <LogIn className="w-5 h-5 me-2" />
-        Sign In to Play
+        {t('landingSignInToPlay')}
       </Link>
     </Button>
   );
@@ -241,7 +242,7 @@ export default function LandingPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-in fade-in duration-1000 delay-300">
-              <AuthCTAButton currentLang={currentLang} magical={true}>
+              <AuthCTAButton currentLang={currentLang} magical={true} t={t}>
                 {t('landingHeroCTA')}
                 <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
               </AuthCTAButton>
@@ -478,7 +479,7 @@ export default function LandingPage() {
             {t('landingCtaSubtitle')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <AuthCTAButton currentLang={currentLang} magical={true} className="animate-pulse">
+            <AuthCTAButton currentLang={currentLang} magical={true} className="animate-pulse" t={t}>
               🚀 {t('landingCtaButton')}
               <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
             </AuthCTAButton>

@@ -3,6 +3,7 @@
 import { signIn, getProviders } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,7 @@ import type { ClientSafeProvider } from 'next-auth/react';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
 export function SignInForm() {
+  const { t } = useTranslation();
   const [providers, setProviders] = useState<Record<string, ClientSafeProvider> | null>(null);
   const [loading, setLoading] = useState(false);
   const [credentialsLoading, setCredentialsLoading] = useState(false);
@@ -49,18 +51,18 @@ export function SignInForm() {
     if (errorParam) {
       switch (errorParam) {
         case 'CredentialsSignin':
-          setError('Invalid email or password. Please try again.');
+          setError(t('signIn.invalidCredentials'));
           break;
         case 'OAuthSignin':
         case 'OAuthCallback':
         case 'OAuthCreateAccount':
-          setError('Error with OAuth sign in. Please try again.');
+          setError(t('signIn.oauthError'));
           break;
         default:
-          setError('An error occurred during sign in. Please try again.');
+          setError(t('signIn.generalError'));
       }
     }
-  }, [errorParam]);
+  }, [errorParam, t]);
 
   const handleOAuthSignIn = async (providerId: string) => {
     setLoading(true);
@@ -68,7 +70,7 @@ export function SignInForm() {
       await signIn(providerId, { callbackUrl: `/${currentLang}` });
     } catch (error) {
       console.error('OAuth sign in error:', error);
-      setError('Failed to sign in. Please try again.');
+      setError(t('signIn.oauthError'));
     } finally {
       setLoading(false);
     }
@@ -87,13 +89,13 @@ export function SignInForm() {
       });
 
       if (result?.error) {
-        setError('Invalid email or password. Please try again.');
+        setError(t('signIn.invalidCredentials'));
       } else if (result?.ok) {
         router.push(`/${currentLang}`);
       }
     } catch (error) {
       console.error('Credentials sign in error:', error);
-      setError('An unexpected error occurred. Please try again.');
+      setError(t('signIn.unexpectedError'));
     } finally {
       setCredentialsLoading(false);
     }
@@ -119,7 +121,7 @@ export function SignInForm() {
   if (!providers) {
     return (
       <div className="bg-card border rounded-lg p-6">
-        <div className="text-center text-muted-foreground">Loading...</div>
+        <div className="text-center text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -132,9 +134,9 @@ export function SignInForm() {
   return (
     <div className="bg-card border rounded-lg p-6 space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold">Sign In</h2>
+        <h2 className="text-xl font-semibold">{t('signIn.title')}</h2>
         <p className="text-muted-foreground text-sm">
-          Choose your preferred sign-in method to continue
+          {t('signIn.choosePreferredSignInMethod')}
         </p>
       </div>
 
@@ -147,21 +149,21 @@ export function SignInForm() {
       {/* Email/Password Form */}
       <form onSubmit={handleCredentialsSignIn} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t('signIn.email')}</Label>
           <Input
             id="email"
             name="email"
             type="email"
             value={credentials.email}
             onChange={handleInputChange}
-            placeholder="Enter your email"
+            placeholder={t('signIn.enterYourEmail')}
             required
             disabled={credentialsLoading}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t('signIn.password')}</Label>
           <div className="relative">
             <Input
               id="password"
@@ -169,7 +171,7 @@ export function SignInForm() {
               type={showPassword ? 'text' : 'password'}
               value={credentials.password}
               onChange={handleInputChange}
-              placeholder="Enter your password"
+              placeholder={t('signIn.enterYourPassword')}
               required
               disabled={credentialsLoading}
             />
@@ -194,12 +196,12 @@ export function SignInForm() {
           {credentialsLoading ? (
             <>
               <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin me-2" />
-              Signing In...
+              {t('signIn.signingIn')}
             </>
           ) : (
             <>
               <LogIn className="w-4 h-4 me-2" />
-              Sign In with Email
+              {t('signIn.signInWithEmail')}
             </>
           )}
         </Button>
@@ -213,7 +215,7 @@ export function SignInForm() {
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-card px-2 text-muted-foreground">
-              Or continue with
+              {t('signIn.orContinueWith')}
             </span>
           </div>
         </div>
@@ -231,7 +233,7 @@ export function SignInForm() {
               disabled={loading || credentialsLoading}
             >
               {getProviderIcon(provider.id)}
-              Continue with {provider.name}
+              {t('signIn.continueWith', { provider: provider.name })}
             </Button>
           ))}
         </div>
@@ -239,12 +241,12 @@ export function SignInForm() {
 
       {/* Sign Up Link */}
       <div className="text-center text-sm">
-        <span className="text-muted-foreground">Don&apos;t have an account? </span>
+        <span className="text-muted-foreground">{t('signIn.dontHaveAnAccount')}</span>
         <Link
           href={`/${currentLang}/auth/signup`}
           className="text-primary hover:underline"
         >
-          Sign up
+          {t('signIn.signUp')}
         </Link>
       </div>
     </div>
