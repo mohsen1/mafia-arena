@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "PORT=3099 next dev --turbopack",
+    "dev:test": "PORT=3191 next dev --turbopack",
     "build": "next build",
     "prestart": "pnpm run build && pnpm run translate",
     "start": "PORT=3100 next start",

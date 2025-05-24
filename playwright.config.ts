@@ -18,7 +18,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3101',
+    baseURL: 'http://localhost:3191',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -44,8 +44,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'PORT=3101 pnpm dev',
-    url: 'http://localhost:3101',
+    command: 'PORT=3191 next dev --turbopack',
+    url: 'http://localhost:3191',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },
