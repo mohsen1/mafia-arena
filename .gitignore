@@ -51,10 +51,7 @@ screenshots/
 game_saves/
 .aider*
 .env
-.env
-.env
-.env
-.env
+
 
 # Playwright
 playwright-report/

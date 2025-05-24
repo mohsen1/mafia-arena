@@ -36,7 +36,7 @@ export function Header({ currentLang }: HeaderProps) {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href={`/${currentLang}`} className="flex items-center">
-            <span className="text-xl font-bold text-foreground">🐺 Werewolf AI</span>
+            <span className="text-xl font-bold text-foreground">Werewolf AI</span>
           </Link>
 
 

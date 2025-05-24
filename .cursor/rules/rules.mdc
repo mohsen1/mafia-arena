@@ -3,6 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
+Do not use emojis
 Pay attention to DESIGN.md when making changes
 Never use `dark:` css classes. Rely on CSS variables set in tailwind for dark mode
 avoid using tailwind colors like green or red, pay attention to globals.css and pick proper color classes based on Tailwind 4 and ShadCDN 2.6 standards

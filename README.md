@@ -6,23 +6,23 @@
   <p>Play the classic Werewolf/Mafia game against intelligent AI characters with unique personas</p>
 </div>
 
-## 🎮 About
+## About
 
 Werewolf AI is a modern web-based implementation of the classic social deduction party game Werewolf (also known as Mafia). The game replaces human players with sophisticated AI agents that have distinct personalities, strategic thinking, and engaging dialogue capabilities.
 
-### ✨ Key Features
+### Key Features
 
-- **🤖 Intelligent AI Players**: Multiple AI providers (OpenAI, Anthropic Claude, Google Gemini, Groq) with unique personas
-- **🔐 User Authentication**: Secure OAuth login with Google/GitHub plus username/password authentication
-- **💾 Database Persistence**: PostgreSQL-backed game state with user ownership
-- **🌍 Multilingual Support**: Full internationalization with automatic translation generation
-- **🎭 Dynamic Character Generation**: AI agents create rich backstories and personalities
-- **🗣️ Text-to-Speech**: Immersive audio experience with ElevenLabs integration
-- **📱 Modern UI**: Beautiful, responsive interface built with Next.js 15 and Tailwind CSS
-- **🎯 Multiple Game Roles**: Classic roles including Werewolves, Villagers, Seer, and Doctor
-- **🔧 Configurable**: Customizable game settings and AI model selection
+- **Intelligent AI Players**: Multiple AI providers (OpenAI, Anthropic Claude, Google Gemini, Groq) with unique personas
+- **User Authentication**: Secure OAuth login with Google/GitHub plus username/password authentication
+- **Database Persistence**: PostgreSQL-backed game state with user ownership
+- **Multilingual Support**: Full internationalization with automatic translation generation
+- **Dynamic Character Generation**: AI agents create rich backstories and personalities
+- **Text-to-Speech**: Immersive audio experience with ElevenLabs integration
+- **Modern UI**: Beautiful, responsive interface built with Next.js 15 and Tailwind CSS
+- **Multiple Game Roles**: Classic roles including Werewolves, Villagers, Seer, and Doctor
+- **Configurable**: Customizable game settings and AI model selection
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript
@@ -35,7 +35,7 @@ Werewolf AI is a modern web-based implementation of the classic social deduction
 - **Internationalization**: i18next
 - **Package Manager**: pnpm
 
-## 📋 Prerequisites
+## Prerequisites
 
 - **Node.js** 18+ 
 - **pnpm** 9+
@@ -50,7 +50,7 @@ Werewolf AI is a modern web-based implementation of the classic social deduction
   - GitHub OAuth client ID and secret
 - **ElevenLabs API key** (optional, for text-to-speech)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Clone the Repository
 
@@ -161,7 +161,7 @@ pnpm run dev         # Start dev server
 
 The application will be available at `http://localhost:3099`
 
-### 🧑‍💻 Development User Account
+### Development User Account
 
 A development user account is automatically created when you run the setup. You can use these credentials to sign in during development:
 
@@ -176,7 +176,7 @@ This account is only created in development mode and allows you to:
 
 > **Note**: The development user is automatically seeded when running `pnpm run dev:db` or `pnpm run db:seed`. If the user already exists, the seeding process will skip creation.
 
-> **⚠️ Production Safety**: The seeding script automatically detects production environments and will not create the development user in production mode.
+> **Production Safety**: The seeding script automatically detects production environments and will not create the development user in production mode.
 
 ### 8. Build for Production
 
@@ -185,7 +185,7 @@ pnpm build
 pnpm start
 ```
 
-## 🎲 How to Play
+## How to Play
 
 ### Game Overview
 
@@ -193,16 +193,16 @@ Werewolf is a social deduction game where players are secretly assigned roles an
 
 ### Roles
 
-- **🐺 Werewolves**: Secretly eliminate villagers each night
-- **👥 Villagers**: Use discussion and voting to identify werewolves
-- **🔮 Seer**: Can investigate one player each night to learn their role
-- **⚕️ Doctor**: Can protect one player from werewolf attacks each night
+- **Werewolves**: Secretly eliminate villagers each night
+- **Villagers**: Use discussion and voting to identify werewolves
+- **Seer**: Can investigate one player each night to learn their role
+- **Doctor**: Can protect one player from werewolf attacks each night
 
 ### Game Flow
 
-1. **🌅 Day Phase**: All players discuss and vote to eliminate a suspected werewolf
-2. **🌙 Night Phase**: Werewolves choose a target, Doctor selects someone to protect, Seer investigates a player
-3. **🔄 Repeat**: Continue until all werewolves are eliminated (Villagers win) or werewolves equal/outnumber villagers (Werewolves win)
+1. **Day Phase**: All players discuss and vote to eliminate a suspected werewolf
+2. **Night Phase**: Werewolves choose a target, Doctor selects someone to protect, Seer investigates a player
+3. **Repeat**: Continue until all werewolves are eliminated (Villagers win) or werewolves equal/outnumber villagers (Werewolves win)
 
 ### Starting a Game
 
@@ -215,7 +215,7 @@ Werewolf is a social deduction game where players are secretly assigned roles an
    - Choose to join as human player (optional)
 3. Click "Start Game" and watch the AI characters come to life!
 
-## 🔐 Authentication & User Features
+## Authentication & User Features
 
 ### User Accounts
 
@@ -240,7 +240,7 @@ The application now supports user authentication, providing personalized experie
 - OAuth providers handle authentication securely
 - No sensitive data is stored beyond what's necessary for gameplay
 
-## 🧪 Testing
+## Testing
 
 ### Run Unit Tests
 
@@ -281,7 +281,7 @@ pnpm run db:drop       # Drop all tables (destructive)
 pnpm run dev:db        # Setup DB and start dev server
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
@@ -313,7 +313,7 @@ src/
 └── utils.ts              # Utility functions
 ```
 
-## 🌐 Internationalization
+## Internationalization
 
 The game supports multiple languages with automatic translation generation:
 
@@ -328,7 +328,7 @@ To add a new language:
 2. Run `pnpm run translate` to generate translations
 3. Review and refine translations in `src/dictionaries/[lang].json`
 
-## 🔧 Configuration
+## Configuration
 
 ### AI Model Selection
 
@@ -344,7 +344,7 @@ The game supports different themes that influence:
 - Setting and atmosphere
 - Dialogue style and content
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md) for details.
 
@@ -367,27 +367,27 @@ We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.
 - Update documentation as needed
 - Use semantic commit messages
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Inspired by the classic Werewolf/Mafia party game
 - Built with amazing open-source technologies
 - AI providers for enabling intelligent gameplay
 - The Werewolf community for inspiration and feedback
 
-## 📞 Support
+## Support
 
-- 🐛 [Report Issues](https://github.com/your-username/werewolf-ai/issues)
-- 💬 [Discussions](https://github.com/your-username/werewolf-ai/discussions)
-- 📧 Email: support@werewolf-ai.com
+- [Report Issues](https://github.com/your-username/werewolf-ai/issues)
+- [Discussions](https://github.com/your-username/werewolf-ai/discussions)
+- Email: support@werewolf-ai.com
 
 ---
 
 <div align="center">
-  <p>Made with ❤️ by the Werewolf AI team</p>
+  <p>Made with care by the Werewolf AI team</p>
   <p>
     <a href="#werewolf-ai">Back to top</a> •
     <a href="https://werewolf-ai.com">Website</a> •

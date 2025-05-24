@@ -105,15 +105,26 @@ interface AuthCTAButtonProps {
   currentLang: string;
   children: React.ReactNode;
   className?: string;
-  variant?: "default" | "outline";
+  variant?: "default" | "outline" | "magical";
+  size?: "default" | "sm" | "lg";
+  magical?: boolean;
 }
 
-function AuthCTAButton({ currentLang, children, className = "", variant = "default" }: AuthCTAButtonProps) {
+function AuthCTAButton({ currentLang, children, className = "", variant = "magical", size = "lg", magical = true }: AuthCTAButtonProps) {
   const { data: session } = useSession();
   
   if (session) {
+    if (magical) {
+      return (
+        <MagicalAIButton glowIntensity="medium" asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "magical" : "default"}>
+          <Link href={`/${currentLang}/new`}>
+            {children}
+          </Link>
+        </MagicalAIButton>
+      );
+    }
     return (
-      <Button asChild size="lg" className={`group ${className}`} variant={variant}>
+      <Button asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "default" : variant}>
         <Link href={`/${currentLang}/new`}>
           {children}
         </Link>
@@ -121,8 +132,19 @@ function AuthCTAButton({ currentLang, children, className = "", variant = "defau
     );
   }
   
+  if (magical) {
+    return (
+      <MagicalAIButton asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "magical" : "default"}>
+        <Link href={`/${currentLang}/auth/signin`}>
+          <LogIn className="w-5 h-5 me-2" />
+          Sign In to Play
+        </Link>
+      </MagicalAIButton>
+    );
+  }
+  
   return (
-    <Button asChild size="lg" className={`group ${className}`} variant={variant}>
+    <Button asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "default" : variant}>
       <Link href={`/${currentLang}/auth/signin`}>
         <LogIn className="w-5 h-5 me-2" />
         Sign In to Play
@@ -219,7 +241,7 @@ export default function LandingPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-in fade-in duration-1000 delay-300">
-              <AuthCTAButton currentLang={currentLang}>
+              <AuthCTAButton currentLang={currentLang} magical={true}>
                 {t('landingHeroCTA')}
                 <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
               </AuthCTAButton>
@@ -305,6 +327,22 @@ export default function LandingPage() {
               description={t('landingFeaturePersistentDesc')}
             />
           </div>
+          
+          <div className="mt-12 text-center">
+            <MagicalAIButton 
+              asChild
+              variant="magical"
+              size="lg"
+              animationSpeed="fast"
+              glowIntensity="medium"
+              className="group"
+            >
+              <Link href={`/${currentLang}/new`}>
+                {t('landingFeaturesButton')}
+                <Sparkles className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:rotate-12 transition-transform duration-300`} />
+              </Link>
+            </MagicalAIButton>
+          </div>
         </div>
       </section>
 
@@ -341,6 +379,20 @@ export default function LandingPage() {
               description={t('landingAIGroqDesc')}
               gradient="from-orange-500 to-red-600"
             />
+          </div>
+          
+          <div className="mt-12 text-center">
+            <MagicalAIButton 
+              asChild
+              size="lg"
+              animationSpeed="slow"
+              className="group hover:scale-105 transition-transform duration-300"
+            >
+              <Link href={`/${currentLang}/new`}>
+                🤖 Try AI-Powered Werewolf Now
+                <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
+              </Link>
+            </MagicalAIButton>
           </div>
         </div>
       </section>
@@ -426,8 +478,8 @@ export default function LandingPage() {
             {t('landingCtaSubtitle')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <AuthCTAButton currentLang={currentLang}>
-              {t('landingCtaButton')}
+            <AuthCTAButton currentLang={currentLang} magical={true} className="animate-pulse">
+              🚀 {t('landingCtaButton')}
               <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
             </AuthCTAButton>
             <Button variant="outline" size="lg" asChild>

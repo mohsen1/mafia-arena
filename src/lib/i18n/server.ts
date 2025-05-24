@@ -33,7 +33,7 @@ import teTranslation from '@/dictionaries/te.json';
 import haTranslation from '@/dictionaries/ha.json';
 import myTranslation from '@/dictionaries/my.json';
 
-type Dictionary = Record<string, string>;
+type Dictionary = Record<string, string | Record<string, string | Record<string, string>>>;
 
 const dictionaries: Record<LanguageCode, Dictionary> = {
   en: enTranslation,
@@ -70,7 +70,7 @@ const dictionaries: Record<LanguageCode, Dictionary> = {
 
 /**
  * Server-side translation function for the game engine
- * @param key - The translation key
+ * @param key - The translation key (supports dot notation like 'profile.title')
  * @param language - The language code to translate to
  * @param replacements - Object containing variable replacements (e.g., {round: 1})
  * @returns The translated string with variables replaced
@@ -86,10 +86,26 @@ export function translate(
   // Get the dictionary for the specified language, fallback to English
   const dictionary = dictionaries[lang] || dictionaries[fallbackLng as LanguageCode];
   
+  // Helper function to get nested value from object using dot notation
+  const getNestedValue = (obj: Dictionary, path: string): string | undefined => {
+    const keys = path.split('.');
+    let current: unknown = obj;
+    
+    for (const key of keys) {
+      if (current && typeof current === 'object' && key in current) {
+        current = (current as Record<string, unknown>)[key];
+      } else {
+        return undefined;
+      }
+    }
+    
+    return typeof current === 'string' ? current : undefined;
+  };
+  
   // Get the translation, fallback to English if not found
-  let translation = dictionary[key];
+  let translation = getNestedValue(dictionary, key);
   if (!translation && lang !== fallbackLng) {
-    translation = dictionaries[fallbackLng as LanguageCode][key];
+    translation = getNestedValue(dictionaries[fallbackLng as LanguageCode], key);
   }
   
   // If still no translation found, return the key itself

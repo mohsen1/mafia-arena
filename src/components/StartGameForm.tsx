@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MagicalAIButton } from "@/components/ui/magical-ai-button";
 import { useGameConfig, type ConfigCharacterSlot } from "@/hooks/useGameConfig";
 
 import { RoleName } from "@/lib/engine/interfaces/IRole";
@@ -354,11 +355,13 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
 
         {/* Submit Button - Remove onClick, ensure type="submit" */}
         <div className="flex justify-center pt-4">
-          <Button
+          <MagicalAIButton
             type="submit"
             className="w-full px-6 py-3 text-lg font-semibold flex justify-center items-center cursor-pointer max-w-xs mx-auto"
             size="lg"
             disabled={!canAttemptStart || isSubmitting}
+            animationSpeed="normal"
+            variant="magical"
             aria-label={t(
               "GenerateAndStartGameButton",
               "Generate characters and start new game"
@@ -370,9 +373,11 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
                 {t("StartingButtonLabel", "Starting...")}
               </>
             ) : (
-              t("GenerateAndStartGameButton", "Generate & Start Game")
+              <>
+                ✨ {t("GenerateAndStartGameButton", "Generate & Start Game")}
+              </>
             )}
-          </Button>
+          </MagicalAIButton>
         </div>
       </div>
 
