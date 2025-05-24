@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType, FunctionCallingMode } from '@google/generative-ai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 // Load environment variables
@@ -67,6 +67,20 @@ export type GetAIResponseFunction = (
     response_format?: { type: "text" | "json_object" };
   }
 ) => Promise<string>;
+
+export type GetStructuredAIResponseFunction = (
+  messages: ChatCompletionMessageParam[],
+  gameId: string,
+  playerId: string,
+  functionName: string,
+  functionDescription: string,
+  responseSchema: Record<string, { type: string; description?: string }>,
+  settings: {
+    model: string;
+    temperature?: number;
+    max_tokens?: number;
+  }
+) => Promise<Record<string, unknown>>;
 
 export const getAIResponse: GetAIResponseFunction = async (
   messages,
@@ -142,6 +156,84 @@ export const getAIResponse: GetAIResponseFunction = async (
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
       `[Gemini Error - ${gameId}|${playerId}] Failed AI call for model ${modelName}:`,
+      errorMessage
+    );
+    throw error;
+  }
+};
+
+export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
+  messages,
+  gameId,
+  playerId,
+  functionName,
+  functionDescription,
+  responseSchema,
+  settings
+) => {
+  const genAI = getGoogleAIInstance();
+  
+  console.log(
+    `[Gemini Function Call - ${gameId}|${playerId}] Calling model ${
+      settings.model
+    } with function ${functionName} (Temp: ${settings.temperature ?? "default"})...`
+  );
+
+  try {
+    const googleMessages = convertOpenAIMessagesToGoogle(messages);
+    
+    // Define the function declaration for structured response
+    const functionDeclaration = {
+      name: functionName,
+      description: functionDescription,
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: responseSchema,
+        required: Object.keys(responseSchema)
+      }
+    };
+
+    const model = genAI.getGenerativeModel({ 
+      model: settings.model,
+      generationConfig: {
+        temperature: settings.temperature ?? 0.1,
+        maxOutputTokens: settings.max_tokens ?? 8192,
+      },
+      tools: [{ functionDeclarations: [functionDeclaration] }],
+      toolConfig: {
+        functionCallingConfig: {
+          mode: FunctionCallingMode.ANY,
+          allowedFunctionNames: [functionName]
+        }
+      }
+    });
+
+    // Use single message approach for function calling
+    const prompt = googleMessages.map(msg => msg.parts[0].text).join('\n\n');
+    const result = await model.generateContent(prompt);
+    
+    const response = result.response;
+    const functionCalls = response.functionCalls();
+    
+    if (!functionCalls || functionCalls.length === 0) {
+      throw new Error("No function calls returned from Gemini.");
+    }
+
+    const functionCall = functionCalls[0];
+    if (functionCall.name !== functionName) {
+      throw new Error(`Expected function ${functionName}, got ${functionCall.name}`);
+    }
+
+    console.log(
+      `[Gemini Function Response - ${gameId}|${playerId}] Received structured response for ${functionName}.`
+    );
+
+    return functionCall.args as Record<string, unknown>;
+  } catch (error: unknown) {
+    const modelName = settings.model;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[Gemini Function Error - ${gameId}|${playerId}] Failed function call for model ${modelName}:`,
       errorMessage
     );
     throw error;

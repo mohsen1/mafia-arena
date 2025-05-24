@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { startGameAction } from '../setup.actions';
 import type { StartGameSetupData } from '@/lib/interfaces/actions.types'; // Import from central location
-import { saveGameData } from '@/lib/persistence';
+import { createGameData } from '@/lib/db/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
 import type { AgentConfig } from '@/lib/interfaces/agent.types'; // Changed to type import
 import { RoleName } from '@/lib/engine/interfaces/IRole'; // Import RoleName enum/type
@@ -14,8 +14,13 @@ vi.mock('node:crypto', () => ({
   }
 }));
 
-vi.mock('@/lib/persistence', () => ({
-  saveGameData: vi.fn(),
+vi.mock('@/lib/db/persistence', () => ({
+  createGameData: vi.fn(),
+}));
+
+// Mock NextAuth getServerSession
+vi.mock('next-auth', () => ({
+  getServerSession: vi.fn(),
 }));
 
 // Mock Themes BEFORE Game mock
@@ -33,10 +38,20 @@ vi.mock('@/lib/visibilityHelper', () => ({
 describe('setup.actions', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    vi.mocked(saveGameData).mockClear();
+    vi.mocked(createGameData).mockClear();
     vi.mocked(filterGameStateForClient).mockClear();
     const cryptoMock = (await import('node:crypto')).default; 
     vi.mocked(cryptoMock.randomUUID).mockClear();
+    
+    // Mock authenticated session
+    const { getServerSession } = await import('next-auth');
+    vi.mocked(getServerSession).mockResolvedValue({
+      user: {
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+      },
+    });
   });
 
   describe('startGameAction', () => {
@@ -64,7 +79,7 @@ describe('setup.actions', () => {
       vi.mocked(cryptoMock.randomUUID).mockReturnValue(mockGameId);
       vi.setSystemTime(mockTimestamp);
 
-      vi.mocked(saveGameData).mockResolvedValue(undefined);
+      vi.mocked(createGameData).mockResolvedValue(undefined);
       vi.mocked(filterGameStateForClient).mockReturnValue({
         id: mockGameId,
         round: 1,
@@ -101,15 +116,15 @@ describe('setup.actions', () => {
       expect(vi.mocked(cryptoMock.randomUUID)).toHaveBeenCalledTimes(1);
 
       // Verify save was called
-      expect(saveGameData).toHaveBeenCalledWith(
-        mockGameId, 
+      expect(createGameData).toHaveBeenCalledWith(
         expect.objectContaining({
           gameId: mockGameId,
           themeKey: baseSetupData.themeKey,
           language: baseSetupData.language,
           players: expect.any(Object),
           livingPlayerIds: expect.any(Array),
-        })
+        }),
+        'test-user-id'
       );
 
       // Verify filter was called
@@ -131,7 +146,7 @@ describe('setup.actions', () => {
         vi.mocked(cryptoMock.randomUUID).mockReturnValue(mockGameId);
         vi.setSystemTime(mockTimestamp);
 
-        vi.mocked(saveGameData).mockResolvedValue(undefined);
+        vi.mocked(createGameData).mockResolvedValue(undefined);
         vi.mocked(filterGameStateForClient).mockReturnValue({
           id: mockGameId,
           round: 1,
@@ -164,11 +179,11 @@ describe('setup.actions', () => {
         });
 
         // Verify save was called with human player info
-        expect(saveGameData).toHaveBeenCalledWith(
-          mockGameId, 
+        expect(createGameData).toHaveBeenCalledWith(
           expect.objectContaining({
             humanPlayerId: expect.stringContaining('human-dave'),
-          })
+          }),
+          'test-user-id'
         );
     });
 
@@ -177,14 +192,14 @@ describe('setup.actions', () => {
       const invalidSetupData = { ...baseSetupData, players: baseSetupData.players.slice(0, 2) }; 
       const result = await startGameAction(invalidSetupData);
       expect(result).toEqual({ error: 'Minimum 3 players required.' });
-      expect(saveGameData).not.toHaveBeenCalled();
+      expect(createGameData).not.toHaveBeenCalled();
     });
 
     it('should return an error if themeKey is invalid', async () => {
       const invalidSetupData = { ...baseSetupData, themeKey: 'InvalidTheme' };
       const result = await startGameAction(invalidSetupData);
       expect(result).toEqual({ error: 'Invalid theme key: InvalidTheme' });
-      expect(saveGameData).not.toHaveBeenCalled();
+      expect(createGameData).not.toHaveBeenCalled();
     });
 
     it('should return an error if saveGameData fails', async () => {
@@ -193,11 +208,11 @@ describe('setup.actions', () => {
         vi.setSystemTime(mockTimestamp);
 
         const saveError = new Error('Database connection failed');
-        vi.mocked(saveGameData).mockRejectedValue(saveError);
+        vi.mocked(createGameData).mockRejectedValue(saveError);
 
         const result = await startGameAction(baseSetupData);
         expect(result).toEqual({ error: 'Database connection failed' });
-        expect(saveGameData).toHaveBeenCalled(); // Attempt to save
+        expect(createGameData).toHaveBeenCalled(); // Attempt to save
     });
 
     it('should return an error if ensurePersonasGenerated (via InitPhase.runStep) fails', async () => {
@@ -215,7 +230,7 @@ describe('setup.actions', () => {
         vi.setSystemTime(mockTimestamp);
 
         // Mock saveGameData to succeed
-        vi.mocked(saveGameData).mockResolvedValue(undefined);
+        vi.mocked(createGameData).mockResolvedValue(undefined);
         
         // Mock filterGameStateForClient to return a proper filtered state for success case
         vi.mocked(filterGameStateForClient).mockReturnValue({
@@ -252,12 +267,12 @@ describe('setup.actions', () => {
         }));
         
         // Verify the function completed successfully despite invalid agent configs
-        expect(saveGameData).toHaveBeenCalledWith(
-          mockGameId, 
+        expect(createGameData).toHaveBeenCalledWith(
           expect.objectContaining({
             gameId: mockGameId,
             themeKey: invalidSetupData.themeKey,
-          })
+          }),
+          'test-user-id'
         );
     });
   });

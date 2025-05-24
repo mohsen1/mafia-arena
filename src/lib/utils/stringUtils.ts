@@ -55,4 +55,35 @@ export function extractJSONFromText(text: string): string {
   return text;
 }
 
+/**
+ * Escapes control characters in JSON string values to make the JSON valid for parsing.
+ * This is particularly useful when AI models return JSON with unescaped newlines or other control characters.
+ *
+ * @param jsonString The potentially invalid JSON string
+ * @returns A valid JSON string with properly escaped control characters
+ */
+export function escapeJSONControlCharacters(jsonString: string): string {
+  if (!jsonString) return "";
+
+  // Simple approach: replace literal newlines, tabs, etc. in JSON string values
+  // This regex matches JSON string values (accounting for escaped quotes)
+  return jsonString.replace(/"((?:[^"\\]|\\.)*)"/g, (match, content) => {
+    // Don't process if this might be a JSON key (followed by colon)
+    const afterMatch = jsonString.slice(jsonString.indexOf(match) + match.length);
+    const nextNonWhitespace = afterMatch.match(/^\s*(.)/)?.[1];
+    if (nextNonWhitespace === ':') {
+      return match; // This is likely a key, don't escape it
+    }
+
+    // Replace literal control characters with escaped versions
+    // Simple replacements for the most common cases that cause JSON parsing errors
+    const escaped = content
+      .replace(/\n/g, '\\n')     // Literal newlines
+      .replace(/\r/g, '\\r')     // Literal carriage returns  
+      .replace(/\t/g, '\\t');    // Literal tabs
+
+    return `"${escaped}"`;
+  });
+}
+
 // Export additional string utility functions as needed

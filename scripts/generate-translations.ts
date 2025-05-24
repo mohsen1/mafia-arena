@@ -15,9 +15,9 @@ if (!process.env.GEMINI_API_KEY) {
 
 // Update import paths for TS
 import { languages, supportedLanguagesInfo, type LanguageCode } from '../src/lib/i18n/settings';
-import { getAIResponse } from '../src/lib/ai/googleService';
+import { getAIResponse, getStructuredAIResponse } from '../src/lib/ai/googleService';
 
-import { cleanAIResponse, extractJSONFromText } from '../src/lib/utils/stringUtils'; 
+import { cleanAIResponse, extractJSONFromText, escapeJSONControlCharacters } from '../src/lib/utils/stringUtils'; 
 import dedent from 'dedent';
 
 /**
@@ -156,32 +156,37 @@ async function translateDictionary(dictToTranslate: Dictionary, targetLangCode: 
     const batchNumber = i + 1;
     console.log(`\t  Processing batch ${batchNumber}/${batches.length} (${Object.keys(batch).length} keys)...`);
     
-    let responseString: string | undefined = undefined;
-
     try {
       const sourceJsonString = JSON.stringify(batch, null, 2);
       const systemPrompt = getPrompt(sourceJsonString, targetLangName);
       const messages = [{ role: 'system' as const, content: systemPrompt }];
 
-      responseString = await getAIResponse(
+      // Create schema for the translation response
+      const responseSchema: Record<string, { type: string; description?: string }> = {};
+      for (const key of Object.keys(batch)) {
+        responseSchema[key] = {
+          type: 'string',
+          description: `Translation of the key "${key}" to ${targetLangName}`
+        };
+      }
+
+      // Use function calling for structured response
+      const batchTranslatedDict = await getStructuredAIResponse(
         messages,
         'script-dict-translate-missing',
         targetLangCode,
+        'translate_dictionary',
+        `Translate dictionary keys from English to ${targetLangName}`,
+        responseSchema,
         {
           model: 'gemini-2.0-flash-exp',
-          temperature: 0.1, 
-          response_format: { type: "json_object" },
+          temperature: 0.1,
+          max_tokens: 8192
         }
-      );
-
-      if (!responseString) throw new Error("LLM returned empty response.");
-
-      const cleanedContent = cleanAIResponse(responseString);
-      const jsonString = extractJSONFromText(cleanedContent);
-      const batchTranslatedDict = JSON.parse(jsonString) as Dictionary;
+      ) as Dictionary;
 
       if (typeof batchTranslatedDict !== 'object' || batchTranslatedDict === null || Array.isArray(batchTranslatedDict)) {
-        throw new Error(`LLM response for ${targetLangCode} batch ${batchNumber} was not a valid JSON object.`);
+        throw new Error(`Function call response for ${targetLangCode} batch ${batchNumber} was not a valid object.`);
       }
 
       // Merge batch results
@@ -191,10 +196,6 @@ async function translateDictionary(dictToTranslate: Dictionary, targetLangCode: 
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`\t  ❌ Error during batch ${batchNumber} translation for ${targetLangCode}:`, message);
-      if (error instanceof SyntaxError && responseString) {
-        console.error("\t  Raw LLM Response on parse fail:", responseString);
-      }
-      // Continue with next batch instead of failing completely
       console.log('\t  Continuing with next batch...');
     }
   }
@@ -204,7 +205,7 @@ async function translateDictionary(dictToTranslate: Dictionary, targetLangCode: 
     return null;
   }
 
-  console.log(`\t✔️ LLM translation completed for ${targetLangCode}. Translated ${Object.keys(translatedDict).length}/${totalKeys.length} keys.`);
+  console.log(`\t✔️ Function call translation completed for ${targetLangCode}. Translated ${Object.keys(translatedDict).length}/${totalKeys.length} keys.`);
   return translatedDict;
 }
 
