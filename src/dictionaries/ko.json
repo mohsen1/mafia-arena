@@ -217,5 +217,19 @@
   "landingStatsPlayers": "AI 플레이어",
   "landingStatsLanguages": "언어",
   "landingStatsProviders": "AI 제공업체",
-  "landingStatsRoles": "게임 역할"
+  "landingStatsRoles": "게임 역할",
+  "landingFooterDescription": "지능형 AI 캐릭터와 함께 전통적인 사회적 추리 게임을 다시 경험하세요.",
+  "landingFooterQuickLinks": "빠른 링크",
+  "landingFooterPlayGame": "게임 시작",
+  "landingFooterFeatures": "기능",
+  "landingFooterHowItWorks": "작동 원리",
+  "landingFooterResources": "리소스",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "문서",
+  "landingFooterLanguage": "언어",
+  "landingFooterCopyright": "Next.js와 AI를 사용하여 제작됨 ❤️",
+  "landingNavFeatures": "기능",
+  "landingNavHowItWorks": "작동 원리",
+  "landingNavPlayNow": "지금 플레이",
+  "landingHeroBadge": "🎭 AI 기반 사회적 추리"
 }

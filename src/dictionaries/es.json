@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Jugadores de IA",
   "landingStatsLanguages": "Idiomas",
   "landingStatsProviders": "Proveedores de IA",
-  "landingStatsRoles": "Roles del Juego"
+  "landingStatsRoles": "Roles del Juego",
+  "landingFooterDescription": "Experimenta el clásico juego de deducción social como nunca antes con personajes de inteligencia artificial inteligentes.",
+  "landingFooterQuickLinks": "Enlaces rápidos",
+  "landingFooterPlayGame": "Jugar",
+  "landingFooterFeatures": "Características",
+  "landingFooterHowItWorks": "Cómo funciona",
+  "landingFooterResources": "Recursos",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Documentación",
+  "landingFooterLanguage": "Idioma",
+  "landingFooterCopyright": "Construido con ❤️ usando Next.js y AI.",
+  "landingNavFeatures": "Características",
+  "landingNavHowItWorks": "Cómo Funciona",
+  "landingNavPlayNow": "Jugar Ahora",
+  "landingHeroBadge": "🎭 Dedución Social Impulsada por IA"
 }

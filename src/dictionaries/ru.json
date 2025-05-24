@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Игроки ИИ",
   "landingStatsLanguages": "Языки",
   "landingStatsProviders": "Поставщики ИИ",
-  "landingStatsRoles": "Роли в Игре"
+  "landingStatsRoles": "Роли в Игре",
+  "landingFooterDescription": "Испытайте классическую игру социального выведения, как никогда раньше, с интеллектуальными персонажами ИИ.",
+  "landingFooterQuickLinks": "Быстрые ссылки",
+  "landingFooterPlayGame": "Играть в игру",
+  "landingFooterFeatures": "Функции",
+  "landingFooterHowItWorks": "Как это работает",
+  "landingFooterResources": "Ресурсы",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Документация",
+  "landingFooterLanguage": "Язык",
+  "landingFooterCopyright": "Создано с ❤️ с использованием Next.js и ИИ.",
+  "landingNavFeatures": "Функции",
+  "landingNavHowItWorks": "Как это работает",
+  "landingNavPlayNow": "Играть сейчас",
+  "landingHeroBadge": "🎭 Социальная дедукция с поддержкой ИИ"
 }

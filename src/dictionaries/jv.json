@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Pemain AI",
   "landingStatsLanguages": "Bahasa",
   "landingStatsProviders": "Penyedia AI",
-  "landingStatsRoles": "Peran Permainan"
+  "landingStatsRoles": "Peran Permainan",
+  "landingFooterDescription": "Pengalaman permainan deduksi sosial klasik seperti tidak pernah sebelumnya dengan karakter AI cerdas.",
+  "landingFooterQuickLinks": "Tautan Cepat",
+  "landingFooterPlayGame": "Mainkan Permainan",
+  "landingFooterFeatures": "Fitur",
+  "landingFooterHowItWorks": "Cara Kerjanya",
+  "landingFooterResources": "Sumber Daya",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Dokumentasi",
+  "landingFooterLanguage": "Bahasa",
+  "landingFooterCopyright": "Dibangun dengan ❤️ menggunakan Next.js dan AI.",
+  "landingNavFeatures": "Fitur",
+  "landingNavHowItWorks": "Carane Kerjane",
+  "landingNavPlayNow": "Main Saiki",
+  "landingHeroBadge": "🎭 Deduksi Sosial Sing Dipandhegani AI"
 }

@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Gracze AI",
   "landingStatsLanguages": "Języki",
   "landingStatsProviders": "Dostawcy AI",
-  "landingStatsRoles": "Role Gry"
+  "landingStatsRoles": "Role Gry",
+  "landingFooterDescription": "Doświadcz klasycznej gry społecznej dedukcji jak nigdy wcześniej z inteligentnymi postaciami AI.",
+  "landingFooterQuickLinks": "Szybkie odnośniki",
+  "landingFooterPlayGame": "Zagraj w grę",
+  "landingFooterFeatures": "Funkcje",
+  "landingFooterHowItWorks": "Jak to działa",
+  "landingFooterResources": "Zasoby",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Dokumentacja",
+  "landingFooterLanguage": "Język",
+  "landingFooterCopyright": "Zbudowane z ❤️ przy użyciu Next.js i AI.",
+  "landingNavFeatures": "Funkcje",
+  "landingNavHowItWorks": "Jak to działa",
+  "landingNavPlayNow": "Graj teraz",
+  "landingHeroBadge": "🎭 Dedukcja społeczna wspomagana przez AI"
 }

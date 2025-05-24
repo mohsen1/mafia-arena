@@ -217,5 +217,19 @@
   "landingStatsPlayers": "ผู้เล่น AI",
   "landingStatsLanguages": "ภาษา",
   "landingStatsProviders": "ผู้ให้บริการ AI",
-  "landingStatsRoles": "บทบาทในเกม"
+  "landingStatsRoles": "บทบาทในเกม",
+  "landingFooterDescription": "สัมผัสเกมสоциัลดีดักชั่นคลาสสิกแบบใหม่พร้อมตัวละคร AI ที่ฉลาด",
+  "landingFooterQuickLinks": "ลิงก์เร็ว",
+  "landingFooterPlayGame": "เล่นเกม",
+  "landingFooterFeatures": "คุณสมบัติ",
+  "landingFooterHowItWorks": "วิธีการทำงาน",
+  "landingFooterResources": "ทรัพยากร",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "เอกสาร",
+  "landingFooterLanguage": "ภาษา",
+  "landingFooterCopyright": "สร้างด้วย ❤️ โดยใช้ Next.js และ AI",
+  "landingNavFeatures": "คุณสมบัติ",
+  "landingNavHowItWorks": "วิธีการทำงาน",
+  "landingNavPlayNow": "เล่นตอนนี้",
+  "landingHeroBadge": "🎭 การตรวจสอบทางสังคมที่ขับเคลื่อนด้วย AI"
 }

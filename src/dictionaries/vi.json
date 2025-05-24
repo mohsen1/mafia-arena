@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Người Chơi AI",
   "landingStatsLanguages": "Ngôn Ngữ",
   "landingStatsProviders": "Nhà Cung Cấp AI",
-  "landingStatsRoles": "Vai Trò Trong Trò Chơi"
+  "landingStatsRoles": "Vai Trò Trong Trò Chơi",
+  "landingFooterDescription": "Trải nghiệm trò chơi xã hội suy luận kinh điển như chưa từng có với các nhân vật AI thông minh.",
+  "landingFooterQuickLinks": "Liên kết nhanh",
+  "landingFooterPlayGame": "Chơi trò chơi",
+  "landingFooterFeatures": "Tính năng",
+  "landingFooterHowItWorks": "Cách thức hoạt động",
+  "landingFooterResources": "Tài nguyên",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Tài liệu",
+  "landingFooterLanguage": "Ngôn ngữ",
+  "landingFooterCopyright": "Xây dựng với ❤️ sử dụng Next.js và AI.",
+  "landingNavFeatures": "Tính Năng",
+  "landingNavHowItWorks": "Cách Thức Hoạt Động",
+  "landingNavPlayNow": "Chơi Ngay",
+  "landingHeroBadge": "🎭 Trò Chơi Xác Minh Xã Hội Được Cung Cấp Bởi Trí Tuệ Nhân Tạo"
 }

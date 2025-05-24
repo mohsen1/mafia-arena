@@ -217,5 +217,19 @@
   "landingStatsPlayers": "AIプレイヤー",
   "landingStatsLanguages": "言語",
   "landingStatsProviders": "AIプロバイダー",
-  "landingStatsRoles": "ゲームの役割"
+  "landingStatsRoles": "ゲームの役割",
+  "landingFooterDescription": "知能なAIキャラクターと共に、クラシックなソーシャルディデクションゲームを新たな体験で。",
+  "landingFooterQuickLinks": "クイックリンク",
+  "landingFooterPlayGame": "ゲームをプレイ",
+  "landingFooterFeatures": "機能",
+  "landingFooterHowItWorks": "しくみ",
+  "landingFooterResources": "リソース",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "ドキュメント",
+  "landingFooterLanguage": "言語",
+  "landingFooterCopyright": "Next.jsとAIを使用して作成❤️",
+  "landingNavFeatures": "機能",
+  "landingNavHowItWorks": "しくみ",
+  "landingNavPlayNow": "今すぐプレイ",
+  "landingHeroBadge": "🎭 AI駆動のソーシャルディデクション"
 }

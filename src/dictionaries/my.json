@@ -217,5 +217,19 @@
   "landingStatsPlayers": "အိုင် အီ ကစား သူ များ",
   "landingStatsLanguages": "ဘာသာ စကား များ",
   "landingStatsProviders": "အိုင် အီ ပရို ဗိုင် ဒါ များ",
-  "landingStatsRoles": "ဂိမ်း ဇာတ် ကောင် များ"
+  "landingStatsRoles": "ဂိမ်း ဇာတ် ကောင် များ",
+  "landingFooterDescription": "အသိဉာဏ် AI ဇုန်ဇက်များနှင့် ရိုက်ခတ်ထားသော ကလက်ဆစ် ဆိုရှယ် ဒက်ဒက်ရှင်း ဂိမ်းကို အသစ်အဆန်းတွေ့မြင်ခွင့် ရစေသည်။",
+  "landingFooterQuickLinks": "လျင်မြန်လင့်ခ်များ",
+  "landingFooterPlayGame": "ဂိမ်းကစားမည်",
+  "landingFooterFeatures": "လုပ်ဆောင်ချက်များ",
+  "landingFooterHowItWorks": "အလုပ်လုပ်ပုံ",
+  "landingFooterResources": "အရင်းအမြစ်များ",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "စာတမ်းအထောက်အကူပြုမှု",
+  "landingFooterLanguage": "ဘာသာစကား",
+  "landingFooterCopyright": "Next.js နှင့် AI တို့ကို အသုံးပြု၍ တည်ဆောက်ထားပါသည်။",
+  "landingNavFeatures": "လက်ရှိအင်္ဂါများ",
+  "landingNavHowItWorks": "အလုပ်လုပ်ပုံ",
+  "landingNavPlayNow": "လိုအပ်တယ်",
+  "landingHeroBadge": "🎭 AI-Powered လူမှုဆက်ဆံ ခွဲခြားမှု"
 }

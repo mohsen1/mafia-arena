@@ -217,5 +217,19 @@
   "landingStatsPlayers": "एआई प्लेयर",
   "landingStatsLanguages": "भाषाएं",
   "landingStatsProviders": "एआई प्रदाता",
-  "landingStatsRoles": "गेम भूमिकाएं"
+  "landingStatsRoles": "गेम भूमिकाएं",
+  "landingFooterDescription": "बुद्धिमान एआई पात्रों के साथ क्लासिक सामाजिक अनुमान खेल का अनुभव करें।",
+  "landingFooterQuickLinks": "त्वरित लिंक",
+  "landingFooterPlayGame": "गेम खेलें",
+  "landingFooterFeatures": "विशेषताएं",
+  "landingFooterHowItWorks": "यह कैसे काम करता है",
+  "landingFooterResources": "संसाधन",
+  "landingFooterGitHub": "गिटहब",
+  "landingFooterDocumentation": "दस्तावेज़ीकरण",
+  "landingFooterLanguage": "भाषा",
+  "landingFooterCopyright": "नेक्स्ट.जेएस और एआई का उपयोग करके बनाया गया है ❤️",
+  "landingNavFeatures": "विशेषताएं",
+  "landingNavHowItWorks": "यह कैसे काम करता है",
+  "landingNavPlayNow": "अब खेलें",
+  "landingHeroBadge": "🎭 एआई-संचालित सामाजिक अनुमान"
 }

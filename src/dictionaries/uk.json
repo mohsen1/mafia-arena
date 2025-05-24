@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Гравці ІІ",
   "landingStatsLanguages": "Мови",
   "landingStatsProviders": "Постачальники ІІ",
-  "landingStatsRoles": "Ролі гри"
+  "landingStatsRoles": "Ролі гри",
+  "landingFooterDescription": "Досвідчте класичну гру соціальної детекції, як ніколи раніше, з розумними персонажами штучного інтелекту.",
+  "landingFooterQuickLinks": "Швидкі посилання",
+  "landingFooterPlayGame": "Грати у гру",
+  "landingFooterFeatures": "Функції",
+  "landingFooterHowItWorks": "Як це працює",
+  "landingFooterResources": "Ресурси",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Документація",
+  "landingFooterLanguage": "Мова",
+  "landingFooterCopyright": "Створено з ❤️ за допомогою Next.js та штучного інтелекту.",
+  "landingNavFeatures": "Функції",
+  "landingNavHowItWorks": "Як це працює",
+  "landingNavPlayNow": "Грати зараз",
+  "landingHeroBadge": "🎭 Соціальне визначення з підтримкою штучного інтелекту"
 }

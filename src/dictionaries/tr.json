@@ -217,5 +217,19 @@
   "landingStatsPlayers": "AI Oyuncuları",
   "landingStatsLanguages": "Diller",
   "landingStatsProviders": "AI Sağlayıcıları",
-  "landingStatsRoles": "Oyun Roller"
+  "landingStatsRoles": "Oyun Roller",
+  "landingFooterDescription": "Zeki AI karakterlerle klasik sosyal dedüksiyon oyununu daha önce hiç olmadığı kadar deneyimleyin.",
+  "landingFooterQuickLinks": "Hızlı Bağlantılar",
+  "landingFooterPlayGame": "Oyunu Oyna",
+  "landingFooterFeatures": "Özellikler",
+  "landingFooterHowItWorks": "Nasıl Çalışır",
+  "landingFooterResources": "Kaynaklar",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Belgeler",
+  "landingFooterLanguage": "Dil",
+  "landingFooterCopyright": "Next.js ve AI kullanılarak ❤️ ile inşa edildi.",
+  "landingNavFeatures": "Özellikler",
+  "landingNavHowItWorks": "Nasıl Çalışır",
+  "landingNavPlayNow": "Şimdi Oyna",
+  "landingHeroBadge": "🎭 AI Güçlü Sosyal Dedüksiyon"
 }

@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Giocatori AI",
   "landingStatsLanguages": "Lingue",
   "landingStatsProviders": "Fornitori AI",
-  "landingStatsRoles": "Ruoli del gioco"
+  "landingStatsRoles": "Ruoli del gioco",
+  "landingFooterDescription": "Scopri il classico gioco di deduzione sociale come mai prima d'ora con personaggi AI intelligenti.",
+  "landingFooterQuickLinks": "Collegamenti rapidi",
+  "landingFooterPlayGame": "Gioca",
+  "landingFooterFeatures": "Caratteristiche",
+  "landingFooterHowItWorks": "Come funziona",
+  "landingFooterResources": "Risorse",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Documentazione",
+  "landingFooterLanguage": "Lingua",
+  "landingFooterCopyright": "Realizzato con ❤️ utilizzando Next.js e AI.",
+  "landingNavFeatures": "Caratteristiche",
+  "landingNavHowItWorks": "Come Funziona",
+  "landingNavPlayNow": "Gioca Ora",
+  "landingHeroBadge": "🎭 Deduzione Sociale Potenziata dall'Intelligenza Artificiale"
 }

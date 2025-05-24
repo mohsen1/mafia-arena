@@ -217,5 +217,19 @@
   "landingStatsPlayers": "بازیکنان AI",
   "landingStatsLanguages": "زبان ها",
   "landingStatsProviders": "تأمین کنندگان AI",
-  "landingStatsRoles": "نقش های بازی"
+  "landingStatsRoles": "نقش های بازی",
+  "landingFooterDescription": "بازی تعامل اجتماعی کلاسیک را با شخصیت های هوشمند AI تجربه کنید.",
+  "landingFooterQuickLinks": "پیوند های سریع",
+  "landingFooterPlayGame": "بازی کردن",
+  "landingFooterFeatures": "ویژگی ها",
+  "landingFooterHowItWorks": "چگونگی کار",
+  "landingFooterResources": "منابع",
+  "landingFooterGitHub": "گیتهاب",
+  "landingFooterDocumentation": "مستندات",
+  "landingFooterLanguage": "زبان",
+  "landingFooterCopyright": "ساخته شده با ❤️ با استفاده از Next.js و AI.",
+  "landingNavFeatures": "ویژگی ها",
+  "landingNavHowItWorks": "چطور کار می کند",
+  "landingNavPlayNow": "حالا بازی کن",
+  "landingHeroBadge": "🎭 تشخیص اجتماعی با قدرت هوش مصنوعی"
 }

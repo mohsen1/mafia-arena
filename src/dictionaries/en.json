@@ -242,5 +242,21 @@
   "landingStatsPlayers": "AI Players",
   "landingStatsLanguages": "Languages",
   "landingStatsProviders": "AI Providers",
-  "landingStatsRoles": "Game Roles"
+  "landingStatsRoles": "Game Roles",
+  
+  "landingFooterDescription": "Experience the classic social deduction game like never before with intelligent AI characters.",
+  "landingFooterQuickLinks": "Quick Links",
+  "landingFooterPlayGame": "Play Game",
+  "landingFooterFeatures": "Features",
+  "landingFooterHowItWorks": "How It Works",
+  "landingFooterResources": "Resources",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Documentation",
+  "landingFooterLanguage": "Language",
+  "landingFooterCopyright": "Built with ❤️ using Next.js and AI.",
+  
+  "landingNavFeatures": "Features",
+  "landingNavHowItWorks": "How It Works",
+  "landingNavPlayNow": "Play Now",
+  "landingHeroBadge": "🎭 AI-Powered Social Deduction"
 } 

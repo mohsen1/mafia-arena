@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Halittun AI",
   "landingStatsLanguages": "Harsuna",
   "landingStatsProviders": "Masu Kera AI",
-  "landingStatsRoles": "Batutuwa Na Wasan"
+  "landingStatsRoles": "Batutuwa Na Wasan",
+  "landingFooterDescription": "Tambayi wasan ninkayya na zamani kamar yadda ba ka ta taba shi da halittun AI masu wayo.",
+  "landingFooterQuickLinks": "Hanyoyin Sauro",
+  "landingFooterPlayGame": "Tinka Wasa",
+  "landingFooterFeatures": "Abunbuwa",
+  "landingFooterHowItWorks": "Yadda Yake Aiki",
+  "landingFooterResources": "Albarkatu",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Takardun Bayani",
+  "landingFooterLanguage": "Harshe",
+  "landingFooterCopyright": "An gina shi da ❤️ ta amfani da Next.js da AI.",
+  "landingNavFeatures": "Abun",
+  "landingNavHowItWorks": "Yadda Yake",
+  "landingNavPlayNow": "Taka Yanzu",
+  "landingHeroBadge": "🎭 Social Deduction da aka samar da AI"
 }

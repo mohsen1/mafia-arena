@@ -217,5 +217,19 @@
   "landingStatsPlayers": "KI-Spieler",
   "landingStatsLanguages": "Sprachen",
   "landingStatsProviders": "KI-Anbieter",
-  "landingStatsRoles": "Spielrollen"
+  "landingStatsRoles": "Spielrollen",
+  "landingFooterDescription": "Erleben Sie das klassische soziale Deduktionspiel wie noch nie zuvor mit intelligenten KI-Charakteren.",
+  "landingFooterQuickLinks": "Schnellzugriffe",
+  "landingFooterPlayGame": "Spiel starten",
+  "landingFooterFeatures": "Funktionen",
+  "landingFooterHowItWorks": "So funktioniert es",
+  "landingFooterResources": "Ressourcen",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Dokumentation",
+  "landingFooterLanguage": "Sprache",
+  "landingFooterCopyright": "Erstellt mit ❤️ unter Verwendung von Next.js und KI.",
+  "landingNavFeatures": "Funktionen",
+  "landingNavHowItWorks": "So funktioniert es",
+  "landingNavPlayNow": "Jetzt Spielen",
+  "landingHeroBadge": "🎭 KI-gesteuerte soziale Deduktion"
 }

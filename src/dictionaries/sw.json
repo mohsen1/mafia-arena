@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Wachezaji wa AI",
   "landingStatsLanguages": "Lugha",
   "landingStatsProviders": "Watoa Huduma wa AI",
-  "landingStatsRoles": "Nafasi za Mchezo"
+  "landingStatsRoles": "Nafasi za Mchezo",
+  "landingFooterDescription": "Ujione uzoefu wa juma la kijamii la kufikiri kwa njia ambayo haijawahi kuwepo kabla na wahusika wa AI wenye akili.",
+  "landingFooterQuickLinks": "Viungo Vya Haraka",
+  "landingFooterPlayGame": "Cheza Game",
+  "landingFooterFeatures": "Sifa",
+  "landingFooterHowItWorks": "Jinsi Inavyofanya Kazi",
+  "landingFooterResources": "Rasilimali",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Hati",
+  "landingFooterLanguage": "Lugha",
+  "landingFooterCopyright": "Imejengwa na ❤️ kwa kutumia Next.js na AI.",
+  "landingNavFeatures": "Sifa",
+  "landingNavHowItWorks": "Jinsi Inavyofanya Kazi",
+  "landingNavPlayNow": "Cheza Sasa",
+  "landingHeroBadge": "🎭 Uchambuzi wa Kijamii Unaosukumwa na AI"
 }

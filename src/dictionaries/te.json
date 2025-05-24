@@ -217,5 +217,19 @@
   "landingStatsPlayers": "AI ఆటగాళ్లు",
   "landingStatsLanguages": "భాషలు",
   "landingStatsProviders": "AI సరఫరాదారులు",
-  "landingStatsRoles": "గేమ్ పాత్రలు"
+  "landingStatsRoles": "గేమ్ పాత్రలు",
+  "landingFooterDescription": "మెల్లగా ఆలోచించే AI పాత్రలతో ఈ క్లాసిక్ సోషల్ డెడక్షన్ గేమ్‌ను ముందుగా అనుభవించండి.",
+  "landingFooterQuickLinks": "త్వరిత లింకులు",
+  "landingFooterPlayGame": "గేమ్ ఆడండి",
+  "landingFooterFeatures": "లక్షణాలు",
+  "landingFooterHowItWorks": "ఇది ఎలా పనిచేస్తుంది",
+  "landingFooterResources": "వనరులు",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "డాక్యుమెంటేషన్",
+  "landingFooterLanguage": "భాష",
+  "landingFooterCopyright": "Next.js మరియు AI ఉపయోగించి నిర్మించబడింది. ❤️",
+  "landingNavFeatures": "లక్షణాలు",
+  "landingNavHowItWorks": "ఇది ఎలా పనిచేస్తుంది",
+  "landingNavPlayNow": "ఇప్పుడు ఆడండి",
+  "landingHeroBadge": "🎭 AI-పవర్డ్ సోషల్ డెడక్షన్"
 }

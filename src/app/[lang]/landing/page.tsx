@@ -122,13 +122,13 @@ export default function LandingPage() {
             </div>
             <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-4' : 'space-x-4'}`}>
               <Button variant="ghost" asChild>
-                <Link href="#features">Features</Link>
+                <Link href="#features">{t('landingNavFeatures')}</Link>
               </Button>
               <Button variant="ghost" asChild>
-                <Link href="#how-it-works">How It Works</Link>
+                <Link href="#how-it-works">{t('landingNavHowItWorks')}</Link>
               </Button>
               <Button asChild>
-                <Link href="/">Play Now</Link>
+                <Link href="/">{t('landingNavPlayNow')}</Link>
               </Button>
             </div>
           </div>
@@ -145,7 +145,7 @@ export default function LandingPage() {
           <div className="text-center">
             <div className="mb-8">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary animate-pulse">
-                🎭 AI-Powered Social Deduction
+                {t('landingHeroBadge')}
               </span>
             </div>
             
@@ -391,32 +391,32 @@ export default function LandingPage() {
                 <span className="text-xl font-bold text-foreground">🐺 Werewolf AI</span>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Experience the classic social deduction game like never before with intelligent AI characters.
+                {t('landingFooterDescription')}
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground mb-4">Quick Links</h3>
+              <h3 className="font-semibold text-foreground mb-4">{t('landingFooterQuickLinks')}</h3>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">Play Game</Link></li>
-                <li><Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link></li>
-                <li><Link href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">How It Works</Link></li>
+                <li><Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterPlayGame')}</Link></li>
+                <li><Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterFeatures')}</Link></li>
+                <li><Link href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterHowItWorks')}</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground mb-4">Resources</h3>
+              <h3 className="font-semibold text-foreground mb-4">{t('landingFooterResources')}</h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="https://github.com/mohsen1/werewolf-ai" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">GitHub</a></li>
-                <li><a href="https://github.com/mohsen1/werewolf-ai/blob/main/README.md" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">Documentation</a></li>
+                <li><a href="https://github.com/mohsen1/werewolf-ai" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterGitHub')}</a></li>
+                <li><a href="https://github.com/mohsen1/werewolf-ai/blob/main/README.md" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterDocumentation')}</a></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground mb-4">Language</h3>
+              <h3 className="font-semibold text-foreground mb-4">{t('landingFooterLanguage')}</h3>
               <LanguageSelector currentLang={currentLang} id="footer-language-selector" />
             </div>
           </div>
           <div className="border-t border-border/40 mt-12 pt-8 text-center">
             <p className="text-muted-foreground text-sm">
-              © {new Date().getFullYear()} Werewolf AI. Built with ❤️ using Next.js and AI.
+              © {new Date().getFullYear()} Werewolf AI. {t('landingFooterCopyright')}
             </p>
           </div>
         </div>

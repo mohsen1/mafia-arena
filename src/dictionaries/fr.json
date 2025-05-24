@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Joueurs IA",
   "landingStatsLanguages": "Langues",
   "landingStatsProviders": "Fournisseurs d'IA",
-  "landingStatsRoles": "Rôles du jeu"
+  "landingStatsRoles": "Rôles du jeu",
+  "landingFooterDescription": "Découvrez le jeu de déduction sociale classique comme jamais auparavant avec des personnages intelligents IA.",
+  "landingFooterQuickLinks": "Liens rapides",
+  "landingFooterPlayGame": "Jouer au jeu",
+  "landingFooterFeatures": "Fonctionnalités",
+  "landingFooterHowItWorks": "Fonctionnement",
+  "landingFooterResources": "Ressources",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Documentation",
+  "landingFooterLanguage": "Langue",
+  "landingFooterCopyright": "Construit avec ❤️ en utilisant Next.js et l'IA.",
+  "landingNavFeatures": "Fonctionnalités",
+  "landingNavHowItWorks": "Comment ça marche",
+  "landingNavPlayNow": "Jouer maintenant",
+  "landingHeroBadge": "🎭 Déduction sociale alimentée par l'IA"
 }

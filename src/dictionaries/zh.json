@@ -217,5 +217,19 @@
   "landingStatsPlayers": "AI玩家",
   "landingStatsLanguages": "语言",
   "landingStatsProviders": "AI提供商",
-  "landingStatsRoles": "游戏角色"
+  "landingStatsRoles": "游戏角色",
+  "landingFooterDescription": "体验全新的经典社交推理游戏，拥有智能的AI角色。",
+  "landingFooterQuickLinks": "快速链接",
+  "landingFooterPlayGame": "开始游戏",
+  "landingFooterFeatures": "功能",
+  "landingFooterHowItWorks": "游戏玩法",
+  "landingFooterResources": "资源",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "文档",
+  "landingFooterLanguage": "语言",
+  "landingFooterCopyright": "使用Next.js和AI构建。",
+  "landingNavFeatures": "功能",
+  "landingNavHowItWorks": "如何运作",
+  "landingNavPlayNow": "立即玩",
+  "landingHeroBadge": "🎭 AI驱动的社交推理"
 }

@@ -217,5 +217,19 @@
   "landingStatsPlayers": "لاعبون الذكاء الاصطناعي",
   "landingStatsLanguages": "لغات",
   "landingStatsProviders": "مزودو الذكاء الاصطناعي",
-  "landingStatsRoles": "أدوار اللعبة"
+  "landingStatsRoles": "أدوار اللعبة",
+  "landingFooterDescription": "استمتع بلعبة الاستدلال الاجتماعية الكلاسيكية كما لم تتخيلها من قبل مع شخصيات ذكاء اصطناعي ذكية.",
+  "landingFooterQuickLinks": "روابط سريعة",
+  "landingFooterPlayGame": "لعب اللعبة",
+  "landingFooterFeatures": "الميزات",
+  "landingFooterHowItWorks": "كيف تعمل",
+  "landingFooterResources": "الموارد",
+  "landingFooterGitHub": "جيت هاب",
+  "landingFooterDocumentation": "الوثائق",
+  "landingFooterLanguage": "اللغة",
+  "landingFooterCopyright": "تم بناؤه باستخدام ❤️ Next.js و الذكاء الاصطناعي.",
+  "landingNavFeatures": "الميزات",
+  "landingNavHowItWorks": "كيف يعمل",
+  "landingNavPlayNow": "العب الآن",
+  "landingHeroBadge": "🎭 تحليل اجتماعي مدعوم بالذكاء الاصطناعي"
 }

@@ -217,5 +217,19 @@
   "landingStatsPlayers": "Mga Manlalaro ng AI",
   "landingStatsLanguages": "Mga Wika",
   "landingStatsProviders": "Mga Tagapagbigay ng AI",
-  "landingStatsRoles": "Mga Papel ng Laro"
+  "landingStatsRoles": "Mga Papel ng Laro",
+  "landingFooterDescription": "Makaranas ang klasikong social deduction game tulad ng hindi mo na-experience na noon kasama ang mga intelligent AI characters.",
+  "landingFooterQuickLinks": "Mga Madaling Link",
+  "landingFooterPlayGame": "Laruin ang Laro",
+  "landingFooterFeatures": "Mga Katangian",
+  "landingFooterHowItWorks": "Paano Ito Gumagana",
+  "landingFooterResources": "Mga Sanggunian",
+  "landingFooterGitHub": "GitHub",
+  "landingFooterDocumentation": "Dokumentasyon",
+  "landingFooterLanguage": "Wika",
+  "landingFooterCopyright": "Itinayo na may ❤️ gamit ang Next.js at AI.",
+  "landingNavFeatures": "Mga Katangian",
+  "landingNavHowItWorks": "Paano Ito Gumagana",
+  "landingNavPlayNow": "Laruin Ngayon",
+  "landingHeroBadge": "🎭 Social Deduction na Pinower ng AI"
 }
