@@ -1,6 +1,6 @@
 import { startGameAction } from "@/app/actions/setup.actions";
 import type { StartGameSetupData } from "@/lib/interfaces/actions.types";
-import { DEFAULT_GAME_SETTINGS, calculateNumPlayers } from "@/lib/config";
+import { DEFAULT_GAME_SETTINGS      } from "@/lib/config";
 import { RoleName } from "@/lib/engine/interfaces/IRole";
 import type { Persona } from "@/lib/engine/interfaces/Persona";
 import { Themes } from "@/lib/engine/interfaces/Theme";
@@ -12,10 +12,7 @@ import type { AgentConfig } from "@/lib/interfaces/agent.types";
 import {
     availableModelsByProvider,
     availableProviders,
-    type ModelDefinition,
-    type ProviderDefinition
 } from "@/lib/models";
-import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
 import React from "react";
 
 // Helper function to get the default model for a provider

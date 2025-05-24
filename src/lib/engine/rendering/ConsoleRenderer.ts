@@ -1,14 +1,10 @@
 import type { IGameRenderer } from '../interfaces/IGameRenderer';
 import { type IMessage, MessageVisibility } from '../interfaces/IMessage';
 import type { PlayerId, PublicPlayerInfo } from '../interfaces/IPlayer';
-import type { VisibleGameState } from '../interfaces/GameState';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
 import chalk from 'chalk';
-import { type PlayerAction } from '../interfaces/IAgent';
-import * as readline from 'readline/promises';
-import type { RoleName } from '../interfaces/IRole';
-import { Themes } from '../interfaces/Theme';
-import type { SerializableGameState } from '../../interfaces/persistence.types';
+import type { PlayerAction } from '../interfaces/IAgent';
+import * as readline from 'node:readline/promises';
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -32,7 +28,7 @@ export class ConsoleRenderer implements IGameRenderer {
         console.log(chalk.bgGreen.black.bold(`\n 🔄 ROUND ${round} 🔄 \n`));
     }
 
-    renderPhaseStart(phase: GamePhaseType, _round: number): void {
+    renderPhaseStart(phase: GamePhaseType): void {
         let emoji = '';
         let color = chalk.white;
         
@@ -120,7 +116,7 @@ export class ConsoleRenderer implements IGameRenderer {
     // Restore function signature to satisfy IGameRenderer interface.
     // Implementation remains minimal due to signature mismatch (string vs specific union type for winner)
     // and CLI-only usage. Type mismatch is handled via `as any` cast in cli.ts.
-    renderGameOver(winner: "Town" | "Mafia" | null, finalState: SerializableGameState): void {
+    renderGameOver(winner: "Town" | "Mafia" | null): void {
         console.log("[ConsoleRenderer] renderGameOver called. Winner:", winner);
         // Original implementation commented below:
         /*

@@ -1,4 +1,4 @@
-import type { VisibleGameState } from './GameState';
+
 import type { IMessage } from './IMessage';
 import type { PublicPlayerInfo, PlayerId } from './IPlayer';
 import type { GamePhaseType } from './IGamePhase';

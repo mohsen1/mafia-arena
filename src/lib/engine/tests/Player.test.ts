@@ -1,7 +1,6 @@
 import { Player } from '../core/Player';
 import type { IRole } from '../interfaces/IRole';
 import type { IAgent, PlayerAction } from '../interfaces/IAgent';
-import { PlayerStatus } from '../interfaces/IPlayer';
 import type { VisibleGameState } from '../interfaces/GameState';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { AgentConfig } from '../../interfaces/persistence.types';

@@ -1,7 +1,7 @@
 // src/lib/tests/visibilityHelper.test.ts
 import { describe, it, expect } from 'vitest';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
-import type { SerializableGameState, SerializedMessage, SerializablePlayer } from '@/lib/interfaces/persistence.types';
+import type { SerializableGameState, SerializedMessage } from '@/lib/interfaces/persistence.types';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';

@@ -8,7 +8,6 @@ import type {
   PlayerId,
   ClientMessage,
 } from "./interfaces/gameState.types";
-import type { IMessage } from "./engine/interfaces/IMessage";
 
 /**
  * Filters the complete serializable game state into a view suitable for sending to a specific client.

@@ -11,9 +11,7 @@ import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
 import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
-import { DayPhase } from '@/lib/engine/phases/DayPhase';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
-import type { IGamePhase } from '@/lib/engine/interfaces/IGamePhase'; // Import IGamePhase
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 

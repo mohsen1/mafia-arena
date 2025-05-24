@@ -10,13 +10,11 @@ import { type Persona, DEFAULT_PERSONA } from '@/lib/engine/interfaces/Persona';
 import type { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 
 // --- Mock OpenAI library ---
-vi.mock('openai', async (importActual) => {
-    // Get actual module if needed, but here we replace it entirely
-    // const actual = await importActual('openai');
+vi.mock('openai', async () => {
     const mockCreate = vi.fn();
     const mockCompletions = { create: mockCreate };
     const mockChat = { completions: mockCompletions };
-    const MockOpenAI = vi.fn((_config) => {
+    const MockOpenAI = vi.fn(() => {
         // You could store or assert config.apiKey, config.baseURL here if needed
         return { chat: mockChat };
     });

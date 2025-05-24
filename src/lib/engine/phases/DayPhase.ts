@@ -179,7 +179,7 @@ export class DayPhase extends AbstractGamePhase {
         const alivePlayerCount = game.getAlivePlayers().length;
 
         // Use the votes stored in this.#votes
-        for (const [_voterId, targetId] of this.#votes.entries()) {
+        for (const [, targetId] of this.#votes.entries()) {
             if (targetId !== null) {
                 // Ensure the target still exists and is alive before counting vote
                 const targetPlayer = game.getPlayer(targetId);
@@ -212,7 +212,7 @@ export class DayPhase extends AbstractGamePhase {
             executedPlayerId = playersToExecute[0];
             const executedPlayer = game.getPlayer(executedPlayerId);
             const executedPlayerName = executedPlayer?.name ?? executedPlayerId;
-            const executedPlayerRole = executedPlayer?.role.name ?? 'Unknown Role';
+            // const executedPlayerRole = executedPlayer?.role.name ?? 'Unknown Role';
             game.logMessage(null, translate("ExecutionDecision", game.language, { voteCount: maxVotes, playerName: executedPlayerName }), MessageVisibility.Public);
              // Kill the player and reveal role AFTER logging the decision
              // The killPlayer method itself logs the role based on game settings/rules

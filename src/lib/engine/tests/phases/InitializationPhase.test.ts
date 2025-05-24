@@ -58,8 +58,6 @@ type MockPlayer = {
 
 // Mock Game methods used by the phase
 const mockLogMessage = vi.fn();
-const mockGenRnd = vi.fn();
-const mockGetPlayer = vi.fn();
 const mockGetPlayers = vi.fn();
 
 describe('InitializationPhase', () => {

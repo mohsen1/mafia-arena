@@ -1,7 +1,6 @@
 import { AbstractGamePhase } from './AbstractGamePhase';
 import type { Game } from '../core/Game';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
-import { DayPhase } from './DayPhase';
 import type { PlayerAction } from '../interfaces/IAgent';
 import type { PlayerId } from '../interfaces/IPlayer';
 import type { Player } from '../core/Player';

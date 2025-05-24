@@ -1,5 +1,5 @@
 // tests/phases/DayPhase.test.ts
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DayPhase } from '@/lib/engine/phases/DayPhase';
 import type { Game } from '@/lib/engine/core/Game';
 import { Player } from '@/lib/engine/core/Player';

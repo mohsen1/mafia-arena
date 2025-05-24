@@ -30,7 +30,7 @@ export class GameOverPhase extends AbstractGamePhase {
         return Promise.resolve();
     }
 
-    transition(game: Game): GamePhaseType {
+    transition(): GamePhaseType {
         return 'GameOver';
     }
 }

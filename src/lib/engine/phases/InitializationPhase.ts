@@ -1,8 +1,6 @@
 import { AbstractGamePhase } from './AbstractGamePhase';
 import type { Game } from '../core/Game';
 import type { GamePhaseType } from '../interfaces/IGamePhase';
-import { DayPhase } from './DayPhase'; // Import next phase
-import  { MessageVisibility } from '../interfaces/IMessage';
 import { HumanAgent } from '../agents/HumanAgent'; // Import HumanAgent
 import debug from 'debug';
 // Assuming these imports are correct now or handled elsewhere
@@ -108,7 +106,7 @@ export class InitializationPhase extends AbstractGamePhase {
         // game.logMessage(null, "Roles assigned. Ready to begin.", MessageVisibility.Public, this.type);
     }
 
-    transition(game: Game): GamePhaseType {
+    transition(): GamePhaseType {
         // Once initialization is complete, transition to the first night
         if (this.initializationComplete) {
             return 'Day'; // Go to Day phase after Init for introductions
