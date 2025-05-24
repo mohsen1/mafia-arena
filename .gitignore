@@ -56,3 +56,4 @@ game_saves/
 # Playwright
 playwright-report/
 test-results/
+*.png

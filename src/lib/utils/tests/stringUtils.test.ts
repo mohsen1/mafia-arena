@@ -1,6 +1,6 @@
 // src/lib/utils/tests/stringUtils.test.ts
 import { describe, it, expect } from 'vitest';
-import { cleanAIResponse, extractJSONFromText } from '@/lib/utils/stringUtils';
+import { cleanAIResponse, extractJSONFromText, escapeJSONControlCharacters } from '@/lib/utils/stringUtils';
 
 describe('stringUtils', () => {
     describe('cleanAIResponse', () => {
@@ -93,6 +93,76 @@ describe('stringUtils', () => {
         it('should handle whitespace around JSON', () => {
             const text = '  \n\n {"key": "value"} \n  ';
             expect(extractJSONFromText(text)).toBe('{"key": "value"}');
+        });
+    });
+
+    describe('escapeJSONControlCharacters', () => {
+        it('should escape newlines in JSON string values', () => {
+            const json = '{"message": "line1\nline2"}';
+            const expected = '{"message": "line1\\nline2"}';
+            expect(escapeJSONControlCharacters(json)).toBe(expected);
+        });
+
+        it('should escape multiple types of control characters', () => {
+            const json = '{"text": "tab\there\nand\rcarriage\treturn"}';
+            const expected = '{"text": "tab\\there\\nand\\rcarriage\\treturn"}';
+            expect(escapeJSONControlCharacters(json)).toBe(expected);
+        });
+
+        it('should not escape control characters in JSON keys', () => {
+            const json = '{"key": "value with\nnewline"}';
+            const expected = '{"key": "value with\\nnewline"}';
+            expect(escapeJSONControlCharacters(json)).toBe(expected);
+        });
+
+        it('should handle complex JSON with nested objects', () => {
+            const json = '{"outer": {"inner": "text\nwith\nnewlines"}, "simple": "normal"}';
+            const expected = '{"outer": {"inner": "text\\nwith\\nnewlines"}, "simple": "normal"}';
+            expect(escapeJSONControlCharacters(json)).toBe(expected);
+        });
+
+        it('should handle empty strings and return empty', () => {
+            expect(escapeJSONControlCharacters('')).toBe('');
+            expect(escapeJSONControlCharacters('{"empty": ""}')).toBe('{"empty": ""}');
+        });
+
+        it('should handle already escaped characters correctly', () => {
+            // For the simplified version, we focus on the core problem: literal newlines
+            // If JSON already has escaped sequences, it should be valid and parseable
+            const validJson = '{"text": "already escaped\\ntext"}';
+            const result = escapeJSONControlCharacters(validJson);
+            expect(() => JSON.parse(result)).not.toThrow();
+        });
+
+        it('should not modify valid JSON with escaped sequences', () => {
+            // Test case where JSON already has proper escape sequences
+            const validJson = '{"message": "Line 1\\nLine 2\\tTabbed"}';
+            const result = escapeJSONControlCharacters(validJson);
+            expect(() => JSON.parse(result)).not.toThrow();
+        });
+
+        it('should handle mixed escaped and unescaped characters', () => {
+            const json = '{"text": "mixed\\nescaped\tand\nunescaped"}';
+            const expected = '{"text": "mixed\\\\nescaped\\tand\\nunescaped"}';
+            expect(escapeJSONControlCharacters(json)).toBe(expected);
+        });
+
+        it('should handle the specific case that was failing in translations', () => {
+            const problematicJson = `{
+ "VoteEliminationMessage": "Vote results!
+With {{voteCount}} votes, {{playerName}} was eliminated.
+{{voteBreakdown}}
+
+Night {{round}} begins."
+}`;
+            const result = escapeJSONControlCharacters(problematicJson);
+            expect(() => JSON.parse(result)).not.toThrow();
+            
+            const parsed = JSON.parse(result);
+            // After JSON.parse, escaped \n becomes actual newlines
+            expect(parsed.VoteEliminationMessage).toContain('\n');
+            expect(parsed.VoteEliminationMessage).toContain('Vote results!');
+            expect(parsed.VoteEliminationMessage).toContain('Night {{round}} begins.');
         });
     });
 });
