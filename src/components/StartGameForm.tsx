@@ -374,7 +374,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
               </>
             ) : (
               <>
-                ✨ {t("GenerateAndStartGameButton", "Generate & Start Game")}
+                {t("GenerateAndStartGameButton", "Generate & Start Game")}
               </>
             )}
           </MagicalAIButton>

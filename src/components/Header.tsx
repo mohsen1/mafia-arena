@@ -77,19 +77,19 @@ export function Header({ currentLang }: HeaderProps) {
                     <DropdownMenuItem asChild>
                       <Link href={`/${currentLang}/profile`} className="flex items-center">
                         <User className="w-4 h-4 me-2" />
-                        Profile
+                        {t('common.profile')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href={`/${currentLang}/games`} className="flex items-center">
                         <Gamepad2 className="w-4 h-4 me-2" />
-                        My Games
+                        {t('common.myGames')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="flex items-center">
                       <LogOut className="w-4 h-4 me-2" />
-                      Sign Out
+                      {t('common.signOut')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -99,12 +99,12 @@ export function Header({ currentLang }: HeaderProps) {
               <div className="flex items-center space-x-2">
                 <Button variant="outline" onClick={handleSignIn} className="flex items-center">
                   <LogIn className="w-4 h-4 me-2" />
-                  Sign In
+                  {t('common.signIn')}
                 </Button>
                 <Button asChild className="flex items-center">
                   <Link href={`/${currentLang}/auth/signup`}>
                     <User className="w-4 h-4 me-2" />
-                    Sign Up
+                    {t('common.signUp')}
                   </Link>
                 </Button>
               </div>
