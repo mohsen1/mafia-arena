@@ -116,11 +116,34 @@ jobs:
       - name: TypeScript check for Playwright tests
         run: pnpm tsc --noEmit
 
+      - name: Build application
+        run: pnpm build
+
+      - name: Start production server
+        run: |
+          pnpm start &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+        env:
+          PORT: 3099
+
+      - name: Wait for server to be ready
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:3099/en > /dev/null 2>&1; do sleep 1; done'
+
       - name: Install Playwright browsers
         run: pnpm playwright install --with-deps
 
       - name: Run Playwright tests
         run: pnpm playwright test
+
+      - name: Kill server
+        if: always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill $SERVER_PID || true
+          fi
+          # Kill any remaining processes on port 3099
+          pkill -f ".*3099.*" || true
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
