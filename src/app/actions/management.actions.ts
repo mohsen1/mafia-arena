@@ -11,11 +11,8 @@ import { deleteGameData } from "@/lib/persistence"; // Assuming persistence func
 // };
 
 export async function deleteGameAction(gameId: string): Promise<{ success: boolean; error?: string }> {
-    console.log(`deleteGameAction called for gameId: ${gameId}`);
     try {
-        // Assume deleteGameData throws on actual error, otherwise succeeds
         await deleteGameData(gameId); 
-        console.log(`Game ${gameId} deletion request processed successfully.`);
         revalidatePath('/'); 
         revalidatePath(`/game/${gameId}`);
         return { success: true };

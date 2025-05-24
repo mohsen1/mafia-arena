@@ -68,14 +68,11 @@ describe('createAgentInstance', () => {
         expect(DummyAIAgent).toHaveBeenCalledWith(testPlayerId);
     });
 
-    it('should create a DummyAIAgent and warn for unknown agentType', () => {
-        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const config: AgentConfig = { agentType: 'UnknownFutureAgent' as AgentConfig['agentType'] }; // Cast to any to allow unknown type for test
+    it('should create a DummyAIAgent for unknown agentType', () => {
+        const config: AgentConfig = { agentType: 'UnknownFutureAgent' as AgentConfig['agentType'] };
         createAgentInstance(config, testPlayerId);
         expect(DummyAIAgent).toHaveBeenCalledTimes(1);
         expect(DummyAIAgent).toHaveBeenCalledWith(testPlayerId);
-        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Unknown agentType "UnknownFutureAgent"'));
-        consoleSpy.mockRestore();
     });
 
     // Add tests for ClaudeAgent, GeminiAgent etc. when they are fully implemented

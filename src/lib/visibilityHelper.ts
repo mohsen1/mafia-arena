@@ -33,13 +33,13 @@ export function filterGameStateForClient(
       name: p.name,
       status: p.status,
       role:
-        isObserver || // Observers can see all roles
+        isObserver ||
         viewingPlayerId === p.id ||
         fullState.phase === "GameOver" ||
         p.status === "Dead"
           ? p.roleName
-          : undefined, // Role is hidden for living players unless it's self, observer mode, or game over
-      imageUrl: p.imageUrl ?? null, // Pass imageUrl from SerializablePlayer
+          : undefined,
+      imageUrl: p.imageUrl ?? null,
     };
     playersRecord[p.id] = filteredPlayer;
   }
@@ -58,7 +58,6 @@ export function filterGameStateForClient(
     }))
     .filter((msg) => {
       if (msg.visibility === MessageVisibility.Mafia) {
-        // Observers can see mafia chat, or if viewing player is mafia
         return isObserver || isViewingPlayerMafia;
       }
       return true;
