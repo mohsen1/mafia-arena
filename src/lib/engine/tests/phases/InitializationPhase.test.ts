@@ -160,7 +160,7 @@ describe('InitializationPhase', () => {
         // Ensure runStep completes and sets initializationComplete to true
         await initPhase.runStep(mockGameInstance as Game);
         
-        const nextPhaseType = initPhase.transition(mockGameInstance as Game);
+        const nextPhaseType = initPhase.transition();
         expect(nextPhaseType).toBe('Day'); // Check for phase type string 'Day'
     });
 }); 

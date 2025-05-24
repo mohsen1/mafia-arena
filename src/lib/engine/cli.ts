@@ -350,11 +350,11 @@ async function main() {
                  const providerApiKey = config.provider?.apiKeyEnvVar ? process.env[config.provider.apiKeyEnvVar] : undefined;
                  const apiKeyToSend = (config.provider?.value === 'ollama_local' && (!providerApiKey || providerApiKey === 'OLLAMA_API_KEY')) ? undefined : providerApiKey;
                  // AgentClass is OpenAIAgent for these types
-                 agent = new AgentClass(agentId, config.model, config.provider?.endpoint, apiKeyToSend); // Pass ID
+                 agent = new AgentClass(agentId, config.model as any || 'gpt-4o-mini', config.provider?.endpoint, apiKeyToSend); // Pass ID
             } else if (config.agentType === 'Claude') {
-                 agent = new ClaudeAgent(agentId, config.model); // Pass ID
+                 agent = new ClaudeAgent(agentId, config.model || 'claude-3-haiku-20240307'); // Pass ID
             } else if (config.agentType === 'Gemini') {
-                 agent = new GeminiAgent(agentId, config.model); // Pass ID
+                 agent = new GeminiAgent(agentId, config.model || 'gemini-1.5-flash'); // Pass ID
             }
             else { // Dummy
                  agent = new DummyAIAgent(agentId); // Pass ID
