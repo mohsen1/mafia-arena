@@ -1,13 +1,12 @@
 import type { GamePhaseType } from '@/lib/engine/interfaces/IGamePhase';
 import type { RoleName, Allegiance } from '@/lib/engine/interfaces/IRole';
 import type { PlayerId, PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
-import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory'; // Reusable? Ensure serializability
+import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import type { LanguageName } from '@/lib/i18n/settings';
-import type { Persona } from '@/lib/engine/interfaces/Persona'; // Reusable engine type
-import type { MessageVisibility } from '@/lib/engine/interfaces/IMessage'; // Import MessageVisibility
+import type { Persona } from '@/lib/engine/interfaces/Persona';
+import type { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 
-// Import other necessary application-specific types
-import type { PendingHumanAction } from './actions.types'; // Assuming definition moved
+import type { PendingHumanAction } from './actions.types';
 
 // Configuration needed to re-instantiate an agent
 export interface AgentConfig {

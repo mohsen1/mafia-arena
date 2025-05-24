@@ -33,7 +33,6 @@ export async function loadGameData(gameId: string): Promise<SerializableGameStat
     try {
         const data = await fs.readFile(filePath, 'utf-8');
         // TODO: Implement proper deserialization for Date, Map, Set if needed
-        // Example: Reviver function for JSON.parse
         const gameState: SerializableGameState = JSON.parse(data);
         return gameState;
     } catch (error: unknown) {
@@ -56,7 +55,6 @@ export async function saveGameData(gameId: string, gameState: SerializableGameSt
     const filePath = getFilePath(gameId);
     try {
         // TODO: Implement proper serialization for Date, Map, Set if needed
-        // Example: Replacer function for JSON.stringify
         const data = JSON.stringify(gameState, null, 2); // Pretty print JSON
         await fs.writeFile(filePath, data, 'utf-8');
         console.log(`Game data saved for gameId: ${gameId}`);

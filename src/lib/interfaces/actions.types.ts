@@ -3,7 +3,7 @@ import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import type { AgentConfig } from "./agent.types";
 import type { FilteredGameState } from "./gameState.types";
 import type { LanguageCode } from "@/lib/i18n/settings";
-import type { RoleName } from "../engine/interfaces/IRole"; // Assuming RoleName path
+import type { RoleName } from "../engine/interfaces/IRole";
 
 /**
  * Represents an action that requires input from a human player.
@@ -11,7 +11,7 @@ import type { RoleName } from "../engine/interfaces/IRole"; // Assuming RoleName
 export interface PendingHumanAction {
     playerId: PlayerId;
     allowedActions: PlayerAction['type'][];
-    prompt: string; // A description of what action is needed
+    prompt: string;
 }
 
 /**
@@ -26,18 +26,8 @@ export interface StartGameSetupData {
     rolePreference: RoleName;
     isHuman: boolean;
     imageUrl: string | null;
-    agentConfig: AgentConfig; // Specific config for this player (Human or AI variant)
+    agentConfig: AgentConfig;
   }>;
-
-  // DEPRECATED Fields - replaced by `players` array
-  // playerCount: number;
-  // humanPlayerName?: string;
-  // humanPlayerIndex: number; // -1 if no human player
-  // humanRolePreference?: RoleName; // Optional role preference for the human
-  // townAgentConfig: AgentConfig; // Configuration for Town AI agents
-  // mafiaAgentConfig: AgentConfig; // Configuration for Mafia AI agents
-  // Optional: Add specific role distribution settings if needed
-  // roleSettings?: Partial<Record<RoleName, number>>;
 }
 
 /**
@@ -46,7 +36,7 @@ export interface StartGameSetupData {
 export interface StartGameResult {
   gameId: string;
   initialState: FilteredGameState;
-  error?: undefined; // Explicitly undefined on success
+  error?: undefined;
 }
 
 /**
@@ -69,7 +59,6 @@ export interface HumanActionPayload {
   content?: string;
   /** Target player ID, if type is 'vote' or a night action targeting a player. Allow null for skip/abstain. */
   targetPlayerId?: string | null;
-  // Add other potential payload fields as needed
 }
 
 // We can add types for other actions (advanceGameState, deleteGame) if needed,

@@ -1,4 +1,4 @@
-import type { IPlayer, PlayerId, PlayerStatus, PublicPlayerInfo } from '../interfaces/IPlayer';
+import type { PlayerId, PublicPlayerInfo } from '../interfaces/IPlayer';
 import { Player } from './Player';
 import type { IGamePhase, GamePhaseType } from '../interfaces/IGamePhase';
 import { InitializationPhase } from '../phases/InitializationPhase';
@@ -16,7 +16,7 @@ import type { IAgent, PlayerAction } from '../interfaces/IAgent';
 import { HumanAgent } from '../agents/HumanAgent';
 import { type GameTheme, Themes } from '../interfaces/Theme';
 import { type AgentMemory, createInitialMemory } from '../interfaces/AgentMemory';
-import { DEFAULT_PERSONA, type Persona } from '../interfaces/Persona';
+import { DEFAULT_PERSONA} from '../interfaces/Persona';
 
 import type { SerializableGameState, SerializablePlayer, AgentConfig } from '../../interfaces/persistence.types';
 import { createAgentInstance } from '@/lib/agentFactory';
@@ -40,6 +40,7 @@ const roleClassMap: Record<RoleName, new () => IRole> = {
 // Allow null for unimplemented phases
 // For GameOverPhase, it takes an optional winner. Other phases might take other specific args or none.
 // Using a more general type that can encompass these variations.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PhaseConstructor = (new (...args: any[]) => IGamePhase) | null;
 
 const phaseInstanceMap: Record<GamePhaseType, PhaseConstructor> = {
@@ -104,7 +105,7 @@ export class Game {
     #initialMemoriesCreated = false;
 
     private constructor(
-        playerSetups: { name: string; agent: IAgent; role: IRole }[] | null, // null for loading
+        playerSetups: { name: string; agent: IAgent; role: IRole; imageUrl?: string | null }[] | null, // null for loading
         themeKey: string,
         language: LanguageName,
         gameId?: string, 
@@ -147,7 +148,7 @@ export class Game {
                 
                 const agentConfig = getAgentConfigFromInstance(setup.agent);
                 
-                const player = new Player(playerId, setup.name, setup.role, setup.agent, agentConfig, (setup as any).imageUrl /* Assuming imageUrl might be on setup */);
+                const player = new Player(playerId, setup.name, setup.role, setup.agent, agentConfig, setup.imageUrl /* Using the imageUrl from setup */);
                 this.#players.set(playerId, player);
                 this.#agentMemories.set(playerId, createInitialMemory());
                 if (setup.agent instanceof HumanAgent) {
@@ -168,7 +169,7 @@ export class Game {
     }
 
     public static createNewGame(
-        playerSetups: { name: string; agent: IAgent; role: IRole }[],
+        playerSetups: { name: string; agent: IAgent; role: IRole; imageUrl?: string | null }[],
         themeKey = 'UK_VILLAGE_1900S',
         language: LanguageName = 'en'
     ): Game {
@@ -302,11 +303,12 @@ export class Game {
 
     notifyRenderers<T extends keyof IGameRenderer>(
         method: T,
-        ...args: any[] 
+        ...args: unknown[]
     ): void {
         for (const renderer of this.#renderers) {
             if (typeof renderer[method] === 'function') {
                 try {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (renderer[method] as (...a: any[]) => any)(...args);
                 } catch (error) {
                     console.error(`Renderer error in method ${String(method)}:`, error);

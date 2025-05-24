@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, vi, type Mock, type MockedFunction } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type MockedFunction } from 'vitest';
 import { Game } from '@/lib/engine/core/Game';
 import { Player } from '@/lib/engine/core/Player';
-// import { ConversationLog } from '@/lib/engine/core/ConversationLog'; // Unused
 import { PlayerStatus, type PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
@@ -11,7 +10,6 @@ import { NightPhase } from '@/lib/engine/phases/NightPhase';
 import { DoctorRole } from '@/lib/engine/roles/DoctorRole';
 import { SeerRole } from '@/lib/engine/roles/SeerRole';
 import { Message } from '@/lib/engine/core/Message';
-// import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
 
 // Mock role implementations
 const mockVillagerRole: IRole = {
@@ -62,7 +60,6 @@ describe('Game', () => {
     let villager3Id: PlayerId;
     let mafia1Id: PlayerId;
     let mafia2Id: PlayerId;
-    let allPlayerIds: PlayerId[];
 
     // Helper to get a player's agent mock using the *actual* ID
     const getAgentMock = (playerId: PlayerId) => {
@@ -107,12 +104,6 @@ describe('Game', () => {
         villager3Id = actualPlayers.find(p => p.name === playerNames[2])!.id;
         mafia1Id = actualPlayers.find(p => p.name === playerNames[3])!.id;
         mafia2Id = actualPlayers.find(p => p.name === playerNames[4])!.id;
-        allPlayerIds = [villager1Id, villager2Id, villager3Id, mafia1Id, mafia2Id];
-
-        // --- Verify agents have been assigned the correct IDs by the constructor --- 
-        // Removed check: Agent no longer stores playerId directly. It's passed via gameState.
-        // expect(game.getPlayer(villager1Id)?.agent.playerId).toBe(villager1Id);
-        // expect(game.getPlayer(mafia1Id)?.agent.playerId).toBe(mafia1Id);
     });
 
     describe('Game initialization', () => {
@@ -371,7 +362,6 @@ describe('Game', () => {
              // Mock agents using actual IDs
              const mafiaAgent1 = getAgentMock(mafia1Id);
              const mafiaAgent2 = getAgentMock(mafia2Id);
-             const villagerAgent1 = getAgentMock(villager1Id);
              const villagerAgent2 = getAgentMock(villager2Id);
              const villagerAgent3 = getAgentMock(villager3Id);
 
@@ -661,9 +651,9 @@ describe('Game', () => {
         it('should include relevant message history in agent memory', () => {
              // Need to advance round slightly for messages to have a round number if DayPhase increments first
              // For simplicity, assume round is managed correctly elsewhere or messages adapt
-             const msg1 = game.logMessage(villager1Id, "Hello public", MessageVisibility.Public);
-             const msg2 = game.logMessage(mafia1Id, "Mafia secret chat", MessageVisibility.Mafia, 'Night');
-             const msg3 = game.logMessage(null, "System message", MessageVisibility.Public);
+             game.logMessage(villager1Id, "Hello public", MessageVisibility.Public);
+             game.logMessage(mafia1Id, "Mafia secret chat", MessageVisibility.Mafia, 'Night');
+             game.logMessage(null, "System message", MessageVisibility.Public);
 
              // Check Villager state
              const v1State = game.generateVisibleGameState(villager1Id);

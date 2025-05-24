@@ -8,7 +8,10 @@ import {
   useEffect,
 } from "react";
 import type { Dispatch, SetStateAction, ReactNode } from "react";
-// Import translation utilities and types
+import { useSpokenText } from "./SpokenTextContext";
+import type { FilteredGameState } from "@/lib/interfaces/gameState.types";
+import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
+
 // import type { LanguageCode, LanguageName } from "@/lib/translation/languages";
 // import { mapLanguageNameToCode } from "@/lib/translation/languages";
 // import { getOrGenerateTranslationsAction } from "@/app/actions/index";
@@ -16,15 +19,14 @@ import type { Dispatch, SetStateAction, ReactNode } from "react";
 // import { useTranslation } from "react-i18next";
 // Import the custom client hook
 // import { useTranslation } from "@/lib/i18n/client";
-import { useSpokenText } from "./SpokenTextContext"; // Import useSpokenText
 // Import mapping function
 // import { mapLanguageNameToCode } from "@/lib/i18n/settings";
 // Import GameState, ChatMessage, Player
 // import { GameState, ChatMessage, Player } from "@/lib/types/game";
 // Import GameState
-import type { FilteredGameState } from "@/lib/interfaces/gameState.types";
+// import type { FilteredGameState } from "@/lib/interfaces/gameState.types";
 // Import HumanActionPayload
-import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
+// import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
 
 // Define the payload type based on the server action - REMOVED Local Definition
 // This should match the definition in GameClient.tsx and the expected server action input
@@ -47,12 +49,6 @@ interface GameContextState {
   stopCurrentAudio: () => void; // Function to stop whatever MessageBubble is playing
   registerStopAudio: (messageId: string, stopFn: () => void) => void;
   unregisterStopAudio: (messageId: string) => void;
-  // Remove custom translation state fields
-  // translations: Record<string, string>;
-  // isTranslationLoading: boolean;
-  // translationError: string | null;
-  // t: TFunction; // Removed
-  // Add global audio state
   isAudioGloballyEnabled: boolean;
   toggleAudioGloballyEnabled: () => void;
   // Add the missing function type

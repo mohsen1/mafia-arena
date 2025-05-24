@@ -1,9 +1,10 @@
-import React, {
+import type React from "react";
+import {
   createContext,
   useState,
   useContext,
   useCallback,
-  ReactNode,
+  type ReactNode,
   useRef,
   useEffect,
 } from "react";
@@ -35,8 +36,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
   const [queueVersion, setQueueVersion] = useState(0);
   const playbackQueueRef = useRef<string[]>([]);
   const subscribersRef = useRef<Set<OnDoneSpeakingCallback>>(new Set());
-  const [isAudioGloballyEnabled /*, setIsAudioGloballyEnabled */] =
-    useState<boolean>(true);
+  const [isAudioGloballyEnabled] = useState<boolean>(true);
 
   // Internal function to start the next item in the queue if possible
   const playNextInQueue = useCallback(() => {
@@ -60,7 +60,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
         setCurrentlySpeakingId(nextId); // Grant speaking slot to the next ID
       } else {
         console.log(
-          `[SpokenTextContext] Dequeue failed, queue was likely empty.`,
+          "[SpokenTextContext] Dequeue failed, queue was likely empty.",
         );
       }
     } else {
@@ -151,8 +151,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
         setCurrentlySpeakingId(null);
 
         // Notify subscribers (optional)
-        const currentSubscribers = Array.from(subscribersRef.current);
-        currentSubscribers.forEach((callback) => {
+        for (const callback of subscribersRef.current) {
           try {
             callback(id);
           } catch (error) {
@@ -161,7 +160,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
               error,
             );
           }
-        });
+        }
 
         // Schedule playNextInQueue - it will internally check if audio is enabled
         Promise.resolve().then(() => {

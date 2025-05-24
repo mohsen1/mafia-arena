@@ -8,17 +8,15 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import type { LanguageCode as Locale } from "@/lib/i18n/settings";
 import { useTranslation } from "react-i18next";
 import type { AgentConfig } from "@/lib/interfaces/agent.types";
-// import { useRouter } from "next/navigation";
 import {
     availableModelsByProvider,
     availableProviders,
 } from "@/lib/models";
 import React from "react";
 
-// Helper function to get the default model for a provider
 const getDefaultModelForProvider = (providerValue: string): string => {
     if (providerValue === 'groq') {
-        return 'gemma2-9b-it'; // Specific default for Groq
+        return 'gemma2-9b-it';
     }
     const models = availableModelsByProvider[providerValue];
     if (models && models.length > 0) {
@@ -26,7 +24,7 @@ const getDefaultModelForProvider = (providerValue: string): string => {
         return defaultModel?.value ?? models[0].value;
     }
     
-    return ""; // Fallback
+    return "";
 };
 
 export interface UICharacterProfile {
@@ -38,7 +36,7 @@ export interface UICharacterProfile {
 
 export interface ConfigCharacterSlot {
     clientId: string;
-    provider: string; // Added provider field
+    provider: string;
     aiModel: string;
     roleSelection: RoleName;
     assignedRole?: RoleName;
@@ -53,7 +51,7 @@ export interface ConfigCharacterSlot {
 export interface PlayerInitializationData {
     role: RoleName;
     profile: UICharacterProfile;
-    provider: string; // Added provider field
+    provider: string;
     aiModel: string;
     imageUrl?: string | null;
     persona?: Persona;
@@ -61,44 +59,35 @@ export interface PlayerInitializationData {
     isHuman: boolean;
 }
 
-// Helper function to map provider value to agent type string expected by factory
 const getAgentTypeFromProvider = (providerValue?: string): string => {
-    if (!providerValue) return 'Dummy'; // Default or handle error
+    if (!providerValue) return 'Dummy';
     switch (providerValue) {
         case 'groq': return 'Groq';
         case 'ollama_local': return 'Ollama';
         case 'fireworks': return 'Fireworks';
         case 'openai': return 'OpenAI';
-        // Add mappings for Claude/Gemini if they have providerValues
-        // case 'anthropic': return 'Claude';
-        // case 'google': return 'Gemini';
         default:
             console.warn(`Unknown provider value "${providerValue}" in useGameConfig. Defaulting agentType to OpenAI.`);
-            return 'OpenAI'; // Or perhaps 'Dummy' or throw error
+            return 'OpenAI';
     }
 };
 
-// Remove availableModels from arguments, we import them now
 export function useGameConfig(
     lang: Locale,
-    useSeparateMafiaConfig: boolean, // Flag to indicate separate config
-    mafiaProviderSelection?: string, // Optional Mafia provider
-    mafiaModelSelection?: string     // Optional Mafia model
+    useSeparateMafiaConfig: boolean,
+    mafiaProviderSelection?: string,
+    mafiaModelSelection?: string
 ) {
     const { t } = useTranslation('translation');
-    // const router = useRouter();
 
-    // State for selected game theme
-    const firstThemeKey = Object.keys(Themes)[0] || 'UK_VILLAGE_1900S'; // Fallback
+    const firstThemeKey = Object.keys(Themes)[0] || 'UK_VILLAGE_1900S';
     const [selectedGameThemeKey, setSelectedGameThemeKey] = useState<string>(firstThemeKey);
 
-    // Define the initial provider
     const initialProvider = 'groq';
     
-    // State for global provider and model, initialized together
     const [globalProviderSelection, setGlobalProviderSelection] =
         useState<string>(initialProvider);
-    const [globalModelSelection, setGlobalModelSelection] = useState<string>(() => getDefaultModelForProvider(initialProvider)); // Initialize with default model
+    const [globalModelSelection, setGlobalModelSelection] = useState<string>(() => getDefaultModelForProvider(initialProvider));
 
     const [characterSlots, setCharacterSlots] = useState<ConfigCharacterSlot[]>(
         [],
@@ -109,30 +98,20 @@ export function useGameConfig(
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [initialSlotsSet, setInitialSlotsSet] = useState(false);
     const [infoMsg, setInfoMsg] = useState<string | null>("InitialConfigPrompt");
-    const [isLoadingNextTurn /*, setIsLoadingNextTurn */] = useState(false);
+    const [isLoadingNextTurn] = useState(false);
     const [isHumanJoining, setIsHumanJoining] = useState<boolean>(false);
     const [humanRoleSelection, setHumanRoleSelection] = useState<RoleName>(
         (DEFAULT_GAME_SETTINGS.roleDistribution && Object.keys(DEFAULT_GAME_SETTINGS.roleDistribution)[0] as RoleName) || RoleName.Villager
     );
 
-    // Effect to initialize or update character slots based on structural changes only
-    /* eslint-disable react-hooks/exhaustive-deps */
     useEffect(() => {
-        // Wait until provider and model have values (can happen after initial mount)
-        // globalProviderSelection and globalModelSelection are intentionally not dependencies
         if (!globalProviderSelection || !globalModelSelection) {
             return;
         }
 
-        // Skip if slots are already initialized and we're just changing provider/model
-        // (that's handled by updateAllProvidersAndModels)
         if (initialSlotsSet) {
-            // This effect should only re-run for structural changes (human joining status)
-            // Check if human status has actually changed
-            // characterSlots is intentionally not a dependency here
             const currentSlotsArePopulated = characterSlots.length > 0;
             if (currentSlotsArePopulated) {
-                // characterSlots.some is intentionally not a dependency here
                 const hasHumanSlot = characterSlots.some(slot => slot.isHuman);
                 if (hasHumanSlot === isHumanJoining) {
                     return;
@@ -140,10 +119,8 @@ export function useGameConfig(
             }
         }
 
-        // Calculate initial player count and roles
-        const initialPlayerCount = 9; // Default player count
+        const initialPlayerCount = 9;
         
-        // Role distribution for 9 players (optimize by using a constant)
         const DEFAULT_ROLE_DISTRIBUTION = {
             [RoleName.Mafia]: 2,
             [RoleName.Seer]: 1,
@@ -153,73 +130,61 @@ export function useGameConfig(
         
         const tempRoleDist = { ...DEFAULT_ROLE_DISTRIBUTION };
 
-        // Adjust for human player
         if (isHumanJoining) {
             if (tempRoleDist[humanRoleSelection] > 0) {
                 tempRoleDist[humanRoleSelection]--;
             } else {
-                // If no slots available for the selected role, reduce Villagers
                 if (tempRoleDist[RoleName.Villager] > 0) {
                     tempRoleDist[RoleName.Villager]--;
                 }
             }
         }
 
-        // Build roles array for AI slots using the adjusted distribution (optimize with flatMap)
         const aiRoles: RoleName[] = Object.entries(tempRoleDist).flatMap(
             ([role, count]) => Array(count).fill(role as RoleName)
         );
 
-        // Determine number of AI players needed
         const numAiPlayers = initialPlayerCount - (isHumanJoining ? 1 : 0);
 
-        // Adjust aiRoles array length efficiently
         if (aiRoles.length < numAiPlayers) {
-            // Fill remaining AI slots with Villagers
             aiRoles.push(...Array(numAiPlayers - aiRoles.length).fill(RoleName.Villager));
         } else if (aiRoles.length > numAiPlayers) {
-            // Remove excess roles, preferring to remove Villagers first
             while (aiRoles.length > numAiPlayers) {
                 const villagerIndex = aiRoles.lastIndexOf(RoleName.Villager);
                 if (villagerIndex !== -1) {
                     aiRoles.splice(villagerIndex, 1);
                 } else {
-                    aiRoles.pop(); // Remove last role if no more villagers
+                    aiRoles.pop();
                 }
             }
         }
 
-        // Shuffle AI roles for randomness (optimize with Fisher-Yates)
         for (let i = aiRoles.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [aiRoles[i], aiRoles[j]] = [aiRoles[j], aiRoles[i]];
         }
 
-        // Create initial slots based on final structure (optimize by pre-allocating array)
         const initialSlots: ConfigCharacterSlot[] = [];
-        let playerIndex = 1; // Start numbering players from 1
+        let playerIndex = 1;
         
         if (isHumanJoining) {
             initialSlots.push({
                 clientId: crypto.randomUUID(),
-                provider: "", // No provider/model for human
+                provider: "",
                 aiModel: "",
                 roleSelection: humanRoleSelection,
                 isGenerated: false,
                 isHuman: true,
-                // Assign default human name initially
                 profile: { characterName: t('DefaultHumanPlayerName', `Player ${playerIndex}`) }
             });
             playerIndex++;
         }
         
-        // Pre-allocate and fill AI slots more efficiently
         for (let i = 0; i < numAiPlayers; i++) {
             initialSlots.push({
                 clientId: crypto.randomUUID(),
-                // globalProviderSelection and globalModelSelection are intentionally not dependencies
-                provider: globalProviderSelection, // Use current global provider
-                aiModel: globalModelSelection,    // Use current global model
+                provider: globalProviderSelection,
+                aiModel: globalModelSelection,
                 roleSelection: aiRoles[i] || RoleName.Villager,
                 isGenerated: false,
                 isHuman: false,
@@ -228,52 +193,29 @@ export function useGameConfig(
             playerIndex++;
         }
 
-        // Batch state updates
         setCharacterSlots(initialSlots);
-        setInitialSlotsSet(true); // Set this only after full successful initialization
+        setInitialSlotsSet(true);
     }, [
-        // Key dependencies that SHOULD trigger re-creation of slots:
         isHumanJoining, 
         humanRoleSelection, 
-        initialSlotsSet, // Runs when false, then becomes true
-        t, // If translations affect slot defaults
-        // NOTE: The following dependencies are intentionally EXCLUDED for performance:
-        // - globalProviderSelection and globalModelSelection: Changes to these should not
-        //   cause this entire effect to re-run and regenerate clientIds. They are handled
-        //   separately by updateAllProvidersAndModels.
-        // - characterSlots.length and characterSlots.some: These are read inside the effect
-        //   for conditional logic but should not trigger re-runs.
+        initialSlotsSet,
+        t,
     ]);
-    /* eslint-enable react-hooks/exhaustive-deps */
 
     const configValidation = useMemo(() => {
-        const start = performance.now();
-        log('configValidation calculation started');
-        
-        // Cache the length to avoid repeated access
         const slotsCount = characterSlots.length;
         
-        // Early return for minimum player check
         if (slotsCount < 5) {
-            const result = { isValid: false, message: t("MinPlayerValidationError", { min: 5 }) };
-            const end = performance.now();
-            log(`configValidation (min players) completed in ${(end - start).toFixed(2)}ms`);
-            return result;
+            return { isValid: false, message: t("MinPlayerValidationError", { min: 5 }) };
         }
 
-        // Pre-filter AI slots for efficiency
         const aiSlots = characterSlots.filter(slot => !slot.isHuman);
         
-        // Check if provider/model is set for all AI slots
         const aiSlotsValid = aiSlots.every(slot => slot.provider && slot.aiModel);
         if (!aiSlotsValid) {
-            const result = { isValid: false, message: t("ProviderModelMissingValidationError", "Provider/Model must be set for all AI players.") };
-            const end = performance.now();
-            log(`configValidation (provider/model) completed in ${(end - start).toFixed(2)}ms`);
-            return result;
+            return { isValid: false, message: t("ProviderModelMissingValidationError", "Provider/Model must be set for all AI players.") };
         }
 
-        // Check for duplicate names (case-insensitive) - optimize by using a single pass
         const nameSet = new Set<string>();
         let hasEmptyName = false;
         
@@ -281,34 +223,23 @@ export function useGameConfig(
             const name = slot.profile?.characterName?.trim();
             if (!name) {
                 hasEmptyName = true;
-                break; // Early exit if empty name found
+                break;
             }
             
             const lowerName = name.toLowerCase();
             if (nameSet.has(lowerName)) {
-                const result = { isValid: false, message: t("DuplicatePlayerNameValidationError", "Player names must be unique.") };
-                const end = performance.now();
-                log(`configValidation (duplicate names) completed in ${(end - start).toFixed(2)}ms`);
-                return result;
+                return { isValid: false, message: t("DuplicatePlayerNameValidationError", "Player names must be unique.") };
             }
             nameSet.add(lowerName);
         }
         
-        // Check for empty names
         if (hasEmptyName) {
-            const result = { isValid: false, message: t("EmptyPlayerNameValidationError", "Player names cannot be empty.") };
-            const end = performance.now();
-            log(`configValidation (empty names) completed in ${(end - start).toFixed(2)}ms`);
-            return result;
+            return { isValid: false, message: t("EmptyPlayerNameValidationError", "Player names cannot be empty.") };
         }
 
-        const result = { isValid: true, message: null };
-        const end = performance.now();
-        log(`configValidation (success) completed in ${(end - start).toFixed(2)}ms`);
-        return result;
+        return { isValid: true, message: null };
     }, [characterSlots, t]);
 
-    // Memoize expensive derived values with more granular dependencies
     const memoizedValues = useMemo(() => {
         const canAttemptStart = configValidation.isValid && !isSubmitting;
         const totalSlots = characterSlots.length;
@@ -318,14 +249,13 @@ export function useGameConfig(
 
     const { canAttemptStart, totalSlots } = memoizedValues;
 
-    // Add player slot using global selections
     const addPlayerSlot = useCallback(() => {
         setCharacterSlots((prev) => [
             ...prev,
             {
                 clientId: crypto.randomUUID(),
-                provider: globalProviderSelection, // Use global provider
-                aiModel: globalModelSelection, // Use global model
+                provider: globalProviderSelection,
+                aiModel: globalModelSelection,
                 roleSelection: RoleName.Villager,
                 isGenerated: false,
                 isHuman: false,
@@ -340,8 +270,6 @@ export function useGameConfig(
                 const updatedSlots = prev.filter((c) => c.clientId !== clientIdToRemove);
                 if (slotToRemove?.isHuman) {
                     setIsHumanJoining(false);
-                    // Maybe re-trigger initial slot setup if human removed?
-                    // setInitialSlotsSet(false);
                 }
                 return updatedSlots;
             });
@@ -349,7 +277,6 @@ export function useGameConfig(
         []
     );
 
-    // Update a single slot's provider and model
     const updateSlotProviderAndModel = useCallback(
         (clientId: string, provider: string, newModel: string) => {
             setCharacterSlots((prev) =>
@@ -363,7 +290,6 @@ export function useGameConfig(
         []
     );
 
-    // NEW: Update a single slot's name
     const updateSlotName = useCallback(
         (clientId: string, newName: string) => {
             setCharacterSlots((prev) =>
@@ -377,29 +303,25 @@ export function useGameConfig(
         []
     );
 
-    // Debounced version for performance
     const debounceTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
     
     const updateSlotNameDebounced = useCallback(
         (clientId: string, newName: string) => {
-            // Clear existing timer for this slot
             const existingTimer = debounceTimersRef.current.get(clientId);
             if (existingTimer) {
                 clearTimeout(existingTimer);
             }
             
-            // Set new timer
             const timer = setTimeout(() => {
                 updateSlotName(clientId, newName);
                 debounceTimersRef.current.delete(clientId);
-            }, 150); // 150ms debounce
+            }, 150);
             
             debounceTimersRef.current.set(clientId, timer);
         },
         [updateSlotName]
     );
 
-     // NEW: Update a single slot's image URL
      const updateSlotImageUrl = useCallback(
         (clientId: string, newImageUrl: string | null) => {
             setCharacterSlots((prev) =>
@@ -413,23 +335,17 @@ export function useGameConfig(
         []
     );
 
-    // Update global state AND directly update the provider/model in existing slots
     const updateAllProvidersAndModels = useCallback(
         (newProvider: string, newModel: string) => {
-            // Early return if no actual changes
             if (globalProviderSelection === newProvider && globalModelSelection === newModel) {
                 return;
             }
             
-            // Use React 18's automatic batching by wrapping in startTransition
             React.startTransition(() => {
-                // Update global state first
                 setGlobalProviderSelection(newProvider);
                 setGlobalModelSelection(newModel);
                 
-                // Update all character slots in a single batch operation
                 setCharacterSlots(prevSlots => {
-                    // Check if any slots actually need updating
                     const needsUpdate = prevSlots.some(slot => 
                         !slot.isHuman && (slot.provider !== newProvider || slot.aiModel !== newModel)
                     );
@@ -443,7 +359,7 @@ export function useGameConfig(
                             ...slot,
                             provider: newProvider,
                             aiModel: newModel,
-                            isGenerated: false // Reset generation status when provider/model changes
+                            isGenerated: false
                         }
                     );
                     
@@ -471,25 +387,19 @@ export function useGameConfig(
         setIsAudioEnabled((prev) => !prev);
     }, []);
 
-    // When toggling human joining, reset the initial slots
     const toggleHumanJoining = useCallback(() => {
         setIsHumanJoining((prev) => {
             const becomingHuman = !prev;
-            if (!becomingHuman) {
-                // REMOVED: setHumanPlayerName("");
-            }
-            setInitialSlotsSet(false); // Force re-initialization
-            setCharacterSlots([]); // Clear existing slots
+            setInitialSlotsSet(false);
+            setCharacterSlots([]);
             return becomingHuman;
         });
     }, []);
 
-
-    // Expose role selection update
     const updateHumanRoleSelection = useCallback((role: RoleName) => {
         setHumanRoleSelection(role);
-        setInitialSlotsSet(false); // Force re-initialization
-        setCharacterSlots([]); // Clear existing slots
+        setInitialSlotsSet(false);
+        setCharacterSlots([]);
     }, []);
 
     const handleGenerateAndStartGame = useCallback(async () => {
@@ -499,53 +409,38 @@ export function useGameConfig(
         setErrorMsg(null);
         setInfoMsg(t("StartingGameInfo", {}));
 
-        // Find configs for town and mafia agents - might need more sophisticated logic
-        // For now, just use the global settings
         const firstAiSlot = characterSlots.find(slot => !slot.isHuman);
         const agentProvider = firstAiSlot?.provider ?? globalProviderSelection;
         const agentModel = firstAiSlot?.aiModel ?? globalModelSelection;
 
-        // TODO: Allow different configs for Town/Mafia later
         const agentConfig: AgentConfig = {
-            // Use mapping function
             agentType: getAgentTypeFromProvider(agentProvider),
             modelName: agentModel,
             providerValue: agentProvider,
         };
 
-        // Create specific Mafia config if the flag is set and values are provided
         const mafiaAgentConfig = useSeparateMafiaConfig && mafiaProviderSelection && mafiaModelSelection
             ? {
-                // Use mapping function
                 agentType: getAgentTypeFromProvider(mafiaProviderSelection),
                 modelName: mafiaModelSelection,
                 providerValue: mafiaProviderSelection,
             }
-            : agentConfig; // Otherwise, use the same config as town
+            : agentConfig;
 
-        // --- Prepare the setup data for the server action ---
         const setupData: StartGameSetupData = {
-             // Map character slots to the structure expected by startGameAction
             players: characterSlots.map((slot, index) => ({
-                name: slot.profile?.characterName || `Player ${index + 1}`, // Use slot name or fallback
+                name: slot.profile?.characterName || `Player ${index + 1}`,
                 rolePreference: slot.roleSelection,
                 isHuman: slot.isHuman ?? false,
-                imageUrl: slot.imageUrl ?? null, // Pass image URL
+                imageUrl: slot.imageUrl ?? null,
                 agentConfig: slot.isHuman
-                    ? { agentType: 'Human' } // Human config
-                    : slot.roleSelection === RoleName.Mafia // Determine AI config based on role
+                    ? { agentType: 'Human' }
+                    : slot.roleSelection === RoleName.Mafia
                         ? mafiaAgentConfig
-                        : agentConfig, // Use town/general config
+                        : agentConfig,
             })),
             themeKey: selectedGameThemeKey,
             language: lang,
-            // Deprecated fields below - players array above replaces them
-            // playerCount: characterSlots.length,
-            // humanPlayerName: humanPlayerName || undefined, // REMOVED
-            // humanPlayerIndex: humanPlayerIndex, // REMOVED
-            // humanRolePreference: humanRoleSelection, // Moved into players array
-            // townAgentConfig: agentConfig, // Moved into players array
-            // mafiaAgentConfig: mafiaAgentConfig, // Moved into players array
         };
 
         try {
@@ -557,7 +452,6 @@ export function useGameConfig(
 
             if (result?.gameId && result?.initialState) {
                 setInfoMsg(t("GameStartedSuccessInfo", {}));
-                // router.push(`/${lang}/game/${result.gameId}`);
             } else {
                 throw new Error(t("StartGameActionUnexpectedResultError", {}));
             }
@@ -576,37 +470,34 @@ export function useGameConfig(
         characterSlots,
         configValidation.isValid,
         isSubmitting,
-        globalProviderSelection, // Added provider
+        globalProviderSelection,
         globalModelSelection,
         lang,
-        useSeparateMafiaConfig, // Include flag in dependencies
-        mafiaProviderSelection, // Include Mafia provider
-        mafiaModelSelection,    // Include Mafia model
+        useSeparateMafiaConfig,
+        mafiaProviderSelection,
+        mafiaModelSelection,
         t,
-        // router,
         selectedGameThemeKey,
     ]);
 
     useEffect(() => {
-        // Sync human player name if slots re-initialize with human present
         if (!initialSlotsSet && characterSlots.length > 0) {
             const humanSlot = characterSlots.find(slot => slot.isHuman);
             if (humanSlot) {
                 setIsHumanJoining(true);
-                // REMOVED: setHumanPlayerName(...)
             } else {
-                setIsHumanJoining(false); // Ensure consistency
+                setIsHumanJoining(false);
             }
         }
     }, [initialSlotsSet, characterSlots]);
 
-    // Cleanup debounce timers on unmount
     useEffect(() => {
+        const timers = debounceTimersRef.current;
         return () => {
-            for (const timer of debounceTimersRef.current.values()) {
+            for (const timer of timers.values()) {
                 clearTimeout(timer);
             }
-            debounceTimersRef.current.clear();
+            timers.clear();
         };
     }, []);
 
@@ -619,19 +510,18 @@ export function useGameConfig(
         configValidation,
         canAttemptStart,
         totalSlots,
-        globalProviderSelection, // Added
+        globalProviderSelection,
         globalModelSelection,
-        availableProviders, // Added
-        availableModelsByProvider, // Added
+        availableProviders,
+        availableModelsByProvider,
         isAudioEnabled,
         isLoadingNextTurn,
         addPlayerSlot,
         removePlayerSlot,
-        updateSlotProviderAndModel, // Renamed/Added
-        updateAllProvidersAndModels, // Renamed/Added
+        updateSlotProviderAndModel,
+        updateAllProvidersAndModels,
         updateSlotRole,
-        // NEW Functions
-        updateSlotName: updateSlotNameDebounced, // Use debounced version
+        updateSlotName: updateSlotNameDebounced,
         updateSlotImageUrl,
         toggleAudioEnabled,
         handleGenerateAndStartGame,
@@ -641,7 +531,7 @@ export function useGameConfig(
         toggleHumanJoining,
         selectedGameThemeKey,
         setSelectedGameThemeKey,
-        setCharacterSlots, // Expose the setter
+        setCharacterSlots,
     };
 }
 
