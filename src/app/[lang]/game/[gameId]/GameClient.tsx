@@ -3,6 +3,7 @@
 import { ConversationLog } from "@/components/ConversationLog";
 import { GameSidebar } from "@/components/GameSidebar";
 import HumanChatInput from "@/components/HumanChatInput";
+import CharacterGenerationUI from "@/components/CharacterGenerationUI";
 import { GameProvider, useGameContext } from "@/context/GameContext";
 import { SpokenTextProvider } from "@/context/SpokenTextContext";
 import type { FilteredGameState } from "@/lib/interfaces/gameState.types";
@@ -17,13 +18,29 @@ interface GameClientProps {
   boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<FilteredGameState | { error: string }>;
 }
 
-function GameLayout() {
+function GameLayout({ gameId }: { gameId: string }) {
   const { i18n } = useTranslation();
   const lang = i18n.language;
   const direction = i18n.dir(lang);
   
-  const { gameState } = useGameContext();
+  const { gameState, setGameState } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
+
+  // Show character generation UI if game is in CharacterGeneration phase
+  if (gameState?.phase === 'CharacterGeneration') {
+    return (
+      <CharacterGenerationUI
+        gameId={gameId}
+        onComplete={(newGameState) => {
+          setGameState(newGameState);
+        }}
+        onError={(error) => {
+          console.error('Character generation error:', error);
+          // Could show an error message or handle appropriately
+        }}
+      />
+    );
+  }
 
   return (
     <div
@@ -48,6 +65,7 @@ function GameLayout() {
 
 export default function GameClient({
   initialGameState,
+  gameId,
   boundAdvanceGameStateAction,
   boundSubmitHumanAction,
 }: GameClientProps) {
@@ -58,7 +76,7 @@ export default function GameClient({
         boundRunGameTurnAction={boundAdvanceGameStateAction}
         boundSubmitHumanAction={boundSubmitHumanAction}
       >
-        <GameLayout />
+        <GameLayout gameId={gameId} />
       </GameProvider>
     </SpokenTextProvider>
   );

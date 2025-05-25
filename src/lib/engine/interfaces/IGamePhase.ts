@@ -6,6 +6,7 @@ import type { Game } from '../core/Game';
 
 // Define the possible game phase types
 export type GamePhaseType = 
+    | 'CharacterGeneration' // Character generation phase
     | 'Init'        // Initial setup phase
     | 'Briefing'    // Presenting roles and initial info
     | 'FirstNight'  // Special first night (e.g., Mafia meet)

@@ -5,6 +5,7 @@ import { InitializationPhase } from '../phases/InitializationPhase';
 import { DayPhase } from '../phases/DayPhase';
 import { NightPhase } from '../phases/NightPhase';
 import { GameOverPhase } from '../phases/GameOverPhase';
+import { CharacterGenerationPhase } from '../phases/CharacterGenerationPhase';
 import type { IGameRenderer } from '../interfaces/IGameRenderer';
 import { ConversationLog } from './ConversationLog';
 import { type IMessage, MessageVisibility } from '../interfaces/IMessage';
@@ -44,6 +45,7 @@ const roleClassMap: Record<RoleName, new () => IRole> = {
 type PhaseConstructor = (new (...args: any[]) => IGamePhase) | null;
 
 const phaseInstanceMap: Record<GamePhaseType, PhaseConstructor> = {
+    'CharacterGeneration': CharacterGenerationPhase,
     'Init': InitializationPhase,
     'Briefing': null, 
     'FirstNight': null, 
