@@ -447,24 +447,15 @@ export function useGameConfig(
         };
 
         try {
-            const result = await startGameAction(setupData);
-
-            if (result && "error" in result) {
-                throw new Error(result.error);
-            }
-
-            if (result?.gameId && result?.initialState) {
-                setInfoMsg(t("GameStartedSuccessInfo", {}));
-            } else {
-                throw new Error(t("StartGameActionUnexpectedResultError", {}));
-            }
-
+            await startGameAction(setupData);
         } catch (error: unknown) {
             const errorMessage =
                 error instanceof Error ? error.message : "StartGameFailedError";
+            
             if (errorMessage.includes("NEXT_REDIRECT")) {
-                throw error;
+                return;
             }
+            
             setErrorMsg(t(errorMessage, { defaultValue: errorMessage }));
             setIsSubmitting(false);
             setInfoMsg(null);

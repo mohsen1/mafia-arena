@@ -17,6 +17,7 @@ import { selectCharacterImage } from '@/lib/utils/imageUtils';
 import { createAgentInstance } from '@/lib/agentFactory';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
+import { redirect } from 'next/navigation';
 
 /**
  * Retry wrapper for AI operations with exponential backoff
@@ -50,7 +51,7 @@ async function retryWithBackoff<T>(
 /**
  * Generate persona for a single character with retry logic
  */
-async function generateCharacterPersona(
+export async function generateCharacterPersona(
     playerName: string, 
     playerId: PlayerId, 
     agentConfig: AgentConfig, 
@@ -92,7 +93,6 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
         
         if (!session?.user?.id) {
             // Fallback: Get dev user for development environment
-            // This handles the case where session retrieval fails in server actions
             if (process.env.NODE_ENV === 'development') {
                 try {
                     const { db } = await import('@/lib/db/config');
@@ -111,27 +111,45 @@ export async function startGameAction(setupData: StartGameSetupData): Promise<{ 
                     
                     // Use dev user for game creation
                     const userId = devUser.id;
-                    return await createGame(setupData, gameId, createdAt, userId);
+                    await createGame(setupData, gameId, createdAt, userId);
+                    
                 } catch (error) {
+                    // Don't log NEXT_REDIRECT as an error - it's expected
+                    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+                        // Redirect is happening successfully, let it proceed
+                        redirect(`/${setupData.language}/game/${gameId}`);
+                    }
                     console.error('Failed to get fallback user:', error);
                     return { error: "Authentication required to start a game" };
                 }
+            } else {
+                return { error: "Authentication required to start a game" };
             }
-            
-            return { error: "Authentication required to start a game" };
+        } else {
+            // Use authenticated user
+            const userId = session.user.id;
+            await createGame(setupData, gameId, createdAt, userId);
         }
         
-        // Use authenticated user
-        const userId = session.user.id;
-        return await createGame(setupData, gameId, createdAt, userId);
+        // Redirect to game page after successful creation
+        redirect(`/${setupData.language}/game/${gameId}`);
 
     } catch (error) {
+        // Don't treat NEXT_REDIRECT as an error
+        if (error instanceof Error && (
+            error.message === 'NEXT_REDIRECT' || 
+            ('digest' in error && typeof error.digest === 'string' && error.digest.includes('NEXT_REDIRECT'))
+        )) {
+            // Let the redirect proceed normally
+            throw error;
+        }
+        
         console.error("Error starting game:", error);
         return { error: error instanceof Error ? error.message : "Failed to start game" };
     }
 }
 
-// Extract game creation logic into separate function
+// Extract game creation logic into separate function - now creates minimal game without character generation
 async function createGame(setupData: StartGameSetupData, gameId: string, createdAt: number, userId: string): Promise<{ gameId: string; initialState: FilteredGameState }> {
     if (!setupData.players || setupData.players.length < 3) {
        throw new Error("Minimum 3 players required.");
@@ -139,39 +157,8 @@ async function createGame(setupData: StartGameSetupData, gameId: string, created
     const theme = Themes[setupData.themeKey];
     if (!theme) throw new Error(`Invalid theme key: ${setupData.themeKey}`);
     
-    const characterPersonas = new Map<string, Persona>();
-    const personaPromises: Promise<void>[] = [];
-    
-    for (let i = 0; i < setupData.players.length; i++) {
-        const playerSetup = setupData.players[i];
-        
-        if (!playerSetup.isHuman) {
-            const tempPlayerId = `temp-${i}`;
-            const promise = generateCharacterPersona(
-                playerSetup.name,
-                tempPlayerId,
-                playerSetup.agentConfig,
-                theme.description,
-                setupData.language
-            ).then(persona => {
-                characterPersonas.set(`player-${i}`, persona);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            }).catch(error => {
-                characterPersonas.set(`player-${i}`, {
-                    name: playerSetup.name,
-                    backstory: `A mysterious resident of the ${theme.name.toLowerCase()}.`,
-                    personalityTraits: ['Enigmatic', 'Quiet', 'Observant']
-                });
-            });
-            
-            personaPromises.push(promise);
-        }
-    }
-    
-    await Promise.all(personaPromises);
-
+    // Create players with basic info - character generation will happen later
     const rolesMap: Record<PlayerId, RoleName> = {};
-    
     const playersForPersistence: Record<PlayerId, SerializablePlayer> = {};
     const livingPlayerIds: PlayerId[] = [];
     const agentMemories: Record<PlayerId, AgentMemory> = {};
@@ -193,19 +180,8 @@ async function createGame(setupData: StartGameSetupData, gameId: string, created
             humanPlayerId = playerId;
         }
 
-        let characterImageUrl = playerSetup.imageUrl;
-        if (!characterImageUrl && !playerSetup.isHuman) {
-            try {
-                const gender = Math.random() > 0.5 ? 'male' : 'female';
-                const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
-                characterImageUrl = await selectCharacterImage(gender, ageCategory);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (error) {
-                characterImageUrl = null;
-            }
-        }
-
-        const generatedPersona = characterPersonas.get(`player-${i}`) || {
+        // Use placeholder persona for now - will be generated later
+        const placeholderPersona: Persona = {
             name: playerSetup.name,
             backstory: playerSetup.isHuman ? 'A human player' : `A resident of ${theme.name.toLowerCase()}`,
             personalityTraits: playerSetup.isHuman ? ['Human'] : ['Mysterious']
@@ -213,14 +189,14 @@ async function createGame(setupData: StartGameSetupData, gameId: string, created
 
         playersForPersistence[playerId] = {
             id: playerId,
-            name: generatedPersona.name,
+            name: placeholderPersona.name,
             status: PlayerStatus.Alive,
             roleName: roleName,
             allegiance: [RoleName.Mafia].includes(roleName) ? 'Mafia' : 'Town',
             agentConfig: agentConfig,
-            persona: generatedPersona,
+            persona: placeholderPersona,
             isHuman: playerSetup.isHuman,
-            imageUrl: characterImageUrl,
+            imageUrl: playerSetup.imageUrl || null,
         };
         livingPlayerIds.push(playerId);
         agentMemories[playerId] = createInitialMemory();
@@ -233,7 +209,7 @@ async function createGame(setupData: StartGameSetupData, gameId: string, created
         themeKey: setupData.themeKey,
         language: setupData.language,
         round: 0,
-        phase: 'Init',
+        phase: 'CharacterGeneration', // New phase for character generation
         players: playersForPersistence,
         livingPlayerIds,
         deadPlayerIds: [],
@@ -247,26 +223,9 @@ async function createGame(setupData: StartGameSetupData, gameId: string, created
         nextPlayerIndexToAction: 0,
     };
 
-    const game = Game.loadFromState(initialSerializableState);
+    // Save the basic game state
+    await createGameData(initialSerializableState, userId);
     
-    game.markRolesAssigned();
-    game.markPersonasGenerated();
-    game.createInitialAgentMemories();
-    
-    const initPhase = game.getCurrentPhase();
-    if (initPhase.type !== 'Init') {
-        throw new Error("Game did not initialize into Init phase correctly.");
-    }
-    
-    await initPhase.runStep(game);
-    
-    const nextPhaseType = initPhase.transition(game);
-    game.advanceToPhase(nextPhaseType);
-
-    const finalStateToSave = game.getCurrentSerializableState();
-
-    await createGameData(finalStateToSave, userId);
-    
-    const filteredState = filterGameStateForClient(finalStateToSave, finalStateToSave.humanPlayerId);
+    const filteredState = filterGameStateForClient(initialSerializableState, initialSerializableState.humanPlayerId);
     return { gameId, initialState: filteredState };
 }

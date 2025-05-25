@@ -1,19 +1,22 @@
 import { createInitialMemory } from '@/lib/engine/interfaces/AgentMemory';
 import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
-import { RoleName } from '@/lib/engine/interfaces/IRole';
+import { RoleName, type Allegiance } from '@/lib/engine/interfaces/IRole';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import type { GamePhaseType } from '@/lib/engine/interfaces/IGamePhase';
 import { getSystemPrompt, getUserPrompt } from '@/lib/engine/prompts';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 interface MockStateData {
     round: number;
-    phase: string;
+    phase: GamePhaseType;
     language: string;
     themeName: string;
     self: {
         id: PlayerId;
         name: string;
         role: RoleName;
+        allegiance: Allegiance;
+        status: string;
         isMafia: boolean;
         persona: { name: string; backstory: string; personalityTraits: string[] };
     };
@@ -58,6 +61,8 @@ describe('Prompts', () => {
                     id: 'player-1-bart',
                     name: 'Bartholomew Quill',
                     role: RoleName.Villager,
+                    allegiance: 'Town',
+                    status: 'Alive',
                     isMafia: false,
                     persona: { name: 'Bartholomew Quill', backstory: 'Nervous librarian', personalityTraits: ['Anxious'] }
                 },
