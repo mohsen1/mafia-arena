@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Progress } from './ui/progress';
 import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles, Users, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -28,65 +28,117 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
 
-  const updateProgress = useCallback(async () => {
-    try {
-      const result = await getCharacterGenerationProgressAction(gameId);
-      if ('error' in result) {
-        setError(result.error || 'Unknown error occurred');
-        return;
-      }
-      setProgress(result);
-      
-      // Check if generation is complete
-      if (result.progress >= 100 && !isComplete) {
-        setIsComplete(true);
-      }
-    } catch (err) {
-      console.error('Error getting progress:', err);
-      setError('Failed to get generation progress');
-    }
-  }, [gameId, isComplete]);
+  // ✅ FIXED: Use refs for stable callback references
+  const onCompleteRef = useRef(onComplete);
+  const onErrorRef = useRef(onError);
+  const isGeneratingRef = useRef(false);
 
+  // Update refs when props change
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    isGeneratingRef.current = isGenerating;
+  }, [isGenerating]);
+
+  // ✅ FIXED: Stable startGeneration callback with state guards
   const startGeneration = useCallback(async () => {
+    if (isGeneratingRef.current || isComplete || error) {
+      return; // State guard to prevent multiple simultaneous operations
+    }
+
     setIsGenerating(true);
+    isGeneratingRef.current = true;
     setError(null);
     
     try {
       const result = await generateGameCharactersAction(gameId);
       if ('error' in result) {
         setError(result.error);
-        onError(result.error);
+        onErrorRef.current(result.error);
         return;
       }
       
       setIsComplete(true);
-      onComplete(result);
+      onCompleteRef.current(result);
     } catch (err) {
       console.error('Error generating characters:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate characters';
       setError(errorMessage);
-      onError(errorMessage);
+      onErrorRef.current(errorMessage);
     } finally {
       setIsGenerating(false);
+      isGeneratingRef.current = false;
     }
-  }, [gameId, onComplete, onError]);
+  }, [gameId, isComplete, error]); // Only stable dependencies
 
-  // Poll progress during generation
+  // ✅ FIXED: Inline progress checking without unstable callback dependencies
   useEffect(() => {
-    if (!isGenerating || isComplete) return;
+    if (isComplete || error || isGeneratingRef.current) {
+      return; // Don't check progress if complete, error, or already generating
+    }
 
-    const interval = setInterval(updateProgress, 1000);
+    const checkProgress = async () => {
+      try {
+        const result = await getCharacterGenerationProgressAction(gameId);
+        if ('error' in result) {
+          setError(result.error || 'Unknown error occurred');
+          return;
+        }
+        setProgress(result);
+        
+        // Check if generation is complete
+        if (result.progress >= 100 && !isComplete) {
+          setIsComplete(true);
+        }
+      } catch (err) {
+        console.error('Error getting progress:', err);
+        setError('Failed to get generation progress');
+      }
+    };
+
+    checkProgress();
+  }, [gameId, isComplete, error]); // Only stable dependencies
+
+  // ✅ FIXED: Progress polling with proper cleanup and state guards
+  useEffect(() => {
+    if (!isGenerating || isComplete || error) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      if (isComplete || error || !isGeneratingRef.current) {
+        return; // Additional safety check
+      }
+
+      try {
+        const result = await getCharacterGenerationProgressAction(gameId);
+        if ('error' in result) {
+          setError(result.error || 'Unknown error occurred');
+          return;
+        }
+        setProgress(result);
+        
+        if (result.progress >= 100 && !isComplete) {
+          setIsComplete(true);
+        }
+      } catch (err) {
+        console.error('Error getting progress:', err);
+        setError('Failed to get generation progress');
+      }
+    }, 1000);
+
     return () => clearInterval(interval);
-  }, [isGenerating, isComplete, updateProgress]);
+  }, [isGenerating, isComplete, error, gameId]);
 
-  // Initial progress check
+  // ✅ FIXED: Auto-start generation with proper state guards
   useEffect(() => {
-    updateProgress();
-  }, [updateProgress]);
-
-  // Auto-start generation if not already complete
-  useEffect(() => {
-    if (progress.progress < 100 && !isGenerating && !error && !isComplete) {
+    if (progress.progress < 100 && !isGenerating && !error && !isComplete && !isGeneratingRef.current) {
       startGeneration();
     }
   }, [progress.progress, isGenerating, error, isComplete, startGeneration]);

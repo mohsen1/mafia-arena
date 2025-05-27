@@ -23,6 +23,11 @@ vi.mock('next-auth', () => ({
   getServerSession: vi.fn(),
 }));
 
+// Mock Next.js redirect
+vi.mock('next/navigation', () => ({
+  redirect: vi.fn(),
+}));
+
 // Mock Themes BEFORE Game mock
 vi.mock('@/lib/engine/interfaces/Theme', () => ({
   Themes: {
@@ -76,41 +81,14 @@ describe('setup.actions', () => {
 
     it('should successfully create and initialize a game', async () => {
       const cryptoMock = (await import('node:crypto')).default;
+      const { redirect } = await import('next/navigation');
+      
       vi.mocked(cryptoMock.randomUUID).mockReturnValue(mockGameId);
       vi.setSystemTime(mockTimestamp);
 
       vi.mocked(createGameData).mockResolvedValue(undefined);
-      vi.mocked(filterGameStateForClient).mockReturnValue({
-        id: mockGameId,
-        round: 1,
-        phase: 'Night',
-        players: {},
-        livingPlayerIds: [],
-        humanPlayerId: null,
-        log: [],
-        pendingHumanAction: null,
-        winCondition: null,
-        themeKey: baseSetupData.themeKey,
-        language: baseSetupData.language,
-        title: undefined,
-        description: undefined,
-        createdAt: new Date(mockTimestamp).toISOString(),
-        lastUpdatedAt: new Date(mockTimestamp).toISOString(),
-        winner: null,
-        deadPlayerIds: [],
-      });
 
-      const result = await startGameAction(baseSetupData);
-
-      // Test the final result
-      expect(result).toEqual({ 
-        gameId: mockGameId, 
-        initialState: expect.objectContaining({
-          id: mockGameId,
-          phase: 'Night',
-          round: 1,
-        })
-      });
+      await startGameAction(baseSetupData);
 
       // Verify crypto was called to generate ID
       expect(vi.mocked(cryptoMock.randomUUID)).toHaveBeenCalledTimes(1);
@@ -127,8 +105,8 @@ describe('setup.actions', () => {
         'test-user-id'
       );
 
-      // Verify filter was called
-      expect(filterGameStateForClient).toHaveBeenCalled();
+      // Verify redirect was called
+      expect(redirect).toHaveBeenCalledWith(`/${baseSetupData.language}/game/${mockGameId}`);
     });
 
     it('should handle human player configuration', async () => {
@@ -143,40 +121,14 @@ describe('setup.actions', () => {
         };
 
         const cryptoMock = (await import('node:crypto')).default;
+        const { redirect } = await import('next/navigation');
+        
         vi.mocked(cryptoMock.randomUUID).mockReturnValue(mockGameId);
         vi.setSystemTime(mockTimestamp);
 
         vi.mocked(createGameData).mockResolvedValue(undefined);
-        vi.mocked(filterGameStateForClient).mockReturnValue({
-          id: mockGameId,
-          round: 1,
-          phase: 'Night',
-          players: {},
-          livingPlayerIds: [],
-          humanPlayerId: 'player-1-villager-human-dave',
-          log: [],
-          pendingHumanAction: null,
-          winCondition: null,
-          themeKey: humanSetupData.themeKey,
-          language: humanSetupData.language,
-          title: undefined,
-          description: undefined,
-          createdAt: new Date(mockTimestamp).toISOString(),
-          lastUpdatedAt: new Date(mockTimestamp).toISOString(),
-          winner: null,
-          deadPlayerIds: [],
-        });
 
-        const result = await startGameAction(humanSetupData);
-
-        // Test the final result includes human player
-        expect(result).toEqual({ 
-          gameId: mockGameId, 
-          initialState: expect.objectContaining({
-            id: mockGameId,
-            humanPlayerId: 'player-1-villager-human-dave',
-          })
-        });
+        await startGameAction(humanSetupData);
 
         // Verify save was called with human player info
         expect(createGameData).toHaveBeenCalledWith(
@@ -185,6 +137,9 @@ describe('setup.actions', () => {
           }),
           'test-user-id'
         );
+
+        // Verify redirect was called
+        expect(redirect).toHaveBeenCalledWith(`/${humanSetupData.language}/game/${mockGameId}`);
     });
 
     it('should return an error if player count is less than 3', async () => {
@@ -226,6 +181,8 @@ describe('setup.actions', () => {
         };
 
         const cryptoMock = (await import('node:crypto')).default;
+        const { redirect } = await import('next/navigation');
+        
         vi.mocked(cryptoMock.randomUUID).mockReturnValue(mockGameId);
         vi.setSystemTime(mockTimestamp);
 
@@ -254,17 +211,7 @@ describe('setup.actions', () => {
         });
 
         // The actual implementation should handle this gracefully
-        const result = await startGameAction(invalidSetupData);
-        
-        // Since the implementation is robust and handles invalid agent types gracefully
-        // by falling back to DummyAIAgent, this should succeed
-        expect(result).toEqual(expect.objectContaining({
-            gameId: mockGameId,
-            initialState: expect.objectContaining({
-                id: mockGameId,
-                phase: 'Day'
-            })
-        }));
+        await startGameAction(invalidSetupData);
         
         // Verify the function completed successfully despite invalid agent configs
         expect(createGameData).toHaveBeenCalledWith(
@@ -274,6 +221,9 @@ describe('setup.actions', () => {
           }),
           'test-user-id'
         );
+
+        // Verify redirect was called
+        expect(redirect).toHaveBeenCalledWith(`/${invalidSetupData.language}/game/${mockGameId}`);
     });
   });
 }); 

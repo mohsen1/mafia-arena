@@ -348,10 +348,24 @@ export class Game {
         console.log("Starting game loop...");
         this.notifyRenderers('renderGameStart', this.getPublicPlayerMap(), this.id);
 
-        while (this.getCurrentPhaseType() !== 'GameOver') {
+        let loopIterations = 0;
+        const maxLoopIterations = 1000; // Safety limit
+        let lastPhaseType = this.getCurrentPhaseType();
+        let lastPhaseStep = this.getPhaseStep();
+        let lastPlayerIndex = this.getNextPlayerIndexToAction();
+        let stuckCounter = 0;
+
+        while (this.getCurrentPhaseType() !== 'GameOver' && loopIterations < maxLoopIterations) {
             const currentPhase = this.#currentState;
             const currentPhaseType = currentPhase.type;
             console.log(`\n--- Starting Game Loop Iteration: Round ${this.#round}, Phase ${currentPhaseType}, Step ${this.#phaseStep} ---`);
+
+            // Special handling for CharacterGeneration phase - pause the loop
+            if (currentPhaseType === 'CharacterGeneration') {
+                console.log("Game loop paused, waiting for character generation to complete.");
+                await currentPhase.runStep(this);
+                break; // Exit the loop, character generation will manually advance the phase
+            }
 
             if (currentPhaseType === 'Day' && this.#phaseStep === 'Start') {
                 if(this.#round === 0 || this.#currentState.type !== 'Day') {
@@ -394,6 +408,40 @@ export class Game {
                 console.log(`Transitioning from ${this.#currentState.type} to ${nextPhaseType}`);
                 this.advanceToPhase(nextPhaseType, undefined); 
             }
+
+            // Safety check for infinite loops
+            const currentPhaseTypeAfter = this.getCurrentPhaseType();
+            const currentPhaseStepAfter = this.getPhaseStep();
+            const currentPlayerIndexAfter = this.getNextPlayerIndexToAction();
+
+            if (lastPhaseType === currentPhaseTypeAfter && 
+                lastPhaseStep === currentPhaseStepAfter && 
+                lastPlayerIndex === currentPlayerIndexAfter) {
+                stuckCounter++;
+                console.warn(`Game loop appears stuck: Phase ${currentPhaseTypeAfter}, Step ${currentPhaseStepAfter}, Index ${currentPlayerIndexAfter} (stuck count: ${stuckCounter})`);
+                
+                if (stuckCounter >= 5) {
+                    console.error("Game loop is stuck in infinite loop. Forcing game over.");
+                    this.logEvent("Game ended due to infinite loop detection.");
+                    this.#winningTeam = null;
+                    this.advanceToPhase('GameOver', undefined);
+                    break;
+                }
+            } else {
+                stuckCounter = 0; // Reset counter if progress was made
+            }
+
+            lastPhaseType = currentPhaseTypeAfter;
+            lastPhaseStep = currentPhaseStepAfter;
+            lastPlayerIndex = currentPlayerIndexAfter;
+            loopIterations++;
+        }
+
+        if (loopIterations >= maxLoopIterations) {
+            console.error(`Game loop exceeded maximum iterations (${maxLoopIterations}). Forcing game over.`);
+            this.logEvent("Game ended due to maximum iteration limit.");
+            this.#winningTeam = null;
+            this.advanceToPhase('GameOver', undefined);
         }
         
         console.log(`--- Game Loop Finished: Phase ${this.getCurrentPhaseType()} ---`);
@@ -512,6 +560,20 @@ export class Game {
     checkWinCondition(): 'Mafia' | 'Town' | null {
         const aliveMafiaCount = this.getAliveMafia().length;
         const aliveTownCount = this.getTownRoles().length;
+        const totalAliveCount = this.getAlivePlayers().length;
+
+        console.log(`Win condition check: ${aliveMafiaCount} Mafia, ${aliveTownCount} Town, ${totalAliveCount} total alive`);
+
+        // Handle edge case: no players at all (shouldn't happen in normal gameplay)
+        if (totalAliveCount === 0) {
+            console.warn("No players alive - this indicates a game state error");
+            return null; // Let the game continue to avoid infinite loops
+        }
+
+        // Handle edge case: CharacterGeneration phase - no win conditions apply yet
+        if (this.getCurrentPhaseType() === 'CharacterGeneration') {
+            return null;
+        }
 
         if (aliveMafiaCount === 0 && aliveTownCount > 0) {
             return 'Town';
@@ -616,15 +678,17 @@ export class Game {
 
     public advanceToPhase(nextPhaseType: GamePhaseType, winnerInput?: 'Mafia' | 'Town'): void {
         let determinedWinner = winnerInput;
+        
+        // For GameOver phase, try to determine winner if not provided, but allow creation without winner
         if (nextPhaseType === 'GameOver' && !determinedWinner) {
-            console.error("Winner must be provided when advancing to GameOver phase.");
             const checkedWinner = this.checkWinCondition();
-            if (!checkedWinner) {
-                 console.error("Cannot advance to GameOver: No winner determined.");
-                 return;
+            if (checkedWinner) {
+                determinedWinner = checkedWinner;
+                console.log(`Winner determined as ${determinedWinner} when advancing to GameOver.`);
+            } else {
+                console.warn("Advancing to GameOver without a determined winner (likely due to infinite loop protection).");
+                // Allow GameOver creation without winner - GameOverPhase constructor accepts optional winner
             }
-            determinedWinner = checkedWinner;
-            console.warn(`Winner determined as ${determinedWinner} before advancing to GameOver.`);
         }
 
         const nextPhaseInstance = this.createPhaseInstance(nextPhaseType, determinedWinner);
@@ -655,19 +719,9 @@ export class Game {
         if (!PhaseClass) return null;
         
         if (phaseType === 'GameOver') {
-            let effectiveWinner = winnerInput;
-            if (!effectiveWinner) {
-                console.error("Winner argument is required to create GameOverPhase instance.");
-                const currentWinner = this.checkWinCondition();
-                if (!currentWinner) {
-                    console.error("Cannot create GameOverPhase: No winner determined.");
-                    return null;
-                }
-                effectiveWinner = currentWinner;
-                console.warn(`Winner determined as ${effectiveWinner} when creating GameOverPhase.`);
-            }
+            // GameOverPhase constructor accepts optional winner, so we can create it even without a winner
             try {
-                 return new PhaseClass(effectiveWinner); 
+                 return new PhaseClass(winnerInput); // winnerInput can be undefined
             } catch (e) {
                  console.error("Error creating GameOverPhase:", e);
                  return null;

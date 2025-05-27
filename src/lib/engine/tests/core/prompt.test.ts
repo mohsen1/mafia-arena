@@ -100,7 +100,7 @@ describe('Prompts', () => {
             // Check within the Identity section
             expect(prompt).toContain('**Your Identity:**');
             expect(prompt).toContain('- Your Role: Villager');
-            expect(prompt).toContain('- Your Allegiance: undefined'); // Reflects the mock data
+            expect(prompt).toContain('- Your Allegiance: Town'); // The actual allegiance from VillagerRole
         });
 
         it('should list alive players', () => {

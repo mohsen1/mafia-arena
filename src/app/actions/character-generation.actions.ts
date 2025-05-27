@@ -145,18 +145,60 @@ export async function getCharacterGenerationProgressAction(gameId: string): Prom
 
         const aiPlayers = Object.values(gameState.players).filter(player => !player.isHuman);
         const totalCharacters = aiPlayers.length;
+
+        if (totalCharacters === 0) {
+            return {
+                currentStep: 'Complete',
+                progress: 100,
+                totalSteps: 0,
+                completedCharacters: 0,
+                totalCharacters: 0,
+            };
+        }
+
+        const theme = Themes[gameState.themeKey];
+        if (!theme) {
+            // This case should be rare if game setup ensures a valid theme
+            console.error(`Invalid theme key '${gameState.themeKey}' for game ${gameId} in getCharacterGenerationProgressAction.`);
+            return { 
+                currentStep: 'Error',
+                progress: 0,
+                totalSteps: totalCharacters,
+                completedCharacters: 0,
+                totalCharacters,
+                error: 'Invalid theme configuration.'
+            };
+        }
+        // Default backstory for AI players, used to determine if a persona has been generated.
+        const aiPlaceholderBackstory = `A resident of ${theme.name.toLowerCase()}`;
+
         const completedCharacters = aiPlayers.filter(player => 
-            player.persona && player.persona.name !== player.name
+            player.persona && player.persona.backstory !== aiPlaceholderBackstory
         ).length;
 
+        const progressPercentage = Math.round((completedCharacters / totalCharacters) * 100);
+        
+        // Determine current step and current character name
+        let currentStepText = 'Generating characters...';
+        if (progressPercentage >= 100) {
+            currentStepText = 'Complete';
+        } else if (gameState.phase !== 'CharacterGeneration') {
+            // If phase is not CharacterGeneration but progress is not 100%, it implies an issue or premature completion.
+            // However, generateGameCharactersAction advances the phase only after all generation.
+            // For safety, if somehow not in CharacterGeneration phase but not 100%, mark as complete.
+            currentStepText = 'Complete'; 
+        }
+        
+        const currentCharacterName = (currentStepText === 'Generating characters...' && completedCharacters < totalCharacters) ?
+            aiPlayers[completedCharacters]?.name : undefined;
+
         return {
-            currentStep: gameState.phase === 'CharacterGeneration' ? 'Generating characters...' : 'Complete',
-            progress: Math.round((completedCharacters / totalCharacters) * 100),
-            totalSteps: totalCharacters,
+            currentStep: currentStepText,
+            progress: progressPercentage,
+            totalSteps: totalCharacters, 
             completedCharacters,
             totalCharacters,
-            currentCharacterName: gameState.phase === 'CharacterGeneration' ? 
-                aiPlayers[completedCharacters]?.name : undefined
+            currentCharacterName
         };
 
     } catch (error) {

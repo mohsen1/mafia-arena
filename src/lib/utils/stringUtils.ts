@@ -76,11 +76,19 @@ export function escapeJSONControlCharacters(jsonString: string): string {
     }
 
     // Replace literal control characters with escaped versions
-    // Simple replacements for the most common cases that cause JSON parsing errors
+    // Handle already escaped sequences first by temporarily replacing them
     const escaped = content
-      .replace(/\n/g, '\\n')     // Literal newlines
-      .replace(/\r/g, '\\r')     // Literal carriage returns  
-      .replace(/\t/g, '\\t');    // Literal tabs
+      .replace(/\\\\/g, '\uE000')  // Temporarily replace escaped backslashes
+      .replace(/\\n/g, '\uE001')   // Temporarily replace escaped newlines
+      .replace(/\\r/g, '\uE002')   // Temporarily replace escaped carriage returns
+      .replace(/\\t/g, '\uE003')   // Temporarily replace escaped tabs
+      .replace(/\n/g, '\\n')       // Escape literal newlines
+      .replace(/\r/g, '\\r')       // Escape literal carriage returns  
+      .replace(/\t/g, '\\t')       // Escape literal tabs
+      .replace(/\uE000/g, '\\\\')  // Restore escaped backslashes as double-escaped
+      .replace(/\uE001/g, '\\\\n') // Restore escaped newlines as double-escaped
+      .replace(/\uE002/g, '\\\\r') // Restore escaped carriage returns as double-escaped
+      .replace(/\uE003/g, '\\\\t'); // Restore escaped tabs as double-escaped
 
     return `"${escaped}"`;
   });
