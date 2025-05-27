@@ -188,7 +188,15 @@ export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
       description: functionDescription,
       parameters: {
         type: SchemaType.OBJECT,
-        properties: responseSchema,
+        properties: Object.fromEntries(
+          Object.entries(responseSchema).map(([key, value]) => [
+            key,
+            {
+              type: SchemaType.STRING,
+              description: value.description
+            }
+          ])
+        ),
         required: Object.keys(responseSchema)
       }
     };
@@ -199,7 +207,7 @@ export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
         temperature: settings.temperature ?? 0.1,
         maxOutputTokens: settings.max_tokens ?? 8192,
       },
-      tools: [{ functionDeclarations: [functionDeclaration] }],
+      tools: [{ functionDeclarations: [functionDeclaration as any] }],
       toolConfig: {
         functionCallingConfig: {
           mode: FunctionCallingMode.ANY,

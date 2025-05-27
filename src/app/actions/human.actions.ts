@@ -8,6 +8,7 @@ import { filterGameStateForClient } from '@/lib/visibilityHelper';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { GameService } from '@/lib/db/game.service';
+import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
 
 export async function submitHumanAction(
     gameId: string, 
@@ -36,14 +37,20 @@ export async function submitHumanAction(
         }
 
         const game = Game.loadFromState(gameState);
+        const currentPhase = game.getCurrentPhase();
 
-        // Submit the human action based on type
+        // Convert HumanActionPayload to PlayerAction
+        let playerAction: PlayerAction;
+        
         switch (humanActionPayload.type) {
             case 'vote':
                 if (!gameState.pendingHumanAction.allowedActions.includes('vote')) {
                     return { error: "Vote action not allowed" };
                 }
-                game.recordHumanVote(humanActionPayload.playerId, humanActionPayload.targetPlayerId || null);
+                playerAction = { 
+                    type: 'vote', 
+                    targetPlayerId: humanActionPayload.targetPlayerId || null 
+                };
                 break;
 
             case 'message':
@@ -53,35 +60,62 @@ export async function submitHumanAction(
                 if (!humanActionPayload.content) {
                     return { error: "Message content is required" };
                 }
-                // For message actions, we'll use the human night action method with the content
-                game.recordHumanNightAction(humanActionPayload.playerId, humanActionPayload);
+                playerAction = { 
+                    type: 'message', 
+                    content: humanActionPayload.content 
+                };
                 break;
 
             case 'mafiaKill':
                 if (!gameState.pendingHumanAction.allowedActions.includes('mafiaKill')) {
                     return { error: "Mafia kill action not allowed" };
                 }
-                game.recordHumanNightAction(humanActionPayload.playerId, humanActionPayload);
+                if (!humanActionPayload.targetPlayerId) {
+                    return { error: "Target player ID is required for mafia kill" };
+                }
+                playerAction = { 
+                    type: 'mafiaKill', 
+                    targetPlayerId: humanActionPayload.targetPlayerId 
+                };
                 break;
 
             case 'doctorSave':
                 if (!gameState.pendingHumanAction.allowedActions.includes('doctorSave')) {
                     return { error: "Doctor save action not allowed" };
                 }
-                game.recordHumanNightAction(humanActionPayload.playerId, humanActionPayload);
+                playerAction = { 
+                    type: 'doctorSave', 
+                    targetPlayerId: humanActionPayload.targetPlayerId || null 
+                };
                 break;
 
             case 'seerInvestigate':
                 if (!gameState.pendingHumanAction.allowedActions.includes('seerInvestigate')) {
                     return { error: "Seer investigate action not allowed" };
                 }
-                game.recordHumanNightAction(humanActionPayload.playerId, humanActionPayload);
+                playerAction = { 
+                    type: 'seerInvestigate', 
+                    targetPlayerId: humanActionPayload.targetPlayerId || null 
+                };
                 break;
 
             default:
                 return { error: `Unknown action type: ${humanActionPayload.type}` };
         }
 
+        // Process the action through the current phase's processAction method
+        if ('processAction' in currentPhase && typeof currentPhase.processAction === 'function') {
+            currentPhase.processAction(game, humanActionPayload.playerId, playerAction);
+        } else {
+            console.warn(`Current phase ${currentPhase.type} does not have a processAction method`);
+            return { error: "Cannot process action in current phase" };
+        }
+
+        // Advance to the next player
+        const currentIndex = game.getNextPlayerIndexToAction();
+        game.setNextPlayerIndexToAction(currentIndex + 1);
+
+        // Clear the pending human action
         game.clearPendingHumanAction();
 
         const intermediateState = game.getCurrentSerializableState();

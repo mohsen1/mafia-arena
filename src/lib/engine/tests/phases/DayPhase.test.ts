@@ -104,16 +104,16 @@ describe('DayPhase', () => {
             return Promise.resolve({ type: 'noAction' });
         });
 
-        // Start
+        // Test Start step for round 1
         mockGame.setPhaseStep('Start'); mockGame.setNextPlayerIndexToAction(0);
         await dayPhase.runStep(mockGame as unknown as Game); // This sets step to Introduction
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Day begins...", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "DayBegins", MessageVisibility.Public);
         expect(mockGame.getPhaseStep()).toBe('Introduction');
         
         // Now check for the introduction message when we actually start the Introduction step
         mockGame.setNextPlayerIndexToAction(0);  // Reset to start Introduction
         await dayPhase.runStep(mockGame as unknown as Game);
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Let's begin with introductions. Please introduce yourself.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "IntroductionPrompt", MessageVisibility.Public);
         expect(mockGame.logMessage).toHaveBeenCalledWith(p1.id, 'P1 intro', MessageVisibility.Public);
 
         // Player 2 Intro
@@ -130,12 +130,12 @@ describe('DayPhase', () => {
         mockGame.setNextPlayerIndexToAction(alivePlayers.length); // Index is now past last player
         await dayPhase.runStep(mockGame as unknown as Game);
         expect(mockGame.getPhaseStep()).toBe('Voting'); // After intros, should go to Voting
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Introduction complete.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "IntroductionComplete", MessageVisibility.Public);
         
         // Now when the Voting step starts, it should log the voting message
         mockGame.setNextPlayerIndexToAction(0);  // Reset to start Voting
         await dayPhase.runStep(mockGame as unknown as Game);
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Voting phase: Choose who to execute.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "VotingPhase", MessageVisibility.Public);
     });
 
     it('should run Discussion, Voting, Tally, and Finished steps for round > 1', async () => {
@@ -162,13 +162,13 @@ describe('DayPhase', () => {
         // Start
         mockGame.setPhaseStep('Start'); mockGame.setNextPlayerIndexToAction(0);
         await dayPhase.runStep(mockGame as unknown as Game);
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Day begins...", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "DayBegins", MessageVisibility.Public);
         expect(mockGame.getPhaseStep()).toBe('Discussion');
         
         // Run Discussion phase for all players
         mockGame.setNextPlayerIndexToAction(0);
         await dayPhase.runStep(mockGame as unknown as Game); // P1 + Discussion message
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Discussion phase:", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "DiscussionPhase", MessageVisibility.Public);
         expect(mockGame.logMessage).toHaveBeenCalledWith('p1', 'P1 discussing', MessageVisibility.Public);
 
         mockGame.setNextPlayerIndexToAction(1);
@@ -182,32 +182,32 @@ describe('DayPhase', () => {
         mockGame.setNextPlayerIndexToAction(3); // Past last player
         await dayPhase.runStep(mockGame as unknown as Game); // Transition to Voting
         expect(mockGame.getPhaseStep()).toBe('Voting');
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Discussion complete.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "DiscussionComplete", MessageVisibility.Public);
 
         // Run Voting phase
         mockGame.setNextPlayerIndexToAction(0);
         await dayPhase.runStep(mockGame as unknown as Game); // Voting message + P1 vote
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Voting phase: Choose who to execute.", MessageVisibility.Public);
-        expect(mockGame.logMessage).toHaveBeenCalledWith('p1', 'votes for Player2.', MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "VotingPhase", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p1', 'VotesFor', MessageVisibility.Public);
 
         mockGame.setNextPlayerIndexToAction(1);
         await dayPhase.runStep(mockGame as unknown as Game); // P2 vote
-        expect(mockGame.logMessage).toHaveBeenCalledWith('p2', 'votes for Player1.', MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p2', 'VotesFor', MessageVisibility.Public);
 
         mockGame.setNextPlayerIndexToAction(2);
         await dayPhase.runStep(mockGame as unknown as Game); // P3 abstain
-        expect(mockGame.logMessage).toHaveBeenCalledWith('p3', 'chose no action (abstains from voting).', MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith('p3', 'ChoseNoActionVoting', MessageVisibility.Public);
 
         mockGame.setNextPlayerIndexToAction(3);
         await dayPhase.runStep(mockGame as unknown as Game); // Transition to TallyVotes
         expect(mockGame.getPhaseStep()).toBe('TallyVotes');
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "Voting complete.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "VotingComplete", MessageVisibility.Public);
 
         // TallyVotes
         mockGame.setNextPlayerIndexToAction(0);
         await dayPhase.runStep(mockGame as unknown as Game);
         // No majority, no one executed in this setup
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "The vote did not reach a majority. No one is executed.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "VoteNoMajority", MessageVisibility.Public);
         expect(mockGame.killPlayer).not.toHaveBeenCalled();
         expect(mockGame.getPhaseStep()).toBe('Finished');
 
@@ -262,8 +262,8 @@ describe('DayPhase', () => {
         mockGame.setNextPlayerIndexToAction(0);
         await dayPhase.runStep(mockGame as unknown as Game); // Executes TallyVotes logic
 
-        expect(mockGame.killPlayer).toHaveBeenCalledWith('p3', 'was executed by popular vote.');
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, 'With 2 votes, the town has decided to execute Player3.', MessageVisibility.Public);
+        expect(mockGame.killPlayer).toHaveBeenCalledWith('p3', 'ExecutionReason');
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, 'ExecutionDecision', MessageVisibility.Public);
 
         // Check that notifyRenderers was called with some votes map and the correct executed player
         expect(mockGame.notifyRenderers).toHaveBeenCalledWith('renderVoteResults', expect.any(Map), 'p3');
@@ -310,7 +310,7 @@ describe('DayPhase', () => {
         await dayPhase.runStep(mockGame as unknown as Game); // Executes TallyVotes logic
 
         expect(mockGame.killPlayer).not.toHaveBeenCalled();
-        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "The vote did not reach a majority. No one is executed.", MessageVisibility.Public);
+        expect(mockGame.logMessage).toHaveBeenCalledWith(null, "VoteNoMajority", MessageVisibility.Public);
         expect(mockGame.getPhaseStep()).toBe('Finished');
     });
 

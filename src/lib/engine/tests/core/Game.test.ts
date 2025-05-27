@@ -287,8 +287,8 @@ describe('Game', () => {
 
              // Manually set state for testing
              // Bypass type check for test setup
-             (game as { "#round": number })["#round"] = 2;
-             (game as { "#currentState": { type: string; runPhase: () => void; transition: () => void } })["#currentState"] = { type: 'Day', runPhase: vi.fn(), transition: vi.fn() };
+             (game as unknown as { "#round": number })["#round"] = 2;
+             (game as unknown as { "#currentState": { type: string; runPhase: () => void; transition: () => void } })["#currentState"] = { type: 'Day', runPhase: vi.fn(), transition: vi.fn() };
 
              // Generate state for remaining mafia member using actual ID
              const state = game.generateVisibleGameState(mafia1Id); 
@@ -569,7 +569,7 @@ describe('Game', () => {
             
             // Also update the round since advanceToPhase doesn't increment round 
             // when going from Init to Night in the current implementation
-            (game as { "#round": number })["#round"] = initialRound + 1;
+            (game as unknown as { "#round": number })["#round"] = initialRound + 1;
             const newRound = game.round;
             const newPhase = game.getCurrentPhaseType();
             
