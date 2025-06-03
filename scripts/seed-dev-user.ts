@@ -58,6 +58,17 @@ async function seedDevUser() {
     console.log('🎯 You can now sign in with these credentials in development mode.');
 
   } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: string }).code === 'ECONNREFUSED'
+    ) {
+      console.warn(
+        '⚠️  Could not connect to database. Skipping development user seeding.'
+      );
+      return;
+    }
     console.error('❌ Error seeding development user:', error);
     throw error;
   }
