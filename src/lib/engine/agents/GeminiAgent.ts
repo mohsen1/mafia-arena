@@ -16,13 +16,17 @@ const log = debug('mafia:agent:gemini');
 // Load environment variables from .env file
 dotenv.config();    
 
-// Ensure API key is set in environment variables
+// Warn if API key is missing but do not throw at import time
 if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY environment variable is not set.");
+    console.warn(
+        "GEMINI_API_KEY environment variable is not set. GeminiAgent will be disabled."
+    );
 }
 
-// Access your API key as an environment variable
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Create GoogleGenerativeAI instance only if API key is available
+const genAI = process.env.GEMINI_API_KEY
+    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    : null;
 
 // Define the model to use (e.g., gemini-1.5-flash)
 // Consider making this configurable via environment variable GEMINI_MODEL
@@ -51,6 +55,11 @@ export class GeminiAgent implements IAgent {
     }
 
     async generatePersona(themeDescription: string, language?: string): Promise<void> {
+        if (!genAI) {
+            log('GEMINI_API_KEY is not set. Skipping persona generation.');
+            this.persona = DEFAULT_PERSONA;
+            return;
+        }
         const agentIdForLog = `${this.id} (Persona Gen)`;
         log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}, language: ${language || 'en'}`);
 
@@ -99,6 +108,10 @@ export class GeminiAgent implements IAgent {
     }
 
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
+        if (!genAI) {
+            log('GEMINI_API_KEY is not set. Returning noAction.');
+            return { type: 'noAction' };
+        }
         const agentIdForLog = `${this.id} - ${this.persona?.name || 'Unknown Persona'} (${gameState.self.role})`;
         log(`[${agentIdForLog} (Gemini)] Thinking with model ${this.modelName}...`);
 
