@@ -28,8 +28,9 @@ const initI18next = async (lng: LanguageCode) => {
 export async function getTranslation(
   lng: LanguageCode,
   ns = defaultNS,
-  options: Record<string, unknown> = {}
+  _options: Record<string, unknown> = {}
 ) {
+  void _options;
   const i18nextInstance = await initI18next(lng);
   return {
     t: i18nextInstance.getFixedT(lng, Array.isArray(ns) ? ns[0] : ns),

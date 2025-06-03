@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { GoogleGenerativeAI, SchemaType, FunctionCallingMode } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType, FunctionCallingMode, FunctionDeclaration } from '@google/generative-ai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 // Load environment variables
@@ -183,7 +183,7 @@ export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
     const googleMessages = convertOpenAIMessagesToGoogle(messages);
     
     // Define the function declaration for structured response
-    const functionDeclaration = {
+    const functionDeclaration: FunctionDeclaration = {
       name: functionName,
       description: functionDescription,
       parameters: {
@@ -207,7 +207,7 @@ export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
         temperature: settings.temperature ?? 0.1,
         maxOutputTokens: settings.max_tokens ?? 8192,
       },
-      tools: [{ functionDeclarations: [functionDeclaration as any] }],
+      tools: [{ functionDeclarations: [functionDeclaration] }],
       toolConfig: {
         functionCallingConfig: {
           mode: FunctionCallingMode.ANY,
