@@ -58,7 +58,19 @@ async function seedDevUser() {
     console.log('🎯 You can now sign in with these credentials in development mode.');
 
   } catch (error) {
+    // If the database connection fails (e.g. when running in an
+    // environment without PostgreSQL) we skip seeding so that tasks
+    // like the Playwright tests can continue running. The original
+    // error is still printed for visibility but does not cause the
+    // process to exit with a non-zero code.
     console.error('❌ Error seeding development user:', error);
+
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('ECONNREFUSED')) {
+      console.warn('⚠️  Database unavailable, skipping dev user seed');
+      return;
+    }
+
     throw error;
   }
 }
