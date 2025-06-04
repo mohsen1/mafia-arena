@@ -190,6 +190,14 @@ export function SignInForm() {
               )}
             </Button>
           </div>
+          <div className="text-right">
+            <Link
+              href={`/${currentLang}/auth/forgot`}
+              className="text-sm text-primary hover:underline"
+            >
+              {t('forgotPassword.title')}
+            </Link>
+          </div>
         </div>
 
         <Button type="submit" className="w-full" disabled={credentialsLoading}>
