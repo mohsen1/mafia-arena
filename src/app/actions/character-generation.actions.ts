@@ -19,6 +19,12 @@ export interface CharacterGenerationProgress {
   totalCharacters: number;
   currentCharacterName?: string;
   error?: string;
+  characters?: Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    backstory?: string;
+  }>;
 }
 
 export async function generateGameCharactersAction(gameId: string): Promise<FilteredGameState | { error: string }> {
@@ -85,6 +91,9 @@ export async function generateGameCharactersAction(gameId: string): Promise<Filt
                     persona: persona,
                     imageUrl: characterImageUrl,
                 };
+
+                // Save progress after each character generation
+                await saveGameData(gameId, gameState);
 
             } catch (error) {
                 console.error(`Failed to generate character for ${player.name}:`, error);
@@ -153,6 +162,7 @@ export async function getCharacterGenerationProgressAction(gameId: string): Prom
                 totalSteps: 0,
                 completedCharacters: 0,
                 totalCharacters: 0,
+                characters: []
             };
         }
 
@@ -172,10 +182,11 @@ export async function getCharacterGenerationProgressAction(gameId: string): Prom
         // Default backstory for AI players, used to determine if a persona has been generated.
         const aiPlaceholderBackstory = `A resident of ${theme.name.toLowerCase()}`;
 
-        const completedCharacters = aiPlayers.filter(player => 
+        const generatedCharacters = aiPlayers.filter(player => 
             player.persona && player.persona.backstory !== aiPlaceholderBackstory
-        ).length;
-
+        );
+        
+        const completedCharacters = generatedCharacters.length;
         const progressPercentage = Math.round((completedCharacters / totalCharacters) * 100);
         
         // Determine current step and current character name
@@ -192,13 +203,22 @@ export async function getCharacterGenerationProgressAction(gameId: string): Prom
         const currentCharacterName = (currentStepText === 'Generating characters...' && completedCharacters < totalCharacters) ?
             aiPlayers[completedCharacters]?.name : undefined;
 
+        // Prepare character data for completed characters
+        const characters = generatedCharacters.map(player => ({
+            id: player.id,
+            name: player.persona?.name || player.name,
+            imageUrl: player.imageUrl || null,
+            backstory: player.persona?.backstory
+        }));
+
         return {
             currentStep: currentStepText,
             progress: progressPercentage,
             totalSteps: totalCharacters, 
             completedCharacters,
             totalCharacters,
-            currentCharacterName
+            currentCharacterName,
+            characters
         };
 
     } catch (error) {

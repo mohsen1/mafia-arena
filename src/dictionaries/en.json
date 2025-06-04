@@ -14,6 +14,7 @@
   "character-generation.starting-game": "Starting your game...",
   "character-generation.error": "Generation Error",
   "character-generation.retry": "Try Again",
+  "character-generation.characters-list": "Characters",
   "ConfigInvalid": "Configuration invalid",
   "ConfigLooksGood": "Configuration looks good ({{playerCount}} players).",
   "ConfigLooksGood_Prefix": "Configuration looks good",
