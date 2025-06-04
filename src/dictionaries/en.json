@@ -263,6 +263,8 @@
     "nameRequired": "Name is required",
     "nameTooShort": "Name must be at least 2 characters long",
     "passwordsNoMatch": "Passwords do not match",
+    "invalidEmail": "Please enter a valid email address",
+    "emailExists": "A user with this email already exists",
     "accountCreatedButSignInFailed": "Account created successfully, but failed to sign in. Please try signing in manually.",
     "unexpectedError": "An unexpected error occurred. Please try again."
   },
@@ -283,6 +285,9 @@
     ],
     "accountCreatedSuccess": "Account created successfully, but failed to sign in. Please try signing in manually.",
     "authenticationError": "🚫 Authentication Error",
+    "configurationError": "There is a problem with the server configuration. Please contact support.",
+    "accessDeniedError": "Access was denied. You may not have permission to sign in with this account.",
+    "verificationError": "The verification token is invalid or has expired.",
     "unknownError": "Unknown authentication error occurred",
     "tryAgain": "Try Again",
     "goHome": "Go Home"
