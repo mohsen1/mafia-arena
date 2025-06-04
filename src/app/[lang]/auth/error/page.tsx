@@ -21,11 +21,11 @@ export default async function AuthErrorPage({ params, searchParams }: Props) {
   const getErrorMessage = (errorCode?: string) => {
     switch (errorCode) {
       case 'Configuration':
-        return 'There is a problem with the server configuration. Please contact support.';
+        return t('auth.configurationError');
       case 'AccessDenied':
-        return 'Access was denied. You may not have permission to sign in with this account.';
+        return t('auth.accessDeniedError');
       case 'Verification':
-        return 'The verification token is invalid or has expired.';
+        return t('auth.verificationError');
       default:
         return t('auth.unknownError');
     }

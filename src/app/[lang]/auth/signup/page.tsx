@@ -52,7 +52,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
       const result = await signUpAction(formData);
 
       if (!result.success) {
-        setError(result.error || 'Failed to create account');
+        setError(result.error ? t(result.error) : t('signUp.unexpectedError'));
         return;
       }
 

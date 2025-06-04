@@ -16,11 +16,11 @@ export async function signUpAction(formData: SignUpFormData): Promise<AuthRespon
 
     // Validate input
     if (!name.trim()) {
-      return { success: false, error: 'Name is required' };
+      return { success: false, error: 'signUp.nameRequired' };
     }
 
     if (name.trim().length < 2) {
-      return { success: false, error: 'Name must be at least 2 characters long' };
+      return { success: false, error: 'signUp.nameTooShort' };
     }
 
     const emailValidation = validateEmail(email);
@@ -34,7 +34,7 @@ export async function signUpAction(formData: SignUpFormData): Promise<AuthRespon
     }
 
     if (password !== confirmPassword) {
-      return { success: false, error: 'Passwords do not match' };
+      return { success: false, error: 'signUp.passwordsNoMatch' };
     }
 
     // Create user
@@ -49,7 +49,7 @@ export async function signUpAction(formData: SignUpFormData): Promise<AuthRespon
     console.error('Sign up error:', error);
     return {
       success: false,
-      error: 'An unexpected error occurred. Please try again.',
+      error: 'signUp.unexpectedError',
     };
   }
-} 
+}
