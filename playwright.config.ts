@@ -40,4 +40,16 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-}); 
+
+  /**
+   * Automatically start the development server when running tests.
+   * This ensures `page.goto()` calls succeed without manually
+   * starting `pnpm dev` beforehand.
+   */
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://127.0.0.1:3099',
+    timeout: 120 * 1000,
+    reuseExistingServer: !process.env.CI,
+  },
+});
