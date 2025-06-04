@@ -98,18 +98,8 @@ export class NightPhase extends AbstractGamePhase {
                 break;
 
             case 'Finished':
-                {
-                    console.log("NightPhase: Finished step reached. Transitioning...");
-                    const nextPhaseType = this.transition(game);
-                    // Pass winner if transitioning to GameOver, ensuring null becomes undefined
-                    let winnerArg: 'Mafia' | 'Town' | undefined = undefined;
-                    if (nextPhaseType === 'GameOver') {
-                        const determinedWinner = game.checkWinCondition();
-                        winnerArg = determinedWinner === null ? undefined : determinedWinner;
-                    }
-                    game.advanceToPhase(nextPhaseType, winnerArg); // Pass correctly typed winner
-                    break;
-                }
+                // Transition handled by Game.runGameLoop
+                break;
 
             default:
                 console.error(`Unknown phase step in NightPhase: ${step}`);

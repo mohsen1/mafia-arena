@@ -66,12 +66,8 @@ export class DayPhase extends AbstractGamePhase {
                 break;
 
             case 'Finished':
-                { // Added braces for scope
-                     console.log("DayPhase: Finished step reached. Transitioning...");
-                     const nextPhaseType = this.transition(game);
-                     game.advanceToPhase(nextPhaseType); // Pass the type
-                     break;
-                } // Added braces for scope
+                // Transition handled by Game.runGameLoop
+                break;
 
             default:
                 console.error(`Unknown phase step in DayPhase: ${step}`);
