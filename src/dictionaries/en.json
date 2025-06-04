@@ -81,89 +81,89 @@
   "Villager": "Villager",
   "WaitingForProvidersLabel": "Waiting for available AI providers...",
   "YourPlayerNameLabel": "Your Player Name",
-  
+
   "landingHeroTitle": "Experience Werewolf Like Never Before",
   "landingHeroSubtitle": "Play the classic social deduction game against intelligent AI characters with unique personas, rich backstories, and strategic thinking.",
   "landingHeroCTA": "Start Playing Now",
   "landingHeroSecondary": "Learn More",
-  
+
   "landingFeaturesTitle": "Revolutionary AI-Powered Gameplay",
   "landingFeaturesSubtitle": "Discover what makes Werewolf AI the ultimate social deduction experience",
-  
+
   "landingFeatureIntelligentAI": "Intelligent AI Players",
   "landingFeatureIntelligentAIDesc": "Each AI agent has a unique personality, strategic thinking, and engaging dialogue capabilities powered by advanced language models.",
-  
+
   "landingFeatureMultilingual": "Global Gaming Experience",
   "landingFeatureMultilingualDesc": "Play in over 25+ languages with automatic translation generation and full internationalization support.",
-  
+
   "landingFeatureDynamic": "Dynamic Character Generation",
   "landingFeatureDynamicDesc": "AI agents create rich backstories and personalities that influence their behavior and decision-making throughout the game.",
-  
+
   "landingFeatureImmersive": "Immersive Audio Experience",
   "landingFeatureImmersiveDesc": "High-quality text-to-speech with ElevenLabs integration brings characters to life with unique voices and personalities.",
-  
+
   "landingFeatureModern": "Modern Web Experience",
   "landingFeatureModernDesc": "Beautiful, responsive interface built with cutting-edge web technologies for seamless gameplay across all devices.",
-  
+
   "landingFeaturePersistent": "Save & Resume Anytime",
   "landingFeaturePersistentDesc": "Never lose your progress with full game state management that lets you save and resume games whenever you want.",
-  
+
   "landingAITitle": "Meet Your AI Opponents",
   "landingAISubtitle": "Powered by the latest AI models from leading providers",
-  
+
   "landingAIOpenAI": "OpenAI GPT Models",
   "landingAIOpenAIDesc": "Advanced reasoning and natural conversation with GPT-4 and GPT-3.5 models",
-  
+
   "landingAIClaude": "Anthropic Claude",
   "landingAIClaudeDesc": "Sophisticated strategic thinking and nuanced character development",
-  
+
   "landingAIGemini": "Google Gemini",
   "landingAIGeminiDesc": "Fast, efficient processing with Google's latest language model technology",
-  
+
   "landingAIGroq": "Groq Lightning Speed",
   "landingAIGroqDesc": "Ultra-fast inference for real-time gameplay and instant responses",
-  
+
   "landingHowItWorksTitle": "How It Works",
   "landingHowItWorksSubtitle": "Get started in minutes with our intuitive game flow",
-  
+
   "landingStep1Title": "Configure Your Game",
   "landingStep1Desc": "Choose player count, AI models, game theme, and whether to join as a human player",
-  
+
   "landingStep2Title": "Characters Come to Life",
   "landingStep2Desc": "Watch as AI agents generate unique personas with names, backstories, and personalities",
-  
+
   "landingStep3Title": "Strategic Gameplay Unfolds",
   "landingStep3Desc": "Experience dynamic discussions, strategic voting, and thrilling night phases",
-  
+
   "landingStep4Title": "Victory or Defeat",
   "landingStep4Desc": "Discover who the werewolves were and enjoy the dramatic conclusion",
-  
+
   "landingTechTitle": "Built with Modern Technology",
   "landingTechSubtitle": "Powered by the latest web technologies and AI innovations",
-  
+
   "landingCtaTitle": "Ready to Hunt Werewolves?",
   "landingCtaSubtitle": "Join the next generation of social deduction gaming",
   "landingCtaButton": "Start Your First Game",
   "landingCtaSecondary": "View Documentation",
-  
+
   "landingRolesTitle": "Classic Roles, AI Mastery",
   "landingRoleWerewolf": "Werewolves",
   "landingRoleWerewolfDesc": "Cunning predators who hunt under cover of darkness while maintaining their innocent facade during the day",
-  
+
   "landingRoleVillager": "Villagers",
   "landingRoleVillagerDesc": "Brave townspeople using logic and deduction to identify and eliminate the werewolf threat",
-  
+
   "landingRoleSeer": "Seer",
   "landingRoleSeerDesc": "Mystical oracle who can peer into souls and discover the true nature of other players",
-  
+
   "landingRoleDoctor": "Doctor",
   "landingRoleDoctorDesc": "Heroic healer who can protect players from werewolf attacks with their medical expertise",
-  
+
   "landingStatsPlayers": "AI Players",
   "landingStatsLanguages": "Languages",
   "landingStatsProviders": "AI Providers",
   "landingStatsRoles": "Game Roles",
-  
+
   "landingFooterDescription": "Experience the classic social deduction game like never before with intelligent AI characters.",
   "landingFooterQuickLinks": "Quick Links",
   "landingFooterPlayGame": "Play Game",
@@ -174,17 +174,17 @@
   "landingFooterDocumentation": "Documentation",
   "landingFooterLanguage": "Language",
   "landingFooterCopyright": "Built with care using Next.js and AI.",
-  
+
   "landingNavFeatures": "Features",
   "landingNavHowItWorks": "How It Works",
   "landingNavPlayNow": "Play Now",
   "landingHeroBadge": "AI-Powered Social Deduction",
-  
+
   "landingFeaturesButton": "Try AI-Powered Werewolf Now",
   "landingSignInToPlay": "Sign In to Play",
   "landingCtaButtonWithEmoji": "🚀 Start Your First Game",
   "landingAITryNow": "🤖 Try AI-Powered Werewolf Now",
-  
+
   "common": {
     "signIn": "Sign In",
     "signUp": "Sign Up",
@@ -220,12 +220,12 @@
     "google": "Google",
     "github": "GitHub"
   },
-  
+
   "signIn": {
     "title": "Sign In",
     "choosePreferredSignInMethod": "Choose your preferred sign-in method to continue",
     "email": "Email",
-    "password": "Password", 
+    "password": "Password",
     "enterYourEmail": "Enter your email",
     "enterYourPassword": "Enter your password",
     "signingIn": "Signing In...",
@@ -234,12 +234,13 @@
     "continueWith": "Continue with {{provider}}",
     "dontHaveAnAccount": "Don't have an account? ",
     "signUp": "Sign up",
+    "forgotPassword": "Forgot password?",
     "invalidCredentials": "Invalid email or password. Please try again.",
     "oauthError": "Error with OAuth sign in. Please try again.",
     "generalError": "An error occurred during sign in. Please try again.",
     "unexpectedError": "An unexpected error occurred. Please try again."
   },
-  
+
   "signUp": {
     "title": "Create Account",
     "description": "Sign up to start playing Werewolf AI games",
@@ -266,10 +267,21 @@
     "accountCreatedButSignInFailed": "Account created successfully, but failed to sign in. Please try signing in manually.",
     "unexpectedError": "An unexpected error occurred. Please try again."
   },
-  
+  "passwordReset": {
+    "title": "Reset Password",
+    "email": "Email",
+    "send": "Send Reset Link",
+    "checkEmail": "If an account exists, you'll receive a reset link shortly.",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "reset": "Reset Password",
+    "success": "Password updated successfully. You can now sign in.",
+    "invalidToken": "Invalid or expired token"
+  },
+
   "auth": {
     "signInTitle": "Sign In",
-    "signUpTitle": "Create Account", 
+    "signUpTitle": "Create Account",
     "signUpDescription": "Sign up to start playing Werewolf AI games",
     "authenticationRequired": "Authentication Required",
     "authRequiredDescription": "You need to sign in to create and play Werewolf AI games. Sign in with your Google or GitHub account to get started.",
@@ -277,7 +289,7 @@
     "whySignIn": "Why sign in?",
     "whySignInBenefits": [
       "Save and resume your games across sessions",
-      "Create multiple games and manage them easily", 
+      "Create multiple games and manage them easily",
       "Track your game history and statistics",
       "Access advanced game features and settings"
     ],
@@ -287,7 +299,7 @@
     "tryAgain": "Try Again",
     "goHome": "Go Home"
   },
-  
+
   "profile": {
     "loading": "Loading profile...",
     "signInRequired": "Sign In Required",
@@ -315,7 +327,7 @@
     "aboutDescription1": "Werewolf AI is an AI-powered social deduction game where you play alongside intelligent AI characters.",
     "aboutDescription2": "Your games and progress are automatically saved to your account."
   },
-  
+
   "games": {
     "loading": "Loading games...",
     "signInRequired": "Sign In Required",
@@ -349,4 +361,4 @@
       "completed": "Completed"
     }
   }
-} 
+}

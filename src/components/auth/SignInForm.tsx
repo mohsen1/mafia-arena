@@ -1,40 +1,43 @@
-'use client';
+"use client";
 
-import { signIn, getProviders } from 'next-auth/react';
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Chrome, Github, Eye, EyeOff, LogIn } from 'lucide-react';
-import { FcGoogle } from 'react-icons/fc';
-import Link from 'next/link';
-import type { ClientSafeProvider } from 'next-auth/react';
-import type { LanguageCode } from '@/lib/i18n/settings';
+import { signIn, getProviders } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Chrome, Github, Eye, EyeOff, LogIn } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
+import Link from "next/link";
+import type { ClientSafeProvider } from "next-auth/react";
+import type { LanguageCode } from "@/lib/i18n/settings";
 
 export function SignInForm() {
   const { t } = useTranslation();
-  const [providers, setProviders] = useState<Record<string, ClientSafeProvider> | null>(null);
+  const [providers, setProviders] = useState<Record<
+    string,
+    ClientSafeProvider
+  > | null>(null);
   const [loading, setLoading] = useState(false);
   const [credentialsLoading, setCredentialsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [credentials, setCredentials] = useState({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
   });
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const errorParam = searchParams.get('error');
+  const errorParam = searchParams.get("error");
 
   // Extract current language from pathname
   const getCurrentLanguage = (): LanguageCode => {
-    const segments = pathname.split('/').filter(Boolean);
-    return (segments[0] as LanguageCode) || 'en';
+    const segments = pathname.split("/").filter(Boolean);
+    return (segments[0] as LanguageCode) || "en";
   };
 
   const currentLang = getCurrentLanguage();
@@ -50,16 +53,16 @@ export function SignInForm() {
   useEffect(() => {
     if (errorParam) {
       switch (errorParam) {
-        case 'CredentialsSignin':
-          setError(t('signIn.invalidCredentials'));
+        case "CredentialsSignin":
+          setError(t("signIn.invalidCredentials"));
           break;
-        case 'OAuthSignin':
-        case 'OAuthCallback':
-        case 'OAuthCreateAccount':
-          setError(t('signIn.oauthError'));
+        case "OAuthSignin":
+        case "OAuthCallback":
+        case "OAuthCreateAccount":
+          setError(t("signIn.oauthError"));
           break;
         default:
-          setError(t('signIn.generalError'));
+          setError(t("signIn.generalError"));
       }
     }
   }, [errorParam, t]);
@@ -69,8 +72,8 @@ export function SignInForm() {
     try {
       await signIn(providerId, { callbackUrl: `/${currentLang}` });
     } catch (error) {
-      console.error('OAuth sign in error:', error);
-      setError(t('signIn.oauthError'));
+      console.error("OAuth sign in error:", error);
+      setError(t("signIn.oauthError"));
     } finally {
       setLoading(false);
     }
@@ -79,23 +82,23 @@ export function SignInForm() {
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setCredentialsLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const result = await signIn('credentials', {
+      const result = await signIn("credentials", {
         email: credentials.email,
         password: credentials.password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError(t('signIn.invalidCredentials'));
+        setError(t("signIn.invalidCredentials"));
       } else if (result?.ok) {
         router.push(`/${currentLang}`);
       }
     } catch (error) {
-      console.error('Credentials sign in error:', error);
-      setError(t('signIn.unexpectedError'));
+      console.error("Credentials sign in error:", error);
+      setError(t("signIn.unexpectedError"));
     } finally {
       setCredentialsLoading(false);
     }
@@ -103,15 +106,15 @@ export function SignInForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setCredentials(prev => ({ ...prev, [name]: value }));
-    if (error) setError('');
+    setCredentials((prev) => ({ ...prev, [name]: value }));
+    if (error) setError("");
   };
 
   const getProviderIcon = (providerId: string) => {
     switch (providerId) {
-      case 'google':
+      case "google":
         return <FcGoogle className="w-4 h-4 me-2" />;
-      case 'github':
+      case "github":
         return <Github className="w-4 h-4 me-2" />;
       default:
         return <Chrome className="w-4 h-4 me-2" />;
@@ -121,22 +124,24 @@ export function SignInForm() {
   if (!providers) {
     return (
       <div className="bg-card border rounded-lg p-6">
-        <div className="text-center text-muted-foreground">{t('common.loading')}</div>
+        <div className="text-center text-muted-foreground">
+          {t("common.loading")}
+        </div>
       </div>
     );
   }
 
   // Filter out credentials provider from OAuth providers list
   const oauthProviders = Object.values(providers).filter(
-    provider => provider.id !== 'credentials'
+    (provider) => provider.id !== "credentials",
   );
 
   return (
     <div className="bg-card border rounded-lg p-6 space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold">{t('signIn.title')}</h2>
+        <h2 className="text-xl font-semibold">{t("signIn.title")}</h2>
         <p className="text-muted-foreground text-sm">
-          {t('signIn.choosePreferredSignInMethod')}
+          {t("signIn.choosePreferredSignInMethod")}
         </p>
       </div>
 
@@ -149,29 +154,29 @@ export function SignInForm() {
       {/* Email/Password Form */}
       <form onSubmit={handleCredentialsSignIn} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">{t('signIn.email')}</Label>
+          <Label htmlFor="email">{t("signIn.email")}</Label>
           <Input
             id="email"
             name="email"
             type="email"
             value={credentials.email}
             onChange={handleInputChange}
-            placeholder={t('signIn.enterYourEmail')}
+            placeholder={t("signIn.enterYourEmail")}
             required
             disabled={credentialsLoading}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">{t('signIn.password')}</Label>
+          <Label htmlFor="password">{t("signIn.password")}</Label>
           <div className="relative">
             <Input
               id="password"
               name="password"
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               value={credentials.password}
               onChange={handleInputChange}
-              placeholder={t('signIn.enterYourPassword')}
+              placeholder={t("signIn.enterYourPassword")}
               required
               disabled={credentialsLoading}
             />
@@ -190,18 +195,26 @@ export function SignInForm() {
               )}
             </Button>
           </div>
+          <div className="text-right text-sm">
+            <Link
+              href={`/${currentLang}/auth/forgot-password`}
+              className="text-primary hover:underline"
+            >
+              {t("signIn.forgotPassword")}
+            </Link>
+          </div>
         </div>
 
         <Button type="submit" className="w-full" disabled={credentialsLoading}>
           {credentialsLoading ? (
             <>
               <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin me-2" />
-              {t('signIn.signingIn')}
+              {t("signIn.signingIn")}
             </>
           ) : (
             <>
               <LogIn className="w-4 h-4 me-2" />
-              {t('signIn.signInWithEmail')}
+              {t("signIn.signInWithEmail")}
             </>
           )}
         </Button>
@@ -215,7 +228,7 @@ export function SignInForm() {
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-card px-2 text-muted-foreground">
-              {t('signIn.orContinueWith')}
+              {t("signIn.orContinueWith")}
             </span>
           </div>
         </div>
@@ -233,7 +246,7 @@ export function SignInForm() {
               disabled={loading || credentialsLoading}
             >
               {getProviderIcon(provider.id)}
-              {t('signIn.continueWith', { provider: provider.name })}
+              {t("signIn.continueWith", { provider: provider.name })}
             </Button>
           ))}
         </div>
@@ -241,14 +254,16 @@ export function SignInForm() {
 
       {/* Sign Up Link */}
       <div className="text-center text-sm">
-        <span className="text-muted-foreground">{t('signIn.dontHaveAnAccount')}</span>
+        <span className="text-muted-foreground">
+          {t("signIn.dontHaveAnAccount")}
+        </span>
         <Link
           href={`/${currentLang}/auth/signup`}
           className="text-primary hover:underline"
         >
-          {t('signIn.signUp')}
+          {t("signIn.signUp")}
         </Link>
       </div>
     </div>
   );
-} 
+}
