@@ -4,16 +4,79 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from './ui/progress';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, Users, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Sparkles, Users, CheckCircle2, AlertCircle, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { generateGameCharactersAction, getCharacterGenerationProgressAction, type CharacterGenerationProgress } from '@/app/actions/character-generation.actions';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
+import { cn } from '@/lib/utils';
 
 interface CharacterGenerationUIProps {
   gameId: string;
   onComplete: (gameState: FilteredGameState) => void;
   onError: (error: string) => void;
 }
+
+interface CharacterCardProps {
+  character: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    backstory?: string;
+  };
+  isLoading?: boolean;
+}
+
+const CharacterCard: React.FC<CharacterCardProps> = ({ character, isLoading }) => {
+  return (
+    <div className={cn(
+      "relative bg-card rounded-lg p-4 transition-all duration-300",
+      isLoading ? "animate-pulse" : "animate-in fade-in-50 zoom-in-95"
+    )}>
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          {character.imageUrl ? (
+            <img 
+              src={character.imageUrl} 
+              alt={character.name}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+              <User className="w-6 h-6 text-muted-foreground" />
+            </div>
+          )}
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          )}
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          {isLoading ? (
+            <>
+              <div className="h-4 bg-secondary rounded animate-pulse mb-1 w-3/4"></div>
+              <div className="h-3 bg-secondary rounded animate-pulse w-1/2"></div>
+            </>
+          ) : (
+            <>
+              <h4 className="font-medium text-sm truncate">{character.name}</h4>
+              {character.backstory && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {character.backstory.split('.')[0]}...
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        
+        {!isLoading && (
+          <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function CharacterGenerationUI({ gameId, onComplete, onError }: CharacterGenerationUIProps) {
   const { t } = useTranslation();
@@ -22,7 +85,8 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
     progress: 0,
     totalSteps: 0,
     completedCharacters: 0,
-    totalCharacters: 0
+    totalCharacters: 0,
+    characters: []
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +139,7 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
       setIsGenerating(false);
       isGeneratingRef.current = false;
     }
-  }, [gameId, isComplete, error]); // Only stable dependencies
+  }, [gameId, isComplete, error]);
 
   // ✅ FIXED: Inline progress checking without unstable callback dependencies
   useEffect(() => {
@@ -191,8 +255,8 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Card className="w-full max-w-md mx-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <CardTitle className="flex items-center justify-center gap-2">
             <Sparkles className="w-6 h-6 text-primary animate-pulse" />
@@ -210,14 +274,6 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
                 })}
               </span>
             </div>
-            
-            {progress.currentCharacterName && (
-              <p className="text-sm text-primary font-medium">
-                {t('character-generation.current-character', 'Creating: {{name}}', {
-                  name: progress.currentCharacterName
-                })}
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -228,9 +284,50 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
             <Progress value={progress.progress} className="w-full h-2" />
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>{t('character-generation.please-wait', 'Please wait while we create unique AI characters...')}</span>
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">
+              {t('character-generation.characters-list', 'Characters')}
+            </h3>
+            
+            <div className="grid gap-2 max-h-60 overflow-y-auto pr-2">
+              {/* Show completed characters */}
+              {progress.characters?.map((character) => (
+                <CharacterCard 
+                  key={character.id} 
+                  character={character}
+                />
+              ))}
+              
+              {/* Show loading card for current character */}
+              {progress.currentCharacterName && progress.progress < 100 && (
+                <CharacterCard 
+                  character={{
+                    id: 'current',
+                    name: progress.currentCharacterName,
+                    imageUrl: null
+                  }}
+                  isLoading
+                />
+              )}
+              
+              {/* Show placeholder cards for remaining characters */}
+              {Array.from({ 
+                length: Math.max(0, progress.totalCharacters - progress.completedCharacters - (progress.currentCharacterName ? 1 : 0)) 
+              }).map((_, index) => (
+                <div 
+                  key={`placeholder-${index}`}
+                  className="bg-secondary/30 rounded-lg p-4 opacity-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-secondary/50"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-secondary/50 rounded w-3/4 mb-1"></div>
+                      <div className="h-3 bg-secondary/50 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="text-center text-xs text-muted-foreground">
