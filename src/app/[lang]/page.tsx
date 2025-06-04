@@ -390,7 +390,7 @@ export default function LandingPage() {
               className="group hover:scale-105 transition-transform duration-300"
             >
               <Link href={`/${currentLang}/new`}>
-                🤖 Try AI-Powered Werewolf Now
+                {t('landingAITryNow')}
                 <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
               </Link>
             </MagicalAIButton>
