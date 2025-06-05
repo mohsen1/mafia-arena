@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from './ui/progress';
 import { Button } from '@/components/ui/button';
@@ -35,9 +36,11 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, isLoading }) =
       <div className="flex items-center gap-3">
         <div className="relative">
           {character.imageUrl ? (
-            <img 
-              src={character.imageUrl} 
+            <Image
+              src={character.imageUrl}
               alt={character.name}
+              width={48}
+              height={48}
               className="w-12 h-12 rounded-full object-cover"
             />
           ) : (
