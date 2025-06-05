@@ -1,6 +1,5 @@
 "use server";
 
-import { Game } from '@/lib/engine/core/Game'; 
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { Themes } from '@/lib/engine/interfaces/Theme';
 import type { SerializableGameState, SerializablePlayer, AgentConfig } from '@/lib/interfaces/persistence.types';
@@ -13,7 +12,6 @@ import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import crypto from 'node:crypto';
 import type { StartGameSetupData } from "@/lib/interfaces/actions.types";
 import { DEFAULT_PERSONA, type Persona } from '@/lib/engine/interfaces/Persona';
-import { selectCharacterImage } from '@/lib/utils/imageUtils';
 import { createAgentInstance } from '@/lib/agentFactory';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
