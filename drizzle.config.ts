@@ -1,7 +1,7 @@
 import { defineConfig } from 'drizzle-kit';
 
 const isVercel = Boolean(process.env.VERCEL);
-const isDev = process.env.NODE_ENV === 'development' && !isVercel;
+const isDev = process.env.NODE_ENV !== 'production' && !isVercel;
 
 const databaseUrl =
   process.env.DATABASE_URL ||
