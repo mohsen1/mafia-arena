@@ -207,6 +207,7 @@ export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
         temperature: settings.temperature ?? 0.1,
         maxOutputTokens: settings.max_tokens ?? 8192,
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       tools: [{ functionDeclarations: [functionDeclaration as any] }],
       toolConfig: {
         functionCallingConfig: {

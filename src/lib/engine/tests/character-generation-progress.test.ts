@@ -3,7 +3,6 @@ import { getCharacterGenerationProgressAction } from '@/app/actions/character-ge
 import { loadGameData } from '@/lib/db/persistence';
 import { getServerSession } from 'next-auth';
 import { GameService } from '@/lib/db/game.service';
-import { Themes } from '@/lib/engine/interfaces/Theme';
 
 vi.mock('@/lib/db/persistence');
 vi.mock('next-auth');
@@ -26,7 +25,7 @@ describe('Character Generation Progress', () => {
         
         vi.mocked(getServerSession).mockResolvedValue({
             user: { id: mockUserId }
-        } as any);
+        } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         
         vi.mocked(GameService.isGameOwner).mockResolvedValue(true);
     });
@@ -53,7 +52,8 @@ describe('Character Generation Progress', () => {
             }
         };
         
-        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         
         const result = await getCharacterGenerationProgressAction(mockGameId);
         
@@ -100,7 +100,7 @@ describe('Character Generation Progress', () => {
             }
         };
         
-        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any);
+        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         
         const result = await getCharacterGenerationProgressAction(mockGameId);
         
@@ -155,7 +155,7 @@ describe('Character Generation Progress', () => {
             }
         };
         
-        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any);
+        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         
         const result = await getCharacterGenerationProgressAction(mockGameId);
         
