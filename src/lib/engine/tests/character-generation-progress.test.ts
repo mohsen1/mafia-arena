@@ -3,7 +3,6 @@ import { getCharacterGenerationProgressAction } from '@/app/actions/character-ge
 import { loadGameData } from '@/lib/db/persistence';
 import { getServerSession } from 'next-auth';
 import { GameService } from '@/lib/db/game.service';
-import { Themes } from '@/lib/engine/interfaces/Theme';
 
 vi.mock('@/lib/db/persistence');
 vi.mock('next-auth');
