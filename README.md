@@ -193,6 +193,7 @@ pnpm build
 pnpm start
 ```
 
+
 ### Deploying to Vercel
 
 Configure the environment variables supplied by Vercel for both Production and
