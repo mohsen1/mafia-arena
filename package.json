@@ -22,7 +22,8 @@
     "db:drop": "drizzle-kit drop",
     "db:seed": "tsx scripts/seed-dev-user.ts",
     "dev:db": "pnpm run db:setup && pnpm run db:push && pnpm run db:seed && pnpm run dev",
-    "dev:seed": "pnpm run db:seed && pnpm run dev"
+    "dev:seed": "pnpm run db:seed && pnpm run dev",
+    "knip": "knip --no-exit-code"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",
@@ -97,6 +98,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.5",
     "jsdom": "^26.1.0",
+    "knip": "^5.60.1",
     "tailwindcss": "^4.1.3",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3",
