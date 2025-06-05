@@ -1,14 +1,14 @@
-import { ElevenLabsClient } from "elevenlabs";
-import { promises as fs } from "fs";
-import path from "path";
-import { Readable } from "stream";
+import { ElevenLabsClient } from 'elevenlabs';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { Readable } from 'stream';
 
 const apiKey = process.env.ELEVENLABS_API_KEY;
-const AUDIO_DIR = path.join(process.cwd(), "public", "audio");
+const AUDIO_DIR = path.join(process.cwd(), 'public', 'audio');
 
 if (!apiKey) {
   console.warn(
-    "Missing ELEVENLABS_API_KEY environment variable. TTS features will be disabled.",
+    'Missing ELEVENLABS_API_KEY environment variable. TTS features will be disabled.'
   );
 }
 
@@ -20,9 +20,9 @@ const elevenlabs = apiKey ? new ElevenLabsClient({ apiKey }) : null;
 async function streamToBuffer(stream: Readable): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-    stream.on("error", (err) => reject(err));
-    stream.on("end", () => resolve(Buffer.concat(chunks)));
+    stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    stream.on('error', (err) => reject(err));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
   });
 }
 
@@ -32,16 +32,16 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  */
 export async function getElevenLabsVoices() {
   if (!elevenlabs) {
-    console.warn("ElevenLabs client not initialized. Cannot fetch voices.");
+    console.warn('ElevenLabs client not initialized. Cannot fetch voices.');
     return [];
   }
   try {
-    console.log("Fetching ElevenLabs voices...");
+    console.log('Fetching ElevenLabs voices...');
     const response = await elevenlabs.voices.getAll();
     console.log(`Fetched ${response.voices.length} voices.`);
     return response.voices;
   } catch (error) {
-    console.error("Failed to fetch ElevenLabs voices:", error);
+    console.error('Failed to fetch ElevenLabs voices:', error);
     return [];
   }
 }
@@ -60,21 +60,21 @@ export async function generateAndSaveAudio(
   text: string,
   voiceId: string,
   gameId: string,
-  messageId: string,
+  messageId: string
 ): Promise<string | null> {
   if (!elevenlabs) {
-    console.warn("ElevenLabs client not initialized. Cannot generate audio.");
+    console.warn('ElevenLabs client not initialized. Cannot generate audio.');
     return null;
   }
 
   try {
     console.log(
-      `Generating audio for message ${messageId} using voice ${voiceId}...`,
+      `Generating audio for message ${messageId} using voice ${voiceId}...`
     );
     const audioStream = await elevenlabs.generate({
       voice: voiceId,
       text,
-      model_id: "eleven_multilingual_v2",
+      model_id: 'eleven_multilingual_v2',
     });
 
     const gameAudioDir = path.join(AUDIO_DIR, gameId);
@@ -92,7 +92,7 @@ export async function generateAndSaveAudio(
   } catch (error) {
     console.error(
       `Failed to generate or save audio for message ${messageId}:`,
-      error,
+      error
     );
     return null;
   }

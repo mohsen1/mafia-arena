@@ -24,19 +24,21 @@ export interface GameListItem {
  */
 export async function getUserGamesAction(): Promise<GameListItem[]> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     throw new Error('Authentication required');
   }
 
   try {
     const games = await GameService.listUserGames(session.user.id);
-    
-    return games.map(game => {
+
+    return games.map((game) => {
       const gameState = game.gameState as Record<string, unknown>;
-      const playerCount = gameState && typeof gameState === 'object' && 'players' in gameState
-        ? Object.keys((gameState.players as Record<string, unknown>) || {}).length
-        : 0;
+      const playerCount =
+        gameState && typeof gameState === 'object' && 'players' in gameState
+          ? Object.keys((gameState.players as Record<string, unknown>) || {})
+              .length
+          : 0;
 
       return {
         id: game.id,
@@ -63,7 +65,7 @@ export async function getUserGamesAction(): Promise<GameListItem[]> {
  */
 export async function deleteGameAction(gameId: string): Promise<void> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     throw new Error('Authentication required');
   }
@@ -76,7 +78,7 @@ export async function deleteGameAction(gameId: string): Promise<void> {
     }
 
     await GameService.deleteGameData(gameId);
-    
+
     // Revalidate the games page
     revalidatePath('/[lang]/games');
   } catch (error) {
@@ -95,22 +97,24 @@ export async function getGameStatsAction(): Promise<{
   completed: number;
 }> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return { total: 0, waiting: 0, inProgress: 0, completed: 0 };
   }
 
   try {
     const games = await getUserGamesAction();
-    
+
     return {
       total: games.length,
-      waiting: games.filter(g => g.status === 'active' && g.round === 0).length,
-      inProgress: games.filter(g => g.status === 'active' && g.round > 0).length,
-      completed: games.filter(g => g.status === 'completed').length,
+      waiting: games.filter((g) => g.status === 'active' && g.round === 0)
+        .length,
+      inProgress: games.filter((g) => g.status === 'active' && g.round > 0)
+        .length,
+      completed: games.filter((g) => g.status === 'completed').length,
     };
   } catch (error) {
     console.error('Failed to get game stats:', error);
     return { total: 0, waiting: 0, inProgress: 0, completed: 0 };
   }
-} 
+}

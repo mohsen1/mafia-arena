@@ -10,64 +10,65 @@ import type { PendingHumanAction } from './actions.types';
 
 // Configuration needed to re-instantiate an agent
 export interface AgentConfig {
-    /* e.g., 'OpenAI', 'Human', 'Claude', 'Groq', 'Ollama', 'Dummy' */
-    agentType: string; 
-    modelName?: string;
-    /* Identifier like 'openai', 'groq', 'ollama_local' */
-    providerValue?: string;
+  /* e.g., 'OpenAI', 'Human', 'Claude', 'Groq', 'Ollama', 'Dummy' */
+  agentType: string;
+  modelName?: string;
+  /* Identifier like 'openai', 'groq', 'ollama_local' */
+  providerValue?: string;
 }
 
 // Serializable data for a single player
 export interface SerializablePlayer {
-    id: PlayerId;
-    name: string;
-    status: PlayerStatus;
-    roleName: RoleName;
-    allegiance: Allegiance;
-    agentConfig: AgentConfig;
-    persona: Persona; // Store the generated/assigned persona
-    isHuman: boolean;
-    imageUrl?: string | null; // Added to store image URL
+  id: PlayerId;
+  name: string;
+  status: PlayerStatus;
+  roleName: RoleName;
+  allegiance: Allegiance;
+  agentConfig: AgentConfig;
+  persona: Persona; // Store the generated/assigned persona
+  isHuman: boolean;
+  imageUrl?: string | null; // Added to store image URL
 }
 
 // Define a type for serialized messages with string timestamps
 export interface SerializedMessage {
-    id: string;
-    round: number;
-    phase: GamePhaseType;
-    senderId: PlayerId | null;
-    senderName: string;
-    content: string;
-    visibility: MessageVisibility; // Assuming MessageVisibility is serializable
-    recipientId?: PlayerId;
-    timestamp: string; // Use string for serialized state
+  id: string;
+  round: number;
+  phase: GamePhaseType;
+  senderId: PlayerId | null;
+  senderName: string;
+  content: string;
+  visibility: MessageVisibility; // Assuming MessageVisibility is serializable
+  recipientId?: PlayerId;
+  timestamp: string; // Use string for serialized state
 }
 
 // The main state object to be saved/loaded
 export interface SerializableGameState {
-    gameId: string;
-    createdAt: number; // Store as ISO string or timestamp number
-    updatedAt: number; // Store as ISO string or timestamp number
-    themeKey: string;
-    language: LanguageName;
-    round: number;
-    phase: GamePhaseType;
-    players: Record<PlayerId, SerializablePlayer>;
-    livingPlayerIds: PlayerId[];
-    deadPlayerIds: PlayerId[];
-    conversationLog: SerializedMessage[]; // Use the new SerializedMessage type here
-    agentMemories: Record<PlayerId, AgentMemory>; // Reuses engine type (check map/set serialization)
-    winCondition: { outcome: string; message: string } | null; // Simplified structure
-    humanPlayerId: PlayerId | null;
-    pendingHumanAction: PendingHumanAction | null;
-    _phaseResults?: { // Optional results from the last completed phase step
-        killedPlayerId?: PlayerId | null;
-        savedPlayerId?: PlayerId | null;
-        seerInvestigation?: { targetId: PlayerId; allegiance: Allegiance } | null;
-        lastDayElimination?: PlayerId | null;
-    };
-    /** Current step within the active phase */
-    phaseStep: string;
-    /** Index of the next player to act within the current phase step */
-    nextPlayerIndexToAction: number;
+  gameId: string;
+  createdAt: number; // Store as ISO string or timestamp number
+  updatedAt: number; // Store as ISO string or timestamp number
+  themeKey: string;
+  language: LanguageName;
+  round: number;
+  phase: GamePhaseType;
+  players: Record<PlayerId, SerializablePlayer>;
+  livingPlayerIds: PlayerId[];
+  deadPlayerIds: PlayerId[];
+  conversationLog: SerializedMessage[]; // Use the new SerializedMessage type here
+  agentMemories: Record<PlayerId, AgentMemory>; // Reuses engine type (check map/set serialization)
+  winCondition: { outcome: string; message: string } | null; // Simplified structure
+  humanPlayerId: PlayerId | null;
+  pendingHumanAction: PendingHumanAction | null;
+  _phaseResults?: {
+    // Optional results from the last completed phase step
+    killedPlayerId?: PlayerId | null;
+    savedPlayerId?: PlayerId | null;
+    seerInvestigation?: { targetId: PlayerId; allegiance: Allegiance } | null;
+    lastDayElimination?: PlayerId | null;
+  };
+  /** Current step within the active phase */
+  phaseStep: string;
+  /** Index of the next player to act within the current phase step */
+  nextPlayerIndexToAction: number;
 }

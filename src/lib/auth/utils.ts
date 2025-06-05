@@ -25,11 +25,16 @@ export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
 }
 
-export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  hashedPassword: string
+): Promise<boolean> {
   return bcrypt.compare(password, hashedPassword);
 }
 
-export async function createUser(userData: CreateUserData): Promise<AuthResponse> {
+export async function createUser(
+  userData: CreateUserData
+): Promise<AuthResponse> {
   try {
     const { name, email, password } = userData;
 
@@ -98,7 +103,10 @@ export async function getUserByEmail(email: string) {
   }
 }
 
-export function validatePassword(password: string): { isValid: boolean; error?: string } {
+export function validatePassword(password: string): {
+  isValid: boolean;
+  error?: string;
+} {
   if (password.length < 8) {
     return { isValid: false, error: 'signUp.passwordRequirements' };
   }
@@ -118,12 +126,15 @@ export function validatePassword(password: string): { isValid: boolean; error?: 
   return { isValid: true };
 }
 
-export function validateEmail(email: string): { isValid: boolean; error?: string } {
+export function validateEmail(email: string): {
+  isValid: boolean;
+  error?: string;
+} {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
+
   if (!emailRegex.test(email)) {
     return { isValid: false, error: 'signUp.invalidEmail' };
   }
 
   return { isValid: true };
-} 
+}

@@ -1,10 +1,10 @@
-"use client"; // Make this a client component to use the hook
+'use client'; // Make this a client component to use the hook
 
-import Link from "next/link";
-import type { FilteredGameState } from "@/lib/interfaces/client.types";
-import { deleteGameAction } from "@/app/actions/management.actions";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import Link from 'next/link';
+import type { FilteredGameState } from '@/lib/interfaces/client.types';
+import { deleteGameAction } from '@/app/actions/management.actions';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next'; // Import the hook
 import { useState } from 'react'; // Import useState for loading state
 
@@ -22,22 +22,29 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
   const handleDeleteClick = async () => {
     if (isDeleting) return;
     // Confirm deletion
-    if (!confirm(t('ConfirmDeleteGame', `Are you sure you want to delete game ${game.gameId}?`))) {
+    if (
+      !confirm(
+        t(
+          'ConfirmDeleteGame',
+          `Are you sure you want to delete game ${game.gameId}?`
+        )
+      )
+    ) {
       return;
     }
     setIsDeleting(true);
     try {
-      const result = await deleteGameAction(game.gameId); 
+      const result = await deleteGameAction(game.gameId);
       if (result.success) {
         onDelete?.(game.gameId); // Call callback if provided
         // Optionally trigger a client-side refresh or state update
       } else {
         // Handle deletion failure (e.g., show error message)
-        console.error("Failed to delete game:", result.error);
+        console.error('Failed to delete game:', result.error);
         alert(t('DeleteGameError', `Failed to delete game: ${result.error}`));
       }
     } catch (error) {
-      console.error("Error calling deleteGameAction:", error);
+      console.error('Error calling deleteGameAction:', error);
       alert(t('DeleteGameError', 'An error occurred while deleting the game.'));
     } finally {
       setIsDeleting(false);
@@ -48,8 +55,11 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
     <li className="flex justify-between items-start gap-4 p-4 border rounded-lg shadow-sm bg-card">
       <div className="flex-grow">
         <h3 className="text-lg font-semibold mb-1">
-          <Link href={`/${game.language}/game/${game.gameId}`} className="hover:underline text-primary">
-            {game.themeTitle || t("DefaultGameTitle", "Untitled Game")}
+          <Link
+            href={`/${game.language}/game/${game.gameId}`}
+            className="hover:underline text-primary"
+          >
+            {game.themeTitle || t('DefaultGameTitle', 'Untitled Game')}
           </Link>
         </h3>
         {game.themeDescription && (
@@ -58,33 +68,35 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          {t("GamePhaseLabel", "Phase")}:{" "}
+          {t('GamePhaseLabel', 'Phase')}:{' '}
           <span className="font-medium capitalize">
             {t(`GamePhase_${game.phase}`, game.phase)}
-          </span>{" "}
-          | {t("RoundLabel", "Round")}:{" "}
+          </span>{' '}
+          | {t('RoundLabel', 'Round')}:{' '}
           <span className="font-medium">{game.round}</span> |
-          {t("PlayersLabel", "Players")}:{" "}
+          {t('PlayersLabel', 'Players')}:{' '}
           <span className="font-medium">
             {Object.keys(game.players).length}
-          </span>{" "}
-          | {t("CreatedLabel", "Created")}:{" "}
+          </span>{' '}
+          | {t('CreatedLabel', 'Created')}:{' '}
           <span className="font-medium">
-            {format(new Date(game.createdAt), "PPpp")}
+            {format(new Date(game.createdAt), 'PPpp')}
           </span>
         </p>
       </div>
       <div className="flex-shrink-0">
-        <Button 
-          type="button" 
-          variant="outline" 
+        <Button
+          type="button"
+          variant="outline"
           size="sm"
           onClick={handleDeleteClick}
           disabled={isDeleting}
         >
-          {isDeleting ? t('DeletingButtonLabel', 'Deleting...') : t("DeleteButton", "Delete")}
+          {isDeleting
+            ? t('DeletingButtonLabel', 'Deleting...')
+            : t('DeleteButton', 'Delete')}
         </Button>
       </div>
     </li>
   );
-} 
+}

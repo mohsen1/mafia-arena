@@ -18,63 +18,92 @@ vi.mock('@/lib/engine/agents/DummyAIAgent'); // Mock the actual DummyAgent path
 const originalEnv = process.env;
 
 describe('createAgentInstance', () => {
-    const testPlayerId: PlayerId = 'test-p1';
+  const testPlayerId: PlayerId = 'test-p1';
 
-    beforeEach(() => {
-        vi.resetModules(); // Important to reset module cache for env var changes
-        process.env = { ...originalEnv }; // Reset env vars
-        vi.clearAllMocks();
-    });
+  beforeEach(() => {
+    vi.resetModules(); // Important to reset module cache for env var changes
+    process.env = { ...originalEnv }; // Reset env vars
+    vi.clearAllMocks();
+  });
 
-    afterAll(() => {
-        process.env = originalEnv; // Restore original env vars
-    });
+  afterAll(() => {
+    process.env = originalEnv; // Restore original env vars
+  });
 
-    it('should create an OpenAIAgent for agentType "OpenAI"', () => {
-        process.env.OPENAI_API_KEY = 'test-openai-key';
-        const config: AgentConfig = { agentType: 'OpenAI', modelName: 'gpt-4o-mini', providerValue: 'openai' };
-        createAgentInstance(config, testPlayerId);
-        expect(OpenAIAgent).toHaveBeenCalledTimes(1);
-        expect(OpenAIAgent).toHaveBeenCalledWith(testPlayerId, 'gpt-4o-mini', 'https://api.openai.com/v1', 'test-openai-key');
-    });
+  it('should create an OpenAIAgent for agentType "OpenAI"', () => {
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    const config: AgentConfig = {
+      agentType: 'OpenAI',
+      modelName: 'gpt-4o-mini',
+      providerValue: 'openai',
+    };
+    createAgentInstance(config, testPlayerId);
+    expect(OpenAIAgent).toHaveBeenCalledTimes(1);
+    expect(OpenAIAgent).toHaveBeenCalledWith(
+      testPlayerId,
+      'gpt-4o-mini',
+      'https://api.openai.com/v1',
+      'test-openai-key'
+    );
+  });
 
-    it('should create an OpenAIAgent for agentType "Groq"', () => {
-        process.env.GROQ_API_KEY = 'test-groq-key';
-        const config: AgentConfig = { agentType: 'Groq', modelName: 'llama3-8b-8192', providerValue: 'groq' };
-        createAgentInstance(config, testPlayerId);
-        expect(OpenAIAgent).toHaveBeenCalledTimes(1);
-        expect(OpenAIAgent).toHaveBeenCalledWith(testPlayerId, 'llama3-8b-8192', 'https://api.groq.com/openai/v1', 'test-groq-key');
-    });
+  it('should create an OpenAIAgent for agentType "Groq"', () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    const config: AgentConfig = {
+      agentType: 'Groq',
+      modelName: 'llama3-8b-8192',
+      providerValue: 'groq',
+    };
+    createAgentInstance(config, testPlayerId);
+    expect(OpenAIAgent).toHaveBeenCalledTimes(1);
+    expect(OpenAIAgent).toHaveBeenCalledWith(
+      testPlayerId,
+      'llama3-8b-8192',
+      'https://api.groq.com/openai/v1',
+      'test-groq-key'
+    );
+  });
 
-     it('should create an OpenAIAgent for agentType "Ollama" without API key', () => {
-         // No API key needed for default local Ollama
-         const config: AgentConfig = { agentType: 'Ollama', modelName: 'llama3:latest', providerValue: 'ollama_local' };
-         createAgentInstance(config, testPlayerId);
-         expect(OpenAIAgent).toHaveBeenCalledTimes(1);
-         expect(OpenAIAgent).toHaveBeenCalledWith(testPlayerId, 'llama3:latest', 'http://localhost:11434/v1', undefined);
-     });
+  it('should create an OpenAIAgent for agentType "Ollama" without API key', () => {
+    // No API key needed for default local Ollama
+    const config: AgentConfig = {
+      agentType: 'Ollama',
+      modelName: 'llama3:latest',
+      providerValue: 'ollama_local',
+    };
+    createAgentInstance(config, testPlayerId);
+    expect(OpenAIAgent).toHaveBeenCalledTimes(1);
+    expect(OpenAIAgent).toHaveBeenCalledWith(
+      testPlayerId,
+      'llama3:latest',
+      'http://localhost:11434/v1',
+      undefined
+    );
+  });
 
-    it('should create a HumanAgent for agentType "Human"', () => {
-        const config: AgentConfig = { agentType: 'Human' };
-        createAgentInstance(config, testPlayerId);
-        expect(HumanAgent).toHaveBeenCalledTimes(1);
-        expect(HumanAgent).toHaveBeenCalledWith(testPlayerId);
-    });
+  it('should create a HumanAgent for agentType "Human"', () => {
+    const config: AgentConfig = { agentType: 'Human' };
+    createAgentInstance(config, testPlayerId);
+    expect(HumanAgent).toHaveBeenCalledTimes(1);
+    expect(HumanAgent).toHaveBeenCalledWith(testPlayerId);
+  });
 
-    it('should create a DummyAIAgent for agentType "Dummy"', () => {
-        const config: AgentConfig = { agentType: 'Dummy' };
-        createAgentInstance(config, testPlayerId);
-        expect(DummyAIAgent).toHaveBeenCalledTimes(1);
-        expect(DummyAIAgent).toHaveBeenCalledWith(testPlayerId);
-    });
+  it('should create a DummyAIAgent for agentType "Dummy"', () => {
+    const config: AgentConfig = { agentType: 'Dummy' };
+    createAgentInstance(config, testPlayerId);
+    expect(DummyAIAgent).toHaveBeenCalledTimes(1);
+    expect(DummyAIAgent).toHaveBeenCalledWith(testPlayerId);
+  });
 
-    it('should create a DummyAIAgent for unknown agentType', () => {
-        const config: AgentConfig = { agentType: 'UnknownFutureAgent' as AgentConfig['agentType'] };
-        createAgentInstance(config, testPlayerId);
-        expect(DummyAIAgent).toHaveBeenCalledTimes(1);
-        expect(DummyAIAgent).toHaveBeenCalledWith(testPlayerId);
-    });
+  it('should create a DummyAIAgent for unknown agentType', () => {
+    const config: AgentConfig = {
+      agentType: 'UnknownFutureAgent' as AgentConfig['agentType'],
+    };
+    createAgentInstance(config, testPlayerId);
+    expect(DummyAIAgent).toHaveBeenCalledTimes(1);
+    expect(DummyAIAgent).toHaveBeenCalledWith(testPlayerId);
+  });
 
-    // Add tests for ClaudeAgent, GeminiAgent etc. when they are fully implemented
-    // it('should create a ClaudeAgent for agentType "Claude"', () => { ... });
+  // Add tests for ClaudeAgent, GeminiAgent etc. when they are fully implemented
+  // it('should create a ClaudeAgent for agentType "Claude"', () => { ... });
 });

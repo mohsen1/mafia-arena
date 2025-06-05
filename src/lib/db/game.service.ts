@@ -2,7 +2,12 @@ import { eq, and, desc } from 'drizzle-orm';
 import { db } from './config';
 import { games, gameParticipants, users } from './schema';
 import type { SerializableGameState } from '@/lib/interfaces/persistence.types';
-import type { Game, NewGame, GameParticipant, NewGameParticipant } from './schema';
+import type {
+  Game,
+  NewGame,
+  GameParticipant,
+  NewGameParticipant,
+} from './schema';
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace GameService {
@@ -23,7 +28,9 @@ export namespace GameService {
       round: gameState.round,
       phase: gameState.phase,
       status: 'active',
-      winCondition: gameState.winCondition ? JSON.stringify(gameState.winCondition) : null,
+      winCondition: gameState.winCondition
+        ? JSON.stringify(gameState.winCondition)
+        : null,
       isPublic: false,
       gameState: gameState as unknown as Record<string, unknown>,
     };
@@ -31,7 +38,9 @@ export namespace GameService {
     const [game] = await db.insert(games).values(newGame).returning();
 
     // Create game participants
-    const participantInserts: NewGameParticipant[] = Object.entries(gameState.players).map(([playerId, player]) => ({
+    const participantInserts: NewGameParticipant[] = Object.entries(
+      gameState.players
+    ).map(([playerId, player]) => ({
       gameId: gameState.gameId,
       userId: player.isHuman ? ownerId : null,
       playerId,
@@ -51,7 +60,9 @@ export namespace GameService {
   /**
    * Loads a game state from the database
    */
-  export async function loadGameData(gameId: string): Promise<SerializableGameState | null> {
+  export async function loadGameData(
+    gameId: string
+  ): Promise<SerializableGameState | null> {
     const [game] = await db
       .select()
       .from(games)
@@ -68,20 +79,24 @@ export namespace GameService {
   /**
    * Saves/updates a game state in the database
    */
-  export async function saveGameData(gameId: string, gameState: SerializableGameState): Promise<void> {
+  export async function saveGameData(
+    gameId: string,
+    gameState: SerializableGameState
+  ): Promise<void> {
     const updateData = {
       round: gameState.round,
       phase: gameState.phase,
-      winCondition: gameState.winCondition ? JSON.stringify(gameState.winCondition) : null,
+      winCondition: gameState.winCondition
+        ? JSON.stringify(gameState.winCondition)
+        : null,
       gameState: gameState as unknown as Record<string, unknown>,
       updatedAt: new Date(),
-      status: gameState.winCondition ? 'completed' as const : 'active' as const,
+      status: gameState.winCondition
+        ? ('completed' as const)
+        : ('active' as const),
     };
 
-    await db
-      .update(games)
-      .set(updateData)
-      .where(eq(games.id, gameId));
+    await db.update(games).set(updateData).where(eq(games.id, gameId));
 
     // Update participant statuses
     for (const [playerId] of Object.entries(gameState.players)) {
@@ -123,13 +138,15 @@ export namespace GameService {
    */
   export async function listSavedGames(): Promise<string[]> {
     const allGames = await db.select({ id: games.id }).from(games);
-    return allGames.map(game => game.id);
+    return allGames.map((game) => game.id);
   }
 
   /**
    * Gets game participants
    */
-  export async function getGameParticipants(gameId: string): Promise<GameParticipant[]> {
+  export async function getGameParticipants(
+    gameId: string
+  ): Promise<GameParticipant[]> {
     return await db
       .select()
       .from(gameParticipants)
@@ -139,7 +156,10 @@ export namespace GameService {
   /**
    * Checks if a user owns a game
    */
-  export async function isGameOwner(gameId: string, userId: string): Promise<boolean> {
+  export async function isGameOwner(
+    gameId: string,
+    userId: string
+  ): Promise<boolean> {
     const [game] = await db
       .select({ ownerId: games.ownerId })
       .from(games)
@@ -170,4 +190,4 @@ export namespace GameService {
 
     return result[0] || null;
   }
-} 
+}

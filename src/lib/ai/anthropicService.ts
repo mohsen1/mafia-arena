@@ -9,7 +9,7 @@ const apiKey = process.env.ANTHROPIC_API_KEY;
 
 if (!apiKey) {
   console.warn(
-    "Missing ANTHROPIC_API_KEY environment variable. Claude AI features will be disabled."
+    'Missing ANTHROPIC_API_KEY environment variable. Claude AI features will be disabled.'
   );
 }
 
@@ -22,8 +22,13 @@ function getAnthropicInstance() {
   });
 }
 
-function convertOpenAIMessagesToAnthropic(messages: ChatCompletionMessageParam[]): Array<{role: 'user' | 'assistant', content: string}> {
-  const anthropicMessages: Array<{role: 'user' | 'assistant', content: string}> = [];
+function convertOpenAIMessagesToAnthropic(
+  messages: ChatCompletionMessageParam[]
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  const anthropicMessages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+  }> = [];
   let systemMessage = '';
 
   for (const message of messages) {
@@ -32,17 +37,21 @@ function convertOpenAIMessagesToAnthropic(messages: ChatCompletionMessageParam[]
     } else if (message.role === 'user' || message.role === 'assistant') {
       anthropicMessages.push({
         role: message.role,
-        content: message.content as string
+        content: message.content as string,
       });
     }
   }
 
-  if (systemMessage && anthropicMessages.length > 0 && anthropicMessages[0].role === 'user') {
+  if (
+    systemMessage &&
+    anthropicMessages.length > 0 &&
+    anthropicMessages[0].role === 'user'
+  ) {
     anthropicMessages[0].content = `${systemMessage}\n\n${anthropicMessages[0].content}`;
   } else if (systemMessage && anthropicMessages.length === 0) {
     anthropicMessages.push({
       role: 'user',
-      content: systemMessage
+      content: systemMessage,
     });
   }
 
@@ -58,7 +67,7 @@ export type GetAIResponseFunction = (
     temperature?: number;
     max_tokens?: number;
     presence_penalty?: number;
-    response_format?: { type: "text" | "json_object" };
+    response_format?: { type: 'text' | 'json_object' };
   }
 ) => Promise<string>;
 
@@ -70,18 +79,20 @@ export const getAIResponse: GetAIResponseFunction = async (
 ) => {
   const anthropic = getAnthropicInstance();
   if (!anthropic) {
-    throw new Error("Anthropic client not initialized. Missing ANTHROPIC_API_KEY.");
+    throw new Error(
+      'Anthropic client not initialized. Missing ANTHROPIC_API_KEY.'
+    );
   }
 
   console.log(
     `[Claude Request - ${gameId}|${playerId}] Calling model ${
       settings.model
-    } (Temp: ${settings.temperature ?? "default"})...`
+    } (Temp: ${settings.temperature ?? 'default'})...`
   );
 
   try {
     const anthropicMessages = convertOpenAIMessagesToAnthropic(messages);
-    
+
     const response = await anthropic.messages.create({
       model: settings.model,
       max_tokens: settings.max_tokens ?? 4096,
@@ -91,7 +102,9 @@ export const getAIResponse: GetAIResponseFunction = async (
 
     const responseContent = response.content[0];
     if (!responseContent || responseContent.type !== 'text') {
-      throw new Error("Received empty or non-text response content from Claude.");
+      throw new Error(
+        'Received empty or non-text response content from Claude.'
+      );
     }
 
     console.log(
@@ -107,4 +120,4 @@ export const getAIResponse: GetAIResponseFunction = async (
     );
     throw error;
   }
-}; 
+};

@@ -34,4 +34,4 @@ export default async function SignInPage({ params }: Props) {
       </div>
     </div>
   );
-} 
+}

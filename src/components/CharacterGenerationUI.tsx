@@ -1,4 +1,4 @@
-"use client";
+'use client';
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -6,9 +6,20 @@ import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from './ui/progress';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, Users, CheckCircle2, AlertCircle, User } from 'lucide-react';
+import {
+  Loader2,
+  Sparkles,
+  Users,
+  CheckCircle2,
+  AlertCircle,
+  User,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { generateGameCharactersAction, getCharacterGenerationProgressAction, type CharacterGenerationProgress } from '@/app/actions/character-generation.actions';
+import {
+  generateGameCharactersAction,
+  getCharacterGenerationProgressAction,
+  type CharacterGenerationProgress,
+} from '@/app/actions/character-generation.actions';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import { cn } from '@/lib/utils';
 
@@ -28,12 +39,17 @@ interface CharacterCardProps {
   isLoading?: boolean;
 }
 
-const CharacterCard: React.FC<CharacterCardProps> = ({ character, isLoading }) => {
+const CharacterCard: React.FC<CharacterCardProps> = ({
+  character,
+  isLoading,
+}) => {
   return (
-    <div className={cn(
-      "relative bg-card rounded-lg p-4 transition-all duration-300",
-      isLoading ? "animate-pulse" : "animate-in fade-in-50 zoom-in-95"
-    )}>
+    <div
+      className={cn(
+        'relative bg-card rounded-lg p-4 transition-all duration-300',
+        isLoading ? 'animate-pulse' : 'animate-in fade-in-50 zoom-in-95'
+      )}
+    >
       <div className="flex items-center gap-3">
         <div className="relative">
           {character.imageUrl ? (
@@ -55,7 +71,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, isLoading }) =
             </div>
           )}
         </div>
-        
+
         <div className="flex-1 min-w-0">
           {isLoading ? (
             <>
@@ -73,7 +89,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, isLoading }) =
             </>
           )}
         </div>
-        
+
         {!isLoading && (
           <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
         )}
@@ -82,7 +98,11 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, isLoading }) =
   );
 };
 
-export default function CharacterGenerationUI({ gameId, onComplete, onError }: CharacterGenerationUIProps) {
+export default function CharacterGenerationUI({
+  gameId,
+  onComplete,
+  onError,
+}: CharacterGenerationUIProps) {
   const { t } = useTranslation();
   const [progress, setProgress] = useState<CharacterGenerationProgress>({
     currentStep: 'Initializing...',
@@ -90,7 +110,7 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
     totalSteps: 0,
     completedCharacters: 0,
     totalCharacters: 0,
-    characters: []
+    characters: [],
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,7 +143,7 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
     setIsGenerating(true);
     isGeneratingRef.current = true;
     setError(null);
-    
+
     try {
       const result = await generateGameCharactersAction(gameId);
       if ('error' in result) {
@@ -131,12 +151,13 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
         onErrorRef.current(result.error);
         return;
       }
-      
+
       setIsComplete(true);
       onCompleteRef.current(result);
     } catch (err) {
       console.error('Error generating characters:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to generate characters';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to generate characters';
       setError(errorMessage);
       onErrorRef.current(errorMessage);
     } finally {
@@ -159,7 +180,7 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
           return;
         }
         setProgress(result);
-        
+
         // Check if generation is complete
         if (result.progress >= 100 && !isComplete) {
           setIsComplete(true);
@@ -191,7 +212,7 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
           return;
         }
         setProgress(result);
-        
+
         if (result.progress >= 100 && !isComplete) {
           setIsComplete(true);
         }
@@ -206,7 +227,13 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
 
   // ✅ FIXED: Auto-start generation with proper state guards
   useEffect(() => {
-    if (progress.progress < 100 && !isGenerating && !error && !isComplete && !isGeneratingRef.current) {
+    if (
+      progress.progress < 100 &&
+      !isGenerating &&
+      !error &&
+      !isComplete &&
+      !isGeneratingRef.current
+    ) {
       startGeneration();
     }
   }, [progress.progress, isGenerating, error, isComplete, startGeneration]);
@@ -223,7 +250,7 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-center text-muted-foreground">{error}</p>
-            <Button 
+            <Button
               onClick={() => {
                 setError(null);
                 startGeneration();
@@ -272,10 +299,14 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
               <Users className="w-4 h-4" />
               <span>
-                {t('character-generation.progress-text', 'Generated {{completed}} of {{total}} characters', {
-                  completed: progress.completedCharacters,
-                  total: progress.totalCharacters
-                })}
+                {t(
+                  'character-generation.progress-text',
+                  'Generated {{completed}} of {{total}} characters',
+                  {
+                    completed: progress.completedCharacters,
+                    total: progress.totalCharacters,
+                  }
+                )}
               </span>
             </div>
           </div>
@@ -292,33 +323,35 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
             <h3 className="text-sm font-medium text-muted-foreground mb-2">
               {t('character-generation.characters-list', 'Characters')}
             </h3>
-            
+
             <div className="grid gap-2 max-h-60 overflow-y-auto pr-2">
               {/* Show completed characters */}
               {progress.characters?.map((character) => (
-                <CharacterCard 
-                  key={character.id} 
-                  character={character}
-                />
+                <CharacterCard key={character.id} character={character} />
               ))}
-              
+
               {/* Show loading card for current character */}
               {progress.currentCharacterName && progress.progress < 100 && (
-                <CharacterCard 
+                <CharacterCard
                   character={{
                     id: 'current',
                     name: progress.currentCharacterName,
-                    imageUrl: null
+                    imageUrl: null,
                   }}
                   isLoading
                 />
               )}
-              
+
               {/* Show placeholder cards for remaining characters */}
-              {Array.from({ 
-                length: Math.max(0, progress.totalCharacters - progress.completedCharacters - (progress.currentCharacterName ? 1 : 0)) 
+              {Array.from({
+                length: Math.max(
+                  0,
+                  progress.totalCharacters -
+                    progress.completedCharacters -
+                    (progress.currentCharacterName ? 1 : 0)
+                ),
               }).map((_, index) => (
-                <div 
+                <div
                   key={`placeholder-${index}`}
                   className="bg-secondary/30 rounded-lg p-4 opacity-50"
                 >
@@ -335,10 +368,13 @@ export default function CharacterGenerationUI({ gameId, onComplete, onError }: C
           </div>
 
           <div className="text-center text-xs text-muted-foreground">
-            {t('character-generation.description', 'Each character is being given a unique personality, backstory, and appearance to make your game immersive and engaging.')}
+            {t(
+              'character-generation.description',
+              'Each character is being given a unique personality, backstory, and appearance to make your game immersive and engaging.'
+            )}
           </div>
         </CardContent>
       </Card>
     </div>
   );
-} 
+}

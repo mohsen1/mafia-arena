@@ -16,7 +16,10 @@ import type { LanguageCode } from '@/lib/i18n/settings';
 
 export function SignInForm() {
   const { t } = useTranslation();
-  const [providers, setProviders] = useState<Record<string, ClientSafeProvider> | null>(null);
+  const [providers, setProviders] = useState<Record<
+    string,
+    ClientSafeProvider
+  > | null>(null);
   const [loading, setLoading] = useState(false);
   const [credentialsLoading, setCredentialsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -103,7 +106,7 @@ export function SignInForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setCredentials(prev => ({ ...prev, [name]: value }));
+    setCredentials((prev) => ({ ...prev, [name]: value }));
     if (error) setError('');
   };
 
@@ -121,14 +124,16 @@ export function SignInForm() {
   if (!providers) {
     return (
       <div className="bg-card border rounded-lg p-6">
-        <div className="text-center text-muted-foreground">{t('common.loading')}</div>
+        <div className="text-center text-muted-foreground">
+          {t('common.loading')}
+        </div>
       </div>
     );
   }
 
   // Filter out credentials provider from OAuth providers list
   const oauthProviders = Object.values(providers).filter(
-    provider => provider.id !== 'credentials'
+    (provider) => provider.id !== 'credentials'
   );
 
   return (
@@ -249,7 +254,9 @@ export function SignInForm() {
 
       {/* Sign Up Link */}
       <div className="text-center text-sm">
-        <span className="text-muted-foreground">{t('signIn.dontHaveAnAccount')}</span>
+        <span className="text-muted-foreground">
+          {t('signIn.dontHaveAnAccount')}
+        </span>
         <Link
           href={`/${currentLang}/auth/signup`}
           className="text-primary hover:underline"
@@ -259,4 +266,4 @@ export function SignInForm() {
       </div>
     </div>
   );
-} 
+}

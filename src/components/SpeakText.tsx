@@ -12,7 +12,7 @@
  * It works with SpokenTextContext and its provider to ensure no two components are speaking at the same time
  * @returns
  */
-"use client";
+'use client';
 
 import React, {
   useState,
@@ -22,9 +22,9 @@ import React, {
   useCallback,
   forwardRef,
   useImperativeHandle,
-} from "react";
-import type { ReactNode } from "react";
-import { useSpokenText } from "@/context/SpokenTextContext";
+} from 'react';
+import type { ReactNode } from 'react';
+import { useSpokenText } from '@/context/SpokenTextContext';
 
 // Define type for alignment data based on API response
 interface AlignmentData {
@@ -54,7 +54,17 @@ export interface SpeakTextHandle {
 
 // Wrap component with forwardRef
 export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
-  ({ children, voiceId, className, onEnd, autoQueue = false, disabled = false }, ref) => {
+  (
+    {
+      children,
+      voiceId,
+      className,
+      onEnd,
+      autoQueue = false,
+      disabled = false,
+    },
+    ref
+  ) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -71,7 +81,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
 
     // State for alignment data and current highlight position
     const [alignmentData, setAlignmentData] = useState<AlignmentData | null>(
-      null,
+      null
     );
     const [highlightedCharIndex, setHighlightedCharIndex] =
       useState<number>(-1);
@@ -81,14 +91,14 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     // Ensure text content is a string
     const textContent = React.Children.toArray(children).reduce<string>(
       (acc, child) => {
-        if (typeof child === "string" || typeof child === "number") {
+        if (typeof child === 'string' || typeof child === 'number') {
           return acc + child;
         }
         // Handle nested components if necessary, or ignore/error
-        console.warn("SpeakText children should ideally be plain text.");
+        console.warn('SpeakText children should ideally be plain text.');
         return acc;
       },
-      "",
+      ''
     );
 
     // Check if this component *can* play (permission + global setting + not disabled)
@@ -105,7 +115,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         // Find the index of the first character whose start time is greater than the current time
         const nextCharIndex =
           alignmentData.character_start_times_seconds.findIndex(
-            (startTime) => startTime > currentTime,
+            (startTime) => startTime > currentTime
           );
         // If no character starts after the current time, all characters are spoken
         if (nextCharIndex === -1) {
@@ -114,7 +124,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         // Otherwise, the currently spoken character is the one before the next starting character
         return Math.max(0, nextCharIndex - 1);
       },
-      [alignmentData],
+      [alignmentData]
     );
 
     // Effect to handle audio time updates for highlighting
@@ -134,12 +144,12 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         setHighlightedCharIndex(index);
       };
 
-      audio.addEventListener("timeupdate", handleTimeUpdate);
+      audio.addEventListener('timeupdate', handleTimeUpdate);
 
       // Cleanup listener
       return () => {
         // Check if audio still exists before removing listener
-        audio?.removeEventListener("timeupdate", handleTimeUpdate);
+        audio?.removeEventListener('timeupdate', handleTimeUpdate);
       };
     }, [
       isPlaying,
@@ -154,7 +164,13 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
       if (!disabled && isAudioGloballyEnabled && autoQueue) {
         registerForAutoPlay(componentId);
       }
-    }, [autoQueue, registerForAutoPlay, componentId, isAudioGloballyEnabled, disabled]);
+    }, [
+      autoQueue,
+      registerForAutoPlay,
+      componentId,
+      isAudioGloballyEnabled,
+      disabled,
+    ]);
 
     const handlePlayPause = useCallback(
       async (triggeredExternally = false) => {
@@ -208,9 +224,9 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
               voice_id: voiceId,
               with_timestamps: true,
             };
-            const response = await fetch("/api/speak", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+            const response = await fetch('/api/speak', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestBody),
             });
 
@@ -223,7 +239,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                 /* ignore */
               }
               console.error(
-                `[SpeakText ${componentId}] Fetch error: ${errorText}`,
+                `[SpeakText ${componentId}] Fetch error: ${errorText}`
               );
               throw new Error(errorText);
             }
@@ -232,10 +248,10 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
             if (!data.audio_base64 || !data.alignment) {
               console.error(
                 `[SpeakText ${componentId}] Invalid timestamp response structure`,
-                data,
+                data
               );
               throw new Error(
-                "Received invalid data structure for timestamps.",
+                'Received invalid data structure for timestamps.'
               );
             }
             setAlignmentData(data.alignment);
@@ -264,12 +280,12 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                 setTimeout(() => {
                   if (audioRef.current) {
                     const endedAudioUrl = audioRef.current.src;
-                    if (endedAudioUrl?.startsWith("blob:")) {
+                    if (endedAudioUrl?.startsWith('blob:')) {
                       // Optional chaining
                       URL.revokeObjectURL(endedAudioUrl);
                     }
                     // Clear src only after potential revoke
-                    audioRef.current.src = "";
+                    audioRef.current.src = '';
                   }
                 }, 0);
               };
@@ -281,7 +297,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
                 }
                 console.error(
                   `[SpeakText ${componentId}] Audio playback error event:`,
-                  event,
+                  event
                 );
                 setIsPlaying(false);
                 setIsLoading(false);
@@ -309,7 +325,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
             // Clean up previous blob URL if it exists and differs from the new one
             const previousSrc = audioToPlay?.src; // Optional chaining
             if (
-              previousSrc?.startsWith("blob:") && // Optional chaining
+              previousSrc?.startsWith('blob:') && // Optional chaining
               previousSrc !== audioUrl
             ) {
               URL.revokeObjectURL(previousSrc);
@@ -325,7 +341,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
           // Use unknown type and check within block
           console.error(
             `[SpeakText ${componentId}] Error in handlePlayPause catch block:`,
-            err,
+            err
           );
           setIsPlaying(false);
           setHasPlaybackCompleted(false);
@@ -350,7 +366,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         onEnd,
         isAudioGloballyEnabled, // Add dependency
         disabled,
-      ],
+      ]
     );
 
     // Effect to trigger playback when this component becomes the currentlySpeakingId
@@ -383,7 +399,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         if (audio) {
           audio.pause();
           const src = audio.src;
-          if (src?.startsWith("blob:")) {
+          if (src?.startsWith('blob:')) {
             // Optional chaining
             URL.revokeObjectURL(src);
           }
@@ -391,7 +407,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
           audio.onerror = null;
           audio.onpause = null;
           audio.ontimeupdate = null;
-          audio.src = "";
+          audio.src = '';
           audioRef.current = null;
         }
         // Only call doneSpeaking if this component WAS the speaker when it rendered
@@ -403,7 +419,7 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
     }, [componentId, currentlySpeakingId, doneSpeaking]);
 
     // Helper function to convert Base64 to Blob
-    function base64ToBlob(base64: string, contentType = "audio/mpeg"): Blob {
+    function base64ToBlob(base64: string, contentType = 'audio/mpeg'): Blob {
       const byteCharacters = atob(base64);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -421,14 +437,14 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
         (!isLoading && !isPlaying && !alignmentData)
       ) {
         return textContent
-          .split("")
+          .split('')
           .map((char, index) => <span key={index + char}>{char}</span>);
       }
       if (alignmentData && highlightedCharIndex >= 0) {
         // During playback reveal, render chars up to the index
         const charsToRender = textContent.slice(0, highlightedCharIndex + 1);
         return charsToRender
-          .split("")
+          .split('')
           .map((char, index) => <span key={index + char}>{char}</span>);
       }
       // Render nothing only while actively loading or before first play?
@@ -446,14 +462,14 @@ export const SpeakText = forwardRef<SpeakTextHandle, SpeakTextProps>(
       <div className={className}>
         {/* Render revealed text directly */}
         <span className="text-foreground inline leading-normal tracking-normal min-h-[1em]">
-          {" "}
+          {' '}
           {/* Apply Tailwind classes directly */}
           {renderTextContent()}
         </span>
       </div>
     );
-  },
+  }
 );
 
 // Add display name for better debugging in React DevTools
-SpeakText.displayName = "SpeakText";
+SpeakText.displayName = 'SpeakText';

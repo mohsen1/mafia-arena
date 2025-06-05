@@ -1,14 +1,17 @@
-"use client";
+'use client';
 
-import type { FilteredPlayer, ClientMessage } from "@/lib/interfaces/gameState.types";
-import { useGameContext } from "@/context/GameContext";
-import { SpeakText } from "@/components/SpeakText";
-import { cn } from "@/lib/utils";
-import { Bot, User } from "lucide-react";
-import { useSpokenText } from "@/context/SpokenTextContext";
-import Image from "next/image";
-import { useTranslation } from "react-i18next";
-import type { PlayerId } from "@/lib/engine/interfaces/IPlayer";
+import type {
+  FilteredPlayer,
+  ClientMessage,
+} from '@/lib/interfaces/gameState.types';
+import { useGameContext } from '@/context/GameContext';
+import { SpeakText } from '@/components/SpeakText';
+import { cn } from '@/lib/utils';
+import { Bot, User } from 'lucide-react';
+import { useSpokenText } from '@/context/SpokenTextContext';
+import Image from 'next/image';
+import { useTranslation } from 'react-i18next';
+import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 
 // Define the props using ClientMessage
 interface MessageBubbleProps {
@@ -18,8 +21,13 @@ interface MessageBubbleProps {
 }
 
 // Message Component with Dark Mode
-export function MessageBubble({ message, players, isWerewolfChat }: MessageBubbleProps) {
-  const { reportAudioFinished, isAudioGloballyEnabled, gameState } = useGameContext();
+export function MessageBubble({
+  message,
+  players,
+  isWerewolfChat,
+}: MessageBubbleProps) {
+  const { reportAudioFinished, isAudioGloballyEnabled, gameState } =
+    useGameContext();
   const { doneSpeaking: spokenTextReportAudioFinished } = useSpokenText();
 
   // Use default namespace; language is handled by i18next provider
@@ -45,25 +53,29 @@ export function MessageBubble({ message, players, isWerewolfChat }: MessageBubbl
 
   // iMessage-like styling
   const bubbleClasses = cn(
-    "mb-2 flex max-w-[85%] flex-col rounded-2xl px-4 py-2",
+    'mb-2 flex max-w-[85%] flex-col rounded-2xl px-4 py-2',
     {
-      "self-end bg-blue-500 text-white": isHuman,
-      "self-end bg-secondary text-secondary-foreground": isModerator,
-      "self-start bg-muted text-foreground": isBot,
-      "border border-red-500/50 bg-red-900/10": isWerewolfChat,
-    },
+      'self-end bg-blue-500 text-white': isHuman,
+      'self-end bg-secondary text-secondary-foreground': isModerator,
+      'self-start bg-muted text-foreground': isBot,
+      'border border-red-500/50 bg-red-900/10': isWerewolfChat,
+    }
   );
 
   // Container for image + bubble
-  const containerClasses = cn("flex items-start gap-2 mb-4", {
-    "justify-end": isHuman || isModerator,
-    "justify-start": isBot,
+  const containerClasses = cn('flex items-start gap-2 mb-4', {
+    'justify-end': isHuman || isModerator,
+    'justify-start': isBot,
   });
 
   // Use message.senderName directly
-  const speakerDisplayName = isModerator ? t('ModeratorName', { defaultValue: 'Moderator' }) : message.senderName;
+  const speakerDisplayName = isModerator
+    ? t('ModeratorName', { defaultValue: 'Moderator' })
+    : message.senderName;
   // Translate the display name if needed (e.g., role names used as senderName)
-  const translatedSpeakerName = t(speakerDisplayName, { defaultValue: speakerDisplayName });
+  const translatedSpeakerName = t(speakerDisplayName, {
+    defaultValue: speakerDisplayName,
+  });
 
   // Placeholder translation logic (assuming message.content contains the key/text)
   // TODO: Adapt if message structure for translations changes (e.g., separate phraseKey)
@@ -91,13 +103,15 @@ export function MessageBubble({ message, players, isWerewolfChat }: MessageBubbl
       )}
 
       <div className={bubbleClasses}>
-        <div className={cn("flex items-center gap-2 justify-start", {
-          "justify-end": isHuman || isModerator,
-        })}>
+        <div
+          className={cn('flex items-center gap-2 justify-start', {
+            'justify-end': isHuman || isModerator,
+          })}
+        >
           <span
             className={cn(
-              "text-xs font-semibold opacity-80",
-              isHuman ? "text-blue-100" : "text-foreground",
+              'text-xs font-semibold opacity-80',
+              isHuman ? 'text-blue-100' : 'text-foreground'
             )}
           >
             {translatedSpeakerName}
@@ -114,9 +128,7 @@ export function MessageBubble({ message, players, isWerewolfChat }: MessageBubbl
             </SpeakText>
           )}
         </div>
-        <p className="text-sm whitespace-pre-wrap">
-          {messageContent}
-        </p>
+        <p className="text-sm whitespace-pre-wrap">{messageContent}</p>
       </div>
 
       {(isHuman || isModerator) && (
