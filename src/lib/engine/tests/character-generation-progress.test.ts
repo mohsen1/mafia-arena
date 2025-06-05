@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Session } from 'next-auth';
 import { getCharacterGenerationProgressAction } from '@/app/actions/character-generation.actions';
 import { loadGameData } from '@/lib/db/persistence';
 import { getServerSession } from 'next-auth';
@@ -26,7 +27,7 @@ describe('Character Generation Progress', () => {
         
         vi.mocked(getServerSession).mockResolvedValue({
             user: { id: mockUserId }
-        } as unknown as { user: { id: string } });
+        } as unknown as Session);
         
         vi.mocked(GameService.isGameOwner).mockResolvedValue(true);
     });

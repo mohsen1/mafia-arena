@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from './ui/progress';
 import { Button } from '@/components/ui/button';
@@ -35,14 +36,13 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, isLoading }) =
       <div className="flex items-center gap-3">
         <div className="relative">
           {character.imageUrl ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={character.imageUrl}
-                alt={character.name}
-                className="w-12 h-12 rounded-full object-cover"
-              />
-            </>
+            <Image
+              src={character.imageUrl}
+              alt={character.name}
+              width={48}
+              height={48}
+              className="w-12 h-12 rounded-full object-cover"
+            />
           ) : (
             <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
               <User className="w-6 h-6 text-muted-foreground" />

@@ -51,30 +51,32 @@ export const ProviderModelSelector = React.memo(function ProviderModelSelector({
 
   const validModelValue = isSelectedModelValid ? selectedModel : "";
 
-  const handleProviderChange = useCallback((newProviderValue: string) => {
-    const modelsForNewProvider = availableModelsByProvider[newProviderValue];
-    if (!modelsForNewProvider?.length) {
-      return;
-    }
-    
-    const defaultModel =
-      modelsForNewProvider.find((m) => m.title.toLowerCase().includes("default"))?.value ??
-      modelsForNewProvider[0].value;
-      
-    if (mode !== 'model') {
-      React.startTransition(() => {
-        onProviderModelChange(newProviderValue, defaultModel);
-      });
-    }
-  }, [onProviderModelChange, mode]);
+  const handleProviderChange = useCallback(
+    (newProviderValue: string) => {
+      const modelsForNewProvider = availableModelsByProvider[newProviderValue];
+      if (!modelsForNewProvider?.length) {
+        return;
+      }
 
-  const handleModelChange = useCallback((newModelValue: string) => {
-    if (mode !== 'provider' && selectedProvider) {
-      React.startTransition(() => {
+      const defaultModel =
+        modelsForNewProvider.find((m) => m.title.toLowerCase().includes("default"))?.value ??
+        modelsForNewProvider[0].value;
+
+      if (mode !== "model") {
+        onProviderModelChange(newProviderValue, defaultModel);
+      }
+    },
+    [onProviderModelChange, mode]
+  );
+
+  const handleModelChange = useCallback(
+    (newModelValue: string) => {
+      if (mode !== "provider" && selectedProvider) {
         onProviderModelChange(selectedProvider.value, newModelValue);
-      });
-    }
-  }, [selectedProvider, onProviderModelChange, mode]);
+      }
+    },
+    [selectedProvider, onProviderModelChange, mode]
+  );
 
   const providerSelectId = `${idPrefix}-provider`;
   const modelSelectId = `${idPrefix}-model`;
