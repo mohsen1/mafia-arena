@@ -1,6 +1,11 @@
 import dotenv from 'dotenv';
-import { GoogleGenerativeAI, SchemaType, FunctionCallingMode, type FunctionDeclarationsTool } from '@google/generative-ai';
-import type { FunctionDeclaration } from '@google/generative-ai';
+import {
+  GoogleGenerativeAI,
+  SchemaType,
+  FunctionCallingMode,
+  type FunctionDeclarationsTool,
+  type FunctionDeclaration
+} from '@google/generative-ai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 // Load environment variables
