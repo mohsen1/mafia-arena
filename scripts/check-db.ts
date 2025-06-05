@@ -18,4 +18,4 @@ async function checkDb() {
   }
 }
 
-checkDb();
+await checkDb();
