@@ -1,4 +1,4 @@
-"use server";
+'use server';
 
 import { createUser, validateEmail, validatePassword } from '@/lib/auth/utils';
 import type { AuthResponse } from '@/lib/auth/utils';
@@ -10,7 +10,9 @@ export interface SignUpFormData {
   confirmPassword: string;
 }
 
-export async function signUpAction(formData: SignUpFormData): Promise<AuthResponse> {
+export async function signUpAction(
+  formData: SignUpFormData
+): Promise<AuthResponse> {
   try {
     const { name, email, password, confirmPassword } = formData;
 

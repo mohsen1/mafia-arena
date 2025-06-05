@@ -33,7 +33,7 @@ export const authOptions: NextAuthOptions = {
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -51,8 +51,11 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          const isValidPassword = await bcrypt.compare(credentials.password, user.password);
-          
+          const isValidPassword = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
           if (!isValidPassword) {
             return null;
           }
@@ -67,7 +70,7 @@ export const authOptions: NextAuthOptions = {
           console.error('Error during authentication:', error);
           return null;
         }
-      }
+      },
     }),
   ],
   session: {
@@ -93,7 +96,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider !== 'credentials') {
         return true;
       }
-      
+
       // For credentials provider, user validation is handled in authorize()
       return !!user;
     },
@@ -103,4 +106,4 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   debug: process.env.NODE_ENV === 'development',
-}; 
+};

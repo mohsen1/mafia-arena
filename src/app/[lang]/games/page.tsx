@@ -4,13 +4,32 @@ import { use, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { Calendar, Clock, Users, Play, Trash2, Filter, Plus, GamepadIcon } from 'lucide-react';
+import {
+  Calendar,
+  Clock,
+  Users,
+  Play,
+  Trash2,
+  Filter,
+  Plus,
+  GamepadIcon,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { LanguageCode } from '@/lib/i18n/settings';
-import { getUserGamesAction, deleteGameAction, type GameListItem } from '@/app/actions/games';
+import {
+  getUserGamesAction,
+  deleteGameAction,
+  type GameListItem,
+} from '@/app/actions/games';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PageProps {
@@ -19,11 +38,11 @@ interface PageProps {
 
 function LoadingView({ lang }: { lang: LanguageCode }) {
   const { t } = useTranslation();
-  
+
   return (
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
-      
+
       <main className="mx-auto p-4 flex flex-col items-center justify-center min-h-[80vh]">
         <div className="text-center">
           <div className="w-12 h-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-4" />
@@ -36,11 +55,11 @@ function LoadingView({ lang }: { lang: LanguageCode }) {
 
 function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
   const { t } = useTranslation();
-  
+
   return (
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
-      
+
       <main className="mx-auto p-4 flex flex-col items-center justify-center min-h-[80vh] space-y-8">
         <div className="text-center max-w-2xl">
           <div className="mb-8">
@@ -54,17 +73,13 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
               {t('games.signInRequiredDescription')}
             </p>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg">
-              <Link href={`/${lang}/auth/signin`}>
-                {t('common.signIn')}
-              </Link>
+              <Link href={`/${lang}/auth/signin`}>{t('common.signIn')}</Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link href={`/${lang}`}>
-                {t('common.backToHome')}
-              </Link>
+              <Link href={`/${lang}`}>{t('common.backToHome')}</Link>
             </Button>
           </div>
         </div>
@@ -75,7 +90,7 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
 
 function EmptyGamesView({ lang }: { lang: LanguageCode }) {
   const { t } = useTranslation();
-  
+
   return (
     <div className="text-center py-16">
       <div className="w-24 h-24 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center">
@@ -97,21 +112,34 @@ function EmptyGamesView({ lang }: { lang: LanguageCode }) {
   );
 }
 
-function GameCard({ game, lang, onDelete }: { game: GameListItem; lang: LanguageCode; onDelete: (gameId: string) => void }) {
+function GameCard({
+  game,
+  lang,
+  onDelete,
+}: {
+  game: GameListItem;
+  lang: LanguageCode;
+  onDelete: (gameId: string) => void;
+}) {
   const { t } = useTranslation();
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return game.round === 0 ? 'secondary' : 'default';
-      case 'completed': return 'outline';
-      default: return 'outline';
+      case 'active':
+        return game.round === 0 ? 'secondary' : 'default';
+      case 'completed':
+        return 'outline';
+      default:
+        return 'outline';
     }
   };
 
   const getStatusText = (status: string) => {
     if (status === 'active') {
-      return game.round === 0 ? t('games.status.waiting') : t('games.status.inProgress');
+      return game.round === 0
+        ? t('games.status.waiting')
+        : t('games.status.inProgress');
     }
     return t('games.status.completed');
   };
@@ -151,7 +179,7 @@ function GameCard({ game, lang, onDelete }: { game: GameListItem; lang: Language
           </Badge>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="space-y-3">
           {game.phase && game.status === 'active' && game.round > 0 && (
@@ -160,29 +188,34 @@ function GameCard({ game, lang, onDelete }: { game: GameListItem; lang: Language
               {t('games.currentPhase')}: {game.phase}
             </div>
           )}
-          
+
           {game.winCondition && game.status === 'completed' && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{t('games.winner')}:</span>
+              <span className="text-muted-foreground">
+                {t('games.winner')}:
+              </span>
               <Badge variant="default">{t('games.gameComplete')}</Badge>
             </div>
           )}
-          
+
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
-            {t('games.lastPlayed')}: {formatDistanceToNow(game.updatedAt, { addSuffix: true })}
+            {t('games.lastPlayed')}:{' '}
+            {formatDistanceToNow(game.updatedAt, { addSuffix: true })}
           </div>
-          
+
           <div className="flex gap-2 pt-2">
             <Button asChild className="flex-1">
               <Link href={`/${lang}/game/${game.id}`}>
                 <Play className="w-4 h-4 me-2" />
-                {game.status === 'completed' ? t('games.viewGame') : t('games.continueGame')}
+                {game.status === 'completed'
+                  ? t('games.viewGame')
+                  : t('games.continueGame')}
               </Link>
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               size="icon"
               onClick={handleDelete}
               disabled={isDeleting}
@@ -201,12 +234,14 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
   const { t } = useTranslation();
   const [games, setGames] = useState<GameListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'waiting' | 'in_progress' | 'completed'>('all');
+  const [filter, setFilter] = useState<
+    'all' | 'waiting' | 'in_progress' | 'completed'
+  >('all');
 
   useEffect(() => {
     const loadGames = async () => {
       if (!session?.user?.id) return;
-      
+
       try {
         setLoading(true);
         const gamesList = await getUserGamesAction();
@@ -222,7 +257,7 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
   }, [session?.user?.id]);
 
   const handleGameDeleted = (gameId: string) => {
-    setGames(prevGames => prevGames.filter(g => g.id !== gameId));
+    setGames((prevGames) => prevGames.filter((g) => g.id !== gameId));
   };
 
   if (!session?.user) {
@@ -234,34 +269,37 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
       case 'all':
         return games;
       case 'waiting':
-        return games.filter(g => g.status === 'active' && g.round === 0);
+        return games.filter((g) => g.status === 'active' && g.round === 0);
       case 'in_progress':
-        return games.filter(g => g.status === 'active' && g.round > 0);
+        return games.filter((g) => g.status === 'active' && g.round > 0);
       case 'completed':
-        return games.filter(g => g.status === 'completed');
+        return games.filter((g) => g.status === 'completed');
       default:
         return games;
     }
   })();
 
   const gamesByStatus = {
-    waiting: games.filter(g => g.status === 'active' && g.round === 0).length,
-    in_progress: games.filter(g => g.status === 'active' && g.round > 0).length,
-    completed: games.filter(g => g.status === 'completed').length,
+    waiting: games.filter((g) => g.status === 'active' && g.round === 0).length,
+    in_progress: games.filter((g) => g.status === 'active' && g.round > 0)
+      .length,
+    completed: games.filter((g) => g.status === 'completed').length,
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
-      
+
       <main className="max-w-6xl mx-auto p-4 space-y-8">
         <div className="mt-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-foreground mb-2">{t('games.title')}</h1>
+              <h1 className="text-4xl font-bold text-foreground mb-2">
+                {t('games.title')}
+              </h1>
               <p className="text-muted-foreground">{t('games.description')}</p>
             </div>
-            
+
             <Button asChild size="lg">
               <Link href={`/${lang}/new`}>
                 <Plus className="w-4 h-4 me-2" />
@@ -274,29 +312,45 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-8">
             <Card>
               <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">{games.length}</div>
-                <p className="text-sm text-muted-foreground">{t('games.totalGames')}</p>
+                <div className="text-2xl font-bold text-foreground">
+                  {games.length}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t('games.totalGames')}
+                </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">{gamesByStatus.waiting}</div>
-                <p className="text-sm text-muted-foreground">{t('games.waitingGames')}</p>
+                <div className="text-2xl font-bold text-foreground">
+                  {gamesByStatus.waiting}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t('games.waitingGames')}
+                </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">{gamesByStatus.in_progress}</div>
-                <p className="text-sm text-muted-foreground">{t('games.activeGames')}</p>
+                <div className="text-2xl font-bold text-foreground">
+                  {gamesByStatus.in_progress}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t('games.activeGames')}
+                </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">{gamesByStatus.completed}</div>
-                <p className="text-sm text-muted-foreground">{t('games.completedGames')}</p>
+                <div className="text-2xl font-bold text-foreground">
+                  {gamesByStatus.completed}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t('games.completedGames')}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -305,7 +359,9 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
         {loading ? (
           <div className="text-center py-16">
             <div className="w-12 h-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-4" />
-            <p className="text-lg text-muted-foreground">{t('games.loadingGames')}</p>
+            <p className="text-lg text-muted-foreground">
+              {t('games.loadingGames')}
+            </p>
           </div>
         ) : games.length === 0 ? (
           <EmptyGamesView lang={lang} />
@@ -314,13 +370,15 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
             {/* Filter Buttons */}
             <div className="flex items-center gap-2 flex-wrap">
               <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground me-2">{t('games.filterBy')}:</span>
-              
+              <span className="text-sm font-medium text-muted-foreground me-2">
+                {t('games.filterBy')}:
+              </span>
+
               {[
                 { key: 'all', label: t('games.allGames') },
                 { key: 'waiting', label: t('games.status.waiting') },
                 { key: 'in_progress', label: t('games.status.inProgress') },
-                { key: 'completed', label: t('games.status.completed') }
+                { key: 'completed', label: t('games.status.completed') },
               ].map(({ key, label }) => (
                 <Button
                   key={key}
@@ -348,10 +406,10 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredGames.map((game) => (
-                  <GameCard 
-                    key={game.id} 
-                    game={game} 
-                    lang={lang} 
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    lang={lang}
                     onDelete={handleGameDeleted}
                   />
                 ))}
@@ -374,4 +432,4 @@ export default function GamesPage({ params: paramsPromise }: PageProps) {
   }
 
   return <GamesContent lang={lang} />;
-} 
+}

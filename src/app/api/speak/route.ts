@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 // import { Ratelimit } from "@upstash/ratelimit"; // Removed
 // import { kv } from "@vercel/kv"; // Removed
-import type { NextRequest } from "next/server";
+import type { NextRequest } from 'next/server';
 
 // const elevenlabs = new ElevenLabsClient({ // Bypassing SDK
 //   apiKey: process.env.ELEVENLABS_API_KEY,
@@ -29,75 +29,78 @@ export async function POST(req: NextRequest) {
     }
 
     if (!validation.data) {
-      return NextResponse.json({ error: "Internal validation error" }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Internal validation error' },
+        { status: 500 }
+      );
     }
 
     const { text, voiceId, stability, similarity } = validation.data;
 
     const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
-      console.error("Missing ELEVENLABS_API_KEY environment variable.");
+      console.error('Missing ELEVENLABS_API_KEY environment variable.');
       return NextResponse.json(
-        { error: "TTS service is not configured." },
-        { status: 503 },
+        { error: 'TTS service is not configured.' },
+        { status: 503 }
       );
     }
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
-        method: "POST",
+        method: 'POST',
         headers: {
-          Accept: "audio/mpeg",
-          "Content-Type": "application/json",
-          "xi-api-key": apiKey,
+          Accept: 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey,
         },
         body: JSON.stringify({
           text: text,
-          model_id: "eleven_multilingual_v2",
+          model_id: 'eleven_multilingual_v2',
           voice_settings: {
             stability: stability,
             similarity_boost: similarity,
           },
         }),
-      },
+      }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(
-        `ElevenLabs API Error (${response.status}): ${errorText.slice(0, 500)}...`,
+        `ElevenLabs API Error (${response.status}): ${errorText.slice(0, 500)}...`
       );
       return NextResponse.json(
         { error: `ElevenLabs API error: ${response.statusText}` },
-        { status: response.status },
+        { status: response.status }
       );
     }
 
     const audioStream = response.body;
 
     if (!audioStream) {
-      console.error("No audio stream received from ElevenLabs API.");
+      console.error('No audio stream received from ElevenLabs API.');
       return NextResponse.json(
-        { error: "No audio stream received" },
-        { status: 500 },
+        { error: 'No audio stream received' },
+        { status: 500 }
       );
     }
 
     return new Response(audioStream, {
       headers: {
-        "Content-Type": "audio/mpeg",
+        'Content-Type': 'audio/mpeg',
       },
     });
   } catch (error) {
-    console.error("!!! Error in /api/speak handler:", error);
-    let errorMessage = "An unknown error occurred";
+    console.error('!!! Error in /api/speak handler:', error);
+    let errorMessage = 'An unknown error occurred';
     if (error instanceof Error) {
       errorMessage = error.message;
     }
     return NextResponse.json(
-      { error: errorMessage || "Failed to process speech request" },
-      { status: 500 },
+      { error: errorMessage || 'Failed to process speech request' },
+      { status: 500 }
     );
   }
 }
@@ -108,29 +111,29 @@ function validateInput(body: unknown): {
   data?: SpeakRequestBody;
   error?: string;
 } {
-  if (typeof body !== "object" || body === null) {
-    return { success: false, error: "Request body must be an object." };
+  if (typeof body !== 'object' || body === null) {
+    return { success: false, error: 'Request body must be an object.' };
   }
 
   const potentialBody = body as Partial<SpeakRequestBody>;
 
   if (
-    typeof potentialBody.text !== "string" ||
-    potentialBody.text.trim() === ""
+    typeof potentialBody.text !== 'string' ||
+    potentialBody.text.trim() === ''
   ) {
-    return { success: false, error: "Invalid input: text is required." };
+    return { success: false, error: 'Invalid input: text is required.' };
   }
   if (
-    typeof potentialBody.voiceId !== "string" ||
-    potentialBody.voiceId.trim() === ""
+    typeof potentialBody.voiceId !== 'string' ||
+    potentialBody.voiceId.trim() === ''
   ) {
-    return { success: false, error: "Invalid input: voiceId is required." };
+    return { success: false, error: 'Invalid input: voiceId is required.' };
   }
 
   const stability =
-    typeof potentialBody.stability === "number" ? potentialBody.stability : 0.5;
+    typeof potentialBody.stability === 'number' ? potentialBody.stability : 0.5;
   const similarity =
-    typeof potentialBody.similarity === "number"
+    typeof potentialBody.similarity === 'number'
       ? potentialBody.similarity
       : 0.75;
 

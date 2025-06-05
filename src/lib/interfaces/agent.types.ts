@@ -4,7 +4,7 @@
  */
 export interface AgentConfig {
   /** Identifier for the type of agent (e.g., 'OpenAI', 'Human', 'Claude'). */
-  agentType: string; 
+  agentType: string;
   /** The specific model identifier (optional). */
   modelName?: string;
   /** Identifier for the provider/endpoint (optional). */

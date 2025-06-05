@@ -1,13 +1,13 @@
-import { RoleName } from "./engine/interfaces/IRole";
-import { Themes } from "./engine/interfaces/Theme";
-import { MessageVisibility } from "./engine/interfaces/IMessage";
-import type { SerializableGameState } from "./interfaces/persistence.types";
+import { RoleName } from './engine/interfaces/IRole';
+import { Themes } from './engine/interfaces/Theme';
+import { MessageVisibility } from './engine/interfaces/IMessage';
+import type { SerializableGameState } from './interfaces/persistence.types';
 import type {
   FilteredGameState,
   FilteredPlayer,
   PlayerId,
   ClientMessage,
-} from "./interfaces/gameState.types";
+} from './interfaces/gameState.types';
 
 /**
  * Filters the complete serializable game state into a view suitable for sending to a specific client.
@@ -23,7 +23,9 @@ export function filterGameStateForClient(
   viewingPlayerId?: PlayerId | null
 ): FilteredGameState {
   const isObserver = !viewingPlayerId;
-  const viewingPlayer = viewingPlayerId ? fullState.players[viewingPlayerId] : null;
+  const viewingPlayer = viewingPlayerId
+    ? fullState.players[viewingPlayerId]
+    : null;
   const isViewingPlayerMafia = viewingPlayer?.roleName === RoleName.Mafia;
 
   const playersRecord: Record<PlayerId, FilteredPlayer> = {};
@@ -35,8 +37,8 @@ export function filterGameStateForClient(
       role:
         isObserver ||
         viewingPlayerId === p.id ||
-        fullState.phase === "GameOver" ||
-        p.status === "Dead"
+        fullState.phase === 'GameOver' ||
+        p.status === 'Dead'
           ? p.roleName
           : undefined,
       imageUrl: p.imageUrl ?? null,
@@ -72,11 +74,11 @@ export function filterGameStateForClient(
     title: theme.name,
     description: theme.description,
     createdAt:
-      typeof fullState.createdAt === "number"
+      typeof fullState.createdAt === 'number'
         ? new Date(fullState.createdAt).toISOString()
         : fullState.createdAt,
     lastUpdatedAt:
-      typeof fullState.updatedAt === "number"
+      typeof fullState.updatedAt === 'number'
         ? new Date(fullState.updatedAt).toISOString()
         : fullState.updatedAt,
     winner: fullState.winCondition?.outcome ?? null,

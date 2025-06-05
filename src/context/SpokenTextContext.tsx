@@ -1,4 +1,4 @@
-import type React from "react";
+import type React from 'react';
 import {
   createContext,
   useState,
@@ -7,7 +7,7 @@ import {
   type ReactNode,
   useRef,
   useEffect,
-} from "react";
+} from 'react';
 
 // Define the callback function type
 type OnDoneSpeakingCallback = (id: string) => void;
@@ -24,14 +24,14 @@ interface SpokenTextContextType {
 }
 
 const SpokenTextContext = createContext<SpokenTextContextType | undefined>(
-  undefined,
+  undefined
 );
 
 export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState<string | null>(
-    null,
+    null
   );
   const playbackQueueRef = useRef<string[]>([]);
   const subscribersRef = useRef<Set<OnDoneSpeakingCallback>>(new Set());
@@ -60,11 +60,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
     ) {
       playNextInQueue();
     }
-  }, [
-    currentlySpeakingId,
-    playNextInQueue,
-    isAudioGloballyEnabled,
-  ]);
+  }, [currentlySpeakingId, playNextInQueue, isAudioGloballyEnabled]);
 
   const registerForAutoPlay = useCallback(
     (id: string) => {
@@ -75,7 +71,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
         playbackQueueRef.current.push(id);
       }
     },
-    [isAudioGloballyEnabled],
+    [isAudioGloballyEnabled]
   );
 
   // Manual request check
@@ -90,7 +86,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
       }
       return false;
     },
-    [currentlySpeakingId, isAudioGloballyEnabled],
+    [currentlySpeakingId, isAudioGloballyEnabled]
   );
 
   const doneSpeaking = useCallback(
@@ -103,8 +99,8 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
             callback(id);
           } catch (error) {
             console.error(
-              "[SpokenTextContext] Error in subscriber callback:",
-              error,
+              '[SpokenTextContext] Error in subscriber callback:',
+              error
             );
           }
         }
@@ -114,21 +110,21 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
         });
       }
     },
-    [currentlySpeakingId, playNextInQueue],
+    [currentlySpeakingId, playNextInQueue]
   );
 
   const subscribeOnDoneSpeaking = useCallback(
     (callback: OnDoneSpeakingCallback) => {
       subscribersRef.current.add(callback);
     },
-    [],
+    []
   );
 
   const unsubscribeOnDoneSpeaking = useCallback(
     (callback: OnDoneSpeakingCallback) => {
       subscribersRef.current.delete(callback);
     },
-    [],
+    []
   );
 
   return (
@@ -151,7 +147,7 @@ export const SpokenTextProvider: React.FC<{ children: ReactNode }> = ({
 export const useSpokenText = (): SpokenTextContextType => {
   const context = useContext(SpokenTextContext);
   if (context === undefined) {
-    throw new Error("useSpokenText must be used within a SpokenTextProvider");
+    throw new Error('useSpokenText must be used within a SpokenTextProvider');
   }
   return context;
 };

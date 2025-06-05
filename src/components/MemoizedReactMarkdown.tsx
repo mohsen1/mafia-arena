@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { memo } from 'react'
-import ReactMarkdown, { type Options } from 'react-markdown'
+import { memo } from 'react';
+import ReactMarkdown, { type Options } from 'react-markdown';
 
 // Explicitly define props including className for comparison
 interface MemoizedProps extends Options {
@@ -17,4 +17,4 @@ export const MemoizedReactMarkdown: React.FC<MemoizedProps> = memo(
 );
 
 // Set display name for debugging
-MemoizedReactMarkdown.displayName = 'MemoizedReactMarkdown'; 
+MemoizedReactMarkdown.displayName = 'MemoizedReactMarkdown';

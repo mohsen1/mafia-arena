@@ -1,11 +1,11 @@
-import type { LanguageName } from "@/lib/i18n/settings";
-import type { RoleName, Allegiance } from "../engine/interfaces/IRole";
-import type { PlayerStatus } from "../engine/interfaces/IPlayer";
-import type { GamePhaseType as EngineGamePhaseType } from "../engine/interfaces/IGamePhase";
+import type { LanguageName } from '@/lib/i18n/settings';
+import type { RoleName, Allegiance } from '../engine/interfaces/IRole';
+import type { PlayerStatus } from '../engine/interfaces/IPlayer';
+import type { GamePhaseType as EngineGamePhaseType } from '../engine/interfaces/IGamePhase';
 export type GamePhaseType = EngineGamePhaseType;
-import type { MessageVisibility } from "../engine/interfaces/IMessage";
-import type { PlayerAction } from "../engine/interfaces/IAgent";
-import type { SerializableGameState as PersistenceSerializableGameState } from "./persistence.types";
+import type { MessageVisibility } from '../engine/interfaces/IMessage';
+import type { PlayerAction } from '../engine/interfaces/IAgent';
+import type { SerializableGameState as PersistenceSerializableGameState } from './persistence.types';
 
 /** Unique identifier for a player. */
 export type PlayerId = string;
@@ -51,8 +51,8 @@ export interface ClientMessage {
   senderName: string;
   content: string;
   timestamp: string;
-  visibility?: MessageVisibility | "mafia";
-  type?: "chat" | "system" | "action";
+  visibility?: MessageVisibility | 'mafia';
+  type?: 'chat' | 'system' | 'action';
   recipientId?: PlayerId;
 }
 
@@ -107,4 +107,4 @@ export interface FilteredGameState extends BaseGameState {
   availableVoices?: string[];
   _rawStateForDebug?: PersistenceSerializableGameState;
   winCondition?: string | null;
-} 
+}
