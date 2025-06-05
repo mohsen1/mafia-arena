@@ -15,7 +15,9 @@ interface PageProps {
   params: Promise<{ lang: LanguageCode; token: string }>;
 }
 
-export default function ResetPasswordPage({ params: paramsPromise }: PageProps) {
+export default function ResetPasswordPage({
+  params: paramsPromise,
+}: PageProps) {
   const params = use(paramsPromise);
   const { lang, token } = params;
   const { t } = useTranslation();
@@ -92,7 +94,10 @@ export default function ResetPasswordPage({ params: paramsPromise }: PageProps) 
               {t('resetPassword.submit')}
             </Button>
           </form>
-          <Button variant="link" onClick={() => router.push(`/${lang}/auth/signin`)}>
+          <Button
+            variant="link"
+            onClick={() => router.push(`/${lang}/auth/signin`)}
+          >
             {t('signIn.title')}
           </Button>
         </CardContent>

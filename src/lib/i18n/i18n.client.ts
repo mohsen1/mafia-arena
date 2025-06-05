@@ -66,17 +66,15 @@ const resources = {
   my: { [defaultNS]: myTranslation },
 };
 
-i18next
-  .use(initReactI18next)
-  .init({
-    fallbackLng,
-    ns: [defaultNS],
-    defaultNS,
-    supportedLngs: languages,
-    resources,
-    interpolation: {
-      escapeValue: false,
-    },
-  });
+i18next.use(initReactI18next).init({
+  fallbackLng,
+  ns: [defaultNS],
+  defaultNS,
+  supportedLngs: languages,
+  resources,
+  interpolation: {
+    escapeValue: false,
+  },
+});
 
-export default i18next; 
+export default i18next;

@@ -37,32 +37,28 @@ export default async function AuthErrorPage({ params, searchParams }: Props) {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md text-center space-y-6">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-destructive">{t('auth.authenticationError')}</h1>
-          <p className="text-muted-foreground">
-            {errorMessage}
-          </p>
+          <h1 className="text-3xl font-bold text-destructive">
+            {t('auth.authenticationError')}
+          </h1>
+          <p className="text-muted-foreground">{errorMessage}</p>
         </div>
-        
+
         <div className="bg-card border rounded-lg p-6 space-y-4">
           <p className="text-sm text-muted-foreground">
             Error Code: {error || 'Unknown'}
           </p>
-          
+
           <div className="space-y-2">
             <Button asChild className="w-full">
-              <Link href={`/${lang}/auth/signin`}>
-                {t('auth.tryAgain')}
-              </Link>
+              <Link href={`/${lang}/auth/signin`}>{t('auth.tryAgain')}</Link>
             </Button>
-            
+
             <Button variant="outline" asChild className="w-full">
-              <Link href={`/${lang}`}>
-                {t('auth.goHome')}
-              </Link>
+              <Link href={`/${lang}`}>{t('auth.goHome')}</Link>
             </Button>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}

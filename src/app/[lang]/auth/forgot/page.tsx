@@ -15,7 +15,9 @@ interface PageProps {
   params: Promise<{ lang: LanguageCode }>;
 }
 
-export default function ForgotPasswordPage({ params: paramsPromise }: PageProps) {
+export default function ForgotPasswordPage({
+  params: paramsPromise,
+}: PageProps) {
   const params = use(paramsPromise);
   const { lang } = params;
   const { t } = useTranslation();
@@ -56,7 +58,9 @@ export default function ForgotPasswordPage({ params: paramsPromise }: PageProps)
           )}
           {success && (
             <Alert>
-              <AlertDescription>{t('forgotPassword.checkEmail')}</AlertDescription>
+              <AlertDescription>
+                {t('forgotPassword.checkEmail')}
+              </AlertDescription>
             </Alert>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,7 +79,10 @@ export default function ForgotPasswordPage({ params: paramsPromise }: PageProps)
               {t('forgotPassword.submit')}
             </Button>
           </form>
-          <Button variant="link" onClick={() => router.push(`/${lang}/auth/signin`)}>
+          <Button
+            variant="link"
+            onClick={() => router.push(`/${lang}/auth/signin`)}
+          >
             {t('signIn.title')}
           </Button>
         </CardContent>

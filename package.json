@@ -9,6 +9,7 @@
     "prestart": "pnpm run build && pnpm run translate",
     "start": "tsx scripts/check-db.ts && PORT=3100 next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
     "test": "vitest run",
     "test:e2e": "pnpm run db:seed && playwright test",
     "test:e2e:ui": "pnpm run db:seed && playwright test --ui",
@@ -23,6 +24,7 @@
     "db:seed": "tsx scripts/seed-dev-user.ts",
     "dev:db": "pnpm run db:setup && pnpm run db:push && pnpm run db:seed && pnpm run dev",
     "dev:seed": "pnpm run db:seed && pnpm run dev",
+    "prepare": "husky install",
     "knip": "knip --no-exit-code"
   },
   "dependencies": {
@@ -104,6 +106,11 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.1.2"
+    "vitest": "^3.1.2",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "prettier": "^3.2.5",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "husky": "^9.0.11"
   }
 }

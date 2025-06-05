@@ -1,11 +1,25 @@
-"use client";
+'use client';
 
 import { useTranslation } from 'react-i18next';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { MagicalAIButton } from '@/components/ui/magical-ai-button';
 import Link from 'next/link';
-import { ArrowRight, ArrowLeft, Brain, Globe, Sparkles, Volume2, Save, Gamepad2, Users, Languages, Cpu, Star, LogIn } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowLeft,
+  Brain,
+  Globe,
+  Sparkles,
+  Volume2,
+  Save,
+  Gamepad2,
+  Users,
+  Languages,
+  Cpu,
+  Star,
+  LogIn,
+} from 'lucide-react';
 import LanguageSelector from '@/components/LanguageSelector';
 import { Header } from '@/components/Header';
 import { usePathname } from 'next/navigation';
@@ -26,7 +40,9 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
       <div className="relative">
         <div className="mb-4 text-primary">{icon}</div>
         <h3 className="text-lg font-semibold mb-2 text-foreground">{title}</h3>
-        <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {description}
+        </p>
       </div>
     </div>
   );
@@ -40,7 +56,9 @@ interface AIProviderCardProps {
 
 function AIProviderCard({ name, description, gradient }: AIProviderCardProps) {
   return (
-    <div className={`relative p-6 rounded-lg bg-gradient-to-br ${gradient} text-white overflow-hidden group hover:scale-105 transition-transform duration-300`}>
+    <div
+      className={`relative p-6 rounded-lg bg-gradient-to-br ${gradient} text-white overflow-hidden group hover:scale-105 transition-transform duration-300`}
+    >
       <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       <div className="relative">
         <Brain className="w-8 h-8 mb-4" />
@@ -64,7 +82,9 @@ function StepCard({ number, title, description }: StepCardProps) {
         {number}
       </div>
       <h3 className="text-lg font-semibold mb-2 text-foreground">{title}</h3>
-      <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        {description}
+      </p>
     </div>
   );
 }
@@ -78,9 +98,15 @@ interface RoleCardProps {
 function RoleCard({ name, description, icon }: RoleCardProps) {
   return (
     <div className="bg-card/30 backdrop-blur-sm p-6 rounded-lg hover:bg-card/60 transition-all duration-300 hover:scale-105">
-      <div className="text-lg font-semibold mb-4 text-center text-primary">{icon}</div>
-      <h3 className="text-lg font-semibold mb-2 text-center text-foreground">{name}</h3>
-      <p className="text-muted-foreground text-sm text-center leading-relaxed">{description}</p>
+      <div className="text-lg font-semibold mb-4 text-center text-primary">
+        {icon}
+      </div>
+      <h3 className="text-lg font-semibold mb-2 text-center text-foreground">
+        {name}
+      </h3>
+      <p className="text-muted-foreground text-sm text-center leading-relaxed">
+        {description}
+      </p>
     </div>
   );
 }
@@ -105,37 +131,57 @@ interface AuthCTAButtonProps {
   currentLang: string;
   children: React.ReactNode;
   className?: string;
-  variant?: "default" | "outline" | "magical";
-  size?: "default" | "sm" | "lg";
+  variant?: 'default' | 'outline' | 'magical';
+  size?: 'default' | 'sm' | 'lg';
   magical?: boolean;
   t: (key: string) => string;
 }
 
-function AuthCTAButton({ currentLang, children, className = "", variant = "magical", size = "lg", magical = true, t }: AuthCTAButtonProps) {
+function AuthCTAButton({
+  currentLang,
+  children,
+  className = '',
+  variant = 'magical',
+  size = 'lg',
+  magical = true,
+  t,
+}: AuthCTAButtonProps) {
   const { data: session } = useSession();
-  
+
   if (session) {
     if (magical) {
       return (
-        <MagicalAIButton glowIntensity="medium" asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "magical" : "default"}>
-          <Link href={`/${currentLang}/new`}>
-            {children}
-          </Link>
+        <MagicalAIButton
+          glowIntensity="medium"
+          asChild
+          size={size}
+          className={`group ${className}`}
+          variant={variant === 'magical' ? 'magical' : 'default'}
+        >
+          <Link href={`/${currentLang}/new`}>{children}</Link>
         </MagicalAIButton>
       );
     }
     return (
-      <Button asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "default" : variant}>
-        <Link href={`/${currentLang}/new`}>
-          {children}
-        </Link>
+      <Button
+        asChild
+        size={size}
+        className={`group ${className}`}
+        variant={variant === 'magical' ? 'default' : variant}
+      >
+        <Link href={`/${currentLang}/new`}>{children}</Link>
       </Button>
     );
   }
-  
+
   if (magical) {
     return (
-      <MagicalAIButton asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "magical" : "default"}>
+      <MagicalAIButton
+        asChild
+        size={size}
+        className={`group ${className}`}
+        variant={variant === 'magical' ? 'magical' : 'default'}
+      >
         <Link href={`/${currentLang}/auth/signin`}>
           <LogIn className="w-5 h-5 me-2" />
           {t('landingSignInToPlay')}
@@ -143,9 +189,14 @@ function AuthCTAButton({ currentLang, children, className = "", variant = "magic
       </MagicalAIButton>
     );
   }
-  
+
   return (
-    <Button asChild size={size} className={`group ${className}`} variant={variant === "magical" ? "default" : variant}>
+    <Button
+      asChild
+      size={size}
+      className={`group ${className}`}
+      variant={variant === 'magical' ? 'default' : variant}
+    >
       <Link href={`/${currentLang}/auth/signin`}>
         <LogIn className="w-5 h-5 me-2" />
         {t('landingSignInToPlay')}
@@ -157,7 +208,7 @@ function AuthCTAButton({ currentLang, children, className = "", variant = "magic
 export default function LandingPage() {
   const { t } = useTranslation();
   const pathname = usePathname();
-  
+
   // Extract current language from pathname
   const getCurrentLanguage = (): LanguageCode => {
     const segments = pathname.split('/').filter(Boolean);
@@ -176,7 +227,8 @@ export default function LandingPage() {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
       name: 'Werewolf AI',
-      description: 'AI-powered social deduction game based on the classic Werewolf/Mafia party game',
+      description:
+        'AI-powered social deduction game based on the classic Werewolf/Mafia party game',
       url: 'https://werewolf-ai.com',
       applicationCategory: 'Game',
       operatingSystem: 'Web Browser',
@@ -196,7 +248,7 @@ export default function LandingPage() {
         'Text-to-speech integration',
         'Save and resume gameplay',
         'Multiple AI model providers',
-        'Classic Werewolf/Mafia roles'
+        'Classic Werewolf/Mafia roles',
       ],
       author: {
         '@type': 'Organization',
@@ -208,7 +260,7 @@ export default function LandingPage() {
       },
     });
     document.head.appendChild(script);
-    
+
     return () => {
       document.head.removeChild(script);
     };
@@ -224,7 +276,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-secondary/5" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,theme(colors.primary/10),transparent)] opacity-60" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,theme(colors.accent/10),transparent)] opacity-60" />
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 sm:pt-24 sm:pb-20">
           <div className="text-center">
             <div className="mb-8">
@@ -232,24 +284,24 @@ export default function LandingPage() {
                 {t('landingHeroBadge')}
               </span>
             </div>
-            
+
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 tracking-tight animate-in fade-in duration-1000">
               {t('landingHeroTitle')}
             </h1>
-            
+
             <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed animate-in fade-in duration-1000 delay-200">
               {t('landingHeroSubtitle')}
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-in fade-in duration-1000 delay-300">
               <AuthCTAButton currentLang={currentLang} magical={true} t={t}>
                 {t('landingHeroCTA')}
-                <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
+                <ArrowIcon
+                  className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`}
+                />
               </AuthCTAButton>
               <Button variant="outline" size="lg" asChild>
-                <Link href="#features">
-                  {t('landingHeroSecondary')}
-                </Link>
+                <Link href="#features">{t('landingHeroSecondary')}</Link>
               </Button>
             </div>
           </div>
@@ -328,9 +380,9 @@ export default function LandingPage() {
               description={t('landingFeaturePersistentDesc')}
             />
           </div>
-          
+
           <div className="mt-12 text-center">
-            <MagicalAIButton 
+            <MagicalAIButton
               asChild
               variant="magical"
               size="lg"
@@ -340,7 +392,9 @@ export default function LandingPage() {
             >
               <Link href={`/${currentLang}/new`}>
                 {t('landingFeaturesButton')}
-                <Sparkles className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:rotate-12 transition-transform duration-300`} />
+                <Sparkles
+                  className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:rotate-12 transition-transform duration-300`}
+                />
               </Link>
             </MagicalAIButton>
           </div>
@@ -381,9 +435,9 @@ export default function LandingPage() {
               gradient="from-orange-500 to-red-600"
             />
           </div>
-          
+
           <div className="mt-12 text-center">
-            <MagicalAIButton 
+            <MagicalAIButton
               asChild
               size="lg"
               animationSpeed="slow"
@@ -391,7 +445,9 @@ export default function LandingPage() {
             >
               <Link href={`/${currentLang}/new`}>
                 {t('landingAITryNow')}
-                <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
+                <ArrowIcon
+                  className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`}
+                />
               </Link>
             </MagicalAIButton>
           </div>
@@ -479,12 +535,23 @@ export default function LandingPage() {
             {t('landingCtaSubtitle')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <AuthCTAButton currentLang={currentLang} magical={true} className="animate-pulse" t={t}>
+            <AuthCTAButton
+              currentLang={currentLang}
+              magical={true}
+              className="animate-pulse"
+              t={t}
+            >
               🚀 {t('landingCtaButton')}
-              <ArrowIcon className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`} />
+              <ArrowIcon
+                className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`}
+              />
             </AuthCTAButton>
             <Button variant="outline" size="lg" asChild>
-              <a href="https://github.com/mohsen1/werewolf-ai" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://github.com/mohsen1/werewolf-ai"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {t('landingCtaSecondary')}
               </a>
             </Button>
@@ -498,39 +565,90 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center mb-4">
-                <span className="text-xl font-bold text-foreground">🐺 Werewolf AI</span>
+                <span className="text-xl font-bold text-foreground">
+                  🐺 Werewolf AI
+                </span>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 {t('landingFooterDescription')}
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground mb-4">{t('landingFooterQuickLinks')}</h3>
+              <h3 className="font-semibold text-foreground mb-4">
+                {t('landingFooterQuickLinks')}
+              </h3>
               <ul className="space-y-2 text-sm">
-                <li><Link href={`/${currentLang}/new`} className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterPlayGame')}</Link></li>
-                <li><Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterFeatures')}</Link></li>
-                <li><Link href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterHowItWorks')}</Link></li>
+                <li>
+                  <Link
+                    href={`/${currentLang}/new`}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t('landingFooterPlayGame')}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="#features"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t('landingFooterFeatures')}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="#how-it-works"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t('landingFooterHowItWorks')}
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground mb-4">{t('landingFooterResources')}</h3>
+              <h3 className="font-semibold text-foreground mb-4">
+                {t('landingFooterResources')}
+              </h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="https://github.com/mohsen1/werewolf-ai" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterGitHub')}</a></li>
-                <li><a href="https://github.com/mohsen1/werewolf-ai/blob/main/README.md" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">{t('landingFooterDocumentation')}</a></li>
+                <li>
+                  <a
+                    href="https://github.com/mohsen1/werewolf-ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t('landingFooterGitHub')}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/mohsen1/werewolf-ai/blob/main/README.md"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t('landingFooterDocumentation')}
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground mb-4">{t('landingFooterLanguage')}</h3>
-              <LanguageSelector currentLang={currentLang} id="footer-language-selector" />
+              <h3 className="font-semibold text-foreground mb-4">
+                {t('landingFooterLanguage')}
+              </h3>
+              <LanguageSelector
+                currentLang={currentLang}
+                id="footer-language-selector"
+              />
             </div>
           </div>
           <div className="border-t border-border/40 mt-12 pt-8 text-center">
             <p className="text-muted-foreground text-sm">
-              © {new Date().getFullYear()} Werewolf AI. {t('landingFooterCopyright')}
+              © {new Date().getFullYear()} Werewolf AI.{' '}
+              {t('landingFooterCopyright')}
             </p>
           </div>
         </div>
       </footer>
     </div>
   );
-} 
+}

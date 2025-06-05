@@ -1,11 +1,11 @@
-import fs from "node:fs/promises";
-import path from "node:path";
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const BASE_IMAGE_PATH = path.join(
   process.cwd(),
-  "public",
-  "images",
-  "characters",
+  'public',
+  'images',
+  'characters'
 );
 
 let imageCache: Record<string, string[]> = {};
@@ -16,10 +16,10 @@ let cacheInitialized = false;
  */
 async function initializeImageCache(): Promise<void> {
   if (cacheInitialized) return;
-  console.log("Initializing character image cache...");
+  console.log('Initializing character image cache...');
   imageCache = {};
-  const genders = ["male", "female"];
-  const ages = ["young", "old"];
+  const genders = ['male', 'female'];
+  const ages = ['young', 'old'];
 
   for (const gender of genders) {
     for (const age of ages) {
@@ -33,10 +33,10 @@ async function initializeImageCache(): Promise<void> {
       } catch (error) {
         if (
           error instanceof Error &&
-          typeof error === "object" &&
+          typeof error === 'object' &&
           error !== null &&
-          "code" in error &&
-          error.code === "ENOENT"
+          'code' in error &&
+          error.code === 'ENOENT'
         ) {
           console.warn(`Image directory not found, skipping cache: ${dirPath}`);
           imageCache[key] = [];
@@ -48,7 +48,7 @@ async function initializeImageCache(): Promise<void> {
     }
   }
   cacheInitialized = true;
-  console.log("Image cache initialization complete.");
+  console.log('Image cache initialization complete.');
 }
 
 /**
@@ -59,8 +59,8 @@ async function initializeImageCache(): Promise<void> {
  * @returns A relative URL path to an image (e.g., '/images/characters/male/old/unnamed-10.png') or null if no suitable image is found.
  */
 export async function selectCharacterImage(
-  gender: "male" | "female",
-  ageCategory: "young" | "old",
+  gender: 'male' | 'female',
+  ageCategory: 'young' | 'old'
 ): Promise<string | null> {
   await initializeImageCache();
 

@@ -1,7 +1,7 @@
-"use server";
+'use server';
 
-import { revalidatePath } from "next/cache";
-import { deleteGameData } from "@/lib/persistence"; // Assuming persistence function
+import { revalidatePath } from 'next/cache';
+import { deleteGameData } from '@/lib/persistence'; // Assuming persistence function
 
 // Removed placeholder function
 // const deleteGameData = async (gameId: string): Promise<boolean> => {
@@ -10,15 +10,18 @@ import { deleteGameData } from "@/lib/persistence"; // Assuming persistence func
 //     return gameId !== "fail-delete";
 // };
 
-export async function deleteGameAction(gameId: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        await deleteGameData(gameId); 
-        revalidatePath('/'); 
-        revalidatePath(`/game/${gameId}`);
-        return { success: true };
-    } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Unknown error deleting game";
-        console.error("Error in deleteGameAction:", message, error);
-        return { success: false, error: message };
-    }
+export async function deleteGameAction(
+  gameId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await deleteGameData(gameId);
+    revalidatePath('/');
+    revalidatePath(`/game/${gameId}`);
+    return { success: true };
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Unknown error deleting game';
+    console.error('Error in deleteGameAction:', message, error);
+    return { success: false, error: message };
+  }
 }

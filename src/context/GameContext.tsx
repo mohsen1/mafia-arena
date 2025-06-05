@@ -1,4 +1,4 @@
-import type React from "react";
+import type React from 'react';
 import {
   createContext,
   useState,
@@ -6,12 +6,11 @@ import {
   useCallback,
   useRef,
   useEffect,
-} from "react";
-import type { Dispatch, SetStateAction, ReactNode } from "react";
-import { useSpokenText } from "./SpokenTextContext";
-import type { FilteredGameState } from "@/lib/interfaces/gameState.types";
-import type { HumanActionPayload } from "@/lib/interfaces/actions.types";
-
+} from 'react';
+import type { Dispatch, SetStateAction, ReactNode } from 'react';
+import { useSpokenText } from './SpokenTextContext';
+import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
+import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 
 interface GameContextState {
   gameState: FilteredGameState | null;
@@ -27,7 +26,9 @@ interface GameContextState {
   isAudioGloballyEnabled: boolean;
   toggleAudioGloballyEnabled: () => void;
   reportAudioFinished: (messageId: string) => void;
-  submitHumanAction: (payload: HumanActionPayload) => Promise<FilteredGameState | { error: string }>;
+  submitHumanAction: (
+    payload: HumanActionPayload
+  ) => Promise<FilteredGameState | { error: string }>;
 }
 
 const GameContext = createContext<GameContextState | undefined>(undefined);
@@ -35,8 +36,10 @@ const GameContext = createContext<GameContextState | undefined>(undefined);
 interface GameProviderProps {
   children: ReactNode;
   initialGameState: FilteredGameState;
-  boundRunGameTurnAction: () => Promise<FilteredGameState | { error: string }>; 
-  boundSubmitHumanAction: (payload: HumanActionPayload) => Promise<FilteredGameState | { error: string }>; 
+  boundRunGameTurnAction: () => Promise<FilteredGameState | { error: string }>;
+  boundSubmitHumanAction: (
+    payload: HumanActionPayload
+  ) => Promise<FilteredGameState | { error: string }>;
 }
 
 // Create the provider component
@@ -47,7 +50,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   boundSubmitHumanAction,
 }) => {
   const [gameState, setGameState] = useState<FilteredGameState | null>(
-    initialGameState,
+    initialGameState
   );
   const [isAutoRunning, setIsAutoRunning] = useState<boolean>(false);
   const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
@@ -70,7 +73,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         stopAudioCallbackRef.current = stopFn;
       }
     },
-    [spokenTextCurrentlySpeakingId],
+    [spokenTextCurrentlySpeakingId]
   );
 
   const unregisterStopAudio = useCallback(() => {
@@ -92,13 +95,15 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     });
   }, [stopCurrentAudio]);
 
-  const runNextTurnAction = useCallback(async (): Promise<FilteredGameState | { error: string }> => {
-    if (gameState?.phase === "GameOver") {
-      return gameState ?? { error: "Game is over" };
+  const runNextTurnAction = useCallback(async (): Promise<
+    FilteredGameState | { error: string }
+  > => {
+    if (gameState?.phase === 'GameOver') {
+      return gameState ?? { error: 'Game is over' };
     }
 
     if (isLoadingNextTurn) {
-      return gameState ?? { error: "Already loading" };
+      return gameState ?? { error: 'Already loading' };
     }
 
     setIsLoadingNextTurn(true);
@@ -109,7 +114,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       }
       return result;
     } catch (error) {
-      return { error: error instanceof Error ? error.message : "Unknown error" };
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     } finally {
       setIsLoadingNextTurn(false);
     }
@@ -127,7 +134,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         isAudioGloballyEnabled &&
         spokenTextCurrentlySpeakingId === null &&
         !isLoadingNextTurn &&
-        gameState?.phase !== "GameOver"
+        gameState?.phase !== 'GameOver'
       ) {
         setTimeout(() => runNextTurnAction(), 0);
       }
@@ -136,7 +143,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         newState &&
         !isAudioGloballyEnabled &&
         !isLoadingNextTurn &&
-        gameState?.phase !== "GameOver"
+        gameState?.phase !== 'GameOver'
       ) {
         setTimeout(() => runNextTurnAction(), 0);
       }
@@ -159,72 +166,75 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   // Auto-run logic when audio is enabled: wait for audio to finish before next turn
   useEffect(() => {
     if (
-        isAutoRunning &&
-        isAudioGloballyEnabled &&
-        spokenTextCurrentlySpeakingId === null &&
-        !isLoadingNextTurn &&
-        gameState &&
-        !gameState.pendingHumanAction &&
-        gameState.phase !== 'GameOver'
+      isAutoRunning &&
+      isAudioGloballyEnabled &&
+      spokenTextCurrentlySpeakingId === null &&
+      !isLoadingNextTurn &&
+      gameState &&
+      !gameState.pendingHumanAction &&
+      gameState.phase !== 'GameOver'
     ) {
-        const timerId = setTimeout(() => {
-            if ( isAutoRunning &&
-                 isAudioGloballyEnabled &&
-                 spokenTextCurrentlySpeakingId === null &&
-                 !isLoadingNextTurn &&
-                 gameState &&
-                 !gameState.pendingHumanAction &&
-                 gameState.phase !== 'GameOver')
-             {
-                 runNextTurnAction();
-             }
-        }, 500);
-        return () => clearTimeout(timerId);
+      const timerId = setTimeout(() => {
+        if (
+          isAutoRunning &&
+          isAudioGloballyEnabled &&
+          spokenTextCurrentlySpeakingId === null &&
+          !isLoadingNextTurn &&
+          gameState &&
+          !gameState.pendingHumanAction &&
+          gameState.phase !== 'GameOver'
+        ) {
+          runNextTurnAction();
+        }
+      }, 500);
+      return () => clearTimeout(timerId);
     }
   }, [
-      isAutoRunning,
-      isAudioGloballyEnabled,
-      spokenTextCurrentlySpeakingId,
-      isLoadingNextTurn,
-      gameState,
-      runNextTurnAction,
+    isAutoRunning,
+    isAudioGloballyEnabled,
+    spokenTextCurrentlySpeakingId,
+    isLoadingNextTurn,
+    gameState,
+    runNextTurnAction,
   ]);
 
   // Auto-run logic when audio is disabled: run with simulated reading delay
   useEffect(() => {
     if (
-        isAutoRunning &&
-        !isAudioGloballyEnabled &&
-        !isLoadingNextTurn &&
-        gameState &&
-        !gameState.pendingHumanAction &&
-        gameState.phase !== 'GameOver'
+      isAutoRunning &&
+      !isAudioGloballyEnabled &&
+      !isLoadingNextTurn &&
+      gameState &&
+      !gameState.pendingHumanAction &&
+      gameState.phase !== 'GameOver'
     ) {
-        const timerId = setTimeout(() => {
-             if ( isAutoRunning &&
-                  !isAudioGloballyEnabled &&
-                  !isLoadingNextTurn &&
-                  gameState &&
-                  !gameState.pendingHumanAction &&
-                  gameState.phase !== 'GameOver')
-              {
-                  runNextTurnAction();
-              }
-         }, 1500);
-        return () => clearTimeout(timerId);
+      const timerId = setTimeout(() => {
+        if (
+          isAutoRunning &&
+          !isAudioGloballyEnabled &&
+          !isLoadingNextTurn &&
+          gameState &&
+          !gameState.pendingHumanAction &&
+          gameState.phase !== 'GameOver'
+        ) {
+          runNextTurnAction();
+        }
+      }, 1500);
+      return () => clearTimeout(timerId);
     }
   }, [
-      isAutoRunning,
-      isAudioGloballyEnabled,
-      isLoadingNextTurn,
-      gameState,
-      runNextTurnAction,
+    isAutoRunning,
+    isAudioGloballyEnabled,
+    isLoadingNextTurn,
+    gameState,
+    runNextTurnAction,
   ]);
 
   const reportAudioFinished = useCallback(
     (messageId: string) => {
       const latestLogMessage = gameState?.log?.[0];
-      const isLatestMessage = latestLogMessage && messageId === latestLogMessage.timestamp;
+      const isLatestMessage =
+        latestLogMessage && messageId === latestLogMessage.timestamp;
 
       unregisterStopAudio();
 
@@ -235,7 +245,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         !isLoadingNextTurn &&
         !gameState?.pendingHumanAction
       ) {
-        if (gameState?.phase !== "GameOver") {
+        if (gameState?.phase !== 'GameOver') {
           setTimeout(() => {
             // Re-check conditions using ref to avoid stale closure issues
             if (
@@ -244,7 +254,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
               spokenTextIdRef.current === null &&
               !isLoadingNextTurn &&
               !gameState?.pendingHumanAction &&
-              gameState?.phase !== "GameOver"
+              gameState?.phase !== 'GameOver'
             ) {
               runNextTurnAction();
             }
@@ -261,23 +271,28 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       runNextTurnAction,
       unregisterStopAudio,
       isAudioGloballyEnabled,
-    ],
+    ]
   );
 
-  const submitHumanActionInternal = useCallback(async (payload: HumanActionPayload) => {
-    setIsLoadingNextTurn(true);
-    try {
-      const result = await boundSubmitHumanAction(payload);
-      if (result && !('error' in result)) {
-        setGameState(result);
+  const submitHumanActionInternal = useCallback(
+    async (payload: HumanActionPayload) => {
+      setIsLoadingNextTurn(true);
+      try {
+        const result = await boundSubmitHumanAction(payload);
+        if (result && !('error' in result)) {
+          setGameState(result);
+        }
+        return result;
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      } finally {
+        setIsLoadingNextTurn(false);
       }
-      return result;
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : "Unknown error" }; 
-    } finally {
-      setIsLoadingNextTurn(false);
-    }
-  }, [boundSubmitHumanAction]);
+    },
+    [boundSubmitHumanAction]
+  );
 
   const value: GameContextState = {
     gameState,
@@ -303,8 +318,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 export const useGameContext = (): GameContextState => {
   const context = useContext(GameContext);
   if (context === undefined) {
-    throw new Error("useGameContext must be used within a GameProvider");
+    throw new Error('useGameContext must be used within a GameProvider');
   }
   return context;
 };
-

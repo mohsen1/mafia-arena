@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
-import { OpenAI } from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { OpenAI } from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 // Load environment variables
 dotenv.config();
@@ -14,7 +14,7 @@ const baseURL = process.env.OPENAI_BASE_URL;
 
 if (!apiKey) {
   console.warn(
-    "Missing OPENAI_API_KEY environment variable. AI features will be disabled."
+    'Missing OPENAI_API_KEY environment variable. AI features will be disabled.'
   );
 }
 
@@ -44,7 +44,7 @@ export type GetAIResponseFunction = (
     temperature?: number;
     max_tokens?: number;
     presence_penalty?: number;
-    response_format?: { type: "text" | "json_object" }; // <-- Add optional response_format
+    response_format?: { type: 'text' | 'json_object' }; // <-- Add optional response_format
   }
 ) => Promise<string>; // Returns the AI's text response
 
@@ -68,12 +68,12 @@ export const getAIResponse: GetAIResponseFunction = async (
 ) => {
   const openai = getOpenAIInstance();
   if (!openai) {
-    throw new Error("OpenAI client not initialized. Missing OPENAI_API_KEY.");
+    throw new Error('OpenAI client not initialized. Missing OPENAI_API_KEY.');
   }
   console.log(
     `[AI Request - ${gameId}|${playerId}] Calling model ${
       settings.model
-    } (Temp: ${settings.temperature ?? "default"})...`
+    } (Temp: ${settings.temperature ?? 'default'})...`
   );
 
   try {
@@ -88,7 +88,7 @@ export const getAIResponse: GetAIResponseFunction = async (
 
     const responseContent = completion.choices[0]?.message?.content;
     if (!responseContent) {
-      throw new Error("Received empty response content from AI.");
+      throw new Error('Received empty response content from AI.');
     }
 
     // Removed logging call

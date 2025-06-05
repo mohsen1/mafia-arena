@@ -1,12 +1,22 @@
 'use client'; // Ensure this is a client component
 
-import { useGameContext } from "@/context/GameContext";
-import { MessageBubble } from "./MessageBubble";
-import { useTranslation } from "react-i18next"; 
-import { useRef, useEffect, useCallback, useLayoutEffect, useMemo } from "react";
-import type { ClientMessage, FilteredPlayer, PlayerId } from "@/lib/interfaces/gameState.types";
-import { RoleName } from "@/lib/engine/interfaces/IRole"; // Fix RoleName import path
-import { MessageVisibility } from "@/lib/engine/interfaces/IMessage";
+import { useGameContext } from '@/context/GameContext';
+import { MessageBubble } from './MessageBubble';
+import { useTranslation } from 'react-i18next';
+import {
+  useRef,
+  useEffect,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+} from 'react';
+import type {
+  ClientMessage,
+  FilteredPlayer,
+  PlayerId,
+} from '@/lib/interfaces/gameState.types';
+import { RoleName } from '@/lib/engine/interfaces/IRole'; // Fix RoleName import path
+import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 
 export function ConversationLog() {
   const { gameState } = useGameContext();
@@ -19,7 +29,7 @@ export function ConversationLog() {
   // Filter log based on visibility
   const filteredLog = useMemo(() => {
     if (!gameState) return []; // Return empty if gameState is null
-    
+
     const { log = [], players, humanPlayerId } = gameState;
     const playersRecord: Record<PlayerId, FilteredPlayer> = players;
     const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
@@ -35,13 +45,13 @@ export function ConversationLog() {
       if (msg.senderId === humanPlayerId) return true;
       return false;
     };
-    
+
     return log.filter(isVisible);
   }, [gameState]); // Keep dependency on full gameState to avoid linter issues
 
   // Memoize the display log in chronological order (oldest first, newest last)
   const displayLogMemo = useMemo(() => {
-      return filteredLog.slice();
+    return filteredLog.slice();
   }, [filteredLog]);
 
   // Memoized scroll function
@@ -59,8 +69,11 @@ export function ConversationLog() {
   // Scroll effect for pending action changes
   useEffect(() => {
     if (!gameState) return; // Need gameState here too
-    
-    if (JSON.stringify(prevPendingActionRef.current) !== JSON.stringify(gameState.pendingHumanAction)) {
+
+    if (
+      JSON.stringify(prevPendingActionRef.current) !==
+      JSON.stringify(gameState.pendingHumanAction)
+    ) {
       setTimeout(scrollToBottom, 100);
       prevPendingActionRef.current = gameState.pendingHumanAction;
     }
@@ -82,32 +95,37 @@ export function ConversationLog() {
   }, [scrollToBottom]);
 
   if (!gameState) {
-    return <div>{t('LoadingLog', 'Loading conversation...')}</div>; 
+    return <div>{t('LoadingLog', 'Loading conversation...')}</div>;
   }
 
   // Get players record after the gameState check
   const playersRecord: Record<PlayerId, FilteredPlayer> = gameState.players;
 
   return (
-    <div ref={containerRef} className="flex-grow bg-background p-4 overflow-y-auto"> 
+    <div
+      ref={containerRef}
+      className="flex-grow bg-background p-4 overflow-y-auto"
+    >
       <div className="space-y-4">
         {displayLogMemo.length > 0 ? (
           displayLogMemo.map((message, index) => (
             // Apply ref to the last item in displayLogMemo (newest chronological message)
-            <div 
+            <div
               key={message.id}
-              ref={index === displayLogMemo.length - 1 ? lastMessageRef : undefined}
+              ref={
+                index === displayLogMemo.length - 1 ? lastMessageRef : undefined
+              }
             >
               <MessageBubble
                 message={message}
                 players={playersRecord}
-                isWerewolfChat={message.visibility === MessageVisibility.Mafia} 
+                isWerewolfChat={message.visibility === MessageVisibility.Mafia}
               />
             </div>
           ))
         ) : (
           <p className="text-muted-foreground italic text-center py-4">
-            {t("EmptyConversationLog")}
+            {t('EmptyConversationLog')}
           </p>
         )}
       </div>

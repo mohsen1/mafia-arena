@@ -1,17 +1,17 @@
 'use client'; // Ensure this is a client component
 
-import Image from "next/image";
-import { PlayerCard } from "@/components/PlayerCard";
-import { useGameContext } from "@/context/GameContext"; // Import context hook
+import Image from 'next/image';
+import { PlayerCard } from '@/components/PlayerCard';
+import { useGameContext } from '@/context/GameContext'; // Import context hook
 // import type { Player } from "@/lib/types/game"; // OLD IMPORT
-import type { FilteredPlayer } from "@/lib/interfaces/client.types"; // NEW IMPORT
-import type { PlayerId } from "@/lib/engine/interfaces/IPlayer"; // Import PlayerId
+import type { FilteredPlayer } from '@/lib/interfaces/client.types'; // NEW IMPORT
+import type { PlayerId } from '@/lib/engine/interfaces/IPlayer'; // Import PlayerId
 
-import Link from "next/link";
+import Link from 'next/link';
 // Import from react-i18next
-import { useTranslation } from "react-i18next"; 
-import { useParams } from "next/navigation";
-import { GameHeader } from "./GameHeader";
+import { useTranslation } from 'react-i18next';
+import { useParams } from 'next/navigation';
+import { GameHeader } from './GameHeader';
 
 export function GameSidebar() {
   const { gameState } = useGameContext();
@@ -43,7 +43,7 @@ export function GameSidebar() {
         <Link
           href={`/${lang}`}
           className="flex items-center gap-2"
-          aria-label={t("Werewolves AI")}
+          aria-label={t('Werewolves AI')}
         >
           {/* Display total player count */}
           <span className="flex items-center gap-2">
@@ -54,7 +54,7 @@ export function GameSidebar() {
               width={36}
               height={36}
             />
-            {t("Werewolves AI")}
+            {t('Werewolves AI')}
           </span>
         </Link>
       </h2>
@@ -72,7 +72,7 @@ export function GameSidebar() {
               <hr className="my-2 border-muted" /> {/* Add a divider */}
               <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
                 {/* Use translation key */}
-                {t("DeadPlayersTitle", "Dead Players")}
+                {t('DeadPlayersTitle', 'Dead Players')}
               </h3>
               {deadPlayers.map((player: FilteredPlayer) => (
                 <PlayerCard key={player.id} player={player} />

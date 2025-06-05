@@ -4,7 +4,7 @@ import {
   SchemaType,
   FunctionCallingMode,
   type FunctionDeclarationsTool,
-  type FunctionDeclaration
+  type FunctionDeclaration,
 } from '@google/generative-ai';
 
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
@@ -16,37 +16,45 @@ const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
   console.warn(
-    "Missing GEMINI_API_KEY environment variable. Google AI features will be disabled."
+    'Missing GEMINI_API_KEY environment variable. Google AI features will be disabled.'
   );
 }
 
 function getGoogleAIInstance() {
   if (!apiKey) {
-    throw new Error("Google AI client not initialized. Missing GEMINI_API_KEY.");
+    throw new Error(
+      'Google AI client not initialized. Missing GEMINI_API_KEY.'
+    );
   }
   return new GoogleGenerativeAI(apiKey);
 }
 
-function convertOpenAIMessagesToGoogle(messages: ChatCompletionMessageParam[]): Array<{role: 'user' | 'model', parts: Array<{text: string}>}> {
-  const googleMessages: Array<{role: 'user' | 'model', parts: Array<{text: string}>}> = [];
+function convertOpenAIMessagesToGoogle(
+  messages: ChatCompletionMessageParam[]
+): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
+  const googleMessages: Array<{
+    role: 'user' | 'model';
+    parts: Array<{ text: string }>;
+  }> = [];
   let systemMessage = '';
 
   for (const message of messages) {
     if (message.role === 'system') {
       systemMessage = message.content as string;
     } else if (message.role === 'user') {
-      const content = systemMessage && googleMessages.length === 0 
-        ? `${systemMessage}\n\n${message.content as string}`
-        : message.content as string;
+      const content =
+        systemMessage && googleMessages.length === 0
+          ? `${systemMessage}\n\n${message.content as string}`
+          : (message.content as string);
       googleMessages.push({
         role: 'user',
-        parts: [{ text: content }]
+        parts: [{ text: content }],
       });
       systemMessage = ''; // Clear system message after first use
     } else if (message.role === 'assistant') {
       googleMessages.push({
         role: 'model',
-        parts: [{ text: message.content as string }]
+        parts: [{ text: message.content as string }],
       });
     }
   }
@@ -55,7 +63,7 @@ function convertOpenAIMessagesToGoogle(messages: ChatCompletionMessageParam[]): 
   if (systemMessage && googleMessages.length === 0) {
     googleMessages.push({
       role: 'user',
-      parts: [{ text: systemMessage }]
+      parts: [{ text: systemMessage }],
     });
   }
 
@@ -71,7 +79,7 @@ export type GetAIResponseFunction = (
     temperature?: number;
     max_tokens?: number;
     presence_penalty?: number;
-    response_format?: { type: "text" | "json_object" };
+    response_format?: { type: 'text' | 'json_object' };
   }
 ) => Promise<string>;
 
@@ -96,16 +104,16 @@ export const getAIResponse: GetAIResponseFunction = async (
   settings
 ) => {
   const genAI = getGoogleAIInstance();
-  
+
   console.log(
     `[Gemini Request - ${gameId}|${playerId}] Calling model ${
       settings.model
-    } (Temp: ${settings.temperature ?? "default"})...`
+    } (Temp: ${settings.temperature ?? 'default'})...`
   );
 
   try {
     const googleMessages = convertOpenAIMessagesToGoogle(messages);
-    
+
     // Create generation config
     const generationConfig: {
       temperature?: number;
@@ -117,27 +125,27 @@ export const getAIResponse: GetAIResponseFunction = async (
     };
 
     // Add JSON response format if requested
-    if (settings.response_format?.type === "json_object") {
-      generationConfig.responseMimeType = "application/json";
+    if (settings.response_format?.type === 'json_object') {
+      generationConfig.responseMimeType = 'application/json';
     }
 
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: settings.model,
-      generationConfig
+      generationConfig,
     });
 
     // If we have multiple messages, use chat
     if (googleMessages.length > 1) {
       const chat = model.startChat({
-        history: googleMessages.slice(0, -1)
+        history: googleMessages.slice(0, -1),
       });
-      
+
       const lastMessage = googleMessages[googleMessages.length - 1];
       const result = await chat.sendMessage(lastMessage.parts[0].text);
       const responseContent = result.response.text();
-      
+
       if (!responseContent) {
-        throw new Error("Received empty response content from Gemini.");
+        throw new Error('Received empty response content from Gemini.');
       }
 
       console.log(
@@ -145,13 +153,13 @@ export const getAIResponse: GetAIResponseFunction = async (
       );
       return responseContent;
     }
-    
+
     // Single message
     const result = await model.generateContent(googleMessages[0].parts[0].text);
     const responseContent = result.response.text();
-    
+
     if (!responseContent) {
-      throw new Error("Received empty response content from Gemini.");
+      throw new Error('Received empty response content from Gemini.');
     }
 
     console.log(
@@ -179,16 +187,16 @@ export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
   settings
 ) => {
   const genAI = getGoogleAIInstance();
-  
+
   console.log(
     `[Gemini Function Call - ${gameId}|${playerId}] Calling model ${
       settings.model
-    } with function ${functionName} (Temp: ${settings.temperature ?? "default"})...`
+    } with function ${functionName} (Temp: ${settings.temperature ?? 'default'})...`
   );
 
   try {
     const googleMessages = convertOpenAIMessagesToGoogle(messages);
-    
+
     // Define the function declaration for structured response
     const functionDeclaration: FunctionDeclaration = {
       name: functionName,
@@ -200,43 +208,49 @@ export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
             key,
             {
               type: SchemaType.STRING,
-              description: value.description
-            }
+              description: value.description,
+            },
           ])
         ),
-        required: Object.keys(responseSchema)
-      }
+        required: Object.keys(responseSchema),
+      },
     };
 
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: settings.model,
       generationConfig: {
         temperature: settings.temperature ?? 0.1,
         maxOutputTokens: settings.max_tokens ?? 8192,
       },
-      tools: [{ functionDeclarations: [functionDeclaration] } as FunctionDeclarationsTool],
+      tools: [
+        {
+          functionDeclarations: [functionDeclaration],
+        } as FunctionDeclarationsTool,
+      ],
       toolConfig: {
         functionCallingConfig: {
           mode: FunctionCallingMode.ANY,
-          allowedFunctionNames: [functionName]
-        }
-      }
+          allowedFunctionNames: [functionName],
+        },
+      },
     });
 
     // Use single message approach for function calling
-    const prompt = googleMessages.map(msg => msg.parts[0].text).join('\n\n');
+    const prompt = googleMessages.map((msg) => msg.parts[0].text).join('\n\n');
     const result = await model.generateContent(prompt);
-    
+
     const response = result.response;
     const functionCalls = response.functionCalls();
-    
+
     if (!functionCalls || functionCalls.length === 0) {
-      throw new Error("No function calls returned from Gemini.");
+      throw new Error('No function calls returned from Gemini.');
     }
 
     const functionCall = functionCalls[0];
     if (functionCall.name !== functionName) {
-      throw new Error(`Expected function ${functionName}, got ${functionCall.name}`);
+      throw new Error(
+        `Expected function ${functionName}, got ${functionCall.name}`
+      );
     }
 
     console.log(
@@ -253,4 +267,4 @@ export const getStructuredAIResponse: GetStructuredAIResponseFunction = async (
     );
     throw error;
   }
-}; 
+};
