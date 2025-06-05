@@ -35,11 +35,14 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, isLoading }) =
       <div className="flex items-center gap-3">
         <div className="relative">
           {character.imageUrl ? (
-            <img 
-              src={character.imageUrl} 
-              alt={character.name}
-              className="w-12 h-12 rounded-full object-cover"
-            />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={character.imageUrl}
+                alt={character.name}
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            </>
           ) : (
             <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
               <User className="w-6 h-6 text-muted-foreground" />

@@ -27,8 +27,7 @@ const initI18next = async (lng: LanguageCode) => {
 
 export async function getTranslation(
   lng: LanguageCode,
-  ns = defaultNS,
-  options: Record<string, unknown> = {}
+  ns = defaultNS
 ) {
   const i18nextInstance = await initI18next(lng);
   return {
