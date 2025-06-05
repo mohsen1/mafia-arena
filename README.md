@@ -193,9 +193,6 @@ pnpm build
 pnpm start
 ```
 
-Running `pnpm start` now checks the database connection before launching the
-server. If the connection fails, the server will not start, helping catch
-misconfigured credentials early, especially during Vercel deployments.
 
 ### Deploying to Vercel
 
