@@ -193,6 +193,9 @@ pnpm build
 pnpm start
 ```
 
+`pnpm start` checks the database connection and automatically pushes the schema
+with `drizzle-kit push`, ensuring your tables are created in production.
+
 
 ### Deploying to Vercel
 
