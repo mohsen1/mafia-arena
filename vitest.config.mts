@@ -1,5 +1,9 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+import dotenv from 'dotenv';
+
+// Load test environment variables
+dotenv.config({ path: '.env.test' });
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
