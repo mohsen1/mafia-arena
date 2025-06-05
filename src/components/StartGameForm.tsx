@@ -167,6 +167,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     updateSlotImageUrl,
     handleGenerateAndStartGame,
     isHumanJoining,
+    toggleHumanJoining,
     selectedGameThemeKey,
     setSelectedGameThemeKey,
     setCharacterSlots,
@@ -311,7 +312,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           <Checkbox
             id="human-join"
             checked={isHumanJoining}
-            onCheckedChange={() => {}}
+            onCheckedChange={toggleHumanJoining}
             disabled={isLoading}
             aria-label={t(
               "ToggleHumanPlayerJoinLabel",
