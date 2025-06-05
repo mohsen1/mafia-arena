@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 export interface SendEmailOptions {
   to: string;
@@ -6,28 +6,20 @@ export interface SendEmailOptions {
   html: string;
 }
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: process.env.SMTP_USER
-    ? {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      }
-    : undefined,
-});
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 export async function sendEmail(options: SendEmailOptions) {
-  if (!process.env.SMTP_HOST) {
-    console.log('📧 Email content:', options);
+  if (resend) {
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'Werewolf AI <noreply@werewolf-ai.com>',
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+    });
     return;
   }
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.SMTP_USER,
-    to: options.to,
-    subject: options.subject,
-    html: options.html,
-  });
+  console.log('📧 Email content:', options);
 }
