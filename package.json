@@ -7,7 +7,7 @@
     "dev": "PORT=3099 DEBUG=mafia:* next dev --turbopack",
     "build": "next build",
     "prestart": "pnpm run build && pnpm run translate",
-    "start": "tsx scripts/check-db.ts && PORT=3100 next start",
+    "start": "tsx scripts/check-db.ts && pnpm run db:push && PORT=3100 next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "test": "vitest run",
