@@ -1,4 +1,4 @@
-import { RoleName } from "./engine/interfaces/IRole";
+import { RoleName } from './engine/interfaces/IRole';
 
 // Define some default settings for creating a new game
 export const DEFAULT_GAME_SETTINGS = {
@@ -9,7 +9,7 @@ export const DEFAULT_GAME_SETTINGS = {
     [RoleName.Villager]: 5,
   } as Record<RoleName, number>,
   discussionRoundsPerPlayer: 1,
-  aiModel: process.env.OPENAI_MODEL || "gemma2-9b-it",
+  aiModel: process.env.OPENAI_MODEL || 'gemma2-9b-it',
 };
 
 /**
@@ -18,7 +18,7 @@ export const DEFAULT_GAME_SETTINGS = {
  * @returns The total number of players.
  */
 export function calculateNumPlayers(
-  roleDistribution: Readonly<Record<RoleName, number>>,
+  roleDistribution: Readonly<Record<RoleName, number>>
 ): number {
   return Object.values(roleDistribution).reduce((sum, count) => sum + count, 0);
 }

@@ -9,4 +9,4 @@ export const DEFAULT_PERSONA: Persona = {
   name: 'Mysterious Figure',
   backstory: 'Their past is shrouded in mystery.',
   personalityTraits: ['Quiet', 'Observant', 'Enigmatic'],
-}; 
+};

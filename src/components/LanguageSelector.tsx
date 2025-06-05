@@ -1,22 +1,25 @@
 'use client';
 
-import type { LanguageCode as Locale } from "@/lib/i18n/settings";
-import { supportedLanguagesInfo } from "@/lib/i18n/settings";
-import { usePathname, useRouter } from "next/navigation";
+import type { LanguageCode as Locale } from '@/lib/i18n/settings';
+import { supportedLanguagesInfo } from '@/lib/i18n/settings';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 
 interface LanguageSelectorProps {
   currentLang: Locale;
   id?: string;
 }
 
-export default function LanguageSelector({ currentLang, id }: LanguageSelectorProps) {
+export default function LanguageSelector({
+  currentLang,
+  id,
+}: LanguageSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -49,4 +52,4 @@ export default function LanguageSelector({ currentLang, id }: LanguageSelectorPr
       </SelectContent>
     </Select>
   );
-} 
+}

@@ -7,7 +7,13 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Header } from '@/components/Header';
 import Link from 'next/link';
@@ -39,7 +45,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (error) setError('');
   };
 
@@ -82,7 +88,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
   return (
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
-      
+
       <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
@@ -94,11 +100,9 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
               </Button>
               <CardTitle className="text-2xl">{t('signUp.title')}</CardTitle>
             </div>
-            <CardDescription>
-              {t('signUp.description')}
-            </CardDescription>
+            <CardDescription>{t('signUp.description')}</CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -169,7 +173,9 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">{t('signUp.confirmPassword')}</Label>
+                <Label htmlFor="confirmPassword">
+                  {t('signUp.confirmPassword')}
+                </Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
@@ -244,7 +250,9 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
             </div>
 
             <div className="text-center text-sm">
-              <span className="text-muted-foreground">{t('signUp.alreadyHaveAccount')}</span>
+              <span className="text-muted-foreground">
+                {t('signUp.alreadyHaveAccount')}
+              </span>
               <Link
                 href={`/${lang}/auth/signin`}
                 className="text-primary hover:underline"
@@ -257,4 +265,4 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
       </div>
     </div>
   );
-} 
+}

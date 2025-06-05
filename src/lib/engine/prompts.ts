@@ -9,33 +9,33 @@ import dedent from 'dedent';
 
 // --- Type Definition for Prompt Input ---
 interface PromptPlayerInfo {
-    id: PlayerId;
-    name: string;
-    status: string;
+  id: PlayerId;
+  name: string;
+  status: string;
 }
 interface PromptSelfInfo extends PromptPlayerInfo {
-    role: RoleName;
-    allegiance: Allegiance;
-    isMafia: boolean;
-    personaDescription?: string;
-    persona?: Persona;
+  role: RoleName;
+  allegiance: Allegiance;
+  isMafia: boolean;
+  personaDescription?: string;
+  persona?: Persona;
 }
 
 // Define expected type for seer results based on usage
 type PromptSeerResultMap = Map<PlayerId, { isMafia: boolean }>;
 
 interface PromptGameState {
-    round: number;
-    phase: GamePhaseType;
-    themeName?: string;
-    language?: string;
-    self: PromptSelfInfo;
-    alivePlayerIds: PlayerId[];
-    players: PromptPlayerInfo[];
-    mafiaPlayerIds?: PlayerId[];
-    seerResults?: PromptSeerResultMap;
-    messages?: ReadonlyArray<IMessage>;
-    memory?: AgentMemory;
+  round: number;
+  phase: GamePhaseType;
+  themeName?: string;
+  language?: string;
+  self: PromptSelfInfo;
+  alivePlayerIds: PlayerId[];
+  players: PromptPlayerInfo[];
+  mafiaPlayerIds?: PlayerId[];
+  seerResults?: PromptSeerResultMap;
+  messages?: ReadonlyArray<IMessage>;
+  memory?: AgentMemory;
 }
 
 // Define constant if not already defined globally or imported
@@ -46,10 +46,13 @@ const MAX_MESSAGES_IN_PROMPT = 15; // Example value, adjust as needed
  * @param themeDescription A one-liner describing the game's theme.
  * @param language The language to generate the persona in (defaults to English if not provided).
  */
-export function getPersonaGenerationPrompt(themeDescription: string, language?: string): string {
+export function getPersonaGenerationPrompt(
+  themeDescription: string,
+  language?: string
+): string {
   // Always include language instruction, not just for non-English
   const targetLanguage = language || 'English';
-  
+
   return dedent`
     You are a creative writer tasked with generating a character persona for a text-based Mafia game.
     The game's theme is: "${themeDescription}"
@@ -87,8 +90,8 @@ export function getPersonaGenerationPrompt(themeDescription: string, language?: 
  * Generates the system prompt explaining the game rules and desired output format.
  */
 export function getSystemPrompt(): string {
-    // Use dedent to remove leading whitespace from the multi-line string
-    return dedent`
+  // Use dedent to remove leading whitespace from the multi-line string
+  return dedent`
         You are an AI player in a text-based Mafia game (also known as Werewolf), playing a specific persona.
         Your goal is to help your team (Mafia or Town) win while staying in character.
 
@@ -172,120 +175,166 @@ export function getSystemPrompt(): string {
  * @param allowedActions The actions the agent is allowed to perform.
  */
 export function getUserPrompt(
-    currentGameState: PromptGameState,
-    allowedActions?: PlayerAction['type'][]
+  currentGameState: PromptGameState,
+  allowedActions?: PlayerAction['type'][]
 ): string {
-    const promptLines: string[] = [];
+  const promptLines: string[] = [];
 
-    // Basic Game State
-    promptLines.push('**Current Game State:**');
-    promptLines.push(`- Round: ${currentGameState.round}`);
-    promptLines.push(`- Phase: ${currentGameState.phase}`);
-    promptLines.push(`- Theme: ${currentGameState.themeName || 'Unknown'}`);
-    promptLines.push(`- Language: ${currentGameState.language || 'en'}`);
+  // Basic Game State
+  promptLines.push('**Current Game State:**');
+  promptLines.push(`- Round: ${currentGameState.round}`);
+  promptLines.push(`- Phase: ${currentGameState.phase}`);
+  promptLines.push(`- Theme: ${currentGameState.themeName || 'Unknown'}`);
+  promptLines.push(`- Language: ${currentGameState.language || 'en'}`);
 
-    // Your Identity
-    promptLines.push('\n**Your Identity:**');
-    promptLines.push(`- Player ID: ${currentGameState.self.id}`);
-    promptLines.push(`- Player Name: ${currentGameState.self.name}`);
-    promptLines.push(`- Your Role: ${currentGameState.self.role}`);
-    promptLines.push(`- Your Allegiance: ${currentGameState.self.allegiance}`);
-    // Include generated persona details if available
-    if (currentGameState.self.persona) {
-        promptLines.push('\n**Your Persona:**');
-        promptLines.push(`- Name: ${currentGameState.self.persona.name}`); // Usually matches player name, but good to confirm
-        promptLines.push(`- Backstory: ${currentGameState.self.persona.backstory}`);
-        promptLines.push(`- Traits: ${currentGameState.self.persona.personalityTraits.join(', ')}`);
-    } else if (currentGameState.self.personaDescription) {
-        // Fallback for manually assigned persona descriptions
-        promptLines.push(`- Your Persona: ${currentGameState.self.personaDescription}`);
+  // Your Identity
+  promptLines.push('\n**Your Identity:**');
+  promptLines.push(`- Player ID: ${currentGameState.self.id}`);
+  promptLines.push(`- Player Name: ${currentGameState.self.name}`);
+  promptLines.push(`- Your Role: ${currentGameState.self.role}`);
+  promptLines.push(`- Your Allegiance: ${currentGameState.self.allegiance}`);
+  // Include generated persona details if available
+  if (currentGameState.self.persona) {
+    promptLines.push('\n**Your Persona:**');
+    promptLines.push(`- Name: ${currentGameState.self.persona.name}`); // Usually matches player name, but good to confirm
+    promptLines.push(`- Backstory: ${currentGameState.self.persona.backstory}`);
+    promptLines.push(
+      `- Traits: ${currentGameState.self.persona.personalityTraits.join(', ')}`
+    );
+  } else if (currentGameState.self.personaDescription) {
+    // Fallback for manually assigned persona descriptions
+    promptLines.push(
+      `- Your Persona: ${currentGameState.self.personaDescription}`
+    );
+  }
+
+  // Known Information (Role Specific)
+  if (currentGameState.self.isMafia && currentGameState.mafiaPlayerIds) {
+    promptLines.push('\n**Mafia Team:**');
+    const mafiaNames = currentGameState.mafiaPlayerIds
+      .map((id: PlayerId) => {
+        const player = currentGameState.players.find(
+          (p: PromptPlayerInfo) => p.id === id
+        );
+        return player ? `${player.name} (${id})` : id;
+      })
+      .join(', ');
+    promptLines.push(`- Your fellow Mafia members are: ${mafiaNames}`);
+  }
+  if (currentGameState.seerResults && currentGameState.seerResults.size > 0) {
+    promptLines.push('\n**Seer Investigations:**');
+    currentGameState.seerResults.forEach(
+      (result: { isMafia: boolean }, targetId: PlayerId) => {
+        const targetName =
+          currentGameState.players.find(
+            (p: PromptPlayerInfo) => p.id === targetId
+          )?.name || targetId;
+        promptLines.push(
+          `- You investigated ${targetName}: They are ${result.isMafia ? 'Mafia' : 'Not Mafia'}.`
+        );
+      }
+    );
+  }
+
+  // Player List - Use Array methods now
+  const alivePlayersList = currentGameState.players
+    .filter((p: PromptPlayerInfo) =>
+      currentGameState.alivePlayerIds.includes(p.id)
+    )
+    .map(
+      (p: PromptPlayerInfo) =>
+        `- ${p.name} (${p.id})${p.id === currentGameState.self.id ? ' (You)' : ''}${!currentGameState.alivePlayerIds.includes(p.id) ? ' [DEAD]' : ''}`
+    )
+    .join('\n');
+
+  const alivePlayerIdsString = currentGameState.alivePlayerIds.join(', ');
+
+  promptLines.push(
+    `\n**Players (${currentGameState.players.length} total, ${currentGameState.alivePlayerIds.length} alive):**`
+  );
+  promptLines.push(alivePlayersList);
+  promptLines.push(`\n(Alive Player IDs: ${alivePlayerIdsString})`);
+
+  // Recent Messages (Public)
+  if (currentGameState.messages && currentGameState.messages.length > 0) {
+    promptLines.push(
+      `\n**Recent Public Messages (Last ${MAX_MESSAGES_IN_PROMPT}):**`
+    );
+    const recentMessages = currentGameState.messages.slice(
+      -MAX_MESSAGES_IN_PROMPT
+    );
+    for (const msg of recentMessages) {
+      const senderName =
+        currentGameState.players.find(
+          (p: PromptPlayerInfo) => p.id === msg.senderId
+        )?.name ||
+        msg.senderId ||
+        'SYSTEM';
+      promptLines.push(`- ${senderName}: ${msg.content}`);
     }
+  } else {
+    promptLines.push('\n**Recent Public Messages:** None');
+  }
 
-    // Known Information (Role Specific)
-    if (currentGameState.self.isMafia && currentGameState.mafiaPlayerIds) {
-        promptLines.push('\n**Mafia Team:**');
-        const mafiaNames = currentGameState.mafiaPlayerIds
-            .map((id: PlayerId) => {
-                const player = currentGameState.players.find((p: PromptPlayerInfo) => p.id === id);
-                return player ? `${player.name} (${id})` : id;
-            })
-            .join(', ');
-        promptLines.push(`- Your fellow Mafia members are: ${mafiaNames}`);
-    }
-    if (currentGameState.seerResults && currentGameState.seerResults.size > 0) {
-        promptLines.push('\n**Seer Investigations:**');
-        currentGameState.seerResults.forEach((result: { isMafia: boolean }, targetId: PlayerId) => {
-            const targetName = currentGameState.players.find((p: PromptPlayerInfo) => p.id === targetId)?.name || targetId;
-            promptLines.push(`- You investigated ${targetName}: They are ${result.isMafia ? 'Mafia' : 'Not Mafia'}.`);
-        });
-    }
-
-    // Player List - Use Array methods now
-    const alivePlayersList = currentGameState.players
-        .filter((p: PromptPlayerInfo) => currentGameState.alivePlayerIds.includes(p.id))
-        .map((p: PromptPlayerInfo) => 
-            `- ${p.name} (${p.id})${p.id === currentGameState.self.id ? ' (You)' : ''}${!currentGameState.alivePlayerIds.includes(p.id) ? ' [DEAD]' : ''}`
-        )
-        .join('\n');
-    
-    const alivePlayerIdsString = currentGameState.alivePlayerIds.join(', ');
-
-    promptLines.push(`\n**Players (${currentGameState.players.length} total, ${currentGameState.alivePlayerIds.length} alive):**`);
-    promptLines.push(alivePlayersList);
-    promptLines.push(`\n(Alive Player IDs: ${alivePlayerIdsString})`);
-
-    // Recent Messages (Public)
-    if (currentGameState.messages && currentGameState.messages.length > 0) {
-        promptLines.push(`\n**Recent Public Messages (Last ${MAX_MESSAGES_IN_PROMPT}):**`);
-        const recentMessages = currentGameState.messages.slice(-MAX_MESSAGES_IN_PROMPT);
-        for (const msg of recentMessages) {
-            const senderName = currentGameState.players.find((p: PromptPlayerInfo) => p.id === msg.senderId)?.name || msg.senderId || 'SYSTEM';
-            promptLines.push(`- ${senderName}: ${msg.content}`);
-        }
+  // Game History / Memory - Removed memory.summary access
+  if (currentGameState.memory) {
+    promptLines.push('\n**Your Memory / Game History Summary:**');
+    if (Object.keys(currentGameState.memory).length > 0) {
+      promptLines.push('- *You have some memories recorded.*');
     } else {
-        promptLines.push("\n**Recent Public Messages:** None");
+      promptLines.push('- *Your memory is clear.*');
     }
+  }
 
-    // Game History / Memory - Removed memory.summary access
-    if (currentGameState.memory) {
-        promptLines.push('\n**Your Memory / Game History Summary:**');
-        if (Object.keys(currentGameState.memory).length > 0) {
-             promptLines.push("- *You have some memories recorded.*");
-        } else {
-             promptLines.push("- *Your memory is clear.*");
-        }
+  // Allowed Actions
+  promptLines.push('\n**Your Turn:**');
+  if (allowedActions && allowedActions.length > 0) {
+    promptLines.push(
+      `You must choose one of the following actions: ${allowedActions.join(', ')}.`
+    );
+    promptLines.push(
+      'Provide your action as a JSON object matching the examples below.'
+    );
+
+    // Action Examples (customize based on phase/role)
+    promptLines.push('\n**Action Format Examples:**');
+    if (allowedActions.includes('message')) {
+      promptLines.push(
+        '- Speak: `{"type": "message", "content": "Your message here..."}`'
+      );
     }
-
-    // Allowed Actions
-    promptLines.push('\n**Your Turn:**');
-    if (allowedActions && allowedActions.length > 0) {
-        promptLines.push(`You must choose one of the following actions: ${allowedActions.join(', ')}.`);
-        promptLines.push("Provide your action as a JSON object matching the examples below.");
-
-        // Action Examples (customize based on phase/role)
-        promptLines.push('\n**Action Format Examples:**');
-        if (allowedActions.includes('message')) {
-            promptLines.push('- Speak: `{"type": "message", "content": "Your message here..."}`');
-        }
-        if (allowedActions.includes('vote')) {
-            promptLines.push('- Vote: `{"type": "vote", "targetPlayerId": "player-id-to-vote-for"}`');
-        }
-        if (allowedActions.includes('mafiaKill')) {
-            promptLines.push('- Mafia Kill: `{"type": "mafiaKill", "targetPlayerId": "player-id-to-kill"}`');
-        }
-        if (allowedActions.includes('doctorSave')) {
-            promptLines.push('- Doctor Save: `{"type": "doctorSave", "targetPlayerId": "player-id-to-save"}`');
-        }
-        if (allowedActions.includes('seerInvestigate')) {
-            promptLines.push('- Seer Investigate: `{"type": "seerInvestigate", "targetPlayerId": "player-id-to-investigate"}`');
-        }
-        promptLines.push('- Abstain/No Action: `{"type": "noAction"}` (or `{"type": "vote", "targetPlayerId": null}` for voting)');
-
-        promptLines.push('\n**Important:** Respond ONLY with the JSON object for your chosen action. Include a brief \'reasoning\' field within the JSON if possible, explaining your choice concisely.');
-
-    } else {
-        promptLines.push("No specific actions are available or required right now.");
+    if (allowedActions.includes('vote')) {
+      promptLines.push(
+        '- Vote: `{"type": "vote", "targetPlayerId": "player-id-to-vote-for"}`'
+      );
     }
+    if (allowedActions.includes('mafiaKill')) {
+      promptLines.push(
+        '- Mafia Kill: `{"type": "mafiaKill", "targetPlayerId": "player-id-to-kill"}`'
+      );
+    }
+    if (allowedActions.includes('doctorSave')) {
+      promptLines.push(
+        '- Doctor Save: `{"type": "doctorSave", "targetPlayerId": "player-id-to-save"}`'
+      );
+    }
+    if (allowedActions.includes('seerInvestigate')) {
+      promptLines.push(
+        '- Seer Investigate: `{"type": "seerInvestigate", "targetPlayerId": "player-id-to-investigate"}`'
+      );
+    }
+    promptLines.push(
+      '- Abstain/No Action: `{"type": "noAction"}` (or `{"type": "vote", "targetPlayerId": null}` for voting)'
+    );
 
-    return promptLines.join('\n');
+    promptLines.push(
+      "\n**Important:** Respond ONLY with the JSON object for your chosen action. Include a brief 'reasoning' field within the JSON if possible, explaining your choice concisely."
+    );
+  } else {
+    promptLines.push(
+      'No specific actions are available or required right now.'
+    );
+  }
+
+  return promptLines.join('\n');
 }

@@ -1,23 +1,14 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button"; // Import Button
-import { useGameContext } from "@/context/GameContext"; // Import context hook
-import {
-  Loader,
-  Pause,
-  Play,
-  SkipForward
-} from "lucide-react";
+import { Button } from '@/components/ui/button'; // Import Button
+import { useGameContext } from '@/context/GameContext'; // Import context hook
+import { Loader, Pause, Play, SkipForward } from 'lucide-react';
 
-import { useTranslation } from "react-i18next"; // Import from react-i18next
+import { useTranslation } from 'react-i18next'; // Import from react-i18next
 
 export default function GameController() {
-  const {
-    isAutoRunning,
-    toggleAutoRun,
-    isLoadingNextTurn,
-    runNextTurnAction,
-  } = useGameContext();
+  const { isAutoRunning, toggleAutoRun, isLoadingNextTurn, runNextTurnAction } =
+    useGameContext();
 
   // Use standard hook
   const { t } = useTranslation('translation'); // Keep namespace for now
@@ -41,7 +32,7 @@ export default function GameController() {
           onClick={toggleAutoRun}
           variant="outline"
           size="icon"
-          aria-label={isAutoRunning ? t("PauseButton") : t("ResumeButton")}
+          aria-label={isAutoRunning ? t('PauseButton') : t('ResumeButton')}
         >
           {isAutoRunning ? (
             <Pause className="h-4 w-4 rtl:-scale-x-100" />
@@ -58,23 +49,22 @@ export default function GameController() {
           variant="default"
           size="sm"
           className="px-4 py-2"
-          aria-label={t("NextTurnButton")}
+          aria-label={t('NextTurnButton')}
         >
           <SkipForward className="h-4 w-4 mr-1 rtl:-scale-x-100" />
           {/* Translate button text */}
-          {t("NextTurnButton")}
+          {t('NextTurnButton')}
         </Button>
       </div>
 
       {/* Row 2: Loader Icon (optional, shown only when loading) */}
       <div className="flex items-center gap-2 h-8">
-
         {/* Standalone Loading Indicator (only shown when loading) */}
         {isLoadingNextTurn && (
           <>
             <Loader className="animate-spin" size={18} />
             <span className="text-xs text-muted-foreground">
-              {t("LoadingNextTurn")}
+              {t('LoadingNextTurn')}
             </span>
           </>
         )}

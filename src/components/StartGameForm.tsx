@@ -1,19 +1,28 @@
-"use client";
+'use client';
 
-import React, { type FormEvent, useCallback, useMemo, useState, useEffect } from "react";
-import { CharacterSlotItem, CharacterSlotMobile } from "@/components/character-slot/CharacterSlotItem";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { MagicalAIButton } from "@/components/ui/magical-ai-button";
-import { useGameConfig, type ConfigCharacterSlot } from "@/hooks/useGameConfig";
+import React, {
+  type FormEvent,
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+} from 'react';
+import {
+  CharacterSlotItem,
+  CharacterSlotMobile,
+} from '@/components/character-slot/CharacterSlotItem';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { MagicalAIButton } from '@/components/ui/magical-ai-button';
+import { useGameConfig, type ConfigCharacterSlot } from '@/hooks/useGameConfig';
 
-import { RoleName } from "@/lib/engine/interfaces/IRole";
+import { RoleName } from '@/lib/engine/interfaces/IRole';
 import {
   type LanguageCode,
   mapLanguageCodeToLongCode,
-} from "@/lib/i18n/settings";
+} from '@/lib/i18n/settings';
 import {
   AlertTriangle,
   Bot,
@@ -23,18 +32,18 @@ import {
   Settings2,
   Trash2,
   UserPlus,
-} from "lucide-react";
-import { useTranslation } from "react-i18next";
-import LanguageSelector from "./LanguageSelector";
-import { ProviderModelSelector } from "./ProviderModelSelector";
-import { GameThemeSelector } from "./GameThemeSelector";
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from './LanguageSelector';
+import { ProviderModelSelector } from './ProviderModelSelector';
+import { GameThemeSelector } from './GameThemeSelector';
 import {
   Table,
   TableBody,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 
 const availableRolesForSelection: RoleName[] = [
   RoleName.Villager,
@@ -63,15 +72,22 @@ const CharacterSlotList = React.memo(function CharacterSlotList({
   availableRoles: RoleName[];
   isSubmitting: boolean;
   onUpdateRole: (clientId: string, newRole: RoleName) => void;
-  onUpdateProviderAndModel: (clientId: string, provider: string, newModel: string) => void;
+  onUpdateProviderAndModel: (
+    clientId: string,
+    provider: string,
+    newModel: string
+  ) => void;
   onRemove: (clientId: string) => void;
   onUpdateName: (clientId: string, newName: string) => void;
   onUpdateImageUrl: (clientId: string, newImageUrl: string | null) => void;
 }) {
   const { t } = useTranslation();
-  
-  const canRemove = useMemo(() => characterSlots.length > 5, [characterSlots.length]);
-  
+
+  const canRemove = useMemo(
+    () => characterSlots.length > 5,
+    [characterSlots.length]
+  );
+
   return (
     <>
       {/* Desktop Table Layout */}
@@ -79,19 +95,13 @@ const CharacterSlotList = React.memo(function CharacterSlotList({
         <TableHeader className="sticky top-0 bg-background z-10">
           <TableRow>
             <TableHead className="w-[150px]">
-              {t("TableHeader_Character", "Character")}
+              {t('TableHeader_Character', 'Character')}
             </TableHead>
-            <TableHead>
-              {t("TableHeader_Role", "Role")}
-            </TableHead>
-            <TableHead>
-              {t("TableHeader_Provider", "AI Provider")}
-            </TableHead>
-            <TableHead>
-              {t("TableHeader_Model", "AI Model")}
-            </TableHead>
+            <TableHead>{t('TableHeader_Role', 'Role')}</TableHead>
+            <TableHead>{t('TableHeader_Provider', 'AI Provider')}</TableHead>
+            <TableHead>{t('TableHeader_Model', 'AI Model')}</TableHead>
             <TableHead className="text-right">
-              {t("TableHeader_Actions", "Actions")}
+              {t('TableHeader_Actions', 'Actions')}
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -141,10 +151,12 @@ const CharacterSlotList = React.memo(function CharacterSlotList({
 // Update component signature
 export default function StartGameForm({ lang }: StartGameFormProps) {
   const { t } = useTranslation();
-  const [useSeparateAIModelForMafia, setUseSeparateAIModelForMafia] = useState(false);
-  
-  const [mafiaProviderSelection, setMafiaProviderSelection] = useState<string>("");
-  const [mafiaModelSelection, setMafiaModelSelection] = useState<string>("");
+  const [useSeparateAIModelForMafia, setUseSeparateAIModelForMafia] =
+    useState(false);
+
+  const [mafiaProviderSelection, setMafiaProviderSelection] =
+    useState<string>('');
+  const [mafiaModelSelection, setMafiaModelSelection] = useState<string>('');
 
   const {
     characterSlots,
@@ -180,11 +192,19 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
 
   // Effect to initialize and sync Mafia provider/model
   useEffect(() => {
-    if (!useSeparateAIModelForMafia && globalProviderSelection && globalModelSelection) {
+    if (
+      !useSeparateAIModelForMafia &&
+      globalProviderSelection &&
+      globalModelSelection
+    ) {
       setMafiaProviderSelection(globalProviderSelection);
       setMafiaModelSelection(globalModelSelection);
     }
-  }, [globalProviderSelection, globalModelSelection, useSeparateAIModelForMafia]);
+  }, [
+    globalProviderSelection,
+    globalModelSelection,
+    useSeparateAIModelForMafia,
+  ]);
 
   const handleGlobalProviderModelChange = useCallback(
     (provider: string, model: string) => {
@@ -199,8 +219,8 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     try {
       return new Intl.NumberFormat(longCode);
     } catch (e) {
-      console.error("Failed to create NumberFormat for locale:", longCode, e);
-      return new Intl.NumberFormat("en-US"); // Fallback
+      console.error('Failed to create NumberFormat for locale:', longCode, e);
+      return new Intl.NumberFormat('en-US'); // Fallback
     }
   }, [lang]);
 
@@ -219,7 +239,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
   if (errorMsg) {
     return (
       <div className="text-red-500 p-4">
-        {t("ErrorPrefix", "Error")}: {t(errorMsg, errorMsg)}
+        {t('ErrorPrefix', 'Error')}: {t(errorMsg, errorMsg)}
       </div>
     );
   }
@@ -229,14 +249,14 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
       {/* Config container */}
       <div className="mb-6 max-w-2xl mx-auto">
         <h2 className="text-2xl font-bold mb-6 text-foreground text-center">
-          {t("ConfigureNewGameTitle", "Configure New Game")}
+          {t('ConfigureNewGameTitle', 'Configure New Game')}
         </h2>
 
         {/* Use the new ProviderModelSelector for global settings */}
         <div className="mb-6 max-w-lg mx-auto">
           <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1">
             <Bot size={16} className="me-1" />
-            {t("AI Engine", "AI Engine")}:
+            {t('AI Engine', 'AI Engine')}:
           </Label>
           <ProviderModelSelector
             idPrefix="global-provider"
@@ -252,22 +272,30 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           <Checkbox
             id="mafia-engine-checkbox"
             checked={useSeparateAIModelForMafia}
-            onCheckedChange={() => setUseSeparateAIModelForMafia(!useSeparateAIModelForMafia)}
+            onCheckedChange={() =>
+              setUseSeparateAIModelForMafia(!useSeparateAIModelForMafia)
+            }
             disabled={isSubmitting}
-            aria-label={t("UseDifferentEngineForMafiaLabel", "Use a separate AI engine for Mafia players")}
+            aria-label={t(
+              'UseDifferentEngineForMafiaLabel',
+              'Use a separate AI engine for Mafia players'
+            )}
           />
           <Label
             htmlFor="mafia-engine-checkbox"
             className="ms-2 inline text-sm font-medium text-muted-foreground whitespace-nowrap cursor-pointer"
           >
-            {t("UseDifferentEngineForMafiaLabel", "Use a separate AI engine for Mafia players")}
+            {t(
+              'UseDifferentEngineForMafiaLabel',
+              'Use a separate AI engine for Mafia players'
+            )}
           </Label>
         </div>
 
         {useSeparateAIModelForMafia && (
           <div className="mb-6 max-w-lg mx-auto">
             <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1">
-              {t("MafiaEngineLabel", "Mafia AI Engine")}:
+              {t('MafiaEngineLabel', 'Mafia AI Engine')}:
             </Label>
             <ProviderModelSelector
               idPrefix="mafia-provider"
@@ -276,10 +304,15 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
               onProviderModelChange={(provider, model) => {
                 setMafiaProviderSelection(provider);
                 setMafiaModelSelection(model);
-                setCharacterSlots(prevSlots =>
-                  prevSlots.map(slot =>
+                setCharacterSlots((prevSlots) =>
+                  prevSlots.map((slot) =>
                     slot.roleSelection === RoleName.Mafia && !slot.isHuman
-                      ? { ...slot, provider: provider, aiModel: model, isGenerated: false }
+                      ? {
+                          ...slot,
+                          provider: provider,
+                          aiModel: model,
+                          isGenerated: false,
+                        }
                       : slot
                   )
                 );
@@ -293,7 +326,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
         <div className="mt-4 mb-6 flex flex-col items-start justify-center gap-1 max-w-lg mx-auto">
           <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap flex items-center gap-1">
             <Languages size={16} className="me-1" />
-            {t("GameLanguageLabel", "Game Language")}:
+            {t('GameLanguageLabel', 'Game Language')}:
           </Label>
           <LanguageSelector currentLang={lang} />
         </div>
@@ -315,15 +348,15 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
             onCheckedChange={toggleHumanJoining}
             disabled={isLoading}
             aria-label={t(
-              "ToggleHumanPlayerJoinLabel",
-              "Toggle joining as a human player"
+              'ToggleHumanPlayerJoinLabel',
+              'Toggle joining as a human player'
             )}
           />
           <Label
             htmlFor="human-join"
             className="text-sm font-medium text-muted-foreground whitespace-nowrap cursor-pointer"
           >
-            {t("JoinAsHumanLabel", "Join the game yourself?")}
+            {t('JoinAsHumanLabel', 'Join the game yourself?')}
           </Label>
         </div>
 
@@ -334,19 +367,22 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
               htmlFor="human-name"
               className="text-sm font-medium text-muted-foreground"
             >
-              {t("YourPlayerNameLabel", "Your Player Name")}:
+              {t('YourPlayerNameLabel', 'Your Player Name')}:
             </Label>
             <Input
               id="human-name"
               type="text"
-              value={characterSlots.find(slot => slot.isHuman)?.profile?.characterName || ''}
+              value={
+                characterSlots.find((slot) => slot.isHuman)?.profile
+                  ?.characterName || ''
+              }
               onChange={(e) => {
-                const humanSlot = characterSlots.find(slot => slot.isHuman);
+                const humanSlot = characterSlots.find((slot) => slot.isHuman);
                 if (humanSlot) {
                   updateSlotName(humanSlot.clientId, e.target.value);
                 }
               }}
-              placeholder={t("EnterYourNamePlaceholder", "Enter your name")}
+              placeholder={t('EnterYourNamePlaceholder', 'Enter your name')}
               disabled={isLoading}
               required // Ensure a name is provided if joining
               className="text-center"
@@ -364,19 +400,17 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
             animationSpeed="normal"
             variant="magical"
             aria-label={t(
-              "GenerateAndStartGameButton",
-              "Generate characters and start new game"
+              'GenerateAndStartGameButton',
+              'Generate characters and start new game'
             )}
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                {t("StartingButtonLabel", "Starting...")}
+                {t('StartingButtonLabel', 'Starting...')}
               </>
             ) : (
-              <>
-                {t("GenerateAndStartGameButton", "Generate & Start Game")}
-              </>
+              <>{t('GenerateAndStartGameButton', 'Generate & Start Game')}</>
             )}
           </MagicalAIButton>
         </div>
@@ -386,20 +420,20 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
       {!isSubmitting && (
         <div className="md:my-4 md:p-4 rounded-md min-h-[200px]">
           <h3 className="text-lg font-medium text-foreground mb-3 text-center flex items-center justify-center gap-2">
-            <Settings2 className="h-5 w-5" />{" "}
-            {t("CharacterSetupLabel", "Character Setup")}
+            <Settings2 className="h-5 w-5" />{' '}
+            {t('CharacterSetupLabel', 'Character Setup')}
           </h3>
           {!initialSlotsSet && availableProviders.length > 0 && (
             <div className="flex justify-center items-center h-20 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />{" "}
-              {t("LoadingSetupLabel", "Loading setup...")}
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />{' '}
+              {t('LoadingSetupLabel', 'Loading setup...')}
             </div>
           )}
           {!initialSlotsSet && availableProviders.length === 0 && (
             <p className="text-center text-sm text-warning">
               {t(
-                "WaitingForProvidersLabel",
-                "Waiting for available AI providers..."
+                'WaitingForProvidersLabel',
+                'Waiting for available AI providers...'
               )}
             </p>
           )}
@@ -407,7 +441,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           {/* Player Count Adjustment - Use Formatter */}
           <div className="mb-4 flex items-center justify-center gap-4">
             <Label className="text-sm font-medium text-muted-foreground">
-              {t("PlayersLabel", "Players")}:
+              {t('PlayersLabel', 'Players')}:
             </Label>
             {/* Format the totalSlots number */}
             <span className="text-lg font-semibold text-foreground w-10 text-center">
@@ -418,10 +452,10 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
               variant="ghost"
               onClick={addPlayerSlot}
               disabled={isLoading}
-              aria-label={t("AddPlayerSlotLabel", "Add player slot")}
+              aria-label={t('AddPlayerSlotLabel', 'Add player slot')}
             >
               <UserPlus className="h-4 w-4 mr-1" />
-              <span>{t("AddPlayerButtonLabel", "Add")}</span>
+              <span>{t('AddPlayerButtonLabel', 'Add')}</span>
             </Button>
             <Button
               type="button"
@@ -433,11 +467,11 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
                 )
               }
               disabled={isLoading || totalSlots <= 5}
-              aria-label={t("RemovePlayerSlotLabel", "Remove last player slot")}
+              aria-label={t('RemovePlayerSlotLabel', 'Remove last player slot')}
             >
               <Trash2 className="h-4 w-4 mr-1 text-red-500" />
               <span className="text-red-500">
-                {t("RemovePlayerButtonLabel", "Remove")}
+                {t('RemovePlayerButtonLabel', 'Remove')}
               </span>
             </Button>
           </div>
@@ -450,33 +484,33 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
               </p>
             ) : isSubmitting ? (
               <p className="text-primary flex items-center gap-1">
-                <Loader2 className="h-4 w-4 animate-spin" />{" "}
-                {t(infoMsg || "ProcessingLabel", infoMsg || "Processing...")}
+                <Loader2 className="h-4 w-4 animate-spin" />{' '}
+                {t(infoMsg || 'ProcessingLabel', infoMsg || 'Processing...')}
               </p>
             ) : configValidation.isValid ? (
               <p className="text-success flex items-center gap-1 text-start">
-                <CheckCircle2 className="h-8 w-8" />{" "}
+                <CheckCircle2 className="h-8 w-8" />{' '}
                 {`${t(
-                  "ConfigLooksGood_Prefix",
-                  "Configuration looks good"
+                  'ConfigLooksGood_Prefix',
+                  'Configuration looks good'
                 )} ${t(
-                  "ConfigLooksGood_Suffix",
-                  "(Ready to Generate & Start)"
+                  'ConfigLooksGood_Suffix',
+                  '(Ready to Generate & Start)'
                 )}`}
               </p>
             ) : initialSlotsSet ? (
               <p className="text-warning flex items-center gap-1">
-                <AlertTriangle className="h-8 w-8" />{" "}
+                <AlertTriangle className="h-8 w-8" />{' '}
                 {t(
-                  configValidation.message || "ConfigInvalid",
-                  configValidation.message || ""
+                  configValidation.message || 'ConfigInvalid',
+                  configValidation.message || ''
                 )}
               </p>
             ) : (
               <p className="text-muted-foreground italic">
                 {t(
-                  "InitialConfigPrompt",
-                  "Configure player slots, roles, providers, and models."
+                  'InitialConfigPrompt',
+                  'Configure player slots, roles, providers, and models.'
                 )}
               </p>
             )}
@@ -497,7 +531,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
           {initialSlotsSet && characterSlots.length === 0 && (
             <p className="text-center text-sm text-muted-foreground italic py-4">
               {t(
-                "AddPlayerSlotsPrompt",
+                'AddPlayerSlotsPrompt',
                 "Use the '+' button to add player slots (minimum 5)."
               )}
             </p>

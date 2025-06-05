@@ -1,9 +1,19 @@
-import { pgTable, text, timestamp, integer, jsonb, boolean, primaryKey } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  text,
+  timestamp,
+  integer,
+  jsonb,
+  boolean,
+  primaryKey,
+} from 'drizzle-orm/pg-core';
 import type { AdapterAccount } from 'next-auth/adapters';
 
 // NextAuth.js required tables
 export const users = pgTable('user', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   name: text('name'),
   email: text('email').notNull(),
   emailVerified: timestamp('emailVerified', { mode: 'date' }),
@@ -77,12 +87,13 @@ export const games = pgTable('games', {
 });
 
 export const gameParticipants = pgTable('game_participants', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   gameId: text('game_id')
     .notNull()
     .references(() => games.id, { onDelete: 'cascade' }),
-  userId: text('user_id')
-    .references(() => users.id, { onDelete: 'cascade' }), // null for AI players
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }), // null for AI players
   playerId: text('player_id').notNull(), // In-game player identifier
   playerName: text('player_name').notNull(),
   roleName: text('role_name').notNull(),
@@ -94,14 +105,18 @@ export const gameParticipants = pgTable('game_participants', {
 });
 
 export const userPreferences = pgTable('user_preferences', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   userId: text('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   preferredLanguage: text('preferred_language').notNull().default('en'),
   preferredTheme: text('preferred_theme').notNull().default('system'), // light, dark, system
   defaultGameTheme: text('default_game_theme').notNull().default('village'),
-  preferredAiModel: text('preferred_ai_model').notNull().default('gemma2-9b-it'),
+  preferredAiModel: text('preferred_ai_model')
+    .notNull()
+    .default('gemma2-9b-it'),
   enableSoundEffects: boolean('enable_sound_effects').notNull().default(true),
   enableTTS: boolean('enable_tts').notNull().default(false),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
@@ -116,4 +131,4 @@ export type NewGame = typeof games.$inferInsert;
 export type GameParticipant = typeof gameParticipants.$inferSelect;
 export type NewGameParticipant = typeof gameParticipants.$inferInsert;
 export type UserPreferences = typeof userPreferences.$inferSelect;
-export type NewUserPreferences = typeof userPreferences.$inferInsert; 
+export type NewUserPreferences = typeof userPreferences.$inferInsert;

@@ -1,11 +1,9 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { SpeakText } from "@/components/SpeakText";
-import {
-  SpokenTextProvider,
-} from "@/context/SpokenTextContext";
-import { Button } from "@/components/ui/button";
+import React, { useState } from 'react';
+import { SpeakText } from '@/components/SpeakText';
+import { SpokenTextProvider } from '@/context/SpokenTextContext';
+import { Button } from '@/components/ui/button';
 
 export default function UI() {
   return (
@@ -41,9 +39,9 @@ export default function UI() {
 }
 
 const messages = [
-  "First message: Hello from the sequential player!",
-  "Second message: This should play after the first one finishes.",
-  "Third and final message: Playback complete.",
+  'First message: Hello from the sequential player!',
+  'Second message: This should play after the first one finishes.',
+  'Third and final message: Playback complete.',
 ];
 
 function PlayMultipleSpeak() {
@@ -57,16 +55,13 @@ function PlayMultipleSpeak() {
   return (
     <div className="space-y-4">
       <Button onClick={addMessagesToQueue} disabled={showMessages}>
-        {showMessages ? "Messages Added/Queued" : "Add Messages & Auto-Queue"}
+        {showMessages ? 'Messages Added/Queued' : 'Add Messages & Auto-Queue'}
       </Button>
       {showMessages &&
         messages.map((text, index) => (
           <div key={`message-${index}-${text.slice(0, 20)}`}>
             <SpokenTextProvider>
-              <SpeakText
-                autoQueue={true}
-                className="text-card-foreground"
-              >
+              <SpeakText autoQueue={true} className="text-card-foreground">
                 {text}
               </SpeakText>
             </SpokenTextProvider>

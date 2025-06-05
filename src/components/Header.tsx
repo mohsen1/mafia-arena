@@ -36,9 +36,10 @@ export function Header({ currentLang }: HeaderProps) {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href={`/${currentLang}`} className="flex items-center">
-            <span className="text-xl font-bold text-foreground">Werewolf AI</span>
+            <span className="text-xl font-bold text-foreground">
+              Werewolf AI
+            </span>
           </Link>
-
 
           {/* Auth Section */}
           <div className="flex items-center space-x-4">
@@ -53,10 +54,14 @@ export function Header({ currentLang }: HeaderProps) {
                     {t('landingNavPlayNow')}
                   </Link>
                 </Button>
-                
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center space-x-2"
+                    >
                       {session.user?.image ? (
                         <Image
                           src={session.user.image}
@@ -75,19 +80,28 @@ export function Header({ currentLang }: HeaderProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem asChild>
-                      <Link href={`/${currentLang}/profile`} className="flex items-center">
+                      <Link
+                        href={`/${currentLang}/profile`}
+                        className="flex items-center"
+                      >
                         <User className="w-4 h-4 me-2" />
                         {t('common.profile')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href={`/${currentLang}/games`} className="flex items-center">
+                      <Link
+                        href={`/${currentLang}/games`}
+                        className="flex items-center"
+                      >
                         <Gamepad2 className="w-4 h-4 me-2" />
                         {t('common.myGames')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} className="flex items-center">
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="flex items-center"
+                    >
                       <LogOut className="w-4 h-4 me-2" />
                       {t('common.signOut')}
                     </DropdownMenuItem>
@@ -97,7 +111,11 @@ export function Header({ currentLang }: HeaderProps) {
             ) : (
               // Guest User Buttons
               <div className="flex items-center space-x-2">
-                <Button variant="outline" onClick={handleSignIn} className="flex items-center">
+                <Button
+                  variant="outline"
+                  onClick={handleSignIn}
+                  className="flex items-center"
+                >
                   <LogIn className="w-4 h-4 me-2" />
                   {t('common.signIn')}
                 </Button>
@@ -114,4 +132,4 @@ export function Header({ currentLang }: HeaderProps) {
       </div>
     </nav>
   );
-} 
+}
