@@ -7,6 +7,7 @@ import { OpenAIAgent } from './engine/agents/OpenAIAgent';
 import { HumanAgent } from './engine/agents/HumanAgent';
 // Import the actual DummyAIAgent
 import { DummyAIAgent } from './engine/agents/DummyAIAgent';
+import { MockAIAgent } from './engine/agents/MockAIAgent';
 import { ClaudeAgent } from './engine/agents/ClaudeAgent';
 import { GeminiAgent } from './engine/agents/GeminiAgent';
 
@@ -24,6 +25,9 @@ import { openAIProviders } from './models';
  * @returns An instance of the specified agent conforming to IAgent.
  */
 export function createAgentInstance(agentConfig: AgentConfig, playerId: PlayerId): IAgent {
+    if (process.env.USE_MOCK_AI === 'true') {
+        return new MockAIAgent(playerId);
+    }
     let apiBase: string | undefined = undefined;
     let apiKey: string | undefined = undefined;
 
