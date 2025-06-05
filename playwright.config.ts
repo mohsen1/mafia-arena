@@ -33,6 +33,14 @@ export default defineConfig({
     actionTimeout: 10000,
   },
 
+  /* Automatically start the development server for E2E tests */
+  webServer: {
+    command: 'pnpm dev',
+    port: 3099,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+  },
+
   /* Configure projects for major browsers */
   projects: [
     {

@@ -1,7 +1,12 @@
-import { db } from '@/lib/db/config';
+import * as dotenv from 'dotenv';
+// When running e2e tests we rely on the variables from `.env.test`.
+// Loading the file before any database imports prevents failures when
+// `DATABASE_URL` is not already available in the environment (e.g. CI or
+// fresh containers).
+dotenv.config({ path: '.env.test' });
+
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { hashPassword } from '@/lib/auth/utils';
 
 const DEV_USER = {
   email: 'dev@werewolf-ai.com',
@@ -10,6 +15,8 @@ const DEV_USER = {
 };
 
 async function seedDevUser() {
+  const { db } = await import('@/lib/db/config');
+  const { hashPassword } = await import('@/lib/auth/utils');
   try {
     // Safety check: only run in development
     if (process.env.NODE_ENV === 'production') {
