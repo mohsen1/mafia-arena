@@ -48,6 +48,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Detect unused files with knip
+        run: pnpm knip
+
   build:
     name: Build Application
     runs-on: ubuntu-latest
