@@ -131,6 +131,14 @@ GROQ_API_KEY=your_groq_api_key_here
 # Text-to-Speech (Optional)
 ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
 
+# Email (Optional for password reset)
+SMTP_HOST=your_smtp_host
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_user
+SMTP_PASS=your_smtp_password
+EMAIL_FROM="Werewolf AI <noreply@werewolf-ai.com>"
+
 # Development
 ENABLE_VERBOSE_AI_LOGGING=false  # Set to true for detailed AI logs
 DEFAULT_TRANSLATION_MODEL=meta-llama/Meta-Llama-3-8B-Instruct  # For translation generation
@@ -225,6 +233,7 @@ The application now supports user authentication, providing personalized experie
 - **Game Ownership**: All games are tied to the user who created them
 - **Personal Game History**: Access and resume your own games
 - **User Preferences**: Customizable settings saved to your account
+- **Password Reset**: Easily reset your password via email if you forget it
 
 ### Authentication Flow
 

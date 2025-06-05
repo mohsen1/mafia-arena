@@ -268,7 +268,16 @@
     "accountCreatedButSignInFailed": "Account created successfully, but failed to sign in. Please try signing in manually.",
     "unexpectedError": "An unexpected error occurred. Please try again."
   },
-  
+  "forgotPassword": {
+    "title": "Forgot Password",
+    "submit": "Send Reset Email",
+    "checkEmail": "If an account with that email exists, a reset link has been sent."
+  },
+  "resetPassword": {
+    "title": "Reset Password",
+    "submit": "Reset Password",
+    "success": "Your password has been reset. You may now sign in."
+  },
   "auth": {
     "signInTitle": "Sign In",
     "signUpTitle": "Create Account", 
