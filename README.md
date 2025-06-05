@@ -74,6 +74,12 @@ pnpm lint
 pnpm test
 ```
 
+## Deployment
+
+Database migrations are automatically applied during Vercel deploys. The
+`vercel.json` file runs `pnpm run db:push` before building the application so no
+manual database setup is required.
+
 ## Contributing
 
 Please read our [contributing guidelines](CONTRIBUTING.md) before opening a pull request.
