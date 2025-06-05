@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Session } from 'next-auth';
 import { getCharacterGenerationProgressAction } from '@/app/actions/character-generation.actions';
 import { loadGameData } from '@/lib/db/persistence';
 import { getServerSession } from 'next-auth';
 import { GameService } from '@/lib/db/game.service';
+import type { SerializableGameState } from '@/lib/interfaces/persistence.types';
 
 vi.mock('@/lib/db/persistence');
 vi.mock('next-auth');
@@ -25,7 +27,7 @@ describe('Character Generation Progress', () => {
         
         vi.mocked(getServerSession).mockResolvedValue({
             user: { id: mockUserId }
-        } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        } as unknown as Session);
         
         vi.mocked(GameService.isGameOwner).mockResolvedValue(true);
     });
@@ -52,8 +54,7 @@ describe('Character Generation Progress', () => {
             }
         };
         
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        vi.mocked(loadGameData).mockResolvedValue(mockGameState as unknown as SerializableGameState);
         
         const result = await getCharacterGenerationProgressAction(mockGameId);
         
@@ -100,7 +101,7 @@ describe('Character Generation Progress', () => {
             }
         };
         
-        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        vi.mocked(loadGameData).mockResolvedValue(mockGameState as unknown as SerializableGameState);
         
         const result = await getCharacterGenerationProgressAction(mockGameId);
         
@@ -155,7 +156,7 @@ describe('Character Generation Progress', () => {
             }
         };
         
-        vi.mocked(loadGameData).mockResolvedValue(mockGameState as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        vi.mocked(loadGameData).mockResolvedValue(mockGameState as unknown as SerializableGameState);
         
         const result = await getCharacterGenerationProgressAction(mockGameId);
         

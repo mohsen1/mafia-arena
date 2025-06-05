@@ -340,32 +340,41 @@ export function useGameConfig(
 
     const updateAllProvidersAndModels = useCallback(
         (newProvider: string, newModel: string) => {
-            if (globalProviderSelection === newProvider && globalModelSelection === newModel) {
+            if (
+                globalProviderSelection === newProvider &&
+                globalModelSelection === newModel
+            ) {
                 return;
             }
-            
+
+            // Optimistically update global provider/model
+            setGlobalProviderSelection(newProvider);
+            setGlobalModelSelection(newModel);
+
+            // Defer expensive slot updates
             React.startTransition(() => {
-                setGlobalProviderSelection(newProvider);
-                setGlobalModelSelection(newModel);
-                
-                setCharacterSlots(prevSlots => {
-                    const needsUpdate = prevSlots.some(slot => 
-                        !slot.isHuman && (slot.provider !== newProvider || slot.aiModel !== newModel)
+                setCharacterSlots((prevSlots) => {
+                    const needsUpdate = prevSlots.some(
+                        (slot) =>
+                            !slot.isHuman &&
+                            (slot.provider !== newProvider || slot.aiModel !== newModel)
                     );
-                    
+
                     if (!needsUpdate) {
                         return prevSlots;
                     }
-                    
-                    const updatedSlots = prevSlots.map(slot => 
-                        slot.isHuman ? slot : {
-                            ...slot,
-                            provider: newProvider,
-                            aiModel: newModel,
-                            isGenerated: false
-                        }
+
+                    const updatedSlots = prevSlots.map((slot) =>
+                        slot.isHuman
+                            ? slot
+                            : {
+                                  ...slot,
+                                  provider: newProvider,
+                                  aiModel: newModel,
+                                  isGenerated: false,
+                              }
                     );
-                    
+
                     return updatedSlots;
                 });
             });

@@ -193,6 +193,17 @@ pnpm build
 pnpm start
 ```
 
+
+### Deploying to Vercel
+
+Configure the environment variables supplied by Vercel for both Production and
+Preview deployments. The application expects at least `DATABASE_URL` to be set
+along with the additional Postgres and Neon Auth variables provided by Vercel
+(such as `DATABASE_URL_UNPOOLED`, `PGHOST`, `PGUSER`, `PGDATABASE`,
+`PGPASSWORD`, `POSTGRES_URL`, and the `NEXT_PUBLIC_STACK_*` keys). These values
+should be entered in the Vercel dashboard and **must not** be committed to the
+repository.
+
 ## How to Play
 
 ### Game Overview
