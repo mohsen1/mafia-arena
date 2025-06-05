@@ -43,7 +43,7 @@ export async function createUser(userData: CreateUserData): Promise<AuthResponse
     if (existingUser) {
       return {
         success: false,
-        error: 'A user with this email already exists',
+        error: 'signUp.emailExists',
       };
     }
 
@@ -78,7 +78,7 @@ export async function createUser(userData: CreateUserData): Promise<AuthResponse
     console.error('Error creating user:', error);
     return {
       success: false,
-      error: 'Failed to create user. Please try again.',
+      error: 'signUp.unexpectedError',
     };
   }
 }
@@ -100,19 +100,19 @@ export async function getUserByEmail(email: string) {
 
 export function validatePassword(password: string): { isValid: boolean; error?: string } {
   if (password.length < 8) {
-    return { isValid: false, error: 'Password must be at least 8 characters long' };
+    return { isValid: false, error: 'signUp.passwordRequirements' };
   }
 
   if (!/(?=.*[a-z])/.test(password)) {
-    return { isValid: false, error: 'Password must contain at least one lowercase letter' };
+    return { isValid: false, error: 'signUp.passwordRequirements' };
   }
 
   if (!/(?=.*[A-Z])/.test(password)) {
-    return { isValid: false, error: 'Password must contain at least one uppercase letter' };
+    return { isValid: false, error: 'signUp.passwordRequirements' };
   }
 
   if (!/(?=.*\d)/.test(password)) {
-    return { isValid: false, error: 'Password must contain at least one number' };
+    return { isValid: false, error: 'signUp.passwordRequirements' };
   }
 
   return { isValid: true };
@@ -122,7 +122,7 @@ export function validateEmail(email: string): { isValid: boolean; error?: string
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   
   if (!emailRegex.test(email)) {
-    return { isValid: false, error: 'Please enter a valid email address' };
+    return { isValid: false, error: 'signUp.invalidEmail' };
   }
 
   return { isValid: true };
