@@ -18,11 +18,15 @@ dotenv.config();
 
 // Ensure API key is set in environment variables
 if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY environment variable is not set.");
+    console.warn(
+        "GEMINI_API_KEY environment variable is not set. Gemini features will be disabled."
+    );
 }
 
 // Access your API key as an environment variable
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = process.env.GEMINI_API_KEY
+    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    : null;
 
 // Define the model to use (e.g., gemini-1.5-flash)
 // Consider making this configurable via environment variable GEMINI_MODEL
@@ -55,6 +59,12 @@ export class GeminiAgent implements IAgent {
         log(`[${agentIdForLog}] Generating persona with theme: ${themeDescription}, language: ${language || 'en'}`);
 
         const personaPrompt = getPersonaGenerationPrompt(themeDescription, language);
+
+        if (!genAI) {
+            log(`WARN: [${agentIdForLog}] Gemini is disabled. Using default persona.`);
+            this.persona = DEFAULT_PERSONA;
+            return;
+        }
 
         try {
             const model = genAI.getGenerativeModel({
@@ -101,6 +111,11 @@ export class GeminiAgent implements IAgent {
     async getAction(gameState: VisibleGameState, allowedActions?: PlayerAction['type'][]): Promise<PlayerAction> {
         const agentIdForLog = `${this.id} - ${this.persona?.name || 'Unknown Persona'} (${gameState.self.role})`;
         log(`[${agentIdForLog} (Gemini)] Thinking with model ${this.modelName}...`);
+
+        if (!genAI) {
+            log(`WARN: [${agentIdForLog}] Gemini is disabled. Returning noAction.`);
+            return { type: 'noAction' };
+        }
 
         // Determine allegiance
         const allegiance: Allegiance = gameState.self.role === RoleName.Mafia ? 'Mafia' : 'Town';
