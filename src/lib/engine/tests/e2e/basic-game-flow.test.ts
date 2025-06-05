@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Game } from '../../core/Game';
 import { HumanAgent } from '../../agents/HumanAgent';
 import { MafiaRole } from '../../roles/MafiaRole';
