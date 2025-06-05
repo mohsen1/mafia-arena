@@ -214,7 +214,8 @@ describe('DayPhase', () => {
         // Finished
         mockGame.setNextPlayerIndexToAction(0);
         await dayPhase.runStep(mockGame as unknown as Game);
-        expect(mockGame.advanceToPhase).toHaveBeenCalledWith('Night');
+        // Transition to the next phase is handled by the game loop now
+        expect(mockGame.advanceToPhase).not.toHaveBeenCalled();
     });
 
     it('should execute player with majority votes', async () => {
