@@ -6,7 +6,6 @@ import {
   type FunctionDeclarationsTool,
   type FunctionDeclaration
 } from '@google/generative-ai';
-import { GoogleGenerativeAI, SchemaType, FunctionCallingMode, type FunctionDeclarationsTool } from '@google/generative-ai';
 
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
