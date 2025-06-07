@@ -39,6 +39,9 @@ export default defineConfig({
     port: 3099,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
+    env: {
+      USE_MOCK_AI: 'true',
+    },
   },
 
   /* Configure projects for major browsers */
