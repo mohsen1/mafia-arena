@@ -82,6 +82,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Setup build environment
+        run: cp env.example .env
+
       - name: Build application
         run: pnpm build
 
@@ -149,6 +152,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Setup build environment
+        run: cp env.example .env
 
       - name: TypeScript check for Playwright tests
         run: pnpm tsc --noEmit
