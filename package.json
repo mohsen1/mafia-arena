@@ -22,6 +22,7 @@
     "db:studio": "drizzle-kit studio",
     "db:drop": "drizzle-kit drop",
     "db:seed": "tsx scripts/seed-dev-user.ts",
+    "check-db": "tsx scripts/check-db.ts",
     "dev:db": "pnpm run db:setup && pnpm run db:push && pnpm run db:seed && pnpm run dev",
     "dev:seed": "pnpm run db:seed && pnpm run dev",
     "prepare": "husky install",
