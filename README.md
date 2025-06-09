@@ -77,8 +77,9 @@ pnpm test
 ## Deployment
 
 Database migrations are automatically applied during Vercel deploys. The
-`vercel.json` file runs `pnpm run db:push` before building the application so no
-manual database setup is required.
+`vercel.json` file first checks database connectivity with `pnpm run check-db`
+and then runs `pnpm run db:push` before building the application so no manual
+database setup is required.
 
 ## Contributing
 
