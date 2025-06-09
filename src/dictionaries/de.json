@@ -394,5 +394,6 @@
   "DiscussionComplete": "Diskussion abgeschlossen.",
   "GamePhaseVOTE_SUMMARY": "Abstimmungszusammenfassung",
   "VoteTieMessage": "Die Stimmen sind ausgezählt! Die Abstimmung endet unentschieden zwischen {{tiedPlayerNames}}! Niemand wird heute eliminiert.{{voteBreakdown}}Nacht {{round}} beginnt, während die Dunkelheit über das Dorf hereinbricht.",
-  "DiscussionPhase": "Diskussionsphase:"
+  "DiscussionPhase": "Diskussionsphase:",
+  "ObservingGameMessage": "Observing the game..."
 }

@@ -394,5 +394,6 @@
   "ModeratorNightBeginsInterpolated": "रात्र {{day}} सुरू होते, जसा अंधार गावाला घेरतो.",
   "ModeratorEliminatedWerewolf": "{{name}} गावकऱ्यांनी मारले. तो एक लांडगा होता.",
   "VoteNoVotesMessage": "कुणीही मतदान केले नाही. गाव अजूनही अनिश्चित आहे. रात्र {{round}} सुरू होते, जसा अंधार गावाला घेरतो.",
-  "GamePhaseNIGHT": "रात्र"
+  "GamePhaseNIGHT": "रात्र",
+  "ObservingGameMessage": "Observing the game..."
 }

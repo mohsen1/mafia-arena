@@ -394,5 +394,6 @@
   "GamePhaseVOTE_SUMMARY": "خلاصه رای گیری",
   "GamePhaseLOBBY": "لابی",
   "ModeratorEliminatedWerewolf": "روستا {{name}} را حذف کرد. او یک گرگنما بود.",
-  "Werewolves AI": "گرگنماهای هوش مصنوعی"
+  "Werewolves AI": "گرگنماهای هوش مصنوعی",
+  "ObservingGameMessage": "Observing the game..."
 }

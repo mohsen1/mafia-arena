@@ -394,5 +394,6 @@
   "DiscussionPhase": "Tahap diskusi:",
   "GamePhaseINTRODUCTION": "Pambuka",
   "GamePhaseGAME_OVER": "Game Selesai",
-  "GamePhaseDAY_DISCUSSION": "Diskusi Dina"
+  "GamePhaseDAY_DISCUSSION": "Diskusi Dina",
+  "ObservingGameMessage": "Observing the game..."
 }

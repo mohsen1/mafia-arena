@@ -394,5 +394,6 @@
   "VoteResultsMessage": "ووٹ آ چکے ہیں! {{voteDetails}}",
   "AIPlayerLabel": "اے آئی",
   "DiscussionPhase": "بحث کا مرحلہ:",
-  "ModeratorGameOverVillagersWin": "گیم ختم! دیہاتیوں نے تمام بھیڑیوں کو ختم کر دیا ہے۔"
+  "ModeratorGameOverVillagersWin": "گیم ختم! دیہاتیوں نے تمام بھیڑیوں کو ختم کر دیا ہے۔",
+  "ObservingGameMessage": "Observing the game..."
 }

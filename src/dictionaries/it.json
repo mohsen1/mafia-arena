@@ -394,5 +394,6 @@
   "ModeratorDayBegins": "Inizia il giorno {{day}}. Discutete su cosa è successo e chi sospettate.",
   "GamePhaseDAY_DISCUSSION": "Discussione Diurna",
   "ModeratorEliminatedVillager": "{{name}} è stato eliminato dal villaggio. Era un Villager.",
-  "VotingComplete": "Votazione completata."
+  "VotingComplete": "Votazione completata.",
+  "ObservingGameMessage": "Observing the game..."
 }

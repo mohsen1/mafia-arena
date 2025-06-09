@@ -394,5 +394,6 @@
   "Villager": "Селянин",
   "Werewolves AI": "Оборотни ИИ",
   "VoteEliminationMessage": "Голоса подсчитаны! \nС {{voteCount}} голосами, {{playerName}} был(а) устранен(а) деревней. Это был(а) {{playerRole}}.\n{{voteBreakdown}}\n\nНачинается ночь {{round}}, когда тьма опускается на деревню.",
-  "Werewolf": "Оборотень"
+  "Werewolf": "Оборотень",
+  "ObservingGameMessage": "Observing the game..."
 }

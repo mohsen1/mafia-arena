@@ -394,5 +394,6 @@
   "LoadingNextTurn": "Chargement du prochain tour...",
   "VoteResultsMessage": "Les votes sont comptabilisés ! {{voteDetails}}",
   "SelectGameThemePlaceholder": "Sélectionner un thème",
-  "ModeratorEliminatedSeer": "{{name}} a été éliminé(e) par le village. C'était un(e) Voyant(e)."
+  "ModeratorEliminatedSeer": "{{name}} a été éliminé(e) par le village. C'était un(e) Voyant(e).",
+  "ObservingGameMessage": "Observing the game..."
 }

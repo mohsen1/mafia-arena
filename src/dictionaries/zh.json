@@ -394,5 +394,6 @@
       "inProgress": "进行中",
       "completed": "已完成"
     }
-  }
+  },
+  "ObservingGameMessage": "Observing the game..."
 }

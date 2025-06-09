@@ -394,5 +394,6 @@
   "GamePhaseCHARACTER_GENERATION": "గుణాల సృష్టి",
   "DeadPlayersTitle": "చనిపోయిన ఆటగాళ్ళు",
   "GameThemeLabel": "ఆట నేపథ్యం",
-  "ModeratorEliminatedVillager": "{{name}} గ్రామం ద్వారా తొలగించబడ్డాడు. అతను ఒక గ్రామస్తుడు."
+  "ModeratorEliminatedVillager": "{{name}} గ్రామం ద్వారా తొలగించబడ్డాడు. అతను ఒక గ్రామస్తుడు.",
+  "ObservingGameMessage": "Observing the game..."
 }

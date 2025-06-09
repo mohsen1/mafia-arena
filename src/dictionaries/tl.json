@@ -394,5 +394,6 @@
   "GamePhaseNIGHT_SUMMARY": "Buod ng Gabi",
   "UnnamedCharacterLabel": "Hindi Pinangalanan",
   "VoteTieMessage": "Ang mga boto ay dumating na! Ang boto ay tabla sa pagitan ng {{tiedPlayerNames}}! Walang tinatanggal ngayon. {{voteBreakdown}} Nagsisimula ang Gabi {{round}} habang bumabagsak ang kadiliman sa village.",
-  "AIPlayerLabel": "AI"
+  "AIPlayerLabel": "AI",
+  "ObservingGameMessage": "Observing the game..."
 }

@@ -23,7 +23,7 @@ interface GameClientProps {
 }
 
 function GameLayout({ gameId }: { gameId: string }) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const lang = i18n.language;
   const direction = i18n.dir(lang);
 
@@ -56,7 +56,7 @@ function GameLayout({ gameId }: { gameId: string }) {
         {humanPlayerId && <HumanChatInput />}
         {!humanPlayerId && (
           <div className="p-4 border-t text-center text-muted-foreground italic">
-            Observing the game...
+            {t('ObservingGameMessage', 'Observing the game...')}
           </div>
         )}
       </main>

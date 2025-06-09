@@ -394,5 +394,6 @@
   "GamePhaseNIGHT": "রাত",
   "GamePhaseGAME_OVER": "খেলা শেষ",
   "GamePhaseNIGHT_SUMMARY": "রাতের সারসংক্ষেপ",
-  "ModeratorNightBeginsInterpolated": "গ্রামের উপর অন্ধকার নেমে আসার সাথে সাথে রাত {{day}} শুরু হয়।"
+  "ModeratorNightBeginsInterpolated": "গ্রামের উপর অন্ধকার নেমে আসার সাথে সাথে রাত {{day}} শুরু হয়।",
+  "ObservingGameMessage": "Observing the game..."
 }

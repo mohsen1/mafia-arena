@@ -394,5 +394,6 @@
   "VotingPhase": "投票フェーズ：処刑する人を選んでください。",
   "IntroductionComplete": "自己紹介が完了しました。",
   "DiscussionComplete": "議論が完了しました。",
-  "VotingComplete": "投票が完了しました。"
+  "VotingComplete": "投票が完了しました。",
+  "ObservingGameMessage": "Observing the game..."
 }

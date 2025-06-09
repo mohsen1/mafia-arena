@@ -394,5 +394,6 @@
   "ModeratorEliminatedWerewolf": "{{name}} ameondolewa na kijiji. Alikuwa Mbwa Mwitu.",
   "DiscussionPhase": "Awamu ya majadiliano:",
   "ModeratorNightBeginsInterpolated": "Usiku wa {{day}} unaanza huku giza likiingia kijijini.",
-  "VoteTieMessage": "Kura zimeingia! Kura zimefungana kati ya {{tiedPlayerNames}}! Hakuna anayeondolewa leo. {{voteBreakdown}} Usiku wa {{round}} unaanza huku giza likiingia kijijini."
+  "VoteTieMessage": "Kura zimeingia! Kura zimefungana kati ya {{tiedPlayerNames}}! Hakuna anayeondolewa leo. {{voteBreakdown}} Usiku wa {{round}} unaanza huku giza likiingia kijijini.",
+  "ObservingGameMessage": "Observing the game..."
 }

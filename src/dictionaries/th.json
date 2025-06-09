@@ -394,5 +394,6 @@
   "ModeratorScream": "เสียงกรีดร้องดังขึ้นในยามค่ำคืน! ชาวบ้านรวมตัวกันในตอนเช้าและพบว่า {{name}} ตายแล้ว เขา/เธอคือ {{role}}",
   "TooManyWerewolves": "มีมนุษย์หมาป่ามากเกินไปสำหรับจำนวนผู้เล่น",
   "GamePhaseDAY_DISCUSSION": "การอภิปรายตอนกลางวัน",
-  "VoteResultsMessage": "ผลโหวตมาแล้ว!\n{{voteDetails}}"
+  "VoteResultsMessage": "ผลโหวตมาแล้ว!\n{{voteDetails}}",
+  "ObservingGameMessage": "Observing the game..."
 }

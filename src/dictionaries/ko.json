@@ -394,5 +394,6 @@
   "WaitingForModelsLabel": "사용 가능한 AI 모델을 기다리는 중...",
   "GamePhaseNIGHT": "밤",
   "VoteTieMessage": "투표 결과!{{tiedPlayerNames}} 간의 투표가 동률입니다! 오늘은 아무도 제거되지 않습니다.{{voteBreakdown}}밤 {{round}}일 째, 어둠이 마을에 드리우며 시작됩니다.",
-  "DiscussionComplete": "토론 완료."
+  "DiscussionComplete": "토론 완료.",
+  "ObservingGameMessage": "Observing the game..."
 }

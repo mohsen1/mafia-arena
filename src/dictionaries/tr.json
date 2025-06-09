@@ -394,5 +394,6 @@
   "ValidationPassedInfo": "Doğrulama başarılı. Oyun başlatılıyor...",
   "Werewolves AI": "Kurt Adamlar AI",
   "LoadingNextTurn": "Sonraki tur yükleniyor...",
-  "GamePhaseINTRODUCTION": "Tanıtım"
+  "GamePhaseINTRODUCTION": "Tanıtım",
+  "ObservingGameMessage": "Observing the game..."
 }

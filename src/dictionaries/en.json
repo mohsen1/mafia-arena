@@ -60,6 +60,8 @@
   "LoadingGameState": "Loading game state...",
   "LoadingLabel": "Loading...",
   "LoadingSetupLabel": "Loading setup...",
+  "ObservingGameMessage": "Observing the game...",
+  "Werewolves AI": "Werewolf AI",
   "MafiaEngineLabel": "Mafia AI Engine",
   "MinimumPlayersRequired": "Minimum 5 players required.",
   "ModelLabel": "Model",

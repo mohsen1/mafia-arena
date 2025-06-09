@@ -394,5 +394,6 @@
   "DeadPlayersTitle": "Pemain yang Meninggal",
   "UseDifferentEngineForMafiaLabel": "Gunakan mesin AI terpisah untuk pemain Mafia",
   "ModeratorNightBeginsInterpolated": "Malam {{day}} dimulai saat kegelapan menyelimuti desa.",
-  "DiscussionPhase": "Fase diskusi:"
+  "DiscussionPhase": "Fase diskusi:",
+  "ObservingGameMessage": "Observing the game..."
 }

@@ -394,5 +394,6 @@
   "UnexpectedGenerationError": "မမျှော်လင့်သော ထုတ်လုပ်မှုအမှား",
   "ModeratorDayBegins": "နေ့ {{day}} စတင်သည်။ ဘာတွေဖြစ်ခဲ့လဲ၊ ဘယ်သူ့ကို သံသယရှိလဲ ဆွေးနွေးပါ။",
   "GamePhaseINTRODUCTION": "နိဒါန်းအဆင့်",
-  "Werewolf": "လူအသွင်ပြောင်းဝံပုလွေ"
+  "Werewolf": "လူအသွင်ပြောင်းဝံပုလွေ",
+  "ObservingGameMessage": "Observing the game..."
 }

@@ -394,5 +394,6 @@
   "WelcomeMessage": "¡Bienvenido a \"{{gameTitle}}\"! {{playerCount}} jugadores se han reunido. La primera fase es la de las presentaciones. Cada jugador se presentará brevemente.",
   "WerewolfAITitle": "IA de Hombre Lobo",
   "GamePhaseGAME_OVER": "Fin del Juego",
-  "DiscussionPhase": "Fase de discusión:"
+  "DiscussionPhase": "Fase de discusión:",
+  "ObservingGameMessage": "Observing the game..."
 }

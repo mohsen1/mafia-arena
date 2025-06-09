@@ -394,5 +394,6 @@
   "ModeratorNightBeginsInterpolated": "Đêm {{day}} bắt đầu khi bóng tối bao trùm ngôi làng.",
   "VoteResultsMessage": "Các phiếu bầu đã được kiểm! {{voteDetails}}",
   "ModeratorScream": "Một tiếng thét xé toạc màn đêm! Dân làng tập trung vào buổi sáng và thấy {{name}} đã chết. Họ là một {{role}}.",
-  "VoteTieMessage": "Các phiếu bầu đã được kiểm! Cuộc bỏ phiếu hòa giữa {{tiedPlayerNames}}! Không ai bị loại ngày hôm nay. {{voteBreakdown}} Đêm {{round}} bắt đầu khi bóng tối bao trùm ngôi làng."
+  "VoteTieMessage": "Các phiếu bầu đã được kiểm! Cuộc bỏ phiếu hòa giữa {{tiedPlayerNames}}! Không ai bị loại ngày hôm nay. {{voteBreakdown}} Đêm {{round}} bắt đầu khi bóng tối bao trùm ngôi làng.",
+  "ObservingGameMessage": "Observing the game..."
 }

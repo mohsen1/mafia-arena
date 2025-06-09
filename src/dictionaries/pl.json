@@ -394,5 +394,6 @@
   "WerewolfRequired": "Wymagany jest przynajmniej jeden Wilkołak.",
   "ModeratorEliminatedSeer": "{{name}} został(a) wyeliminowany(a) przez wieś. Był(a) Jasnowidzem.",
   "ModeratorVoteResult": "{{name}}: {{count}} głosów",
-  "Werewolves AI": "AI Wilkołaków"
+  "Werewolves AI": "AI Wilkołaków",
+  "ObservingGameMessage": "Observing the game..."
 }

@@ -394,5 +394,6 @@
   "GamePhaseCHARACTER_GENERATION": "Penjanaan Watak",
   "WelcomeMessage": "Selamat datang ke \"{{gameTitle}}\"! {{playerCount}} pemain telah berkumpul. Fasa pertama ialah pengenalan. Setiap pemain akan memperkenalkan diri secara ringkas.",
   "GamePhaseVOTE_SUMMARY": "Ringkasan Undian",
-  "UseDifferentEngineForMafiaLabel": "Gunakan enjin AI yang berasingan untuk pemain Mafia"
+  "UseDifferentEngineForMafiaLabel": "Gunakan enjin AI yang berasingan untuk pemain Mafia",
+  "ObservingGameMessage": "Observing the game..."
 }

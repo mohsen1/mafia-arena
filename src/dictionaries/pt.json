@@ -394,5 +394,6 @@
   "VoteStartMessage": "O tempo de discussão acabou. Agora é hora de votar em quem eliminar.",
   "GamePhaseINTRODUCTION": "Introdução",
   "ModeratorNightBegins": "A noite {{day}} começa. Lobisomens, escolham seu alvo. Funções especiais, realizem suas ações.",
-  "ModeratorEliminatedVillager": "{{name}} foi eliminado(a) pela vila. Era um(a) Aldeão(ã)."
+  "ModeratorEliminatedVillager": "{{name}} foi eliminado(a) pela vila. Era um(a) Aldeão(ã).",
+  "ObservingGameMessage": "Observing the game..."
 }

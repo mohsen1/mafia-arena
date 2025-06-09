@@ -394,5 +394,6 @@
   "ModeratorDayBegins": "दिन {{day}} शुरू होता है। चर्चा करें कि क्या हुआ और आपको किस पर संदेह है।",
   "GameThemeLabel": "खेल विषय",
   "LoadingNextTurn": "अगला टर्न लोड हो रहा है...",
-  "WerewolfAITitle": "वेयरवोल्फ एआई"
+  "WerewolfAITitle": "वेयरवोल्फ एआई",
+  "ObservingGameMessage": "Observing the game..."
 }

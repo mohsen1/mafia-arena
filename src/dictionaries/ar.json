@@ -394,5 +394,6 @@
   "GamePhaseVOTE_SUMMARY": "ملخص التصويت",
   "GamePhaseNIGHT_SUMMARY": "ملخص الليل",
   "ModeratorDayBegins": "يبدأ اليوم {{day}}. ناقش ما حدث ومن تشتبه به.",
-  "Villager": "قروي"
+  "Villager": "قروي",
+  "ObservingGameMessage": "Observing the game..."
 }
