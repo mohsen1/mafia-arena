@@ -18,4 +18,6 @@ async function checkDb() {
   }
 }
 
-await checkDb();
+(async () => {
+  await checkDb();
+})();
