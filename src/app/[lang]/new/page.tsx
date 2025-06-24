@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LogIn, Loader2 } from 'lucide-react';
 // import { format } from "date-fns"; // Removed unused format import
-import StartGameForm from '@/components/StartGameForm';
+import SimpleStartGameForm from '@/components/SimpleStartGameForm';
 import GameCard from '@/components/GameCard';
 import { Header } from '@/components/Header';
 
@@ -27,6 +27,7 @@ interface PageProps {
 
 function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
   const { t } = useTranslation();
+  const { data: session } = useSession();
   const [existingGames /* setExistingGames */] = useState<FilteredGameState[]>(
     []
   );
@@ -40,7 +41,7 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
         {werewolfAITitle}
       </h1>
 
-      <StartGameForm lang={lang} />
+      <SimpleStartGameForm lang={lang} user={session?.user} />
 
       {existingGames.length > 0 && (
         <div className="w-full mb-8">
