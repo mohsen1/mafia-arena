@@ -69,7 +69,7 @@ export default function SimpleStartGameForm({
   const [isHumanJoining, setIsHumanJoining] = useState(false);
   const [humanPlayerName, setHumanPlayerName] = useState(defaultPlayerName);
   const [selectedGameThemeKey, setSelectedGameThemeKey] =
-    useState('classic-village');
+    useState('UK_VILLAGE_1900S');
   const [playerCount, setPlayerCount] = useState(6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
