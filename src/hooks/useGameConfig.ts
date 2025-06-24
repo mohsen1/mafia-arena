@@ -81,7 +81,11 @@ export function useGameConfig(
   lang: Locale,
   useSeparateMafiaConfig: boolean,
   mafiaProviderSelection?: string,
-  mafiaModelSelection?: string
+  mafiaModelSelection?: string,
+  user?: {
+    name?: string | null;
+    email?: string | null;
+  } | null
 ) {
   const { t } = useTranslation('translation');
 
@@ -89,7 +93,9 @@ export function useGameConfig(
   const [selectedGameThemeKey, setSelectedGameThemeKey] =
     useState<string>(firstThemeKey);
 
-  const initialProvider = 'groq';
+  // Use first available provider as initial default
+  const initialProvider =
+    availableProviders.length > 0 ? availableProviders[0].value : 'groq';
 
   const [globalProviderSelection, setGlobalProviderSelection] =
     useState<string>(initialProvider);
@@ -180,6 +186,8 @@ export function useGameConfig(
     let playerIndex = 1;
 
     if (isHumanJoining) {
+      const defaultHumanName =
+        user?.name || t('DefaultHumanPlayerName', `Player ${playerIndex}`);
       initialSlots.push({
         clientId: crypto.randomUUID(),
         provider: '',
@@ -188,7 +196,7 @@ export function useGameConfig(
         isGenerated: false,
         isHuman: true,
         profile: {
-          characterName: t('DefaultHumanPlayerName', `Player ${playerIndex}`),
+          characterName: defaultHumanName,
         },
       });
       playerIndex++;
@@ -218,6 +226,7 @@ export function useGameConfig(
     characterSlots,
     globalModelSelection,
     globalProviderSelection,
+    user?.name,
     t,
   ]);
 
