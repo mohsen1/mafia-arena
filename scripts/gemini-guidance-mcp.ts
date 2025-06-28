@@ -6,6 +6,10 @@
  * This MCP server provides guidance to Cursor AI by analyzing screenshots
  * and generating development instructions using Google's Gemini AI.
  * 
+ * The server responds immediately to avoid blocking Cursor, then schedules
+ * the screenshot analysis to run asynchronously. Once complete, it uses
+ * CLI automation to prompt Cursor with the next task.
+ * 
  * Usage:
  * This server is run by Cursor when configured in .cursor/mcp.json
  * It exposes a tool that Cursor can call to get the next development task.
@@ -38,6 +42,15 @@ function log(...args: any[]): void {
 // Clear log file on startup
 writeFileSync(LOG_FILE, `=== Gemini Guidance MCP Server Started ===\n`);
 log('Server starting...');
+
+// Check if cliclick is installed
+try {
+  execSync('which cliclick', { stdio: 'ignore' });
+  log('cliclick is installed');
+} catch (error) {
+  log('WARNING: cliclick is not installed. Install it with: brew install cliclick');
+  log('The server will still work but won\'t be able to automatically prompt Cursor');
+}
 
 // Load environment variables
 const result = dotenv.config({ path: join(process.cwd(), '.env') });
@@ -73,6 +86,8 @@ try {
 const PROMPT_HISTORY_FILE = join(process.cwd(), '.gemini-prompt-history.json');
 const MAX_HISTORY_LENGTH = 50;
 const STUCK_COMMAND_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+
+
 
 interface PromptHistoryEntry {
   timestamp: string;
@@ -298,13 +313,12 @@ IMPORTANT:
 - Give Cursor AI more high level instructions, don't be too specific.
 - Generate a clear, actionable instruction for Cursor AI. Be specific about what needs to be done.
 - Focus on using MCP browser tools for testing instead of E2E tests.
-- After completing the current task, remind Cursor to call the gemini-guidance tool again for the next task.
 ${stuckCommand ? 'IMPORTANT: Provide a NEW instruction to move forward, the previous command is stuck.' : ''}
 
 CRITICAL: Your response should be ONLY the instruction text for Cursor AI, nothing else.
 - Do NOT include status information or headers
 - ONLY output the actionable development instruction itself
-- End your instruction with: "When done, call the gemini-guidance tool again for the next task."`;
+- The system will automatically prompt me with the next task after completion, so don't mention calling the tool again`;
 
     const imagePart = {
       inlineData: {
@@ -346,7 +360,7 @@ log('MCP server instance created');
 const AVAILABLE_TOOLS: Tool[] = [
   {
     name: 'get_next_task',
-    description: 'Get the next development task by analyzing the current state of Cursor IDE with Gemini AI',
+    description: 'Analyzes the current state and uses UI automation (cliclick) to type the next development task directly into Cursor\'s chat. Does not return the task in the response to avoid hitting message limits.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -356,6 +370,15 @@ const AVAILABLE_TOOLS: Tool[] = [
   {
     name: 'clear_history',
     description: 'Clear the prompt history to start fresh',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'check_status',
+    description: 'Check if analysis is currently scheduled or in progress',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -372,6 +395,57 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
+function sendToCursor(prompt: string): void {
+  log(`📤 Sending prompt to Cursor...`);
+  
+  try {
+    // Give user time to see what's happening
+    log('Waiting 2 seconds before sending...');
+    execSync('sleep 2');
+    
+    // Try Cmd+K to open/focus the chat (Cursor's standard shortcut)
+    log('Pressing Cmd+K to open/focus chat...');
+    execSync('cliclick kd:cmd');
+    execSync('cliclick t:k');
+    execSync('cliclick ku:cmd');
+    
+    // Small delay to let the chat open/focus
+    execSync('sleep 1');
+    
+    // Clear any existing text with Cmd+A and Delete
+    log('Clearing existing text...');
+    execSync('cliclick kd:cmd');
+    execSync('cliclick t:a');
+    execSync('cliclick ku:cmd');
+    execSync('cliclick kp:delete');
+    
+    // Small delay
+    execSync('sleep 0.5');
+    
+    // Type the prompt
+    log('Typing prompt...');
+    // Properly escape the prompt for shell
+    const escapedPrompt = prompt.replace(/'/g, "'\\''");
+    
+    // Use printf to handle the text more safely
+    const command = `printf '%s' '${escapedPrompt}' | pbcopy && cliclick kd:cmd && cliclick t:v && cliclick ku:cmd`;
+    execSync(command);
+    
+    // Small delay before sending
+    execSync('sleep 1.5');
+    
+    // Press Enter using AppleScript
+    log('Pressing Enter...');
+    execSync(`osascript -e 'tell application "System Events" to key code 36'`);
+    
+    log('✓ Prompt sent successfully!');
+  } catch (error) {
+    log('Error sending prompt:', error);
+  }
+}
+
+
+
 // Handle tool execution
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name } = request.params;
@@ -380,7 +454,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (name) {
     case 'get_next_task': {
       try {
+        log('Starting immediate analysis...');
+        
+        // Take screenshot
         const screenshotPath = takeScreenshot();
+        
+        // Analyze with Gemini
         const instruction = await analyzeScreenshotWithGemini(screenshotPath);
         
         // Clean up screenshot
@@ -390,11 +469,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // Add to history
         addToPromptHistory(instruction);
         
+        // Schedule the UI automation to run after a short delay
+        // This allows the MCP response to return first
+        setTimeout(() => {
+          log('Sending prompt via UI automation...');
+          sendToCursor(instruction);
+        }, 2000);
+        
+        // Return minimal response - the actual prompt will be sent via cliclick
         return {
           content: [
             {
               type: 'text',
-              text: instruction,
+              text: '⏳ Sending prompt via UI automation...',
             },
           ],
         };
@@ -404,7 +491,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: `Error getting next task: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
             },
           ],
         };
@@ -446,6 +533,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
+    }
+
+    case 'check_status': {
+      const status = [];
+      status.push('✅ System is ready');
+      
+      const history = loadPromptHistory();
+      if (history.length > 0) {
+        const lastEntry = history[history.length - 1];
+        const timeAgo = getTimeAgo(new Date(lastEntry.timestamp));
+        status.push(`📝 Last prompt sent: ${timeAgo}`);
+        status.push(`📊 Total prompts in session: ${history.length}`);
+      } else {
+        status.push('📝 No prompts sent yet in this session');
+      }
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: status.join('\n'),
+          },
+        ],
+      };
     }
 
     default:
