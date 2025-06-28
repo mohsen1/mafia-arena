@@ -34,7 +34,9 @@ export async function advanceGameStateAction(
     const game = Game.loadFromState(gameState);
     await game.runSingleStep();
 
-    const newState = game.getCurrentSerializableState(game.getPendingHumanAction());
+    const newState = game.getCurrentSerializableState(
+      game.getPendingHumanAction()
+    );
     await saveGameData(gameId, newState);
 
     const filteredState = filterGameStateForClient(

@@ -137,7 +137,12 @@ export default function CharacterGenerationUI({
 
   // ✅ FIXED: Stable startGeneration callback with state guards
   const startGeneration = useCallback(async () => {
-    if (isGeneratingRef.current || isComplete || error || hasInitiatedGenerationRef.current) {
+    if (
+      isGeneratingRef.current ||
+      isComplete ||
+      error ||
+      hasInitiatedGenerationRef.current
+    ) {
       return; // State guard to prevent multiple simultaneous operations
     }
 
@@ -151,7 +156,8 @@ export default function CharacterGenerationUI({
       if ('error' in result) {
         // If the error is that generation is already completed, check progress instead
         if (result.error === 'Character generation already completed') {
-          const progressResult = await getCharacterGenerationProgressAction(gameId);
+          const progressResult =
+            await getCharacterGenerationProgressAction(gameId);
           if (!('error' in progressResult) && progressResult.progress >= 100) {
             setIsComplete(true);
             // Trigger completion callback without re-running generation

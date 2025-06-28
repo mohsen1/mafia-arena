@@ -135,13 +135,17 @@ export async function submitHumanAction(
     // Clear the pending human action
     game.clearPendingHumanAction();
 
-    const intermediateState = game.getCurrentSerializableState(game.getPendingHumanAction());
+    const intermediateState = game.getCurrentSerializableState(
+      game.getPendingHumanAction()
+    );
     await saveGameData(gameId, intermediateState);
 
     // Continue game loop after human action
     await game.runSingleStep();
 
-    const finalState = game.getCurrentSerializableState(game.getPendingHumanAction());
+    const finalState = game.getCurrentSerializableState(
+      game.getPendingHumanAction()
+    );
     await saveGameData(gameId, finalState);
 
     const filteredState = filterGameStateForClient(
