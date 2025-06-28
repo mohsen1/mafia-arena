@@ -546,6 +546,70 @@ export class Game {
     );
   }
 
+  async runSingleStep(): Promise<void> {
+    // Run a single iteration of the game loop
+    // This is used when resuming after human actions
+    
+    if (this.getCurrentPhaseType() === 'GameOver') {
+      console.log('Game is already over, cannot run step.');
+      return;
+    }
+
+    const currentPhase = this.#currentState;
+    const currentPhaseType = currentPhase.type;
+    console.log(
+      `Running single step: Round ${this.#round}, Phase ${currentPhaseType}, Step ${this.#phaseStep}`
+    );
+
+    // Special handling for CharacterGeneration phase
+    if (currentPhaseType === 'CharacterGeneration') {
+      await currentPhase.runStep(this);
+      return;
+    }
+
+    // Run the current phase step
+    try {
+      await currentPhase.runStep(this);
+    } catch (error) {
+      console.error(
+        `Error during single step execution (${currentPhaseType}):`,
+        error
+      );
+      this.logEvent(
+        `Critical error during ${currentPhaseType} phase step. Game cannot safely continue.`
+      );
+      this.#winningTeam = null;
+      this.advanceToPhase('GameOver', undefined);
+      return;
+    }
+
+    // If there's a pending human action, stop here
+    if (this.getPendingHumanAction()) {
+      console.log('Single step complete, waiting for human action.');
+      return;
+    }
+
+    // Check win condition
+    const winner = this.checkWinCondition();
+    if (winner) {
+      console.log(`Win condition met: ${winner} wins.`);
+      if (currentPhaseType !== 'GameOver') {
+        this.setWinCondition(winner);
+        this.advanceToPhase('GameOver', winner);
+      }
+      return;
+    }
+
+    // Check if current phase is finished and transition if needed
+    if (this.#phaseStep === 'Finished') {
+      const nextPhaseType = this.#currentState.transition(this);
+      console.log(
+        `Phase finished, transitioning from ${this.#currentState.type} to ${nextPhaseType}`
+      );
+      this.advanceToPhase(nextPhaseType, undefined);
+    }
+  }
+
   async ensurePersonasGenerated(): Promise<void> {
     const personaGenerationPromises: Promise<void>[] = [];
     const themeDescription = this.theme.description;

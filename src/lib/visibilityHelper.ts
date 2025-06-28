@@ -43,6 +43,12 @@ export function filterGameStateForClient(
           : undefined,
       imageUrl: p.imageUrl ?? null,
     };
+    
+    // Add isMafia flag for fellow Mafia members when viewing as Mafia
+    if (isViewingPlayerMafia && p.roleName === RoleName.Mafia && p.status === 'Alive') {
+      filteredPlayer.isMafia = true;
+    }
+    
     playersRecord[p.id] = filteredPlayer;
   }
 

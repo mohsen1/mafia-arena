@@ -54,6 +54,14 @@ export class NightPhase extends AbstractGamePhase {
             'The Mafia convenes...',
             MessageVisibility.Mafia
           );
+          
+          // List all Mafia members
+          const mafiaNames = aliveMafia.map(p => p.name).join(', ');
+          game.logMessage(
+            null,
+            `Mafia members: ${mafiaNames}`,
+            MessageVisibility.Mafia
+          );
         }
         await this.handlePlayerAction(
           game,

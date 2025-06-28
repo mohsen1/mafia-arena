@@ -24,7 +24,8 @@ export function PlayerCard({ player }: PlayerCardProps) {
     <div
       className={cn(
         'flex items-center space-x-2 rtl:space-x-reverse p-2 rounded-md',
-        isAlive ? 'opacity-100' : 'opacity-60'
+        isAlive ? 'opacity-100' : 'opacity-60',
+        player.isMafia && 'border-2 border-danger/30 bg-danger/5'
       )}
     >
       <div className="relative flex-shrink-0 w-10 h-10">

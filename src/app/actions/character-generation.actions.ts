@@ -127,7 +127,8 @@ export async function generateGameCharactersAction(
     const nextPhaseType = initPhase.transition(game);
     game.advanceToPhase(nextPhaseType);
 
-    const finalState = game.getCurrentSerializableState();
+    // After all characters are generated, save final state
+    const finalState = game.getCurrentSerializableState(game.getPendingHumanAction());
     await saveGameData(gameId, finalState);
 
     const filteredState = filterGameStateForClient(

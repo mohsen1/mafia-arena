@@ -32,9 +32,9 @@ export async function advanceGameStateAction(
     }
 
     const game = Game.loadFromState(gameState);
-    await game.runGameLoop();
+    await game.runSingleStep();
 
-    const newState = game.getCurrentSerializableState();
+    const newState = game.getCurrentSerializableState(game.getPendingHumanAction());
     await saveGameData(gameId, newState);
 
     const filteredState = filterGameStateForClient(
