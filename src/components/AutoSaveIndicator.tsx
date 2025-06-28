@@ -10,7 +10,10 @@ interface AutoSaveIndicatorProps {
   lastSaved?: Date | null;
 }
 
-export function AutoSaveIndicator({ isSaving, lastSaved }: AutoSaveIndicatorProps) {
+export function AutoSaveIndicator({
+  isSaving,
+  lastSaved,
+}: AutoSaveIndicatorProps) {
   const { t } = useTranslation();
   const [showSaved, setShowSaved] = useState(false);
 
@@ -26,14 +29,16 @@ export function AutoSaveIndicator({ isSaving, lastSaved }: AutoSaveIndicatorProp
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffSecs = Math.floor(diffMs / 1000);
-    
+
     if (diffSecs < 5) return t('JustNow', 'Just now');
-    if (diffSecs < 60) return t('SecondsAgo', '{{count}} seconds ago', { count: diffSecs });
-    
+    if (diffSecs < 60)
+      return t('SecondsAgo', '{{count}} seconds ago', { count: diffSecs });
+
     const diffMins = Math.floor(diffSecs / 60);
     if (diffMins === 1) return t('OneMinuteAgo', '1 minute ago');
-    if (diffMins < 60) return t('MinutesAgo', '{{count}} minutes ago', { count: diffMins });
-    
+    if (diffMins < 60)
+      return t('MinutesAgo', '{{count}} minutes ago', { count: diffMins });
+
     return date.toLocaleTimeString();
   };
 
@@ -42,7 +47,11 @@ export function AutoSaveIndicator({ isSaving, lastSaved }: AutoSaveIndicatorProp
       <div
         className={cn(
           'flex items-center gap-2 px-3 py-2 rounded-md bg-background/95 border shadow-sm transition-all duration-300',
-          isSaving ? 'opacity-100 translate-y-0' : showSaved ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          isSaving
+            ? 'opacity-100 translate-y-0'
+            : showSaved
+              ? 'opacity-100 translate-y-0'
+              : 'opacity-0 translate-y-2'
         )}
       >
         {isSaving ? (
@@ -63,4 +72,4 @@ export function AutoSaveIndicator({ isSaving, lastSaved }: AutoSaveIndicatorProp
       </div>
     </div>
   );
-} 
+}

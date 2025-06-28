@@ -141,7 +141,7 @@ export class DayPhase extends AbstractGamePhase {
       );
       game.setPhaseStep(nextStep); // Move to the next defined step
       game.setNextPlayerIndexToAction(0); // Reset index for the next step
-      
+
       // If we just completed Introduction and are moving to Discussion,
       // automatically start the Discussion phase
       if (currentStep === 'Introduction' && nextStep === 'Discussion') {

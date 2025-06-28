@@ -81,7 +81,7 @@ export function GameSidebar() {
             </>
           )}
         </div>
-        
+
         {/* Add Player Statistics Panel */}
         <div className="mt-4">
           <PlayerStatsPanel gameState={gameState} />

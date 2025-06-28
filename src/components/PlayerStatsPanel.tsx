@@ -3,7 +3,7 @@
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import type { FilteredGameState, FilteredPlayer } from '@/lib/interfaces/gameState.types';
+import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 
 interface PlayerStatsProps {
   gameState: FilteredGameState;
@@ -41,7 +41,12 @@ export function PlayerStatsPanel({ gameState }: PlayerStatsProps) {
       if (!playerStats) return;
 
       // Count messages (excluding system messages)
-      if (message.content && !message.content.match(/^(votes for|chose no action|VotesFor|ChoseNoAction)/)) {
+      if (
+        message.content &&
+        !message.content.match(
+          /^(votes for|chose no action|VotesFor|ChoseNoAction)/
+        )
+      ) {
         playerStats.messagesSent++;
         playerStats.lastActivity = `Round ${message.round}`;
       }
@@ -53,7 +58,9 @@ export function PlayerStatsPanel({ gameState }: PlayerStatsProps) {
         playerStats.votesCast.push({ targetName, round: message.round });
 
         // Count votes received
-        const targetPlayer = Object.values(gameState.players).find(p => p.name === targetName);
+        const targetPlayer = Object.values(gameState.players).find(
+          (p) => p.name === targetName
+        );
         if (targetPlayer) {
           const targetStats = statsMap.get(targetPlayer.id);
           if (targetStats) {
@@ -90,11 +97,16 @@ export function PlayerStatsPanel({ gameState }: PlayerStatsProps) {
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className={`font-medium ${!isAlive && 'line-through opacity-60'}`}>
+                    <span
+                      className={`font-medium ${!isAlive && 'line-through opacity-60'}`}
+                    >
                       {player.name}
                     </span>
                     {player.role && (
-                      <Badge variant={isAlive ? 'default' : 'secondary'} className="text-xs">
+                      <Badge
+                        variant={isAlive ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
                         {t(player.role, player.role)}
                       </Badge>
                     )}
@@ -108,18 +120,28 @@ export function PlayerStatsPanel({ gameState }: PlayerStatsProps) {
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">{t('VotesReceived', 'Votes Received')}:</span>
-                    <span className="ms-1 font-medium">{stats.votesReceived}</span>
+                    <span className="text-muted-foreground">
+                      {t('VotesReceived', 'Votes Received')}:
+                    </span>
+                    <span className="ms-1 font-medium">
+                      {stats.votesReceived}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">{t('MessagesSent', 'Messages')}:</span>
-                    <span className="ms-1 font-medium">{stats.messagesSent}</span>
+                    <span className="text-muted-foreground">
+                      {t('MessagesSent', 'Messages')}:
+                    </span>
+                    <span className="ms-1 font-medium">
+                      {stats.messagesSent}
+                    </span>
                   </div>
                 </div>
 
                 {stats.votesCast.length > 0 && (
                   <div className="mt-2 text-sm">
-                    <span className="text-muted-foreground">{t('VotedFor', 'Voted for')}:</span>
+                    <span className="text-muted-foreground">
+                      {t('VotedFor', 'Voted for')}:
+                    </span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {stats.votesCast.map((vote, idx) => (
                         <Badge key={idx} variant="outline" className="text-xs">
@@ -136,4 +158,4 @@ export function PlayerStatsPanel({ gameState }: PlayerStatsProps) {
       </CardContent>
     </Card>
   );
-} 
+}

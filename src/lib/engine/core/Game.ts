@@ -549,7 +549,7 @@ export class Game {
   async runSingleStep(): Promise<void> {
     // Run a single iteration of the game loop
     // This is used when resuming after human actions
-    
+
     if (this.getCurrentPhaseType() === 'GameOver') {
       console.log('Game is already over, cannot run step.');
       return;
