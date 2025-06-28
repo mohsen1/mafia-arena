@@ -56,7 +56,7 @@ interface MockGameInstance {
   getPhaseStep(): string;
   getNextPlayerIndexToAction(): number;
   getPendingHumanAction(): ActionPendingHumanAction | null;
-  runGameLoop(): Promise<void>;
+  runSingleStep(): Promise<void>;
   _mocks: MockGameInternalMocks;
 }
 
@@ -72,7 +72,7 @@ type MockGameInstanceMethods = {
   getPhaseStep: Mock<() => string>;
   getNextPlayerIndexToAction: Mock<() => number>;
   getPendingHumanAction: Mock<() => ActionPendingHumanAction | null>;
-  runGameLoop: Mock<() => Promise<void>>;
+  runSingleStep: Mock<() => Promise<void>>;
   _mocks: MockGameInternalMocks;
 };
 
@@ -126,7 +126,7 @@ vi.mock('@/lib/engine/core/Game', () => {
     getPhaseStep: vi.fn().mockReturnValue('Start'),
     getNextPlayerIndexToAction: vi.fn().mockReturnValue(0),
     getPendingHumanAction: vi.fn().mockReturnValue(null),
-    runGameLoop: vi.fn().mockResolvedValue(undefined),
+    runSingleStep: vi.fn().mockResolvedValue(undefined),
     _mocks: {
       mockPhaseRunStep: mockPhaseRunStepFactory,
       mockPhaseTransition: mockPhaseTransitionFactory,
@@ -201,7 +201,7 @@ describe('gameplay.actions', () => {
       getPhaseStep: vi.fn(),
       getNextPlayerIndexToAction: vi.fn(),
       getPendingHumanAction: vi.fn(),
-      runGameLoop: vi.fn(),
+      runSingleStep: vi.fn(),
       _mocks: {
         mockPhaseRunStep: vi.fn(),
         mockPhaseTransition: vi.fn(),
@@ -223,7 +223,7 @@ describe('gameplay.actions', () => {
       gameInstanceInternalMocks.mockPhaseInstance.type
     );
     gameInstanceMock.getPendingHumanAction.mockReturnValue(null);
-    gameInstanceMock.runGameLoop.mockResolvedValue(undefined);
+    gameInstanceMock.runSingleStep.mockResolvedValue(undefined);
     gameInstanceInternalMocks.mockPhaseRunStep.mockResolvedValue(undefined);
     gameInstanceInternalMocks.mockPhaseTransition.mockReturnValue(
       'Day' as GamePhaseType
@@ -337,7 +337,7 @@ describe('gameplay.actions', () => {
     expect(loadGameData).toHaveBeenCalledWith(gameId);
     expect(mockStaticLoadFromState).toHaveBeenCalledWith(mockLoadedState);
 
-    expect(gameInstanceMock.runGameLoop).toHaveBeenCalledTimes(1);
+    expect(gameInstanceMock.runSingleStep).toHaveBeenCalledTimes(1);
 
     expect(gameInstanceMock.getCurrentSerializableState).toHaveBeenCalledTimes(
       1
@@ -381,7 +381,7 @@ describe('gameplay.actions', () => {
     );
     expect(result).toEqual(filteredGameOverState);
     expect(mockStaticLoadFromState).toHaveBeenCalled();
-    expect(gameInstanceMock.runGameLoop).toHaveBeenCalled();
+    expect(gameInstanceMock.runSingleStep).toHaveBeenCalled();
   });
 
   it('should return current state if waiting for human action', async () => {
@@ -410,7 +410,7 @@ describe('gameplay.actions', () => {
     );
     expect(result).toEqual(filteredPendingState);
     expect(mockStaticLoadFromState).toHaveBeenCalled();
-    expect(gameInstanceMock.runGameLoop).toHaveBeenCalled();
+    expect(gameInstanceMock.runSingleStep).toHaveBeenCalled();
   });
 
   it('should save state with pending action if phase runStep defers to human', async () => {
@@ -433,7 +433,7 @@ describe('gameplay.actions', () => {
     vi.mocked(filterGameStateForClient).mockReturnValue(filteredDeferredState);
 
     const result = await advanceGameStateAction(gameId);
-    expect(gameInstanceMock.runGameLoop).toHaveBeenCalled();
+    expect(gameInstanceMock.runSingleStep).toHaveBeenCalled();
     expect(gameInstanceMock.getCurrentSerializableState).toHaveBeenCalled();
     expect(saveGameData).toHaveBeenCalledWith(
       gameId,
@@ -444,13 +444,13 @@ describe('gameplay.actions', () => {
 
   it('should handle error if getCurrentPhase returns null', async () => {
     // This test doesn't apply to the new implementation since we don't call getCurrentPhase directly
-    // Instead, let's test what happens if runGameLoop throws an error
-    gameInstanceMock.runGameLoop.mockRejectedValue(
+    // Instead, let's test what happens if runSingleStep throws an error
+    gameInstanceMock.runSingleStep.mockRejectedValue(
       new Error('Game loop failed')
     );
 
     const result = await advanceGameStateAction(gameId);
-    expect(gameInstanceMock.runGameLoop).toHaveBeenCalled();
+    expect(gameInstanceMock.runSingleStep).toHaveBeenCalled();
     expect(result).toEqual({ error: 'Game loop failed' });
   });
 
@@ -471,7 +471,7 @@ describe('gameplay.actions', () => {
     vi.mocked(filterGameStateForClient).mockReturnValue(filteredGameOverState);
 
     const result = await advanceGameStateAction(gameId);
-    expect(gameInstanceMock.runGameLoop).toHaveBeenCalled();
+    expect(gameInstanceMock.runSingleStep).toHaveBeenCalled();
     expect(saveGameData).toHaveBeenCalledWith(gameId, stateAfterWin);
     expect(result).toEqual(filteredGameOverState);
   });
@@ -497,7 +497,7 @@ describe('gameplay.actions', () => {
 
   it('should return error if phase execution (runStep) fails', async () => {
     const phaseError = new Error('Phase Logic Error');
-    gameInstanceMock.runGameLoop.mockRejectedValue(phaseError);
+    gameInstanceMock.runSingleStep.mockRejectedValue(phaseError);
     const result = await advanceGameStateAction(gameId);
     expect(result).toEqual({ error: 'Phase Logic Error' });
   });

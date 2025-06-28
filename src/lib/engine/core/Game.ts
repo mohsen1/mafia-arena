@@ -112,6 +112,7 @@ export class Game {
   #rolesAssigned = false;
   #personasGenerated = false;
   #initialMemoriesCreated = false;
+  #phaseState: SerializableGameState['_phaseState'] = {};
 
   private constructor(
     playerSetups:
@@ -146,6 +147,7 @@ export class Game {
     this.#rolesAssigned = false;
     this.#personasGenerated = false;
     this.#initialMemoriesCreated = false;
+    this.#phaseState = {};
     this.#currentState = new InitializationPhase(); // Default, will be overridden by loadFromState if applicable
 
     if (playerSetups) {
@@ -219,6 +221,7 @@ export class Game {
     game.#lastPhaseResults = state._phaseResults || {};
     game.#phaseStep = state.phaseStep || 'Start';
     game.#nextPlayerIndexToAction = state.nextPlayerIndexToAction ?? 0;
+    game.#phaseState = state._phaseState || {};
     const outcome = state.winCondition?.outcome;
     game.#winningTeam =
       outcome === 'Mafia' || outcome === 'Town' ? outcome : null;
@@ -354,6 +357,7 @@ export class Game {
       _phaseResults: this.#lastPhaseResults,
       phaseStep: this.#phaseStep,
       nextPlayerIndexToAction: this.#nextPlayerIndexToAction,
+      _phaseState: this.#phaseState,
     };
 
     return state;
@@ -367,6 +371,16 @@ export class Game {
     results: Partial<SerializableGameState['_phaseResults']>
   ): void {
     this.#lastPhaseResults = { ...this.#lastPhaseResults, ...results };
+  }
+
+  public getPhaseState(): SerializableGameState['_phaseState'] {
+    return this.#phaseState;
+  }
+
+  public setPhaseState(
+    state: Partial<NonNullable<SerializableGameState['_phaseState']>>
+  ): void {
+    this.#phaseState = { ...this.#phaseState, ...state };
   }
 
   addRenderer(renderer: IGameRenderer): void {
@@ -950,6 +964,7 @@ export class Game {
     this.#phaseStep = 'Start';
     this.#nextPlayerIndexToAction = 0;
     this.#lastPhaseResults = {};
+    this.#phaseState = {};
 
     console.log(
       `Advanced to phase: ${this.#currentState.type}, Round: ${this.#round}`
