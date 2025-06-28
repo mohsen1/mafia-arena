@@ -71,4 +71,11 @@ export interface SerializableGameState {
   phaseStep: string;
   /** Index of the next player to act within the current phase step */
   nextPlayerIndexToAction: number;
+  /** In-progress phase state that needs to persist between steps */
+  _phaseState?: {
+    // Night phase state
+    mafiaVotes?: Record<PlayerId, PlayerId | null>;
+    // Day phase state
+    dayVotes?: Record<PlayerId, PlayerId | null>;
+  };
 }

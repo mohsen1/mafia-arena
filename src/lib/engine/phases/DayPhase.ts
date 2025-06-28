@@ -292,8 +292,8 @@ export class DayPhase extends AbstractGamePhase {
     }
 
     // Determine execution based on majority
-    // Using > alivePlayerCount / 2 ensures strict majority
-    const majorityThresholdStrict = Math.floor(alivePlayerCount / 2) + 1;
+    // Using Math.ceil(alivePlayerCount / 2) for simple majority
+    const majorityThresholdStrict = Math.ceil(alivePlayerCount / 2);
 
     let executedPlayerId: PlayerId | null = null;
     if (maxVotes >= majorityThresholdStrict && playersToExecute.length === 1) {
