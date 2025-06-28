@@ -1,0 +1,8 @@
+=== Gemini Guidance MCP Server Started ===
+[2025-06-28T19:27:50.649Z] Server starting...
+[2025-06-28T19:27:50.650Z] Environment loaded successfully
+[2025-06-28T19:27:50.650Z] Documentation files loaded successfully
+[2025-06-28T19:27:50.651Z] MCP server instance created
+[2025-06-28T19:27:50.651Z] MCP server connected and running
+[2025-06-28T19:27:50.662Z] Received tools/list request
+[2025-06-28T19:27:50.663Z] Received tools/list request
