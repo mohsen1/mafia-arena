@@ -58,3 +58,7 @@ game_saves/
 playwright-report/
 test-results/
 *.png
+
+# Gemini assistant files
+.gemini-prompt-history.json
+dev-server.log

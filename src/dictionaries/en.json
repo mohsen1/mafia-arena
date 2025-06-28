@@ -82,6 +82,19 @@
   "WaitingForProvidersLabel": "Waiting for available AI providers...",
   "YourPlayerNameLabel": "Your Player Name",
   
+  "PlayerStatistics": "Player Statistics",
+  "VotesReceived": "Votes Received",
+  "MessagesSent": "Messages",
+  "VotedFor": "Voted for",
+  "Dead": "Dead",
+  
+  "Saving": "Saving...",
+  "SavedAt": "Saved {{time}}",
+  "JustNow": "Just now",
+  "SecondsAgo": "{{count}} seconds ago",
+  "OneMinuteAgo": "1 minute ago",
+  "MinutesAgo": "{{count}} minutes ago",
+  
   "landingHeroTitle": "Experience Werewolf Like Never Before",
   "landingHeroSubtitle": "Play the classic social deduction game against intelligent AI characters with unique personas, rich backstories, and strategic thinking.",
   "landingHeroCTA": "Start Playing Now",
@@ -362,5 +375,22 @@
       "inProgress": "In Progress",
       "completed": "Completed"
     }
-  }
+  },
+  
+  "DayBegins": "Day begins...",
+  "IntroductionPrompt": "Please introduce yourself to the village.",
+  "IntroductionComplete": "Introduction complete.",
+  "VotingPhase": "Time to vote! Who do you suspect?",
+  "VotingComplete": "Voting complete.",
+  "ChoseNoActionVoting": "chose no action (abstains from voting).",
+  "ChoseNoAction": "chose no action.",
+  "VotesToAbstain": "votes to abstain.",
+  "VotesFor": "votes for {{playerName}}.",
+  "VotesInvalidTarget": "attempted to vote for invalid target ({{targetName}}), vote counts as abstain.",
+  "ExecutionDecision": "With {{voteCount}} votes, the town has decided to execute {{playerName}}.",
+  "ExecutionReason": "was executed by popular vote.",
+  "VoteNoMajority": "Vote did not reach majority. No one is executed.",
+  "VoteTieResult": "Vote resulted in a tie between {{playerNames}}. No one is executed.",
+  "VoteInsufficientVotes": "Vote had insufficient votes. No one is executed.",
+  "NoVotesCast": "No decisive votes were cast. No one is executed."
 } 

@@ -12,6 +12,27 @@ import { useSpokenText } from './SpokenTextContext';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 
+export interface GameContextType {
+  gameState: FilteredGameState | null;
+  isLoadingNextTurn: boolean;
+  isAutoRunning: boolean;
+  isAudioGloballyEnabled: boolean;
+  isSaving: boolean;
+  lastSaved: Date | null;
+  runNextTurn: () => void;
+  toggleAutoRun: () => void;
+  submitHumanAction: (
+    payload: HumanActionPayload
+  ) => Promise<FilteredGameState | { error: string }>;
+  announceText: (
+    messageId: string,
+    text: string,
+    onFinished?: () => void
+  ) => void;
+  reportAudioFinished: (messageId: string) => void;
+  toggleGlobalAudio: () => void;
+}
+
 interface GameContextState {
   gameState: FilteredGameState | null;
   setGameState: Dispatch<SetStateAction<FilteredGameState | null>>;
@@ -29,6 +50,10 @@ interface GameContextState {
   submitHumanAction: (
     payload: HumanActionPayload
   ) => Promise<FilteredGameState | { error: string }>;
+  isSaving: boolean;
+  lastSaved: Date | null;
+  runNextTurn: () => void;
+  toggleGlobalAudio: () => void;
 }
 
 const GameContext = createContext<GameContextState | undefined>(undefined);
@@ -57,6 +82,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const stopAudioCallbackRef = useRef<(() => void) | null>(null);
   const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] =
     useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   const { currentlySpeakingId: spokenTextCurrentlySpeakingId } =
     useSpokenText();
@@ -95,22 +122,14 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     });
   }, [stopCurrentAudio]);
 
-  const runNextTurnAction = useCallback(async (): Promise<
-    FilteredGameState | { error: string }
-  > => {
-    if (gameState?.phase === 'GameOver') {
-      return gameState ?? { error: 'Game is over' };
-    }
-
-    if (isLoadingNextTurn) {
-      return gameState ?? { error: 'Already loading' };
-    }
-
+  const runNextTurnAction = useCallback(async () => {
     setIsLoadingNextTurn(true);
+    setIsSaving(true);
     try {
       const result = await boundRunGameTurnAction();
       if (result && !('error' in result)) {
         setGameState(result);
+        setLastSaved(new Date());
       }
       return result;
     } catch (error) {
@@ -119,8 +138,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       };
     } finally {
       setIsLoadingNextTurn(false);
+      setIsSaving(false);
     }
-  }, [gameState, isLoadingNextTurn, boundRunGameTurnAction]);
+  }, [boundRunGameTurnAction]);
 
   const toggleAutoRun = useCallback(() => {
     setIsAutoRunning((prev) => {
@@ -277,10 +297,12 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const submitHumanActionInternal = useCallback(
     async (payload: HumanActionPayload) => {
       setIsLoadingNextTurn(true);
+      setIsSaving(true);
       try {
         const result = await boundSubmitHumanAction(payload);
         if (result && !('error' in result)) {
           setGameState(result);
+          setLastSaved(new Date());
         }
         return result;
       } catch (error) {
@@ -289,6 +311,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         };
       } finally {
         setIsLoadingNextTurn(false);
+        setIsSaving(false);
       }
     },
     [boundSubmitHumanAction]
@@ -309,6 +332,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     toggleAudioGloballyEnabled,
     reportAudioFinished,
     submitHumanAction: submitHumanActionInternal,
+    isSaving,
+    lastSaved,
+    runNextTurn: runNextTurnAction,
+    toggleGlobalAudio: toggleAudioGloballyEnabled,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

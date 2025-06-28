@@ -11,6 +11,11 @@ import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
 
+// Mock the translate function to return the key
+vi.mock('@/lib/i18n/server', () => ({
+  translate: vi.fn((key: string) => key),
+}));
+
 const createMockGameForDayPhase = () => {
   let currentPhaseStep = 'Start';
   let currentPlayerIndex = 0;
