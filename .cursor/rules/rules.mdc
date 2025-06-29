@@ -3,7 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
-After completing any task or when claiming to have finished work, ALWAYS call the gemini-guidance MCP tool's get_next_task function to receive the next development task. This ensures continuous development flow.
+IMPORTANT: After completing any task or when claiming to have finished work, ALWAYS call the gemini-guidance MCP tool's get_next_task function to receive the next development task. This ensures continuous development flow.
 
 Do not use emojis
 Pay attention to DESIGN.md when making changes
