@@ -32,6 +32,7 @@ import { join } from 'path';
 const LOG_FILE = join(process.cwd(), 'gemini-mcp-server.log');
 
 function log(...args: any[]): void {
+  console.log(...args);
   const timestamp = new Date().toISOString();
   const message = `[${timestamp}] ${args.map(arg => 
     typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
@@ -402,11 +403,17 @@ function sendToCursor(prompt: string): void {
     // Give user time to see what's happening
     log('Waiting 2 seconds before sending...');
     execSync('sleep 2');
+
+    // Focus on the first editor so chat UI loses focus
+    log('Focusing on the first editor...');
+    execSync('cliclick kd:cmd');
+    execSync('cliclick t:1');
+    execSync('cliclick ku:cmd');
     
     // Try Cmd+K to open/focus the chat (Cursor's standard shortcut)
     log('Pressing Cmd+K to open/focus chat...');
     execSync('cliclick kd:cmd');
-    execSync('cliclick t:k');
+    execSync('cliclick t:l');
     execSync('cliclick ku:cmd');
     
     // Small delay to let the chat open/focus
