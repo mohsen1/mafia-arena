@@ -63,5 +63,5 @@ test-results/
 .gemini-prompt-history.json
 dev-server.log
 gemini-mcp-server.log
-gemini-mcp-wrapper.log
+gemini-mcp-backlog.json
 *.log

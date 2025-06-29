@@ -32,7 +32,6 @@ import { join } from 'path';
 const LOG_FILE = join(process.cwd(), 'gemini-mcp-server.log');
 
 function log(...args: any[]): void {
-  console.log(...args);
   const timestamp = new Date().toISOString();
   const message = `[${timestamp}] ${args.map(arg => 
     typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
@@ -88,7 +87,111 @@ const PROMPT_HISTORY_FILE = join(process.cwd(), '.gemini-prompt-history.json');
 const MAX_HISTORY_LENGTH = 50;
 const STUCK_COMMAND_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
+// ==================== Backlog Management (Feature #3) ====================
 
+const BACKLOG_FILE = join(process.cwd(), 'gemini-mcp-backlog.json');
+
+interface BacklogItem {
+  id: string;
+  title: string;
+  status: 'todo' | 'in_progress' | 'done';
+  priority: number;
+  createdAt: string;
+  deps: string[];
+}
+
+function loadBacklog(): BacklogItem[] {
+  if (!existsSync(BACKLOG_FILE)) return [];
+  try {
+    return JSON.parse(readFileSync(BACKLOG_FILE, 'utf-8')) as BacklogItem[];
+  } catch (err) {
+    log('WARNING: failed to parse backlog.json:', err);
+    return [];
+  }
+}
+
+function saveBacklog(backlog: BacklogItem[]): void {
+  try {
+    writeFileSync(BACKLOG_FILE, JSON.stringify(backlog, null, 2));
+  } catch (err) {
+    log('WARNING: failed to write backlog.json:', err);
+  }
+}
+
+function addTaskToBacklog(rawInstruction: string): void {
+  const backlog = loadBacklog();
+  const title = rawInstruction.split('\n')[0].slice(0, 120);
+  const newItem: BacklogItem = {
+    id: `${Date.now()}`,
+    title,
+    status: 'todo',
+    priority: 3, // default medium priority, could be refined later
+    createdAt: new Date().toISOString(),
+    deps: [],
+  };
+  backlog.push(newItem);
+  saveBacklog(backlog);
+  log('Added task to backlog:', title);
+}
+
+// ==================== Project Snapshot & Situation Report (Features #1 & #2) ====================
+
+function captureCodeSnapshot(): string {
+  try {
+    // Prefer yek if installed
+    const snapshot = execSync('yek .', { encoding: 'utf-8' });
+    return snapshot;
+  } catch {
+    // Fallback: git ls-files and cat
+    try {
+      const files = execSync('git ls-files', { encoding: 'utf-8' })
+        .split('\n')
+        .filter(Boolean)
+        .slice(0, 1000); // safety cap
+      let result = '';
+      for (const file of files) {
+        result += `\n\n=== ${file} ===\n`;
+        result += readFileSync(file, 'utf-8');
+      }
+      return result;
+    } catch (err) {
+      log('ERROR capturing code snapshot:', err);
+      return 'Unable to capture code snapshot.';
+    }
+  }
+}
+
+function getTypeScriptReport(): string {
+  try {
+    const output = execSync('pnpm tsc --noEmit --pretty false', { encoding: 'utf-8' });
+    return output.split('\n').slice(0, 200).join('\n');
+  } catch (err: any) {
+    // tsc exits with non-zero on errors; capture stdout+stderr from error object
+    const out = err.stdout?.toString() || err.message;
+    return out.split('\n').slice(0, 200).join('\n');
+  }
+}
+
+function getVitestReport(): string {
+  try {
+    const json = execSync('pnpm vitest run --reporter=json', { encoding: 'utf-8' });
+    const parsed = JSON.parse(json);
+    if (!parsed?.testResults) return 'No vitest results.';
+    const failures = parsed.testResults.filter((tr: any) => tr.status === 'failed');
+    return failures.map((f: any) => `✖ ${f.name}: ${f.failureMessage || ''}`).join('\n').slice(0, 2000);
+  } catch (err: any) {
+    const out = err.stdout?.toString() || err.message;
+    return out.split('\n').slice(0, 200).join('\n');
+  }
+}
+
+function getGitLog(): string {
+  try {
+    return execSync('git --no-pager log -n 10 --stat --oneline', { encoding: 'utf-8' });
+  } catch (err) {
+    return 'Unable to get git log';
+  }
+}
 
 interface PromptHistoryEntry {
   timestamp: string;
@@ -223,7 +326,13 @@ async function analyzeScreenshotWithGemini(screenshotPath: string): Promise<stri
       historyLength: loadPromptHistory().length 
     });
     
-    const prompt = `You are an expert developer managing the Werewolf AI game project. 
+    // --- Gather dynamic project context (Features #1 & #2) ---
+    const codeSnapshot = captureCodeSnapshot();
+    const tsReport = getTypeScriptReport();
+    const vitestReport = getVitestReport();
+    const gitLog = getGitLog();
+    
+    let prompt = `You are an expert developer managing the Werewolf AI game project. 
 You're looking at a screenshot and need to guide Cursor's AI to develop this game properly.
 
 IMPORTANT: ONLY analyze the Cursor IDE chat interface. IGNORE any terminal windows, browser windows, or other applications visible in the screenshot.
@@ -233,6 +342,19 @@ ${README_CONTENT}
 
 ARCHITECTURE:
 ${ARCHITECTURE_CONTENT}
+
+FULL CODEBASE SNAPSHOT:
+${codeSnapshot}
+
+SITUATION REPORT:
+--- TypeScript (tsc) ---
+${tsReport}
+
+--- Vitest ---
+${vitestReport}
+
+--- Recent Git History ---
+${gitLog}
 
 PREVIOUS PROMPTS IN THIS SESSION:
 ${promptHistory}
@@ -252,10 +374,9 @@ ANALYSIS STEPS:
 
 DEVELOPMENT PRIORITIES:
 1. DEV SERVER MANAGEMENT: 
-   - First, kill any hanging servers: \`pkill -f "pnpm dev" || true\` and \`pkill -f "next dev" || true\`
-   - Then check if dev server is running by looking for a running process
-   - If not running, instruct to run: \`pnpm dev > dev-server.log 2>&1 &\`
-   - Check the log file for any errors
+   - Before doing anything, check if a dev server (\`pnpm dev\` or \`next dev\`) is already running. If it *is* running, do **NOT** interfere.
+   - If **no** dev server is running and one is needed, start it with: \`pnpm dev > dev-server.log 2>&1 &\`
+   - Avoid killing processes unless absolutely necessary (e.g. zombie/broken servers). Document the reason before suggesting \`pkill\`.
 
 2. BROWSER TESTING WITH MCP TOOLS: Use Cursor's MCP browser tools to test the application:
    - Use browser tools to navigate to open the app in a browser
@@ -320,6 +441,20 @@ CRITICAL: Your response should be ONLY the instruction text for Cursor AI, nothi
 - Do NOT include status information or headers
 - ONLY output the actionable development instruction itself
 - The system will automatically prompt me with the next task after completion, so don't mention calling the tool again`;
+
+    // Ensure we do not exceed 1 000 000 characters in the final prompt (including code snapshot)
+    const MAX_PROMPT_CHARS = 1_000_000;
+    if (prompt.length > MAX_PROMPT_CHARS) {
+      const excess = prompt.length - MAX_PROMPT_CHARS;
+      // Trim from the code snapshot first
+      if (codeSnapshot.length > excess + 1000) {
+        const trimmedSnapshot = codeSnapshot.slice(0, codeSnapshot.length - excess - 1000);
+        prompt = prompt.replace(codeSnapshot, trimmedSnapshot + `\n...SNAPSHOT TRUNCATED (${excess} chars omitted) ...`);
+      } else {
+        // As fallback trim docs
+        prompt = prompt.slice(0, MAX_PROMPT_CHARS - 1000) + '\n...PROMPT TRUNCATED...';
+      }
+    }
 
     const imagePart = {
       inlineData: {
@@ -451,8 +586,6 @@ function sendToCursor(prompt: string): void {
   }
 }
 
-
-
 // Handle tool execution
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name } = request.params;
@@ -473,22 +606,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         unlinkSync(screenshotPath);
         log('Screenshot cleaned up');
         
-        // Add to history
+        // Add to history & backlog
         addToPromptHistory(instruction);
-        
-        // Schedule the UI automation to run after a short delay
-        // This allows the MCP response to return first
+        addTaskToBacklog(instruction);
+
+        // Schedule UI automation so response can return quickly
         setTimeout(() => {
           log('Sending prompt via UI automation...');
           sendToCursor(instruction);
         }, 2000);
-        
-        // Return minimal response - the actual prompt will be sent via cliclick
+
+        // Minimal textual acknowledgement (required by MCP protocol)
         return {
           content: [
             {
               type: 'text',
-              text: '⏳ Sending prompt via UI automation...',
+              text: '⏳ Task scheduled – will be typed into chat shortly.',
             },
           ],
         };
