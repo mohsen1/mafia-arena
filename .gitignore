@@ -64,3 +64,4 @@ test-results/
 dev-server.log
 gemini-mcp-server.log
 gemini-mcp-wrapper.log
+*.log
