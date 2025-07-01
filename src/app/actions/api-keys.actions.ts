@@ -21,6 +21,7 @@ export interface CreateApiKeyData {
   provider: string;
   keyName: string;
   apiKey: string;
+  customEndpoint?: string;
 }
 
 export interface UpdateApiKeyData {
@@ -28,6 +29,7 @@ export interface UpdateApiKeyData {
   keyName?: string;
   apiKey?: string;
   isActive?: boolean;
+  customEndpoint?: string;
 }
 
 /**

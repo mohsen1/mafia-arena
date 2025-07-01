@@ -4,8 +4,12 @@ import type { UserApiKeyInfo } from '@/app/actions/api-keys.actions';
 export interface AvailableProvider {
   value: string;
   title: string;
-  source: 'env' | 'user' | 'both';
+  source: 'env' | 'user' | 'both' | 'custom' | 'none';
   userKeyName?: string;
+}
+
+export interface CustomProviderConfig {
+  ollamaEndpoint?: string;
 }
 
 /**
@@ -116,12 +120,12 @@ export function isProviderAvailable(
 }
 
 /**
- * Get the source of API key for a provider (env, user, or both)
+ * Get the source of API key for a provider (env, user, both, or custom)
  */
 export function getProviderKeySource(
   providerValue: string,
   userApiKeys: UserApiKeyInfo[] = []
-): 'env' | 'user' | 'both' | 'none' {
+): 'env' | 'user' | 'both' | 'custom' | 'none' {
   const provider = getAllAvailableProviders(userApiKeys).find(
     (p) => p.value === providerValue
   );
@@ -144,7 +148,42 @@ export function getProviderDisplayTitle(provider: AvailableProvider): string {
     case 'both':
       title += ` (System + ${provider.userKeyName})`;
       break;
+    case 'custom':
+      title += ' (Custom)';
+      break;
   }
 
   return title;
+}
+
+// Function to get dynamic Ollama endpoint
+export function getOllamaEndpoint(customConfig?: CustomProviderConfig): string {
+  if (customConfig?.ollamaEndpoint) {
+    return customConfig.ollamaEndpoint;
+  }
+  // Check for environment variable override
+  if (process.env.OLLAMA_ENDPOINT) {
+    return process.env.OLLAMA_ENDPOINT;
+  }
+  // Default endpoint
+  return 'http://localhost:11434/v1';
+}
+
+// Function to get provider with custom endpoint
+export function getProviderWithCustomEndpoint(
+  providerValue: string,
+  customConfig?: CustomProviderConfig
+): AvailableProvider | undefined {
+  const baseProvider = getAllAvailableProviders([]).find(p => p.value === providerValue);
+  if (!baseProvider) return undefined;
+
+  if (providerValue === 'ollama_local' && customConfig?.ollamaEndpoint) {
+    return {
+      ...baseProvider,
+      source: 'custom',
+      title: `${baseProvider.title} (Custom)`,
+    };
+  }
+
+  return baseProvider;
 }
