@@ -152,7 +152,7 @@ export class NightPhase extends AbstractGamePhase {
     if (index >= players.length) {
       // Finished this step for all relevant players
       // Removed redundant completion messages to reduce nighttime chattiness
-      
+
       game.setPhaseStep(nextStep);
       game.setNextPlayerIndexToAction(0);
       return;
