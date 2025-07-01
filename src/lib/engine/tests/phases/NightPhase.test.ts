@@ -606,7 +606,12 @@ describe('NightPhase', () => {
   });
 
   it('should correctly process a night where the Doctor saves a player and the Seer investigates another player', async () => {
-    const alivePlayers = [mafiaPlayer1, doctorPlayer, seerPlayer, villagerPlayer];
+    const alivePlayers = [
+      mafiaPlayer1,
+      doctorPlayer,
+      seerPlayer,
+      villagerPlayer,
+    ];
     mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
     mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1]);
 
@@ -616,13 +621,17 @@ describe('NightPhase', () => {
       .mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
 
     // Doctor saves the villager
-    (doctorPlayer.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    (
+      doctorPlayer.agent.getAction as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
       type: 'doctorSave',
       targetPlayerId: 'v1',
     });
 
     // Seer investigates the mafia player
-    (seerPlayer.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    (
+      seerPlayer.agent.getAction as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
       type: 'seerInvestigate',
       targetPlayerId: 'm1',
     });
@@ -653,11 +662,17 @@ describe('NightPhase', () => {
     // Assertions
     expect(mockGame.killPlayer).not.toHaveBeenCalled();
     expect(mockGame.recordDoctorSaveInMemory).toHaveBeenCalledWith('doc', 'v1');
-    expect(mockGame.recordSeerResultInMemory).toHaveBeenCalledWith('seer', 'm1', 'Mafia');
+    expect(mockGame.recordSeerResultInMemory).toHaveBeenCalledWith(
+      'seer',
+      'm1',
+      'Mafia'
+    );
 
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      expect.stringContaining(`${villagerPlayer.name} was attacked, but the Doctor saved them!`),
+      expect.stringContaining(
+        `${villagerPlayer.name} was attacked, but the Doctor saved them!`
+      ),
       MessageVisibility.Public
     );
     expect(mockGame.logMessage).toHaveBeenCalledWith(

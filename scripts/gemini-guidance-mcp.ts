@@ -72,6 +72,11 @@ if (!GEMINI_API_KEY) {
   process.exit(1);
 }
 
+const GH_ACCESS_TOKEN = result.parsed?.GH_ACCESS_TOKEN;
+if (!GH_ACCESS_TOKEN) {
+  log('WARNING: GH_ACCESS_TOKEN environment variable is not set. GitHub integration will be disabled.');
+}
+
 log('Environment loaded successfully');
 log('Initializing Google Generative AI...');
 
@@ -111,6 +116,7 @@ interface BacklogItem {
   priority: number;
   createdAt: string;
   deps: string[];
+  githubIssueNumber?: number; // Track associated GitHub issue
 }
 
 function loadBacklog(): BacklogItem[] {
@@ -154,7 +160,7 @@ function setTaskStatus(id: string, status: BacklogItem['status']): void {
   }
 }
 
-function addTaskToBacklog(rawInstruction: string, status: BacklogItem['status'] = 'todo'): string {
+function addTaskToBacklog(rawInstruction: string, status: BacklogItem['status'] = 'todo', githubIssueNumber?: number): string {
   log('Adding task to backlog...');
   const backlog = loadBacklog();
   const title = rawInstruction.split('\n')[0].slice(0, 120);
@@ -165,11 +171,138 @@ function addTaskToBacklog(rawInstruction: string, status: BacklogItem['status'] 
     priority: 3,
     createdAt: new Date().toISOString(),
     deps: [],
+    githubIssueNumber,
   };
   backlog.push(newItem);
   saveBacklog(backlog);
-  log('Added task to backlog:', { id: newItem.id, title, status });
+  log('Added task to backlog:', { id: newItem.id, title, status, githubIssueNumber });
   return newItem.id;
+}
+
+// ==================== GitHub Integration ====================
+
+interface GitHubIssue {
+  number: number;
+  title: string;
+  body: string | null;
+  state: 'open' | 'closed';
+  labels: Array<{ name: string }>;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+}
+
+const GITHUB_REPO = 'mohsen1/werewolf-ai';
+const GITHUB_API_BASE = 'https://api.github.com';
+
+async function fetchGitHubIssues(): Promise<GitHubIssue[]> {
+  log('Fetching GitHub issues...');
+  
+  if (!GH_ACCESS_TOKEN) {
+    log('No GitHub token available, skipping issue fetch');
+    return [];
+  }
+  
+  try {
+    const response = await fetch(`${GITHUB_API_BASE}/repos/${GITHUB_REPO}/issues?state=open&sort=updated&direction=desc`, {
+      headers: {
+        'Authorization': `Bearer ${GH_ACCESS_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const issues = await response.json() as GitHubIssue[];
+    log(`Fetched ${issues.length} open issues from GitHub`);
+    
+    // Filter out pull requests (they also appear in issues API)
+    const realIssues = issues.filter(issue => !('pull_request' in issue));
+    log(`Filtered to ${realIssues.length} actual issues (excluding PRs)`);
+    
+    return realIssues;
+  } catch (error) {
+    log('ERROR fetching GitHub issues:', error);
+    return [];
+  }
+}
+
+async function closeGitHubIssue(issueNumber: number): Promise<boolean> {
+  log(`Attempting to close GitHub issue #${issueNumber}...`);
+  
+  if (!GH_ACCESS_TOKEN) {
+    log('No GitHub token available, cannot close issue');
+    return false;
+  }
+  
+  try {
+    const response = await fetch(`${GITHUB_API_BASE}/repos/${GITHUB_REPO}/issues/${issueNumber}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${GH_ACCESS_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        state: 'closed',
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+    
+    log(`Successfully closed GitHub issue #${issueNumber}`);
+    return true;
+  } catch (error) {
+    log(`ERROR closing GitHub issue #${issueNumber}:`, error);
+    return false;
+  }
+}
+
+function formatGitHubIssuesForPrompt(issues: GitHubIssue[]): string {
+  if (issues.length === 0) {
+    return 'No open GitHub issues found.';
+  }
+  
+  const formatted = issues.slice(0, 10).map((issue, index) => {
+    const labels = issue.labels.map(l => l.name).join(', ');
+    const body = issue.body ? issue.body.substring(0, 200) + (issue.body.length > 200 ? '...' : '') : 'No description';
+    return `${index + 1}. Issue #${issue.number}: ${issue.title}
+   Labels: ${labels || 'none'}
+   URL: ${issue.html_url}
+   Description: ${body}`;
+  }).join('\n\n');
+  
+  return `OPEN GITHUB ISSUES (prioritize these):
+${formatted}
+
+Note: After completing an issue, close it on GitHub.`;
+}
+
+function extractGitHubIssueNumber(instruction: string): number | undefined {
+  // Look for patterns like "Issue #123", "#123", "issue #123", etc.
+  const patterns = [
+    /Issue #(\d+)/i,
+    /#(\d+)/,
+    /GitHub issue (\d+)/i,
+    /Fix issue (\d+)/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = instruction.match(pattern);
+    if (match && match[1]) {
+      const issueNumber = parseInt(match[1], 10);
+      if (!isNaN(issueNumber)) {
+        log(`Extracted GitHub issue number: ${issueNumber} from instruction`);
+        return issueNumber;
+      }
+    }
+  }
+  
+  return undefined;
 }
 
 // ==================== Project Snapshot & Situation Report (Features #1 & #2) ====================
@@ -422,74 +555,80 @@ function takeScreenshot(): string {
 }
 
 async function analyzeScreenshotWithGemini(screenshotPath: string): Promise<string> {
-  try {
-    log('Analyzing screenshot with Gemini...');
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    
-    const imageData = readFileSync(screenshotPath);
-    const base64Image = imageData.toString('base64');
-    
-    const promptHistory = getRecentPromptSummary();
-    const loopWarning = checkForLoops(loadPromptHistory());
-    const stuckCommand = isCommandStuck(loadPromptHistory());
-    
-    log('Prompt context:', { 
-      hasLoopWarning: !!loopWarning, 
-      isCommandStuck: stuckCommand,
-      historyLength: loadPromptHistory().length 
-    });
-    
-    // --- Smart prompt building with length management ---
-    const MAX_PROMPT_CHARS = 900_000;
-    const SAFETY_MARGIN = 10_000; // Leave some room for safety
-    const TARGET_LENGTH = MAX_PROMPT_CHARS - SAFETY_MARGIN;
-    
-    // Priority content builder
-    class PromptBuilder {
-      private sections: Array<{ priority: number; label: string; content: string }> = [];
-      
-      add(priority: number, label: string, content: string): void {
-        this.sections.push({ priority, label, content });
-      }
-      
-      build(maxLength: number): string {
-        // Sort by priority (lower number = higher priority)
-        this.sections.sort((a, b) => a.priority - b.priority);
+  const MAX_RETRIES = 3;
+  const INITIAL_DELAY = 2000; // 2 seconds
+  const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    for (const modelName of MODELS) {
+      try {
+        log(`Analyzing screenshot with Gemini ${modelName}... (attempt ${attempt}/${MAX_RETRIES})`);
+        const model = genAI.getGenerativeModel({ model: modelName });
         
-        let result = '';
-        let currentLength = 0;
-        const includedSections: string[] = [];
+        const imageData = readFileSync(screenshotPath);
+        const base64Image = imageData.toString('base64');
         
-        for (const section of this.sections) {
-          const sectionLength = section.content.length;
-          if (currentLength + sectionLength <= maxLength) {
-            result += section.content;
-            currentLength += sectionLength;
-            includedSections.push(section.label);
-          } else {
-            // Try to include a truncated version if there's room
-            const remainingSpace = maxLength - currentLength;
-            if (remainingSpace > 1000) { // Only truncate if we have meaningful space
-              const truncatedContent = section.content.slice(0, remainingSpace - 100) + 
-                `\n... [${section.label} truncated] ...\n`;
-              result += truncatedContent;
-              includedSections.push(`${section.label} (truncated)`);
+        const promptHistory = getRecentPromptSummary();
+        const loopWarning = checkForLoops(loadPromptHistory());
+        const stuckCommand = isCommandStuck(loadPromptHistory());
+        
+        log('Prompt context:', { 
+          hasLoopWarning: !!loopWarning, 
+          isCommandStuck: stuckCommand,
+          historyLength: loadPromptHistory().length 
+        });
+        
+        // --- Smart prompt building with length management ---
+        const MAX_PROMPT_CHARS = 900_000;
+        const SAFETY_MARGIN = 10_000; // Leave some room for safety
+        const TARGET_LENGTH = MAX_PROMPT_CHARS - SAFETY_MARGIN;
+        
+        // Priority content builder
+        class PromptBuilder {
+          private sections: Array<{ priority: number; label: string; content: string }> = [];
+          
+          add(priority: number, label: string, content: string): void {
+            this.sections.push({ priority, label, content });
+          }
+          
+          build(maxLength: number): string {
+            // Sort by priority (lower number = higher priority)
+            this.sections.sort((a, b) => a.priority - b.priority);
+            
+            let result = '';
+            let currentLength = 0;
+            const includedSections: string[] = [];
+            
+            for (const section of this.sections) {
+              const sectionLength = section.content.length;
+              if (currentLength + sectionLength <= maxLength) {
+                result += section.content;
+                currentLength += sectionLength;
+                includedSections.push(section.label);
+              } else {
+                // Try to include a truncated version if there's room
+                const remainingSpace = maxLength - currentLength;
+                if (remainingSpace > 1000) { // Only truncate if we have meaningful space
+                  const truncatedContent = section.content.slice(0, remainingSpace - 100) + 
+                    `\n... [${section.label} truncated] ...\n`;
+                  result += truncatedContent;
+                  includedSections.push(`${section.label} (truncated)`);
+                }
+                break;
+              }
             }
-            break;
+            
+            log('Prompt built with sections:', includedSections);
+            log('Total prompt length:', currentLength);
+            
+            return result;
           }
         }
         
-        log('Prompt built with sections:', includedSections);
-        log('Total prompt length:', currentLength);
+        const builder = new PromptBuilder();
         
-        return result;
-      }
-    }
-    
-    const builder = new PromptBuilder();
-    
-    // Priority 1: Core instructions and immediate context
-    const coreInstructions = `You are an expert developer managing the Werewolf AI game project. 
+        // Priority 1: Core instructions and immediate context
+        const coreInstructions = `You are an expert developer managing the Werewolf AI game project. 
 You're looking at a screenshot and need to guide Cursor's AI to develop this game properly.
 
 IMPORTANT: ONLY analyze the Cursor IDE chat interface. IGNORE any terminal windows, browser windows, or other applications visible in the screenshot.
@@ -507,10 +646,10 @@ CRITICAL: Your response should be ONLY the instruction text for Cursor AI, nothi
 - The system will automatically prompt me with the next task after completion, so don't mention calling the tool again
 
 `;
-    builder.add(1, 'Core Instructions', coreInstructions);
-    
-    // Priority 2: Development priorities and guidance
-    const devPriorities = `
+        builder.add(1, 'Core Instructions', coreInstructions);
+        
+        // Priority 2: Development priorities and guidance
+        const devPriorities = `
 DEVELOPMENT PRIORITIES:
 1. DEV SERVER MANAGEMENT: 
    - Before doing anything, check if a dev server (\`pnpm dev\` or \`next dev\`) is already running. If it *is* running, do **NOT** interfere.
@@ -548,6 +687,10 @@ DEVELOPMENT PRIORITIES:
    - Add missing features from the game design
    - Test different game scenarios in the browser
 
+IMPORTANT NOTES:
+- ENVIRONMENT: A .env file exists with all required API keys (GEMINI_API_KEY, GH_ACCESS_TOKEN, etc.). NEVER delete or modify this file. You cannot see it but it is there and working.
+- GITHUB ISSUES: When working on a GitHub issue, mention the issue number in your commits. After completing an issue, it will be automatically closed.
+
 GUIDANCE PRINCIPLES:
 - Kill hanging servers before starting new ones
 - Use MCP browser tools extensively for testing
@@ -560,6 +703,7 @@ GUIDANCE PRINCIPLES:
 - AVOID LOOPS: Try different approaches if stuck
 - Prefer running the game in the auto mode
 - Tell Cursor to git commit and push (always to main)
+- When fixing a GitHub issue, reference it in the commit message (e.g., "Fix #123: ...")
 
 TYPES OF INSTRUCTIONS TO GIVE:
 - Kill hanging servers and restart dev server
@@ -578,22 +722,38 @@ IMPORTANT:
 - Focus on using MCP browser tools for testing instead of E2E tests.
 ${stuckCommand ? 'IMPORTANT: Provide a NEW instruction to move forward, the previous command is stuck.' : ''}
 `;
-    builder.add(2, 'Development Priorities', devPriorities);
-    
-    // Priority 3: Previous prompts (important for avoiding loops)
-    if (promptHistory && promptHistory.length > 0) {
-      builder.add(3, 'Previous Prompts', `
+        builder.add(2, 'Development Priorities', devPriorities);
+        
+        // Priority 3: Previous prompts (important for avoiding loops)
+        if (promptHistory && promptHistory.length > 0) {
+          builder.add(3, 'Previous Prompts', `
 PREVIOUS PROMPTS IN THIS SESSION:
 ${promptHistory}
 `);
-    }
-    
-    // Priority 4: Situation reports (current state info)
-    const tsReport = getTypeScriptReport();
-    const vitestReport = getVitestReport();
-    const gitLog = getGitLog();
-    
-    const situationReport = `
+        }
+        
+        // Priority 3.5: GitHub Issues (high priority for task selection)
+        try {
+          const githubIssues = await fetchGitHubIssues();
+          if (githubIssues.length > 0) {
+            const githubIssuesPrompt = formatGitHubIssuesForPrompt(githubIssues);
+            builder.add(3.5, 'GitHub Issues', `
+${githubIssuesPrompt}
+
+IMPORTANT: Prioritize working on these GitHub issues over other improvements.
+When selecting a task, prefer addressing an open GitHub issue.
+`);
+          }
+        } catch (error) {
+          log('Failed to fetch GitHub issues:', error);
+        }
+        
+        // Priority 4: Situation reports (current state info)
+        const tsReport = getTypeScriptReport();
+        const vitestReport = getVitestReport();
+        const gitLog = getGitLog();
+        
+        const situationReport = `
 SITUATION REPORT:
 --- TypeScript (tsc) ---
 ${tsReport}
@@ -604,49 +764,83 @@ ${vitestReport}
 --- Recent Git History ---
 ${gitLog}
 `;
-    builder.add(4, 'Situation Report', situationReport);
-    
-    // Priority 5: Architecture documentation (important context)
-    builder.add(5, 'Architecture', `
+        builder.add(4, 'Situation Report', situationReport);
+        
+        // Priority 5: Architecture documentation (important context)
+        builder.add(5, 'Architecture', `
 ARCHITECTURE:
 ${ARCHITECTURE_CONTENT}
 `);
-    
-    // Priority 6: README (less critical than architecture)
-    builder.add(6, 'README', `
+        
+        // Priority 6: README (less critical than architecture)
+        builder.add(6, 'README', `
 PROJECT DOCUMENTATION:
 ${README_CONTENT}
 `);
-    
-    // Priority 7: Code snapshot (largest, least critical)
-    const codeSnapshot = captureCodeSnapshot();
-    builder.add(7, 'Code Snapshot', `
+        
+        // Priority 7: Code snapshot (largest, least critical)
+        const codeSnapshot = captureCodeSnapshot();
+        builder.add(7, 'Code Snapshot', `
 FULL CODEBASE SNAPSHOT:
 ${codeSnapshot}
 `);
-    
-    // Build the final prompt
-    const prompt = builder.build(TARGET_LENGTH);
+        
+        // Build the final prompt
+        const prompt = builder.build(TARGET_LENGTH);
 
-    const imagePart = {
-      inlineData: {
-        data: base64Image,
-        mimeType: 'image/png'
+        const imagePart = {
+          inlineData: {
+            data: base64Image,
+            mimeType: 'image/png'
+          }
+        };
+
+        const result = await model.generateContent([prompt, imagePart]);
+        const response = await result.response;
+        const responseText = response.text().trim();
+        
+        log(`Gemini ${modelName} response received, length:`, responseText.length);
+        log('Response preview:', responseText.substring(0, 200) + '...');
+        
+        return responseText;
+      } catch (error) {
+        const isRetryableError = error instanceof Error && (
+          error.message.includes('503') ||
+          error.message.includes('overloaded') ||
+          error.message.includes('429') ||
+          error.message.includes('500') ||
+          error.message.includes('502') ||
+          error.message.includes('504') ||
+          error.message.includes('ECONNRESET') ||
+          error.message.includes('ETIMEDOUT')
+        );
+        
+        log(`Model ${modelName} failed:`, error instanceof Error ? error.message : String(error));
+        
+        // If it's not a retryable error and we have more models to try, continue to next model
+        if (!isRetryableError && modelName !== MODELS[MODELS.length - 1]) {
+          continue;
+        }
+        
+        // If it's the last model or a retryable error, handle retry logic
+        if (isRetryableError && attempt < MAX_RETRIES && modelName === MODELS[MODELS.length - 1]) {
+          const delay = INITIAL_DELAY * Math.pow(2, attempt - 1); // Exponential backoff
+          log(`WARNING: All models failed with retryable errors (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          break; // Break inner loop to retry with all models
+        }
+        
+        // If we've exhausted all models and this is the last attempt, throw error
+        if (modelName === MODELS[MODELS.length - 1] && attempt === MAX_RETRIES) {
+          log('ERROR: Failed to analyze screenshot after all retries and all models:', error instanceof Error ? error.stack || error.message : String(error));
+          throw new Error(`Failed to analyze screenshot: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
       }
-    };
-
-    const result = await model.generateContent([prompt, imagePart]);
-    const response = await result.response;
-    const responseText = response.text().trim();
-    
-    log('Gemini response received, length:', responseText.length);
-    log('Response preview:', responseText.substring(0, 200) + '...');
-    
-    return responseText;
-  } catch (error) {
-    log('ERROR: Failed to analyze screenshot:', error instanceof Error ? error.stack || error.message : String(error));
-    throw new Error(`Failed to analyze screenshot: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
+  
+  // This should never be reached due to the throw in the catch block
+  throw new Error('Failed to analyze screenshot after all retries');
 }
 
 // Create the MCP server
@@ -706,31 +900,60 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  * to avoid accidentally closing the editor.
  */
 async function detectDialogOpen(): Promise<boolean> {
-  try {
-    log('Detecting if a dialog is open via Gemini vision…');
-    const screenshotPath = takeScreenshot();
-    const imageData = readFileSync(screenshotPath);
-    const base64Image = imageData.toString('base64');
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 1000;
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      log(`Detecting if a dialog is open via Gemini vision… (attempt ${attempt}/${MAX_RETRIES})`);
+      const screenshotPath = takeScreenshot();
+      const imageData = readFileSync(screenshotPath);
+      const base64Image = imageData.toString('base64');
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-    const prompt = `Look only at the chat/editor portion of the screenshot. Answer with a single word (yes/no) indicating whether a modal, popup or dialog window is currently open that would prevent typing into the chat.`;
+      // Try different models in order of preference
+      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+      let lastError: Error | null = null;
+      
+      for (const modelName of models) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const prompt = `Look only at the chat/editor portion of the screenshot. Answer with a single word (yes/no) indicating whether a modal, popup or dialog window is currently open that would prevent typing into the chat.`;
 
-    const imagePart = {
-      inlineData: {
-        data: base64Image,
-        mimeType: 'image/png',
-      },
-    };
+          const imagePart = {
+            inlineData: {
+              data: base64Image,
+              mimeType: 'image/png',
+            },
+          };
 
-    const result = await model.generateContent([prompt, imagePart]);
-    const responseText = result.response.text().trim().toLowerCase();
-    log('Gemini dialog detection response:', responseText);
-    unlinkSync(screenshotPath);
-    return responseText.startsWith('y'); // "yes" => dialog open
-  } catch (error) {
-    log('Dialog detection failed, assuming no dialog:', error);
-    return false;
+          const result = await model.generateContent([prompt, imagePart]);
+          const responseText = result.response.text().trim().toLowerCase();
+          log(`Gemini dialog detection response from ${modelName}:`, responseText);
+          unlinkSync(screenshotPath);
+          return responseText.startsWith('y'); // "yes" => dialog open
+        } catch (modelError) {
+          lastError = modelError as Error;
+          log(`Model ${modelName} failed:`, modelError);
+          continue; // Try next model
+        }
+      }
+      
+      // If all models failed, throw the last error
+      if (lastError) {
+        throw lastError;
+      }
+    } catch (error) {
+      if (attempt < MAX_RETRIES) {
+        log(`Dialog detection failed (attempt ${attempt}/${MAX_RETRIES}), retrying...`, error);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        continue;
+      }
+      log('Dialog detection failed after all retries, assuming no dialog:', error);
+      return false;
+    }
   }
+  
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -854,12 +1077,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             
             // Clean up screenshot
             log('Step 3: Cleaning up screenshot...');
-            unlinkSync(screenshotPath);
-            log('Screenshot cleaned up');
+            try {
+              unlinkSync(screenshotPath);
+              log('Screenshot cleaned up');
+            } catch (cleanupError) {
+              log('WARNING: Failed to clean up screenshot:', cleanupError);
+            }
             
             // Add to history & backlog
             log('Step 4: Adding to history and backlog...');
-            const taskId = addTaskToBacklog(instruction, 'in_progress');
+            const githubIssueNumber = extractGitHubIssueNumber(instruction);
+            const taskId = addTaskToBacklog(instruction, 'in_progress', githubIssueNumber);
             addToPromptHistory(instruction);
 
             // Send via UI automation
@@ -869,6 +1097,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             log('=== ASYNC ANALYSIS COMPLETE ===');
           } catch (error) {
             log('ERROR in async analysis:', error instanceof Error ? error.stack || error.message : String(error));
+            
+            // Attempt to send a fallback instruction if analysis fails
+            try {
+              const fallbackInstruction = 'The analysis system encountered an error. Please check the gemini-mcp-server.log file for details. For now, run `pnpm vitest run` to check if all tests are passing, then use the MCP browser tools to manually test the application.';
+              
+              log('Sending fallback instruction due to error...');
+              const taskId = addTaskToBacklog(fallbackInstruction, 'in_progress');
+              addToPromptHistory('[ERROR] ' + fallbackInstruction);
+              await sendToCursor(fallbackInstruction + '      IMPORTANT: After you are done with everything call the get_next_task tool');
+            } catch (fallbackError) {
+              log('ERROR: Failed to send fallback instruction:', fallbackError);
+            }
           }
         }, 100); // Start almost immediately, but allow the response to return first
 
@@ -903,8 +1143,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: 'text', text: 'ℹ️  No task is currently marked in progress.' }],
         };
       }
+      
       setTaskStatus(current.id, 'done');
       log('Marked task as done:', current.id);
+      
+      // Close GitHub issue if associated
+      if (current.githubIssueNumber) {
+        log(`Task has associated GitHub issue #${current.githubIssueNumber}, attempting to close...`);
+        const closed = await closeGitHubIssue(current.githubIssueNumber);
+        if (closed) {
+          return {
+            content: [
+              { type: 'text', text: `✅ Task "${current.title}" marked as done and GitHub issue #${current.githubIssueNumber} closed. You can now request the next task with get_next_task.` },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              { type: 'text', text: `✅ Task "${current.title}" marked as done (failed to close GitHub issue #${current.githubIssueNumber}). You can now request the next task with get_next_task.` },
+            ],
+          };
+        }
+      }
+      
       return {
         content: [
           { type: 'text', text: `✅ Task "${current.title}" marked as done. You can now request the next task with get_next_task.` },
