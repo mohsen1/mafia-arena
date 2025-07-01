@@ -92,7 +92,7 @@ describe('createAgentInstance', () => {
     const customConfig: CustomProviderConfig = {
       ollamaEndpoint: 'https://custom-ollama-server.com:8080/v1',
     };
-    
+
     createAgentInstance(config, testPlayerId, undefined, customConfig);
     expect(OpenAIAgent).toHaveBeenCalledTimes(1);
     expect(OpenAIAgent).toHaveBeenCalledWith(

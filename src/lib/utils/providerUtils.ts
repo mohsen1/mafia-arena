@@ -174,7 +174,9 @@ export function getProviderWithCustomEndpoint(
   providerValue: string,
   customConfig?: CustomProviderConfig
 ): AvailableProvider | undefined {
-  const baseProvider = getAllAvailableProviders([]).find(p => p.value === providerValue);
+  const baseProvider = getAllAvailableProviders([]).find(
+    (p) => p.value === providerValue
+  );
   if (!baseProvider) return undefined;
 
   if (providerValue === 'ollama_local' && customConfig?.ollamaEndpoint) {

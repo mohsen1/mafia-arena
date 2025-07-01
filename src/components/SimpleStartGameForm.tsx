@@ -422,7 +422,8 @@ export default function SimpleStartGameForm({
       </div>
 
       {/* Ollama Configuration */}
-      {(globalProviderSelection === 'ollama_local' || mafiaProviderSelection === 'ollama_local') && (
+      {(globalProviderSelection === 'ollama_local' ||
+        mafiaProviderSelection === 'ollama_local') && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium text-muted-foreground">

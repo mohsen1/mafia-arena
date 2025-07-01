@@ -505,7 +505,7 @@ describe('NightPhase', () => {
     // Check that the Mafia successfully voted
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      'The Mafia has chosen their target.',
+      'The Mafia has chosen to target Villager1.',
       MessageVisibility.Mafia
     );
     expect(mockGame.logMessage).not.toHaveBeenCalledWith(
@@ -586,7 +586,7 @@ describe('NightPhase', () => {
     // Verify the Mafia successfully voted (2 votes for same target = success)
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      'The Mafia has chosen their target.',
+      'The Mafia has chosen to target Villager1.',
       MessageVisibility.Mafia
     );
   });

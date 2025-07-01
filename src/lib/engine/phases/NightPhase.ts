@@ -151,21 +151,8 @@ export class NightPhase extends AbstractGamePhase {
 
     if (index >= players.length) {
       // Finished this step for all relevant players
-      let logMsg = `${currentStep} complete.`;
-      if (currentStep === 'MafiaVoting') logMsg = 'Mafia voting complete.';
-      else if (currentStep === 'OtherActionsLoop')
-        logMsg = 'Other night actions complete.';
-
-      // Log completion differently based on step
-      if (currentStep === 'MafiaDiscussion' || currentStep === 'MafiaVoting') {
-        if (players.length > 0)
-          game.logMessage(null, logMsg, MessageVisibility.Mafia);
-      } else if (currentStep !== 'OtherActionsStart') {
-        // Don't log for the start step
-        // Public log? Or maybe no log needed here?
-        // console.log(logMsg);
-      }
-
+      // Removed redundant completion messages to reduce nighttime chattiness
+      
       game.setPhaseStep(nextStep);
       game.setNextPlayerIndexToAction(0);
       return;
@@ -334,20 +321,11 @@ export class NightPhase extends AbstractGamePhase {
           }
           game.setPhaseState({ mafiaVotes: currentVotes });
 
-          game.logMessage(
-            player.id,
-            'chooses not to vote for a kill.',
-            MessageVisibility.Mafia
-          );
+          // Removed "chooses not to vote" message to reduce chattiness
         } else if (currentStep === 'MafiaDiscussion') {
-          game.logMessage(player.id, 'says nothing.', MessageVisibility.Mafia);
+          // Removed "says nothing" message to reduce chattiness
         } else if (currentStep === 'OtherActionsLoop') {
-          // Maybe log based on role?
-          game.logMessage(
-            player.id,
-            'performs no special action tonight.',
-            MessageVisibility.Private
-          );
+          // Removed "performs no special action" message to reduce chattiness
         }
         break;
     }
@@ -422,38 +400,23 @@ export class NightPhase extends AbstractGamePhase {
       this.#finalMafiaKillTarget = null; // Tie or no majority
     }
 
-    // Log result to Mafia
-    let voteSummary = 'Mafia Kill Vote Summary:\n';
-    for (const [voterId, targetId] of this.#mafiaVotes.entries()) {
-      const voterName = game.getPlayer(voterId)?.name ?? voterId;
-      const targetName = targetId
-        ? (game.getPlayer(targetId)?.name ?? targetId)
-        : '(abstain/invalid)';
-      voteSummary += `- ${voterName} voted for ${targetName}\n`;
-    }
-
+    // Log simplified result to Mafia (removed verbose vote-by-vote breakdown)
     if (this.#finalMafiaKillTarget) {
       const finalTargetName =
         game.getPlayer(this.#finalMafiaKillTarget)?.name ??
         this.#finalMafiaKillTarget;
-      voteSummary += `Result: The chosen target is ${finalTargetName}.`;
       game.logMessage(
         null,
-        'The Mafia has chosen their target.',
+        `The Mafia has chosen to target ${finalTargetName}.`,
         MessageVisibility.Mafia
       );
     } else if (validVoteCount > 0 && finalTargets.length > 1) {
-      const tiedNames = finalTargets
-        .map((id) => game.getPlayer(id)?.name ?? id)
-        .join(', ');
-      voteSummary += `Result: Vote tied between ${tiedNames}. No kill tonight.`;
       game.logMessage(
         null,
         'Mafia vote resulted in a tie. No kill tonight.',
         MessageVisibility.Mafia
       );
     } else if (validVoteCount > 0 && maxVotes < majorityThreshold) {
-      voteSummary += 'Result: No majority reached. No kill tonight.';
       game.logMessage(
         null,
         'Mafia vote did not reach majority. No kill tonight.',
@@ -461,14 +424,12 @@ export class NightPhase extends AbstractGamePhase {
       );
     } else {
       // validVoteCount === 0
-      voteSummary += 'Result: No valid votes cast. No kill tonight.';
       game.logMessage(
         null,
         'The Mafia cast no valid votes. No kill tonight.',
         MessageVisibility.Mafia
       );
     }
-    game.logMessage(null, voteSummary, MessageVisibility.Mafia); // Log detailed summary
   }
 
   /** Resolve saves, kills, investigations */

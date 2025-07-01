@@ -13,7 +13,10 @@ import { GeminiAgent } from './engine/agents/GeminiAgent';
 
 import { openAIProviders } from './models';
 import { getDecryptedApiKey } from '@/app/actions/api-keys.actions';
-import { getOllamaEndpoint, type CustomProviderConfig } from './utils/providerUtils';
+import {
+  getOllamaEndpoint,
+  type CustomProviderConfig,
+} from './utils/providerUtils';
 
 // Remove internal DummyAgent definition
 
@@ -69,7 +72,7 @@ export async function createAgentInstance(
     } else {
       apiBase = providerDef.endpoint;
     }
-    
+
     // Use user API key if available, otherwise fall back to environment variable
     if (!apiKey) {
       apiKey = providerDef.apiKeyEnvVar
