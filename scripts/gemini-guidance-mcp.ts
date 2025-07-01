@@ -16,6 +16,13 @@
  * the screenshot analysis to run asynchronously. Once complete, it uses
  * CLI automation to prompt Cursor with the next task.
  * 
+ * Features:
+ * - On-demand task generation via get_next_task tool
+ * - Smart watchdog that runs every 5 minutes to detect stuck states
+ * - Keeps last 3 screenshots to detect lack of progress vs temporary busy states
+ * - GitHub issue integration for prioritized task management
+ * - Backlog management with task status tracking
+ * 
  * Usage:
  * This server is run by Cursor when configured in .cursor/mcp.json
  * It exposes a tool that Cursor can call to get the next development task.
@@ -848,6 +855,12 @@ ${codeSnapshot}
 const WATCHDOG_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 let watchdogInProgress = false;
 
+// Screenshot history for better stuck detection
+// The watchdog now keeps the last 3 screenshots to compare them and detect if the system
+// is truly stuck (no progress between screenshots) vs just temporarily busy
+const SCREENSHOT_HISTORY_SIZE = 3;
+const screenshotHistory: Array<{ path: string; timestamp: number }> = [];
+
 /**
  * Lightweight analysis prompt for the 5-minute watchdog.
  * The model MUST respond with exactly one of:
@@ -858,25 +871,40 @@ let watchdogInProgress = false;
  * Example keypress response:
  *   keypress:kp:esc;kp:return
  */
-async function analyzeScreenshotForWatchdog(screenshotPath: string): Promise<string> {
+async function analyzeScreenshotForWatchdog(screenshotPaths: string[]): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const base64Image = readFileSync(screenshotPath).toString('base64');
+    
+    // Build image parts from all screenshots
+    const imageParts = screenshotPaths.map((path, index) => {
+      const base64Image = readFileSync(path).toString('base64');
+      return {
+        inlineData: {
+          data: base64Image,
+          mimeType: 'image/png',
+        },
+      };
+    });
 
-    const prompt = `You are monitoring the Cursor IDE. Decide what, if anything, needs to be done to keep development moving. 
-Look ONLY at the screenshot. Respond with EXACTLY one of the following options (no extra text):\n\n` +
-      `noop  – if Cursor is actively working or waiting for AI\n` +
-      `keypress:<cliclick-commands>  – if simple keyboard input (via cliclick) will unblock the IDE; separate multiple commands with semicolons\n` +
-      `start_next_task  – if work appears complete and the IDE is idle, so we should trigger the next task.`;
+    const screenshotCount = screenshotPaths.length;
+    let prompt = `You are monitoring the Cursor IDE. I'm showing you ${screenshotCount} screenshot(s) taken over time to help you detect if the system is stuck.
 
-    const imagePart = {
-      inlineData: {
-        data: base64Image,
-        mimeType: 'image/png',
-      },
-    };
+${screenshotCount > 1 ? `Compare the screenshots to see if there's any progress or if the system appears frozen/stuck. If the screenshots look identical or show no meaningful progress, the system might be stuck.` : 'Analyze the single screenshot for the current state.'}
 
-    const result = await model.generateContent([prompt, imagePart]);
+Decide what, if anything, needs to be done to keep development moving. Respond with EXACTLY one of the following options (no extra text):
+
+noop  – if Cursor is actively working or waiting for AI (making progress)
+keypress:<cliclick-commands>  – if simple keyboard input will unblock the IDE (e.g., kp:return to continue, kp:esc to dismiss dialogs); separate multiple commands with semicolons
+start_next_task  – if work appears complete and the IDE is idle, or if the system appears stuck and needs a new task
+
+Pay special attention to:
+- Whether the chat shows "Generating..." or thinking indicators (active = noop)
+- Whether there are modal dialogs that need dismissing (keypress to close)
+- Whether the system looks identical across multiple screenshots (possibly stuck = start_next_task or keypress)
+- Whether there are obvious error states or hanging processes`;
+
+    const content = [prompt, ...imageParts];
+    const result = await model.generateContent(content);
     const responseText = result.response.text().trim().toLowerCase();
     log('Watchdog Gemini response:', responseText);
     return responseText;
@@ -943,6 +971,38 @@ function processWatchdogAction(action: string): void {
   log('Watchdog returned unrecognized action; ignoring:', action);
 }
 
+function addScreenshotToHistory(screenshotPath: string): void {
+  const timestamp = Date.now();
+  screenshotHistory.push({ path: screenshotPath, timestamp });
+  
+  // Clean up old screenshots if we exceed the limit
+  while (screenshotHistory.length > SCREENSHOT_HISTORY_SIZE) {
+    const old = screenshotHistory.shift();
+    if (old) {
+      try {
+        unlinkSync(old.path);
+        log('Cleaned up old screenshot:', old.path);
+      } catch (err) {
+        log('Warning: Failed to clean up old screenshot:', old.path, err);
+      }
+    }
+  }
+  
+  log(`Screenshot history now has ${screenshotHistory.length} screenshots`);
+}
+
+function cleanupScreenshotHistory(): void {
+  log('Cleaning up all screenshot history...');
+  for (const screenshot of screenshotHistory) {
+    try {
+      unlinkSync(screenshot.path);
+    } catch (err) {
+      log('Warning: Failed to clean up screenshot:', screenshot.path, err);
+    }
+  }
+  screenshotHistory.length = 0;
+}
+
 function startWatchdog(): void {
   log('Starting 5-minute watchdog loop…');
   setInterval(async () => {
@@ -952,16 +1012,26 @@ function startWatchdog(): void {
     }
     watchdogInProgress = true;
     log('Watchdog tick');
-    const screenshotPath = takeScreenshot();
+    
     try {
-      const action = await analyzeScreenshotForWatchdog(screenshotPath);
+      // Take new screenshot with unique filename to avoid conflicts
+      const timestamp = Date.now();
+      const screenshotPath = `/tmp/cursor-watchdog-${timestamp}.png`;
+      execSync(`screencapture -x ${screenshotPath}`);
+      log('Watchdog screenshot taken:', screenshotPath);
+      
+      // Add to history
+      addScreenshotToHistory(screenshotPath);
+      
+      // Get all current screenshots for analysis
+      const screenshotPaths = screenshotHistory.map(s => s.path);
+      log('Analyzing watchdog with screenshots:', screenshotPaths.length);
+      
+      const action = await analyzeScreenshotForWatchdog(screenshotPaths);
       processWatchdogAction(action);
     } catch (err) {
       log('Watchdog tick failed:', err);
     } finally {
-      try {
-        unlinkSync(screenshotPath);
-      } catch {}
       watchdogInProgress = false;
     }
   }, WATCHDOG_INTERVAL_MS);
@@ -1388,6 +1458,17 @@ process.on('unhandledRejection', (error) => {
 
 process.on('uncaughtException', (error) => {
   log('Uncaught exception:', error);
+});
+
+// Clean up screenshot history on process exit
+process.on('exit', cleanupScreenshotHistory);
+process.on('SIGINT', () => {
+  cleanupScreenshotHistory();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  cleanupScreenshotHistory();
+  process.exit(0);
 });
 
 log('Starting main function...');
