@@ -843,6 +843,130 @@ ${codeSnapshot}
   throw new Error('Failed to analyze screenshot after all retries');
 }
 
+// ==================== Watchdog Loop (5-minute periodic check) ====================
+
+const WATCHDOG_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+let watchdogInProgress = false;
+
+/**
+ * Lightweight analysis prompt for the 5-minute watchdog.
+ * The model MUST respond with exactly one of:
+ *   noop                       – Cursor is busy/OK, take no action
+ *   keypress:<commands>        – Run the provided cliclick commands (semicolon-separated)
+ *   start_next_task            – Current work appears done, begin next task
+ *
+ * Example keypress response:
+ *   keypress:kp:esc;kp:return
+ */
+async function analyzeScreenshotForWatchdog(screenshotPath: string): Promise<string> {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const base64Image = readFileSync(screenshotPath).toString('base64');
+
+    const prompt = `You are monitoring the Cursor IDE. Decide what, if anything, needs to be done to keep development moving. 
+Look ONLY at the screenshot. Respond with EXACTLY one of the following options (no extra text):\n\n` +
+      `noop  – if Cursor is actively working or waiting for AI\n` +
+      `keypress:<cliclick-commands>  – if simple keyboard input (via cliclick) will unblock the IDE; separate multiple commands with semicolons\n` +
+      `start_next_task  – if work appears complete and the IDE is idle, so we should trigger the next task.`;
+
+    const imagePart = {
+      inlineData: {
+        data: base64Image,
+        mimeType: 'image/png',
+      },
+    };
+
+    const result = await model.generateContent([prompt, imagePart]);
+    const responseText = result.response.text().trim().toLowerCase();
+    log('Watchdog Gemini response:', responseText);
+    return responseText;
+  } catch (err) {
+    log('Watchdog analysis failed:', err);
+    return 'noop';
+  }
+}
+
+function processWatchdogAction(action: string): void {
+  if (action === 'noop') {
+    log('Watchdog decided: noop');
+    return;
+  }
+
+  if (action.startsWith('keypress:')) {
+    const cmds = action.replace(/^keypress:/, '').split(';').map(c => c.trim()).filter(Boolean);
+    log('Watchdog executing keypress commands:', cmds);
+    for (const cmd of cmds) {
+      try {
+        execSync(`cliclick ${cmd}`);
+      } catch (err) {
+        log('Watchdog keypress failed:', err);
+      }
+    }
+    return;
+  }
+
+  if (action === 'start_next_task') {
+    log('Watchdog initiating next task sequence');
+    // If a task is in progress, mark it done first
+    const current = getCurrentTask();
+    if (current) {
+      setTaskStatus(current.id, 'done');
+      if (current.githubIssueNumber) {
+        closeGitHubIssue(current.githubIssueNumber).catch(err => log('Failed to close issue in watchdog:', err));
+      }
+    }
+    // Trigger the same flow as get_next_task tool (asynchronously)
+    setTimeout(() => {
+      try {
+        log('[Watchdog] Triggering automatic get_next_task');
+        // Re-use the scheduling logic from the get_next_task handler
+        // Duplicate minimal logic here: take screenshot, analyze, send prompt
+        const screenshotPath = takeScreenshot();
+        analyzeScreenshotWithGemini(screenshotPath)
+          .then(async (instruction) => {
+            try {
+              unlinkSync(screenshotPath);
+            } catch {}
+            const githubIssueNumber = extractGitHubIssueNumber(instruction);
+            const taskId = addTaskToBacklog(instruction, 'in_progress', githubIssueNumber);
+            addToPromptHistory(instruction);
+            await sendToCursor(instruction + '      IMPORTANT: After you are done with everything call the get_next_task tool');
+          })
+          .catch(err => log('[Watchdog] Failed to generate next task:', err));
+      } catch (err) {
+        log('[Watchdog] Error in start_next_task flow:', err);
+      }
+    }, 100);
+    return;
+  }
+
+  log('Watchdog returned unrecognized action; ignoring:', action);
+}
+
+function startWatchdog(): void {
+  log('Starting 5-minute watchdog loop…');
+  setInterval(async () => {
+    if (watchdogInProgress) {
+      log('Watchdog skipped – previous run still in progress');
+      return;
+    }
+    watchdogInProgress = true;
+    log('Watchdog tick');
+    const screenshotPath = takeScreenshot();
+    try {
+      const action = await analyzeScreenshotForWatchdog(screenshotPath);
+      processWatchdogAction(action);
+    } catch (err) {
+      log('Watchdog tick failed:', err);
+    } finally {
+      try {
+        unlinkSync(screenshotPath);
+      } catch {}
+      watchdogInProgress = false;
+    }
+  }, WATCHDOG_INTERVAL_MS);
+}
+
 // Create the MCP server
 log('Creating MCP server instance...');
 const server = new Server(
@@ -1252,6 +1376,7 @@ async function main() {
   log('Connecting server to transport...');
   await server.connect(transport);
   log('MCP server connected and running');
+  startWatchdog();
 }
 
 log('Registering error handlers...');
