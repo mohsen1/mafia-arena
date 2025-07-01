@@ -119,7 +119,7 @@ export class DayPhase extends AbstractGamePhase {
     if (index >= players.length) {
       // Finished this step for all players
       const currentStep = game.getPhaseStep();
-      
+
       // Removed redundant completion messages to reduce moderator chattiness
       // Only log completion for Introduction phase as it's special
       if (currentStep === 'Introduction') {
@@ -129,7 +129,7 @@ export class DayPhase extends AbstractGamePhase {
           MessageVisibility.Public
         );
       }
-      
+
       game.setPhaseStep(nextStep); // Move to the next defined step
       game.setNextPlayerIndexToAction(0); // Reset index for the next step
 

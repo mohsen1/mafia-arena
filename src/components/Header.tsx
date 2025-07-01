@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface HeaderProps {
   currentLang: string;
@@ -48,6 +49,7 @@ export function Header({ currentLang }: HeaderProps) {
             ) : session ? (
               // Authenticated User Menu
               <div className="flex items-center space-x-2">
+                <ThemeToggle />
                 <Button asChild>
                   <Link href={`/${currentLang}/new`}>
                     <Gamepad2 className="w-4 h-4 me-2" />
@@ -111,6 +113,7 @@ export function Header({ currentLang }: HeaderProps) {
             ) : (
               // Guest User Buttons
               <div className="flex items-center space-x-2">
+                <ThemeToggle />
                 <Button
                   variant="outline"
                   onClick={handleSignIn}
