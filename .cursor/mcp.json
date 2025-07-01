@@ -1,17 +1,13 @@
 {
-    "mcpServers": {
-      "browser-tools": {
-        "command": "pnpx",
-        "args": [
-
-          "@agentdeskai/browser-tools-mcp@1.2.0"
-        ],
-        "env": {}
-      },
-      "gemini-guidance": {
-        "command": "./scripts/run-mcp-clean.sh",
-        "args": [],
-        "env": {}
-      }
+  "mcpServers": {
+    "browsermcp": {
+      "command": "npx",
+      "args": ["@browsermcp/mcp@latest"]
+    },
+    "gemini-guidance": {
+      "command": "./scripts/run-mcp-clean.sh",
+      "args": [],
+      "env": {}
     }
   }
+}

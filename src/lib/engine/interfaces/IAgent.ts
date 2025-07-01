@@ -41,9 +41,10 @@ export interface IAgent {
    * based on the game theme. It should store the generated persona internally.
    * @param themeDescription A one-liner describing the game's theme.
    * @param language Optional language code for the persona generation (defaults to English if not provided).
+   * @param existingNames Optional array of names already taken by other players to avoid duplicates.
    * @returns A promise that resolves when the persona is generated (or fallback used).
    */
-  generatePersona?(themeDescription: string, language?: string): Promise<void>;
+  generatePersona?(themeDescription: string, language?: string, existingNames?: string[]): Promise<void>;
 
   /**
    * The persona associated with this agent, potentially generated.

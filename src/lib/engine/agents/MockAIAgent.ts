@@ -25,12 +25,28 @@ export class MockAIAgent implements IAgent {
    */
   async generatePersona(
     themeDescription: string,
-    language?: string
+    language?: string,
+    existingNames?: string[]
   ): Promise<void> {
-    const names = ['Alex', 'Charlie', 'Sam', 'Jamie', 'Morgan'];
+    const names = ['Alex', 'Charlie', 'Sam', 'Jamie', 'Morgan', 'Taylor', 'Jordan', 'Casey', 'Blake', 'Riley'];
     const traits = ['Curious', 'Brave', 'Suspicious', 'Loyal', 'Clever'];
     const pickTraits = shuffleArray(traits.slice()).slice(0, 3);
-    const name = getRandomElement(names) || 'Alex';
+    
+    // Filter out existing names to avoid duplicates
+    const availableNames = existingNames 
+      ? names.filter(name => !existingNames.includes(name))
+      : names;
+    
+    // If all names are taken, generate a unique name with a suffix
+    let name: string;
+    if (availableNames.length > 0) {
+      name = getRandomElement(availableNames) || 'Alex';
+    } else {
+      // Fallback: use base name with ID suffix to ensure uniqueness
+      const baseName = getRandomElement(names) || 'Alex';
+      name = `${baseName}-${this.id.slice(-4)}`; // Use last 4 chars of ID for uniqueness
+    }
+    
     const langNote = language ? ` who speaks ${language}` : '';
     this.persona = {
       name,

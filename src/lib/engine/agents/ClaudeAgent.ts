@@ -60,11 +60,12 @@ export class ClaudeAgent implements IAgent {
 
   async generatePersona(
     themeDescription: string,
-    language?: string
+    language?: string,
+    existingNames?: string[]
   ): Promise<void> {
     const agentIdForLog = `${this.id} (Persona Gen)`;
     log(
-      `[${agentIdForLog}] Generating persona with theme: ${themeDescription}, language: ${language || 'en'}`
+      `[${agentIdForLog}] Generating persona with theme: ${themeDescription}, language: ${language || 'en'}, avoiding names: ${existingNames?.join(', ') || 'none'}`
     );
 
     if (!anthropic) {
@@ -77,7 +78,8 @@ export class ClaudeAgent implements IAgent {
 
     const personaPrompt = getPersonaGenerationPrompt(
       themeDescription,
-      language
+      language,
+      existingNames
     );
 
     try {

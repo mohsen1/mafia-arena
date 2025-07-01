@@ -57,14 +57,21 @@ export function PlayerStatsPanel({ gameState }: PlayerStatsProps) {
         const targetName = voteMatch[1];
         playerStats.votesCast.push({ targetName, round: message.round });
 
-        // Count votes received
-        const targetPlayer = Object.values(gameState.players).find(
-          (p) => p.name === targetName
-        );
-        if (targetPlayer) {
-          const targetStats = statsMap.get(targetPlayer.id);
-          if (targetStats) {
-            targetStats.votesReceived++;
+        // Count votes received - ONLY from the most recent Day phase of current round
+        // This ensures we show votes from the most recent voting session
+        const isCurrentRoundDayVote = 
+          message.round === gameState.round && 
+          message.phase === 'Day';
+          
+        if (isCurrentRoundDayVote) {
+          const targetPlayer = Object.values(gameState.players).find(
+            (p) => p.name === targetName
+          );
+          if (targetPlayer) {
+            const targetStats = statsMap.get(targetPlayer.id);
+            if (targetStats) {
+              targetStats.votesReceived++;
+            }
           }
         }
       }
