@@ -61,7 +61,8 @@ export async function generateCharacterPersona(
   playerId: PlayerId,
   agentConfig: AgentConfig,
   themeDescription: string,
-  language?: string
+  language?: string,
+  existingNames?: string[]
 ): Promise<Persona> {
   return retryWithBackoff(
     async () => {
@@ -71,7 +72,7 @@ export async function generateCharacterPersona(
         return DEFAULT_PERSONA;
       }
 
-      await tempAgent.generatePersona(themeDescription, language);
+      await tempAgent.generatePersona(themeDescription, language, existingNames);
 
       if (
         !tempAgent.persona ||

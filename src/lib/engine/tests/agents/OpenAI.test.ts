@@ -494,6 +494,7 @@ describe('OpenAIAgent', () => {
 
       expect(getPersonaGenerationPrompt).toHaveBeenCalledWith(
         themeDesc,
+        undefined,
         undefined
       );
       expect(mockCreate).toHaveBeenCalledTimes(1);

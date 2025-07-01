@@ -45,13 +45,27 @@ const MAX_MESSAGES_IN_PROMPT = 15; // Example value, adjust as needed
  * Generates the prompt for an LLM agent to create its persona.
  * @param themeDescription A one-liner describing the game's theme.
  * @param language The language to generate the persona in (defaults to English if not provided).
+ * @param existingNames Optional array of names already taken by other players.
  */
 export function getPersonaGenerationPrompt(
   themeDescription: string,
-  language?: string
+  language?: string,
+  existingNames?: string[]
 ): string {
   // Always include language instruction, not just for non-English
   const targetLanguage = language || 'English';
+
+  let nameUniquenessSection = '';
+  if (existingNames && existingNames.length > 0) {
+    nameUniquenessSection = `
+    
+    CRITICAL NAME UNIQUENESS REQUIREMENT:
+    - The following names are ALREADY TAKEN by other players: ${existingNames.join(', ')}
+    - You MUST create a COMPLETELY DIFFERENT name that is NOT on this list
+    - Your character name must be UNIQUE and distinct from all existing names
+    - Avoid variations or similar-sounding names to those already taken
+    - If you accidentally generate a duplicate name, the game will fail, so be very careful`;
+  }
 
   return dedent`
     You are a creative writer tasked with generating a character persona for a text-based Mafia game.
@@ -64,7 +78,7 @@ export function getPersonaGenerationPrompt(
     - If the theme says "Japanese Village" but the language is Spanish, use SPANISH names, NOT Japanese names  
     - The character should fit the theme's TIME PERIOD and SOCIAL SETTING, but use ${targetLanguage} names and language
     - Write the backstory and personality traits in ${targetLanguage}
-    - Ensure all text sounds natural and culturally appropriate for ${targetLanguage} speakers
+    - Ensure all text sounds natural and culturally appropriate for ${targetLanguage} speakers${nameUniquenessSection}
 
     Example: For "UK Village 1900s" theme in Persian, create a character with a Persian name who lives in that time period and setting.
 

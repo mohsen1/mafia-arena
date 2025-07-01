@@ -62,6 +62,15 @@ export async function generateGameCharactersAction(
       (player) => !player.isHuman
     );
 
+    const generatedNames: string[] = [];
+
+    // First, collect names of human players who already have names
+    Object.values(gameState.players).forEach((player) => {
+      if (player.isHuman && player.name) {
+        generatedNames.push(player.name);
+      }
+    });
+
     for (let i = 0; i < aiPlayers.length; i++) {
       const player = aiPlayers[i];
 
@@ -72,8 +81,35 @@ export async function generateGameCharactersAction(
           player.id,
           player.agentConfig,
           theme.description,
-          gameState.language
+          gameState.language,
+          generatedNames
         );
+
+        // Check for duplicate names and retry if necessary
+        let finalPersona = persona;
+        if (generatedNames.includes(persona.name)) {
+          console.warn(`Duplicate name generated: ${persona.name}. Retrying...`);
+          // Retry with current existing names
+          try {
+            finalPersona = await generateCharacterPersona(
+              player.name,
+              player.id,
+              player.agentConfig,
+              theme.description,
+              gameState.language,
+              generatedNames
+            );
+          } catch (retryError) {
+            console.warn(`Retry failed, using fallback name for ${player.name}`);
+            finalPersona = {
+              ...persona,
+              name: `${persona.name}-${player.id.slice(-4)}` // Ensure uniqueness
+            };
+          }
+        }
+
+        // Add the final name to the list
+        generatedNames.push(finalPersona.name);
 
         // Generate character image
         let characterImageUrl = player.imageUrl;
@@ -91,8 +127,8 @@ export async function generateGameCharactersAction(
         // Update player with generated data
         gameState.players[player.id] = {
           ...player,
-          name: persona.name,
-          persona: persona,
+          name: finalPersona.name,
+          persona: finalPersona,
           imageUrl: characterImageUrl,
         };
 
@@ -104,6 +140,7 @@ export async function generateGameCharactersAction(
           error
         );
         // Keep placeholder data if generation fails
+        generatedNames.push(player.name); // Add original name to avoid conflicts
       }
     }
 

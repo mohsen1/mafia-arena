@@ -1,0 +1,14 @@
+{
+    "mcpServers": {
+      "browsermcp": {
+        "command": "npx",
+        "args": ["@browsermcp/mcp@latest"]
+      },
+      "gemini-guidance": {
+        "command": "./scripts/run-mcp-clean.sh",
+        "args": [],
+        "env": {}
+      }
+    }
+  }
+  
