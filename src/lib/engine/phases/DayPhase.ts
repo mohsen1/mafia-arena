@@ -263,7 +263,6 @@ export class DayPhase extends AbstractGamePhase {
     const voteCounts = new Map<PlayerId, number>();
     let maxVotes = 0;
     let playersToExecute: PlayerId[] = [];
-    const alivePlayerCount = game.getAlivePlayers().length;
 
     // Use the votes stored in this.#votes
     for (const [, targetId] of this.#votes.entries()) {
@@ -291,16 +290,14 @@ export class DayPhase extends AbstractGamePhase {
       }
     }
 
-    // Determine execution based on majority
-    // A true majority requires MORE than half the votes
-    const majorityThreshold = Math.floor(alivePlayerCount / 2) + 1;
-
+    // Determine execution based on highest vote count (plurality rule)
+    // The player with the most votes is eliminated, UNLESS there's a tie for highest
     let executedPlayerId: PlayerId | null = null;
-    if (maxVotes >= majorityThreshold && playersToExecute.length === 1) {
+    if (maxVotes > 0 && playersToExecute.length === 1) {
+      // Clear winner: one player has the most votes
       executedPlayerId = playersToExecute[0];
       const executedPlayer = game.getPlayer(executedPlayerId);
       const executedPlayerName = executedPlayer?.name ?? executedPlayerId;
-      // const executedPlayerRole = executedPlayer?.role.name ?? 'Unknown Role';
       game.logMessage(
         null,
         translate('ExecutionDecision', game.language, {
@@ -315,34 +312,18 @@ export class DayPhase extends AbstractGamePhase {
         executedPlayerId,
         translate('ExecutionReason', game.language)
       );
-    } else if (
-      maxVotes > 0 &&
-      (playersToExecute.length > 1 || maxVotes < majorityThreshold)
-    ) {
+    } else if (maxVotes > 0 && playersToExecute.length > 1) {
+      // Tie for highest votes - no elimination
       const tiedNames = playersToExecute
         .map((id) => game.getPlayer(id)?.name ?? id)
         .join(', ');
-      if (maxVotes < majorityThreshold) {
-        game.logMessage(
-          null,
-          translate('VoteNoMajority', game.language),
-          MessageVisibility.Public
-        );
-      } else if (playersToExecute.length > 1) {
-        game.logMessage(
-          null,
-          translate('VoteTieResult', game.language, { playerNames: tiedNames }),
-          MessageVisibility.Public
-        );
-      } else {
-        game.logMessage(
-          null,
-          translate('VoteInsufficientVotes', game.language),
-          MessageVisibility.Public
-        );
-      }
+      game.logMessage(
+        null,
+        translate('VoteTieResult', game.language, { playerNames: tiedNames }),
+        MessageVisibility.Public
+      );
     } else {
-      // maxVotes === 0
+      // maxVotes === 0 - no votes cast
       game.logMessage(
         null,
         translate('NoVotesCast', game.language),

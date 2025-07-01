@@ -318,10 +318,10 @@ describe('DayPhase', () => {
     // TallyVotes
     mockGame.setNextPlayerIndexToAction(0);
     await dayPhase.runStep(mockGame as unknown as Game);
-    // No majority, no one executed in this setup
+    // Tie vote (p1 votes for p2, p2 votes for p1, p3 abstains), no one executed
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      'VoteNoMajority',
+      'VoteTieResult',
       MessageVisibility.Public
     );
     expect(mockGame.killPlayer).not.toHaveBeenCalled();
@@ -449,7 +449,7 @@ describe('DayPhase', () => {
     expect(mockGame.killPlayer).not.toHaveBeenCalled();
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      'VoteNoMajority',
+      'VoteTieResult',
       MessageVisibility.Public
     );
     expect(mockGame.getPhaseStep()).toBe('Finished');
@@ -556,7 +556,7 @@ describe('DayPhase', () => {
     expect(mockGame.getPhaseStep()).toBe('Finished');
   });
 
-  it('should NOT execute player with exactly half votes (3 out of 6) - this test should FAIL with current buggy logic', async () => {
+  it('should execute player with plurality votes (3 out of 6 with highest count)', async () => {
     mockGame.round = 2;
     // Create 6 players
     const p5 = createMockPlayerForDayPhase('p5', 'Player5', new SeerRole());
@@ -575,7 +575,8 @@ describe('DayPhase', () => {
       return undefined;
     });
 
-    // Set up voting: exactly 3 players vote for p3 (exactly half), others spread out
+    // Set up voting: 3 players vote for p3 (plurality), others get 1 vote each
+    // p3: 3 votes, p4: 1 vote, p1: 1 vote, p2: 1 vote
     mockGame.requestPlayerAction.mockImplementation((player) => {
       const currentStep = mockGame.getPhaseStep();
       if (currentStep === 'Discussion') {
@@ -625,12 +626,11 @@ describe('DayPhase', () => {
     mockGame.setNextPlayerIndexToAction(0);
     await dayPhase.runStep(mockGame as unknown as Game);
 
-    // With exactly 3 out of 6 votes (exactly half), p3 should NOT be executed
-    // A true majority requires MORE than half (4+ votes with 6 players)
-    expect(mockGame.killPlayer).not.toHaveBeenCalled();
+    // With 3 votes for p3 (highest count), p3 should be executed under plurality rules
+    expect(mockGame.killPlayer).toHaveBeenCalledWith('p3', 'ExecutionReason');
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      'VoteNoMajority',
+      'ExecutionDecision',
       MessageVisibility.Public
     );
     expect(mockGame.getPhaseStep()).toBe('Finished');
