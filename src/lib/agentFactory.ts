@@ -13,6 +13,7 @@ import { GeminiAgent } from './engine/agents/GeminiAgent';
 
 import { openAIProviders } from './models';
 import { getDecryptedApiKey } from '@/app/actions/api-keys.actions';
+import { getOllamaEndpoint, type CustomProviderConfig } from './utils/providerUtils';
 
 // Remove internal DummyAgent definition
 
@@ -24,12 +25,14 @@ import { getDecryptedApiKey } from '@/app/actions/api-keys.actions';
  * @param agentConfig Configuration object specifying the agent type and settings.
  * @param playerId The ID to assign to the created agent.
  * @param userId Optional user ID to use user-provided API keys.
+ * @param customConfig Optional custom provider configuration (e.g., for Ollama endpoints).
  * @returns An instance of the specified agent conforming to IAgent.
  */
 export async function createAgentInstance(
   agentConfig: AgentConfig,
   playerId: PlayerId,
-  userId?: string
+  userId?: string,
+  customConfig?: CustomProviderConfig
 ): Promise<IAgent> {
   if (process.env.USE_MOCK_AI === 'true') {
     return new MockAIAgent(playerId);
@@ -60,7 +63,13 @@ export async function createAgentInstance(
     (p) => p.value === agentConfig.providerValue
   );
   if (providerDef) {
-    apiBase = providerDef.endpoint;
+    // Use custom endpoint for Ollama if provided, otherwise use default
+    if (providerDef.value === 'ollama_local') {
+      apiBase = getOllamaEndpoint(customConfig);
+    } else {
+      apiBase = providerDef.endpoint;
+    }
+    
     // Use user API key if available, otherwise fall back to environment variable
     if (!apiKey) {
       apiKey = providerDef.apiKeyEnvVar

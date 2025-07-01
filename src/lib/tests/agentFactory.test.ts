@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { createAgentInstance } from '@/lib/agentFactory';
 import type { AgentConfig } from '@/lib/interfaces/persistence.types';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import type { CustomProviderConfig } from '@/lib/utils/providerUtils';
 import { OpenAIAgent } from '@/lib/engine/agents/OpenAIAgent';
 import { HumanAgent } from '@/lib/engine/agents/HumanAgent';
 // Import DummyAgent correctly based on its actual location
@@ -77,6 +78,27 @@ describe('createAgentInstance', () => {
       testPlayerId,
       'llama3:latest',
       'http://localhost:11434/v1',
+      undefined
+    );
+  });
+
+  it('should create an OpenAIAgent for agentType "Ollama" with custom endpoint', () => {
+    // Test custom Ollama endpoint configuration
+    const config: AgentConfig = {
+      agentType: 'Ollama',
+      modelName: 'llama3:latest',
+      providerValue: 'ollama_local',
+    };
+    const customConfig: CustomProviderConfig = {
+      ollamaEndpoint: 'https://custom-ollama-server.com:8080/v1',
+    };
+    
+    createAgentInstance(config, testPlayerId, undefined, customConfig);
+    expect(OpenAIAgent).toHaveBeenCalledTimes(1);
+    expect(OpenAIAgent).toHaveBeenCalledWith(
+      testPlayerId,
+      'llama3:latest',
+      'https://custom-ollama-server.com:8080/v1',
       undefined
     );
   });

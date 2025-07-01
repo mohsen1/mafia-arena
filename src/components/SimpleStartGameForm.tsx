@@ -27,6 +27,7 @@ import {
   getAllAvailableProviders,
   getProviderDisplayTitle,
 } from '@/lib/utils/providerUtils';
+import { OllamaConfig, type OllamaConfiguration } from './OllamaConfig';
 
 export interface SimpleStartGameFormProps {
   lang: LanguageCode;
@@ -84,6 +85,14 @@ export default function SimpleStartGameForm({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [userApiKeys, setUserApiKeys] = useState<UserApiKeyInfo[]>([]);
+  const [showOllamaConfig, setShowOllamaConfig] = useState(false);
+  const [ollamaConfig, setOllamaConfig] = useState<OllamaConfiguration>({
+    host: 'localhost',
+    port: 11434,
+    protocol: 'http',
+    apiPath: '/v1',
+    enabled: true,
+  });
 
   // Sync mafia settings when not using separate config
   useEffect(() => {
@@ -411,6 +420,35 @@ export default function SimpleStartGameForm({
           </div>
         )}
       </div>
+
+      {/* Ollama Configuration */}
+      {(globalProviderSelection === 'ollama_local' || mafiaProviderSelection === 'ollama_local') && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium text-muted-foreground">
+              Ollama Configuration
+            </Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowOllamaConfig(!showOllamaConfig)}
+              disabled={isSubmitting}
+            >
+              {showOllamaConfig ? 'Hide' : 'Configure'} Ollama
+            </Button>
+          </div>
+
+          {showOllamaConfig && (
+            <div className="border rounded-lg p-4">
+              <OllamaConfig
+                initialConfig={ollamaConfig}
+                onConfigChange={setOllamaConfig}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Human Player Option */}
       <div className="space-y-3">
