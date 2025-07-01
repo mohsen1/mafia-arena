@@ -292,11 +292,11 @@ export class DayPhase extends AbstractGamePhase {
     }
 
     // Determine execution based on majority
-    // Using Math.ceil(alivePlayerCount / 2) for simple majority
-    const majorityThresholdStrict = Math.ceil(alivePlayerCount / 2);
+    // A true majority requires MORE than half the votes
+    const majorityThreshold = Math.floor(alivePlayerCount / 2) + 1;
 
     let executedPlayerId: PlayerId | null = null;
-    if (maxVotes >= majorityThresholdStrict && playersToExecute.length === 1) {
+    if (maxVotes >= majorityThreshold && playersToExecute.length === 1) {
       executedPlayerId = playersToExecute[0];
       const executedPlayer = game.getPlayer(executedPlayerId);
       const executedPlayerName = executedPlayer?.name ?? executedPlayerId;
@@ -317,12 +317,12 @@ export class DayPhase extends AbstractGamePhase {
       );
     } else if (
       maxVotes > 0 &&
-      (playersToExecute.length > 1 || maxVotes < majorityThresholdStrict)
+      (playersToExecute.length > 1 || maxVotes < majorityThreshold)
     ) {
       const tiedNames = playersToExecute
         .map((id) => game.getPlayer(id)?.name ?? id)
         .join(', ');
-      if (maxVotes < majorityThresholdStrict) {
+      if (maxVotes < majorityThreshold) {
         game.logMessage(
           null,
           translate('VoteNoMajority', game.language),
