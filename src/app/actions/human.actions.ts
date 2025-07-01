@@ -36,7 +36,7 @@ export async function submitHumanAction(
       return { error: 'No pending human action found' };
     }
 
-    const game = Game.loadFromState(gameState);
+    const game = await Game.loadFromState(gameState);
     const currentPhase = game.getCurrentPhase();
 
     // Convert HumanActionPayload to PlayerAction

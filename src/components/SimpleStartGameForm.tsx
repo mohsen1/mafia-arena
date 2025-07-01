@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MagicalAIButton } from '@/components/ui/magical-ai-button';
-import { ProviderModelSelector } from './ProviderModelSelector';
+import { EnhancedProviderModelSelector } from './EnhancedProviderModelSelector';
 import { GameThemeSelector } from './GameThemeSelector';
 import LanguageSelector from './LanguageSelector';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +17,16 @@ import { startGameAction } from '@/app/actions';
 import type { StartGameSetupData } from '@/lib/interfaces/actions.types';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
-import { availableProviders, availableModelsByProvider } from '@/lib/models';
+import { availableModelsByProvider } from '@/lib/models';
+import { UserApiKeyManager } from './UserApiKeyManager';
+import {
+  getUserApiKeys,
+  type UserApiKeyInfo,
+} from '@/app/actions/api-keys.actions';
+import {
+  getAllAvailableProviders,
+  getProviderDisplayTitle,
+} from '@/lib/utils/providerUtils';
 
 export interface SimpleStartGameFormProps {
   lang: LanguageCode;
@@ -73,6 +82,8 @@ export default function SimpleStartGameForm({
   const [playerCount, setPlayerCount] = useState(6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showApiKeyManager, setShowApiKeyManager] = useState(false);
+  const [userApiKeys, setUserApiKeys] = useState<UserApiKeyInfo[]>([]);
 
   // Sync mafia settings when not using separate config
   useEffect(() => {
@@ -97,18 +108,38 @@ export default function SimpleStartGameForm({
     }
   }, [isHumanJoining, humanPlayerName, defaultPlayerName]);
 
+  // Load user API keys
+  useEffect(() => {
+    const loadUserApiKeys = async () => {
+      try {
+        const keys = await getUserApiKeys();
+        setUserApiKeys(keys);
+      } catch (error) {
+        console.error('Failed to load user API keys:', error);
+        // Silently fail - user can still use environment keys
+      }
+    };
+
+    if (user?.email) {
+      loadUserApiKeys();
+    }
+  }, [user?.email]);
+
   // Auto-select first available provider and model as default
   useEffect(() => {
-    if (!globalProviderSelection && availableProviders.length > 0) {
-      const firstProvider = availableProviders[0];
-      const defaultModel = getDefaultModelForProvider(firstProvider.value);
+    if (!globalProviderSelection) {
+      const enhancedProviders = getAllAvailableProviders(userApiKeys);
+      if (enhancedProviders.length > 0) {
+        const firstProvider = enhancedProviders[0];
+        const defaultModel = getDefaultModelForProvider(firstProvider.value);
 
-      if (firstProvider && defaultModel) {
-        setGlobalProviderSelection(firstProvider.value);
-        setGlobalModelSelection(defaultModel);
+        if (firstProvider && defaultModel) {
+          setGlobalProviderSelection(firstProvider.value);
+          setGlobalModelSelection(defaultModel);
+        }
       }
     }
-  }, [globalProviderSelection]);
+  }, [globalProviderSelection, userApiKeys]);
 
   const handleGlobalProviderModelChange = useCallback(
     (provider: string, model: string) => {
@@ -125,6 +156,16 @@ export default function SimpleStartGameForm({
     },
     []
   );
+
+  const handleApiKeysChanged = useCallback(async () => {
+    // Reload user API keys when they change
+    try {
+      const keys = await getUserApiKeys();
+      setUserApiKeys(keys);
+    } catch (error) {
+      console.error('Failed to reload user API keys:', error);
+    }
+  }, []);
 
   const canStartGame = useMemo(() => {
     const hasGlobalModel = globalProviderSelection && globalModelSelection;
@@ -282,11 +323,12 @@ export default function SimpleStartGameForm({
             <Bot size={16} />
             {t('AI Engine', 'AI Engine')}
           </Label>
-          <ProviderModelSelector
+          <EnhancedProviderModelSelector
             idPrefix="global-provider"
             selectedProviderValue={globalProviderSelection}
             selectedModel={globalModelSelection}
             onProviderModelChange={handleGlobalProviderModelChange}
+            availableProviders={getAllAvailableProviders(userApiKeys)}
             disabled={isSubmitting}
           />
         </div>
@@ -317,13 +359,55 @@ export default function SimpleStartGameForm({
             <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
               {t('MafiaEngineLabel', 'Mafia AI Engine')}
             </Label>
-            <ProviderModelSelector
+            <EnhancedProviderModelSelector
               idPrefix="mafia-provider"
               selectedProviderValue={mafiaProviderSelection}
               selectedModel={mafiaModelSelection}
               onProviderModelChange={handleMafiaProviderModelChange}
+              availableProviders={getAllAvailableProviders(userApiKeys)}
               disabled={isSubmitting}
             />
+          </div>
+        )}
+      </div>
+
+      {/* API Key Management */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium text-muted-foreground">
+            {t('API Keys', 'API Keys')}
+          </Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowApiKeyManager(!showApiKeyManager)}
+            disabled={isSubmitting}
+          >
+            {showApiKeyManager ? 'Hide' : 'Manage'} API Keys
+          </Button>
+        </div>
+
+        {showApiKeyManager && (
+          <div className="border rounded-lg p-4">
+            <UserApiKeyManager onKeysChanged={handleApiKeysChanged} />
+          </div>
+        )}
+
+        {/* Show available providers summary */}
+        {userApiKeys.length > 0 && (
+          <div className="text-sm text-muted-foreground">
+            <p className="mb-2">Available AI providers:</p>
+            <div className="flex flex-wrap gap-2">
+              {getAllAvailableProviders(userApiKeys).map((provider) => (
+                <span
+                  key={provider.value}
+                  className="inline-flex items-center px-2 py-1 bg-secondary text-secondary-foreground rounded-md text-xs"
+                >
+                  {getProviderDisplayTitle(provider)}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>

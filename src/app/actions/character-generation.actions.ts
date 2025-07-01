@@ -150,7 +150,7 @@ export async function generateGameCharactersAction(
     }
 
     // Load game and transition to next phase
-    const game = Game.loadFromState(gameState);
+    const game = await Game.loadFromState(gameState);
 
     game.markRolesAssigned();
     game.markPersonasGenerated();
