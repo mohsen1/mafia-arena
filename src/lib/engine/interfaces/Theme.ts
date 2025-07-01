@@ -39,6 +39,21 @@ export const Themes: Record<string, GameTheme> = {
     description:
       'A kingdom plagued by intrigue, betrayal, and rumors of dark magic.',
   },
+  ARCTIC_RESEARCH_STATION: {
+    name: 'Arctic Research Station',
+    description:
+      'An isolated research facility in the frozen Antarctic wasteland, where the cold is the least of your worries.',
+  },
+  CARIBBEAN_PIRATE_SHIP: {
+    name: 'Caribbean Pirate Ship',
+    description:
+      'A notorious pirate vessel sailing the treacherous waters of the Caribbean, where mutiny lurks beneath every deck.',
+  },
+  CYBERPUNK_MEGACITY: {
+    name: 'Cyberpunk Megacity',
+    description:
+      'A neon-soaked dystopian metropolis controlled by mega-corporations, where trust is a luxury few can afford.',
+  },
 };
 
 // --- Removed old example theme implementations and persona pools ---
