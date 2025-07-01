@@ -604,4 +604,66 @@ describe('NightPhase', () => {
     const nextPhaseType = nightPhase.transition(mockGame as unknown as Game);
     expect(nextPhaseType).toBe('GameOver');
   });
+
+  it('should correctly process a night where the Doctor saves a player and the Seer investigates another player', async () => {
+    const alivePlayers = [mafiaPlayer1, doctorPlayer, seerPlayer, villagerPlayer];
+    mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+    mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1]);
+
+    // Mafia will attempt to kill villager
+    (mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ type: 'message', content: 'Kill v1' })
+      .mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+
+    // Doctor saves the villager
+    (doctorPlayer.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      type: 'doctorSave',
+      targetPlayerId: 'v1',
+    });
+
+    // Seer investigates the mafia player
+    (seerPlayer.agent.getAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      type: 'seerInvestigate',
+      targetPlayerId: 'm1',
+    });
+
+    // Begin night phase cycle
+    mockGame.setPhaseStep('Start');
+    await nightPhase.runStep(mockGame as unknown as Game);
+
+    // MafiaDiscussion & MafiaVoting loops
+    await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1]); // discussion
+    await runPlayerLoopNight(mockGame, nightPhase, [mafiaPlayer1]); // voting
+
+    // Consolidate vote
+    mockGame.setNextPlayerIndexToAction(0);
+    await nightPhase.runStep(mockGame as unknown as Game);
+
+    // OtherActionsStart
+    mockGame.setNextPlayerIndexToAction(0);
+    await nightPhase.runStep(mockGame as unknown as Game);
+
+    // OtherActionsLoop for Doctor & Seer
+    await runPlayerLoopNight(mockGame, nightPhase, [doctorPlayer, seerPlayer]);
+
+    // ResolveNight
+    mockGame.setNextPlayerIndexToAction(0);
+    await nightPhase.runStep(mockGame as unknown as Game);
+
+    // Assertions
+    expect(mockGame.killPlayer).not.toHaveBeenCalled();
+    expect(mockGame.recordDoctorSaveInMemory).toHaveBeenCalledWith('doc', 'v1');
+    expect(mockGame.recordSeerResultInMemory).toHaveBeenCalledWith('seer', 'm1', 'Mafia');
+
+    expect(mockGame.logMessage).toHaveBeenCalledWith(
+      null,
+      expect.stringContaining(`${villagerPlayer.name} was attacked, but the Doctor saved them!`),
+      MessageVisibility.Public
+    );
+    expect(mockGame.logMessage).toHaveBeenCalledWith(
+      'seer',
+      `Your investigation revealed that ${mafiaPlayer1.name} is aligned with the Mafia.`,
+      MessageVisibility.Private
+    );
+  });
 });
