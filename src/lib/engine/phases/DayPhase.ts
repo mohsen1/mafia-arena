@@ -55,14 +55,14 @@ export class DayPhase extends AbstractGamePhase {
             index,
             alivePlayers,
             ['message', 'noAction'],
-            'Voting'
+            'Discussion'
           );
           break; // Exit after handling one player or deferring
         }
         break; // Added break here to prevent fallthrough
 
       case 'Discussion':
-        if (index === 0 && game.round > 1) {
+        if (index === 0) {
           // Log message only once at the start of discussion
           game.logMessage(
             null,
@@ -141,6 +141,12 @@ export class DayPhase extends AbstractGamePhase {
       );
       game.setPhaseStep(nextStep); // Move to the next defined step
       game.setNextPlayerIndexToAction(0); // Reset index for the next step
+
+      // If we just completed Introduction and are moving to Discussion,
+      // automatically start the Discussion phase
+      if (currentStep === 'Introduction' && nextStep === 'Discussion') {
+        await this.runStep(game);
+      }
       return;
     }
 
@@ -286,8 +292,8 @@ export class DayPhase extends AbstractGamePhase {
     }
 
     // Determine execution based on majority
-    // Using > alivePlayerCount / 2 ensures strict majority
-    const majorityThresholdStrict = Math.floor(alivePlayerCount / 2) + 1;
+    // Using Math.ceil(alivePlayerCount / 2) for simple majority
+    const majorityThresholdStrict = Math.ceil(alivePlayerCount / 2);
 
     let executedPlayerId: PlayerId | null = null;
     if (maxVotes >= majorityThresholdStrict && playersToExecute.length === 1) {

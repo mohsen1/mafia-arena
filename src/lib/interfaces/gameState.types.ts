@@ -33,6 +33,8 @@ export interface FilteredPlayer extends BasePlayerState {
   /** Optional: URL for the player's avatar image. */
   imageUrl?: string | null;
   voiceId?: string;
+  /** Optional: Indicates if this player is Mafia (visible to fellow Mafia members). */
+  isMafia?: boolean;
 }
 
 /** Player state information including potentially sensitive details. */

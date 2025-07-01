@@ -168,6 +168,9 @@ importers:
       '@agentdeskai/browser-tools-mcp':
         specifier: 1.2.0
         version: 1.2.0
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.13.2
+        version: 1.13.2
       '@playwright/test':
         specifier: ^1.52.0
         version: 1.52.0
@@ -924,8 +927,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
 
-  '@modelcontextprotocol/sdk@1.10.1':
-    resolution: {integrity: sha512-xNYdFdkJqEfIaTVP1gPKoEvluACHZsHZegIoICX8DM1o6Qf3G5u2BQJHmgd0n4YgRPqqK/u1ujQvrgAxxSJT9w==}
+  '@modelcontextprotocol/sdk@1.13.2':
+    resolution: {integrity: sha512-Vx7qOcmoKkR3qhaQ9qf3GxiVKCEu+zfJddHv6x3dY/9P6+uIwJnmuAur5aB+4FDXf41rRrDnOEGkviX5oYZ67w==}
     engines: {node: '>=18'}
 
   '@napi-rs/wasm-runtime@0.2.10':
@@ -4848,7 +4851,7 @@ snapshots:
 
   '@agentdeskai/browser-tools-mcp@1.2.0':
     dependencies:
-      '@modelcontextprotocol/sdk': 1.10.1
+      '@modelcontextprotocol/sdk': 1.13.2
       body-parser: 1.20.3
       cors: 2.8.5
       express: 4.21.2
@@ -5406,8 +5409,9 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-  '@modelcontextprotocol/sdk@1.10.1':
+  '@modelcontextprotocol/sdk@1.13.2':
     dependencies:
+      ajv: 6.12.6
       content-type: 1.0.5
       cors: 2.8.5
       cross-spawn: 7.0.6

@@ -120,6 +120,7 @@ export default function CharacterGenerationUI({
   const onCompleteRef = useRef(onComplete);
   const onErrorRef = useRef(onError);
   const isGeneratingRef = useRef(false);
+  const hasInitiatedGenerationRef = useRef(false); // Track if generation has been initiated
 
   // Update refs when props change
   useEffect(() => {
@@ -136,10 +137,16 @@ export default function CharacterGenerationUI({
 
   // ✅ FIXED: Stable startGeneration callback with state guards
   const startGeneration = useCallback(async () => {
-    if (isGeneratingRef.current || isComplete || error) {
+    if (
+      isGeneratingRef.current ||
+      isComplete ||
+      error ||
+      hasInitiatedGenerationRef.current
+    ) {
       return; // State guard to prevent multiple simultaneous operations
     }
 
+    hasInitiatedGenerationRef.current = true; // Mark as initiated
     setIsGenerating(true);
     isGeneratingRef.current = true;
     setError(null);
@@ -147,8 +154,19 @@ export default function CharacterGenerationUI({
     try {
       const result = await generateGameCharactersAction(gameId);
       if ('error' in result) {
+        // If the error is that generation is already completed, check progress instead
+        if (result.error === 'Character generation already completed') {
+          const progressResult =
+            await getCharacterGenerationProgressAction(gameId);
+          if (!('error' in progressResult) && progressResult.progress >= 100) {
+            setIsComplete(true);
+            // Trigger completion callback without re-running generation
+            return;
+          }
+        }
         setError(result.error);
         onErrorRef.current(result.error);
+        hasInitiatedGenerationRef.current = false; // Reset on error
         return;
       }
 
@@ -160,6 +178,7 @@ export default function CharacterGenerationUI({
         err instanceof Error ? err.message : 'Failed to generate characters';
       setError(errorMessage);
       onErrorRef.current(errorMessage);
+      hasInitiatedGenerationRef.current = false; // Reset on error
     } finally {
       setIsGenerating(false);
       isGeneratingRef.current = false;
@@ -232,7 +251,8 @@ export default function CharacterGenerationUI({
       !isGenerating &&
       !error &&
       !isComplete &&
-      !isGeneratingRef.current
+      !isGeneratingRef.current &&
+      !hasInitiatedGenerationRef.current // Check if generation has been initiated
     ) {
       startGeneration();
     }

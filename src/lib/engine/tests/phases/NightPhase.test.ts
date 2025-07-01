@@ -19,6 +19,7 @@ const createMockGameForNightPhase = () => {
   let currentPhaseStep = 'Start';
   let currentPlayerIndex = 0;
   let currentRound = 1;
+  let phaseState: any = {};
 
   // Create a minimal mock game state for agent calls
   const mockGameState = {
@@ -83,6 +84,19 @@ const createMockGameForNightPhase = () => {
     }),
     setPhaseResults: vi.fn(),
     getPendingHumanAction: vi.fn().mockReturnValue(null),
+    getPhaseState: vi.fn(() => phaseState),
+    setPhaseState: vi.fn((state: any) => {
+      // Merge mafiaVotes properly
+      if (state.mafiaVotes && phaseState.mafiaVotes) {
+        phaseState = {
+          ...phaseState,
+          ...state,
+          mafiaVotes: { ...phaseState.mafiaVotes, ...state.mafiaVotes },
+        };
+      } else {
+        phaseState = { ...phaseState, ...state };
+      }
+    }),
   };
 };
 type MockGameForNightPhase = ReturnType<typeof createMockGameForNightPhase>;
@@ -438,6 +452,143 @@ describe('NightPhase', () => {
       MessageVisibility.Public
     );
     expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(null);
+  });
+
+  it('should handle Mafia voting correctly when both vote for same target', async () => {
+    const alivePlayers = [
+      mafiaPlayer1,
+      mafiaPlayer2,
+      villagerPlayer,
+      doctorPlayer,
+    ];
+    mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+    mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1, mafiaPlayer2]);
+
+    // Start Night phase
+    mockGame.setPhaseStep('Start');
+    await nightPhase.runStep(mockGame as unknown as Game);
+    expect(mockGame.getPhaseStep()).toBe('MafiaDiscussion');
+
+    // Mafia Discussion - both say something
+    (
+      mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ type: 'message', content: "Let's target v1" });
+    (
+      mafiaPlayer2.agent.getAction as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ type: 'message', content: 'Agreed' });
+
+    await runPlayerLoopNight(mockGame, nightPhase, [
+      mafiaPlayer1,
+      mafiaPlayer2,
+    ]);
+    expect(mockGame.getPhaseStep()).toBe('MafiaVoting');
+
+    // Mafia Voting - both vote for same villager
+    (
+      mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+    (
+      mafiaPlayer2.agent.getAction as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+
+    // Run voting for both mafia
+    await runPlayerLoopNight(mockGame, nightPhase, [
+      mafiaPlayer1,
+      mafiaPlayer2,
+    ]);
+    expect(mockGame.getPhaseStep()).toBe('ConsolidateMafiaVote');
+
+    // Consolidate votes
+    mockGame.setNextPlayerIndexToAction(0);
+    await nightPhase.runStep(mockGame as unknown as Game);
+
+    // Check that the Mafia successfully voted
+    expect(mockGame.logMessage).toHaveBeenCalledWith(
+      null,
+      'The Mafia has chosen their target.',
+      MessageVisibility.Mafia
+    );
+    expect(mockGame.logMessage).not.toHaveBeenCalledWith(
+      null,
+      'The Mafia did not cast any votes.',
+      MessageVisibility.Mafia
+    );
+
+    // Continue to resolve night
+    expect(mockGame.getPhaseStep()).toBe('OtherActionsStart');
+    await nightPhase.runStep(mockGame as unknown as Game);
+    await runPlayerLoopNight(mockGame, nightPhase, [doctorPlayer]);
+    await nightPhase.runStep(mockGame as unknown as Game); // ResolveNight
+
+    // Verify kill happened
+    expect(mockGame.killPlayer).toHaveBeenCalledWith(
+      'v1',
+      'was killed during the night.'
+    );
+  });
+
+  it('should persist mafia votes when phase is recreated', async () => {
+    const alivePlayers = [mafiaPlayer1, mafiaPlayer2, villagerPlayer];
+    mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+    mockGame.getAliveMafia.mockReturnValue([mafiaPlayer1, mafiaPlayer2]);
+
+    // Start first phase instance
+    const nightPhase1 = new NightPhase();
+    mockGame.setPhaseStep('MafiaVoting');
+    mockGame.setNextPlayerIndexToAction(0);
+
+    // First mafia votes
+    (
+      mafiaPlayer1.agent.getAction as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+
+    await nightPhase1.runStep(mockGame as unknown as Game);
+
+    // Verify vote was saved to game state
+    expect(mockGame.setPhaseState).toHaveBeenCalledWith({
+      mafiaVotes: { m1: 'v1' },
+    });
+
+    // Verify the state was updated in the mock
+    expect(mockGame.getPhaseState()).toEqual({
+      mafiaVotes: { m1: 'v1' },
+    });
+
+    // Simulate game being saved and reloaded mid-voting
+    // (e.g., server restart or human player needs to act)
+
+    // Create new phase instance (simulating reload)
+    const nightPhase2 = new NightPhase();
+
+    // Continue from where we left off - player 2 needs to vote
+    mockGame.setNextPlayerIndexToAction(1);
+
+    // Second mafia votes
+    (
+      mafiaPlayer2.agent.getAction as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ type: 'mafiaKill', targetPlayerId: 'v1' });
+
+    await nightPhase2.runStep(mockGame as unknown as Game); // m2 votes
+
+    // Verify both votes are now saved
+    expect(mockGame.getPhaseState()).toEqual({
+      mafiaVotes: { m1: 'v1', m2: 'v1' },
+    });
+
+    // Move to consolidation
+    mockGame.setNextPlayerIndexToAction(2);
+    await nightPhase2.runStep(mockGame as unknown as Game); // triggers move to ConsolidateMafiaVote
+
+    // Now in ConsolidateMafiaVote step
+    mockGame.setNextPlayerIndexToAction(0);
+    await nightPhase2.runStep(mockGame as unknown as Game); // consolidates votes
+
+    // Verify the Mafia successfully voted (2 votes for same target = success)
+    expect(mockGame.logMessage).toHaveBeenCalledWith(
+      null,
+      'The Mafia has chosen their target.',
+      MessageVisibility.Mafia
+    );
   });
 
   it('should transition to DayPhase if no win condition', () => {

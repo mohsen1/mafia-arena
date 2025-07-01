@@ -4,6 +4,7 @@ import { ConversationLog } from '@/components/ConversationLog';
 import { GameSidebar } from '@/components/GameSidebar';
 import HumanChatInput from '@/components/HumanChatInput';
 import CharacterGenerationUI from '@/components/CharacterGenerationUI';
+import { AutoSaveIndicator } from '@/components/AutoSaveIndicator';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
@@ -27,7 +28,7 @@ function GameLayout({ gameId }: { gameId: string }) {
   const lang = i18n.language;
   const direction = i18n.dir(lang);
 
-  const { gameState, setGameState } = useGameContext();
+  const { gameState, setGameState, isSaving, lastSaved } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
 
   // Show character generation UI if game is in CharacterGeneration phase
@@ -60,6 +61,7 @@ function GameLayout({ gameId }: { gameId: string }) {
           </div>
         )}
       </main>
+      <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
     </div>
   );
 }

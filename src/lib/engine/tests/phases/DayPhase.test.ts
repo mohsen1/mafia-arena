@@ -11,6 +11,11 @@ import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
 
+// Mock the translate function to return the key
+vi.mock('@/lib/i18n/server', () => ({
+  translate: vi.fn((key: string) => key),
+}));
+
 const createMockGameForDayPhase = () => {
   let currentPhaseStep = 'Start';
   let currentPlayerIndex = 0;
@@ -177,19 +182,18 @@ describe('DayPhase', () => {
     // After all intros
     mockGame.setNextPlayerIndexToAction(alivePlayers.length); // Index is now past last player
     await dayPhase.runStep(mockGame as unknown as Game);
-    expect(mockGame.getPhaseStep()).toBe('Voting'); // After intros, should go to Voting
+    expect(mockGame.getPhaseStep()).toBe('Discussion'); // After intros, should go to Discussion
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
       'IntroductionComplete',
       MessageVisibility.Public
     );
 
-    // Now when the Voting step starts, it should log the voting message
-    mockGame.setNextPlayerIndexToAction(0); // Reset to start Voting
-    await dayPhase.runStep(mockGame as unknown as Game);
+    // The Discussion phase should automatically start after Introduction
+    // So the DiscussionPhase message should have been logged
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      'VotingPhase',
+      'DiscussionPhase',
       MessageVisibility.Public
     );
   });
