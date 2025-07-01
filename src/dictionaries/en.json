@@ -403,5 +403,59 @@
   "VoteNoMajority": "The vote didn't reach a majority. No one will be eliminated today.",
   "VoteTieResult": "The vote ended in a tie between {{playerNames}}. No one will be eliminated.",
   "VoteInsufficientVotes": "Not enough votes were cast. No one will be eliminated.",
-  "NoVotesCast": "No clear decision was reached. The town decides to wait."
+  "NoVotesCast": "No clear decision was reached. The town decides to wait.",
+  
+  "appName": "Werewolf AI",
+  "Back": "Back",
+  "ShowMore": "Show More",
+  "ObservingGame": "Observing the game...",
+  "GamePrefix": "Game",
+  "SelectPlayerImage": "Select player image",
+  "DefaultPlayerName": "Player {{number}}",
+  
+  "timeAgo": {
+    "justNow": "just now",
+    "secondsAgo": "{{count}} seconds ago",
+    "oneMinuteAgo": "1 minute ago",
+    "minutesAgo": "{{count}} minutes ago",
+    "oneHourAgo": "1 hour ago",
+    "hoursAgo": "{{count}} hours ago",
+    "aboutHoursAgo": "about {{count}} hours ago",
+    "oneDayAgo": "1 day ago",
+    "daysAgo": "{{count}} days ago",
+    "oneWeekAgo": "1 week ago",
+    "weeksAgo": "{{count}} weeks ago",
+    "oneMonthAgo": "1 month ago",
+    "monthsAgo": "{{count}} months ago",
+    "oneYearAgo": "1 year ago",
+    "yearsAgo": "{{count}} years ago"
+  },
+  
+  "gamePhases": {
+    "Day": "Day",
+    "Night": "Night",
+    "GameOver": "Game Over",
+    "Voting": "Voting",
+    "CharacterGeneration": "Character Generation",
+    "Init": "Initialization"
+  },
+  
+  "themes": {
+    "UK_VILLAGE_1900S": {
+      "name": "UK Village 1900s",
+      "description": "A quaint but suspicious village in the English countryside, circa 1910."
+    },
+    "PIRATE_SHIP": {
+      "name": "Pirate Ship",
+      "description": "A notorious pirate vessel sailing the Caribbean seas."
+    },
+    "SPACE_STATION": {
+      "name": "Space Station",
+      "description": "A remote research station orbiting a distant planet."
+    },
+    "MEDIEVAL_CASTLE": {
+      "name": "Medieval Castle",
+      "description": "A fortified castle in medieval Europe, full of intrigue."
+    }
+  }
 } 
