@@ -72,7 +72,11 @@ export async function generateCharacterPersona(
         return DEFAULT_PERSONA;
       }
 
-      await tempAgent.generatePersona(themeDescription, language, existingNames);
+      await tempAgent.generatePersona(
+        themeDescription,
+        language,
+        existingNames
+      );
 
       if (
         !tempAgent.persona ||

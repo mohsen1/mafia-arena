@@ -631,7 +631,10 @@ export class Game {
 
     // First, collect names of players who already have personas
     for (const player of this.#players.values()) {
-      if (player.agent.persona && player.agent.persona.name !== DEFAULT_PERSONA.name) {
+      if (
+        player.agent.persona &&
+        player.agent.persona.name !== DEFAULT_PERSONA.name
+      ) {
         generatedNames.push(player.agent.persona.name);
       }
     }
@@ -643,21 +646,25 @@ export class Game {
         typeof player.agent.generatePersona === 'function'
       ) {
         console.log(`Generating persona for ${player.name} (${player.id})...`);
-        
+
         let attempts = 0;
         let success = false;
-        
+
         while (attempts < maxRetries && !success) {
           attempts++;
           try {
-            await player.agent.generatePersona(themeDescription, this.language, generatedNames);
-            
+            await player.agent.generatePersona(
+              themeDescription,
+              this.language,
+              generatedNames
+            );
+
             if (
-              player.agent.persona?.name && 
+              player.agent.persona?.name &&
               player.agent.persona.name !== DEFAULT_PERSONA.name
             ) {
               const generatedName = player.agent.persona.name.trim();
-              
+
               // Check for duplicate names AFTER generation
               if (generatedNames.includes(generatedName)) {
                 console.warn(
@@ -672,7 +679,7 @@ export class Game {
                   // Update both agent persona and player name
                   player.agent.persona = {
                     ...player.agent.persona,
-                    name: fallbackName
+                    name: fallbackName,
                   };
                   player.setName(fallbackName);
                   generatedNames.push(fallbackName);
@@ -699,7 +706,10 @@ export class Game {
               }
             }
           } catch (error) {
-            console.error(`Error generating persona for ${player.name} (attempt ${attempts}/${maxRetries}):`, error);
+            console.error(
+              `Error generating persona for ${player.name} (attempt ${attempts}/${maxRetries}):`,
+              error
+            );
             if (attempts >= maxRetries) {
               console.error(
                 `Player ${player.name} continuing with default name due to generation error`
@@ -712,7 +722,9 @@ export class Game {
       }
     }
 
-    console.log(`Persona generation complete. Final names: ${generatedNames.join(', ')}`);
+    console.log(
+      `Persona generation complete. Final names: ${generatedNames.join(', ')}`
+    );
   }
 
   getPlayer(id: PlayerId): Player | undefined {

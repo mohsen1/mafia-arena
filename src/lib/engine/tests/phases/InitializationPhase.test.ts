@@ -166,26 +166,26 @@ describe('InitializationPhase', () => {
 
     expect(mockAgent1.generatePersona).toHaveBeenCalledTimes(1);
     expect(mockAgent3.generatePersona).toHaveBeenCalledTimes(1);
-    
+
     // Check the actual calls to understand the order
     const agent1Calls = mockAgent1.generatePersona.mock.calls;
     const agent3Calls = mockAgent3.generatePersona.mock.calls;
-    
+
     // The first agent in iteration order should get an empty list
     // The second agent in iteration order should get the first agent's name
-    
+
     // Since we can't guarantee Map iteration order, let's check that:
     // 1. At least one agent gets an empty list (first to generate)
     // 2. Later agents get increasingly populated lists
-    
+
     // For now, let's be flexible about the exact order but verify the concept
     const firstCall = agent1Calls[0];
     const secondCall = agent3Calls[0];
-    
+
     expect(firstCall[0]).toBe('A theme for testing');
     expect(firstCall[1]).toBe('en');
     expect(Array.isArray(firstCall[2])).toBe(true);
-    
+
     expect(secondCall[0]).toBe('A theme for testing');
     expect(secondCall[1]).toBe('en');
     expect(Array.isArray(secondCall[2])).toBe(true);

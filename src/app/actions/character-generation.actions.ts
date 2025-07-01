@@ -88,7 +88,9 @@ export async function generateGameCharactersAction(
         // Check for duplicate names and retry if necessary
         let finalPersona = persona;
         if (generatedNames.includes(persona.name)) {
-          console.warn(`Duplicate name generated: ${persona.name}. Retrying...`);
+          console.warn(
+            `Duplicate name generated: ${persona.name}. Retrying...`
+          );
           // Retry with current existing names
           try {
             finalPersona = await generateCharacterPersona(
@@ -100,10 +102,13 @@ export async function generateGameCharactersAction(
               generatedNames
             );
           } catch (retryError) {
-            console.warn(`Retry failed, using fallback name for ${player.name}`);
+            console.warn(
+              `Retry failed, using fallback name for ${player.name}:`,
+              retryError
+            );
             finalPersona = {
               ...persona,
-              name: `${persona.name}-${player.id.slice(-4)}` // Ensure uniqueness
+              name: `${persona.name}-${player.id.slice(-4)}`, // Ensure uniqueness
             };
           }
         }
