@@ -31,7 +31,7 @@ export async function advanceGameStateAction(
       return { error: 'Game not found' };
     }
 
-    const game = Game.loadFromState(gameState);
+    const game = await Game.loadFromState(gameState);
     await game.runSingleStep();
 
     const newState = game.getCurrentSerializableState(

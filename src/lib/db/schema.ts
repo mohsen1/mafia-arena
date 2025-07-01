@@ -123,6 +123,21 @@ export const userPreferences = pgTable('user_preferences', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
 
+export const userApiKeys = pgTable('user_api_keys', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull(), // e.g., 'openai', 'anthropic', 'gemini', 'groq'
+  keyName: text('key_name').notNull(), // User-friendly name like "My OpenAI Key"
+  encryptedApiKey: text('encrypted_api_key').notNull(), // Encrypted API key
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});
+
 // Types for easier usage
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -132,3 +147,5 @@ export type GameParticipant = typeof gameParticipants.$inferSelect;
 export type NewGameParticipant = typeof gameParticipants.$inferInsert;
 export type UserPreferences = typeof userPreferences.$inferSelect;
 export type NewUserPreferences = typeof userPreferences.$inferInsert;
+export type UserApiKey = typeof userApiKeys.$inferSelect;
+export type NewUserApiKey = typeof userApiKeys.$inferInsert;

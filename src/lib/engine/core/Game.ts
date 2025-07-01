@@ -207,7 +207,9 @@ export class Game {
     return new Game(playerSetups, themeKey, language);
   }
 
-  public static loadFromState(state: SerializableGameState): Game {
+  public static async loadFromState(
+    state: SerializableGameState
+  ): Promise<Game> {
     const game = new Game(
       null,
       state.themeKey,
@@ -232,7 +234,7 @@ export class Game {
 
     for (const pState of Object.values(state.players)) {
       const agentConfig = pState.agentConfig;
-      const agent = createAgentInstance(agentConfig, pState.id);
+      const agent = await createAgentInstance(agentConfig, pState.id);
       const RoleClass = roleClassMap[pState.roleName];
       if (!RoleClass)
         throw new Error(

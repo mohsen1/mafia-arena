@@ -6,6 +6,7 @@ import {
   useCallback,
   useRef,
   useEffect,
+  useMemo,
 } from 'react';
 import type { Dispatch, SetStateAction, ReactNode } from 'react';
 import { useSpokenText } from './SpokenTextContext';
@@ -77,7 +78,15 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const [gameState, setGameState] = useState<FilteredGameState | null>(
     initialGameState
   );
-  const [isAutoRunning, setIsAutoRunning] = useState<boolean>(false);
+
+  // Auto-enable auto-run for AI-only games (Issue #49)
+  const shouldAutoEnableAutoRun = useMemo(() => {
+    return initialGameState && !initialGameState.humanPlayerId;
+  }, [initialGameState]);
+
+  const [isAutoRunning, setIsAutoRunning] = useState<boolean>(
+    shouldAutoEnableAutoRun
+  );
   const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
   const stopAudioCallbackRef = useRef<(() => void) | null>(null);
   const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] =

@@ -66,7 +66,7 @@ export async function generateCharacterPersona(
 ): Promise<Persona> {
   return retryWithBackoff(
     async () => {
-      const tempAgent = createAgentInstance(agentConfig, playerId);
+      const tempAgent = await createAgentInstance(agentConfig, playerId);
 
       if (!tempAgent.generatePersona) {
         return DEFAULT_PERSONA;
