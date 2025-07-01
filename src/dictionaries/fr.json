@@ -373,10 +373,5 @@
   "resetPassword": "Réinitialiser le mot de passe",
   "StartNewGameTitle": "Commencer une Nouvelle Partie",
   "Back": "Retour",
-  "PlayerStatistics": "Statistiques du Joueur",
-  "GameThemeLabel": "Thème du jeu :",
-  "PlayerImageAltText": "Image du joueur",
-  "ResumeButton": "Reprendre",
-  "LoadingNextTurn": "Chargement du prochain tour",
-  "PleaseIntroduceYourself": "Veuillez vous présenter au village."
+  "PlayerStatistics": "Statistiques du Joueur"
 }
