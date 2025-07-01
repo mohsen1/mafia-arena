@@ -19,7 +19,7 @@ const createMockGameForNightPhase = () => {
   let currentPhaseStep = 'Start';
   let currentPlayerIndex = 0;
   let currentRound = 1;
-  let phaseState: any = {};
+  let phaseState: Record<string, unknown> = {};
 
   // Create a minimal mock game state for agent calls
   const mockGameState = {
@@ -85,7 +85,7 @@ const createMockGameForNightPhase = () => {
     setPhaseResults: vi.fn(),
     getPendingHumanAction: vi.fn().mockReturnValue(null),
     getPhaseState: vi.fn(() => phaseState),
-    setPhaseState: vi.fn((state: any) => {
+    setPhaseState: vi.fn((state: Record<string, unknown>) => {
       // Merge mafiaVotes properly
       if (state.mafiaVotes && phaseState.mafiaVotes) {
         phaseState = {

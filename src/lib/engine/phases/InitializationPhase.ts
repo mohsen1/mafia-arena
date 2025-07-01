@@ -53,7 +53,7 @@ export class InitializationPhase extends AbstractGamePhase {
               agent.persona.name.trim() !== ''
             ) {
               const generatedName = agent.persona.name.trim();
-              
+
               // Check for duplicate names
               if (generatedNames.includes(generatedName)) {
                 log(
@@ -89,7 +89,10 @@ export class InitializationPhase extends AbstractGamePhase {
               }
             }
           } catch (error) {
-            log(`Error generating persona for agent ${player.id} (attempt ${attempts}/${maxRetries}): %O`, error);
+            log(
+              `Error generating persona for agent ${player.id} (attempt ${attempts}/${maxRetries}): %O`,
+              error
+            );
             if (attempts >= maxRetries) {
               log(
                 `Agent ${player.id} continuing with default name due to generation error: ${player.name}`
@@ -112,7 +115,9 @@ export class InitializationPhase extends AbstractGamePhase {
       }
     }
 
-    log(`Persona generation complete. Generated names: ${generatedNames.join(', ')}`);
+    log(
+      `Persona generation complete. Generated names: ${generatedNames.join(', ')}`
+    );
   }
 
   transition(): GamePhaseType {

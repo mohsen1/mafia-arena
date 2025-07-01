@@ -44,7 +44,11 @@ export interface IAgent {
    * @param existingNames Optional array of names already taken by other players to avoid duplicates.
    * @returns A promise that resolves when the persona is generated (or fallback used).
    */
-  generatePersona?(themeDescription: string, language?: string, existingNames?: string[]): Promise<void>;
+  generatePersona?(
+    themeDescription: string,
+    language?: string,
+    existingNames?: string[]
+  ): Promise<void>;
 
   /**
    * The persona associated with this agent, potentially generated.
