@@ -332,7 +332,10 @@
   "OneMinuteAgo": "Il y a 1 minute",
   "SelectPlayerImage": "Sélectionner une image de joueur",
   "CharacterSetupTitle": "Configuration des Personnages",
-  "themes": "Thèmes",
+  "themes": {
+    "UK_VILLAGE_1900S": "Village anglais des années 1900",
+    "UK_VILLAGE_1900S_DESCRIPTION": "Un village pittoresque mais suspect dans la campagne anglaise, vers 1910."
+  },
   "SaveAndContinue": "Enregistrer & Continuer",
   "character-generation.title": "Création des Personnages",
   "character-generation.characters-list": "Personnages",
@@ -342,7 +345,14 @@
   "NoGamesAvailableEmptyState": "Aucune partie trouvée. Créez une nouvelle partie pour commencer.",
   "StartingGameInfo": "Démarrage de la partie...",
   "ShowMore": "Montrer Plus",
-  "gamePhases": "Phases de jeu",
+  "gamePhases": {
+    "Day": "Jour",
+    "Night": "Nuit",
+    "GameOver": "Fin de partie",
+    "Voting": "Vote",
+    "DayIntroductions": "Présentations de jour",
+    "DayDiscussion": "Discussion de jour"
+  },
   "character-generation.complete": "Personnages Prêts !",
   "character-generation.description": "Chaque personnage reçoit une personnalité, une histoire et une apparence uniques pour rendre votre jeu immersif et captivant.",
   "character-generation.please-wait": "Veuillez patienter pendant que nous créons des personnages IA uniques...",
@@ -359,9 +369,14 @@
   "character-generation.retry": "Réessayer",
   "SecondsAgo": "Il y a {{count}} secondes",
   "NoModelsForProvider": "Aucun modèle pour le fournisseur sélectionné",
-  "appName": "Mafia AI",
+  "appName": "Loup-Garou IA",
   "resetPassword": "Réinitialiser le mot de passe",
   "StartNewGameTitle": "Commencer une Nouvelle Partie",
   "Back": "Retour",
-  "PlayerStatistics": "Statistiques du Joueur"
+  "PlayerStatistics": "Statistiques du Joueur",
+  "GameThemeLabel": "Thème du jeu :",
+  "PlayerImageAltText": "Image du joueur",
+  "ResumeButton": "Reprendre",
+  "LoadingNextTurn": "Chargement du prochain tour",
+  "PleaseIntroduceYourself": "Veuillez vous présenter au village."
 }
