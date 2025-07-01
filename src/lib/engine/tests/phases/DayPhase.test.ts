@@ -192,12 +192,7 @@ describe('DayPhase', () => {
     );
 
     // The Discussion phase should automatically start after Introduction
-    // So the DiscussionPhase message should have been logged
-    expect(mockGame.logMessage).toHaveBeenCalledWith(
-      null,
-      'DiscussionPhase',
-      MessageVisibility.Public
-    );
+    // (Note: DiscussionPhase message was removed to reduce moderator chattiness)
   });
 
   it('should run Discussion, Voting, Tally, and Finished steps for round > 1', async () => {
@@ -239,12 +234,7 @@ describe('DayPhase', () => {
 
     // Run Discussion phase for all players
     mockGame.setNextPlayerIndexToAction(0);
-    await dayPhase.runStep(mockGame as unknown as Game); // P1 + Discussion message
-    expect(mockGame.logMessage).toHaveBeenCalledWith(
-      null,
-      'DiscussionPhase',
-      MessageVisibility.Public
-    );
+    await dayPhase.runStep(mockGame as unknown as Game); // P1 (no Discussion message logged due to chattiness reduction)
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       'p1',
       'P1 discussing',
@@ -270,11 +260,7 @@ describe('DayPhase', () => {
     mockGame.setNextPlayerIndexToAction(3); // Past last player
     await dayPhase.runStep(mockGame as unknown as Game); // Transition to Voting
     expect(mockGame.getPhaseStep()).toBe('Voting');
-    expect(mockGame.logMessage).toHaveBeenCalledWith(
-      null,
-      'DiscussionComplete',
-      MessageVisibility.Public
-    );
+    // Note: DiscussionComplete message was removed to reduce moderator chattiness
 
     // Run Voting phase
     mockGame.setNextPlayerIndexToAction(0);
@@ -300,20 +286,12 @@ describe('DayPhase', () => {
 
     mockGame.setNextPlayerIndexToAction(2);
     await dayPhase.runStep(mockGame as unknown as Game); // P3 abstain
-    expect(mockGame.logMessage).toHaveBeenCalledWith(
-      'p3',
-      'ChoseNoActionVoting',
-      MessageVisibility.Public
-    );
+    // Note: ChoseNoActionVoting message was removed to reduce moderator chattiness
 
     mockGame.setNextPlayerIndexToAction(3);
     await dayPhase.runStep(mockGame as unknown as Game); // Transition to TallyVotes
     expect(mockGame.getPhaseStep()).toBe('TallyVotes');
-    expect(mockGame.logMessage).toHaveBeenCalledWith(
-      null,
-      'VotingComplete',
-      MessageVisibility.Public
-    );
+    // Note: VotingComplete message was removed to reduce moderator chattiness
 
     // TallyVotes
     mockGame.setNextPlayerIndexToAction(0);

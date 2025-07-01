@@ -4,19 +4,24 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { 
-  CheckCircle, 
-  XCircle, 
-  Loader2, 
-  Server, 
+import {
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Server,
   ExternalLink,
   AlertTriangle,
-  Info
+  Info,
 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 
 interface OllamaConfigProps {
   onConfigChange?: (config: OllamaConfiguration) => void;
@@ -47,15 +52,15 @@ interface ConnectionTestResult {
   ollamaVersion?: string;
 }
 
-export function OllamaConfig({ 
-  onConfigChange, 
+export function OllamaConfig({
+  onConfigChange,
   initialConfig = DEFAULT_OLLAMA_CONFIG,
-  className 
+  className,
 }: OllamaConfigProps) {
-  const { t } = useTranslation();
   const [config, setConfig] = useState<OllamaConfiguration>(initialConfig);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
-  const [connectionResult, setConnectionResult] = useState<ConnectionTestResult | null>(null);
+  const [connectionResult, setConnectionResult] =
+    useState<ConnectionTestResult | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Construct the full endpoint URL
@@ -69,7 +74,7 @@ export function OllamaConfig({
     try {
       // Test basic connectivity
       const healthUrl = `${config.protocol}://${config.host}:${config.port}/api/tags`;
-      
+
       const response = await fetch(healthUrl, {
         method: 'GET',
         headers: {
@@ -83,7 +88,7 @@ export function OllamaConfig({
       }
 
       const data = await response.json();
-      const models = data.models?.map((m: any) => m.name) || [];
+      const models = data.models?.map((m: { name: string }) => m.name) || [];
 
       setConnectionResult({
         success: true,
@@ -92,7 +97,8 @@ export function OllamaConfig({
         ollamaVersion: data.version || 'Unknown',
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       setConnectionResult({
         success: false,
         message: `Failed to connect: ${errorMessage}`,
@@ -103,13 +109,16 @@ export function OllamaConfig({
   }, [config]);
 
   // Update configuration
-  const updateConfig = useCallback((updates: Partial<OllamaConfiguration>) => {
-    const newConfig = { ...config, ...updates };
-    setConfig(newConfig);
-    onConfigChange?.(newConfig);
-    // Clear previous test results when config changes
-    setConnectionResult(null);
-  }, [config, onConfigChange]);
+  const updateConfig = useCallback(
+    (updates: Partial<OllamaConfiguration>) => {
+      const newConfig = { ...config, ...updates };
+      setConfig(newConfig);
+      onConfigChange?.(newConfig);
+      // Clear previous test results when config changes
+      setConnectionResult(null);
+    },
+    [config, onConfigChange]
+  );
 
   // Auto-test connection when component mounts if enabled
   useEffect(() => {
@@ -129,9 +138,9 @@ export function OllamaConfig({
           Ollama Configuration
         </CardTitle>
         <CardDescription>
-          Configure your local Ollama instance for AI model hosting. 
-          <Button 
-            variant="link" 
+          Configure your local Ollama instance for AI model hosting.
+          <Button
+            variant="link"
             className="p-0 h-auto text-sm"
             onClick={() => window.open('https://ollama.ai', '_blank')}
           >
@@ -158,7 +167,9 @@ export function OllamaConfig({
               id="ollama-port"
               type="number"
               value={config.port}
-              onChange={(e) => updateConfig({ port: parseInt(e.target.value) || 11434 })}
+              onChange={(e) =>
+                updateConfig({ port: parseInt(e.target.value) || 11434 })
+              }
               placeholder="11434"
             />
           </div>
@@ -188,7 +199,13 @@ export function OllamaConfig({
 
         {/* Connection Status */}
         {connectionResult && (
-          <Alert className={connectionResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+          <Alert
+            className={
+              connectionResult.success
+                ? 'border-green-200 bg-green-50'
+                : 'border-red-200 bg-red-50'
+            }
+          >
             {connectionResult.success ? (
               <CheckCircle className="w-4 h-4 text-green-600" />
             ) : (
@@ -197,23 +214,33 @@ export function OllamaConfig({
             <AlertDescription>
               <div className="space-y-2">
                 <p>{connectionResult.message}</p>
-                {connectionResult.success && connectionResult.availableModels && (
-                  <div>
-                    <p className="font-medium">Available Models ({connectionResult.availableModels.length}):</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {connectionResult.availableModels.slice(0, 5).map((model) => (
-                        <Badge key={model} variant="secondary" className="text-xs">
-                          {model}
-                        </Badge>
-                      ))}
-                      {connectionResult.availableModels.length > 5 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{connectionResult.availableModels.length - 5} more
-                        </Badge>
-                      )}
+                {connectionResult.success &&
+                  connectionResult.availableModels && (
+                    <div>
+                      <p className="font-medium">
+                        Available Models (
+                        {connectionResult.availableModels.length}):
+                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {connectionResult.availableModels
+                          .slice(0, 5)
+                          .map((model) => (
+                            <Badge
+                              key={model}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {model}
+                            </Badge>
+                          ))}
+                        {connectionResult.availableModels.length > 5 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{connectionResult.availableModels.length - 5} more
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             </AlertDescription>
           </Alert>
@@ -229,7 +256,7 @@ export function OllamaConfig({
           >
             Advanced Settings {showAdvanced ? '▼' : '▶'}
           </Button>
-          
+
           {showAdvanced && (
             <div className="mt-3 space-y-3 pl-4 border-l-2 border-muted">
               <div className="grid grid-cols-2 gap-4">
@@ -238,7 +265,11 @@ export function OllamaConfig({
                   <select
                     id="ollama-protocol"
                     value={config.protocol}
-                    onChange={(e) => updateConfig({ protocol: e.target.value as 'http' | 'https' })}
+                    onChange={(e) =>
+                      updateConfig({
+                        protocol: e.target.value as 'http' | 'https',
+                      })
+                    }
                     className="w-full px-3 py-2 border border-input rounded-md"
                   >
                     <option value="http">HTTP</option>
@@ -264,11 +295,19 @@ export function OllamaConfig({
           <Info className="w-4 h-4" />
           <AlertDescription>
             <div className="space-y-2 text-sm">
-              <p><strong>Quick Setup:</strong></p>
+              <p>
+                <strong>Quick Setup:</strong>
+              </p>
               <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>Install Ollama from <code>ollama.ai</code></li>
-                <li>Run <code>ollama serve</code> to start the server</li>
-                <li>Pull a model: <code>ollama pull llama3.1</code></li>
+                <li>
+                  Install Ollama from <code>ollama.ai</code>
+                </li>
+                <li>
+                  Run <code>ollama serve</code> to start the server
+                </li>
+                <li>
+                  Pull a model: <code>ollama pull llama3.1</code>
+                </li>
                 <li>Test the connection above</li>
               </ol>
             </div>
@@ -281,9 +320,13 @@ export function OllamaConfig({
             <AlertTriangle className="w-4 h-4" />
             <AlertDescription>
               <div className="space-y-2 text-sm">
-                <p><strong>Common Issues:</strong></p>
+                <p>
+                  <strong>Common Issues:</strong>
+                </p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li>Ensure Ollama is running: <code>ollama serve</code></li>
+                  <li>
+                    Ensure Ollama is running: <code>ollama serve</code>
+                  </li>
                   <li>Check if port {config.port} is available</li>
                   <li>Verify firewall settings allow connections</li>
                   <li>For remote connections, check Ollama CORS settings</li>
@@ -295,4 +338,4 @@ export function OllamaConfig({
       </CardContent>
     </Card>
   );
-} 
+}

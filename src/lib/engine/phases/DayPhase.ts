@@ -62,14 +62,7 @@ export class DayPhase extends AbstractGamePhase {
         break; // Added break here to prevent fallthrough
 
       case 'Discussion':
-        if (index === 0) {
-          // Log message only once at the start of discussion
-          game.logMessage(
-            null,
-            translate('DiscussionPhase', game.language),
-            MessageVisibility.Public
-          );
-        }
+        // Removed redundant discussion phase announcement to reduce chattiness
         await this.handlePlayerAction(
           game,
           index,
@@ -81,7 +74,7 @@ export class DayPhase extends AbstractGamePhase {
 
       case 'Voting':
         if (index === 0) {
-          // Log message only once at the start of voting
+          // Only announce voting phase, as this is when action is required
           game.logMessage(
             null,
             translate('VotingPhase', game.language),
@@ -126,19 +119,17 @@ export class DayPhase extends AbstractGamePhase {
     if (index >= players.length) {
       // Finished this step for all players
       const currentStep = game.getPhaseStep();
-      let completeKey = 'Complete'; // fallback
+      
+      // Removed redundant completion messages to reduce moderator chattiness
+      // Only log completion for Introduction phase as it's special
       if (currentStep === 'Introduction') {
-        completeKey = 'IntroductionComplete';
-      } else if (currentStep === 'Discussion') {
-        completeKey = 'DiscussionComplete';
-      } else if (currentStep === 'Voting') {
-        completeKey = 'VotingComplete';
+        game.logMessage(
+          null,
+          translate('IntroductionComplete', game.language),
+          MessageVisibility.Public
+        );
       }
-      game.logMessage(
-        null,
-        translate(completeKey, game.language),
-        MessageVisibility.Public
-      );
+      
       game.setPhaseStep(nextStep); // Move to the next defined step
       game.setNextPlayerIndexToAction(0); // Reset index for the next step
 
@@ -202,11 +193,7 @@ export class DayPhase extends AbstractGamePhase {
             : null;
           if (action.targetPlayerId === null) {
             this.#votes.set(player.id, null);
-            game.logMessage(
-              player.id,
-              translate('VotesToAbstain', game.language),
-              MessageVisibility.Public
-            );
+            // Removed abstain vote announcement to reduce chattiness
           } else if (targetPlayer?.isAlive()) {
             // Check targetPlayer is not undefined AND alive
             this.#votes.set(player.id, action.targetPlayerId);
@@ -219,6 +206,7 @@ export class DayPhase extends AbstractGamePhase {
             );
           } else {
             this.#votes.set(player.id, null); // Invalid vote counts as abstain
+            // Only log invalid votes, as these are important feedback
             const invalidTargetName = action.targetPlayerId ?? 'unknown';
             game.logMessage(
               player.id,
@@ -238,20 +226,13 @@ export class DayPhase extends AbstractGamePhase {
       case 'noAction':
         if (currentStep === 'Voting') {
           this.#votes.set(player.id, null);
-          game.logMessage(
-            player.id,
-            translate('ChoseNoActionVoting', game.language),
-            MessageVisibility.Public
-          );
+          // Removed noAction vote announcement to reduce chattiness
         } else if (
           currentStep === 'Introduction' ||
           currentStep === 'Discussion'
         ) {
-          game.logMessage(
-            player.id,
-            translate('ChoseNoAction', game.language),
-            MessageVisibility.Public
-          );
+          // Removed noAction announcements to reduce chattiness
+          // Players staying silent is normal and doesn't need announcement
         } // else ignore noAction if unexpected
         break;
       // humanActionRequired should not reach here
