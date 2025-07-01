@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { PlayerCard } from '@/components/PlayerCard';
-import { PlayerStatsPanel } from '@/components/PlayerStatsPanel';
 import { useGameContext } from '@/context/GameContext'; // Import context hook
 // import type { Player } from "@/lib/types/game"; // OLD IMPORT
 import type { FilteredPlayer } from '@/lib/interfaces/client.types'; // NEW IMPORT
@@ -80,11 +79,6 @@ export function GameSidebar() {
               ))}
             </>
           )}
-        </div>
-
-        {/* Add Player Statistics Panel */}
-        <div className="mt-4">
-          <PlayerStatsPanel gameState={gameState} />
         </div>
       </div>
     </aside>
