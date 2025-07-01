@@ -424,7 +424,7 @@ function takeScreenshot(): string {
 async function analyzeScreenshotWithGemini(screenshotPath: string): Promise<string> {
   try {
     log('Analyzing screenshot with Gemini...');
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     
     const imageData = readFileSync(screenshotPath);
     const base64Image = imageData.toString('base64');
@@ -697,19 +697,74 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-function sendToCursor(prompt: string): void {
+// --- Dialog detection helper ------------------------------------------------
+
+/**
+ * Uses Gemini vision to determine whether a blocking modal/dialog is visible in the
+ * Cursor window. It captures a screenshot and asks Gemini to answer strictly
+ * with "yes" or "no" (case-insensitive). On any error the function returns false
+ * to avoid accidentally closing the editor.
+ */
+async function detectDialogOpen(): Promise<boolean> {
+  try {
+    log('Detecting if a dialog is open via Gemini vision…');
+    const screenshotPath = takeScreenshot();
+    const imageData = readFileSync(screenshotPath);
+    const base64Image = imageData.toString('base64');
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const prompt = `Look only at the chat/editor portion of the screenshot. Answer with a single word (yes/no) indicating whether a modal, popup or dialog window is currently open that would prevent typing into the chat.`;
+
+    const imagePart = {
+      inlineData: {
+        data: base64Image,
+        mimeType: 'image/png',
+      },
+    };
+
+    const result = await model.generateContent([prompt, imagePart]);
+    const responseText = result.response.text().trim().toLowerCase();
+    log('Gemini dialog detection response:', responseText);
+    unlinkSync(screenshotPath);
+    return responseText.startsWith('y'); // "yes" => dialog open
+  } catch (error) {
+    log('Dialog detection failed, assuming no dialog:', error);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+// Handle tool execution
+async function sendToCursor(prompt: string): Promise<void> {
   log(`📤 Sending prompt to Cursor...`);
   log('Prompt length:', prompt.length);
 
-  // detect directive
-  let needsNewChat = false;
-  let processedPrompt = prompt;
-  if (prompt.startsWith('[NEW_CHAT]')) {
-    needsNewChat = true;
-    processedPrompt = prompt.replace(/^\[NEW_CHAT\]/, '').trim();
+  // Helper to close any modal or blocking dialog that might be open in Cursor.
+  function closePotentialDialogs(): void {
+    try {
+      log('Attempting to close any open dialogs...');
+      // Common shortcut: press Escape twice to ensure dialog dismissal
+      execSync('cliclick kp:esc');
+      execSync('sleep 0.2');
+      execSync('cliclick kp:esc');
+
+      log('Dialog close sequence executed');
+    } catch (error) {
+      log('Warning: Failed to execute dialog-close sequence:', error);
+    }
   }
 
   try {
+    // Use vision model to decide whether to close a dialog
+    const hasDialog = await detectDialogOpen();
+    if (hasDialog) {
+      log('Dialog detected – executing close sequence');
+      closePotentialDialogs();
+    } else {
+      log('No dialog detected');
+    }
+
     // Give user time to see what's happening
     log('Waiting 2 seconds before sending...');
     execSync('sleep 2');
@@ -727,7 +782,7 @@ function sendToCursor(prompt: string): void {
     execSync('cliclick ku:cmd');
 
     // Optionally start a new chat (Cmd+N)
-    if (needsNewChat) {
+    if (prompt.startsWith('[NEW_CHAT]')) {
       log('Starting a new chat as requested...');
       execSync('sleep 0.5');
       execSync('cliclick kd:cmd');
@@ -750,7 +805,7 @@ function sendToCursor(prompt: string): void {
 
     // Type the prompt via clipboard
     log('Typing prompt via clipboard...');
-    const escapedPrompt = processedPrompt.replace(/'/g, "'\\''");
+    const escapedPrompt = prompt.replace(/'/g, "'\\''");
     const command = `printf '%s' '${escapedPrompt}' | pbcopy && cliclick kd:cmd && cliclick t:v && cliclick ku:cmd`;
     execSync(command);
 
@@ -809,7 +864,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
             // Send via UI automation
             log('Step 5: Sending prompt via UI automation...');
-            sendToCursor(instruction + '      IMPORTANT: After you are done with everything call the get_next_task tool');
+            await sendToCursor(instruction + '      IMPORTANT: After you are done with everything call the get_next_task tool');
             
             log('=== ASYNC ANALYSIS COMPLETE ===');
           } catch (error) {
