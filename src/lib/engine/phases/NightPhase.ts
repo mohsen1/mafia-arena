@@ -23,22 +23,13 @@ export class NightPhase extends AbstractGamePhase {
     const step = game.getPhaseStep();
     const index = game.getNextPlayerIndexToAction();
 
-    console.log(`NightPhase.runStep: Step=${step}, Index=${index}`);
-
-    // Ensure players lists are up-to-date if needed at the start of a step
-    const aliveMafia = game
-      .getAlivePlayers()
-      .filter((p) => p.role.name === RoleName.Mafia);
-
     switch (step) {
       case 'Start':
         this.resetPhaseState();
-        game.logMessage(
-          null,
-          'Night falls. Silence descends...',
-          MessageVisibility.Public
-        );
-        if (aliveMafia.length > 0) {
+        if (
+          game.getAlivePlayers().filter((p) => p.role.name === RoleName.Mafia)
+            .length > 0
+        ) {
           game.setPhaseStep('MafiaDiscussion');
         } else {
           game.setPhaseStep('OtherActionsStart'); // Skip Mafia steps if none exist
@@ -48,17 +39,17 @@ export class NightPhase extends AbstractGamePhase {
 
       case 'MafiaDiscussion':
         if (index === 0) {
-          // Log only once
-          game.logMessage(
-            null,
-            'The Mafia convenes...',
-            MessageVisibility.Mafia
-          );
+          // List all Mafia members
+          // const mafiaNames = game
+          //   .getAlivePlayers()
+          //   .filter((p) => p.role.name === RoleName.Mafia)
+          //   .map((p) => p.name)
+          //   .join(', ');
         }
         await this.handlePlayerAction(
           game,
           index,
-          aliveMafia,
+          game.getAlivePlayers().filter((p) => p.role.name === RoleName.Mafia),
           ['message', 'noAction'],
           'MafiaVoting' // Next step after discussion
         );
@@ -66,17 +57,13 @@ export class NightPhase extends AbstractGamePhase {
 
       case 'MafiaVoting':
         if (index === 0) {
-          // Log only once
-          game.logMessage(
-            null,
-            'Mafia discussion concludes. Time to choose a target.',
-            MessageVisibility.Mafia
-          );
+          // Restore any saved votes if phase was recreated
+          this.restorePhaseState(game);
         }
         await this.handlePlayerAction(
           game,
           index,
-          aliveMafia,
+          game.getAlivePlayers().filter((p) => p.role.name === RoleName.Mafia),
           ['mafiaKill', 'noAction'],
           'ConsolidateMafiaVote' // Next step after voting
         );
@@ -95,9 +82,6 @@ export class NightPhase extends AbstractGamePhase {
             (p) =>
               p.role.canPerformNightAction && p.role.name !== RoleName.Mafia
           );
-        console.log(
-          `NightPhase: Found ${this.#otherNightRoles.length} other roles with night actions.`
-        );
         game.setPhaseStep('OtherActionsLoop');
         game.setNextPlayerIndexToAction(0);
         // If no other actions, skip straight to resolve
@@ -118,7 +102,6 @@ export class NightPhase extends AbstractGamePhase {
         break;
 
       case 'ResolveNight':
-        console.log('NightPhase: Resolving night actions...');
         this.resolveNightActions(game);
         game.setPhaseStep('Finished');
         game.setNextPlayerIndexToAction(0);
@@ -129,7 +112,6 @@ export class NightPhase extends AbstractGamePhase {
         break;
 
       default:
-        console.error(`Unknown phase step in NightPhase: ${step}`);
         game.setPhaseStep('Finished');
         game.setNextPlayerIndexToAction(0);
     }
@@ -143,6 +125,16 @@ export class NightPhase extends AbstractGamePhase {
     this.#seerPlayerId = null;
     this.#finalMafiaKillTarget = null;
     this.#otherNightRoles = [];
+  }
+
+  /** Restore phase state from game if phase was recreated */
+  private restorePhaseState(game: Game): void {
+    const savedState = game.getPhaseState();
+    if (savedState?.mafiaVotes) {
+      for (const [voterId, targetId] of Object.entries(savedState.mafiaVotes)) {
+        this.#mafiaVotes.set(voterId, targetId as PlayerId | null);
+      }
+    }
   }
 
   /** Helper to handle requesting/processing action for one player */
@@ -182,9 +174,6 @@ export class NightPhase extends AbstractGamePhase {
     const player = players[index];
     if (!player || !player.isAlive()) {
       // Extra check for safety
-      console.warn(
-        `NightPhase.handlePlayerAction: Player ${player?.id} at index ${index} invalid or dead. Skipping.`
-      );
       game.setNextPlayerIndexToAction(index + 1); // Skip invalid/dead player
       return;
     }
@@ -202,9 +191,6 @@ export class NightPhase extends AbstractGamePhase {
 
     if (playerAllowedActions.length === 0) {
       // Check the new variable
-      console.error(
-        `NightPhase.handlePlayerAction: No allowed actions determined for player ${player.id} in step ${currentStep}. Skipping.`
-      );
       game.setNextPlayerIndexToAction(index + 1);
       return;
     }
@@ -228,28 +214,45 @@ export class NightPhase extends AbstractGamePhase {
     if (!player) return;
 
     const currentStep = game.getPhaseStep();
-    console.log(
-      `NightPhase.processAction: Processing ${action.type} from ${player.name} during ${currentStep}`
-    );
 
     switch (action.type) {
       case 'message': // Mafia Discussion
         if (currentStep === 'MafiaDiscussion') {
           game.logMessage(player.id, action.content, MessageVisibility.Mafia);
-        } else {
-          console.warn(
-            `Unexpected message from ${playerId} during ${currentStep}`
-          );
         }
         break;
       case 'mafiaKill': // Mafia Voting
         if (currentStep === 'MafiaVoting') {
+          // Always restore saved votes when processing votes
+          // This handles cases where phase was recreated mid-voting
+          if (this.#mafiaVotes.size === 0) {
+            const savedState = game.getPhaseState();
+            if (savedState?.mafiaVotes) {
+              for (const [voterId, targetId] of Object.entries(
+                savedState.mafiaVotes
+              )) {
+                this.#mafiaVotes.set(voterId, targetId as PlayerId | null);
+              }
+            }
+          }
+
           const targetPlayer = game.getPlayer(action.targetPlayerId);
           if (
             targetPlayer?.isAlive() &&
             targetPlayer.role.allegiance !== 'Mafia'
           ) {
             this.#mafiaVotes.set(playerId, action.targetPlayerId);
+
+            // Save votes to game state for persistence
+            const existingSavedVotes = game.getPhaseState()?.mafiaVotes || {};
+            const currentVotes: Record<PlayerId, PlayerId | null> = {
+              ...existingSavedVotes,
+            };
+            for (const [id, target] of this.#mafiaVotes.entries()) {
+              currentVotes[id] = target;
+            }
+            game.setPhaseState({ mafiaVotes: currentVotes });
+
             game.logMessage(
               player.id,
               `votes to kill ${targetPlayer.name}.`,
@@ -265,6 +268,16 @@ export class NightPhase extends AbstractGamePhase {
               MessageVisibility.Mafia
             );
             this.#mafiaVotes.set(playerId, null); // Record as abstain/invalid
+
+            // Save votes to game state for persistence
+            const existingSavedVotes = game.getPhaseState()?.mafiaVotes || {};
+            const currentVotes: Record<PlayerId, PlayerId | null> = {
+              ...existingSavedVotes,
+            };
+            for (const [id, target] of this.#mafiaVotes.entries()) {
+              currentVotes[id] = target;
+            }
+            game.setPhaseState({ mafiaVotes: currentVotes });
           } else {
             const invalidTargetName = action.targetPlayerId ?? 'unknown';
             game.logMessage(
@@ -273,11 +286,17 @@ export class NightPhase extends AbstractGamePhase {
               MessageVisibility.Mafia
             );
             this.#mafiaVotes.set(playerId, null); // Record as abstain/invalid
+
+            // Save votes to game state for persistence
+            const existingSavedVotes = game.getPhaseState()?.mafiaVotes || {};
+            const currentVotes: Record<PlayerId, PlayerId | null> = {
+              ...existingSavedVotes,
+            };
+            for (const [id, target] of this.#mafiaVotes.entries()) {
+              currentVotes[id] = target;
+            }
+            game.setPhaseState({ mafiaVotes: currentVotes });
           }
-        } else {
-          console.warn(
-            `Unexpected mafiaKill from ${playerId} during ${currentStep}`
-          );
         }
         break;
       case 'doctorSave': // Other Actions
@@ -286,29 +305,8 @@ export class NightPhase extends AbstractGamePhase {
             const targetPlayer = game.getPlayer(action.targetPlayerId);
             if (targetPlayer?.isAlive()) {
               this.#doctorSaveTarget = action.targetPlayerId;
-              game.logMessage(
-                player.id,
-                'decides to protect someone.',
-                MessageVisibility.Private
-              );
-            } else {
-              game.logMessage(
-                player.id,
-                'attempted to save an invalid target.',
-                MessageVisibility.Private
-              );
             }
-          } else {
-            game.logMessage(
-              player.id,
-              'chooses not to save anyone tonight.',
-              MessageVisibility.Private
-            );
           }
-        } else {
-          console.warn(
-            `Unexpected doctorSave from ${playerId} during ${currentStep}`
-          );
         }
         break;
       case 'seerInvestigate': // Other Actions
@@ -318,34 +316,24 @@ export class NightPhase extends AbstractGamePhase {
             if (targetPlayer?.isAlive()) {
               this.#seerInvestigationTarget = action.targetPlayerId;
               this.#seerPlayerId = playerId;
-              game.logMessage(
-                player.id,
-                'decides to investigate someone.',
-                MessageVisibility.Private
-              );
-            } else {
-              game.logMessage(
-                player.id,
-                'attempted to investigate an invalid target.',
-                MessageVisibility.Private
-              );
             }
-          } else {
-            game.logMessage(
-              player.id,
-              'chooses not to investigate anyone tonight.',
-              MessageVisibility.Private
-            );
           }
-        } else {
-          console.warn(
-            `Unexpected seerInvestigate from ${playerId} during ${currentStep}`
-          );
         }
         break;
       case 'noAction': // Can happen in MafiaDiscussion, MafiaVoting, OtherActionsLoop
         if (currentStep === 'MafiaVoting') {
           this.#mafiaVotes.set(playerId, null); // Explicitly record no vote
+
+          // Save votes to game state for persistence
+          const existingSavedVotes = game.getPhaseState()?.mafiaVotes || {};
+          const currentVotes: Record<PlayerId, PlayerId | null> = {
+            ...existingSavedVotes,
+          };
+          for (const [id, target] of this.#mafiaVotes.entries()) {
+            currentVotes[id] = target;
+          }
+          game.setPhaseState({ mafiaVotes: currentVotes });
+
           game.logMessage(
             player.id,
             'chooses not to vote for a kill.',
@@ -367,6 +355,18 @@ export class NightPhase extends AbstractGamePhase {
 
   /** Consolidate Mafia kill votes */
   private consolidateMafiaVotes(game: Game): void {
+    // Restore votes from game state if phase was recreated
+    if (this.#mafiaVotes.size === 0) {
+      const savedState = game.getPhaseState();
+      if (savedState?.mafiaVotes) {
+        for (const [voterId, targetId] of Object.entries(
+          savedState.mafiaVotes
+        )) {
+          this.#mafiaVotes.set(voterId, targetId as PlayerId | null);
+        }
+      }
+    }
+
     this.#finalMafiaKillTarget = null;
 
     // Early return only if no mafia members attempted to vote at all
@@ -395,7 +395,6 @@ export class NightPhase extends AbstractGamePhase {
         !targetPlayer?.isAlive() ||
         targetPlayer.role.allegiance === 'Mafia'
       ) {
-        console.log(`Mafia vote target ${targetId} is no longer valid.`);
         continue;
       }
 
@@ -507,9 +506,6 @@ export class NightPhase extends AbstractGamePhase {
         playerKilledTonight = actualKillTarget;
         // Kill message is generated by game.killPlayer
         game.killPlayer(playerKilledTonight, 'was killed during the night.');
-      } else {
-        console.log(`Kill target ${actualKillTarget} was already dead.`);
-        // Don't set playerKilledTonight if target was already dead
       }
     }
 
@@ -533,10 +529,6 @@ export class NightPhase extends AbstractGamePhase {
         );
         console.log(
           `Seer ${this.#seerPlayerId} investigated ${this.#seerInvestigationTarget}, result: ${investigationResult}`
-        );
-      } else {
-        console.log(
-          `Seer (${this.#seerPlayerId}) or Target (${this.#seerInvestigationTarget}) is invalid/dead.`
         );
       }
     }
