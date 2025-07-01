@@ -6,6 +6,8 @@ import { Player } from '@/lib/engine/core/Player';
 import type { IRole } from '@/lib/engine/interfaces/IRole';
 import { VillagerRole } from '@/lib/engine/roles/VillagerRole';
 import { MafiaRole } from '@/lib/engine/roles/MafiaRole';
+import { SeerRole } from '@/lib/engine/roles/SeerRole';
+import { DoctorRole } from '@/lib/engine/roles/DoctorRole';
 import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
@@ -444,6 +446,172 @@ describe('DayPhase', () => {
     mockGame.setNextPlayerIndexToAction(0);
     await dayPhase.runStep(mockGame as unknown as Game); // Executes TallyVotes logic
 
+    expect(mockGame.killPlayer).not.toHaveBeenCalled();
+    expect(mockGame.logMessage).toHaveBeenCalledWith(
+      null,
+      'VoteNoMajority',
+      MessageVisibility.Public
+    );
+    expect(mockGame.getPhaseStep()).toBe('Finished');
+  });
+
+  it('should execute player with 4 out of 6 votes (simple majority)', async () => {
+    mockGame.round = 2;
+    // Create 6 players to replicate the exact scenario from the game
+    const p5 = createMockPlayerForDayPhase('p5', 'Player5', new SeerRole());
+    const p6 = createMockPlayerForDayPhase('p6', 'Player6', new DoctorRole());
+    const alivePlayers = [p1, p2, p3, p4, p5, p6]; // 6 alive players
+    mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+    
+    // Update getPlayer mock to include new players
+    mockGame.getPlayer.mockImplementation((id) => {
+      if (id === 'p1') return p1;
+      if (id === 'p2') return p2;
+      if (id === 'p3') return p3;
+      if (id === 'p4') return p4;
+      if (id === 'p5') return p5;
+      if (id === 'p6') return p6;
+      return undefined;
+    });
+
+    // Set up voting: 4 players vote for p3 (Mafia), 2 players vote for others
+    // This replicates the exact scenario: Seer, Doctor, 2 Villagers vote for Mafia
+    mockGame.requestPlayerAction.mockImplementation((player) => {
+      const currentStep = mockGame.getPhaseStep();
+      if (currentStep === 'Discussion') {
+        return Promise.resolve({ type: 'noAction' });
+      }
+      if (currentStep === 'Voting') {
+        if (player.id === 'p1') return Promise.resolve({ type: 'vote', targetPlayerId: 'p3' }); // Villager votes for Mafia
+        if (player.id === 'p2') return Promise.resolve({ type: 'vote', targetPlayerId: 'p4' }); // Villager votes for other Villager
+        if (player.id === 'p3') return Promise.resolve({ type: 'vote', targetPlayerId: 'p4' }); // Mafia votes for Villager
+        if (player.id === 'p4') return Promise.resolve({ type: 'vote', targetPlayerId: 'p3' }); // Villager votes for Mafia
+        if (player.id === 'p5') return Promise.resolve({ type: 'vote', targetPlayerId: 'p3' }); // Seer votes for Mafia
+        if (player.id === 'p6') return Promise.resolve({ type: 'vote', targetPlayerId: 'p3' }); // Doctor votes for Mafia
+      }
+      return Promise.resolve({ type: 'noAction' });
+    });
+
+    // Run through the complete day phase
+    mockGame.setPhaseStep('Start');
+    await dayPhase.runStep(mockGame as unknown as Game); // To Discussion
+    expect(mockGame.getPhaseStep()).toBe('Discussion');
+
+    // Complete Discussion phase
+    for (let i = 0; i < alivePlayers.length; i++) {
+      mockGame.setNextPlayerIndexToAction(i);
+      await dayPhase.runStep(mockGame as unknown as Game);
+    }
+    mockGame.setNextPlayerIndexToAction(alivePlayers.length);
+    await dayPhase.runStep(mockGame as unknown as Game); // Transition to Voting
+    expect(mockGame.getPhaseStep()).toBe('Voting');
+
+    // Complete Voting phase
+    for (let i = 0; i < alivePlayers.length; i++) {
+      mockGame.setNextPlayerIndexToAction(i);
+      await dayPhase.runStep(mockGame as unknown as Game);
+    }
+    mockGame.setNextPlayerIndexToAction(alivePlayers.length);
+    await dayPhase.runStep(mockGame as unknown as Game); // Transition to TallyVotes
+    expect(mockGame.getPhaseStep()).toBe('TallyVotes');
+
+    // Tally votes
+    mockGame.setNextPlayerIndexToAction(0);
+    await dayPhase.runStep(mockGame as unknown as Game);
+
+    // Log what actually happened for debugging
+    console.log('=== TEST DEBUG INFO ===');
+    console.log('Alive players:', alivePlayers.length);
+    console.log('Expected threshold (Math.ceil(6/2)):', Math.ceil(6/2));
+    console.log('Expected threshold (Math.floor(6/2)+1):', Math.floor(6/2)+1);
+    
+    // With 4 out of 6 votes for p3, p3 should be executed
+    expect(mockGame.killPlayer).toHaveBeenCalledWith('p3', 'ExecutionReason');
+    expect(mockGame.logMessage).toHaveBeenCalledWith(
+      null,
+      'ExecutionDecision',
+      MessageVisibility.Public
+    );
+
+    expect(mockGame.notifyRenderers).toHaveBeenCalledWith(
+      'renderVoteResults',
+      expect.any(Map),
+      'p3'
+    );
+    expect(mockGame.recordVoteResultsInMemory).toHaveBeenCalledWith(
+      expect.any(Map)
+    );
+    expect(mockGame.setPhaseResults).toHaveBeenCalledWith({
+      lastDayElimination: 'p3',
+    });
+    expect(mockGame.getPhaseStep()).toBe('Finished');
+  });
+
+  it('should NOT execute player with exactly half votes (3 out of 6) - this test should FAIL with current buggy logic', async () => {
+    mockGame.round = 2;
+    // Create 6 players 
+    const p5 = createMockPlayerForDayPhase('p5', 'Player5', new SeerRole());
+    const p6 = createMockPlayerForDayPhase('p6', 'Player6', new DoctorRole());
+    const alivePlayers = [p1, p2, p3, p4, p5, p6]; // 6 alive players
+    mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
+    
+    // Update getPlayer mock to include new players
+    mockGame.getPlayer.mockImplementation((id) => {
+      if (id === 'p1') return p1;
+      if (id === 'p2') return p2;
+      if (id === 'p3') return p3;
+      if (id === 'p4') return p4;
+      if (id === 'p5') return p5;
+      if (id === 'p6') return p6;
+      return undefined;
+    });
+
+    // Set up voting: exactly 3 players vote for p3 (exactly half), others spread out
+    mockGame.requestPlayerAction.mockImplementation((player) => {
+      const currentStep = mockGame.getPhaseStep();
+      if (currentStep === 'Discussion') {
+        return Promise.resolve({ type: 'noAction' });
+      }
+      if (currentStep === 'Voting') {
+        if (player.id === 'p1') return Promise.resolve({ type: 'vote', targetPlayerId: 'p3' }); // Vote for p3
+        if (player.id === 'p2') return Promise.resolve({ type: 'vote', targetPlayerId: 'p3' }); // Vote for p3  
+        if (player.id === 'p3') return Promise.resolve({ type: 'vote', targetPlayerId: 'p4' }); // Vote for p4
+        if (player.id === 'p4') return Promise.resolve({ type: 'vote', targetPlayerId: 'p3' }); // Vote for p3 (3rd vote)
+        if (player.id === 'p5') return Promise.resolve({ type: 'vote', targetPlayerId: 'p1' }); // Vote for p1
+        if (player.id === 'p6') return Promise.resolve({ type: 'vote', targetPlayerId: 'p2' }); // Vote for p2
+      }
+      return Promise.resolve({ type: 'noAction' });
+    });
+
+    // Run through the complete day phase
+    mockGame.setPhaseStep('Start');
+    await dayPhase.runStep(mockGame as unknown as Game); // To Discussion
+    expect(mockGame.getPhaseStep()).toBe('Discussion');
+
+    // Complete Discussion phase
+    for (let i = 0; i < alivePlayers.length; i++) {
+      mockGame.setNextPlayerIndexToAction(i);
+      await dayPhase.runStep(mockGame as unknown as Game);
+    }
+    mockGame.setNextPlayerIndexToAction(alivePlayers.length);
+    await dayPhase.runStep(mockGame as unknown as Game); // Transition to Voting
+    expect(mockGame.getPhaseStep()).toBe('Voting');
+
+    // Complete Voting phase
+    for (let i = 0; i < alivePlayers.length; i++) {
+      mockGame.setNextPlayerIndexToAction(i);
+      await dayPhase.runStep(mockGame as unknown as Game);
+    }
+    mockGame.setNextPlayerIndexToAction(alivePlayers.length);
+    await dayPhase.runStep(mockGame as unknown as Game); // Transition to TallyVotes
+    expect(mockGame.getPhaseStep()).toBe('TallyVotes');
+
+    // Tally votes
+    mockGame.setNextPlayerIndexToAction(0);
+    await dayPhase.runStep(mockGame as unknown as Game);
+
+    // With exactly 3 out of 6 votes (exactly half), p3 should NOT be executed
+    // A true majority requires MORE than half (4+ votes with 6 players)
     expect(mockGame.killPlayer).not.toHaveBeenCalled();
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
