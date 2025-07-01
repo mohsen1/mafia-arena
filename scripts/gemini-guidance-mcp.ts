@@ -1,8 +1,10 @@
 #!/usr/bin/env tsx
 
 // TODO:
+// - [ ] Maintain a "task in hand" state, and only send the next task after the current task is complete. once completed commit and push.
 // - [ ] Ask Gemini if we should start a new chat, if ye, we press cmd+n after focusing the chat to do so
 // - [ ] Tell Cursor to git commit and push (always to main) after push, check out the production deployment to see if things are working
+// - [ ] if Cursor is showing a dialog to act, use keyboard navigation to close it.
 
 /**
  * Gemini Guidance MCP Server for Werewolf/Mafia Game Development
@@ -138,21 +140,36 @@ function saveBacklog(backlog: BacklogItem[]): void {
   }
 }
 
-function addTaskToBacklog(rawInstruction: string): void {
+function getCurrentTask(): BacklogItem | undefined {
+  const backlog = loadBacklog();
+  return backlog.find((item) => item.status === 'in_progress');
+}
+
+function setTaskStatus(id: string, status: BacklogItem['status']): void {
+  const backlog = loadBacklog();
+  const idx = backlog.findIndex((b) => b.id === id);
+  if (idx !== -1) {
+    backlog[idx].status = status;
+    saveBacklog(backlog);
+  }
+}
+
+function addTaskToBacklog(rawInstruction: string, status: BacklogItem['status'] = 'todo'): string {
   log('Adding task to backlog...');
   const backlog = loadBacklog();
   const title = rawInstruction.split('\n')[0].slice(0, 120);
   const newItem: BacklogItem = {
     id: `${Date.now()}`,
     title,
-    status: 'todo',
-    priority: 3, // default medium priority, could be refined later
+    status,
+    priority: 3,
     createdAt: new Date().toISOString(),
     deps: [],
   };
   backlog.push(newItem);
   saveBacklog(backlog);
-  log('Added task to backlog:', { id: newItem.id, title });
+  log('Added task to backlog:', { id: newItem.id, title, status });
+  return newItem.id;
 }
 
 // ==================== Project Snapshot & Situation Report (Features #1 & #2) ====================
@@ -653,29 +670,22 @@ const AVAILABLE_TOOLS: Tool[] = [
   {
     name: 'get_next_task',
     description: 'Analyzes the current state and uses UI automation (cliclick) to type the next development task directly into Cursor\'s chat. Does not return the task in the response to avoid hitting message limits.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'complete_current_task',
+    description: 'Marks the current in-progress task as done so a new task can be generated',
+    inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
     name: 'clear_history',
     description: 'Clear the prompt history to start fresh',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
+    inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
     name: 'check_status',
     description: 'Check if analysis is currently scheduled or in progress',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
+    inputSchema: { type: 'object', properties: {}, required: [] },
   },
 ];
 
@@ -690,7 +700,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 function sendToCursor(prompt: string): void {
   log(`📤 Sending prompt to Cursor...`);
   log('Prompt length:', prompt.length);
-  
+
+  // detect directive
+  let needsNewChat = false;
+  let processedPrompt = prompt;
+  if (prompt.startsWith('[NEW_CHAT]')) {
+    needsNewChat = true;
+    processedPrompt = prompt.replace(/^\[NEW_CHAT\]/, '').trim();
+  }
+
   try {
     // Give user time to see what's happening
     log('Waiting 2 seconds before sending...');
@@ -701,45 +719,43 @@ function sendToCursor(prompt: string): void {
     execSync('cliclick kd:cmd');
     execSync('cliclick t:1');
     execSync('cliclick ku:cmd');
-    
-    // Try Cmd+K to open/focus the chat (Cursor's standard shortcut)
+
+    // Press Cmd+K to open/focus chat
     log('Pressing Cmd+K to open/focus chat...');
     execSync('cliclick kd:cmd');
     execSync('cliclick t:l');
     execSync('cliclick ku:cmd');
-    
+
+    // Optionally start a new chat (Cmd+N)
+    if (needsNewChat) {
+      log('Starting a new chat as requested...');
+      execSync('sleep 0.5');
+      execSync('cliclick kd:cmd');
+      execSync('cliclick t:n');
+      execSync('cliclick ku:cmd');
+      execSync('sleep 0.5');
+    }
+
     // Small delay to let the chat open/focus
     log('Waiting for chat to open/focus...');
     execSync('sleep 1');
-    
-    // Clear any existing text with Cmd+A and Delete
+
+    // Clear any existing text
     log('Clearing existing text...');
     execSync('cliclick kd:cmd');
     execSync('cliclick t:a');
     execSync('cliclick ku:cmd');
     execSync('cliclick kp:delete');
-    
-    // Small delay
     execSync('sleep 0.5');
-    
-    // Type the prompt
+
+    // Type the prompt via clipboard
     log('Typing prompt via clipboard...');
-    // Properly escape the prompt for shell
-    const escapedPrompt = prompt.replace(/'/g, "'\\''");
-    
-    // Use printf to handle the text more safely
+    const escapedPrompt = processedPrompt.replace(/'/g, "'\\''");
     const command = `printf '%s' '${escapedPrompt}' | pbcopy && cliclick kd:cmd && cliclick t:v && cliclick ku:cmd`;
-    log('Executing clipboard paste command...');
     execSync(command);
-    
-    // Small delay before sending
-    log('Waiting before pressing Enter...');
+
     execSync('sleep 1.5');
-    
-    // Press Enter using AppleScript
-    log('Pressing Enter to send prompt...');
     execSync(`osascript -e 'tell application "System Events" to key code 36'`);
-    
     log('✓ Prompt sent successfully!');
   } catch (error) {
     log('Error sending prompt:', error);
@@ -755,6 +771,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'get_next_task': {
       try {
         log('=== GET_NEXT_TASK START ===');
+
+        const current = getCurrentTask();
+        if (current) {
+          log('Task already in progress – id:', current.id);
+          return {
+            content: [
+              { type: 'text', text: `⏳ Task "${current.title}" is still in progress. Mark it complete with the complete_current_task tool before requesting a new task.` },
+            ],
+          };
+        }
+
         log('Scheduling analysis for immediate async execution...');
         
         // Schedule the entire analysis process to run asynchronously
@@ -777,8 +804,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             
             // Add to history & backlog
             log('Step 4: Adding to history and backlog...');
+            const taskId = addTaskToBacklog(instruction, 'in_progress');
             addToPromptHistory(instruction);
-            addTaskToBacklog(instruction);
 
             // Send via UI automation
             log('Step 5: Sending prompt via UI automation...');
@@ -811,6 +838,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
+    }
+
+    case 'complete_current_task': {
+      log('=== COMPLETE_CURRENT_TASK START ===');
+      const current = getCurrentTask();
+      if (!current) {
+        return {
+          content: [{ type: 'text', text: 'ℹ️  No task is currently marked in progress.' }],
+        };
+      }
+      setTaskStatus(current.id, 'done');
+      log('Marked task as done:', current.id);
+      return {
+        content: [
+          { type: 'text', text: `✅ Task "${current.title}" marked as done. You can now request the next task with get_next_task.` },
+        ],
+      };
     }
 
     case 'clear_history': {
