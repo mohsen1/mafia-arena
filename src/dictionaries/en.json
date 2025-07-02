@@ -395,6 +395,11 @@
     "keyNameRequired": "Please enter a name for your key",
     "apiKeyRequired": "Please enter your API key",
     "apiKeyTooShort": "API key appears too short",
+    "testConnection": "Test Connection",
+    "testing": "Testing...",
+    "testSuccess": "Connection successful! Your API key is valid.",
+    "testFailed": "Connection failed. Please check your API key.",
+    "enterProviderAndKey": "Please select a provider and enter an API key first",
     "providers": {
       "openai": "OpenAI",
       "anthropic": "Anthropic (Claude)",
