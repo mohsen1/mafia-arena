@@ -1,14 +1,24 @@
-import { describe, it, expect, beforeEach, vi, type MockedFunction } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  vi,
+  type MockedFunction,
+} from 'vitest';
 import { CharacterGenerationPhase } from '@/lib/engine/phases/CharacterGenerationPhase';
 import type { Game } from '@/lib/engine/core/Game';
-import type { SerializableGameState, SerializablePlayer } from '@/lib/interfaces/persistence.types';
+import type { SerializableGameState } from '@/lib/interfaces/persistence.types';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
 import type { Persona } from '@/lib/engine/interfaces/Persona';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { generateCharacterPersona } from '@/app/actions/setup.actions';
 import { selectCharacterImage } from '@/lib/utils/imageUtils';
-import { generateGameCharactersAction, getCharacterGenerationProgressAction } from '@/app/actions/character-generation.actions';
+import {
+  generateGameCharactersAction,
+  getCharacterGenerationProgressAction,
+} from '@/app/actions/character-generation.actions';
 import { loadGameData, saveGameData } from '@/lib/db/persistence';
 import { GameService } from '@/lib/db/game.service';
 import { getServerSession } from 'next-auth';
@@ -22,11 +32,17 @@ vi.mock('@/lib/db/game.service');
 vi.mock('next-auth');
 vi.mock('@/lib/agentFactory');
 
-const mockGenerateCharacterPersona = generateCharacterPersona as MockedFunction<typeof generateCharacterPersona>;
-const mockSelectCharacterImage = selectCharacterImage as MockedFunction<typeof selectCharacterImage>;
+const mockGenerateCharacterPersona = generateCharacterPersona as MockedFunction<
+  typeof generateCharacterPersona
+>;
+const mockSelectCharacterImage = selectCharacterImage as MockedFunction<
+  typeof selectCharacterImage
+>;
 const mockLoadGameData = loadGameData as MockedFunction<typeof loadGameData>;
 const mockSaveGameData = saveGameData as MockedFunction<typeof saveGameData>;
-const mockGetServerSession = getServerSession as MockedFunction<typeof getServerSession>;
+const mockGetServerSession = getServerSession as MockedFunction<
+  typeof getServerSession
+>;
 
 const createMockGameForCharacterGeneration = () => {
   let currentPhaseStep = 'Start';
@@ -126,7 +142,9 @@ const createMockGameState = (): SerializableGameState => {
   };
 };
 
-type MockGameForCharacterGeneration = ReturnType<typeof createMockGameForCharacterGeneration>;
+type MockGameForCharacterGeneration = ReturnType<
+  typeof createMockGameForCharacterGeneration
+>;
 
 describe('CharacterGenerationPhase', () => {
   let characterGenerationPhase: CharacterGenerationPhase;
@@ -155,14 +173,20 @@ describe('CharacterGenerationPhase', () => {
     it('should set phase step to WaitingForCharacterGeneration on runStep', async () => {
       await characterGenerationPhase.runStep(mockGame as unknown as Game);
 
-      expect(mockGame.setPhaseStep).toHaveBeenCalledWith('WaitingForCharacterGeneration');
-      expect(mockGame.logEvent).toHaveBeenCalledWith('Character generation in progress...');
+      expect(mockGame.setPhaseStep).toHaveBeenCalledWith(
+        'WaitingForCharacterGeneration'
+      );
+      expect(mockGame.logEvent).toHaveBeenCalledWith(
+        'Character generation in progress...'
+      );
     });
 
     it('should stay in CharacterGeneration phase when step is not Complete', () => {
       mockGame.getPhaseStep.mockReturnValue('WaitingForCharacterGeneration');
 
-      const nextPhase = characterGenerationPhase.transition(mockGame as unknown as Game);
+      const nextPhase = characterGenerationPhase.transition(
+        mockGame as unknown as Game
+      );
 
       expect(nextPhase).toBe('CharacterGeneration');
     });
@@ -170,7 +194,9 @@ describe('CharacterGenerationPhase', () => {
     it('should transition to Init phase when step is Complete', () => {
       mockGame.getPhaseStep.mockReturnValue('Complete');
 
-      const nextPhase = characterGenerationPhase.transition(mockGame as unknown as Game);
+      const nextPhase = characterGenerationPhase.transition(
+        mockGame as unknown as Game
+      );
 
       expect(nextPhase).toBe('Init');
     });
@@ -181,10 +207,14 @@ describe('CharacterGenerationPhase', () => {
         await characterGenerationPhase.runStep(mockGame as unknown as Game);
 
         // Should always set the same step
-        expect(mockGame.setPhaseStep).toHaveBeenCalledWith('WaitingForCharacterGeneration');
+        expect(mockGame.setPhaseStep).toHaveBeenCalledWith(
+          'WaitingForCharacterGeneration'
+        );
 
         // Should always transition to same phase unless manually marked complete
-        const nextPhase = characterGenerationPhase.transition(mockGame as unknown as Game);
+        const nextPhase = characterGenerationPhase.transition(
+          mockGame as unknown as Game
+        );
         expect(nextPhase).toBe('CharacterGeneration');
       }
 
@@ -196,13 +226,17 @@ describe('CharacterGenerationPhase', () => {
     it('should handle manual completion correctly', async () => {
       // Initial state
       await characterGenerationPhase.runStep(mockGame as unknown as Game);
-      expect(characterGenerationPhase.transition(mockGame as unknown as Game)).toBe('CharacterGeneration');
+      expect(
+        characterGenerationPhase.transition(mockGame as unknown as Game)
+      ).toBe('CharacterGeneration');
 
       // Manually mark as complete (this would be done by the character generation action)
       mockGame.getPhaseStep.mockReturnValue('Complete');
 
       // Should now transition to Init
-      expect(characterGenerationPhase.transition(mockGame as unknown as Game)).toBe('Init');
+      expect(
+        characterGenerationPhase.transition(mockGame as unknown as Game)
+      ).toBe('Init');
     });
   });
 
@@ -216,20 +250,20 @@ describe('CharacterGenerationPhase', () => {
 
       mockGenerateCharacterPersona.mockResolvedValue(mockPersona);
 
-             const result = await generateCharacterPersona(
-         'TestPlayer',
-         'player-test',
-         { agentType: 'mock', modelName: 'test', apiKey: 'key' },
-         'A modern city setting',
-         'en',
-         ['ExistingPlayer']
-       );
+      const result = await generateCharacterPersona(
+        'TestPlayer',
+        'player-test',
+        { agentType: 'mock', modelName: 'test' },
+        'A modern city setting',
+        'en',
+        ['ExistingPlayer']
+      );
 
       expect(result).toEqual(mockPersona);
       expect(mockGenerateCharacterPersona).toHaveBeenCalledWith(
         'TestPlayer',
         'player-test',
-        { agentType: 'mock', modelName: 'test', apiKey: 'key' },
+        { agentType: 'mock', modelName: 'test' },
         'A modern city setting',
         'en',
         ['ExistingPlayer']
@@ -244,7 +278,7 @@ describe('CharacterGenerationPhase', () => {
         generateCharacterPersona(
           'TestPlayer',
           'player-test',
-          { provider: 'mock', model: 'test', apiKey: 'key' },
+          { agentType: 'mock', modelName: 'test' },
           'A modern city setting',
           'en',
           []
@@ -268,7 +302,7 @@ describe('CharacterGenerationPhase', () => {
       const result = await generateCharacterPersona(
         'TestPlayer',
         'player-test',
-        { provider: 'mock', model: 'test', apiKey: 'key' },
+        { agentType: 'mock', modelName: 'test' },
         'A modern city setting',
         'en',
         []
@@ -292,18 +326,36 @@ describe('CharacterGenerationPhase', () => {
 
     it('should handle different gender and age combinations', async () => {
       const testCases = [
-        { gender: 'female' as const, age: 'young' as const, expected: '/images/characters/female/young/char-1.png' },
-        { gender: 'male' as const, age: 'old' as const, expected: '/images/characters/male/old/char-2.png' },
-        { gender: 'female' as const, age: 'old' as const, expected: '/images/characters/female/old/char-3.png' },
+        {
+          gender: 'female' as const,
+          age: 'young' as const,
+          expected: '/images/characters/female/young/char-1.png',
+        },
+        {
+          gender: 'male' as const,
+          age: 'old' as const,
+          expected: '/images/characters/male/old/char-2.png',
+        },
+        {
+          gender: 'female' as const,
+          age: 'old' as const,
+          expected: '/images/characters/female/old/char-3.png',
+        },
       ];
 
       for (const testCase of testCases) {
         mockSelectCharacterImage.mockResolvedValueOnce(testCase.expected);
-        
-        const result = await selectCharacterImage(testCase.gender, testCase.age);
-        
+
+        const result = await selectCharacterImage(
+          testCase.gender,
+          testCase.age
+        );
+
         expect(result).toBe(testCase.expected);
-        expect(mockSelectCharacterImage).toHaveBeenCalledWith(testCase.gender, testCase.age);
+        expect(mockSelectCharacterImage).toHaveBeenCalledWith(
+          testCase.gender,
+          testCase.age
+        );
       }
     });
 
@@ -336,7 +388,9 @@ describe('CharacterGenerationPhase', () => {
       };
 
       // Mock the implementation to return our test progress
-      vi.mocked(getCharacterGenerationProgressAction).mockResolvedValue(mockProgress);
+      vi.mocked(getCharacterGenerationProgressAction).mockResolvedValue(
+        mockProgress
+      );
 
       const result = await getCharacterGenerationProgressAction('test-game-id');
 
@@ -366,13 +420,17 @@ describe('CharacterGenerationPhase', () => {
         ],
       };
 
-      vi.mocked(getCharacterGenerationProgressAction).mockResolvedValue(mockProgress);
+      vi.mocked(getCharacterGenerationProgressAction).mockResolvedValue(
+        mockProgress
+      );
 
       const result = await getCharacterGenerationProgressAction('test-game-id');
 
       expect(result).toEqual(mockProgress);
-      expect(result.progress).toBe(100);
-      expect(result.currentStep).toBe('Complete');
+      if ('progress' in result) {
+        expect(result.progress).toBe(100);
+        expect(result.currentStep).toBe('Complete');
+      }
     });
 
     it('should handle games with no AI players', async () => {
@@ -385,7 +443,9 @@ describe('CharacterGenerationPhase', () => {
         characters: [],
       };
 
-      vi.mocked(getCharacterGenerationProgressAction).mockResolvedValue(mockProgress);
+      vi.mocked(getCharacterGenerationProgressAction).mockResolvedValue(
+        mockProgress
+      );
 
       const result = await getCharacterGenerationProgressAction('test-game-id');
 
@@ -404,7 +464,8 @@ describe('CharacterGenerationPhase', () => {
 
       const mockPersona2: Persona = {
         name: 'Sarah Johnson',
-        backstory: 'A local business owner with connections throughout the city',
+        backstory:
+          'A local business owner with connections throughout the city',
         personalityTraits: ['Charismatic', 'Ambitious', 'Networked'],
       };
 
@@ -451,7 +512,9 @@ describe('CharacterGenerationPhase', () => {
         players: mockGameState.players,
       };
 
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockResult as any);
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(
+        mockResult as any
+      );
 
       const result = await generateGameCharactersAction('test-game-id');
 
@@ -493,7 +556,9 @@ describe('CharacterGenerationPhase', () => {
         },
       };
 
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockResult as any);
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(
+        mockResult as any
+      );
 
       const result = await generateGameCharactersAction('test-game-id');
 
@@ -515,7 +580,9 @@ describe('CharacterGenerationPhase', () => {
 
       const result = await generateGameCharactersAction('test-game-id');
 
-      expect(result).toEqual({ error: "You don't have permission to modify this game" });
+      expect(result).toEqual({
+        error: "You don't have permission to modify this game",
+      });
     });
 
     it('should handle missing game errors', async () => {
@@ -533,14 +600,16 @@ describe('CharacterGenerationPhase', () => {
 
       const result = await generateGameCharactersAction('test-game-id');
 
-      expect(result).toEqual({ error: 'Character generation already completed' });
+      expect(result).toEqual({
+        error: 'Character generation already completed',
+      });
     });
   });
 
   describe('Name Uniqueness Validation', () => {
     it('should ensure all generated names are unique', async () => {
       const existingNames = ['Alice', 'Bob', 'Charlie'];
-      
+
       // Mock persona generation with potential duplicate
       const duplicatePersona: Persona = {
         name: 'Alice', // Duplicate name
@@ -562,7 +631,7 @@ describe('CharacterGenerationPhase', () => {
       const result1 = await generateCharacterPersona(
         'TestPlayer',
         'player-1',
-        { provider: 'mock', model: 'test', apiKey: 'key' },
+        { agentType: 'mock', modelName: 'test' },
         'Theme',
         'en',
         existingNames
@@ -573,7 +642,7 @@ describe('CharacterGenerationPhase', () => {
       const result2 = await generateCharacterPersona(
         'TestPlayer',
         'player-2',
-        { provider: 'mock', model: 'test', apiKey: 'key' },
+        { agentType: 'mock', modelName: 'test' },
         'Theme',
         'en',
         [...existingNames, result1.name]
@@ -595,7 +664,9 @@ describe('CharacterGenerationPhase', () => {
         phase: 'Day',
       };
 
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockResult as any);
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(
+        mockResult as any
+      );
 
       const result = await generateGameCharactersAction('test-game-id');
 
@@ -629,7 +700,7 @@ describe('CharacterGenerationPhase', () => {
         generateCharacterPersona(
           'TestPlayer',
           'player-test',
-          { provider: 'mock', model: 'test', apiKey: 'key' },
+          { agentType: 'mock', modelName: 'test' },
           'Theme',
           'en',
           []
@@ -680,7 +751,9 @@ describe('CharacterGenerationPhase', () => {
         characters: [],
       };
 
-      vi.mocked(getCharacterGenerationProgressAction).mockResolvedValue(mockProgress);
+      vi.mocked(getCharacterGenerationProgressAction).mockResolvedValue(
+        mockProgress
+      );
 
       const result = await getCharacterGenerationProgressAction('test-game-id');
 
