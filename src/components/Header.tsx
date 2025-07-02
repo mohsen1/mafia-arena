@@ -32,11 +32,19 @@ export function Header({ currentLang }: HeaderProps) {
   };
 
   return (
-    <nav className="relative z-10 bg-background/80 backdrop-blur-sm border-b border-border/40">
+    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/40 supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href={`/${currentLang}`} className="flex items-center">
+          <Link href={`/${currentLang}`} className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+            <Image
+              src="/images/logo.png"
+              alt="Werewolf AI Logo"
+              width={40}
+              height={40}
+              className="w-10 h-10 object-contain"
+              priority
+            />
             <span className="text-xl font-bold text-foreground">
               Werewolf AI
             </span>
