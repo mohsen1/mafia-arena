@@ -288,7 +288,7 @@ describe('CharacterGenerationPhase', () => {
     it('should retry persona generation on failure', async () => {
       // Reset the mock to ensure clean state
       mockGenerateCharacterPersona.mockReset();
-      
+
       const mockPersona: Persona = {
         name: 'Generated Character',
         backstory: 'A character generated after retry',
@@ -485,15 +485,15 @@ describe('CharacterGenerationPhase', () => {
     beforeEach(() => {
       // Clear all mocks and reset to clean state
       vi.clearAllMocks();
-      
+
       // Setup authentication mock
       mockGetServerSession.mockResolvedValue({
         user: { id: 'test-user-id' },
       } as any);
-      
+
       // Setup permission mock
       GameService.isGameOwner = vi.fn().mockResolvedValue(true);
-      
+
       // Setup database mocks
       mockLoadGameData.mockResolvedValue(createMockGameState());
       mockSaveGameData.mockResolvedValue(undefined);
@@ -523,7 +523,7 @@ describe('CharacterGenerationPhase', () => {
 
     it('should generate characters for all AI players successfully', async () => {
       const mockGameState = createMockGameState();
-      
+
       const mockResult = {
         gameId: 'test-game-id',
         phase: 'Day',
@@ -538,12 +538,14 @@ describe('CharacterGenerationPhase', () => {
       const result = await generateGameCharactersAction('test-game-id');
 
       expect(result).toEqual(mockResult);
-      expect(vi.mocked(generateGameCharactersAction)).toHaveBeenCalledWith('test-game-id');
+      expect(vi.mocked(generateGameCharactersAction)).toHaveBeenCalledWith(
+        'test-game-id'
+      );
     });
 
     it('should handle duplicate name generation', async () => {
       const mockGameState = createMockGameState();
-      
+
       const mockResult = {
         gameId: 'test-game-id',
         phase: 'Day',
@@ -563,13 +565,17 @@ describe('CharacterGenerationPhase', () => {
       const result = await generateGameCharactersAction('test-game-id');
 
       expect(result).toEqual(mockResult);
-      expect(vi.mocked(generateGameCharactersAction)).toHaveBeenCalledWith('test-game-id');
+      expect(vi.mocked(generateGameCharactersAction)).toHaveBeenCalledWith(
+        'test-game-id'
+      );
     });
 
     it('should handle authentication errors', async () => {
       const mockErrorResult = { error: 'Authentication required' };
-      
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockErrorResult);
+
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(
+        mockErrorResult
+      );
 
       const result = await generateGameCharactersAction('test-game-id');
 
@@ -580,8 +586,10 @@ describe('CharacterGenerationPhase', () => {
       const mockErrorResult = {
         error: "You don't have permission to modify this game",
       };
-      
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockErrorResult);
+
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(
+        mockErrorResult
+      );
 
       const result = await generateGameCharactersAction('test-game-id');
 
@@ -590,8 +598,10 @@ describe('CharacterGenerationPhase', () => {
 
     it('should handle missing game errors', async () => {
       const mockErrorResult = { error: 'Game not found' };
-      
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockErrorResult);
+
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(
+        mockErrorResult
+      );
 
       const result = await generateGameCharactersAction('test-game-id');
 
@@ -602,8 +612,10 @@ describe('CharacterGenerationPhase', () => {
       const mockErrorResult = {
         error: 'Character generation already completed',
       };
-      
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockErrorResult);
+
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(
+        mockErrorResult
+      );
 
       const result = await generateGameCharactersAction('test-game-id');
 
