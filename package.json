@@ -7,7 +7,6 @@
     "dev": "PORT=3099 DEBUG=mafia:* next dev --turbopack",
     "build": "next build",
     "build:ci": "./scripts/ci-build.sh",
-    "prestart": "pnpm run build && pnpm run translate",
     "start": "PORT=3100 next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
