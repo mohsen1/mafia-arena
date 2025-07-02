@@ -11,6 +11,7 @@ import type { Game } from '@/lib/engine/core/Game';
 import type { SerializableGameState } from '@/lib/interfaces/persistence.types';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
 import type { Persona } from '@/lib/engine/interfaces/Persona';
+import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import { generateCharacterPersona } from '@/app/actions/setup.actions';
@@ -22,6 +23,7 @@ import {
 import { loadGameData, saveGameData } from '@/lib/db/persistence';
 import { GameService } from '@/lib/db/game.service';
 import { getServerSession } from 'next-auth';
+import type { Session } from 'next-auth';
 
 // Mock all external dependencies
 vi.mock('@/app/actions/setup.actions');
@@ -157,7 +159,7 @@ describe('CharacterGenerationPhase', () => {
     // Default mock implementations
     mockGetServerSession.mockResolvedValue({
       user: { id: 'test-user-id' },
-    } as any);
+    } as unknown as Session);
 
     GameService.isGameOwner = vi.fn().mockResolvedValue(true);
     mockLoadGameData.mockResolvedValue(createMockGameState());
@@ -489,7 +491,7 @@ describe('CharacterGenerationPhase', () => {
       // Setup authentication mock
       mockGetServerSession.mockResolvedValue({
         user: { id: 'test-user-id' },
-      } as any);
+      } as unknown as Session);
 
       // Setup permission mock
       GameService.isGameOwner = vi.fn().mockResolvedValue(true);
@@ -528,12 +530,10 @@ describe('CharacterGenerationPhase', () => {
         gameId: 'test-game-id',
         phase: 'Day',
         players: mockGameState.players,
-      };
+      } as unknown as FilteredGameState;
 
       // Setup the mock before calling the function
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(
-        mockResult as any
-      );
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockResult);
 
       const result = await generateGameCharactersAction('test-game-id');
 
@@ -556,11 +556,9 @@ describe('CharacterGenerationPhase', () => {
             name: 'Unique Character',
           },
         },
-      };
+      } as unknown as FilteredGameState;
 
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(
-        mockResult as any
-      );
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockResult);
 
       const result = await generateGameCharactersAction('test-game-id');
 
@@ -679,16 +677,16 @@ describe('CharacterGenerationPhase', () => {
       const mockResult = {
         ...gameState,
         phase: 'Day',
-      };
+      } as unknown as FilteredGameState;
 
-      vi.mocked(generateGameCharactersAction).mockResolvedValue(
-        mockResult as any
-      );
+      vi.mocked(generateGameCharactersAction).mockResolvedValue(mockResult);
 
       const result = await generateGameCharactersAction('test-game-id');
 
       expect(result).toEqual(mockResult);
-      expect((result as any).phase).toBe('Day');
+      if ('phase' in result) {
+        expect(result.phase).toBe('Day');
+      }
     });
 
     it('should handle phase transition errors', async () => {
