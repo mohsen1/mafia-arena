@@ -42,6 +42,7 @@ import {
   type CreateApiKeyData,
 } from '@/app/actions/api-keys.actions';
 import { availableProviders } from '@/lib/models';
+import { useTranslation } from 'react-i18next';
 
 interface UserApiKeyManagerProps {
   onKeysChanged?: () => void;
@@ -56,6 +57,7 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
 };
 
 export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
+  const { t } = useTranslation();
   const [apiKeys, setApiKeys] = useState<UserApiKeyInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +86,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
       setApiKeys(keys);
       setError(null);
     } catch (err) {
-      setError('Failed to load API keys');
+      setError(t('apiKeys.failedToLoad'));
       console.error('Error loading API keys:', err);
     } finally {
       setLoading(false);
@@ -96,10 +98,10 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
 
     // Validate form
     const errors: Record<string, string> = {};
-    if (!formData.provider) errors.provider = 'Please select a provider';
+    if (!formData.provider) errors.provider = t('apiKeys.providerRequired');
     if (!formData.keyName.trim())
-      errors.keyName = 'Please enter a name for your key';
-    if (!formData.apiKey.trim()) errors.apiKey = 'Please enter your API key';
+      errors.keyName = t('apiKeys.keyNameRequired');
+    if (!formData.apiKey.trim()) errors.apiKey = t('apiKeys.apiKeyRequired');
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -116,10 +118,10 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
         await loadApiKeys();
         onKeysChanged?.();
       } else {
-        setFormErrors({ general: result.error || 'Failed to add API key' });
+        setFormErrors({ general: result.error || t('apiKeys.failedToAdd') });
       }
     } catch (err) {
-      setFormErrors({ general: 'Failed to add API key' });
+      setFormErrors({ general: t('apiKeys.failedToAdd') });
       console.error('Error adding API key:', err);
     } finally {
       setSubmitting(false);
@@ -131,9 +133,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
 
     const errors: Record<string, string> = {};
     if (!formData.keyName.trim())
-      errors.keyName = 'Please enter a name for your key';
+      errors.keyName = t('apiKeys.keyNameRequired');
     if (formData.apiKey.trim() && formData.apiKey.length < 10) {
-      errors.apiKey = 'API key appears too short';
+      errors.apiKey = t('apiKeys.apiKeyTooShort');
     }
 
     if (Object.keys(errors).length > 0) {
@@ -164,10 +166,10 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
         await loadApiKeys();
         onKeysChanged?.();
       } else {
-        setFormErrors({ general: result.error || 'Failed to update API key' });
+        setFormErrors({ general: result.error || t('apiKeys.failedToUpdate') });
       }
     } catch (err) {
-      setFormErrors({ general: 'Failed to update API key' });
+      setFormErrors({ general: t('apiKeys.failedToUpdate') });
       console.error('Error updating API key:', err);
     } finally {
       setSubmitting(false);
@@ -177,7 +179,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
   const handleDeleteKey = async (keyId: string) => {
     if (
       !confirm(
-        'Are you sure you want to delete this API key? This action cannot be undone.'
+        t('apiKeys.deleteConfirmation')
       )
     ) {
       return;
@@ -190,10 +192,10 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
         await loadApiKeys();
         onKeysChanged?.();
       } else {
-        alert(result.error || 'Failed to delete API key');
+        alert(result.error || t('apiKeys.failedToDelete'));
       }
     } catch (err) {
-      alert('Failed to delete API key');
+      alert(t('apiKeys.failedToDelete'));
       console.error('Error deleting API key:', err);
     }
   };
@@ -235,13 +237,13 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
   const getAvailableProvidersForDropdown = () => {
     return availableProviders.map((provider) => ({
       value: provider.value,
-      label: PROVIDER_DISPLAY_NAMES[provider.value] || provider.title,
+      label: t(`apiKeys.providers.${provider.value}`) || PROVIDER_DISPLAY_NAMES[provider.value] || provider.title,
     }));
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-4">Loading...</div>
+      <div className="flex items-center justify-center p-4">{t('apiKeys.loading')}</div>
     );
   }
 
@@ -251,17 +253,16 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Key className="w-5 h-5" />
-            Your API Keys
+            {t('apiKeys.yourApiKeys')}
           </h3>
           <p className="text-sm text-muted-foreground">
-            Manage your AI provider API keys. These are stored securely and
-            encrypted.
+            {t('apiKeys.manageDescription')}
           </p>
         </div>
         {!showAddForm && !editingKeyId && (
           <Button onClick={startAdding}>
             <Plus className="w-4 h-4 me-2" />
-            Add API Key
+            {t('apiKeys.addApiKey')}
           </Button>
         )}
       </div>
@@ -277,10 +278,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
       {showAddForm && (
         <Card className="border-0 shadow-none bg-secondary/30">
           <CardHeader>
-            <CardTitle className="text-lg">Add New API Key</CardTitle>
+            <CardTitle className="text-lg">{t('apiKeys.addNewApiKey')}</CardTitle>
             <CardDescription>
-              Add an API key for an AI provider. Your key will be encrypted and
-              stored securely.
+              {t('apiKeys.addNewApiKeyDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -292,7 +292,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
             )}
 
             <div>
-              <Label htmlFor="provider">Provider</Label>
+              <Label htmlFor="provider">{t('apiKeys.provider')}</Label>
               <Select
                 value={formData.provider}
                 onValueChange={(value) =>
@@ -300,7 +300,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select AI provider" />
+                  <SelectValue placeholder={t('apiKeys.selectProvider')} />
                 </SelectTrigger>
                 <SelectContent>
                   {getAvailableProvidersForDropdown().map((provider) => (
@@ -318,10 +318,10 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
             </div>
 
             <div>
-              <Label htmlFor="keyName">Key Name</Label>
+              <Label htmlFor="keyName">{t('apiKeys.keyName')}</Label>
               <Input
                 id="keyName"
-                placeholder="e.g., My OpenAI Key"
+                placeholder={t('apiKeys.keyNamePlaceholder')}
                 value={formData.keyName}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, keyName: e.target.value }))
@@ -335,12 +335,12 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
             </div>
 
             <div>
-              <Label htmlFor="apiKey">API Key</Label>
+              <Label htmlFor="apiKey">{t('apiKeys.apiKey')}</Label>
               <div className="relative">
                 <Input
                   id="apiKey"
                   type={showApiKey ? 'text' : 'password'}
-                  placeholder="Enter your API key"
+                  placeholder={t('apiKeys.apiKeyPlaceholder')}
                   value={formData.apiKey}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, apiKey: e.target.value }))
@@ -370,7 +370,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
             <div className="flex gap-2">
               <Button onClick={handleAddKey} disabled={submitting}>
                 <Save className="w-4 h-4 me-2" />
-                {submitting ? 'Adding...' : 'Add Key'}
+                {submitting ? t('apiKeys.adding') : t('apiKeys.addKey')}
               </Button>
               <Button
                 variant="outline"
@@ -378,7 +378,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                 disabled={submitting}
               >
                 <X className="w-4 h-4 me-2" />
-                Cancel
+                {t('apiKeys.cancel')}
               </Button>
             </div>
           </CardContent>
@@ -389,8 +389,8 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
       {apiKeys.length === 0 && !showAddForm ? (
         <div className="text-center py-8 text-muted-foreground">
           <Key className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No API keys configured</p>
-          <p className="text-sm">Add your first API key to get started</p>
+          <p>{t('apiKeys.noKeysConfigured')}</p>
+          <p className="text-sm">{t('apiKeys.noKeysDescription')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -400,10 +400,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                 // Edit Form
                 <Card className="border-0 shadow-none bg-secondary/30">
                   <CardHeader>
-                    <CardTitle className="text-lg">Edit API Key</CardTitle>
+                    <CardTitle className="text-lg">{t('apiKeys.editApiKey')}</CardTitle>
                     <CardDescription>
-                      Update your API key details. Leave the API key field empty
-                      to keep the current key.
+                      {t('apiKeys.editApiKeyDescription')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -417,10 +416,11 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                     )}
 
                     <div>
-                      <Label htmlFor="editProvider">Provider</Label>
+                      <Label htmlFor="editProvider">{t('apiKeys.provider')}</Label>
                       <Input
                         id="editProvider"
                         value={
+                          t(`apiKeys.providers.${formData.provider}`) ||
                           PROVIDER_DISPLAY_NAMES[formData.provider] ||
                           formData.provider
                         }
@@ -429,7 +429,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                     </div>
 
                     <div>
-                      <Label htmlFor="editKeyName">Key Name</Label>
+                      <Label htmlFor="editKeyName">{t('apiKeys.keyName')}</Label>
                       <Input
                         id="editKeyName"
                         value={formData.keyName}
@@ -448,12 +448,12 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                     </div>
 
                     <div>
-                      <Label htmlFor="editApiKey">New API Key (optional)</Label>
+                      <Label htmlFor="editApiKey">{t('apiKeys.newApiKey')}</Label>
                       <div className="relative">
                         <Input
                           id="editApiKey"
                           type={showApiKey ? 'text' : 'password'}
-                          placeholder="Enter new API key to replace current one"
+                          placeholder={t('apiKeys.newApiKeyPlaceholder')}
                           value={formData.apiKey}
                           onChange={(e) =>
                             setFormData((prev) => ({
@@ -489,7 +489,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                         disabled={submitting}
                       >
                         <Save className="w-4 h-4 me-2" />
-                        {submitting ? 'Updating...' : 'Update Key'}
+                        {submitting ? t('apiKeys.updating') : t('apiKeys.updateKey')}
                       </Button>
                       <Button
                         variant="outline"
@@ -497,7 +497,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                         disabled={submitting}
                       >
                         <X className="w-4 h-4 me-2" />
-                        Cancel
+                        {t('apiKeys.cancel')}
                       </Button>
                     </div>
                   </CardContent>
@@ -510,7 +510,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium">{key.keyName}</span>
                         <Badge variant={key.isActive ? 'default' : 'secondary'}>
-                          {PROVIDER_DISPLAY_NAMES[key.provider] || key.provider}
+                          {t(`apiKeys.providers.${key.provider}`) || PROVIDER_DISPLAY_NAMES[key.provider] || key.provider}
                         </Badge>
                         {key.isActive ? (
                           <CheckCircle className="w-4 h-4 text-green-500" />
@@ -519,7 +519,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Added {new Date(key.createdAt).toLocaleDateString()}
+                        {t('apiKeys.added')} {new Date(key.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
