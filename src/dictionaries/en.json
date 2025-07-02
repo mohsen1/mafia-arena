@@ -201,6 +201,7 @@
   "landingFooterDocumentation": "Documentation",
   "landingFooterLanguage": "Language",
   "landingFooterCopyright": "Built with care using Next.js and AI.",
+  "landingFooterHelp": "Help",
   
   "landingNavFeatures": "Features",
   "landingNavHowItWorks": "How It Works",
@@ -504,5 +505,83 @@
     "allCharactersGenerated": "All characters have been generated!",
     "proceedToGame": "Proceeding to game...",
     "error": "Error generating character"
+  },
+  
+  "help": {
+    "title": "How to Play Werewolf AI",
+    "subtitle": "Learn the rules and strategies for playing Werewolf with AI characters",
+    "overview": {
+      "title": "Game Overview",
+      "description": "Werewolf AI is a social deduction game where you play alongside intelligent AI characters. The game is divided into two teams: the Villagers and the Mafia (Werewolves). The Villagers must identify and eliminate all Mafia members, while the Mafia tries to eliminate Villagers without being discovered.",
+      "objective": "Objective",
+      "villagerWin": "Villagers win by eliminating all Mafia members",
+      "mafiaWin": "Mafia wins when they equal or outnumber the Villagers"
+    },
+    "roles": {
+      "title": "Character Roles",
+      "villager": {
+        "name": "Villager",
+        "description": "Regular townspeople with no special abilities. They must use deduction and observation to identify the Mafia members during day discussions."
+      },
+      "mafia": {
+        "name": "Mafia",
+        "description": "Evil players who know each other's identities. They secretly eliminate one Villager each night and must blend in during day discussions to avoid detection."
+      },
+      "seer": {
+        "name": "Seer",
+        "description": "A special Villager who can investigate one player each night to learn if they are Mafia or not. Must share information carefully to avoid becoming a target."
+      },
+      "doctor": {
+        "name": "Doctor",
+        "description": "A special Villager who can protect one player each night from Mafia elimination. Cannot protect the same player two nights in a row."
+      }
+    },
+    "phases": {
+      "title": "Game Phases",
+      "day": {
+        "name": "Day Phase",
+        "description": "All players discuss and debate to identify suspicious behavior. The phase ends with a vote to eliminate a suspected Mafia member.",
+        "discussion": "Players share observations and suspicions",
+        "accusation": "Players can accuse others of being Mafia",
+        "voting": "All alive players vote to eliminate one player",
+        "elimination": "The player with the most votes is eliminated"
+      },
+      "night": {
+        "name": "Night Phase",
+        "description": "Special roles perform their actions in secret. The Mafia chooses a victim, while the Seer investigates and the Doctor protects.",
+        "mafia": "Mafia members choose a Villager to eliminate",
+        "seer": "Seer investigates one player's alignment",
+        "doctor": "Doctor chooses one player to protect",
+        "reveal": "Night results are revealed at dawn"
+      }
+    },
+    "ai": {
+      "title": "Playing with AI Characters",
+      "description": "Each AI character has a unique personality and playing style. They will engage in discussions, make accusations, and vote based on their observations and role.",
+      "features": {
+        "title": "AI Features",
+        "personality": "Unique personalities with period-appropriate names and backgrounds",
+        "memory": "Remember previous discussions and player actions",
+        "strategy": "Strategic thinking based on their role and game state",
+        "deduction": "Logical deduction to identify suspicious behavior",
+        "deception": "Mafia AI will lie and create false alibis"
+      },
+      "tips": {
+        "title": "Tips for Playing with AI",
+        "observe": "Pay attention to AI voting patterns and accusations",
+        "engage": "Engage in discussions to gather information",
+        "trust": "Build trust with Villager AI to form alliances",
+        "suspicious": "Watch for inconsistencies in AI stories"
+      }
+    },
+    "start": {
+      "title": "Getting Started",
+      "step1": "Click \"Play Now\" or \"Start New Game\" from the home page",
+      "step2": "Choose the number of players (4-10 recommended)",
+      "step3": "Select whether you want to join as a human player",
+      "step4": "Configure AI providers if you have API keys",
+      "step5": "Click \"Start Game\" and enjoy!",
+      "playNow": "Play Now"
+    }
   }
 } 

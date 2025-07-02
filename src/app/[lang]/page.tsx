@@ -602,6 +602,14 @@ export default function LandingPage() {
                     {t('landingFooterHowItWorks')}
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href={`/${currentLang}/help`}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t('landingFooterHelp', 'Help')}
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
