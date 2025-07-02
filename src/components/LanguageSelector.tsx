@@ -43,7 +43,7 @@ export default function LanguageSelector({
     <Select value={currentLang} onValueChange={handleLanguageChange}>
       <SelectTrigger id={id} className="w-full">
         <div className="flex items-center gap-2">
-          <Globe className="h-4 w-4" />
+          <Globe className="h-4 w-4 text-primary" />
           <SelectValue placeholder="Select language" />
         </div>
       </SelectTrigger>

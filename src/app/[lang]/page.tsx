@@ -640,7 +640,8 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground mb-4">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" />
                 {t('landingFooterLanguage')}
               </h3>
               <LanguageSelector
