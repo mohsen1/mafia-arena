@@ -484,26 +484,21 @@ export default function SimpleStartGameForm({
       </div>
 
       {/* API Key Management */}
-      <div className="space-y-4">
-        {/* Show available providers summary */}
-        {allAvailableProviders.length > 0 ? (
-          <></>
-        ) : (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {t('NoProvidersConfigured')}{' '}
-              <Link
-                href={`/${lang}/profile`}
-                className="underline underline-offset-4 hover:text-primary"
-              >
-                {t('AddApiKeysInProfile')}
-              </Link>{' '}
-              {t('ToStartGame')}
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
+      {allAvailableProviders.length === 0 && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {t('NoProvidersConfigured')}{' '}
+            <Link
+              href={`/${lang}/profile`}
+              className="underline underline-offset-4 hover:text-primary"
+            >
+              {t('AddApiKeysInProfile')}
+            </Link>{' '}
+            {t('ToStartGame')}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Ollama Configuration */}
       {(globalProviderSelection === 'ollama_local' ||
