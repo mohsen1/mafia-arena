@@ -99,8 +99,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
     // Validate form
     const errors: Record<string, string> = {};
     if (!formData.provider) errors.provider = t('apiKeys.providerRequired');
-    if (!formData.keyName.trim())
-      errors.keyName = t('apiKeys.keyNameRequired');
+    if (!formData.keyName.trim()) errors.keyName = t('apiKeys.keyNameRequired');
     if (!formData.apiKey.trim()) errors.apiKey = t('apiKeys.apiKeyRequired');
 
     if (Object.keys(errors).length > 0) {
@@ -132,8 +131,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
     setFormErrors({});
 
     const errors: Record<string, string> = {};
-    if (!formData.keyName.trim())
-      errors.keyName = t('apiKeys.keyNameRequired');
+    if (!formData.keyName.trim()) errors.keyName = t('apiKeys.keyNameRequired');
     if (formData.apiKey.trim() && formData.apiKey.length < 10) {
       errors.apiKey = t('apiKeys.apiKeyTooShort');
     }
@@ -177,11 +175,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
   };
 
   const handleDeleteKey = async (keyId: string) => {
-    if (
-      !confirm(
-        t('apiKeys.deleteConfirmation')
-      )
-    ) {
+    if (!confirm(t('apiKeys.deleteConfirmation'))) {
       return;
     }
 
@@ -237,13 +231,18 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
   const getAvailableProvidersForDropdown = () => {
     return availableProviders.map((provider) => ({
       value: provider.value,
-      label: t(`apiKeys.providers.${provider.value}`) || PROVIDER_DISPLAY_NAMES[provider.value] || provider.title,
+      label:
+        t(`apiKeys.providers.${provider.value}`) ||
+        PROVIDER_DISPLAY_NAMES[provider.value] ||
+        provider.title,
     }));
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-4">{t('apiKeys.loading')}</div>
+      <div className="flex items-center justify-center p-4">
+        {t('apiKeys.loading')}
+      </div>
     );
   }
 
@@ -278,7 +277,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
       {showAddForm && (
         <Card className="border-0 shadow-none bg-secondary/30">
           <CardHeader>
-            <CardTitle className="text-lg">{t('apiKeys.addNewApiKey')}</CardTitle>
+            <CardTitle className="text-lg">
+              {t('apiKeys.addNewApiKey')}
+            </CardTitle>
             <CardDescription>
               {t('apiKeys.addNewApiKeyDescription')}
             </CardDescription>
@@ -400,7 +401,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                 // Edit Form
                 <Card className="border-0 shadow-none bg-secondary/30">
                   <CardHeader>
-                    <CardTitle className="text-lg">{t('apiKeys.editApiKey')}</CardTitle>
+                    <CardTitle className="text-lg">
+                      {t('apiKeys.editApiKey')}
+                    </CardTitle>
                     <CardDescription>
                       {t('apiKeys.editApiKeyDescription')}
                     </CardDescription>
@@ -416,7 +419,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                     )}
 
                     <div>
-                      <Label htmlFor="editProvider">{t('apiKeys.provider')}</Label>
+                      <Label htmlFor="editProvider">
+                        {t('apiKeys.provider')}
+                      </Label>
                       <Input
                         id="editProvider"
                         value={
@@ -429,7 +434,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                     </div>
 
                     <div>
-                      <Label htmlFor="editKeyName">{t('apiKeys.keyName')}</Label>
+                      <Label htmlFor="editKeyName">
+                        {t('apiKeys.keyName')}
+                      </Label>
                       <Input
                         id="editKeyName"
                         value={formData.keyName}
@@ -448,7 +455,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                     </div>
 
                     <div>
-                      <Label htmlFor="editApiKey">{t('apiKeys.newApiKey')}</Label>
+                      <Label htmlFor="editApiKey">
+                        {t('apiKeys.newApiKey')}
+                      </Label>
                       <div className="relative">
                         <Input
                           id="editApiKey"
@@ -489,7 +498,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                         disabled={submitting}
                       >
                         <Save className="w-4 h-4 me-2" />
-                        {submitting ? t('apiKeys.updating') : t('apiKeys.updateKey')}
+                        {submitting
+                          ? t('apiKeys.updating')
+                          : t('apiKeys.updateKey')}
                       </Button>
                       <Button
                         variant="outline"
@@ -510,7 +521,9 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium">{key.keyName}</span>
                         <Badge variant={key.isActive ? 'default' : 'secondary'}>
-                          {t(`apiKeys.providers.${key.provider}`) || PROVIDER_DISPLAY_NAMES[key.provider] || key.provider}
+                          {t(`apiKeys.providers.${key.provider}`) ||
+                            PROVIDER_DISPLAY_NAMES[key.provider] ||
+                            key.provider}
                         </Badge>
                         {key.isActive ? (
                           <CheckCircle className="w-4 h-4 text-green-500" />
@@ -519,7 +532,8 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {t('apiKeys.added')} {new Date(key.createdAt).toLocaleDateString()}
+                        {t('apiKeys.added')}{' '}
+                        {new Date(key.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
