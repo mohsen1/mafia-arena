@@ -842,6 +842,7 @@ IMPORTANT:
 - Give Cursor AI more high level instructions, don't be too specific.
 - Generate a clear, actionable instruction for Cursor AI. Be specific about what needs to be done.
 - Focus on using MCP browser tools for testing instead of E2E tests.
+- DECIDE WHEN TO COMMIT: If the work you instruct Cursor to perform results in completed functionality or fixes a GitHub issue, explicitly tell Cursor to perform a git commit and push. When referencing a GitHub issue, use the format 'Fix #<issueNumber>: <message>' so the push will automatically close the issue on GitHub.
 ${stuckCommand ? 'IMPORTANT: Provide a NEW instruction to move forward, the previous command is stuck.' : ''}
 `;
         builder.add(2, 'Development Priorities', devPriorities);
@@ -1175,21 +1176,6 @@ const AVAILABLE_TOOLS: Tool[] = [
     description: 'Analyzes the current state and uses UI automation (cliclick) to type the next development task directly into Cursor\'s chat. Does not return the task in the response to avoid hitting message limits.',
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
-  {
-    name: 'complete_current_task',
-    description: 'Marks the current in-progress task as done so a new task can be generated',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-  },
-  {
-    name: 'clear_history',
-    description: 'Clear the prompt history to start fresh',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-  },
-  {
-    name: 'check_status',
-    description: 'Check if analysis is currently scheduled or in progress',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-  },
 ];
 
 // Handle tool listing
@@ -1444,119 +1430,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
-    case 'complete_current_task': {
-      log('=== COMPLETE_CURRENT_TASK START (Enhanced) ===');
-      const current = getCurrentTask();
-      if (!current) {
-        return {
-          content: [{ type: 'text', text: 'ℹ️  No task is currently marked in progress.' }],
-        };
-      }
-      
-      // Use enhanced task completion with auto-commit and push
-      markTaskComplete(current.id);
-      log('Enhanced task completion initiated for:', current.id);
-      
-      // Check for and handle any open dialogs
-      setTimeout(async () => {
-        await detectAndHandleDialogs();
-      }, 1000);
-      
-      // Close GitHub issue if associated
-      if (current.githubIssueNumber) {
-        log(`Task has associated GitHub issue #${current.githubIssueNumber}, attempting to close...`);
-        const closed = await closeGitHubIssue(current.githubIssueNumber);
-        if (closed) {
-          return {
-            content: [
-              { type: 'text', text: `✅ Task "${current.title}" completed successfully! GitHub issue #${current.githubIssueNumber} closed and changes committed/pushed automatically. You can now request the next task with get_next_task.` },
-            ],
-          };
-        } else {
-          return {
-            content: [
-              { type: 'text', text: `✅ Task "${current.title}" completed! Changes committed/pushed automatically. Failed to close GitHub issue #${current.githubIssueNumber} - please close manually. You can now request the next task with get_next_task.` },
-            ],
-          };
-        }
-      }
-      
-      return {
-        content: [
-          { type: 'text', text: `✅ Task "${current.title}" completed successfully! Changes committed and pushed automatically. You can now request the next task with get_next_task.` },
-        ],
-      };
-    }
-
-    case 'clear_history': {
-      try {
-        log('=== CLEAR_HISTORY START ===');
-        if (existsSync(PROMPT_HISTORY_FILE)) {
-          log('Deleting prompt history file...');
-          unlinkSync(PROMPT_HISTORY_FILE);
-          log('Prompt history cleared');
-          return {
-            content: [
-              {
-                type: 'text',
-                text: '✅ Prompt history cleared successfully',
-              },
-            ],
-          };
-        } else {
-          log('No prompt history file exists');
-          return {
-            content: [
-              {
-                type: 'text',
-                text: 'ℹ️  No prompt history to clear',
-              },
-            ],
-          };
-        }
-      } catch (error) {
-        log('ERROR in clear_history:', error);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error clearing history: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            },
-          ],
-        };
-      }
-    }
-
-    case 'check_status': {
-      log('=== CHECK_STATUS START ===');
-      const status = [];
-      status.push('✅ System is ready');
-      
-      const history = loadPromptHistory();
-      if (history.length > 0) {
-        const lastEntry = history[history.length - 1];
-        const timeAgo = getTimeAgo(new Date(lastEntry.timestamp));
-        status.push(`📝 Last prompt sent: ${timeAgo}`);
-        status.push(`📊 Total prompts in session: ${history.length}`);
-        log('Status check - last prompt:', timeAgo, 'total:', history.length);
-      } else {
-        status.push('📝 No prompts sent yet in this session');
-        log('Status check - no prompts sent');
-      }
-      
+    // Any tool other than get_next_task is not supported.
+    default:
+      log('ERROR: Unknown or unsupported tool requested:', name);
       return {
         content: [
           {
             type: 'text',
-            text: status.join('\n'),
+            text: `Error: Only the get_next_task tool is supported. Received unsupported tool "${name}"`,
           },
         ],
       };
-    }
-
-    default:
-      log('ERROR: Unknown tool:', name);
-      throw new Error(`Unknown tool: ${name}`);
   }
 });
 

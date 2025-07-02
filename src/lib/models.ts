@@ -77,9 +77,21 @@ export const claudeModels: ModelDefinition[] = [
 
 // Updated Gemini Models (Section 5 of the guide)
 export const geminiModels: ModelDefinition[] = [
-  // Gemini 2.5 Series (Default - Most Advanced)
+  // Gemini 2.0 Flash (Default - Fast with 1M Context)
   {
-    title: 'Gemini 2.5 Flash Lite (Default, Fast, Cost-Efficient)',
+    title: 'Gemini 2.0 Flash (Default, Fast, 1M Context, Tool Use)',
+    value: 'gemini-2.0-flash',
+  },
+  
+  // Gemini 2.0 Flash-Lite (Cost-Efficient)
+  {
+    title: 'Gemini 2.0 Flash-Lite (Cost-Efficient, Low Latency)',
+    value: 'gemini-2.0-flash-lite',
+  },
+  
+  // Gemini 2.5 Series (Most Advanced)
+  {
+    title: 'Gemini 2.5 Flash Lite (Fast, Cost-Efficient)',
     value: 'gemini-2.5-flash-lite-preview-06-17',
   },
   {
@@ -90,16 +102,7 @@ export const geminiModels: ModelDefinition[] = [
     title: 'Gemini 2.5 Flash (Best Price-Performance, Preview)',
     value: 'gemini-2.5-flash-preview-05-20',
   },
-
-  // Gemini 2.0 Series
-  {
-    title: 'Gemini 2.0 Flash (Fast, 1M Context, Tool Use)',
-    value: 'gemini-2.0-flash',
-  },
-  {
-    title: 'Gemini 2.0 Flash-Lite (Cost-Efficient, Low Latency)',
-    value: 'gemini-2.0-flash-lite',
-  },
+ 
 
   // Gemini 1.5 Series (Versatile Option)
   {
