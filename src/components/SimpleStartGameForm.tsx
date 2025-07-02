@@ -63,6 +63,12 @@ function getAgentTypeFromProvider(
 }
 
 function getDefaultModelForProvider(providerValue: string): string {
+  if (providerValue === 'groq') {
+    return 'gemma2-9b-it';
+  }
+  if (providerValue === 'gemini') {
+    return 'gemini-2.0-flash-lite';
+  }
   const models = availableModelsByProvider[providerValue];
   if (models && models.length > 0) {
     // Look for a model with "default" in the title
