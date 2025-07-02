@@ -413,6 +413,8 @@
   "SelectPlayerImage": "Select player image",
   "DefaultPlayerName": "Player {{number}}",
   "AutoModeDescription": "AI agents are making decisions automatically",
+  "AutoModeDescriptionDay": "AI agents are discussing and voting strategically",
+  "AutoModeDescriptionNight": "AI agents are using their special abilities",
   
   "timeAgo": {
     "justNow": "just now",

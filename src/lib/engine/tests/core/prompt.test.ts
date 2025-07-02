@@ -172,19 +172,19 @@ describe('Prompts', () => {
 
     it('should include allowed actions and examples', () => {
       const prompt = getUserPrompt(mockStateData, allowedActions);
-      expect(prompt).toContain('**Your Turn:**');
+      expect(prompt).toContain('**YOUR TURN - ACTION REQUIRED:**');
       expect(prompt).toContain(
-        'You must choose one of the following actions: message, vote, noAction.'
+        '**MANDATORY:** You must take decisive action from: message, vote, noAction.'
       );
       expect(prompt).toContain('**Action Format Examples:**');
       expect(prompt).toContain(
-        '- Speak: `{"type": "message", "content": "Your message here..."}`'
+        '- **Speak Strategically:** `{"type": "message", "content": "Your message here..."}`'
       );
       expect(prompt).toContain(
-        '- Vote: `{"type": "vote", "targetPlayerId": "player-id-to-vote-for"}`'
+        '- **Vote to Eliminate:** `{"type": "vote", "targetPlayerId": "player-id-to-vote-for"}` (**CHOOSE A TARGET!**)'
       );
       // Check it doesn't include examples for actions not allowed
-      expect(prompt).not.toContain('Mafia Kill:');
+      expect(prompt).not.toContain('**Execute Target:**');
     });
 
     // This test is likely obsolete as the special Round 1 message isn't in getUserPrompt anymore.
@@ -203,9 +203,9 @@ describe('Prompts', () => {
       allowedActions = ['message'];
       const prompt = getUserPrompt(mockStateData, allowedActions);
       // Check that the general turn instruction is present, not a R1 specific one
-      expect(prompt).toContain('**Your Turn:**');
+      expect(prompt).toContain('**YOUR TURN - ACTION REQUIRED:**');
       expect(prompt).toContain(
-        'You must choose one of the following actions: message.'
+        '**MANDATORY:** You must take decisive action from: message.'
       );
       // The old "Choose your action..." text is removed.
       // expect(prompt).toContain('Choose your action based on your role, persona, memory');
