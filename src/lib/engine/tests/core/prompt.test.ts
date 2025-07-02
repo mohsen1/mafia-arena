@@ -177,7 +177,7 @@ describe('Prompts', () => {
         '**MANDATORY:** You must take decisive action from: message, vote, noAction.'
       );
       expect(prompt).toContain('**Action Format Examples:**');
-      
+
       // 🎯 UPDATED: Check for enhanced phase-specific message guidance
       expect(prompt).toContain(
         '- **Strategic Discussion:** `{"type": "message", "content": "Based on yesterday\'s events, I suspect [player] because [reasoning]. What do others think?"}` (**SHARE SUSPICIONS & BUILD CASES!**)'
@@ -197,7 +197,7 @@ describe('Prompts', () => {
       mockStateData.round = 1; // Round 1
       allowedActions = ['message', 'noAction'];
       const prompt = getUserPrompt(mockStateData, allowedActions);
-      
+
       // Check for Introduction-specific guidance
       expect(prompt).toContain(
         '- **Introduction:** `{"type": "message", "content": "Hello everyone! I am [persona-name]. [Brief intro about yourself and your concerns about the threat in the village]"}` (**INTRODUCE YOURSELF MEANINGFULLY!**)'

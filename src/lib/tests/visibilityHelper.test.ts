@@ -218,10 +218,10 @@ describe('filterGameStateForClient', () => {
   it('should handle null or undefined viewingPlayerId (observer mode)', () => {
     const filtered = filterGameStateForClient(fullState, null);
 
-    // 🎯 UPDATED: Observers should NOT see all roles during active gameplay 
+    // 🎯 UPDATED: Observers should NOT see all roles during active gameplay
     // (preserves werewolf game mystery) - only see roles of dead players and during GameOver
     expect(filtered.players[player1Id].role).toBeUndefined(); // Living player - hidden
-    expect(filtered.players[player2Id].role).toBeUndefined(); // Living player - hidden  
+    expect(filtered.players[player2Id].role).toBeUndefined(); // Living player - hidden
     expect(filtered.players[player3Id].role).toBeUndefined(); // Living Mafia - hidden
     expect(filtered.players[player4Id].role).toBe(RoleName.Doctor); // Dead player - revealed
 
