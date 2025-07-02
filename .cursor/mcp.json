@@ -5,8 +5,7 @@
       "args": ["@browsermcp/mcp@latest"]
     },
     "gemini-guidance": {
-      "command": "./node_modules/.bin/tsx",
-      "args": ["./scripts/gemini-mcp/src/server.ts"],
+      "command": "./scripts/gemini-mcp/run.sh",
       "env": {}
     }
   }
