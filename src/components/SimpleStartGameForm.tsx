@@ -39,10 +39,15 @@ export interface SimpleStartGameFormProps {
 
 function getAgentTypeFromProvider(
   provider: string
-): 'OpenAI' | 'Anthropic' | 'Google' | 'Human' {
-  if (provider.includes('openai') || provider.includes('groq')) return 'OpenAI';
-  if (provider.includes('anthropic')) return 'Anthropic';
-  if (provider.includes('google')) return 'Google';
+): 'OpenAI' | 'Claude' | 'Gemini' | 'Human' | 'Groq' | 'Ollama' | 'Fireworks' {
+  if (provider === 'openai') return 'OpenAI';
+  if (provider === 'groq') return 'Groq';
+  if (provider === 'fireworks') return 'Fireworks';
+  if (provider === 'ollama_local') return 'Ollama';
+  if (provider === 'anthropic' || provider === 'claude') return 'Claude';
+  if (provider === 'gemini') return 'Gemini';
+  if (provider === 'human') return 'Human';
+  // Default fallback
   return 'OpenAI';
 }
 
