@@ -32,9 +32,9 @@ if (!process.env.GEMINI_API_KEY) {
 // Access your API key as an environment variable
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Define the model to use (e.g., gemini-1.5-flash)
+// Define the model to use (updated to Gemini 2.5 Flash Lite for Issue #64)
 // Consider making this configurable via environment variable GEMINI_MODEL
-const defaultModelName = 'gemini-1.5-flash'; // Default model
+const defaultModelName = 'gemini-2.5-flash-lite-preview-06-17'; // Default model
 
 // Configure safety settings to be less restrictive for game context
 // Adjust these as needed, but be aware of potential harmful content generation
@@ -149,6 +149,10 @@ export class GeminiAgent implements IAgent {
   ): Promise<PlayerAction> {
     const agentIdForLog = `${this.id} - ${this.persona?.name || 'Unknown Persona'} (${gameState.self.role})`;
     log(`[${agentIdForLog} (Gemini)] Thinking with model ${this.modelName}...`);
+    
+    // 🎯 ENHANCED LOGGING: Log allowed actions
+    log(`[${agentIdForLog} (Gemini)] Allowed actions: ${allowedActions ? allowedActions.join(', ') : 'none'}`);
+    log(`[${agentIdForLog} (Gemini)] Current phase: ${gameState.phase}, Round: ${gameState.round}`);
 
     // Determine allegiance
     const allegiance: Allegiance =
@@ -214,6 +218,9 @@ export class GeminiAgent implements IAgent {
       const response = result.response;
       const responseText = response.text();
 
+      // 🎯 ENHANCED LOGGING: Log raw API response
+      log(`[${agentIdForLog} (Gemini)] Raw API response (${responseText ? responseText.length : 0} chars): ${responseText || '(empty)'}`);
+
       if (!responseText) {
         log(`ERROR: [${agentIdForLog} (Gemini)] API response was empty.`);
         return { type: 'noAction' };
@@ -229,10 +236,15 @@ export class GeminiAgent implements IAgent {
       }
       potentialJson = potentialJson.trim(); // Trim again after removing backticks
 
+      // 🎯 ENHANCED LOGGING: Log cleaned JSON before parsing
+      log(`[${agentIdForLog} (Gemini)] Cleaned JSON for parsing: ${potentialJson}`);
+
       // Parse and validate the action
       let action: PlayerAction;
       try {
         action = JSON.parse(potentialJson) as PlayerAction;
+        // 🎯 ENHANCED LOGGING: Log successfully parsed action
+        log(`[${agentIdForLog} (Gemini)] Successfully parsed action: ${JSON.stringify(action)}`);
       } catch (parseError) {
         log(
           `ERROR: [${agentIdForLog} (Gemini)] Failed to parse JSON response: ${potentialJson} %O`,
