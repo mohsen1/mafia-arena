@@ -1,6 +1,6 @@
 /**
  * Enhanced Image Selector Component
- * 
+ *
  * Provides a better UX for character image selection with:
  * - Categorization by gender and age
  * - Image previews with descriptions
@@ -45,58 +45,58 @@ const ORGANIZED_IMAGES: ImageData[] = [
     path: '/images/characters/female/young/unnamed.png',
     category: { gender: 'female', age: 'young', style: 'elegant' },
     description: 'Young woman with elegant appearance',
-    tags: ['elegant', 'sophisticated', 'professional']
+    tags: ['elegant', 'sophisticated', 'professional'],
   },
   {
     path: '/images/characters/female/young/unnamed-1.png',
     category: { gender: 'female', age: 'young', style: 'casual' },
     description: 'Young woman with casual style',
-    tags: ['casual', 'friendly', 'approachable']
+    tags: ['casual', 'friendly', 'approachable'],
   },
   {
     path: '/images/characters/female/young/unnamed-3.png',
     category: { gender: 'female', age: 'young', style: 'artistic' },
     description: 'Young woman with artistic flair',
-    tags: ['artistic', 'creative', 'bohemian']
+    tags: ['artistic', 'creative', 'bohemian'],
   },
   // Female Old
   {
     path: '/images/characters/female/old/unnamed-2.png',
     category: { gender: 'female', age: 'old', style: 'wise' },
     description: 'Elderly woman with wise appearance',
-    tags: ['wise', 'experienced', 'maternal']
+    tags: ['wise', 'experienced', 'maternal'],
   },
   {
     path: '/images/characters/female/old/unnamed-3.png',
     category: { gender: 'female', age: 'old', style: 'regal' },
     description: 'Elderly woman with regal bearing',
-    tags: ['regal', 'distinguished', 'noble']
+    tags: ['regal', 'distinguished', 'noble'],
   },
   // Male Young
   {
     path: '/images/characters/male/young/unnamed.png',
     category: { gender: 'male', age: 'young', style: 'confident' },
     description: 'Young man with confident demeanor',
-    tags: ['confident', 'charismatic', 'leader']
+    tags: ['confident', 'charismatic', 'leader'],
   },
   {
     path: '/images/characters/male/young/unnamed-1.png',
     category: { gender: 'male', age: 'young', style: 'scholarly' },
     description: 'Young man with scholarly appearance',
-    tags: ['scholarly', 'intellectual', 'studious']
+    tags: ['scholarly', 'intellectual', 'studious'],
   },
   // Male Old
   {
     path: '/images/characters/male/old/unnamed.png',
     category: { gender: 'male', age: 'old', style: 'distinguished' },
     description: 'Elderly man with distinguished look',
-    tags: ['distinguished', 'respected', 'authoritative']
+    tags: ['distinguished', 'respected', 'authoritative'],
   },
   {
     path: '/images/characters/male/old/unnamed-0.png',
     category: { gender: 'male', age: 'old', style: 'mysterious' },
     description: 'Elderly man with mysterious aura',
-    tags: ['mysterious', 'enigmatic', 'secretive']
+    tags: ['mysterious', 'enigmatic', 'secretive'],
   },
 ];
 
@@ -115,8 +115,12 @@ export function EnhancedImageSelector({
 }: EnhancedImageSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTab, setSelectedTab] = useState<'all' | 'male' | 'female'>('all');
-  const [selectedAge, setSelectedAge] = useState<'all' | 'young' | 'old'>('all');
+  const [selectedTab, setSelectedTab] = useState<'all' | 'male' | 'female'>(
+    'all'
+  );
+  const [selectedAge, setSelectedAge] = useState<'all' | 'young' | 'old'>(
+    'all'
+  );
   const [previewImage, setPreviewImage] = useState<ImageData | null>(null);
 
   // Filter images based on current filters
@@ -126,35 +130,41 @@ export function EnhancedImageSelector({
       if (selectedTab !== 'all' && image.category.gender !== selectedTab) {
         return false;
       }
-      
+
       // Age filter
       if (selectedAge !== 'all' && image.category.age !== selectedAge) {
         return false;
       }
-      
+
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
           image.description.toLowerCase().includes(query) ||
-          image.tags.some(tag => tag.toLowerCase().includes(query)) ||
+          image.tags.some((tag) => tag.toLowerCase().includes(query)) ||
           image.category.style?.toLowerCase().includes(query)
         );
       }
-      
+
       return true;
     });
   }, [selectedTab, selectedAge, searchQuery]);
 
-  const handleImageSelect = useCallback((imagePath: string | null) => {
-    onImageSelect(imagePath);
-    setIsOpen(false);
-    setPreviewImage(null);
-  }, [onImageSelect]);
+  const handleImageSelect = useCallback(
+    (imagePath: string | null) => {
+      onImageSelect(imagePath);
+      setIsOpen(false);
+      setPreviewImage(null);
+    },
+    [onImageSelect]
+  );
 
-  const handleImagePreview = useCallback((image: ImageData) => {
-    setPreviewImage(previewImage?.path === image.path ? null : image);
-  }, [previewImage]);
+  const handleImagePreview = useCallback(
+    (image: ImageData) => {
+      setPreviewImage(previewImage?.path === image.path ? null : image);
+    },
+    [previewImage]
+  );
 
   const handleClearSelection = useCallback(() => {
     handleImageSelect(null);
@@ -168,7 +178,7 @@ export function EnhancedImageSelector({
             variant="outline"
             size="icon"
             className={cn(
-              "w-8 h-8 rounded-full border-2 border-background bg-muted hover:bg-muted/80",
+              'w-8 h-8 rounded-full border-2 border-background bg-muted hover:bg-muted/80',
               triggerClassName
             )}
           >
@@ -176,7 +186,7 @@ export function EnhancedImageSelector({
           </Button>
         )}
       </DialogTrigger>
-      
+
       <DialogContent className="max-w-4xl h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -275,10 +285,12 @@ export function EnhancedImageSelector({
           <div className="flex-1 overflow-y-auto pt-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {/* Clear Selection Option */}
-              <Card 
+              <Card
                 className={cn(
-                  "cursor-pointer transition-all hover:scale-105",
-                  !selectedImage ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-muted-foreground"
+                  'cursor-pointer transition-all hover:scale-105',
+                  !selectedImage
+                    ? 'ring-2 ring-primary'
+                    : 'hover:ring-1 hover:ring-muted-foreground'
                 )}
                 onClick={handleClearSelection}
               >
@@ -295,11 +307,11 @@ export function EnhancedImageSelector({
                 <Card
                   key={image.path}
                   className={cn(
-                    "cursor-pointer transition-all hover:scale-105 relative",
-                    selectedImage === image.path 
-                      ? "ring-2 ring-primary" 
-                      : "hover:ring-1 hover:ring-muted-foreground",
-                    previewImage?.path === image.path && "ring-2 ring-blue-500"
+                    'cursor-pointer transition-all hover:scale-105 relative',
+                    selectedImage === image.path
+                      ? 'ring-2 ring-primary'
+                      : 'hover:ring-1 hover:ring-muted-foreground',
+                    previewImage?.path === image.path && 'ring-2 ring-blue-500'
                   )}
                   onClick={() => handleImageSelect(image.path)}
                   onMouseEnter={() => handleImagePreview(image)}
@@ -314,21 +326,28 @@ export function EnhancedImageSelector({
                         height={80}
                         className="w-full h-20 object-cover rounded-md"
                       />
-                      
+
                       {/* Style Badge */}
                       {image.category.style && (
-                        <Badge 
-                          variant="secondary" 
+                        <Badge
+                          variant="secondary"
                           className="absolute top-1 right-1 text-xs px-1 py-0"
                         >
                           {image.category.style}
                         </Badge>
                       )}
                     </div>
-                    
+
                     <div className="mt-2 space-y-1">
                       <div className="flex gap-1">
-                        <Badge variant={image.category.gender === 'male' ? 'default' : 'secondary'} className="text-xs px-1">
+                        <Badge
+                          variant={
+                            image.category.gender === 'male'
+                              ? 'default'
+                              : 'secondary'
+                          }
+                          className="text-xs px-1"
+                        >
                           {image.category.gender}
                         </Badge>
                         <Badge variant="outline" className="text-xs px-1">
@@ -367,10 +386,16 @@ export function EnhancedImageSelector({
                       className="rounded-md object-cover"
                     />
                     <div className="flex-1">
-                      <h4 className="font-medium text-sm">{previewImage.description}</h4>
+                      <h4 className="font-medium text-sm">
+                        {previewImage.description}
+                      </h4>
                       <div className="flex gap-1 mt-1 mb-2">
                         {previewImage.tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs">
+                          <Badge
+                            key={tag}
+                            variant="outline"
+                            className="text-xs"
+                          >
                             {tag}
                           </Badge>
                         ))}
@@ -388,4 +413,4 @@ export function EnhancedImageSelector({
       </DialogContent>
     </Dialog>
   );
-} 
+}
