@@ -79,22 +79,72 @@ export const authOptions: NextAuthOptions = {
     updateAge: 24 * 60 * 60, // 24 hours
   },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (account && user) {
         token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.image = user.image;
       }
+
+      // Return previous token if the user is already signed in
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
+        session.user.email = token.email as string;
+        session.user.name = token.name as string;
+        session.user.image = token.image as string;
       }
       return session;
     },
-    async signIn({ user, account }) {
-      // Allow all sign-ins for OAuth providers
-      if (account?.provider !== 'credentials') {
-        return true;
+    async signIn({ user, account, profile }) {
+      // For OAuth providers, ensure user data is saved to database
+      if (account?.provider && account.provider !== 'credentials') {
+        try {
+          const email = user.email;
+          if (!email) return false;
+
+          // Check if user exists
+          const [existingUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, email))
+            .limit(1);
+
+          if (!existingUser) {
+            // Create new user
+            await db.insert(users).values({
+              email: email,
+              name: user.name || profile?.name || null,
+              image: user.image || profile?.image || null,
+              emailVerified: new Date(),
+            });
+          } else {
+            // Update existing user's image and name if they don't have one
+            const updates: Record<string, string> = {};
+            if (!existingUser.image && (user.image || profile?.image)) {
+              updates.image = (user.image || profile?.image) as string;
+            }
+            if (!existingUser.name && (user.name || profile?.name)) {
+              updates.name = (user.name || profile?.name) as string;
+            }
+
+            if (Object.keys(updates).length > 0) {
+              await db
+                .update(users)
+                .set(updates)
+                .where(eq(users.id, existingUser.id));
+            }
+          }
+
+          return true;
+        } catch (error) {
+          console.error('Error saving OAuth user:', error);
+          return false;
+        }
       }
 
       // For credentials provider, user validation is handled in authorize()
