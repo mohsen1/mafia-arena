@@ -483,7 +483,8 @@ export default function SimpleStartGameForm({
               onClick={() => setShowOllamaConfig(!showOllamaConfig)}
               disabled={isSubmitting}
             >
-              {showOllamaConfig ? t('HideOllama') : t('ConfigureOllama')} {t('OllamaConfiguration').split(' ')[0]}
+              {showOllamaConfig ? t('HideOllama') : t('ConfigureOllama')}{' '}
+              {t('OllamaConfiguration').split(' ')[0]}
             </Button>
           </div>
 
