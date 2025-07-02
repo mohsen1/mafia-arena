@@ -44,6 +44,7 @@ export interface IGameRenderer {
   /** Optional: Prompts a human player for their action */
   promptHumanInput?(
     playerInfo: PublicPlayerInfo,
-    allowedActions: PlayerAction['type'][]
+    allowedActions: PlayerAction['type'][],
+    players?: ReadonlyMap<PlayerId, PublicPlayerInfo>
   ): Promise<PlayerAction>;
 }

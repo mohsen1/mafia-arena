@@ -169,7 +169,8 @@ export class ConsoleRenderer implements IGameRenderer {
 
   async promptHumanInput(
     playerInfo: PublicPlayerInfo,
-    allowedActions: PlayerAction['type'][]
+    allowedActions: PlayerAction['type'][],
+    players?: ReadonlyMap<PlayerId, PublicPlayerInfo>
   ): Promise<PlayerAction> {
     console.log(
       chalk.bold.inverse(
@@ -194,29 +195,35 @@ export class ConsoleRenderer implements IGameRenderer {
     if (allowedActions.includes('vote')) {
       options.push(`${chalk.yellow('v')}ote [player number]`);
       actionMap.set('v', async () => {
-        // Need game state to get target players!
-        // This highlights a dependency issue. The renderer needs context.
-        // For now, let's assume we can get players (this will need fixing)
-        // TODO: Pass necessary context (like alive others) to promptHumanInput
+        // Get alive players excluding self
+        const alivePlayers = players
+          ? Array.from(players.values()).filter(
+              (p) => p.status === 'Alive' && p.id !== playerInfo.id
+            )
+          : [];
+
         console.log(
           chalk.yellow('Who do you vote for? (Enter number, or 0 to abstain)')
         );
-        // Placeholder: In a real scenario, list players here.
+        
+        // List available players
+        alivePlayers.forEach((player, index) => {
+          console.log(`  ${index + 1}. ${player.name} (${player.id})`);
+        });
+
         const targetIndexStr = await rl.question(
           chalk.yellow('Player number: ')
         );
         const targetIndex = parseInt(targetIndexStr.trim(), 10);
+        
         if (!isNaN(targetIndex) && targetIndex === 0) {
           return { type: 'vote', targetPlayerId: null };
+        } else if (!isNaN(targetIndex) && targetIndex > 0 && targetIndex <= alivePlayers.length) {
+          const targetPlayer = alivePlayers[targetIndex - 1];
+          return { type: 'vote', targetPlayerId: targetPlayer.id };
         } else {
-          // TODO: Map targetIndex back to a real PlayerId based on context
-          console.warn(
-            'WARN: Vote target mapping not implemented in ConsoleRenderer'
-          );
-          return {
-            type: 'vote',
-            targetPlayerId: `placeholder-target-${targetIndex}`,
-          }; // Placeholder
+          console.log(chalk.red('Invalid player number. Abstaining.'));
+          return { type: 'vote', targetPlayerId: null };
         }
       });
     }
@@ -224,21 +231,34 @@ export class ConsoleRenderer implements IGameRenderer {
     if (allowedActions.includes('mafiaKill')) {
       options.push(`${chalk.red('k')}ill [player number]`);
       actionMap.set('k', async () => {
+        // Get alive players excluding the current player
+        // In a real game, mafia members would be excluded, but we don't have that info here
+        const targetablePlayers = players
+          ? Array.from(players.values()).filter(
+              (p) => p.status === 'Alive' && p.id !== playerInfo.id
+            )
+          : [];
+
         console.log(
           chalk.red('Who does the Mafia kill? (Enter number, or 0 for no kill)')
         );
-        // TODO: List non-mafia targets
+        
+        // List targetable players
+        targetablePlayers.forEach((player, index) => {
+          console.log(`  ${index + 1}. ${player.name} (${player.id})`);
+        });
+
         const targetIndexStr = await rl.question(chalk.red('Player number: '));
         const targetIndex = parseInt(targetIndexStr.trim(), 10);
+        
         if (!isNaN(targetIndex) && targetIndex === 0) {
           return { type: 'noAction' }; // Treat 0 as no action for kill intent
+        } else if (!isNaN(targetIndex) && targetIndex > 0 && targetIndex <= targetablePlayers.length) {
+          const targetPlayer = targetablePlayers[targetIndex - 1];
+          return { type: 'mafiaKill', targetPlayerId: targetPlayer.id };
         } else {
-          // TODO: Map targetIndex back to a real PlayerId
-          console.warn('WARN: Mafia kill target mapping not implemented');
-          return {
-            type: 'mafiaKill',
-            targetPlayerId: `placeholder-target-${targetIndex}`,
-          }; // Placeholder
+          console.log(chalk.red('Invalid player number. No action taken.'));
+          return { type: 'noAction' };
         }
       });
     }
@@ -246,21 +266,32 @@ export class ConsoleRenderer implements IGameRenderer {
     if (allowedActions.includes('doctorSave')) {
       options.push(`${chalk.blue('s')}ave [player number]`);
       actionMap.set('s', async () => {
+        // Get all alive players (doctor can save anyone including themselves)
+        const alivePlayers = players
+          ? Array.from(players.values()).filter((p) => p.status === 'Alive')
+          : [];
+
         console.log(
           chalk.blue('Who do you save? (Enter number, or 0 for no save)')
         );
-        // TODO: List all alive players (including self?)
+        
+        // List all alive players
+        alivePlayers.forEach((player, index) => {
+          const selfIndicator = player.id === playerInfo.id ? ' (yourself)' : '';
+          console.log(`  ${index + 1}. ${player.name} (${player.id})${selfIndicator}`);
+        });
+
         const targetIndexStr = await rl.question(chalk.blue('Player number: '));
         const targetIndex = parseInt(targetIndexStr.trim(), 10);
+        
         if (!isNaN(targetIndex) && targetIndex === 0) {
           return { type: 'doctorSave', targetPlayerId: null };
+        } else if (!isNaN(targetIndex) && targetIndex > 0 && targetIndex <= alivePlayers.length) {
+          const targetPlayer = alivePlayers[targetIndex - 1];
+          return { type: 'doctorSave', targetPlayerId: targetPlayer.id };
         } else {
-          // TODO: Map targetIndex back to a real PlayerId
-          console.warn('WARN: Doctor save target mapping not implemented');
-          return {
-            type: 'doctorSave',
-            targetPlayerId: `placeholder-target-${targetIndex}`,
-          }; // Placeholder
+          console.log(chalk.red('Invalid player number. No save action taken.'));
+          return { type: 'doctorSave', targetPlayerId: null };
         }
       });
     }
@@ -268,25 +299,37 @@ export class ConsoleRenderer implements IGameRenderer {
     if (allowedActions.includes('seerInvestigate')) {
       options.push(`${chalk.magenta('i')}nvestigate [player number]`);
       actionMap.set('i', async () => {
+        // Get alive players excluding self (seer can't investigate themselves)
+        const investigatablePlayers = players
+          ? Array.from(players.values()).filter(
+              (p) => p.status === 'Alive' && p.id !== playerInfo.id
+            )
+          : [];
+
         console.log(
           chalk.magenta(
             'Who do you investigate? (Enter number, or 0 for no investigation)'
           )
         );
-        // TODO: List other alive players
+        
+        // List other alive players
+        investigatablePlayers.forEach((player, index) => {
+          console.log(`  ${index + 1}. ${player.name} (${player.id})`);
+        });
+
         const targetIndexStr = await rl.question(
           chalk.magenta('Player number: ')
         );
         const targetIndex = parseInt(targetIndexStr.trim(), 10);
+        
         if (!isNaN(targetIndex) && targetIndex === 0) {
           return { type: 'seerInvestigate', targetPlayerId: null };
+        } else if (!isNaN(targetIndex) && targetIndex > 0 && targetIndex <= investigatablePlayers.length) {
+          const targetPlayer = investigatablePlayers[targetIndex - 1];
+          return { type: 'seerInvestigate', targetPlayerId: targetPlayer.id };
         } else {
-          // TODO: Map targetIndex back to a real PlayerId
-          console.warn('WARN: Seer investigate target mapping not implemented');
-          return {
-            type: 'seerInvestigate',
-            targetPlayerId: `placeholder-target-${targetIndex}`,
-          }; // Placeholder
+          console.log(chalk.red('Invalid player number. No investigation performed.'));
+          return { type: 'seerInvestigate', targetPlayerId: null };
         }
       });
     }
