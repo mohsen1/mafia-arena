@@ -451,18 +451,7 @@ export default function SimpleStartGameForm({
       <div className="space-y-4">
         {/* Show available providers summary */}
         {allAvailableProviders.length > 0 ? (
-          <div className="text-sm text-muted-foreground">
-            <div className="flex flex-wrap gap-2">
-              {allAvailableProviders.map((provider) => (
-                <span
-                  key={provider.value}
-                  className="inline-flex items-center px-2 py-1 bg-secondary text-secondary-foreground rounded-md text-xs"
-                >
-                  {getProviderDisplayTitle(provider)}
-                </span>
-              ))}
-            </div>
-          </div>
+          <></>
         ) : (
           <Alert>
             <AlertTriangle className="h-4 w-4" />
