@@ -28,6 +28,10 @@ export function filterGameStateForClient(
     : null;
   const isViewingPlayerMafia = viewingPlayer?.roleName === RoleName.Mafia;
 
+  // 🎯 FIX: Only show all roles if game is over OR truly spectating a finished game
+  // During active gameplay, even observers should not see roles (maintains werewolf mystery)
+  const shouldRevealAllRoles = fullState.phase === 'GameOver';
+
   const playersRecord: Record<PlayerId, FilteredPlayer> = {};
   for (const p of Object.values(fullState.players)) {
     const filteredPlayer: FilteredPlayer = {
@@ -35,18 +39,16 @@ export function filterGameStateForClient(
       name: p.name,
       status: p.status,
       role:
-        isObserver ||
-        viewingPlayerId === p.id ||
-        fullState.phase === 'GameOver' ||
-        p.status === 'Dead'
+        shouldRevealAllRoles || viewingPlayerId === p.id || p.status === 'Dead'
           ? p.roleName
           : undefined,
       imageUrl: p.imageUrl ?? null,
     };
 
     // Add isMafia flag for fellow Mafia members when viewing as Mafia
+    // 🎯 FIX: Also include for observers during GameOver to show final reveals
     if (
-      isViewingPlayerMafia &&
+      (isViewingPlayerMafia || (shouldRevealAllRoles && isObserver)) &&
       p.roleName === RoleName.Mafia &&
       p.status === 'Alive'
     ) {
@@ -70,7 +72,8 @@ export function filterGameStateForClient(
     }))
     .filter((msg) => {
       if (msg.visibility === MessageVisibility.Mafia) {
-        return isObserver || isViewingPlayerMafia;
+        // 🎯 FIX: Observers can see Mafia chat only during GameOver
+        return (shouldRevealAllRoles && isObserver) || isViewingPlayerMafia;
       }
       return true;
     });
