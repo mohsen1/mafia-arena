@@ -398,7 +398,7 @@ describe('NightPhase', () => {
     );
   });
 
-  it('should handle tied Mafia votes by NOT killing anyone', async () => {
+  it('should handle tied Mafia votes with random selection (enhanced decisiveness)', async () => {
     const alivePlayers = [
       mafiaPlayer1,
       mafiaPlayer2,
@@ -440,18 +440,19 @@ describe('NightPhase', () => {
     mockGame.setNextPlayerIndexToAction(0);
     await nightPhase.runStep(mockGame as unknown as Game); // ResolveNight
 
-    expect(mockGame.killPlayer).not.toHaveBeenCalled();
+    // With enhanced decisive logic, tied votes now result in random selection
+    expect(mockGame.killPlayer).toHaveBeenCalledTimes(1);
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      expect.stringContaining('Mafia vote resulted in a tie. No kill tonight.'),
+      expect.stringContaining(
+        'Mafia vote tied. Random selection made from top choices.'
+      ),
       MessageVisibility.Mafia
     );
-    expect(mockGame.logMessage).toHaveBeenCalledWith(
-      null,
-      'The night passed without any casualties.',
-      MessageVisibility.Public
-    );
-    expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(null);
+    // Should kill either 'v1' or 'doc' based on random selection
+    const killCall = (mockGame.killPlayer as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(['v1', 'doc']).toContain(killCall[0]);
+    expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(killCall[0]);
   });
 
   it('should handle Mafia voting correctly when both vote for same target', async () => {

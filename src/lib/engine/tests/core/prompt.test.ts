@@ -39,8 +39,8 @@ describe('Prompts', () => {
       expect(prompt).toContain('Mafia game');
       expect(prompt).toContain('Persona');
       expect(prompt).toContain('JSON object');
-      expect(prompt).toContain('DO NOT REVEAL YOUR ROLE');
-      expect(prompt).toContain('Valid Actions (based on phase and role):');
+      expect(prompt).toContain('DECISIVE ACTION');
+      expect(prompt).toContain('Valid Action Types:');
     });
   });
 

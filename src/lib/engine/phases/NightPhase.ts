@@ -363,6 +363,7 @@ export class NightPhase extends AbstractGamePhase {
     let maxVotes = 0;
     let finalTargets: PlayerId[] = [];
     let validVoteCount = 0;
+    const allValidTargets: PlayerId[] = []; // Track all valid targets mentioned
 
     for (const targetId of this.#mafiaVotes.values()) {
       if (targetId === null) continue; // Skip abstain/invalid votes
@@ -377,6 +378,10 @@ export class NightPhase extends AbstractGamePhase {
       }
 
       validVoteCount++;
+      if (!allValidTargets.includes(targetId)) {
+        allValidTargets.push(targetId); // Track all mentioned targets
+      }
+
       const count = (killVoteCounts.get(targetId) || 0) + 1;
       killVoteCounts.set(targetId, count);
       if (count > maxVotes) {
@@ -390,17 +395,52 @@ export class NightPhase extends AbstractGamePhase {
       }
     }
 
-    // Tie-breaking: If tied, no kill occurs. Requires strict majority.
+    // **ENHANCED DECISIVE MAFIA LOGIC**
+    // Modified to prevent infinite games by ensuring kills happen more often
     const mafiaCount = game.getAliveMafia().length;
     const majorityThreshold = Math.floor(mafiaCount / 2) + 1;
 
     if (maxVotes >= majorityThreshold && finalTargets.length === 1) {
+      // Clear consensus - use original logic
       this.#finalMafiaKillTarget = finalTargets[0];
-    } else {
-      this.#finalMafiaKillTarget = null; // Tie or no majority
+    } else if (maxVotes > 0) {
+      // **ENHANCED DECISIVENESS**: Even without strict majority, make decisions
+      if (finalTargets.length === 1) {
+        // Single highest vote getter, even if not majority
+        this.#finalMafiaKillTarget = finalTargets[0];
+        game.logMessage(
+          null,
+          `Mafia reaches decision by plurality vote.`,
+          MessageVisibility.Mafia
+        );
+      } else if (finalTargets.length > 1) {
+        // **TIE-BREAKING**: Random selection from tied highest votes
+        const randomIndex = Math.floor(Math.random() * finalTargets.length);
+        this.#finalMafiaKillTarget = finalTargets[randomIndex];
+        game.logMessage(
+          null,
+          `Mafia vote tied. Random selection made from top choices.`,
+          MessageVisibility.Mafia
+        );
+      }
+    } else if (validVoteCount === 0 && mafiaCount > 0) {
+      // **FALLBACK MECHANISM**: If all votes invalid/abstain, random selection
+      const eligibleTargets = game
+        .getAlivePlayers()
+        .filter((p) => p.role.allegiance !== 'Mafia' && p.isAlive());
+
+      if (eligibleTargets.length > 0) {
+        const randomIndex = Math.floor(Math.random() * eligibleTargets.length);
+        this.#finalMafiaKillTarget = eligibleTargets[randomIndex].id;
+        game.logMessage(
+          null,
+          `Mafia fails to coordinate. A target is chosen by circumstance.`,
+          MessageVisibility.Mafia
+        );
+      }
     }
 
-    // Log simplified result to Mafia (removed verbose vote-by-vote breakdown)
+    // Log result to Mafia
     if (this.#finalMafiaKillTarget) {
       const finalTargetName =
         game.getPlayer(this.#finalMafiaKillTarget)?.name ??
@@ -410,20 +450,8 @@ export class NightPhase extends AbstractGamePhase {
         `The Mafia has chosen to target ${finalTargetName}.`,
         MessageVisibility.Mafia
       );
-    } else if (validVoteCount > 0 && finalTargets.length > 1) {
-      game.logMessage(
-        null,
-        'Mafia vote resulted in a tie. No kill tonight.',
-        MessageVisibility.Mafia
-      );
-    } else if (validVoteCount > 0 && maxVotes < majorityThreshold) {
-      game.logMessage(
-        null,
-        'Mafia vote did not reach majority. No kill tonight.',
-        MessageVisibility.Mafia
-      );
     } else {
-      // validVoteCount === 0
+      // Only log "no kill" if we truly couldn't find any valid targets
       game.logMessage(
         null,
         'The Mafia cast no valid votes. No kill tonight.',
