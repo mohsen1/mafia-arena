@@ -23,6 +23,16 @@ import { createAgentInstance } from '@/lib/agentFactory';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
+import { getEnvAvailableProviders } from '@/lib/utils/providerUtils';
+import type { AvailableProvider } from '@/lib/utils/providerUtils';
+
+/**
+ * Server action to get available providers from environment variables
+ * This runs on the server where environment variables are accessible
+ */
+export async function getAvailableProvidersFromEnv(): Promise<AvailableProvider[]> {
+  return getEnvAvailableProviders();
+}
 
 /**
  * Retry wrapper for AI operations with exponential backoff

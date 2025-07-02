@@ -6,28 +6,33 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MagicalAIButton } from '@/components/ui/magical-ai-button';
-import { EnhancedProviderModelSelector } from './EnhancedProviderModelSelector';
-import { GameThemeSelector } from './GameThemeSelector';
-import LanguageSelector from './LanguageSelector';
+import { EnhancedProviderModelSelector } from '@/components/EnhancedProviderModelSelector';
+import { GameThemeSelector } from '@/components/GameThemeSelector';
+import LanguageSelector from '@/components/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { type LanguageCode } from '@/lib/i18n/settings';
 import { Bot, Languages, Loader2, Settings2, User } from 'lucide-react';
 import Link from 'next/link';
-import { startGameAction } from '@/app/actions';
+import { startGameAction } from '@/app/actions/setup.actions';
 import type { StartGameSetupData } from '@/lib/interfaces/actions.types';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
 import { availableModelsByProvider } from '@/lib/models';
-import { UserApiKeyManager } from './UserApiKeyManager';
+import { UserApiKeyManager } from '@/components/UserApiKeyManager';
 import {
   getUserApiKeys,
   type UserApiKeyInfo,
 } from '@/app/actions/api-keys.actions';
 import {
   getAllAvailableProviders,
+  getUserAvailableProviders,
   getProviderDisplayTitle,
+  type AvailableProvider,
 } from '@/lib/utils/providerUtils';
-import { OllamaConfig, type OllamaConfiguration } from './OllamaConfig';
+import { OllamaConfig, type OllamaConfiguration } from '@/components/OllamaConfig';
+import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
+import type { Persona } from '@/lib/engine/interfaces/Persona';
+import { getAvailableProvidersFromEnv } from '@/app/actions/setup.actions';
 
 export interface SimpleStartGameFormProps {
   lang: LanguageCode;
@@ -90,6 +95,7 @@ export default function SimpleStartGameForm({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [userApiKeys, setUserApiKeys] = useState<UserApiKeyInfo[]>([]);
+  const [envProviders, setEnvProviders] = useState<AvailableProvider[]>([]);
   const [showOllamaConfig, setShowOllamaConfig] = useState(false);
   const [ollamaConfig, setOllamaConfig] = useState<OllamaConfiguration>({
     host: 'localhost',
@@ -98,6 +104,63 @@ export default function SimpleStartGameForm({
     apiPath: '/v1',
     enabled: true,
   });
+
+  // Compute all available providers combining env and user providers
+  const allAvailableProviders = useMemo(() => {
+    // Merge providers, handling cases where both env and user keys exist
+    const providerMap = new Map<string, AvailableProvider>();
+
+    // Add environment providers first
+    for (const provider of envProviders) {
+      providerMap.set(provider.value, provider);
+    }
+
+    // Get user providers
+    const userProviders = getUserAvailableProviders(userApiKeys);
+
+    // Add or update with user providers
+    for (const provider of userProviders) {
+      const existing = providerMap.get(provider.value);
+      if (existing) {
+        // Provider has both env and user keys
+        providerMap.set(provider.value, {
+          ...existing,
+          source: 'both',
+          userKeyName: provider.userKeyName,
+        });
+      } else {
+        // Provider only has user keys
+        providerMap.set(provider.value, provider);
+      }
+    }
+
+    // Sort providers with Groq first if available, then alphabetically
+    return Array.from(providerMap.values()).sort((a, b) => {
+      // Prioritize Groq as the default provider
+      if (a.value === 'groq') return -1;
+      if (b.value === 'groq') return 1;
+      // Then prioritize OpenAI
+      if (a.value === 'openai') return -1;
+      if (b.value === 'openai') return 1;
+      // Then sort alphabetically
+      return a.title.localeCompare(b.title);
+    });
+  }, [envProviders, userApiKeys]);
+
+  // Load environment providers on mount
+  useEffect(() => {
+    const loadEnvProviders = async () => {
+      try {
+        const providers = await getAvailableProvidersFromEnv();
+        setEnvProviders(providers);
+      } catch (error) {
+        console.error('Failed to load environment providers:', error);
+        // Continue without env providers - user can still use user-provided keys
+      }
+    };
+
+    loadEnvProviders();
+  }, []);
 
   // Sync mafia settings when not using separate config
   useEffect(() => {
@@ -141,19 +204,16 @@ export default function SimpleStartGameForm({
 
   // Auto-select first available provider and model as default
   useEffect(() => {
-    if (!globalProviderSelection) {
-      const enhancedProviders = getAllAvailableProviders(userApiKeys);
-      if (enhancedProviders.length > 0) {
-        const firstProvider = enhancedProviders[0];
-        const defaultModel = getDefaultModelForProvider(firstProvider.value);
+    if (!globalProviderSelection && allAvailableProviders.length > 0) {
+      const firstProvider = allAvailableProviders[0];
+      const defaultModel = getDefaultModelForProvider(firstProvider.value);
 
-        if (firstProvider && defaultModel) {
-          setGlobalProviderSelection(firstProvider.value);
-          setGlobalModelSelection(defaultModel);
-        }
+      if (firstProvider && defaultModel) {
+        setGlobalProviderSelection(firstProvider.value);
+        setGlobalModelSelection(defaultModel);
       }
     }
-  }, [globalProviderSelection, userApiKeys]);
+  }, [globalProviderSelection, allAvailableProviders]);
 
   const handleGlobalProviderModelChange = useCallback(
     (provider: string, model: string) => {
@@ -342,7 +402,7 @@ export default function SimpleStartGameForm({
             selectedProviderValue={globalProviderSelection}
             selectedModel={globalModelSelection}
             onProviderModelChange={handleGlobalProviderModelChange}
-            availableProviders={getAllAvailableProviders(userApiKeys)}
+            availableProviders={allAvailableProviders}
             disabled={isSubmitting}
           />
         </div>
@@ -378,7 +438,7 @@ export default function SimpleStartGameForm({
               selectedProviderValue={mafiaProviderSelection}
               selectedModel={mafiaModelSelection}
               onProviderModelChange={handleMafiaProviderModelChange}
-              availableProviders={getAllAvailableProviders(userApiKeys)}
+              availableProviders={allAvailableProviders}
               disabled={isSubmitting}
             />
           </div>
@@ -413,7 +473,7 @@ export default function SimpleStartGameForm({
           <div className="text-sm text-muted-foreground">
             <p className="mb-2">Available AI providers:</p>
             <div className="flex flex-wrap gap-2">
-              {getAllAvailableProviders(userApiKeys).map((provider) => (
+              {allAvailableProviders.map((provider) => (
                 <span
                   key={provider.value}
                   className="inline-flex items-center px-2 py-1 bg-secondary text-secondary-foreground rounded-md text-xs"
