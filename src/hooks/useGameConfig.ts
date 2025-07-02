@@ -69,6 +69,8 @@ const getAgentTypeFromProvider = (providerValue?: string): string => {
       return 'Fireworks';
     case 'openai':
       return 'OpenAI';
+    case 'gemini':
+      return 'Gemini';
     default:
       console.warn(
         `Unknown provider value "${providerValue}" in useGameConfig. Defaulting agentType to OpenAI.`
