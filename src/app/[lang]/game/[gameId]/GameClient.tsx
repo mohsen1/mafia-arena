@@ -56,8 +56,28 @@ function GameLayout({ gameId }: { gameId: string }) {
         </div>
         {humanPlayerId && <HumanChatInput />}
         {!humanPlayerId && (
-          <div className="p-4 border-t text-center text-muted-foreground italic">
-            {t('ObservingGame', 'Observing the game...')}
+          <div className="p-4 border-t bg-secondary/20">
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
+                <span className="text-sm font-medium text-foreground">
+                  {t('ObservingGame', 'Observing the game...')}
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {gameState?.phase && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
+                    AI Auto Mode • {gameState.phase}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="text-center text-xs text-muted-foreground mt-2">
+              {t(
+                'AutoModeDescription',
+                'AI agents are making decisions automatically'
+              )}
+            </div>
           </div>
         )}
       </main>
