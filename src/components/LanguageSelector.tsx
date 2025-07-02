@@ -3,6 +3,7 @@
 import type { LanguageCode as Locale } from '@/lib/i18n/settings';
 import { supportedLanguagesInfo } from '@/lib/i18n/settings';
 import { usePathname, useRouter } from 'next/navigation';
+import { Globe } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -41,7 +42,10 @@ export default function LanguageSelector({
   return (
     <Select value={currentLang} onValueChange={handleLanguageChange}>
       <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder="Select language" />
+        <div className="flex items-center gap-2">
+          <Globe className="h-4 w-4" />
+          <SelectValue placeholder="Select language" />
+        </div>
       </SelectTrigger>
       <SelectContent>
         {Object.entries(supportedLanguagesInfo).map(([code, { label }]) => (
