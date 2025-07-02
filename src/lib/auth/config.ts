@@ -82,10 +82,27 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       // Initial sign in
       if (account && user) {
-        token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
-        token.image = user.image;
+        // For OAuth providers, we need to fetch the user from database to get the correct ID
+        if (account.provider !== 'credentials' && user.email) {
+          const [dbUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, user.email))
+            .limit(1);
+          
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.email = dbUser.email;
+            token.name = dbUser.name;
+            token.image = dbUser.image;
+          }
+        } else {
+          // For credentials provider, use the user data directly
+          token.id = user.id;
+          token.email = user.email;
+          token.name = user.name;
+          token.image = user.image;
+        }
       }
 
       // Return previous token if the user is already signed in
@@ -116,12 +133,15 @@ export const authOptions: NextAuthOptions = {
 
           if (!existingUser) {
             // Create new user
-            await db.insert(users).values({
+            const [newUser] = await db.insert(users).values({
               email: email,
               name: user.name || profile?.name || null,
               image: user.image || profile?.image || null,
               emailVerified: new Date(),
-            });
+            }).returning();
+
+            // Set the database user ID on the user object
+            user.id = newUser.id;
           } else {
             // Update existing user's image and name if they don't have one
             const updates: Record<string, string> = {};
@@ -138,6 +158,12 @@ export const authOptions: NextAuthOptions = {
                 .set(updates)
                 .where(eq(users.id, existingUser.id));
             }
+
+            // Set the database user ID on the user object
+            user.id = existingUser.id;
+            // Also ensure we have the latest user data
+            user.name = existingUser.name || user.name;
+            user.image = updates.image || existingUser.image || user.image;
           }
 
           return true;
