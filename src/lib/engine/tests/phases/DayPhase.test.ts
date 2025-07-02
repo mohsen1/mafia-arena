@@ -296,13 +296,13 @@ describe('DayPhase', () => {
     // TallyVotes
     mockGame.setNextPlayerIndexToAction(0);
     await dayPhase.runStep(mockGame as unknown as Game);
-    // Tie vote (p1 votes for p2, p2 votes for p1, p3 abstains), no one executed
+    // Tie vote (p1 votes for p2, p2 votes for p1, p3 abstains), random execution with enhanced logic
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      'VoteTieResult',
+      'VoteTieRandomExecution',
       MessageVisibility.Public
     );
-    expect(mockGame.killPlayer).not.toHaveBeenCalled();
+    expect(mockGame.killPlayer).toHaveBeenCalledTimes(1);
     expect(mockGame.getPhaseStep()).toBe('Finished');
 
     // Finished
@@ -382,7 +382,7 @@ describe('DayPhase', () => {
     expect(mockGame.getPhaseStep()).toBe('Finished');
   });
 
-  it('should handle tie vote (no execution)', async () => {
+  it('should handle tie vote (random execution from tied players)', async () => {
     mockGame.round = 2;
     const alivePlayers = [p1, p2, p3, p4]; // 4 players
     mockGame.getAlivePlayers.mockReturnValue(alivePlayers);
@@ -424,10 +424,11 @@ describe('DayPhase', () => {
     mockGame.setNextPlayerIndexToAction(0);
     await dayPhase.runStep(mockGame as unknown as Game); // Executes TallyVotes logic
 
-    expect(mockGame.killPlayer).not.toHaveBeenCalled();
+    // With enhanced decisive voting, tied votes now result in random execution
+    expect(mockGame.killPlayer).toHaveBeenCalledTimes(1);
     expect(mockGame.logMessage).toHaveBeenCalledWith(
       null,
-      'VoteTieResult',
+      'VoteTieRandomExecution',
       MessageVisibility.Public
     );
     expect(mockGame.getPhaseStep()).toBe('Finished');

@@ -271,45 +271,83 @@ export class DayPhase extends AbstractGamePhase {
       }
     }
 
-    // Determine execution based on highest vote count (plurality rule)
-    // The player with the most votes is eliminated, UNLESS there's a tie for highest
+    // **ENHANCED DECISIVE VOTING LOGIC**
+    // Modified to favor execution over no action for better game progression
     let executedPlayerId: PlayerId | null = null;
-    if (maxVotes > 0 && playersToExecute.length === 1) {
-      // Clear winner: one player has the most votes
-      executedPlayerId = playersToExecute[0];
-      const executedPlayer = game.getPlayer(executedPlayerId);
-      const executedPlayerName = executedPlayer?.name ?? executedPlayerId;
-      game.logMessage(
-        null,
-        translate('ExecutionDecision', game.language, {
-          voteCount: maxVotes,
-          playerName: executedPlayerName,
-        }),
-        MessageVisibility.Public
-      );
-      // Kill the player and reveal role AFTER logging the decision
-      // The killPlayer method itself logs the role based on game settings/rules
-      game.killPlayer(
-        executedPlayerId,
-        translate('ExecutionReason', game.language)
-      );
-    } else if (maxVotes > 0 && playersToExecute.length > 1) {
-      // Tie for highest votes - no elimination
-      const tiedNames = playersToExecute
-        .map((id) => game.getPlayer(id)?.name ?? id)
-        .join(', ');
-      game.logMessage(
-        null,
-        translate('VoteTieResult', game.language, { playerNames: tiedNames }),
-        MessageVisibility.Public
-      );
+
+    if (maxVotes > 0) {
+      if (playersToExecute.length === 1) {
+        // Clear winner: one player has the most votes
+        executedPlayerId = playersToExecute[0];
+        const executedPlayer = game.getPlayer(executedPlayerId);
+        const executedPlayerName = executedPlayer?.name ?? executedPlayerId;
+        game.logMessage(
+          null,
+          translate('ExecutionDecision', game.language, {
+            voteCount: maxVotes,
+            playerName: executedPlayerName,
+          }),
+          MessageVisibility.Public
+        );
+      } else if (playersToExecute.length > 1) {
+        // **TIE-BREAKING LOGIC: Execute random player from tied top vote getters**
+        // This prevents infinite games by ensuring decisions are made
+        const randomIndex = Math.floor(Math.random() * playersToExecute.length);
+        executedPlayerId = playersToExecute[randomIndex];
+        const executedPlayer = game.getPlayer(executedPlayerId);
+        const executedPlayerName = executedPlayer?.name ?? executedPlayerId;
+        const tiedNames = playersToExecute
+          .map((id) => game.getPlayer(id)?.name ?? id)
+          .join(', ');
+
+        game.logMessage(
+          null,
+          translate('VoteTieRandomExecution', game.language, {
+            playerNames: tiedNames,
+            executedPlayerName: executedPlayerName,
+            voteCount: maxVotes,
+          }),
+          MessageVisibility.Public
+        );
+      }
+
+      // Execute the chosen player
+      if (executedPlayerId) {
+        game.killPlayer(
+          executedPlayerId,
+          translate('ExecutionReason', game.language)
+        );
+      }
     } else {
-      // maxVotes === 0 - no votes cast
-      game.logMessage(
-        null,
-        translate('NoVotesCast', game.language),
-        MessageVisibility.Public
-      );
+      // maxVotes === 0 - no votes cast, use random execution as last resort
+      const alivePlayers = game.getAlivePlayers();
+      if (alivePlayers.length > 2) {
+        // Only use random execution if more than 2 players
+        const randomIndex = Math.floor(Math.random() * alivePlayers.length);
+        executedPlayerId = alivePlayers[randomIndex].id;
+        const executedPlayer = game.getPlayer(executedPlayerId);
+        const executedPlayerName = executedPlayer?.name ?? executedPlayerId;
+
+        game.logMessage(
+          null,
+          translate('NoVotesRandomExecution', game.language, {
+            playerName: executedPlayerName,
+          }),
+          MessageVisibility.Public
+        );
+
+        game.killPlayer(
+          executedPlayerId,
+          translate('ExecutionReason', game.language)
+        );
+      } else {
+        // Standard no votes message for endgame scenarios
+        game.logMessage(
+          null,
+          translate('NoVotesCast', game.language),
+          MessageVisibility.Public
+        );
+      }
     }
 
     // Notify renderers and record results AFTER determining the outcome
