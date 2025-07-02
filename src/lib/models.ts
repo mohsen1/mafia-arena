@@ -77,7 +77,11 @@ export const claudeModels: ModelDefinition[] = [
 
 // Updated Gemini Models (Section 5 of the guide)
 export const geminiModels: ModelDefinition[] = [
-  // Gemini 2.5 Series (Most Advanced)
+  // Gemini 2.5 Series (Default - Most Advanced)
+  {
+    title: 'Gemini 2.5 Flash Lite (Default, Fast, Cost-Efficient)',
+    value: 'gemini-2.5-flash-lite-preview-06-17',
+  },
   {
     title: 'Gemini 2.5 Pro (Most Powerful Thinking, Preview)',
     value: 'gemini-2.5-pro-preview-05-06',
