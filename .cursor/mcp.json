@@ -5,8 +5,8 @@
       "args": ["@browsermcp/mcp@latest"]
     },
     "gemini-guidance": {
-      "command": "./scripts/run-mcp-clean.sh",
-      "args": [],
+      "command": "./node_modules/.bin/tsx",
+      "args": ["./scripts/gemini-mcp/src/server.ts"],
       "env": {}
     }
   }
