@@ -30,7 +30,9 @@ import type { AvailableProvider } from '@/lib/utils/providerUtils';
  * Server action to get available providers from environment variables
  * This runs on the server where environment variables are accessible
  */
-export async function getAvailableProvidersFromEnv(): Promise<AvailableProvider[]> {
+export async function getAvailableProvidersFromEnv(): Promise<
+  AvailableProvider[]
+> {
   return getEnvAvailableProviders();
 }
 

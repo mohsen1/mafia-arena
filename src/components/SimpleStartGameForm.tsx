@@ -24,14 +24,14 @@ import {
   type UserApiKeyInfo,
 } from '@/app/actions/api-keys.actions';
 import {
-  getAllAvailableProviders,
   getUserAvailableProviders,
   getProviderDisplayTitle,
   type AvailableProvider,
 } from '@/lib/utils/providerUtils';
-import { OllamaConfig, type OllamaConfiguration } from '@/components/OllamaConfig';
-import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
-import type { Persona } from '@/lib/engine/interfaces/Persona';
+import {
+  OllamaConfig,
+  type OllamaConfiguration,
+} from '@/components/OllamaConfig';
 import { getAvailableProvidersFromEnv } from '@/app/actions/setup.actions';
 
 export interface SimpleStartGameFormProps {
