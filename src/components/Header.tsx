@@ -14,14 +14,35 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useEffect, useState } from 'react';
 
 interface HeaderProps {
   currentLang: string;
 }
 
 export function Header({ currentLang }: HeaderProps) {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const { t } = useTranslation();
+  const [imageError, setImageError] = useState(false);
+
+  // Force session refresh on mount to ensure latest user data
+  useEffect(() => {
+    if (status === 'authenticated') {
+      update();
+      // Debug logging
+      console.log('[Header] Session data:', {
+        user: session?.user,
+        image: session?.user?.image,
+        name: session?.user?.name,
+        email: session?.user?.email,
+      });
+    }
+  }, [status, update, session]);
+
+  // Reset image error state when session changes
+  useEffect(() => {
+    setImageError(false);
+  }, [session?.user?.image]);
 
   const handleSignIn = () => {
     signIn(undefined, { callbackUrl: `/${currentLang}` });
@@ -75,13 +96,18 @@ export function Header({ currentLang }: HeaderProps) {
                       size="sm"
                       className="flex items-center space-x-2"
                     >
-                      {session.user?.image ? (
+                      {session.user?.image && !imageError ? (
                         <Image
                           src={session.user.image}
                           alt={session.user.name || 'User'}
                           width={24}
                           height={24}
                           className="w-6 h-6 rounded-full"
+                          onError={(e) => {
+                            console.error('Profile image failed to load:', session.user.image);
+                            console.error('Image error event:', e);
+                            setImageError(true);
+                          }}
                         />
                       ) : (
                         <User className="w-4 h-4" />
