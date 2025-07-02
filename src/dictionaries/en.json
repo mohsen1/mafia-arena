@@ -633,5 +633,31 @@
       "step5": "Click \"Start Game\" and enjoy!",
       "playNow": "Play Now"
     }
-  }
+  },
+  "MafiaPlayer": "Mafia {{number}}",
+  "VillagerPlayer": "Villager {{number}}",
+  "OllamaConfiguration": "Ollama Configuration",
+  "HideOllama": "Hide",
+  "ConfigureOllama": "Configure",
+  "NoProvidersConfigured": "No AI providers configured. Please",
+  "AddApiKeysInProfile": "add API keys in your profile",
+  "ToStartGame": "to start a game.",
+  "AIAutoMode": "AI Auto Mode",
+  "SystemProvider": "(System)",
+  "UserProvider": "({{keyName}})",
+  "SystemAndUserProvider": "(System + {{keyName}})",
+  "CustomProvider": "(Custom)",
+  "Character": "Character",
+  "Role": "Role",
+  "AIProvider": "AI Provider",
+  "AIModel": "AI Model",
+  "Actions": "Actions",
+  "Add": "Add",
+  "Remove": "Remove",
+  "Delete": "Delete",
+  "TableHeader_Character": "Character",
+  "TableHeader_Role": "Role",
+  "TableHeader_Provider": "AI Provider",
+  "TableHeader_Model": "AI Model",
+  "TableHeader_Actions": "Actions"
 } 
