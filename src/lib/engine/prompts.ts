@@ -122,6 +122,13 @@ export function getSystemPrompt(): string {
         **Round 1 Introductions:** During the first Day phase, you MUST introduce yourself to the group
         in character.
 
+        **CRITICAL: ACTIVE GAMEPLAY IS MANDATORY**
+        - Every action you take matters! Passive play leads to poor outcomes for your team.
+        - You MUST participate actively - your team depends on decisive action.
+        - **VOTING IS MANDATORY** during Day phases unless absolutely no valid targets exist.
+        - **NIGHT ACTIONS ARE MANDATORY** for special roles - your abilities are crucial to victory.
+        - Abstaining or choosing no action should be EXTREMELY rare and only when no other option exists.
+
         **General Strategy & Secrecy:**
         - Stay in character based on your assigned persona!
         - **DO NOT REVEAL YOUR ROLE** (Mafia, Doctor, Seer, Villager) unless it is strategically
@@ -143,43 +150,40 @@ export function getSystemPrompt(): string {
           \`doctorSave\` prevents kill). Seer secretly investigates one player (\`seerInvestigate\`) to 
           learn their allegiance (Mafia or Town).
 
-        **Role-Specific Hints (Apply within your Persona):**
-        - **Mafia:** Your goal is to eliminate Town members. **Night Strategy:** At night, you will have two steps:
+        **Role-Specific Action Requirements (Apply within your Persona):**
+        - **Mafia:** Your goal is to eliminate Town members. **DECISIVE ACTION IS CRITICAL!**
+          **Night Strategy:** At night, you will have two steps:
           1.  **Discussion Phase:** Use the \`message\` action to talk privately with your fellow Mafia.
               Discuss potential targets, strategy, and coordinate your kill vote. This is crucial for success!
           2.  **Voting Phase:** After discussion, use the \`mafiaKill\` action to cast your vote for a target.
-              A consensus is preferred. You can target any living player, but usually Town members.
-              Choosing \`noAction\` during the vote is possible but usually counter-productive.
-          **Day Strategy:** Blend in using your persona. Avoid suspicion. Deflect blame. Coordinate subtle signals
-          if possible, but prioritize secrecy.
-        - **Villager:** Actively participate in discussions as your persona. Share suspicions based on
-          behavior/votes. Accuse players you suspect and explain why (in character). Vote decisively.
-        - **Doctor:** Saving is powerful. Protect valuable Town members or those likely targeted, perhaps
-          influenced by your persona's relationships or judgments. Avoid saving the same person every
-          night without reason.
-        - **Seer:** Your investigation is crucial. Use the information! Convince the Town to vote out
-          Mafia (perhaps hinting or revealing strategically, fitting your persona). Defend known Town
-          members. Avoid investigating the same person repeatedly.
+              **YOU MUST VOTE TO KILL SOMEONE** - failing to act gives Town the advantage!
+              Target the most dangerous Town members or coordinate with fellow Mafia for maximum impact.
+          **Day Strategy:** Blend in using your persona. Avoid suspicion. Deflect blame. **VOTE DECISIVELY**
+          to eliminate threats while appearing innocent.
+        - **Villager:** **YOU ARE THE TOWN'S BACKBONE!** Actively participate in discussions as your persona. 
+          Share suspicions based on behavior/votes. **VOTE DECISIVELY** - every vote matters in catching Mafia!
+          Accuse players you suspect and explain why (in character). Passive play helps Mafia win.
+        - **Doctor:** **YOUR SAVES ARE GAME-CHANGING!** Protect valuable Town members or those likely targeted.
+          **USE YOUR SAVE EVERY NIGHT** unless you have strategic reasons not to. Your inaction could cost lives.
+          Consider your persona's relationships or judgments when choosing who to protect.
+        - **Seer:** **YOUR INVESTIGATIONS WIN GAMES!** **INVESTIGATE EVERY NIGHT** - information is power!
+          Use your findings to convince the Town to vote out Mafia (perhaps hinting or revealing strategically,
+          fitting your persona). **ACT ON YOUR KNOWLEDGE** - passive Seers lose games!
 
-        **Your Task:** Based on the game state, your role, your persona, and allowed actions, decide
-        your action.
+        **Your Task:** Based on the game state, your role, your persona, and allowed actions, make
+        a DECISIVE action that helps your team win.
 
         **Output Format:** Respond ONLY with a valid JSON object representing your action. Do NOT include
         any other text, explanations, or markdown formatting.
         Valid Actions (based on phase and role):
         - { "type": "message", "content": "your message text (in character)" } (Day Discussion / Introduction)
-        - { "type": "vote", "targetPlayerId": "player-id-string" | null } (Day Vote - Use null to
-        abstain, but voting is encouraged!)
-        - { "type": "mafiaKill", "targetPlayerId": "player-id-string" } (Night, Mafia only - target
-        any living player)
-        - { "type": "doctorSave", "targetPlayerId": "player-id-string" | null } (Night, Doctor only -
-          null for no save)
-        - { "type": "seerInvestigate", "targetPlayerId": "player-id-string" | null } (Night, Seer only -
-          null for no investigation, don't investigate yourself)
-        - { "type": "noAction" } (Use only if truly no other action is appropriate or allowed)
+        - { "type": "vote", "targetPlayerId": "player-id-string" } (Day Vote - CHOOSE A TARGET, abstaining helps enemies!)
+        - { "type": "mafiaKill", "targetPlayerId": "player-id-string" } (Night, Mafia only - ELIMINATE A THREAT!)
+        - { "type": "doctorSave", "targetPlayerId": "player-id-string" } (Night, Doctor only - SAVE SOMEONE!)
+        - { "type": "seerInvestigate", "targetPlayerId": "player-id-string" } (Night, Seer only - GATHER INTEL!)
+        - { "type": "noAction" } (ONLY use if no valid targets exist or action is impossible)
 
-        Player IDs are strings like "player-1-name". Ensure targetPlayerId is a valid ID from the alive
-        players list when required.
+        Player IDs are strings like "player-1-name". **TARGET SELECTION IS MANDATORY** - choose wisely!
     `;
 }
 
@@ -301,48 +305,48 @@ export function getUserPrompt(
   }
 
   // Allowed Actions
-  promptLines.push('\n**Your Turn:**');
+  promptLines.push('\n**YOUR TURN - ACTION REQUIRED:**');
   if (allowedActions && allowedActions.length > 0) {
     promptLines.push(
-      `You must choose one of the following actions: ${allowedActions.join(', ')}.`
+      `**MANDATORY:** You must take decisive action from: ${allowedActions.join(', ')}.`
     );
     promptLines.push(
-      'Provide your action as a JSON object matching the examples below.'
+      '**Your team is counting on you!** Provide your action as a JSON object.'
     );
 
     // Action Examples (customize based on phase/role)
     promptLines.push('\n**Action Format Examples:**');
     if (allowedActions.includes('message')) {
       promptLines.push(
-        '- Speak: `{"type": "message", "content": "Your message here..."}`'
+        '- **Speak Strategically:** `{"type": "message", "content": "Your message here..."}`'
       );
     }
     if (allowedActions.includes('vote')) {
       promptLines.push(
-        '- Vote: `{"type": "vote", "targetPlayerId": "player-id-to-vote-for"}`'
+        '- **Vote to Eliminate:** `{"type": "vote", "targetPlayerId": "player-id-to-vote-for"}` (**CHOOSE A TARGET!**)'
       );
     }
     if (allowedActions.includes('mafiaKill')) {
       promptLines.push(
-        '- Mafia Kill: `{"type": "mafiaKill", "targetPlayerId": "player-id-to-kill"}`'
+        '- **Execute Target:** `{"type": "mafiaKill", "targetPlayerId": "player-id-to-kill"}` (**ELIMINATE A THREAT!**)'
       );
     }
     if (allowedActions.includes('doctorSave')) {
       promptLines.push(
-        '- Doctor Save: `{"type": "doctorSave", "targetPlayerId": "player-id-to-save"}`'
+        '- **Protect Someone:** `{"type": "doctorSave", "targetPlayerId": "player-id-to-save"}` (**SAVE A LIFE!**)'
       );
     }
     if (allowedActions.includes('seerInvestigate')) {
       promptLines.push(
-        '- Seer Investigate: `{"type": "seerInvestigate", "targetPlayerId": "player-id-to-investigate"}`'
+        '- **Investigate Player:** `{"type": "seerInvestigate", "targetPlayerId": "player-id-to-investigate"}` (**GATHER INTEL!**)'
       );
     }
     promptLines.push(
-      '- Abstain/No Action: `{"type": "noAction"}` (or `{"type": "vote", "targetPlayerId": null}` for voting)'
+      '- **No Action:** `{"type": "noAction"}` (**ONLY if absolutely no valid targets exist!**)'
     );
 
     promptLines.push(
-      "\n**Important:** Respond ONLY with the JSON object for your chosen action. Include a brief 'reasoning' field within the JSON if possible, explaining your choice concisely."
+      "\n**CRITICAL:** Respond ONLY with the JSON object for your chosen action. Your decision could determine the game's outcome!"
     );
   } else {
     promptLines.push(
