@@ -517,7 +517,7 @@ export function SimpleApiKeyManager({
                   </Card>
                 ) : (
                   // Display Mode
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/20">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">

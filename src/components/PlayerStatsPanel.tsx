@@ -99,7 +99,7 @@ export function PlayerStatsPanel({ gameState }: PlayerStatsProps) {
             return (
               <div
                 key={player.id}
-                className={`p-3 rounded-lg border ${isAlive ? 'bg-background' : 'bg-muted/50'}`}
+                className={`p-3 rounded-lg ${isAlive ? 'bg-secondary/30' : 'bg-muted/50'}`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">

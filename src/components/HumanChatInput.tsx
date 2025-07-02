@@ -190,7 +190,7 @@ export default function HumanChatInput() {
 
     if (!pendingAction) {
       return (
-        <div className="p-4 border-t text-center text-muted-foreground italic">
+        <div className="p-4 text-center text-muted-foreground italic">
           {t('WaitingLabel', 'Waiting...')}
         </div>
       );
@@ -220,10 +220,7 @@ export default function HumanChatInput() {
         ? t('SendWerewolfChatButtonLabel', 'Send (Pack)')
         : t('SendButtonLabel', 'Send');
       return (
-        <form
-          onSubmit={handleSubmit}
-          className="flex items-center gap-2 p-4 border-t"
-        >
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 p-4">
           <Input
             type="text"
             value={inputValue}
@@ -269,16 +266,16 @@ export default function HumanChatInput() {
 
       if (targetOptions.length === 0 && !canSkipNightAction) {
         return (
-          <div className="p-4 border-t text-center text-muted-foreground italic">
+          <div className="p-4 text-center text-muted-foreground italic">
             {t('NoValidTargets', 'No valid targets available.')}
           </div>
         );
       }
 
       return (
-        <div className="p-4 border-t flex flex-col gap-3 h-full overflow-hidden">
+        <div className="p-4 flex flex-col gap-3 h-full overflow-hidden">
           <h4 className="font-semibold text-center">{title}</h4>
-          <ScrollArea className="flex-1 max-h-[calc(100%-80px)] border rounded-md">
+          <ScrollArea className="flex-1 max-h-[calc(100%-80px)] rounded-md bg-secondary/20">
             <div className="p-2 space-y-1">
               {targetOptions.map((player) => (
                 <Label
@@ -355,7 +352,7 @@ export default function HumanChatInput() {
     }
 
     return (
-      <div className="p-4 border-t text-center text-muted-foreground italic">
+      <div className="p-4 text-center text-muted-foreground italic">
         {pendingAction?.prompt || t('WaitingLabel', 'Waiting...')}
       </div>
     );

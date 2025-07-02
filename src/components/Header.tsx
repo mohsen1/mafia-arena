@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
-import { LogIn, LogOut, User, Gamepad2 } from 'lucide-react';
+import { LogIn, LogOut, User, Gamepad2, HelpCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +32,7 @@ export function Header({ currentLang }: HeaderProps) {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/40 supports-[backdrop-filter]:bg-background/60">
+    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -110,6 +110,15 @@ export function Header({ currentLang }: HeaderProps) {
                         {t('common.myGames')}
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href={`/${currentLang}/help`}
+                        className="flex items-center"
+                      >
+                        <HelpCircle className="w-4 h-4 me-2" />
+                        {t('common.help')}
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleSignOut}
@@ -125,6 +134,11 @@ export function Header({ currentLang }: HeaderProps) {
               // Guest User Buttons
               <div className="flex items-center space-x-2">
                 <ThemeToggle />
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/${currentLang}/help`}>
+                    <HelpCircle className="w-4 h-4" />
+                  </Link>
+                </Button>
                 <Button
                   variant="outline"
                   onClick={handleSignIn}

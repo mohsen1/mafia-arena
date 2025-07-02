@@ -560,7 +560,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-card/50 backdrop-blur-sm border-t border-border/40">
+      <footer className="bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
@@ -650,7 +650,7 @@ export default function LandingPage() {
               />
             </div>
           </div>
-          <div className="border-t border-border/40 mt-12 pt-8 text-center">
+          <div className="mt-12 pt-8 text-center">
             <p className="text-muted-foreground text-sm">
               © {new Date().getFullYear()} Werewolf AI.{' '}
               {t('landingFooterCopyright')}
