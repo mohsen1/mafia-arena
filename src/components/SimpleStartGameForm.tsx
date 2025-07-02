@@ -521,7 +521,7 @@ export default function SimpleStartGameForm({
           </div>
 
           {showOllamaConfig && (
-            <div className="border rounded-lg p-4">
+            <div className="rounded-lg p-4 bg-secondary/20">
               <OllamaConfig
                 initialConfig={ollamaConfig}
                 onConfigChange={setOllamaConfig}

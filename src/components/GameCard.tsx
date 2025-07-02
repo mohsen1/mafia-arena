@@ -52,8 +52,8 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
   };
 
   return (
-    <li className="flex justify-between items-start gap-4 p-4 border rounded-lg shadow-sm bg-card">
-      <div className="flex-grow">
+    <li className="flex justify-between items-start gap-4 p-4 rounded-lg bg-card">
+      <div className="flex-1 space-y-2">
         <h3 className="text-lg font-semibold mb-1">
           <Link
             href={`/${game.language}/game/${game.gameId}`}

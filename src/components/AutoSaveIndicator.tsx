@@ -46,7 +46,7 @@ export function AutoSaveIndicator({
     <div className="fixed bottom-4 start-4 z-50">
       <div
         className={cn(
-          'flex items-center gap-2 px-3 py-2 rounded-md bg-background/95 border shadow-sm transition-all duration-300',
+          'flex items-center gap-2 px-3 py-2 rounded-md bg-background/95 transition-all duration-300',
           isSaving
             ? 'opacity-100 translate-y-0'
             : showSaved
