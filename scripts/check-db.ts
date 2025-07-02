@@ -1,4 +1,8 @@
 import postgres from 'postgres';
+import * as dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 async function checkDb() {
   const connectionString = process.env.DATABASE_URL;
