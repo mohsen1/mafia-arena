@@ -15,6 +15,10 @@
   "character-generation.error": "Generation Error",
   "character-generation.retry": "Try Again",
   "character-generation.characters-list": "Characters",
+  "character-generation.estimated-time": "Estimated time: {{minutes}} minutes",
+  "character-generation.step-creating": "Creating character profiles...",
+  "character-generation.step-generating": "Generating backstories...",
+  "character-generation.step-finalizing": "Finalizing character details...",
   "ConfigInvalid": "Game configuration needs adjustment",
   "ConfigLooksGood": "Configuration looks good ({{playerCount}} players).",
   "ConfigLooksGood_Prefix": "Configuration ready",
@@ -479,5 +483,16 @@
       "name": "Cyberpunk Megacity",
       "description": "A neon-soaked dystopian metropolis controlled by mega-corporations, where trust is a luxury few can afford."
     }
-  }
+  },
+  "LoadingNextTurn": "Processing turn...",
+  "LoadingNextTurnDay": "AI agents are deliberating...",
+  "LoadingNextTurnNight": "AI agents are taking secret actions...",
+  "LoadingNextTurnVoting": "AI agents are casting votes...",
+  "LoadingNextTurnGeneral": "AI agents are making decisions...",
+  "DeadPlayersTitle": "Dead Players",
+  "LivingPlayersTitle": "Living Players",
+  "TownPlayersTitle": "Town",
+  "MafiaPlayersTitle": "Mafia",
+  "RoleGroupTown": "Town Players",
+  "RoleGroupMafia": "Mafia Players"
 } 

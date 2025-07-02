@@ -7,8 +7,13 @@ import { Loader, Pause, Play, SkipForward } from 'lucide-react';
 import { useTranslation } from 'react-i18next'; // Import from react-i18next
 
 export default function GameController() {
-  const { isAutoRunning, toggleAutoRun, isLoadingNextTurn, runNextTurnAction } =
-    useGameContext();
+  const {
+    isAutoRunning,
+    toggleAutoRun,
+    isLoadingNextTurn,
+    runNextTurnAction,
+    gameState,
+  } = useGameContext();
 
   // Use standard hook
   const { t } = useTranslation('translation'); // Keep namespace for now
@@ -19,6 +24,27 @@ export default function GameController() {
     // Let's allow manual Next only when paused for now.
     if (!isAutoRunning) {
       runNextTurnAction();
+    }
+  };
+
+  // Get phase-aware loading message
+  const getLoadingMessage = () => {
+    if (!gameState) return t('LoadingNextTurnGeneral');
+
+    const phase = gameState.phase;
+    switch (phase) {
+      case 'Day':
+        return t('LoadingNextTurnDay');
+      case 'Night':
+      case 'FirstNight':
+        return t('LoadingNextTurnNight');
+      case 'CharacterGeneration':
+        return t(
+          'character-generation.please-wait',
+          'Please wait while we create unique AI characters...'
+        );
+      default:
+        return t('LoadingNextTurnGeneral');
     }
   };
 
@@ -57,14 +83,14 @@ export default function GameController() {
         </Button>
       </div>
 
-      {/* Row 2: Loader Icon (optional, shown only when loading) */}
+      {/* Row 2: Loader Icon with phase-aware message */}
       <div className="flex items-center gap-2 h-8">
         {/* Standalone Loading Indicator (only shown when loading) */}
         {isLoadingNextTurn && (
           <>
             <Loader className="animate-spin" size={18} />
             <span className="text-xs text-muted-foreground">
-              {t('LoadingNextTurn')}
+              {getLoadingMessage()}
             </span>
           </>
         )}

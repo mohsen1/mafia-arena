@@ -37,6 +37,29 @@ export function GameSidebar() {
     .filter((p): p is FilteredPlayer => !!p); // Use FilteredPlayer
   if (!players) return null;
 
+  // Group living players by role alignment (Town vs Mafia)
+  const groupPlayersByAlignment = (players: FilteredPlayer[]) => {
+    const townRoles = ['Villager', 'Seer', 'Doctor'];
+    const mafiaRoles = ['Mafia'];
+
+    const townPlayers = players.filter(
+      (p) => p.roleName && townRoles.includes(p.roleName)
+    );
+    const mafiaPlayers = players.filter(
+      (p) => p.roleName && mafiaRoles.includes(p.roleName)
+    );
+    const otherPlayers = players.filter(
+      (p) =>
+        !p.roleName ||
+        (!townRoles.includes(p.roleName) && !mafiaRoles.includes(p.roleName))
+    );
+
+    return { townPlayers, mafiaPlayers, otherPlayers };
+  };
+
+  const { townPlayers, mafiaPlayers, otherPlayers } =
+    groupPlayersByAlignment(livingPlayers);
+
   return (
     <aside className="flex flex-col h-screen">
       <h2 className="text-lg font-semibold p-3 ">
@@ -60,23 +83,80 @@ export function GameSidebar() {
       </h2>
       <GameHeader />
       <div className="flex-grow p-2 overflow-y-auto">
-        <div className="space-y-1">
-          {/* Map over all players */}
-          {livingPlayers.map((player: FilteredPlayer) => (
-            <PlayerCard key={player.id} player={player} />
-          ))}
-          {/* Remove separate rendering for living/dead players */}
-          {/* Render dead players if any exist */}
+        <div className="space-y-3">
+          {/* Town Players Section */}
+          {townPlayers.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                {t('RoleGroupTown', 'Town Players')}
+              </h3>
+              <div className="space-y-1">
+                {townPlayers.map((player: FilteredPlayer) => (
+                  <PlayerCard key={player.id} player={player} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mafia Players Section */}
+          {mafiaPlayers.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                {t('RoleGroupMafia', 'Mafia Players')}
+              </h3>
+              <div className="space-y-1">
+                {mafiaPlayers.map((player: FilteredPlayer) => (
+                  <PlayerCard key={player.id} player={player} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other Players Section (for any custom roles) */}
+          {otherPlayers.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                {t('LivingPlayersTitle', 'Living Players')}
+              </h3>
+              <div className="space-y-1">
+                {otherPlayers.map((player: FilteredPlayer) => (
+                  <PlayerCard key={player.id} player={player} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Fallback: Show all living players if no role grouping */}
+          {townPlayers.length === 0 &&
+            mafiaPlayers.length === 0 &&
+            otherPlayers.length === 0 &&
+            livingPlayers.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                  {t('LivingPlayersTitle', 'Living Players')}
+                </h3>
+                <div className="space-y-1">
+                  {livingPlayers.map((player: FilteredPlayer) => (
+                    <PlayerCard key={player.id} player={player} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+          {/* Dead Players Section */}
           {deadPlayers.length > 0 && (
             <>
               <hr className="my-2 border-muted" /> {/* Add a divider */}
-              <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
-                {/* Use translation key */}
-                {t('DeadPlayersTitle', 'Dead Players')}
-              </h3>
-              {deadPlayers.map((player: FilteredPlayer) => (
-                <PlayerCard key={player.id} player={player} />
-              ))}
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                  {t('DeadPlayersTitle', 'Dead Players')}
+                </h3>
+                <div className="space-y-1">
+                  {deadPlayers.map((player: FilteredPlayer) => (
+                    <PlayerCard key={player.id} player={player} />
+                  ))}
+                </div>
+              </div>
             </>
           )}
         </div>
