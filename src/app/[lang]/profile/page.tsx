@@ -21,8 +21,10 @@ import {
   Settings,
   Shield,
   ExternalLink,
+  Key,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { UserApiKeyManager } from '@/components/UserApiKeyManager';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface PageProps {
@@ -218,7 +220,7 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
                   {t('profile.security')}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <span className="text-sm font-medium text-foreground">
                     {t('profile.authentication')}
@@ -274,6 +276,21 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
                         {t('profile.emailPassword')}
                       </Badge>
                     )}
+                  </div>
+                </div>
+
+                {/* API Key Management Section */}
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Key className="w-4 h-4" />
+                    API Key Management
+                  </span>
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Manage your AI provider API keys for enhanced game
+                      experiences
+                    </p>
+                    <UserApiKeyManager />
                   </div>
                 </div>
               </CardContent>
