@@ -212,7 +212,11 @@ export class ConsoleRenderer implements IGameRenderer {
 
         // List available players
         alivePlayers.forEach((player, index) => {
-          console.log(chalk.white(`  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`));
+          console.log(
+            chalk.white(
+              `  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`
+            )
+          );
         });
 
         console.log('');
@@ -256,7 +260,11 @@ export class ConsoleRenderer implements IGameRenderer {
 
         // List targetable players
         targetablePlayers.forEach((player, index) => {
-          console.log(chalk.white(`  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`));
+          console.log(
+            chalk.white(
+              `  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`
+            )
+          );
         });
 
         console.log('');
@@ -298,7 +306,9 @@ export class ConsoleRenderer implements IGameRenderer {
           const selfIndicator =
             player.id === playerInfo.id ? chalk.yellow(' (yourself)') : '';
           console.log(
-            chalk.white(`  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}${selfIndicator}`)
+            chalk.white(
+              `  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}${selfIndicator}`
+            )
           );
         });
 
@@ -344,7 +354,11 @@ export class ConsoleRenderer implements IGameRenderer {
 
         // List other alive players
         investigatablePlayers.forEach((player, index) => {
-          console.log(chalk.white(`  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`));
+          console.log(
+            chalk.white(
+              `  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`
+            )
+          );
         });
 
         console.log('');
@@ -377,7 +391,7 @@ export class ConsoleRenderer implements IGameRenderer {
     }
 
     console.log(chalk.bold.underline('Available Actions:'));
-    console.log(options.map(opt => `  • ${opt}`).join('\n'));
+    console.log(options.map((opt) => `  • ${opt}`).join('\n'));
     console.log('');
 
     while (true) {
