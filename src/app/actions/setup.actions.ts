@@ -136,7 +136,8 @@ export async function startGameAction(
             .limit(1);
 
           if (!devUser) {
-            return { error: 'Authentication required to start a game' };
+            // In production, redirect to sign-in page
+            redirect(`/${setupData.language}/auth/signin`);
           }
 
           // Use dev user for game creation
@@ -149,10 +150,12 @@ export async function startGameAction(
             redirect(`/${setupData.language}/game/${gameId}`);
           }
           console.error('Failed to get fallback user:', error);
-          return { error: 'Authentication required to start a game' };
+          // In production, redirect to sign-in page
+          redirect(`/${setupData.language}/auth/signin`);
         }
       } else {
-        return { error: 'Authentication required to start a game' };
+        // In production, redirect to sign-in page instead of returning error
+        redirect(`/${setupData.language}/auth/signin`);
       }
     } else {
       // Use authenticated user
