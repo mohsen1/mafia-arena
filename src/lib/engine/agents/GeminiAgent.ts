@@ -249,8 +249,19 @@ export class GeminiAgent implements IAgent {
           );
           return { type: 'noAction' };
         }
+      } else {
+        // 🎯 FIX: Validate that the action type is in the allowed actions list
+        if (!allowedActions.includes(action.type)) {
+          log(
+            `WARN: [${agentIdForLog} (Gemini)] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`
+          );
+          return { type: 'noAction' };
+        }
       }
 
+      log(
+        `[${agentIdForLog} (Gemini)] Successfully chose action: ${action.type}${action.type === 'message' ? ` with content: "${action.content}"` : ''}`
+      );
       return action;
     } catch (error) {
       log(
