@@ -172,11 +172,13 @@ export class ConsoleRenderer implements IGameRenderer {
     allowedActions: PlayerAction['type'][],
     players?: ReadonlyMap<PlayerId, PublicPlayerInfo>
   ): Promise<PlayerAction> {
+    console.log('\n' + '='.repeat(60));
     console.log(
       chalk.bold.inverse(
-        `\n ${playerInfo.name} (${playerInfo.id}) - YOUR ACTION? \n`
+        ` ${playerInfo.name.toUpperCase()} (${playerInfo.id}) - YOUR ACTION REQUIRED `
       )
     );
+    console.log('='.repeat(60) + '\n');
 
     const options: string[] = [];
     const actionMap = new Map<
@@ -202,23 +204,30 @@ export class ConsoleRenderer implements IGameRenderer {
             )
           : [];
 
+        console.log('\n' + chalk.yellow.bold('VOTE ACTION:'));
         console.log(
           chalk.yellow('Who do you vote for? (Enter number, or 0 to abstain)')
         );
-        
+        console.log('');
+
         // List available players
         alivePlayers.forEach((player, index) => {
-          console.log(`  ${index + 1}. ${player.name} (${player.id})`);
+          console.log(chalk.white(`  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`));
         });
 
+        console.log('');
         const targetIndexStr = await rl.question(
           chalk.yellow('Player number: ')
         );
         const targetIndex = parseInt(targetIndexStr.trim(), 10);
-        
+
         if (!isNaN(targetIndex) && targetIndex === 0) {
           return { type: 'vote', targetPlayerId: null };
-        } else if (!isNaN(targetIndex) && targetIndex > 0 && targetIndex <= alivePlayers.length) {
+        } else if (
+          !isNaN(targetIndex) &&
+          targetIndex > 0 &&
+          targetIndex <= alivePlayers.length
+        ) {
           const targetPlayer = alivePlayers[targetIndex - 1];
           return { type: 'vote', targetPlayerId: targetPlayer.id };
         } else {
@@ -239,21 +248,28 @@ export class ConsoleRenderer implements IGameRenderer {
             )
           : [];
 
+        console.log('\n' + chalk.red.bold('MAFIA KILL ACTION:'));
         console.log(
           chalk.red('Who does the Mafia kill? (Enter number, or 0 for no kill)')
         );
-        
+        console.log('');
+
         // List targetable players
         targetablePlayers.forEach((player, index) => {
-          console.log(`  ${index + 1}. ${player.name} (${player.id})`);
+          console.log(chalk.white(`  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`));
         });
 
+        console.log('');
         const targetIndexStr = await rl.question(chalk.red('Player number: '));
         const targetIndex = parseInt(targetIndexStr.trim(), 10);
-        
+
         if (!isNaN(targetIndex) && targetIndex === 0) {
           return { type: 'noAction' }; // Treat 0 as no action for kill intent
-        } else if (!isNaN(targetIndex) && targetIndex > 0 && targetIndex <= targetablePlayers.length) {
+        } else if (
+          !isNaN(targetIndex) &&
+          targetIndex > 0 &&
+          targetIndex <= targetablePlayers.length
+        ) {
           const targetPlayer = targetablePlayers[targetIndex - 1];
           return { type: 'mafiaKill', targetPlayerId: targetPlayer.id };
         } else {
@@ -271,26 +287,38 @@ export class ConsoleRenderer implements IGameRenderer {
           ? Array.from(players.values()).filter((p) => p.status === 'Alive')
           : [];
 
+        console.log('\n' + chalk.blue.bold('DOCTOR SAVE ACTION:'));
         console.log(
           chalk.blue('Who do you save? (Enter number, or 0 for no save)')
         );
-        
+        console.log('');
+
         // List all alive players
         alivePlayers.forEach((player, index) => {
-          const selfIndicator = player.id === playerInfo.id ? ' (yourself)' : '';
-          console.log(`  ${index + 1}. ${player.name} (${player.id})${selfIndicator}`);
+          const selfIndicator =
+            player.id === playerInfo.id ? chalk.yellow(' (yourself)') : '';
+          console.log(
+            chalk.white(`  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}${selfIndicator}`)
+          );
         });
 
+        console.log('');
         const targetIndexStr = await rl.question(chalk.blue('Player number: '));
         const targetIndex = parseInt(targetIndexStr.trim(), 10);
-        
+
         if (!isNaN(targetIndex) && targetIndex === 0) {
           return { type: 'doctorSave', targetPlayerId: null };
-        } else if (!isNaN(targetIndex) && targetIndex > 0 && targetIndex <= alivePlayers.length) {
+        } else if (
+          !isNaN(targetIndex) &&
+          targetIndex > 0 &&
+          targetIndex <= alivePlayers.length
+        ) {
           const targetPlayer = alivePlayers[targetIndex - 1];
           return { type: 'doctorSave', targetPlayerId: targetPlayer.id };
         } else {
-          console.log(chalk.red('Invalid player number. No save action taken.'));
+          console.log(
+            chalk.red('Invalid player number. No save action taken.')
+          );
           return { type: 'doctorSave', targetPlayerId: null };
         }
       });
@@ -306,29 +334,38 @@ export class ConsoleRenderer implements IGameRenderer {
             )
           : [];
 
+        console.log('\n' + chalk.magenta.bold('SEER INVESTIGATE ACTION:'));
         console.log(
           chalk.magenta(
             'Who do you investigate? (Enter number, or 0 for no investigation)'
           )
         );
-        
+        console.log('');
+
         // List other alive players
         investigatablePlayers.forEach((player, index) => {
-          console.log(`  ${index + 1}. ${player.name} (${player.id})`);
+          console.log(chalk.white(`  ${index + 1}. ${chalk.cyan(player.name)} ${chalk.gray(`(${player.id})`)}`));
         });
 
+        console.log('');
         const targetIndexStr = await rl.question(
           chalk.magenta('Player number: ')
         );
         const targetIndex = parseInt(targetIndexStr.trim(), 10);
-        
+
         if (!isNaN(targetIndex) && targetIndex === 0) {
           return { type: 'seerInvestigate', targetPlayerId: null };
-        } else if (!isNaN(targetIndex) && targetIndex > 0 && targetIndex <= investigatablePlayers.length) {
+        } else if (
+          !isNaN(targetIndex) &&
+          targetIndex > 0 &&
+          targetIndex <= investigatablePlayers.length
+        ) {
           const targetPlayer = investigatablePlayers[targetIndex - 1];
           return { type: 'seerInvestigate', targetPlayerId: targetPlayer.id };
         } else {
-          console.log(chalk.red('Invalid player number. No investigation performed.'));
+          console.log(
+            chalk.red('Invalid player number. No investigation performed.')
+          );
           return { type: 'seerInvestigate', targetPlayerId: null };
         }
       });
@@ -339,8 +376,9 @@ export class ConsoleRenderer implements IGameRenderer {
       actionMap.set('n', () => ({ type: 'noAction' }));
     }
 
-    console.log(chalk.underline('Available Actions:'));
-    console.log(options.join(' | '));
+    console.log(chalk.bold.underline('Available Actions:'));
+    console.log(options.map(opt => `  • ${opt}`).join('\n'));
+    console.log('');
 
     while (true) {
       const input = await rl.question(chalk.bold('Your choice: '));
