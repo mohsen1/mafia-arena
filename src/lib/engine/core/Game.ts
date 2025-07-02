@@ -37,6 +37,8 @@ import type { LanguageName } from '../../i18n/settings';
 import type { HumanActionPayload } from '../../interfaces/actions.types';
 
 import { OpenAIAgent } from '../agents/OpenAIAgent';
+import { GeminiAgent } from '../agents/GeminiAgent';
+import { ClaudeAgent } from '../agents/ClaudeAgent';
 
 const roleClassMap: Record<RoleName, new () => IRole> = {
   [RoleName.Mafia]: MafiaRole,
@@ -83,6 +85,16 @@ function getAgentConfigFromInstance(agent: IAgent): AgentConfig {
     }
 
     return { agentType: agentTypeValue, modelName, providerValue };
+  }
+  if (agent instanceof GeminiAgent) {
+    const agentAny = agent as unknown as { modelName?: string };
+    const modelName = agentAny.modelName;
+    return { agentType: 'Gemini', modelName, providerValue: 'gemini' };
+  }
+  if (agent instanceof ClaudeAgent) {
+    const agentAny = agent as unknown as { model?: string };
+    const modelName = agentAny.model;
+    return { agentType: 'Claude', modelName, providerValue: 'claude' };
   }
   if (agent instanceof HumanAgent) {
     return { agentType: 'Human' };
