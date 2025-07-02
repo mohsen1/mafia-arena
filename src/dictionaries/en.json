@@ -412,6 +412,7 @@
   "GamePrefix": "Game",
   "SelectPlayerImage": "Select player image",
   "DefaultPlayerName": "Player {{number}}",
+  "AutoModeDescription": "AI agents are making decisions automatically",
   
   "timeAgo": {
     "justNow": "just now",
