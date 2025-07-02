@@ -1,6 +1,6 @@
 /**
  * Enhanced Character Slot Component
- * 
+ *
  * Combines improved image selection and character preview features
  * to provide a better user experience for character setup.
  */
@@ -50,10 +50,7 @@ interface EnhancedCharacterSlotProps {
   onRoleChange: (id: string, role: string) => void;
   onImageChange: (id: string, imageUrl: string | null) => void;
   onRemove: (id: string) => void;
-  onPreferencesUpdate?: (
-    id: string,
-    preferences: CharacterPreferences
-  ) => void;
+  onPreferencesUpdate?: (id: string, preferences: CharacterPreferences) => void;
   className?: string;
 }
 
@@ -321,4 +318,4 @@ export function EnhancedCharacterSlot({
       </CardContent>
     </Card>
   );
-} 
+}

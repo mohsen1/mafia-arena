@@ -1,6 +1,6 @@
 /**
  * Character Preview Component
- * 
+ *
  * Shows a preview of what the generated character persona might look like
  * and allows users to influence the character generation process.
  */
@@ -88,10 +88,7 @@ const SAMPLE_PERSONAS: Record<string, PersonaPreview[]> = {
         'Distrusted by locals',
         'Corresponds with unknown parties',
       ],
-      secrets: [
-        'Real reason for coming to town',
-        'Hidden knowledge of occult',
-      ],
+      secrets: ['Real reason for coming to town', 'Hidden knowledge of occult'],
     },
   ],
   authoritative: [
@@ -102,10 +99,7 @@ const SAMPLE_PERSONAS: Record<string, PersonaPreview[]> = {
       personalityTraits: ['Commanding', 'Disciplined', 'Fair', 'Protective'],
       occupation: 'Town Watch Captain',
       relationships: ['Respected by citizens', 'Close to the mayor'],
-      secrets: [
-        'Haunted by war memories',
-        'Knows about illegal activities',
-      ],
+      secrets: ['Haunted by war memories', 'Knows about illegal activities'],
     },
   ],
   quirky: [
@@ -121,10 +115,7 @@ const SAMPLE_PERSONAS: Record<string, PersonaPreview[]> = {
       ],
       occupation: 'Fortune Teller',
       relationships: ['Feared by some', 'Beloved by children'],
-      secrets: [
-        'Actually quite perceptive',
-        'Feeds stray cats at night',
-      ],
+      secrets: ['Actually quite perceptive', 'Feeds stray cats at night'],
     },
   ],
 };
@@ -148,7 +139,8 @@ export function CharacterPreview({
   const generatePreview = useCallback(() => {
     if (selectedPersonality !== 'any' && SAMPLE_PERSONAS[selectedPersonality]) {
       const personas = SAMPLE_PERSONAS[selectedPersonality];
-      const randomPersona = personas[Math.floor(Math.random() * personas.length)];
+      const randomPersona =
+        personas[Math.floor(Math.random() * personas.length)];
 
       // Customize the preview based on user inputs
       const customizedPersona = {
@@ -178,7 +170,8 @@ export function CharacterPreview({
           .filter(Boolean),
         ageRange: 'any',
         occupationPreference,
-        personalityType: selectedPersonality as CharacterPreferences['personalityType'],
+        personalityType:
+          selectedPersonality as CharacterPreferences['personalityType'],
         backstoryElements: [],
       };
       onPreferencesUpdate(preferences);
@@ -194,11 +187,7 @@ export function CharacterPreview({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={cn('gap-2', className)}
-        >
+        <Button variant="outline" size="sm" className={cn('gap-2', className)}>
           <Eye className="h-4 w-4" />
           Preview Character
         </Button>
@@ -410,10 +399,7 @@ export function CharacterPreview({
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4">
-            <Button
-              onClick={handleSavePreferences}
-              className="flex-1 gap-2"
-            >
+            <Button onClick={handleSavePreferences} className="flex-1 gap-2">
               <Sparkles className="h-4 w-4" />
               Save Preferences
             </Button>
@@ -429,4 +415,4 @@ export function CharacterPreview({
       </DialogContent>
     </Dialog>
   );
-} 
+}
