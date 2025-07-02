@@ -32,7 +32,6 @@ import {
 } from '@/app/actions/api-keys.actions';
 import {
   getUserAvailableProviders,
-  getProviderDisplayTitle,
   type AvailableProvider,
 } from '@/lib/utils/providerUtils';
 import {
