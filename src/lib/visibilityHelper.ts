@@ -104,7 +104,8 @@ export function filterGameStateForClient(
     livingPlayerIds: fullState.livingPlayerIds,
     deadPlayerIds: fullState.deadPlayerIds,
     winCondition: fullState.winCondition?.outcome ?? null,
-    canSeeWerewolfChat: (shouldRevealAllRoles && isObserver) || isViewingPlayerMafia,
+    canSeeWerewolfChat:
+      (shouldRevealAllRoles && isObserver) || isViewingPlayerMafia,
     canSeeDeadChat: true,
     availableVoices: [],
   };
