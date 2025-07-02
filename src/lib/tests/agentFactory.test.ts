@@ -20,8 +20,8 @@ vi.mock('@/lib/engine/agents/GeminiAgent');
 
 // Mock the getDecryptedApiKey function
 vi.mock('@/app/actions/api-keys.actions', () => ({
-  getDecryptedApiKey: vi.fn().mockResolvedValue(null)
-}))
+  getDecryptedApiKey: vi.fn().mockResolvedValue(null),
+}));
 
 // Mock the models import
 vi.mock('@/lib/models', () => ({
@@ -29,20 +29,20 @@ vi.mock('@/lib/models', () => ({
     {
       value: 'openai',
       endpoint: 'https://api.openai.com/v1',
-      apiKeyEnvVar: 'OPENAI_API_KEY'
+      apiKeyEnvVar: 'OPENAI_API_KEY',
     },
     {
       value: 'groq',
       endpoint: 'https://api.groq.com/openai/v1',
-      apiKeyEnvVar: 'GROQ_API_KEY'
+      apiKeyEnvVar: 'GROQ_API_KEY',
     },
     {
       value: 'ollama_local',
       endpoint: 'http://localhost:11434/v1',
-      apiKeyEnvVar: 'OLLAMA_API_KEY'
-    }
-  ]
-}))
+      apiKeyEnvVar: 'OLLAMA_API_KEY',
+    },
+  ],
+}));
 
 // Mock environment variables
 const originalEnv = process.env;

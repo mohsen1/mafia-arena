@@ -120,65 +120,63 @@ export async function startGameAction(
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
+    let userId: string | null = null;
 
-    if (!session?.user?.id) {
-      // Fallback: Get dev user for development environment
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          const { db } = await import('@/lib/db/config');
-          const { users } = await import('@/lib/db/schema');
-          const { eq } = await import('drizzle-orm');
+    if (session?.user?.id) {
+      userId = session.user.id;
+    } else if (process.env.NODE_ENV === 'development') {
+      // In development, try to get or create a dev user
+      try {
+        const { db } = await import('@/lib/db/config');
+        const { users } = await import('@/lib/db/schema');
+        const { eq } = await import('drizzle-orm');
 
-          const [devUser] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, 'dev@werewolf-ai.com'))
-            .limit(1);
+        // First check if dev user exists
+        const [devUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, 'dev@werewolf-ai.com'))
+          .limit(1);
 
-          if (!devUser) {
-            // In production, redirect to sign-in page
-            redirect(`/${setupData.language}/auth/signin`);
+        if (devUser) {
+          userId = devUser.id;
+        } else {
+          // Create dev user if it doesn't exist
+          const [newDevUser] = await db
+            .insert(users)
+            .values({
+              email: 'dev@werewolf-ai.com',
+              name: 'Development User',
+              emailVerified: new Date(),
+            })
+            .returning();
+
+          if (newDevUser) {
+            userId = newDevUser.id;
           }
-
-          // Use dev user for game creation
-          const userId = devUser.id;
-          await createGame(setupData, gameId, createdAt, userId);
-        } catch (error) {
-          // Don't log NEXT_REDIRECT as an error - it's expected
-          if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
-            // Redirect is happening successfully, let it proceed
-            redirect(`/${setupData.language}/game/${gameId}`);
-          }
-          console.error('Failed to get fallback user:', error);
-          // In production, redirect to sign-in page
-          redirect(`/${setupData.language}/auth/signin`);
         }
-      } else {
-        // In production, redirect to sign-in page instead of returning error
-        redirect(`/${setupData.language}/auth/signin`);
+      } catch (error) {
+        console.error('Failed to get or create dev user:', error);
       }
-    } else {
-      // Use authenticated user
-      const userId = session.user.id;
-      await createGame(setupData, gameId, createdAt, userId);
     }
+
+    // If we still don't have a userId, redirect to sign in
+    if (!userId) {
+      redirect(`/${setupData.language}/auth/signin`);
+    }
+
+    // Create the game with the valid userId
+    await createGame(setupData, gameId, createdAt, userId);
 
     // Redirect to game page after successful creation
     redirect(`/${setupData.language}/game/${gameId}`);
   } catch (error) {
-    // Don't treat NEXT_REDIRECT as an error
-    if (
-      error instanceof Error &&
-      (error.message === 'NEXT_REDIRECT' ||
-        ('digest' in error &&
-          typeof error.digest === 'string' &&
-          error.digest.includes('NEXT_REDIRECT')))
-    ) {
-      // Let the redirect proceed normally
-      throw error;
+    // Handle redirect separately from other errors
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error; // Re-throw redirects
     }
 
-    console.error('Error starting game:', error);
+    console.error('Error in startGameAction:', error);
     return {
       error: error instanceof Error ? error.message : 'Failed to start game',
     };
