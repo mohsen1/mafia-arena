@@ -302,7 +302,7 @@ export default function SimpleStartGameForm({
       // Add mafia players
       for (let i = 0; i < mafiaCount; i++) {
         players.push({
-          name: `Mafia ${i + 1}`,
+          name: t('MafiaPlayer', { number: i + 1 }),
           rolePreference: RoleName.Mafia,
           isHuman: false,
           imageUrl: null,
@@ -312,7 +312,7 @@ export default function SimpleStartGameForm({
 
       // Add special roles
       players.push({
-        name: 'Doctor',
+        name: t('Doctor'),
         rolePreference: RoleName.Doctor,
         isHuman: false,
         imageUrl: null,
@@ -320,7 +320,7 @@ export default function SimpleStartGameForm({
       });
 
       players.push({
-        name: 'Seer',
+        name: t('Seer'),
         rolePreference: RoleName.Seer,
         isHuman: false,
         imageUrl: null,
@@ -330,7 +330,7 @@ export default function SimpleStartGameForm({
       // Add villagers
       for (let i = 0; i < villagerCount; i++) {
         players.push({
-          name: `Villager ${i + 1}`,
+          name: t('VillagerPlayer', { number: i + 1 }),
           rolePreference: RoleName.Villager,
           isHuman: false,
           imageUrl: null,
@@ -455,14 +455,14 @@ export default function SimpleStartGameForm({
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              No AI providers configured. Please{' '}
+              {t('NoProvidersConfigured')}{' '}
               <Link
                 href={`/${lang}/profile`}
                 className="underline underline-offset-4 hover:text-primary"
               >
-                add API keys in your profile
+                {t('AddApiKeysInProfile')}
               </Link>{' '}
-              to start a game.
+              {t('ToStartGame')}
             </AlertDescription>
           </Alert>
         )}
@@ -474,7 +474,7 @@ export default function SimpleStartGameForm({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium text-muted-foreground">
-              Ollama Configuration
+              {t('OllamaConfiguration')}
             </Label>
             <Button
               type="button"
@@ -483,7 +483,7 @@ export default function SimpleStartGameForm({
               onClick={() => setShowOllamaConfig(!showOllamaConfig)}
               disabled={isSubmitting}
             >
-              {showOllamaConfig ? 'Hide' : 'Configure'} Ollama
+              {showOllamaConfig ? t('HideOllama') : t('ConfigureOllama')} {t('OllamaConfiguration').split(' ')[0]}
             </Button>
           </div>
 
