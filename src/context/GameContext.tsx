@@ -20,6 +20,8 @@ export interface GameContextType {
   isAudioGloballyEnabled: boolean;
   isSaving: boolean;
   lastSaved: Date | null;
+  error: string | null;
+  clearError: () => void;
   runNextTurn: () => void;
   toggleAutoRun: () => void;
   submitHumanAction: (
@@ -53,6 +55,8 @@ interface GameContextState {
   ) => Promise<FilteredGameState | { error: string }>;
   isSaving: boolean;
   lastSaved: Date | null;
+  error: string | null;
+  clearError: () => void;
   runNextTurn: () => void;
   toggleGlobalAudio: () => void;
 }
@@ -93,6 +97,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const { currentlySpeakingId: spokenTextCurrentlySpeakingId } =
     useSpokenText();
@@ -131,20 +136,27 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     });
   }, [stopCurrentAudio]);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   const runNextTurnAction = useCallback(async () => {
     setIsLoadingNextTurn(true);
     setIsSaving(true);
+    setError(null);
     try {
       const result = await boundRunGameTurnAction();
-      if (result && !('error' in result)) {
+      if (result && 'error' in result) {
+        setError(result.error);
+      } else if (result) {
         setGameState(result);
         setLastSaved(new Date());
       }
       return result;
     } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(errorMessage);
+      return { error: errorMessage };
     } finally {
       setIsLoadingNextTurn(false);
       setIsSaving(false);
@@ -307,17 +319,20 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     async (payload: HumanActionPayload) => {
       setIsLoadingNextTurn(true);
       setIsSaving(true);
+      setError(null);
       try {
         const result = await boundSubmitHumanAction(payload);
-        if (result && !('error' in result)) {
+        if (result && 'error' in result) {
+          setError(result.error);
+        } else if (result) {
           setGameState(result);
           setLastSaved(new Date());
         }
         return result;
       } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setError(errorMessage);
+        return { error: errorMessage };
       } finally {
         setIsLoadingNextTurn(false);
         setIsSaving(false);
@@ -343,6 +358,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     submitHumanAction: submitHumanActionInternal,
     isSaving,
     lastSaved,
+    error,
+    clearError,
     runNextTurn: runNextTurnAction,
     toggleGlobalAudio: toggleAudioGloballyEnabled,
   };
