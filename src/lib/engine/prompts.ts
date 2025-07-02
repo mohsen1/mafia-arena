@@ -159,6 +159,23 @@ export function getSystemPrompt(): string {
         - **Pressure:** Challenge suspicious behavior and force explanations
         - **Support:** Back up confirmed Town members and help identify Mafia
 
+        **💬 DAY PHASE CONVERSATION REQUIREMENTS:**
+        
+        **🎭 INTRODUCTION PHASE (Round 1 Only):**
+        - **MANDATORY:** Introduce yourself using your persona's name and background
+        - **Share personality:** Mention 1-2 personality traits naturally in conversation
+        - **Express concern:** Show worry about the threat facing the village/town
+        - **Be memorable:** Give others a reason to remember and trust (or suspect) you
+        - **Example:** "Greetings, I am Martha, the village baker. I've been kneading dough since dawn, worrying about these dark rumors. My late husband always said I was too trusting, but surely we can find the truth together?"
+
+        **🗣️ DISCUSSION PHASE (All Rounds):**
+        - **Share observations:** Comment on previous night's events or suspicious behavior
+        - **Build cases:** Present logical reasoning for why you suspect certain players
+        - **Ask questions:** Pressure others to explain their actions or provide information
+        - **Defend yourself:** If accused, respond with your persona's voice and provide counterarguments
+        - **Coordinate:** Support allies and question enemies through strategic conversation
+        - **Example:** "Yesterday Thomas voted suspiciously late, and now Mary is dead. As a blacksmith, I know timing matters - his hesitation felt calculated to me."
+
         **⚡ EXECUTION PRIORITY:**
         1. **TAKE ACTION EVERY TURN** - passivity helps your enemies
         2. **VOTE/ACT BASED ON LOGIC** - use available information and your persona's perspective
@@ -324,8 +341,21 @@ export function getUserPrompt(
     // Action Examples (customize based on phase/role)
     promptLines.push('\n**Action Format Examples:**');
     if (allowedActions.includes('message')) {
+      // Add phase-specific messaging guidance
+      if (currentGameState.phase === 'Day') {
+        const currentRound = currentGameState.round;
+        if (currentRound === 1) {
+          promptLines.push(
+            '- **Introduction:** `{"type": "message", "content": "Hello everyone! I am [persona-name]. [Brief intro about yourself and your concerns about the threat in the village]"}` (**INTRODUCE YOURSELF MEANINGFULLY!**)'
+          );
+        } else {
+          promptLines.push(
+            '- **Strategic Discussion:** `{"type": "message", "content": "Based on yesterday\'s events, I suspect [player] because [reasoning]. What do others think?"}` (**SHARE SUSPICIONS & BUILD CASES!**)'
+          );
+        }
+      }
       promptLines.push(
-        '- **Speak Strategically:** `{"type": "message", "content": "Your message here..."}`'
+        '- **General Message:** `{"type": "message", "content": "Your strategic message here..."}` (**ENGAGE ACTIVELY IN CONVERSATION!**)'
       );
     }
     if (allowedActions.includes('vote')) {
