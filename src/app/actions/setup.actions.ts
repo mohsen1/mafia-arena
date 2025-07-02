@@ -114,18 +114,30 @@ export async function startGameAction(
 ): Promise<
   { gameId: string; initialState: FilteredGameState } | { error: string }
 > {
+  console.log('[startGameAction] Starting game creation with setup data:', {
+    playerCount: setupData.players.length,
+    themeKey: setupData.themeKey,
+    language: setupData.language,
+    hasHumanPlayer: setupData.players.some((p) => p.isHuman),
+  });
+
   const gameId = crypto.randomUUID();
   const createdAt = Date.now();
 
   try {
-    // Check authentication
+    // Ensure user is authenticated
     const session = await getServerSession(authOptions);
-    let userId: string | null = null;
+    console.log('[startGameAction] Session check:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email,
+    });
 
-    if (session?.user?.id) {
-      userId = session.user.id;
-    } else if (process.env.NODE_ENV === 'development') {
-      // In development, try to get or create a dev user
+    let userId = session?.user?.id;
+
+    // In development, create a dev user if needed
+    if (!userId && process.env.NODE_ENV === 'development') {
+      console.log('[startGameAction] Development mode: Creating dev user');
       try {
         const { db } = await import('@/lib/db/config');
         const { users } = await import('@/lib/db/schema');
@@ -140,6 +152,7 @@ export async function startGameAction(
 
         if (devUser) {
           userId = devUser.id;
+          console.log('[startGameAction] Found existing dev user:', userId);
         } else {
           // Create dev user if it doesn't exist
           const [newDevUser] = await db
@@ -153,32 +166,41 @@ export async function startGameAction(
 
           if (newDevUser) {
             userId = newDevUser.id;
+            console.log('[startGameAction] Created new dev user:', userId);
           }
         }
       } catch (error) {
-        console.error('Failed to get or create dev user:', error);
+        console.error(
+          '[startGameAction] Failed to get or create dev user:',
+          error
+        );
       }
     }
 
-    // If we still don't have a userId, redirect to sign in
     if (!userId) {
+      console.error(
+        '[startGameAction] No user ID available, redirecting to signin'
+      );
       redirect(`/${setupData.language}/auth/signin`);
     }
 
-    // Create the game with the valid userId
+    // Create the game
+    console.log('[startGameAction] Creating game with createGame function');
     await createGame(setupData, gameId, createdAt, userId);
+    console.log('[startGameAction] Game created successfully, redirecting to:', gameId);
 
-    // Redirect to game page after successful creation
+    // Redirect to the game page
     redirect(`/${setupData.language}/game/${gameId}`);
-  } catch (error) {
-    // Handle redirect separately from other errors
-    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
-      throw error; // Re-throw redirects
+  } catch (error: unknown) {
+    // Re-throw Next.js redirect errors
+    if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) {
+      console.log('[startGameAction] Redirect in progress');
+      throw error;
     }
 
-    console.error('Error in startGameAction:', error);
+    console.error('[startGameAction] Error creating game:', error);
     return {
-      error: error instanceof Error ? error.message : 'Failed to start game',
+      error: error instanceof Error ? error.message : 'StartGameFailedError',
     };
   }
 }
@@ -190,11 +212,27 @@ async function createGame(
   createdAt: number,
   userId: string
 ): Promise<{ gameId: string; initialState: FilteredGameState }> {
+  console.log('[createGame] Starting game creation:', {
+    gameId,
+    userId,
+    playerCount: setupData.players?.length,
+    themeKey: setupData.themeKey,
+  });
+
   if (!setupData.players || setupData.players.length < 3) {
+    console.error(
+      '[createGame] Not enough players:',
+      setupData.players?.length
+    );
     throw new Error('Minimum 3 players required.');
   }
   const theme = Themes[setupData.themeKey];
-  if (!theme) throw new Error(`Invalid theme key: ${setupData.themeKey}`);
+  if (!theme) {
+    console.error('[createGame] Invalid theme:', setupData.themeKey);
+    throw new Error(`Invalid theme key: ${setupData.themeKey}`);
+  }
+
+  console.log('[createGame] Theme selected:', theme.name);
 
   // Create players with basic info - character generation will happen later
   const rolesMap: Record<PlayerId, RoleName> = {};
@@ -213,6 +251,14 @@ async function createGame(
       .slice(0, 16);
 
     const playerId: PlayerId = `player-${i + 1}-${roleNameStr}-${sanitizedName}`;
+
+    console.log('[createGame] Creating player:', {
+      index: i,
+      playerId,
+      name: playerSetup.name,
+      role: roleName,
+      isHuman: playerSetup.isHuman,
+    });
 
     rolesMap[playerId] = roleName;
 
@@ -246,6 +292,12 @@ async function createGame(
     agentMemories[playerId] = createInitialMemory();
   }
 
+  console.log('[createGame] Players created:', {
+    totalPlayers: Object.keys(playersForPersistence).length,
+    humanPlayerId,
+    livingPlayerIds,
+  });
+
   const initialSerializableState: SerializableGameState = {
     gameId,
     createdAt,
@@ -267,12 +319,19 @@ async function createGame(
     nextPlayerIndexToAction: 0,
   };
 
+  console.log('[createGame] Saving game state to database');
+
   // Save the basic game state
   await createGameData(initialSerializableState, userId);
+
+  console.log('[createGame] Game saved successfully');
 
   const filteredState = filterGameStateForClient(
     initialSerializableState,
     initialSerializableState.humanPlayerId
   );
+
+  console.log('[createGame] Game creation complete');
+
   return { gameId, initialState: filteredState };
 }
