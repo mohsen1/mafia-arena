@@ -208,7 +208,7 @@ describe('Basic Game Flow E2E', () => {
     // Transition to Night
     const dayPhase = game.getCurrentPhase();
     const nextPhase = dayPhase.transition(game);
-    
+
     // The game might end during Day phase due to random execution
     // when no votes are cast (all agents return noAction)
     if (nextPhase === 'GameOver') {
@@ -217,7 +217,7 @@ describe('Basic Game Flow E2E', () => {
       console.log('Game ended during Day phase due to win condition');
       return; // Test passes - game ended normally
     }
-    
+
     expect(nextPhase).toBe('Night');
 
     game.advanceToPhase(nextPhase);
@@ -230,14 +230,14 @@ describe('Basic Game Flow E2E', () => {
     // Should transition back to Day
     const nightPhase = game.getCurrentPhase();
     const nextPhaseAfterNight = nightPhase.transition(game);
-    
+
     // Game might also end after Night phase
     if (nextPhaseAfterNight === 'GameOver') {
       expect(game.checkWinCondition()).not.toBeNull();
       console.log('Game ended during Night phase due to win condition');
       return; // Test passes - game ended normally
     }
-    
+
     expect(nextPhaseAfterNight).toBe('Day');
   });
 
