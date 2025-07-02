@@ -12,24 +12,18 @@ const connectionString =
     : undefined);
 
 if (!connectionString) {
-  const errorMessage = [
-    'DATABASE_URL environment variable is required',
-    '',
-    'Please set the DATABASE_URL environment variable.',
-    '',
-    'For local development:',
-    '  1. Create a .env file in the project root',
-    '  2. Add: DATABASE_URL=postgresql://user:password@localhost:5432/werewolf_db',
-    '',
-    'For production/CI:',
-    '  Set DATABASE_URL in your environment configuration',
-  ].join('\n');
-
-  throw new Error(errorMessage);
+  console.error('[db/config] DATABASE_URL environment variable is not set');
+  throw new Error(
+    'DATABASE_URL environment variable is not set. Please check your .env.local file and ensure it contains a valid DATABASE_URL.'
+  );
 }
+
+console.log('[db/config] Initializing database connection');
 
 // Disable prefetch as it is not supported for "Transaction" pool mode
 const client = postgres(connectionString, { prepare: false });
 export const db = drizzle(client, { schema });
+
+console.log('[db/config] Database connection initialized');
 
 export type Database = typeof db;

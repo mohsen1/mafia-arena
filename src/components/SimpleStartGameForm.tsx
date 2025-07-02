@@ -258,6 +258,18 @@ export default function SimpleStartGameForm({
   const handleStartGame = useCallback(async () => {
     if (!canStartGame) return;
 
+    console.log('[SimpleStartGameForm] Starting game with configuration:', {
+      globalProvider: globalProviderSelection,
+      globalModel: globalModelSelection,
+      useSeparateMafia: useSeparateAIModelForMafia,
+      mafiaProvider: mafiaProviderSelection,
+      mafiaModel: mafiaModelSelection,
+      isHumanJoining,
+      humanPlayerName,
+      playerCount,
+      theme: selectedGameThemeKey,
+    });
+
     setIsSubmitting(true);
     setErrorMsg(null);
 
@@ -287,6 +299,14 @@ export default function SimpleStartGameForm({
         doctorCount -
         seerCount -
         (isHumanJoining ? 1 : 0);
+
+      console.log('[SimpleStartGameForm] Player distribution:', {
+        mafiaCount,
+        doctorCount,
+        seerCount,
+        villagerCount,
+        humanPlayer: isHumanJoining,
+      });
 
       // Add human player if joining
       if (isHumanJoining) {
@@ -344,10 +364,22 @@ export default function SimpleStartGameForm({
         language: lang,
       };
 
+      console.log('[SimpleStartGameForm] Calling startGameAction with:', {
+        playerCount: setupData.players.length,
+        themeKey: setupData.themeKey,
+        language: setupData.language,
+      });
+
       const result = await startGameAction(setupData);
+
+      console.log('[SimpleStartGameForm] startGameAction returned:', result);
 
       // Check if we got an error response
       if (result && 'error' in result) {
+        console.error(
+          '[SimpleStartGameForm] Game creation error:',
+          result.error
+        );
         setErrorMsg(t(result.error, { defaultValue: result.error }));
         setIsSubmitting(false);
       }
@@ -355,7 +387,12 @@ export default function SimpleStartGameForm({
       const errorMessage =
         error instanceof Error ? error.message : 'StartGameFailedError';
 
+      console.error('[SimpleStartGameForm] Caught error:', error);
+
       if (errorMessage.includes('NEXT_REDIRECT')) {
+        console.log(
+          '[SimpleStartGameForm] Redirect detected, game creation successful'
+        );
         return;
       }
 

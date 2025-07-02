@@ -82,12 +82,18 @@ export async function createGameData(
   ownerId: string,
   title?: string
 ): Promise<void> {
+  console.log('[createGameData] Starting database save:', {
+    gameId: gameState.gameId,
+    ownerId,
+    phase: gameState.phase,
+    playerCount: Object.keys(gameState.players).length,
+  });
+
   try {
     await GameService.createGame(gameState, ownerId, title);
+    console.log('[createGameData] Game saved successfully to database');
   } catch (error) {
-    console.error(`Failed to create game data for ${gameState.gameId}:`, error);
-    throw new Error(
-      `Failed to create game data: ${error instanceof Error ? error.message : String(error)}`
-    );
+    console.error('[createGameData] Database error:', error);
+    throw error;
   }
 }
