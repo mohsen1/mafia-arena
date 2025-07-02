@@ -450,7 +450,8 @@ describe('NightPhase', () => {
       MessageVisibility.Mafia
     );
     // Should kill either 'v1' or 'doc' based on random selection
-    const killCall = (mockGame.killPlayer as ReturnType<typeof vi.fn>).mock.calls[0];
+    const killCall = (mockGame.killPlayer as ReturnType<typeof vi.fn>).mock
+      .calls[0];
     expect(['v1', 'doc']).toContain(killCall[0]);
     expect(mockGame.recordKillInMemory).toHaveBeenCalledWith(killCall[0]);
   });
