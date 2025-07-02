@@ -494,5 +494,16 @@
   "TownPlayersTitle": "Town",
   "MafiaPlayersTitle": "Mafia",
   "RoleGroupTown": "Town Players",
-  "RoleGroupMafia": "Mafia Players"
+  "RoleGroupMafia": "Mafia Players",
+  "characterGeneration": {
+    "title": "Character Generation",
+    "generatingCharacters": "Generating Characters...",
+    "characterProgress": "Character {{current}} of {{total}}",
+    "generatingCharacter": "Generating character for {{playerName}}...",
+    "characterGenerated": "{{playerName}}'s character has been generated!",
+    "allCharactersGenerated": "All characters have been generated!",
+    "proceedToGame": "Proceeding to game...",
+    "error": "Error generating character"
+  },
+  "hmr_test": "HMR is working!"
 } 
