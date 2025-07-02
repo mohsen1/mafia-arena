@@ -11,14 +11,21 @@ import { GameThemeSelector } from '@/components/GameThemeSelector';
 import LanguageSelector from '@/components/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { type LanguageCode } from '@/lib/i18n/settings';
-import { Bot, Languages, Loader2, Settings2, User } from 'lucide-react';
+import {
+  Bot,
+  Languages,
+  Loader2,
+  Settings2,
+  User,
+  AlertTriangle,
+} from 'lucide-react';
 import Link from 'next/link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { startGameAction } from '@/app/actions/setup.actions';
 import type { StartGameSetupData } from '@/lib/interfaces/actions.types';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
 import { availableModelsByProvider } from '@/lib/models';
-import { UserApiKeyManager } from '@/components/UserApiKeyManager';
 import {
   getUserApiKeys,
   type UserApiKeyInfo,
@@ -93,7 +100,6 @@ export default function SimpleStartGameForm({
   const [playerCount, setPlayerCount] = useState(6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [userApiKeys, setUserApiKeys] = useState<UserApiKeyInfo[]>([]);
   const [envProviders, setEnvProviders] = useState<AvailableProvider[]>([]);
   const [showOllamaConfig, setShowOllamaConfig] = useState(false);
@@ -231,16 +237,6 @@ export default function SimpleStartGameForm({
     []
   );
 
-  const handleApiKeysChanged = useCallback(async () => {
-    // Reload user API keys when they change
-    try {
-      const keys = await getUserApiKeys();
-      setUserApiKeys(keys);
-    } catch (error) {
-      console.error('Failed to reload user API keys:', error);
-    }
-  }, []);
-
   const canStartGame = useMemo(() => {
     const hasGlobalModel = globalProviderSelection && globalModelSelection;
     const hasMafiaModel =
@@ -349,7 +345,13 @@ export default function SimpleStartGameForm({
         language: lang,
       };
 
-      await startGameAction(setupData);
+      const result = await startGameAction(setupData);
+
+      // Check if we got an error response
+      if (result && 'error' in result) {
+        setErrorMsg(t(result.error, { defaultValue: result.error }));
+        setIsSubmitting(false);
+      }
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'StartGameFailedError';
@@ -447,29 +449,8 @@ export default function SimpleStartGameForm({
 
       {/* API Key Management */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium text-muted-foreground">
-            {t('API Keys', 'API Keys')}
-          </Label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowApiKeyManager(!showApiKeyManager)}
-            disabled={isSubmitting}
-          >
-            {showApiKeyManager ? 'Hide' : 'Manage'} API Keys
-          </Button>
-        </div>
-
-        {showApiKeyManager && (
-          <div className="border rounded-lg p-4">
-            <UserApiKeyManager onKeysChanged={handleApiKeysChanged} />
-          </div>
-        )}
-
         {/* Show available providers summary */}
-        {userApiKeys.length > 0 && (
+        {allAvailableProviders.length > 0 ? (
           <div className="text-sm text-muted-foreground">
             <p className="mb-2">Available AI providers:</p>
             <div className="flex flex-wrap gap-2">
@@ -483,6 +464,20 @@ export default function SimpleStartGameForm({
               ))}
             </div>
           </div>
+        ) : (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              No AI providers configured. Please{' '}
+              <Link
+                href={`/${lang}/profile`}
+                className="underline underline-offset-4 hover:text-primary"
+              >
+                add API keys in your profile
+              </Link>{' '}
+              to start a game.
+            </AlertDescription>
+          </Alert>
         )}
       </div>
 

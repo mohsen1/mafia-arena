@@ -275,7 +275,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
 
       {/* Add Form */}
       {showAddForm && (
-        <Card>
+        <Card className="border-0 shadow-none bg-secondary/30">
           <CardHeader>
             <CardTitle className="text-lg">Add New API Key</CardTitle>
             <CardDescription>
@@ -387,7 +387,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
 
       {/* API Keys List */}
       {apiKeys.length === 0 && !showAddForm ? (
-        <div className="text-center py-8 text-muted-foreground border rounded-lg">
+        <div className="text-center py-8 text-muted-foreground">
           <Key className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>No API keys configured</p>
           <p className="text-sm">Add your first API key to get started</p>
@@ -398,7 +398,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
             <div key={key.id}>
               {editingKeyId === key.id ? (
                 // Edit Form
-                <Card>
+                <Card className="border-0 shadow-none bg-secondary/30">
                   <CardHeader>
                     <CardTitle className="text-lg">Edit API Key</CardTitle>
                     <CardDescription>
@@ -504,7 +504,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                 </Card>
               ) : (
                 // Display Mode
-                <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">

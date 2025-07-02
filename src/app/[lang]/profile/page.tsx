@@ -208,6 +208,25 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
                 </div>
               </CardContent>
             </Card>
+
+            {/* API Key Management */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="w-5 h-5" />
+                  {t('profile.apiKeyManagement', 'API Key Management')}
+                </CardTitle>
+                <CardDescription>
+                  {t(
+                    'profile.apiKeyManagementDescription',
+                    'Manage your AI provider API keys for enhanced game experiences'
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UserApiKeyManager />
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
@@ -276,21 +295,6 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
                         {t('profile.emailPassword')}
                       </Badge>
                     )}
-                  </div>
-                </div>
-
-                {/* API Key Management Section */}
-                <div className="space-y-2">
-                  <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Key className="w-4 h-4" />
-                    API Key Management
-                  </span>
-                  <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Manage your AI provider API keys for enhanced game
-                      experiences
-                    </p>
-                    <UserApiKeyManager />
                   </div>
                 </div>
               </CardContent>
