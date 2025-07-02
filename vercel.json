@@ -1,3 +1,12 @@
 {
-  "buildCommand": "pnpm run check-db && pnpm run db:migrate && pnpm run db:push && pnpm run build"
+  "buildCommand": "pnpm run build:ci",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production",
+      "CI": "true"
+    }
+  }
 }
