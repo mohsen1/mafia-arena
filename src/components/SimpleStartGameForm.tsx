@@ -452,7 +452,6 @@ export default function SimpleStartGameForm({
         {/* Show available providers summary */}
         {allAvailableProviders.length > 0 ? (
           <div className="text-sm text-muted-foreground">
-            <p className="mb-2">Available AI providers:</p>
             <div className="flex flex-wrap gap-2">
               {allAvailableProviders.map((provider) => (
                 <span
