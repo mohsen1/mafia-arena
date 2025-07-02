@@ -32,9 +32,9 @@ if (!process.env.GEMINI_API_KEY) {
 // Access your API key as an environment variable
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Define the model to use (updated to Gemini 2.5 Flash Lite for Issue #64)
+// Define the model to use (updated to Gemini 2.0 Flash)
 // Consider making this configurable via environment variable GEMINI_MODEL
-const defaultModelName = 'gemini-2.5-flash-lite-preview-06-17'; // Default model
+const defaultModelName = 'gemini-2.0-flash'; // Default model
 
 // Configure safety settings to be less restrictive for game context
 // Adjust these as needed, but be aware of potential harmful content generation
