@@ -103,9 +103,17 @@ export function getAllAvailableProviders(
     }
   }
 
-  return Array.from(providerMap.values()).sort((a, b) =>
-    a.title.localeCompare(b.title)
-  );
+  // Sort providers with Groq first if available, then alphabetically
+  return Array.from(providerMap.values()).sort((a, b) => {
+    // Prioritize Groq as the default provider
+    if (a.value === 'groq') return -1;
+    if (b.value === 'groq') return 1;
+    // Then prioritize OpenAI
+    if (a.value === 'openai') return -1;
+    if (b.value === 'openai') return 1;
+    // Then sort alphabetically
+    return a.title.localeCompare(b.title);
+  });
 }
 
 /**
