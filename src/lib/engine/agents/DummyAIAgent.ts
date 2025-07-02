@@ -29,25 +29,33 @@ export class DummyAIAgent implements IAgent {
 
     switch (gameState.phase) {
       case 'Day':
-        // If voting is allowed, prioritize voting. Otherwise, message.
         const canVote = allowedActions?.includes('vote');
         const canMessage = allowedActions?.includes('message');
 
-        if (canVote && aliveOthers.length > 0 && Math.random() < 0.8) {
-          // Higher chance to vote when allowed
+        // 🎯 FIX: During Introduction/Discussion phases, prioritize messaging over voting
+        // This ensures AI agents actually participate in conversations
+        if (canMessage && !canVote && Math.random() < 0.9) {
+          // Introduction phase: High chance to introduce yourself
+          const message = `[${gameState.language}] Hello everyone! I am ${gameState.self.name}. ${gameState.round === 1 ? "I'm worried about these dark rumors in our village." : `I've been thinking about yesterday's events.`}`;
+          console.log(
+            `[${agentIdForLog}] Deciding to SEND MESSAGE (Introduction): ${message}`
+          );
+          return { type: 'message', content: message };
+        } else if (canMessage && canVote && Math.random() < 0.6) {
+          // Discussion phase: Good chance to discuss before voting
+          const message = `[${gameState.language}] I have some thoughts about who might be suspicious. ${gameState.self.name} is observing carefully.`;
+          console.log(
+            `[${agentIdForLog}] Deciding to SEND MESSAGE (Discussion): ${message}`
+          );
+          return { type: 'message', content: message };
+        } else if (canVote && aliveOthers.length > 0 && Math.random() < 0.8) {
+          // Voting phase or fallback: Vote for someone
           const targetId =
             aliveOthers[Math.floor(Math.random() * aliveOthers.length)];
           console.log(`[${agentIdForLog}] Deciding to VOTE for ${targetId}`);
           return { type: 'vote', targetPlayerId: targetId };
-        } else if (canMessage && Math.random() < 0.7) {
-          // Chance to message if allowed
-          const message = `[${gameState.language}] Hello from ${gameState.self.name} (${agentIdForLog}). It's round ${gameState.round}.`;
-          console.log(
-            `[${agentIdForLog}] Deciding to SEND MESSAGE: ${message}`
-          );
-          return { type: 'message', content: message };
         } else {
-          // If couldn't decide or only noAction is allowed
+          // Final fallback
           console.log(`[${agentIdForLog}] Deciding NO ACTION for day.`);
           return { type: 'noAction' };
         }
