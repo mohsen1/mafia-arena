@@ -187,7 +187,10 @@ export async function startGameAction(
     // Create the game
     console.log('[startGameAction] Creating game with createGame function');
     await createGame(setupData, gameId, createdAt, userId);
-    console.log('[startGameAction] Game created successfully, redirecting to:', gameId);
+    console.log(
+      '[startGameAction] Game created successfully, redirecting to:',
+      gameId
+    );
 
     // Redirect to the game page
     redirect(`/${setupData.language}/game/${gameId}`);
