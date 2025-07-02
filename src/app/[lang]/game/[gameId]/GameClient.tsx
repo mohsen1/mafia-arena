@@ -75,16 +75,36 @@ function GameLayout({ gameId }: { gameId: string }) {
             <div className="text-center text-xs text-muted-foreground mt-2">
               {gameState?.phase === 'Day' ? (
                 <div className="space-y-1">
-                  <div>{t('AutoModeDescriptionDay', 'AI agents are discussing and voting strategically')}</div>
-                  <div className="text-xs opacity-75">💭 Analyzing suspicions • 🗳️ Making elimination decisions</div>
+                  <div>
+                    {t(
+                      'AutoModeDescriptionDay',
+                      'AI agents are discussing and voting strategically'
+                    )}
+                  </div>
+                  <div className="text-xs opacity-75">
+                    💭 Analyzing suspicions • 🗳️ Making elimination decisions
+                  </div>
                 </div>
               ) : gameState?.phase === 'Night' ? (
                 <div className="space-y-1">
-                  <div>{t('AutoModeDescriptionNight', 'AI agents are using their special abilities')}</div>
-                  <div className="text-xs opacity-75">🎯 Mafia targeting • 🛡️ Doctor protecting • 🔍 Seer investigating</div>
+                  <div>
+                    {t(
+                      'AutoModeDescriptionNight',
+                      'AI agents are using their special abilities'
+                    )}
+                  </div>
+                  <div className="text-xs opacity-75">
+                    🎯 Mafia targeting • 🛡️ Doctor protecting • 🔍 Seer
+                    investigating
+                  </div>
                 </div>
               ) : (
-                <div>{t('AutoModeDescription', 'AI agents are making decisions automatically')}</div>
+                <div>
+                  {t(
+                    'AutoModeDescription',
+                    'AI agents are making decisions automatically'
+                  )}
+                </div>
               )}
             </div>
           </div>
