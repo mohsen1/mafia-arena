@@ -504,6 +504,5 @@
     "allCharactersGenerated": "All characters have been generated!",
     "proceedToGame": "Proceeding to game...",
     "error": "Error generating character"
-  },
-  "hmr_test": "HMR is working!"
+  }
 } 
