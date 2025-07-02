@@ -77,16 +77,16 @@ export const claudeModels: ModelDefinition[] = [
 
 // Updated Gemini Models (Section 5 of the guide)
 export const geminiModels: ModelDefinition[] = [
-  // Gemini 2.0 Flash (Default - Fast with 1M Context)
+  // Gemini 2.0 Flash-Lite (Default - Cost-Efficient)
   {
-    title: 'Gemini 2.0 Flash (Default, Fast, 1M Context, Tool Use)',
-    value: 'gemini-2.0-flash',
+    title: 'Gemini 2.0 Flash-Lite (Default, Cost-Efficient, Low Latency)',
+    value: 'gemini-2.0-flash-lite',
   },
 
-  // Gemini 2.0 Flash-Lite (Cost-Efficient)
+  // Gemini 2.0 Flash (Fast with 1M Context)
   {
-    title: 'Gemini 2.0 Flash-Lite (Cost-Efficient, Low Latency)',
-    value: 'gemini-2.0-flash-lite',
+    title: 'Gemini 2.0 Flash (Fast, 1M Context, Tool Use)',
+    value: 'gemini-2.0-flash',
   },
 
   // Gemini 2.5 Series (Most Advanced)

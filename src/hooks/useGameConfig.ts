@@ -15,6 +15,9 @@ const getDefaultModelForProvider = (providerValue: string): string => {
   if (providerValue === 'groq') {
     return 'gemma2-9b-it';
   }
+  if (providerValue === 'gemini') {
+    return 'gemini-2.0-flash-lite';
+  }
   const models = availableModelsByProvider[providerValue];
   if (models && models.length > 0) {
     const defaultModel = models.find((m) =>
