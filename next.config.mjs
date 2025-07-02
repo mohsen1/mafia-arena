@@ -9,6 +9,13 @@ const nextConfig = {
     ],
   },
   reactStrictMode: true,
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        '@/dictionaries/*.json': '@/dictionaries/*',
+      },
+    },
+  },
 };
 
 export default nextConfig;
