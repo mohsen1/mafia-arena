@@ -52,6 +52,42 @@ export function Header({ currentLang }: HeaderProps) {
     signOut({ callbackUrl: `/${currentLang}` });
   };
 
+  // Validate and sanitize image URL
+  const getValidImageUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+
+    try {
+      // Parse URL to validate it
+      const parsedUrl = new URL(url);
+
+      // Check if it's from allowed domains
+      const allowedDomains = [
+        'lh3.googleusercontent.com',
+        'googleusercontent.com',
+        'avatars.githubusercontent.com',
+      ];
+
+      const isAllowedDomain = allowedDomains.some((domain) =>
+        parsedUrl.hostname.includes(domain)
+      );
+
+      if (!isAllowedDomain && process.env.NODE_ENV === 'production') {
+        console.warn(
+          '[Header] Image URL from untrusted domain:',
+          parsedUrl.hostname
+        );
+        return null;
+      }
+
+      return url;
+    } catch (error) {
+      console.error('[Header] Invalid image URL:', url, error);
+      return null;
+    }
+  };
+
+  const validImageUrl = getValidImageUrl(session?.user?.image);
+
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -96,18 +132,24 @@ export function Header({ currentLang }: HeaderProps) {
                       size="sm"
                       className="flex items-center space-x-2"
                     >
-                      {session.user?.image && !imageError ? (
+                      {validImageUrl && !imageError ? (
                         <Image
-                          src={session.user.image}
+                          src={validImageUrl}
                           alt={session.user.name || 'User'}
                           width={24}
                           height={24}
                           className="w-6 h-6 rounded-full"
                           onError={(e) => {
-                            console.error('Profile image failed to load:', session.user.image);
+                            console.error(
+                              'Profile image failed to load:',
+                              validImageUrl
+                            );
                             console.error('Image error event:', e);
                             setImageError(true);
                           }}
+                          unoptimized={validImageUrl.includes(
+                            'googleusercontent.com'
+                          )}
                         />
                       ) : (
                         <User className="w-4 h-4" />
