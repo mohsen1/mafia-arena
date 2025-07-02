@@ -8,9 +8,9 @@ on:
     branches: [main]
   # Also allow manual triggering
   workflow_dispatch:
-  # Run periodically to check deployment health
+  # Run daily to check deployment health (reduced from every 15 minutes)
   schedule:
-    - cron: '*/15 * * * *' # Every 15 minutes
+    - cron: '0 9 * * *' # Daily at 9 AM UTC
 
 env:
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -31,6 +31,22 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "❌ VERCEL_TOKEN secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "❌ VERCEL_ORG_ID secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "❌ VERCEL_PROJECT_ID secret is not set"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
@@ -41,14 +57,15 @@ jobs:
 
       - name: Get latest deployment status
         id: deployment-check
+        continue-on-error: true
         run: |
           echo "Checking latest deployment status..."
           
-          # Get the latest deployment
-          DEPLOYMENT_INFO=$(vercel ls --scope ${{ secrets.VERCEL_ORG_ID }} --token $VERCEL_TOKEN | head -2 | tail -1 || echo "")
+          # Get the latest deployment with better error handling
+          DEPLOYMENT_INFO=$(vercel ls --scope ${{ secrets.VERCEL_ORG_ID }} --token $VERCEL_TOKEN 2>/dev/null | head -2 | tail -1 || echo "")
           
           if [ -z "$DEPLOYMENT_INFO" ]; then
-            echo "No deployments found"
+            echo "No deployments found or API error"
             echo "status=no-deployments" >> $GITHUB_OUTPUT
             exit 0
           fi
