@@ -660,5 +660,11 @@
   "TableHeader_Role": "Role",
   "TableHeader_Provider": "AI Provider",
   "TableHeader_Model": "AI Model",
-  "TableHeader_Actions": "Actions"
+  "TableHeader_Actions": "Actions",
+  "errors": {
+    "apiError": "API Error",
+    "gameError": "Game Error",
+    "apiErrorHelp": "This may be due to an invalid API key, rate limiting, or service unavailability. Please check your API keys in your profile.",
+    "retry": "Try Again"
+  }
 } 

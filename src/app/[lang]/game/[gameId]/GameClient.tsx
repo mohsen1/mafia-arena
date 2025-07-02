@@ -5,6 +5,7 @@ import { GameSidebar } from '@/components/GameSidebar';
 import HumanChatInput from '@/components/HumanChatInput';
 import CharacterGenerationUI from '@/components/CharacterGenerationUI';
 import { AutoSaveIndicator } from '@/components/AutoSaveIndicator';
+import { GameErrorDisplay } from '@/components/GameErrorDisplay';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
@@ -28,7 +29,7 @@ function GameLayout({ gameId }: { gameId: string }) {
   const lang = i18n.language;
   const direction = i18n.dir(lang);
 
-  const { gameState, setGameState, isSaving, lastSaved } = useGameContext();
+  const { gameState, setGameState, isSaving, lastSaved, error, clearError, runNextTurn } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
 
   // Show character generation UI if game is in CharacterGeneration phase
@@ -52,6 +53,17 @@ function GameLayout({ gameId }: { gameId: string }) {
       <GameSidebar />
       <main className="grid grid-rows-[1fr_auto] h-screen overflow-hidden">
         <div className="overflow-y-auto">
+          {error && (
+            <div className="p-4">
+              <GameErrorDisplay 
+                error={error} 
+                onRetry={() => {
+                  clearError();
+                  runNextTurn();
+                }}
+              />
+            </div>
+          )}
           <ConversationLog />
         </div>
         {humanPlayerId && <HumanChatInput />}
