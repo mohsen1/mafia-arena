@@ -32,12 +32,14 @@ import {
   AlertTriangle,
   Save,
   X,
+  AlertCircle,
 } from 'lucide-react';
 import {
   getUserApiKeys,
   createApiKey,
   updateApiKey,
   deleteApiKey,
+  testApiKey,
   type UserApiKeyInfo,
   type CreateApiKeyData,
 } from '@/app/actions/api-keys.actions';
@@ -73,10 +75,16 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   // Load user's API keys on component mount
   useEffect(() => {
     loadApiKeys();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadApiKeys = async () => {
@@ -214,6 +222,37 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
     setFormData({ provider: '', keyName: '', apiKey: '' });
     setFormErrors({});
     setShowApiKey(false);
+    setTestResult(null);
+  };
+
+  const handleTestApiKey = async () => {
+    if (!formData.provider || !formData.apiKey.trim()) {
+      setTestResult({
+        success: false,
+        message: t('apiKeys.enterProviderAndKey'),
+      });
+      return;
+    }
+
+    setTesting(true);
+    setTestResult(null);
+
+    try {
+      const result = await testApiKey(formData.provider, formData.apiKey);
+      setTestResult({
+        success: result.success,
+        message: result.success
+          ? t('apiKeys.testSuccess')
+          : result.error || t('apiKeys.testFailed'),
+      });
+    } catch {
+      setTestResult({
+        success: false,
+        message: t('apiKeys.testFailed'),
+      });
+    } finally {
+      setTesting(false);
+    }
   };
 
   const startAdding = () => {
@@ -365,6 +404,40 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                 <p className="text-sm text-destructive mt-1">
                   {formErrors.apiKey}
                 </p>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleTestApiKey}
+                disabled={
+                  testing || !formData.provider || !formData.apiKey.trim()
+                }
+                className="mt-2"
+              >
+                {testing ? (
+                  <>
+                    <AlertCircle className="w-4 h-4 me-2 animate-spin" />
+                    {t('apiKeys.testing')}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 me-2" />
+                    {t('apiKeys.testConnection')}
+                  </>
+                )}
+              </Button>
+              {testResult && (
+                <Alert
+                  className={`mt-2 ${testResult.success ? 'border-green-500' : ''}`}
+                >
+                  {testResult.success ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <XCircle className="w-4 h-4" />
+                  )}
+                  <AlertDescription>{testResult.message}</AlertDescription>
+                </Alert>
               )}
             </div>
 

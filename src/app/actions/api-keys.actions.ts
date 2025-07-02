@@ -273,3 +273,126 @@ export async function getDecryptedApiKey(
     return null;
   }
 }
+
+/**
+ * Test an API key by making a simple API call
+ */
+export async function testApiKey(
+  provider: string,
+  apiKey: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    switch (provider.toLowerCase()) {
+      case 'openai': {
+        const response = await fetch('https://api.openai.com/v1/models', {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          return {
+            success: false,
+            error:
+              errorData.error?.message || `API returned ${response.status}`,
+          };
+        }
+        return { success: true };
+      }
+
+      case 'anthropic': {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 1,
+          }),
+        });
+        // Anthropic returns 401 for invalid keys
+        if (response.status === 401) {
+          return { success: false, error: 'Invalid API key' };
+        }
+        // We expect either success or rate limit (429) for valid keys
+        if (response.ok || response.status === 429) {
+          return { success: true };
+        }
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          error: errorData.error?.message || `API returned ${response.status}`,
+        };
+      }
+
+      case 'groq': {
+        const response = await fetch('https://api.groq.com/openai/v1/models', {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          return {
+            success: false,
+            error:
+              errorData.error?.message || `API returned ${response.status}`,
+          };
+        }
+        return { success: true };
+      }
+
+      case 'gemini':
+      case 'google': {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+        );
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          return {
+            success: false,
+            error:
+              errorData.error?.message || `API returned ${response.status}`,
+          };
+        }
+        return { success: true };
+      }
+
+      case 'fireworks': {
+        const response = await fetch(
+          'https://api.fireworks.ai/inference/v1/models',
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          return {
+            success: false,
+            error:
+              errorData.error?.message || `API returned ${response.status}`,
+          };
+        }
+        return { success: true };
+      }
+
+      default:
+        return {
+          success: false,
+          error: 'API key testing not supported for this provider',
+        };
+    }
+  } catch (error) {
+    console.error('Error testing API key:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to test API key',
+    };
+  }
+}

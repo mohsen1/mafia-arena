@@ -24,7 +24,7 @@ if (!connectionString) {
     'For production/CI:',
     '  Set DATABASE_URL in your environment configuration',
   ].join('\n');
-  
+
   throw new Error(errorMessage);
 }
 
