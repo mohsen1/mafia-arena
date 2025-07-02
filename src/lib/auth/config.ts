@@ -89,7 +89,7 @@ export const authOptions: NextAuthOptions = {
             .from(users)
             .where(eq(users.email, user.email))
             .limit(1);
-          
+
           if (dbUser) {
             token.id = dbUser.id;
             token.email = dbUser.email;
@@ -133,12 +133,15 @@ export const authOptions: NextAuthOptions = {
 
           if (!existingUser) {
             // Create new user
-            const [newUser] = await db.insert(users).values({
-              email: email,
-              name: user.name || profile?.name || null,
-              image: user.image || profile?.image || null,
-              emailVerified: new Date(),
-            }).returning();
+            const [newUser] = await db
+              .insert(users)
+              .values({
+                email: email,
+                name: user.name || profile?.name || null,
+                image: user.image || profile?.image || null,
+                emailVerified: new Date(),
+              })
+              .returning();
 
             // Set the database user ID on the user object
             user.id = newUser.id;
