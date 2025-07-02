@@ -177,8 +177,13 @@ describe('Prompts', () => {
         '**MANDATORY:** You must take decisive action from: message, vote, noAction.'
       );
       expect(prompt).toContain('**Action Format Examples:**');
+      
+      // 🎯 UPDATED: Check for enhanced phase-specific message guidance
       expect(prompt).toContain(
-        '- **Speak Strategically:** `{"type": "message", "content": "Your message here..."}`'
+        '- **Strategic Discussion:** `{"type": "message", "content": "Based on yesterday\'s events, I suspect [player] because [reasoning]. What do others think?"}` (**SHARE SUSPICIONS & BUILD CASES!**)'
+      );
+      expect(prompt).toContain(
+        '- **General Message:** `{"type": "message", "content": "Your strategic message here..."}` (**ENGAGE ACTIVELY IN CONVERSATION!**)'
       );
       expect(prompt).toContain(
         '- **Vote to Eliminate:** `{"type": "vote", "targetPlayerId": "player-id-to-vote-for"}` (**CHOOSE A TARGET!**)'
@@ -187,17 +192,22 @@ describe('Prompts', () => {
       expect(prompt).not.toContain('**Execute Target:**');
     });
 
-    // This test is likely obsolete as the special Round 1 message isn't in getUserPrompt anymore.
-    // It's part of the system prompt now.
-    // it('should include special instruction for Round 1 introductions', () => {
-    //      mockStateData.round = 1;
-    //      allowedActions = ['message']; // Only message allowed
-    //      const prompt = getUserPrompt(mockStateData, allowedActions);
-    //      // This check would fail as the text is in the system prompt
-    //      // expect(prompt).toContain('**It\\\'s Round 1 Introductions! Your ONLY goal this turn is to introduce yourself based on your Persona.**');
-    // });
+    // 🎯 NEW TEST: Round 1 Introduction phase should have specific guidance
+    it('should include Introduction phase guidance for Round 1', () => {
+      mockStateData.round = 1; // Round 1
+      allowedActions = ['message', 'noAction'];
+      const prompt = getUserPrompt(mockStateData, allowedActions);
+      
+      // Check for Introduction-specific guidance
+      expect(prompt).toContain(
+        '- **Introduction:** `{"type": "message", "content": "Hello everyone! I am [persona-name]. [Brief intro about yourself and your concerns about the threat in the village]"}` (**INTRODUCE YOURSELF MEANINGFULLY!**)'
+      );
+      expect(prompt).toContain('**Action Format Examples:**');
+      expect(prompt).toContain(
+        '- **General Message:** `{"type": "message", "content": "Your strategic message here..."}` (**ENGAGE ACTIVELY IN CONVERSATION!**)'
+      );
+    });
 
-    // This test needs adjustment because the specific "Choose your action..." text is gone.
     it('should NOT include Round 1 intro instruction text after Round 1', () => {
       mockStateData.round = 2; // Round 2
       allowedActions = ['message'];

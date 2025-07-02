@@ -218,13 +218,43 @@ describe('filterGameStateForClient', () => {
   it('should handle null or undefined viewingPlayerId (observer mode)', () => {
     const filtered = filterGameStateForClient(fullState, null);
 
-    // Observers should see all roles
+    // 🎯 UPDATED: Observers should NOT see all roles during active gameplay 
+    // (preserves werewolf game mystery) - only see roles of dead players and during GameOver
+    expect(filtered.players[player1Id].role).toBeUndefined(); // Living player - hidden
+    expect(filtered.players[player2Id].role).toBeUndefined(); // Living player - hidden  
+    expect(filtered.players[player3Id].role).toBeUndefined(); // Living Mafia - hidden
+    expect(filtered.players[player4Id].role).toBe(RoleName.Doctor); // Dead player - revealed
+
+    // 🎯 UPDATED: Observers should NOT see Mafia chat during active gameplay
+    // (only during GameOver phase)
+    expect(filtered.log.length).toBe(2); // Should not see Mafia message (msg2)
+    expect(filtered.log[0].id).toBe(msg1.id); // Public message
+    expect(filtered.log[1].id).toBe(msg3.id); // Public message
+    // Mafia message should be filtered out during active gameplay
+    expect(
+      filtered.log.find((m) => m.visibility === MessageVisibility.Mafia)
+    ).toBeUndefined();
+
+    // 🎯 UPDATED: canSeeWerewolfChat should be false during active gameplay
+    expect(filtered.canSeeWerewolfChat).toBe(false);
+  });
+
+  // 🎯 NEW TEST: Observer mode during GameOver should see everything
+  it('should show all roles and Mafia chat for observers during GameOver phase', () => {
+    const gameOverState: SerializableGameState = {
+      ...fullState,
+      phase: 'GameOver',
+      winCondition: { outcome: 'Town', message: 'Town wins!' },
+    };
+    const filtered = filterGameStateForClient(gameOverState, null); // null = observer
+
+    // During GameOver, observers should see all roles
     expect(filtered.players[player1Id].role).toBe(RoleName.Villager);
     expect(filtered.players[player2Id].role).toBe(RoleName.Villager);
     expect(filtered.players[player3Id].role).toBe(RoleName.Mafia);
     expect(filtered.players[player4Id].role).toBe(RoleName.Doctor);
 
-    // Observers should see all messages including Mafia chat
+    // During GameOver, observers should see all messages including Mafia chat
     expect(filtered.log.length).toBe(3);
     expect(
       filtered.log.find((m) => m.visibility === MessageVisibility.Mafia)
@@ -233,7 +263,7 @@ describe('filterGameStateForClient', () => {
     expect(filtered.log[1].id).toBe(msg2.id);
     expect(filtered.log[2].id).toBe(msg3.id);
 
-    // Check canSeeWerewolfChat flag is set correctly for observers
+    // canSeeWerewolfChat should be true during GameOver
     expect(filtered.canSeeWerewolfChat).toBe(true);
   });
 
