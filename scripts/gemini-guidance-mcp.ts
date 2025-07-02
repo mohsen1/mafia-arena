@@ -247,7 +247,6 @@ async function closeDialogWithKeyboard(): Promise<void> {
     // Try common dialog closing patterns
     const closeCommands = [
       'key:escape',           // ESC key
-      'key:cmd+w',           // CMD+W to close window
       'key:enter',           // Enter to accept dialog
       'key:tab key:enter',   // Tab to OK button then Enter
     ];
