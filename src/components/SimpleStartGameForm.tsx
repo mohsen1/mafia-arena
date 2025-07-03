@@ -64,6 +64,10 @@ function getAgentTypeFromProvider(
 
 function getDefaultModelForProvider(providerValue: string): string {
   if (providerValue === 'groq') {
+    // In development, prefer the fastest model (Llama 3.1 8B Instant)
+    if (process.env.NODE_ENV === 'development') {
+      return 'llama-3.1-8b-instant';
+    }
     return 'gemma2-9b-it';
   }
   if (providerValue === 'gemini') {
@@ -216,14 +220,21 @@ export default function SimpleStartGameForm({
   // Auto-select first available provider and model as default
   useEffect(() => {
     if (!globalProviderSelection && allAvailableProviders.length > 0) {
-      // In development mode, prefer Groq if available
+      // In development mode, prefer Groq if available (unless disabled)
       let selectedProvider = allAvailableProviders[0];
       
-      if (process.env.NODE_ENV === 'development') {
-        const groqProvider = allAvailableProviders.find(p => p.value === 'groq');
+      const useGroqInDev = process.env.NODE_ENV === 'development' && 
+                          process.env.NEXT_PUBLIC_DISABLE_GROQ_DEV_MODE !== 'true';
+      
+      if (useGroqInDev) {
+        const groqProvider = allAvailableProviders.find(
+          (p) => p.value === 'groq'
+        );
         if (groqProvider) {
           selectedProvider = groqProvider;
-          console.log('[SimpleStartGameForm] Development mode: Auto-selecting Groq provider');
+          console.log(
+            '[SimpleStartGameForm] Development mode: Auto-selecting Groq provider'
+          );
         }
       }
       
@@ -232,6 +243,12 @@ export default function SimpleStartGameForm({
       if (selectedProvider && defaultModel) {
         setGlobalProviderSelection(selectedProvider.value);
         setGlobalModelSelection(defaultModel);
+        
+        // In development, also set Groq for Mafia if available
+        if (useGroqInDev && selectedProvider.value === 'groq') {
+          setMafiaProviderSelection(selectedProvider.value);
+          setMafiaModelSelection(defaultModel);
+        }
       }
     }
   }, [globalProviderSelection, allAvailableProviders]);

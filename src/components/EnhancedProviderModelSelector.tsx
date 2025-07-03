@@ -129,11 +129,13 @@ export const EnhancedProviderModelSelector = React.memo(
                       'Select provider'
                     )}
                   />
-                  {process.env.NODE_ENV === 'development' && selectedProvider?.value === 'groq' && (
-                    <Badge variant="secondary" className="text-xs ms-1">
-                      DEV
-                    </Badge>
-                  )}
+                  {process.env.NODE_ENV === 'development' &&
+                    process.env.NEXT_PUBLIC_DISABLE_GROQ_DEV_MODE !== 'true' &&
+                    selectedProvider?.value === 'groq' && (
+                      <Badge variant="secondary" className="text-xs ms-1">
+                        DEV
+                      </Badge>
+                    )}
                 </span>
               </SelectTrigger>
               <SelectContent>
