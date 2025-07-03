@@ -2,6 +2,7 @@ import { defineConfig } from 'drizzle-kit';
 
 const isVercel = Boolean(process.env.VERCEL);
 const isDev = process.env.NODE_ENV !== 'production' && !isVercel;
+const isBuildTime = process.env.VERCEL === '1' || process.env.CI === 'true';
 
 const databaseUrl =
   process.env.DATABASE_URL ||
@@ -9,7 +10,8 @@ const databaseUrl =
     ? 'postgresql://werewolf_ai:dev_password_2024@localhost:5432/werewolf_ai_dev'
     : undefined);
 
-if (!databaseUrl) {
+// Only throw error if we're actually running a drizzle command, not during build
+if (!databaseUrl && !isBuildTime) {
   const errorMessage = [
     'DATABASE_URL environment variable is required for Drizzle configuration',
     '',
@@ -34,7 +36,7 @@ export default defineConfig({
   schema: './src/lib/db/schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: databaseUrl,
+    url: databaseUrl || 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
   },
   verbose: true,
   strict: true,
