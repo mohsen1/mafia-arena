@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Info,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface OllamaConfigProps {
   onConfigChange?: (config: OllamaConfiguration) => void;
@@ -62,6 +63,7 @@ export function OllamaConfig({
   const [connectionResult, setConnectionResult] =
     useState<ConnectionTestResult | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const { t } = useTranslation();
 
   // Construct the full endpoint URL
   const endpointUrl = `${config.protocol}://${config.host}:${config.port}${config.apiPath}`;
@@ -277,7 +279,9 @@ export function OllamaConfig({
                   </select>
                 </div>
                 <div>
-                  <Label htmlFor="ollama-api-path">API Path</Label>
+                  <Label htmlFor="ollama-api-path">
+                    {t('apiKeys.apiPath', 'API Path')}
+                  </Label>
                   <Input
                     id="ollama-api-path"
                     value={config.apiPath}
@@ -303,7 +307,8 @@ export function OllamaConfig({
                   Install Ollama from <code>ollama.ai</code>
                 </li>
                 <li>
-                  Run <code>ollama serve</code> to start the server
+                  {t('ollama.runServeCommand', 'Run')} <code>ollama serve</code>{' '}
+                  {t('ollama.toStartServer', 'to start the server')}
                 </li>
                 <li>
                   Pull a model: <code>ollama pull llama3.1</code>
@@ -325,7 +330,8 @@ export function OllamaConfig({
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li>
-                    Ensure Ollama is running: <code>ollama serve</code>
+                    {t('ollama.ensureRunning', 'Ensure Ollama is running')}:{' '}
+                    <code>ollama serve</code>
                   </li>
                   <li>Check if port {config.port} is available</li>
                   <li>Verify firewall settings allow connections</li>

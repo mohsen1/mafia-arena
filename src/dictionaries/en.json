@@ -248,7 +248,8 @@
     "chooseSignInMethod": "Choose your preferred sign-in method to continue",
     "passwordRequirements": "Password must be at least 8 characters with uppercase, lowercase, and number",
     "google": "Google",
-    "github": "GitHub"
+    "github": "GitHub",
+    "toggleTheme": "Toggle theme"
   },
   
   "signIn": {
@@ -666,5 +667,16 @@
     "gameError": "Game Error",
     "apiErrorHelp": "This may be due to an invalid API key, rate limiting, or service unavailability. Please check your API keys in your profile.",
     "retry": "Try Again"
-  }
+  },
+  "ollama": {
+    "runServeCommand": "Run",
+    "toStartServer": "to start the server",
+    "ensureRunning": "Ensure Ollama is running",
+    "apiPath": "API Path"
+  },
+  "Light": "Light",
+  "Dark": "Dark",
+  "System": "System",
+  "AIConfiguration": "AI Configuration",
+  "PersonalityType": "Personality Type"
 } 
