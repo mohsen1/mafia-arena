@@ -10,6 +10,8 @@ import {
   Target,
   Ban,
   CheckCircle,
+  User,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +45,7 @@ export function VotingPanel({
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);
 
   const humanPlayerId = gameState.humanPlayerId;
   const isVotingPhase = gameState.phase === 'Day';
@@ -166,12 +169,14 @@ export function VotingPanel({
         );
         if (playerIndex < sortedPlayers.length) {
           setSelectedTarget(sortedPlayers[playerIndex].id);
+          setShowConfirmation(true);
         }
       }
 
       // 0 key for abstain
       if (e.key === '0') {
         setSelectedTarget(null);
+        setShowConfirmation(true);
       }
     };
 
@@ -183,43 +188,62 @@ export function VotingPanel({
 
   return (
     <Card
-      className={cn('w-full', className)}
+      className={cn(
+        'w-full backdrop-blur-sm bg-background/95 border-border/50',
+        className
+      )}
       role="region"
       aria-label={t('VotingPanel', 'Voting Panel')}
     >
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-primary/10">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Vote className="w-5 h-5" />
+            <Vote className="w-5 h-5 text-primary" />
             {t('VotingPanel', 'Voting Panel')}
           </CardTitle>
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs border-primary/20">
             <Users className="w-3 h-3 mr-1" />
             {t('VotingProgress', '{{current}} of {{total}} votes cast', {
-              current: voteTallies.size,
+              current: currentVotes.length,
               total: totalAlivePlayers,
             })}
           </Badge>
         </div>
-        <Progress
-          value={(voteTallies.size / totalAlivePlayers) * 100}
-          className="h-2 mt-2"
-          aria-label={t('VotingProgressBar', 'Voting progress: {{percent}}%', {
-            percent: Math.round((voteTallies.size / totalAlivePlayers) * 100),
-          })}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          {t('MajorityRequired', 'Majority: {{count}} votes needed', {
-            count: requiredVotes,
-          })}
-        </p>
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>{t('Progress', 'Progress')}</span>
+            <span>
+              {Math.round((currentVotes.length / totalAlivePlayers) * 100)}%
+            </span>
+          </div>
+          <Progress
+            value={(currentVotes.length / totalAlivePlayers) * 100}
+            className="h-2"
+            aria-label={t(
+              'VotingProgressBar',
+              'Voting progress: {{percent}}%',
+              {
+                percent: Math.round(
+                  (currentVotes.length / totalAlivePlayers) * 100
+                ),
+              }
+            )}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {t('MajorityRequired', 'Majority: {{count}} votes needed', {
+              count: requiredVotes,
+            })}
+          </p>
+        </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-4">
         {/* Cast Your Vote Section */}
         {canVote && (
-          <div
-            className="space-y-3"
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3 p-4 rounded-lg bg-secondary/30 border border-border/50"
             role="group"
             aria-labelledby="vote-section-title"
           >
@@ -227,69 +251,93 @@ export function VotingPanel({
               id="vote-section-title"
               className="text-sm font-medium flex items-center gap-2"
             >
-              <Target className="w-4 h-4" />
+              <Target className="w-4 h-4 text-primary" />
               {t('CastYourVote', 'Cast Your Vote')}
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {alivePlayersArray
                 .filter((p) => p.id !== humanPlayerId)
                 .map((player, index) => (
-                  <Button
+                  <motion.div
                     key={player.id}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTarget(player.id);
-                      setShowConfirmation(true);
-                    }}
-                    className="justify-start text-left"
-                    aria-label={t(
-                      'VoteForPlayer',
-                      'Vote for {{name}} (press {{key}})',
-                      {
-                        name: player.name,
-                        key: index + 1,
-                      }
-                    )}
-                    title={`Press ${index + 1} to vote`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <span className="text-xs text-muted-foreground mr-2">
-                      {index + 1}.
-                    </span>
-                    {player.name}
-                  </Button>
+                    <Button
+                      variant={
+                        selectedTarget === player.id ? 'default' : 'outline'
+                      }
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTarget(player.id);
+                        setShowConfirmation(true);
+                      }}
+                      onMouseEnter={() => setHoveredPlayer(player.id)}
+                      onMouseLeave={() => setHoveredPlayer(null)}
+                      className={cn(
+                        'justify-start text-left w-full transition-all',
+                        hoveredPlayer === player.id && 'shadow-md'
+                      )}
+                      aria-label={t(
+                        'VoteForPlayer',
+                        'Vote for {{name}} (press {{key}})',
+                        {
+                          name: player.name,
+                          key: index + 1,
+                        }
+                      )}
+                      title={`Press ${index + 1} to vote`}
+                    >
+                      <span className="text-xs text-muted-foreground mr-2 font-mono">
+                        {index + 1}
+                      </span>
+                      <User className="w-3 h-3 mr-1" />
+                      {player.name}
+                    </Button>
+                  </motion.div>
                 ))}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSelectedTarget(null);
-                  setShowConfirmation(true);
-                }}
+              <motion.div
                 className="col-span-2"
-                aria-label={t(
-                  'AbstainFromVoting',
-                  'Abstain from voting (press 0)'
-                )}
-                title="Press 0 to abstain"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
               >
-                <Ban className="w-4 h-4 mr-2" />
-                {t('AbstainFromVoting', 'Abstain from voting')}
-              </Button>
+                <Button
+                  variant={
+                    selectedTarget === null && showConfirmation
+                      ? 'secondary'
+                      : 'ghost'
+                  }
+                  size="sm"
+                  onClick={() => {
+                    setSelectedTarget(null);
+                    setShowConfirmation(true);
+                  }}
+                  className="w-full"
+                  aria-label={t(
+                    'AbstainFromVoting',
+                    'Abstain from voting (press 0)'
+                  )}
+                  title="Press 0 to abstain"
+                >
+                  <Ban className="w-4 h-4 mr-2" />
+                  {t('AbstainFromVoting', 'Abstain from voting')}
+                </Button>
+              </motion.div>
             </div>
-            <p className="text-xs text-muted-foreground text-center">
+            <p className="text-xs text-muted-foreground text-center italic">
               {t(
                 'VotingKeyboardHint',
                 'Press number keys 1-9 to vote, 0 to abstain'
               )}
             </p>
-          </div>
+          </motion.div>
         )}
 
         {/* Vote Tallies */}
         {voteTallies.size > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-warning" />
               {t('CurrentVotes', 'Current Votes')}
             </h4>
             {Array.from(voteTallies.entries())
@@ -308,30 +356,36 @@ export function VotingPanel({
                     animate={{ opacity: 1, x: 0 }}
                     className={cn(
                       'p-3 rounded-lg border transition-all',
-                      isMajority && 'border-destructive bg-destructive/10'
+                      isMajority
+                        ? 'border-destructive bg-destructive/10 shadow-lg shadow-destructive/20'
+                        : 'border-border/50 bg-secondary/20'
                     )}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-muted-foreground" />
                         <span className="font-medium">{player.name}</span>
                         {isMajority && (
-                          <Badge variant="destructive" className="text-xs">
+                          <Badge
+                            variant="destructive"
+                            className="text-xs animate-pulse"
+                          >
                             {t('Majority', 'Majority')}
                           </Badge>
                         )}
                       </div>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-bold">
                         {data.count} {t('votes', 'votes')}
                       </span>
                     </div>
                     <Progress
                       value={percentage}
                       className={cn(
-                        'h-1.5',
+                        'h-2 mb-2',
                         isMajority && '[&>div]:bg-destructive'
                       )}
                     />
-                    <div className="mt-1 text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       {t('VotedBy', 'Voted by')}: {data.voters.join(', ')}
                     </div>
                   </motion.div>
@@ -344,10 +398,10 @@ export function VotingPanel({
         <AnimatePresence>
           {showConfirmation && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="p-4 rounded-lg bg-secondary/50 space-y-3"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="p-4 rounded-lg bg-warning/10 border border-warning/20 space-y-3"
             >
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-warning mt-0.5" />
@@ -358,7 +412,7 @@ export function VotingPanel({
                   <p className="text-sm text-muted-foreground mt-1">
                     {selectedTarget
                       ? t(
-                          'VoteForPlayer',
+                          'VoteForPlayerConfirm',
                           'You are voting to eliminate {{player}}',
                           {
                             player: gameState.players[selectedTarget]?.name,
@@ -384,6 +438,7 @@ export function VotingPanel({
                   variant="destructive"
                   size="sm"
                   onClick={handleVoteSubmit}
+                  className="shadow-sm"
                 >
                   <CheckCircle2 className="h-4 w-4 me-1" />
                   {t('ConfirmVote', 'Confirm Vote')}
@@ -399,7 +454,8 @@ export function VotingPanel({
           role="region"
           aria-label={t('VotingStatus', 'Voting Status')}
         >
-          <h4 className="text-sm font-medium">
+          <h4 className="text-sm font-medium flex items-center gap-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
             {t('VotingStatus', 'Voting Status')}
           </h4>
           <div className="space-y-1">
@@ -414,17 +470,18 @@ export function VotingPanel({
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   className={cn(
-                    'flex items-center justify-between p-2 rounded-md text-sm',
-                    hasPlayerVoted && 'bg-secondary/50',
-                    isCurrentPlayer && 'ring-1 ring-primary'
+                    'flex items-center justify-between p-2 rounded-md text-sm transition-colors',
+                    hasPlayerVoted && 'bg-secondary/30',
+                    isCurrentPlayer && 'ring-1 ring-primary/50 bg-primary/5'
                   )}
                   role="listitem"
                   aria-label={`${player.name}: ${hasPlayerVoted ? t('Voted', 'Voted') : t('NotVoted', 'Not voted')}`}
                 >
-                  <span className="font-medium">
+                  <span className="font-medium flex items-center gap-2">
+                    <User className="w-3 h-3 text-muted-foreground" />
                     {player.name}
                     {isCurrentPlayer && (
-                      <span className="text-xs text-muted-foreground ml-1">
+                      <span className="text-xs text-primary">
                         ({t('You', 'You')})
                       </span>
                     )}
@@ -432,7 +489,9 @@ export function VotingPanel({
                   {hasPlayerVoted ? (
                     <Badge variant="secondary" className="text-xs">
                       <CheckCircle className="w-3 h-3 mr-1" />
-                      {t('Voted', 'Voted')}
+                      {voteStatus.type === 'abstain'
+                        ? t('Abstained', 'Abstained')
+                        : t('Voted', 'Voted')}
                     </Badge>
                   ) : (
                     <span className="text-xs text-muted-foreground">
