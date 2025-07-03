@@ -502,5 +502,8 @@
   "MafiaPlayer": "黑手党 {{number}}",
   "Add": "添加",
   "Character": "角色",
-  "errors": "错误"
+  "errors": "错误",
+  "DayStart": "Day {{round}} begins. The town gathers to discuss recent events.",
+  "test-connection-failed": "Test failed: {{error}}",
+  "DiscussionComplete": "The discussion phase has ended. It's time to vote."
 }

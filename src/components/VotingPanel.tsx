@@ -4,10 +4,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Vote,
-  Users,
   UserCheck,
   AlertCircle,
-  ChevronRight,
   CheckCircle2,
   XCircle,
   Timer,
@@ -18,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
-import type { FilteredPlayer } from '@/lib/interfaces/client.types';
 import { useTranslation } from 'react-i18next';
 import { useGameContext } from '@/context/GameContext';
 
@@ -35,7 +32,11 @@ interface VoteData {
   targetName: string | null;
 }
 
-export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) {
+export function VotingPanel({
+  gameState,
+  onVote,
+  className,
+}: VotingPanelProps) {
   const { t } = useTranslation();
   const { submitHumanAction } = useGameContext();
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
   const currentVotes = useMemo(() => {
     const votes: VoteData[] = [];
     const currentRound = gameState.round;
-    
+
     // Parse votes from the conversation log
     gameState.log.forEach((message) => {
       if (message.round === currentRound && message.phase === 'Day') {
@@ -59,9 +60,9 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
           const targetName = voteMatch[1];
           const voter = gameState.players[message.senderId];
           const target = Object.values(gameState.players).find(
-            p => p.name === targetName
+            (p) => p.name === targetName
           );
-          
+
           if (voter) {
             votes.push({
               voterId: message.senderId,
@@ -73,14 +74,14 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
         }
       }
     });
-    
+
     return votes;
   }, [gameState.log, gameState.round, gameState.players]);
 
   // Calculate vote tallies
   const voteTallies = useMemo(() => {
     const tallies = new Map<string, { count: number; voters: string[] }>();
-    
+
     currentVotes.forEach((vote) => {
       if (vote.targetId) {
         const current = tallies.get(vote.targetId) || { count: 0, voters: [] };
@@ -89,7 +90,7 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
         tallies.set(vote.targetId, current);
       }
     });
-    
+
     return tallies;
   }, [currentVotes]);
 
@@ -106,7 +107,7 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
 
   // Check if human has already voted
   useEffect(() => {
-    const humanVote = currentVotes.find(v => v.voterId === humanPlayerId);
+    const humanVote = currentVotes.find((v) => v.voterId === humanPlayerId);
     if (humanVote) {
       setHasVoted(true);
       setSelectedTarget(humanVote.targetId);
@@ -115,17 +116,17 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
 
   const handleVoteSubmit = async () => {
     if (!canVote || !submitHumanAction) return;
-    
+
     setShowConfirmation(false);
     setHasVoted(true);
-    
+
     try {
       await submitHumanAction({
         playerId: humanPlayerId!,
         type: 'vote',
         targetPlayerId: selectedTarget,
       });
-      
+
       if (onVote) {
         onVote(selectedTarget);
       }
@@ -136,13 +137,13 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
   };
 
   const getPlayerVoteStatus = (playerId: string) => {
-    const vote = currentVotes.find(v => v.voterId === playerId);
+    const vote = currentVotes.find((v) => v.voterId === playerId);
     if (!vote) return null;
-    
+
     if (vote.targetId === null) {
       return { type: 'abstain', target: null };
     }
-    
+
     const target = gameState.players[vote.targetId];
     return {
       type: 'voted',
@@ -166,7 +167,7 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* Voting Progress */}
         <div className="space-y-2">
@@ -183,8 +184,8 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
               })}
             </span>
           </div>
-          <Progress 
-            value={(currentVotes.length / totalAlivePlayers) * 100} 
+          <Progress
+            value={(currentVotes.length / totalAlivePlayers) * 100}
             className="h-2"
           />
         </div>
@@ -192,16 +193,18 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
         {/* Vote Tallies */}
         {voteTallies.size > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">{t('CurrentVotes', 'Current Votes')}</h4>
+            <h4 className="text-sm font-medium">
+              {t('CurrentVotes', 'Current Votes')}
+            </h4>
             {Array.from(voteTallies.entries())
               .sort((a, b) => b[1].count - a[1].count)
               .map(([playerId, data]) => {
                 const player = gameState.players[playerId];
                 if (!player) return null;
-                
+
                 const percentage = (data.count / totalAlivePlayers) * 100;
                 const isMajority = data.count >= requiredVotes;
-                
+
                 return (
                   <motion.div
                     key={playerId}
@@ -225,8 +228,8 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
                         {data.count} {t('votes', 'votes')}
                       </span>
                     </div>
-                    <Progress 
-                      value={percentage} 
+                    <Progress
+                      value={percentage}
                       className={cn(
                         'h-1.5',
                         isMajority && '[&>div]:bg-destructive'
@@ -248,12 +251,12 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
               <UserCheck className="h-4 w-4" />
               {t('CastYourVote', 'Cast Your Vote')}
             </h4>
-            
+
             <div className="grid gap-2">
               {alivePlayersArray.map((player) => {
                 const voteCount = voteTallies.get(player.id)?.count || 0;
                 const isSelected = selectedTarget === player.id;
-                
+
                 return (
                   <motion.button
                     key={player.id}
@@ -272,10 +275,12 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={cn(
-                          'h-2 w-2 rounded-full',
-                          isSelected ? 'bg-primary' : 'bg-muted'
-                        )} />
+                        <div
+                          className={cn(
+                            'h-2 w-2 rounded-full',
+                            isSelected ? 'bg-primary' : 'bg-muted'
+                          )}
+                        />
                         <span className="font-medium">{player.name}</span>
                         {player.role && (
                           <Badge variant="outline" className="text-xs">
@@ -292,7 +297,7 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
                   </motion.button>
                 );
               })}
-              
+
               {/* Abstain option */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -335,14 +340,21 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {selectedTarget
-                      ? t('VoteForPlayer', 'You are voting to eliminate {{player}}', {
-                          player: gameState.players[selectedTarget]?.name,
-                        })
-                      : t('VoteAbstain', 'You are choosing to abstain from voting')}
+                      ? t(
+                          'VoteForPlayer',
+                          'You are voting to eliminate {{player}}',
+                          {
+                            player: gameState.players[selectedTarget]?.name,
+                          }
+                        )
+                      : t(
+                          'VoteAbstain',
+                          'You are choosing to abstain from voting'
+                        )}
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex gap-2 justify-end">
                 <Button
                   variant="outline"
@@ -367,26 +379,36 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
         {/* Voting Status for All Players */}
         {isVotingPhase && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">{t('VotingStatus', 'Voting Status')}</h4>
+            <h4 className="text-sm font-medium">
+              {t('VotingStatus', 'Voting Status')}
+            </h4>
             <div className="space-y-1">
               {Object.values(gameState.players)
-                .filter(p => p.status === 'Alive')
+                .filter((p) => p.status === 'Alive')
                 .map((player) => {
                   const voteStatus = getPlayerVoteStatus(player.id);
-                  
+
                   return (
                     <div
                       key={player.id}
                       className="flex items-center justify-between text-sm py-1"
                     >
-                      <span className={cn(
-                        player.id === humanPlayerId && 'font-medium'
-                      )}>
+                      <span
+                        className={cn(
+                          player.id === humanPlayerId && 'font-medium'
+                        )}
+                      >
                         {player.name}
                         {player.id === humanPlayerId && ' (You)'}
                       </span>
                       {voteStatus ? (
-                        <Badge variant={voteStatus.type === 'abstain' ? 'secondary' : 'default'}>
+                        <Badge
+                          variant={
+                            voteStatus.type === 'abstain'
+                              ? 'secondary'
+                              : 'default'
+                          }
+                        >
                           {voteStatus.type === 'abstain'
                             ? t('Abstained', 'Abstained')
                             : `→ ${voteStatus.target}`}
@@ -405,4 +427,4 @@ export function VotingPanel({ gameState, onVote, className }: VotingPanelProps) 
       </CardContent>
     </Card>
   );
-} 
+}

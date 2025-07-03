@@ -502,5 +502,8 @@
   "Delete": "Excluir",
   "UserProvider": "({{keyName}})",
   "NoProvidersConfigured": "Nenhum provedor de IA configurado. Por favor,",
-  "AIConfiguration": "Configuração da IA"
+  "AIConfiguration": "Configuração da IA",
+  "DiscussionComplete": "A fase de discussão terminou. É hora de votar.",
+  "DayStart": "Dia {{round}} começa. A cidade se reúne para discutir os eventos recentes.",
+  "test-connection-failed": "Teste falhou: {{error}}"
 }

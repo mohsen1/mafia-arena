@@ -502,5 +502,8 @@
   "TableHeader_Model": "Modelo de IA",
   "ollama": "ollama",
   "AIAutoMode": "Modo automático de IA",
-  "TableHeader_Role": "Rol"
+  "TableHeader_Role": "Rol",
+  "DiscussionComplete": "La fase de discusión ha terminado. Es hora de votar.",
+  "test-connection-failed": "Prueba fallida: {{error}}",
+  "DayStart": "Comienza el día {{round}}. El pueblo se reúne para discutir los acontecimientos recientes."
 }

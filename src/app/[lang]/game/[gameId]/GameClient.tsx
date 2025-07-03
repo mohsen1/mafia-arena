@@ -18,7 +18,7 @@ import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
@@ -71,20 +71,22 @@ function GameLayout({ gameId }: { gameId: string }) {
   }, [gameState?.phase, previousPhase]);
 
   // Track eliminated players to show role reveals
-  const [revealedPlayers, setRevealedPlayers] = useState<Set<string>>(new Set());
-  
+  const [revealedPlayers, setRevealedPlayers] = useState<Set<string>>(
+    new Set()
+  );
+
   useEffect(() => {
     if (!gameState) return;
-    
+
     // Check for newly eliminated players
     Object.values(gameState.players).forEach((player) => {
       if (player.status === 'Dead' && !revealedPlayers.has(player.id)) {
         // Find elimination reason from recent messages
         const recentMessages = gameState.log.slice(-10);
-        const isVoted = recentMessages.some(
-          msg => msg.content.includes(`${player.name} was executed`)
+        const isVoted = recentMessages.some((msg) =>
+          msg.content.includes(`${player.name} was executed`)
         );
-        
+
         if (player.role) {
           setRoleReveal({
             playerName: player.name,
@@ -92,7 +94,7 @@ function GameLayout({ gameId }: { gameId: string }) {
             isEvil: player.role === 'Mafia',
             reason: isVoted ? 'voted' : 'killed',
           });
-          setRevealedPlayers(prev => new Set([...prev, player.id]));
+          setRevealedPlayers((prev) => new Set([...prev, player.id]));
         }
       }
     });
@@ -158,9 +160,7 @@ function GameLayout({ gameId }: { gameId: string }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
               {/* Voting Panel */}
               {gameState && gameState.phase === 'Day' && (
-                <VotingPanel 
-                  gameState={gameState} 
-                />
+                <VotingPanel gameState={gameState} />
               )}
               {/* Game History */}
               {gameState && 'memory' in gameState && (

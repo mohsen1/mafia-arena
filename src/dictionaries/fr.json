@@ -511,5 +511,8 @@
   "Character": "Personnage",
   "HideOllama": "Masquer",
   "errors": "erreurs",
-  "CustomProvider": "(Personnalisé)"
+  "CustomProvider": "(Personnalisé)",
+  "DiscussionComplete": "La phase de discussion est terminée. Il est temps de voter.",
+  "test-connection-failed": "Test échoué : {{error}}",
+  "DayStart": "Le jour {{round}} commence. La ville se réunit pour discuter des événements récents."
 }
