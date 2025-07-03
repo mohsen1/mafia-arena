@@ -4,11 +4,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Vote,
-  UserCheck,
   AlertCircle,
   CheckCircle2,
-  XCircle,
-  Timer,
+  Users,
+  Target,
+  Ban,
+  CheckCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -151,44 +152,139 @@ export function VotingPanel({
     };
   };
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isVotingPhase || !humanPlayerId || !alivePlayersArray.length) return;
+
+      // Number keys 1-9 for quick voting
+      const key = parseInt(e.key);
+      if (key >= 1 && key <= 9) {
+        const playerIndex = key - 1;
+        const sortedPlayers = alivePlayersArray.filter(
+          (p) => p.id !== humanPlayerId
+        );
+        if (playerIndex < sortedPlayers.length) {
+          setSelectedTarget(sortedPlayers[playerIndex].id);
+        }
+      }
+
+      // 0 key for abstain
+      if (e.key === '0') {
+        setSelectedTarget(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVotingPhase, humanPlayerId, alivePlayersArray]);
+
+  if (!isVotingPhase) return null;
+
   return (
-    <Card className={cn('overflow-hidden', className)}>
+    <Card
+      className={cn('w-full', className)}
+      role="region"
+      aria-label={t('VotingPanel', 'Voting Panel')}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Vote className="h-5 w-5" />
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Vote className="w-5 h-5" />
             {t('VotingPanel', 'Voting Panel')}
           </CardTitle>
-          {isVotingPhase && (
-            <Badge variant="default" className="animate-pulse">
-              <Timer className="h-3 w-3 me-1" />
-              {t('VotingInProgress', 'Voting in Progress')}
-            </Badge>
-          )}
+          <Badge variant="outline" className="text-xs">
+            <Users className="w-3 h-3 mr-1" />
+            {t('VotingProgress', '{{current}} of {{total}} votes cast', {
+              current: voteTallies.size,
+              total: totalAlivePlayers,
+            })}
+          </Badge>
         </div>
+        <Progress
+          value={(voteTallies.size / totalAlivePlayers) * 100}
+          className="h-2 mt-2"
+          aria-label={t('VotingProgressBar', 'Voting progress: {{percent}}%', {
+            percent: Math.round((voteTallies.size / totalAlivePlayers) * 100),
+          })}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          {t('MajorityRequired', 'Majority: {{count}} votes needed', {
+            count: requiredVotes,
+          })}
+        </p>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Voting Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">
-              {t('VotesCount', '{{count}} of {{total}} votes cast', {
-                count: currentVotes.length,
-                total: totalAlivePlayers,
-              })}
-            </span>
-            <span className="text-muted-foreground">
-              {t('MajorityRequired', 'Majority: {{count}}', {
-                count: requiredVotes,
-              })}
-            </span>
+        {/* Cast Your Vote Section */}
+        {canVote && (
+          <div
+            className="space-y-3"
+            role="group"
+            aria-labelledby="vote-section-title"
+          >
+            <h4
+              id="vote-section-title"
+              className="text-sm font-medium flex items-center gap-2"
+            >
+              <Target className="w-4 h-4" />
+              {t('CastYourVote', 'Cast Your Vote')}
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {alivePlayersArray
+                .filter((p) => p.id !== humanPlayerId)
+                .map((player, index) => (
+                  <Button
+                    key={player.id}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedTarget(player.id);
+                      setShowConfirmation(true);
+                    }}
+                    className="justify-start text-left"
+                    aria-label={t(
+                      'VoteForPlayer',
+                      'Vote for {{name}} (press {{key}})',
+                      {
+                        name: player.name,
+                        key: index + 1,
+                      }
+                    )}
+                    title={`Press ${index + 1} to vote`}
+                  >
+                    <span className="text-xs text-muted-foreground mr-2">
+                      {index + 1}.
+                    </span>
+                    {player.name}
+                  </Button>
+                ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedTarget(null);
+                  setShowConfirmation(true);
+                }}
+                className="col-span-2"
+                aria-label={t(
+                  'AbstainFromVoting',
+                  'Abstain from voting (press 0)'
+                )}
+                title="Press 0 to abstain"
+              >
+                <Ban className="w-4 h-4 mr-2" />
+                {t('AbstainFromVoting', 'Abstain from voting')}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              {t(
+                'VotingKeyboardHint',
+                'Press number keys 1-9 to vote, 0 to abstain'
+              )}
+            </p>
           </div>
-          <Progress
-            value={(currentVotes.length / totalAlivePlayers) * 100}
-            className="h-2"
-          />
-        </div>
+        )}
 
         {/* Vote Tallies */}
         {voteTallies.size > 0 && (
@@ -241,85 +337,6 @@ export function VotingPanel({
                   </motion.div>
                 );
               })}
-          </div>
-        )}
-
-        {/* Player Voting Options */}
-        {canVote && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <UserCheck className="h-4 w-4" />
-              {t('CastYourVote', 'Cast Your Vote')}
-            </h4>
-
-            <div className="grid gap-2">
-              {alivePlayersArray.map((player) => {
-                const voteCount = voteTallies.get(player.id)?.count || 0;
-                const isSelected = selectedTarget === player.id;
-
-                return (
-                  <motion.button
-                    key={player.id}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setSelectedTarget(player.id);
-                      setShowConfirmation(true);
-                    }}
-                    className={cn(
-                      'w-full p-3 rounded-lg border transition-all text-left',
-                      'hover:bg-secondary/50',
-                      isSelected && 'border-primary bg-primary/10',
-                      voteCount > 0 && 'border-orange-500/50'
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={cn(
-                            'h-2 w-2 rounded-full',
-                            isSelected ? 'bg-primary' : 'bg-muted'
-                          )}
-                        />
-                        <span className="font-medium">{player.name}</span>
-                        {player.role && (
-                          <Badge variant="outline" className="text-xs">
-                            {player.role}
-                          </Badge>
-                        )}
-                      </div>
-                      {voteCount > 0 && (
-                        <Badge variant="secondary">
-                          {voteCount} {t('votes', 'votes')}
-                        </Badge>
-                      )}
-                    </div>
-                  </motion.button>
-                );
-              })}
-
-              {/* Abstain option */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setSelectedTarget(null);
-                  setShowConfirmation(true);
-                }}
-                className={cn(
-                  'w-full p-3 rounded-lg border transition-all text-left',
-                  'hover:bg-secondary/50 border-dashed',
-                  selectedTarget === null && 'border-primary bg-primary/10'
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <XCircle className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    {t('Abstain', 'Abstain from voting')}
-                  </span>
-                </div>
-              </motion.button>
-            </div>
           </div>
         )}
 
@@ -376,54 +393,57 @@ export function VotingPanel({
           )}
         </AnimatePresence>
 
-        {/* Voting Status for All Players */}
-        {isVotingPhase && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">
-              {t('VotingStatus', 'Voting Status')}
-            </h4>
-            <div className="space-y-1">
-              {Object.values(gameState.players)
-                .filter((p) => p.status === 'Alive')
-                .map((player) => {
-                  const voteStatus = getPlayerVoteStatus(player.id);
+        {/* Voting Status Section */}
+        <div
+          className="space-y-2"
+          role="region"
+          aria-label={t('VotingStatus', 'Voting Status')}
+        >
+          <h4 className="text-sm font-medium">
+            {t('VotingStatus', 'Voting Status')}
+          </h4>
+          <div className="space-y-1">
+            {alivePlayersArray.map((player) => {
+              const voteStatus = getPlayerVoteStatus(player.id);
+              const hasPlayerVoted = voteStatus !== null;
+              const isCurrentPlayer = player.id === humanPlayerId;
 
-                  return (
-                    <div
-                      key={player.id}
-                      className="flex items-center justify-between text-sm py-1"
-                    >
-                      <span
-                        className={cn(
-                          player.id === humanPlayerId && 'font-medium'
-                        )}
-                      >
-                        {player.name}
-                        {player.id === humanPlayerId && ' (You)'}
+              return (
+                <motion.div
+                  key={player.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={cn(
+                    'flex items-center justify-between p-2 rounded-md text-sm',
+                    hasPlayerVoted && 'bg-secondary/50',
+                    isCurrentPlayer && 'ring-1 ring-primary'
+                  )}
+                  role="listitem"
+                  aria-label={`${player.name}: ${hasPlayerVoted ? t('Voted', 'Voted') : t('NotVoted', 'Not voted')}`}
+                >
+                  <span className="font-medium">
+                    {player.name}
+                    {isCurrentPlayer && (
+                      <span className="text-xs text-muted-foreground ml-1">
+                        ({t('You', 'You')})
                       </span>
-                      {voteStatus ? (
-                        <Badge
-                          variant={
-                            voteStatus.type === 'abstain'
-                              ? 'secondary'
-                              : 'default'
-                          }
-                        >
-                          {voteStatus.type === 'abstain'
-                            ? t('Abstained', 'Abstained')
-                            : `→ ${voteStatus.target}`}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          {t('NotVoted', 'Not voted')}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
+                    )}
+                  </span>
+                  {hasPlayerVoted ? (
+                    <Badge variant="secondary" className="text-xs">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      {t('Voted', 'Voted')}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {t('NotVoted', 'Not voted')}
+                    </span>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

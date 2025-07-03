@@ -74,10 +74,13 @@ export function GameStatistics({ games }: GameStatisticsProps) {
   }
 
   // Find favorite theme
-  const themeCounts = games.reduce((acc, game) => {
-    acc[game.themeKey] = (acc[game.themeKey] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const themeCounts = games.reduce(
+    (acc, game) => {
+      acc[game.themeKey] = (acc[game.themeKey] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   const favoriteThemeEntry = Object.entries(themeCounts).sort(
     ([, a], [, b]) => b - a
@@ -133,7 +136,9 @@ export function GameStatistics({ games }: GameStatisticsProps) {
                   <Shield className="h-3 w-3" />
                   {t('TownPlayersTitle', 'Town')}
                 </span>
-                <span className="text-sm font-medium">{stats.winRate.town}%</span>
+                <span className="text-sm font-medium">
+                  {stats.winRate.town}%
+                </span>
               </div>
               <Progress value={stats.winRate.town} className="h-2" />
             </div>
@@ -143,7 +148,9 @@ export function GameStatistics({ games }: GameStatisticsProps) {
                   <Skull className="h-3 w-3" />
                   {t('MafiaPlayersTitle', 'Mafia')}
                 </span>
-                <span className="text-sm font-medium">{stats.winRate.mafia}%</span>
+                <span className="text-sm font-medium">
+                  {stats.winRate.mafia}%
+                </span>
               </div>
               <Progress
                 value={stats.winRate.mafia}
@@ -191,7 +198,8 @@ export function GameStatistics({ games }: GameStatisticsProps) {
             {t('games.favoriteTheme', 'Favorite Theme')}
           </CardTitle>
           <Badge variant="secondary" className="text-xs">
-            {themeCounts[stats.favoriteTheme] || 0} {t('games.gamesWord', 'games')}
+            {themeCounts[stats.favoriteTheme] || 0}{' '}
+            {t('games.gamesWord', 'games')}
           </Badge>
         </CardHeader>
         <CardContent>
@@ -207,4 +215,4 @@ export function GameStatistics({ games }: GameStatisticsProps) {
       </Card>
     </div>
   );
-} 
+}

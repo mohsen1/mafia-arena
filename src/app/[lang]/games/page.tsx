@@ -199,7 +199,9 @@ function GameCard({
               <Users className="w-4 h-4" />
               {t('games.playerCount', { count: game.playerCount })}
               <span className="text-muted-foreground/60">•</span>
-              <span className="capitalize">{t(`themes.${game.themeKey}.name`, game.themeKey)}</span>
+              <span className="capitalize">
+                {t(`themes.${game.themeKey}.name`, game.themeKey)}
+              </span>
             </CardDescription>
           </div>
           <Badge variant={getStatusColor(game.status)}>
@@ -348,9 +350,7 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
           </div>
 
           {/* Statistics */}
-          {!loading && games.length > 0 && (
-            <GameStatistics games={games} />
-          )}
+          {!loading && games.length > 0 && <GameStatistics games={games} />}
         </div>
 
         {loading ? (
@@ -366,7 +366,7 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
                 </Card>
               ))}
             </div>
-            
+
             {/* Games Grid Skeleton */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
