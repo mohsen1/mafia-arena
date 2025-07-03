@@ -8,11 +8,13 @@ import type { FilteredGameState } from '@/lib/interfaces/client.types';
 // import { deleteGameAction } from "@/app/actions/index"; // Server Actions need care in Client Components
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { LogIn, Loader2, Sparkles, Gamepad2 } from 'lucide-react';
+import { LogIn, Loader2, Sparkles, Gamepad2, ArrowLeft } from 'lucide-react';
 // import { format } from "date-fns"; // Removed unused format import
 import SimpleStartGameForm from '@/components/SimpleStartGameForm';
 import GameCard from '@/components/GameCard';
 import { Header } from '@/components/Header';
+import { GamePresetSelector, type GamePreset } from '@/components/GamePresetSelector';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Import i18n hook
 import { useTranslation } from 'react-i18next';
@@ -31,9 +33,21 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
   const [existingGames /* setExistingGames */] = useState<FilteredGameState[]>(
     []
   );
+  const [currentStep, setCurrentStep] = useState<'preset' | 'custom'>('preset');
+  const [selectedPreset, setSelectedPreset] = useState<GamePreset | null>(null);
 
   const werewolfAITitle = t('WerewolfAITitle', 'Werewolf AI');
   const existingGamesHeading = t('ExistingGamesTitle', 'Existing Games');
+
+  const handlePresetSelect = (preset: GamePreset) => {
+    setSelectedPreset(preset);
+    setCurrentStep('custom');
+  };
+
+  const handleBack = () => {
+    setCurrentStep('preset');
+    setSelectedPreset(null);
+  };
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 flex flex-col items-center space-y-12 min-h-screen">
@@ -60,9 +74,46 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
 
       {/* Game Creation Card */}
       <div className="w-full max-w-4xl">
-        <div className="bg-card/50 backdrop-blur border rounded-2xl p-8 shadow-xl">
-          <SimpleStartGameForm lang={lang} user={session?.user} />
-        </div>
+        <AnimatePresence mode="wait">
+          {currentStep === 'preset' ? (
+            <motion.div
+              key="preset"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <GamePresetSelector onSelect={handlePresetSelect} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="custom"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+                className="mb-4"
+              >
+                <ArrowLeft className="w-4 h-4 me-2" />
+                {t('common.back', 'Back to presets')}
+              </Button>
+              
+              <div className="bg-card/50 backdrop-blur border rounded-2xl p-8 shadow-xl">
+                <SimpleStartGameForm 
+                  lang={lang} 
+                  user={session?.user} 
+                  preset={selectedPreset}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Existing Games Section */}

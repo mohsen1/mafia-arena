@@ -249,7 +249,14 @@
     "passwordRequirements": "Password must be at least 8 characters with uppercase, lowercase, and number",
     "google": "Google",
     "github": "GitHub",
-    "toggleTheme": "Toggle theme"
+    "toggleTheme": "Toggle theme",
+    "players": "players"
+  },
+  "soundSettings": {
+    "title": "Sound Settings",
+    "enableSounds": "Enable sound effects",
+    "volume": "Volume",
+    "description": "Sound effects play during key game events like voting, eliminations, and phase changes."
   },
   
   "signIn": {
@@ -441,6 +448,45 @@
       "waiting": "Waiting",
       "inProgress": "In Progress",
       "completed": "Completed"
+    }
+  },
+  "gamePresets": {
+    "title": "Choose Your Game Mode",
+    "subtitle": "Select a preset to quickly start playing",
+    "skipToCustom": "Skip to custom settings →",
+    "difficulty": {
+      "easy": "Easy",
+      "normal": "Normal",
+      "hard": "Hard"
+    },
+    "quick": {
+      "name": "Quick Game",
+      "description": "Perfect for a fast game with simplified rules",
+      "feature1": "5 players for quick rounds",
+      "feature2": "You play as a human",
+      "feature3": "Simplified voting"
+    },
+    "classic": {
+      "name": "Classic Werewolf",
+      "description": "The traditional werewolf experience",
+      "feature1": "7 players for balanced gameplay",
+      "feature2": "All classic roles included",
+      "feature3": "Standard day/night cycles"
+    },
+    "spectator": {
+      "name": "AI Spectator Mode",
+      "description": "Watch AI players battle it out",
+      "feature1": "8 AI players only",
+      "feature2": "Prohibition era theme",
+      "feature3": "Perfect for learning strategies"
+    },
+    "custom": {
+      "name": "Custom Game",
+      "description": "Configure every aspect of your game",
+      "time": "Varies",
+      "feature1": "Choose player count",
+      "feature2": "Select any theme",
+      "feature3": "Full control over settings"
     }
   },
   

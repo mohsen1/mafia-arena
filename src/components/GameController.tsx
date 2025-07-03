@@ -2,7 +2,11 @@
 
 import { Button } from '@/components/ui/button'; // Import Button
 import { useGameContext } from '@/context/GameContext'; // Import context hook
-import { Loader, Pause, Play, SkipForward, Keyboard } from 'lucide-react';
+import { Loader, Pause, Play, SkipForward, Keyboard, Volume2 } from 'lucide-react';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { SoundSettings } from '@/components/SoundSettings';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useEffect, useState } from 'react';
 
 import { useTranslation } from 'react-i18next'; // Import from react-i18next
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
@@ -23,6 +27,40 @@ export default function GameController() {
     error,
   } = useGameContext();
 
+  // Sound effects state
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [soundVolume, setSoundVolume] = useState(0.5);
+  const soundEffects = useSoundEffects({ enabled: soundEnabled, volume: soundVolume });
+
+  // Track phase changes for sound effects
+  useEffect(() => {
+    if (!gameState || !soundEnabled) return;
+
+    // Play phase change sounds
+    if (gameState.phase === 'Day') {
+      soundEffects.playSound('dayStart');
+    } else if (gameState.phase === 'Night' || gameState.phase === 'FirstNight') {
+      soundEffects.playSound('nightStart');
+    } else if (gameState.phase === 'GameOver') {
+      // Determine if player won or lost
+      const winCondition = gameState.winCondition as { outcome?: string } | null;
+      const playerWon = winCondition?.outcome?.includes('Town') && gameState.humanPlayerId;
+      soundEffects.playSound(playerWon ? 'victory' : 'defeat');
+    }
+  }, [gameState?.phase, soundEnabled, soundEffects, gameState]);
+
+  // Play sound for voting
+  useEffect(() => {
+    if (!gameState || !soundEnabled) return;
+
+    const latestMessage = gameState.log?.[0];
+    if (latestMessage?.content?.includes('votes for') || latestMessage?.content?.includes('abstains')) {
+      soundEffects.playSound('vote');
+    } else if (latestMessage?.content?.includes('eliminated') || latestMessage?.content?.includes('killed')) {
+      soundEffects.playSound('elimination');
+    }
+  }, [gameState?.log, soundEnabled, soundEffects]);
+
   const handleNextClick = () => {
     // Don't run next if auto-running is on, let it proceed naturally
     // Or, maybe clicking Next manually should always work and disable auto-run?
@@ -35,6 +73,16 @@ export default function GameController() {
   const showKeyboardShortcuts = () => {
     const event = new CustomEvent('showKeyboardShortcuts');
     window.dispatchEvent(event);
+  };
+
+  const handleSoundEnabledChange = (enabled: boolean) => {
+    setSoundEnabled(enabled);
+    soundEffects.setEnabled(enabled);
+  };
+
+  const handleVolumeChange = (volume: number) => {
+    setSoundVolume(volume);
+    soundEffects.setVolume(volume);
   };
 
   // Get phase-aware loading message
@@ -106,6 +154,28 @@ export default function GameController() {
           {/* Translate button text */}
           {t('NextTurnButton')}
         </Button>
+
+        {/* Sound settings button */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('soundSettings.title')}
+              title="Sound Settings"
+            >
+              <Volume2 className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80">
+            <SoundSettings
+              enabled={soundEnabled}
+              volume={soundVolume}
+              onEnabledChange={handleSoundEnabledChange}
+              onVolumeChange={handleVolumeChange}
+            />
+          </PopoverContent>
+        </Popover>
 
         {/* Keyboard shortcuts help button */}
         <Button
