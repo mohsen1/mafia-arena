@@ -9,6 +9,8 @@ import { GameErrorDisplay } from '@/components/GameErrorDisplay';
 import { PhaseTransitionNotification } from '@/components/PhaseTransitionNotification';
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
 import { GameHistory } from '@/components/GameHistory';
+import { VotingPanel } from '@/components/VotingPanel';
+import { RoleRevealAnimation } from '@/components/RoleRevealAnimation';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -16,7 +18,7 @@ import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
@@ -49,6 +51,12 @@ function GameLayout({ gameId }: { gameId: string }) {
   // Track phase changes for notifications
   const [previousPhase, setPreviousPhase] = useState(gameState?.phase);
   const [showPhaseNotification, setShowPhaseNotification] = useState(false);
+  const [roleReveal, setRoleReveal] = useState<{
+    playerName: string;
+    role: string;
+    isEvil: boolean;
+    reason: 'voted' | 'killed';
+  } | null>(null);
 
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
@@ -61,6 +69,34 @@ function GameLayout({ gameId }: { gameId: string }) {
       setTimeout(() => setShowPhaseNotification(false), 100);
     }
   }, [gameState?.phase, previousPhase]);
+
+  // Track eliminated players to show role reveals
+  const [revealedPlayers, setRevealedPlayers] = useState<Set<string>>(new Set());
+  
+  useEffect(() => {
+    if (!gameState) return;
+    
+    // Check for newly eliminated players
+    Object.values(gameState.players).forEach((player) => {
+      if (player.status === 'Dead' && !revealedPlayers.has(player.id)) {
+        // Find elimination reason from recent messages
+        const recentMessages = gameState.log.slice(-10);
+        const isVoted = recentMessages.some(
+          msg => msg.content.includes(`${player.name} was executed`)
+        );
+        
+        if (player.role) {
+          setRoleReveal({
+            playerName: player.name,
+            role: player.role,
+            isEvil: player.role === 'Mafia',
+            reason: isVoted ? 'voted' : 'killed',
+          });
+          setRevealedPlayers(prev => new Set([...prev, player.id]));
+        }
+      }
+    });
+  }, [gameState, revealedPlayers]);
 
   // Show character generation UI if game is in CharacterGeneration phase
   if (gameState?.phase === 'CharacterGeneration') {
@@ -89,6 +125,17 @@ function GameLayout({ gameId }: { gameId: string }) {
         />
       )}
 
+      {/* Role reveal animation */}
+      {roleReveal && (
+        <RoleRevealAnimation
+          playerName={roleReveal.playerName}
+          role={roleReveal.role}
+          isEvil={roleReveal.isEvil}
+          reason={roleReveal.reason}
+          onComplete={() => setRoleReveal(null)}
+        />
+      )}
+
       {/* Keyboard shortcuts dialog */}
       <KeyboardShortcutsDialog />
 
@@ -108,14 +155,23 @@ function GameLayout({ gameId }: { gameId: string }) {
               </div>
             )}
             <ConversationLog />
-            {/* Game History */}
-            {gameState && 'memory' in gameState && (
-              <div className="p-4">
-                <GameHistory
-                  gameState={gameState as FilteredGameState & { memory: AgentMemory }}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+              {/* Voting Panel */}
+              {gameState && gameState.phase === 'Day' && (
+                <VotingPanel 
+                  gameState={gameState} 
                 />
-              </div>
-            )}
+              )}
+              {/* Game History */}
+              {gameState && 'memory' in gameState && (
+                <GameHistory
+                  gameState={
+                    gameState as FilteredGameState & { memory: AgentMemory }
+                  }
+                  className={gameState.phase !== 'Day' ? 'lg:col-span-2' : ''}
+                />
+              )}
+            </div>
           </div>
           {humanPlayerId && <HumanChatInput />}
           {!humanPlayerId && (
