@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { GameError, GameErrors, ErrorCode } from '../errors/GameError';
 
 // Load environment variables
 dotenv.config();
@@ -114,60 +115,43 @@ export const getAIResponse: GetAIResponseFunction = async (
     return responseContent.text;
   } catch (error: unknown) {
     const modelName = settings.model;
-    let errorMessage = 'Unknown error';
-    let errorType = 'UNKNOWN_ERROR';
-
+    
+    // Convert to GameError for consistent error handling
+    let gameError: GameError;
+    
     if (error instanceof Error) {
-      errorMessage = error.message;
-
-      // Categorize error types for better handling
-      if (
-        error.message.includes('401') ||
-        error.message.includes('authentication')
-      ) {
-        errorType = 'AUTHENTICATION_ERROR';
-        errorMessage =
-          'Invalid API key. Please check your Anthropic API key configuration.';
-      } else if (
-        error.message.includes('429') ||
-        error.message.includes('rate_limit')
-      ) {
-        errorType = 'RATE_LIMIT_ERROR';
-        errorMessage =
-          'Rate limit exceeded. Please wait a moment before trying again.';
-      } else if (error.message.includes('timeout')) {
-        errorType = 'TIMEOUT_ERROR';
-        errorMessage = `Request timed out after 60 seconds. The Claude API may be experiencing high load.`;
-      } else if (
-        error.message.includes('ECONNREFUSED') ||
-        error.message.includes('network')
-      ) {
-        errorType = 'CONNECTION_ERROR';
-        errorMessage =
-          'Cannot connect to Claude API. Please check your internet connection.';
-      } else if (error.message.includes('model_not_found')) {
-        errorType = 'MODEL_ERROR';
-        errorMessage = `Model "${modelName}" not found. Please check if this model is available.`;
-      } else if (error.message.includes('context_length')) {
-        errorType = 'CONTEXT_LENGTH_ERROR';
-        errorMessage =
-          "Message too long. The conversation exceeds Claude's context window.";
+      const errorMessage = error.message.toLowerCase();
+      
+      if (errorMessage.includes('401') || errorMessage.includes('authentication')) {
+        gameError = GameErrors.aiAuthentication('Anthropic', error);
+      } else if (errorMessage.includes('429') || errorMessage.includes('rate_limit')) {
+        gameError = GameErrors.aiRateLimit('Anthropic', error);
+      } else if (errorMessage.includes('timeout')) {
+        gameError = GameErrors.aiTimeout('Anthropic', 60000, error);
+      } else if (errorMessage.includes('econnrefused') || errorMessage.includes('network')) {
+        gameError = new GameError({
+          code: ErrorCode.NETWORK_ERROR,
+          message: error.message,
+          userMessage: 'Cannot connect to Claude API. Please check your internet connection.',
+          originalError: error,
+          retryable: true,
+          httpStatus: 503
+        });
+      } else if (errorMessage.includes('model_not_found')) {
+        gameError = GameErrors.aiModelNotFound(modelName, 'Anthropic', error);
+      } else if (errorMessage.includes('context_length')) {
+        gameError = GameErrors.aiContextLength('Anthropic', error);
+      } else {
+        gameError = GameError.fromUnknown(error);
       }
+    } else {
+      gameError = GameError.fromUnknown(error);
     }
 
     console.error(
-      `[Claude Error - ${gameId}|${playerId}] ${errorType} for model ${modelName}: ${errorMessage}`
+      `[Claude Error - ${gameId}|${playerId}] ${gameError.code} for model ${modelName}: ${gameError.userMessage}`
     );
 
-    // Create a more informative error
-    const detailedError = new Error(errorMessage);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).type = errorType;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).model = modelName;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).originalError = error;
-
-    throw detailedError;
+    throw gameError;
   }
 };
