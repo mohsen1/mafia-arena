@@ -171,7 +171,13 @@ export class OpenAIAgent implements IAgent {
       memory: memoryForPrompt,
     };
 
-    const systemPrompt = getSystemPrompt();
+    const systemPrompt = getSystemPrompt(
+      gameState.self.role,
+      gameState.themeName || 'Unknown Theme',
+      '', // theme description not available in game state
+      this.persona,
+      gameState.language || 'en'
+    );
     const userPrompt = getUserPrompt(promptInputState, allowedActions);
 
     const memoryForLogging = gameState.memory;

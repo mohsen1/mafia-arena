@@ -60,8 +60,6 @@ const PROVIDER_ICONS: Record<string, React.ReactNode> = {
   fireworks: <Cloud className="w-4 h-4" />,
 };
 
-
-
 export const EnhancedProviderModelSelector = React.memo(
   function EnhancedProviderModelSelector({
     idPrefix,
