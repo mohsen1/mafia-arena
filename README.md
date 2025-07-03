@@ -19,6 +19,7 @@ Werewolf AI brings the classic Werewolf/Mafia party game to the web. It pairs a 
 - ElevenLabs text-to-speech for immersive play
 - Configurable roles, themes and AI models
 - **Self-hosted AI support** - Run completely offline with Ollama
+- **Multi-model gameplay** - Use different AI models for different teams (e.g., different Ollama models for Town vs Mafia)
 
 ## Architecture
 
