@@ -502,5 +502,8 @@
   "error": "এরর",
   "UserProvider": "({{keyName}})",
   "OllamaConfiguration": "ওলামা কনফিগারেশন",
-  "landingFooterHelp": "সাহায্য"
+  "landingFooterHelp": "সাহায্য",
+  "DayStart": "Day {{round}} begins. The town gathers to discuss recent events.",
+  "DiscussionComplete": "The discussion phase has ended. It's time to vote.",
+  "test-connection-failed": "Test failed: {{error}}"
 }

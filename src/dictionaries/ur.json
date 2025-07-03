@@ -494,5 +494,16 @@
   "MafiaPlayer": "مافیا {{number}}",
   "TableHeader_Role": "کردار",
   "UserProvider": "({{keyName}})",
-  "character-generation.step-finalizing": "کردار کی تفصیلات کو حتمی شکل دی جا رہی ہے..."
+  "character-generation.step-finalizing": "کردار کی تفصیلات کو حتمی شکل دی جا رہی ہے...",
+  "errors": "خرابیاں",
+  "PersonalityType": "شخصیت کی قسم",
+  "ollama": "اولاما",
+  "AIConfiguration": "اے آئی کی تشکیل",
+  "Dark": "تاریک",
+  "Light": "روشنی",
+  "System": "سسٹم",
+  "DiscussionComplete": "بحث کا مرحلہ ختم ہو گیا ہے۔ اب ووٹ ڈالنے کا وقت ہے۔",
+  "error": "خرابی",
+  "test-connection-failed": "ٹیسٹ ناکام: {{error}}",
+  "DayStart": "دن {{round}} شروع ہوتا ہے۔ قصبہ حالیہ واقعات پر تبادلہ خیال کرنے کے لئے جمع ہوتا ہے۔"
 }

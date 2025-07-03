@@ -31,6 +31,8 @@ import {
   type GameListItem,
 } from '@/app/actions/games';
 import { formatDistanceToNow } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+import { GameStatistics } from '@/components/GameStatistics';
 
 interface PageProps {
   params: Promise<{ lang: LanguageCode }>;
@@ -112,6 +114,32 @@ function EmptyGamesView({ lang }: { lang: LanguageCode }) {
   );
 }
 
+function GameCardSkeleton() {
+  return (
+    <Card className="animate-pulse">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <Skeleton className="h-6 w-20" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <div className="flex gap-2 pt-2">
+            <Skeleton className="h-9 flex-1" />
+            <Skeleton className="h-9 w-9" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function GameCard({
   game,
   lang,
@@ -171,7 +199,7 @@ function GameCard({
               <Users className="w-4 h-4" />
               {t('games.playerCount', { count: game.playerCount })}
               <span className="text-muted-foreground/60">•</span>
-              <span className="capitalize">{game.themeKey}</span>
+              <span className="capitalize">{t(`themes.${game.themeKey}.name`, game.themeKey)}</span>
             </CardDescription>
           </div>
           <Badge variant={getStatusColor(game.status)}>
@@ -194,7 +222,18 @@ function GameCard({
               <span className="text-muted-foreground">
                 {t('games.winner')}:
               </span>
-              <Badge variant="default">{t('games.gameComplete')}</Badge>
+              <Badge variant="default">
+                {(() => {
+                  const winCondition = game.winCondition as any;
+                  if (winCondition?.winner === 'Town') {
+                    return t('TownPlayersTitle', 'Town');
+                  } else if (winCondition?.winner === 'Mafia') {
+                    return t('MafiaPlayersTitle', 'Mafia');
+                  } else {
+                    return t('games.gameComplete');
+                  }
+                })()}
+              </Badge>
             </div>
           )}
 
@@ -309,59 +348,31 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
           </div>
 
           {/* Statistics */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-8">
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">
-                  {games.length}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('games.totalGames')}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">
-                  {gamesByStatus.waiting}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('games.waitingGames')}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">
-                  {gamesByStatus.in_progress}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('games.activeGames')}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-foreground">
-                  {gamesByStatus.completed}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('games.completedGames')}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          {!loading && games.length > 0 && (
+            <GameStatistics games={games} />
+          )}
         </div>
 
         {loading ? (
-          <div className="text-center py-16">
-            <div className="w-12 h-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-4" />
-            <p className="text-lg text-muted-foreground">
-              {t('games.loadingGames')}
-            </p>
+          <div className="space-y-6">
+            {/* Statistics Skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4">
+                    <Skeleton className="h-8 w-12 mb-2" />
+                    <Skeleton className="h-4 w-24" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            {/* Games Grid Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <GameCardSkeleton key={i} />
+              ))}
+            </div>
           </div>
         ) : games.length === 0 ? (
           <EmptyGamesView lang={lang} />

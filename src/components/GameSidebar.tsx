@@ -100,20 +100,17 @@ export function GameSidebar() {
       <h2 className="text-lg font-semibold p-3 ">
         <Link
           href={`/${lang}`}
-          className="flex items-center gap-2"
-          aria-label={t('Werewolves AI')}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          aria-label={t('Werewolf AI')}
         >
-          {/* Display total player count */}
-          <span className="flex items-center gap-2">
-            <Image
-              src={'/images/logo.png'}
-              alt="Werewolves AI Logo"
-              className="w-9 h-9"
-              width={36}
-              height={36}
-            />
-            {t('Werewolves AI')}
-          </span>
+          <Image
+            src="/logo.png"
+            alt="Werewolf AI Logo"
+            width={32}
+            height={32}
+            className="rounded-lg"
+          />
+          <span className="font-bold text-lg">{t('Werewolf AI')}</span>
         </Link>
       </h2>
       <GameHeader />

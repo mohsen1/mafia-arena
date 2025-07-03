@@ -502,5 +502,8 @@
   "landingFooterHelp": "Помощь",
   "Delete": "Удалить",
   "SystemAndUserProvider": "(Система + {{keyName}})",
-  "CustomProvider": "(Пользовательский)"
+  "CustomProvider": "(Пользовательский)",
+  "DiscussionComplete": "Фаза обсуждения завершена. Время голосовать.",
+  "test-connection-failed": "Тест не пройден: {{error}}",
+  "DayStart": "День {{round}} начинается. Город собирается, чтобы обсудить последние события."
 }

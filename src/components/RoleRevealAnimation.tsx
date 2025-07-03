@@ -249,4 +249,4 @@ export function RoleRevealAnimation({
       )}
     </AnimatePresence>
   );
-} 
+}
