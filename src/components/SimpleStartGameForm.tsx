@@ -181,7 +181,7 @@ export default function SimpleStartGameForm({
   useEffect(() => {
     const loadUserKeys = async () => {
       if (!user?.email) return;
-      
+
       try {
         const keys = await getUserApiKeys();
         setUserApiKeys(keys);
