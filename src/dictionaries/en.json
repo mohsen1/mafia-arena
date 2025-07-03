@@ -258,6 +258,83 @@
     "volume": "Volume",
     "description": "Sound effects play during key game events like voting, eliminations, and phase changes."
   },
+  "tutorial": {
+    "welcome": {
+      "title": "Welcome to Werewolf AI",
+      "description": "Learn how to play this classic social deduction game",
+      "content1": "Werewolf is a game of deception, deduction, and strategy. Players are secretly assigned roles and must work together (or against each other) to achieve their goals.",
+      "content2": "In this AI-powered version, you'll play alongside intelligent AI characters, each with unique personalities and strategies.",
+      "tip": "Tip: Pay attention to what players say and how they vote!"
+    },
+    "roles": {
+      "title": "Understanding Roles",
+      "description": "Learn about the different roles in the game",
+      "villager": "Villager",
+      "villagerDesc": "Regular townspeople who must identify the werewolves",
+      "werewolf": "Werewolf",
+      "werewolfDesc": "Secret killers who eliminate villagers at night",
+      "seer": "Seer",
+      "seerDesc": "Can investigate one player each night to learn their role",
+      "doctor": "Doctor",
+      "doctorDesc": "Can protect one player from werewolf attacks each night"
+    },
+    "dayPhase": {
+      "title": "Day Phase",
+      "description": "What happens during the day",
+      "content1": "During the day, all players discuss and share their suspicions. This is when you gather information and try to identify the werewolves.",
+      "activities": "Day Activities:",
+      "activity1": "Players discuss who they suspect",
+      "activity2": "Share information from night actions",
+      "activity3": "Build alliances and trust",
+      "activity4": "Vote to eliminate suspected werewolves",
+      "votingTip": "Majority vote eliminates a player"
+    },
+    "nightPhase": {
+      "title": "Night Phase",
+      "description": "What happens during the night",
+      "content1": "At night, special roles perform their actions in secret. Werewolves choose their victim, while the Doctor and Seer use their abilities.",
+      "actions": "Night Actions:",
+      "werewolfAction": "Werewolves choose a victim",
+      "doctorAction": "Doctor protects a player",
+      "seerAction": "Seer investigates a player",
+      "tip": "Remember: Regular villagers do nothing at night!"
+    },
+    "winning": {
+      "title": "How to Win",
+      "description": "Victory conditions for each team",
+      "townVictory": "Town Victory",
+      "townCondition": "Eliminate all werewolves to save the village",
+      "werewolfVictory": "Werewolf Victory",
+      "werewolfCondition": "Equal or outnumber the villagers",
+      "ready": "You're ready to play!"
+    },
+    "previous": "Previous",
+    "next": "Next",
+    "start": "Start Playing",
+    "showTutorial": "How to Play"
+  },
+  "stats": {
+    "totalGames": "Total Games",
+    "winRate": "Win Rate",
+    "currentStreak": "Current Streak",
+    "avgDuration": "Avg. Duration",
+    "recentPerformance": "Recent Performance",
+    "last10Games": "Your results from the last 10 games",
+    "noGamesYet": "No completed games yet",
+    "older": "Older",
+    "newer": "Newer",
+    "rolePerformance": "Role Performance",
+    "performanceByRole": "Your win rate with different roles",
+    "noRoleData": "No role data available yet",
+    "favorite": "Favorite",
+    "wins": "wins",
+    "gameActivity": "Game Activity",
+    "activeGames": "Active Games",
+    "completedGames": "Completed Games",
+    "longestStreak": "Longest Win Streak",
+    "achievements": "Achievements",
+    "comingSoon": "Achievement system coming soon!"
+  },
   
   "signIn": {
     "title": "Sign In",

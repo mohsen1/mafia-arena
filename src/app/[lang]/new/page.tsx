@@ -8,13 +8,17 @@ import type { FilteredGameState } from '@/lib/interfaces/client.types';
 // import { deleteGameAction } from "@/app/actions/index"; // Server Actions need care in Client Components
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { LogIn, Loader2, Sparkles, Gamepad2, ArrowLeft } from 'lucide-react';
+import { LogIn, Loader2, Sparkles, Gamepad2, ArrowLeft, HelpCircle } from 'lucide-react';
 // import { format } from "date-fns"; // Removed unused format import
 import SimpleStartGameForm from '@/components/SimpleStartGameForm';
 import GameCard from '@/components/GameCard';
 import { Header } from '@/components/Header';
-import { GamePresetSelector, type GamePreset } from '@/components/GamePresetSelector';
+import {
+  GamePresetSelector,
+  type GamePreset,
+} from '@/components/GamePresetSelector';
 import { motion, AnimatePresence } from 'framer-motion';
+import { InteractiveTutorial } from '@/components/InteractiveTutorial';
 
 // Import i18n hook
 import { useTranslation } from 'react-i18next';
@@ -35,6 +39,7 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
   );
   const [currentStep, setCurrentStep] = useState<'preset' | 'custom'>('preset');
   const [selectedPreset, setSelectedPreset] = useState<GamePreset | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const werewolfAITitle = t('WerewolfAITitle', 'Werewolf AI');
   const existingGamesHeading = t('ExistingGamesTitle', 'Existing Games');
@@ -51,6 +56,9 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 flex flex-col items-center space-y-12 min-h-screen">
+      {showTutorial && (
+        <InteractiveTutorial onComplete={() => setShowTutorial(false)} />
+      )}
       {/* Hero Section */}
       <div className="text-center space-y-4 max-w-3xl">
         <div className="flex items-center justify-center gap-3 mb-6">
@@ -70,6 +78,15 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
             'Create an immersive AI-powered social deduction game experience'
           )}
         </p>
+        
+        <Button
+          variant="outline"
+          onClick={() => setShowTutorial(true)}
+          className="mt-2"
+        >
+          <HelpCircle className="w-4 h-4 mr-2" />
+          {t('tutorial.showTutorial')}
+        </Button>
       </div>
 
       {/* Game Creation Card */}
@@ -103,11 +120,11 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
                 <ArrowLeft className="w-4 h-4 me-2" />
                 {t('common.back', 'Back to presets')}
               </Button>
-              
+
               <div className="bg-card/50 backdrop-blur border rounded-2xl p-8 shadow-xl">
-                <SimpleStartGameForm 
-                  lang={lang} 
-                  user={session?.user} 
+                <SimpleStartGameForm
+                  lang={lang}
+                  user={session?.user}
                   preset={selectedPreset}
                 />
               </div>

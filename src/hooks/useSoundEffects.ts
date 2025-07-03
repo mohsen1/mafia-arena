@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 
-export type SoundEffect = 
+export type SoundEffect =
   | 'vote'
   | 'elimination'
   | 'phaseChange'
@@ -64,7 +64,7 @@ export function useSoundEffects(config: Partial<SoundConfig> = {}) {
 
     return () => {
       // Cleanup
-      audioRefs.current.forEach(audio => {
+      audioRefs.current.forEach((audio) => {
         audio.pause();
         audio.src = '';
       });
@@ -84,10 +84,10 @@ export function useSoundEffects(config: Partial<SoundConfig> = {}) {
     // Reset and play
     audio.currentTime = 0;
     audio.volume = configRef.current.volume;
-    
+
     const playPromise = audio.play();
     if (playPromise !== undefined) {
-      playPromise.catch(error => {
+      playPromise.catch((error) => {
         console.warn(`Failed to play sound effect "${effect}":`, error);
       });
     }
@@ -102,7 +102,7 @@ export function useSoundEffects(config: Partial<SoundConfig> = {}) {
   }, []);
 
   const stopAllSounds = useCallback(() => {
-    audioRefs.current.forEach(audio => {
+    audioRefs.current.forEach((audio) => {
       audio.pause();
       audio.currentTime = 0;
     });
@@ -110,17 +110,20 @@ export function useSoundEffects(config: Partial<SoundConfig> = {}) {
 
   const setVolume = useCallback((volume: number) => {
     configRef.current.volume = Math.max(0, Math.min(1, volume));
-    audioRefs.current.forEach(audio => {
+    audioRefs.current.forEach((audio) => {
       audio.volume = configRef.current.volume;
     });
   }, []);
 
-  const setEnabled = useCallback((enabled: boolean) => {
-    configRef.current.enabled = enabled;
-    if (!enabled) {
-      stopAllSounds();
-    }
-  }, [stopAllSounds]);
+  const setEnabled = useCallback(
+    (enabled: boolean) => {
+      configRef.current.enabled = enabled;
+      if (!enabled) {
+        stopAllSounds();
+      }
+    },
+    [stopAllSounds]
+  );
 
   return {
     playSound,
@@ -130,4 +133,4 @@ export function useSoundEffects(config: Partial<SoundConfig> = {}) {
     setEnabled,
     config: configRef.current,
   };
-} 
+}

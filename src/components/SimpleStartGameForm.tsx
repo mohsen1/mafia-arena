@@ -105,10 +105,13 @@ export default function SimpleStartGameForm({
   const [mafiaProviderSelection, setMafiaProviderSelection] =
     useState<string>('');
   const [mafiaModelSelection, setMafiaModelSelection] = useState<string>('');
-  const [isHumanJoining, setIsHumanJoining] = useState(preset?.humanPlayer ?? false);
+  const [isHumanJoining, setIsHumanJoining] = useState(
+    preset?.humanPlayer ?? false
+  );
   const [humanPlayerName, setHumanPlayerName] = useState(defaultPlayerName);
-  const [selectedGameThemeKey, setSelectedGameThemeKey] =
-    useState(preset?.theme || 'UK_VILLAGE_1900S');
+  const [selectedGameThemeKey, setSelectedGameThemeKey] = useState(
+    preset?.theme || 'UK_VILLAGE_1900S'
+  );
   const [playerCount, setPlayerCount] = useState(preset?.playerCount || 6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -129,7 +132,7 @@ export default function SimpleStartGameForm({
       setPlayerCount(preset.playerCount);
       setIsHumanJoining(preset.humanPlayer);
       setSelectedGameThemeKey(preset.theme);
-      
+
       // For spectator mode, don't join as human
       if (preset.id === 'spectator') {
         setIsHumanJoining(false);

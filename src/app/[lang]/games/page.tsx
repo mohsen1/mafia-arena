@@ -32,7 +32,7 @@ import {
 } from '@/app/actions/games';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-import { GameStatistics } from '@/components/GameStatistics';
+import { GameStatsDashboard } from '@/components/GameStatsDashboard';
 
 interface PageProps {
   params: Promise<{ lang: LanguageCode }>;
@@ -364,8 +364,8 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
             </Button>
           </div>
 
-          {/* Statistics */}
-          {!loading && games.length > 0 && <GameStatistics games={games} />}
+          {/* Statistics Dashboard */}
+          {!loading && games.length > 0 && <GameStatsDashboard games={games} />}
         </div>
 
         {loading ? (
