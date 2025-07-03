@@ -19,6 +19,12 @@ if (!apiKey) {
 }
 
 function getOpenAIInstance() {
+  if (!apiKey) {
+    throw new Error(
+      'OpenAI client not initialized. Missing OPENAI_API_KEY environment variable. Please set it in your .env file.'
+    );
+  }
+
   const TIMEOUT_MS = 30_000;
 
   return new OpenAI({
@@ -66,10 +72,14 @@ export const getAIResponse: GetAIResponseFunction = async (
   playerId,
   settings
 ) => {
-  const openai = getOpenAIInstance();
-  if (!openai) {
-    throw new Error('OpenAI client not initialized. Missing OPENAI_API_KEY.');
+  if (!apiKey) {
+    throw new Error(
+      'OpenAI API key not configured. Please set OPENAI_API_KEY in your environment variables.'
+    );
   }
+
+  const openai = getOpenAIInstance();
+
   console.log(
     `[AI Request - ${gameId}|${playerId}] Calling model ${
       settings.model
@@ -88,7 +98,9 @@ export const getAIResponse: GetAIResponseFunction = async (
 
     const responseContent = completion.choices[0]?.message?.content;
     if (!responseContent) {
-      throw new Error('Received empty response content from AI.');
+      throw new Error(
+        `Empty response from OpenAI API. Model: ${settings.model}, Game: ${gameId}, Player: ${playerId}`
+      );
     }
 
     // Removed logging call
@@ -97,14 +109,48 @@ export const getAIResponse: GetAIResponseFunction = async (
     );
     return responseContent;
   } catch (error: unknown) {
-    // Type error as unknown
-    const modelName = settings.model; // Capture model name for error log
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const modelName = settings.model;
+    let errorMessage = 'Unknown error';
+    let errorType = 'UNKNOWN_ERROR';
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+
+      // Categorize error types for better handling
+      if (error.message.includes('401')) {
+        errorType = 'AUTHENTICATION_ERROR';
+        errorMessage =
+          'Invalid API key. Please check your OpenAI API key configuration.';
+      } else if (error.message.includes('429')) {
+        errorType = 'RATE_LIMIT_ERROR';
+        errorMessage =
+          'Rate limit exceeded. Please try again later or upgrade your OpenAI plan.';
+      } else if (error.message.includes('timeout')) {
+        errorType = 'TIMEOUT_ERROR';
+        errorMessage = `Request timed out after 30 seconds. The AI service may be experiencing high load.`;
+      } else if (error.message.includes('ECONNREFUSED')) {
+        errorType = 'CONNECTION_ERROR';
+        errorMessage =
+          'Cannot connect to OpenAI API. Please check your internet connection.';
+      } else if (error.message.includes('model')) {
+        errorType = 'MODEL_ERROR';
+        errorMessage = `Invalid model "${modelName}". Please check if this model is available for your API key.`;
+      }
+    }
+
     console.error(
-      `[AI Error - ${gameId}|${playerId}] Failed AI call for model ${modelName}:`,
-      errorMessage
+      `[AI Error - ${gameId}|${playerId}] ${errorType} for model ${modelName}: ${errorMessage}`
     );
-    // Removed logging call
-    throw error; // Re-throw the error to be handled by the caller
+
+    // Create a more informative error
+    const detailedError = new Error(errorMessage);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).type = errorType;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).model = modelName;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).originalError = error;
+
+    throw detailedError;
   }
 };

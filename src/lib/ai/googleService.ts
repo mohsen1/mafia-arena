@@ -23,7 +23,7 @@ if (!apiKey) {
 function getGoogleAIInstance() {
   if (!apiKey) {
     throw new Error(
-      'Google AI client not initialized. Missing GEMINI_API_KEY.'
+      'Google AI API key not configured. Please set GEMINI_API_KEY in your environment variables.'
     );
   }
   return new GoogleGenerativeAI(apiKey);
@@ -103,6 +103,12 @@ export const getAIResponse: GetAIResponseFunction = async (
   playerId,
   settings
 ) => {
+  if (!apiKey) {
+    throw new Error(
+      'Gemini API key not configured. Please set GEMINI_API_KEY in your environment variables.'
+    );
+  }
+
   const genAI = getGoogleAIInstance();
 
   console.log(
@@ -145,7 +151,9 @@ export const getAIResponse: GetAIResponseFunction = async (
       const responseContent = result.response.text();
 
       if (!responseContent) {
-        throw new Error('Received empty response content from Gemini.');
+        throw new Error(
+          `Empty response from Gemini API. Model: ${settings.model}, Game: ${gameId}, Player: ${playerId}`
+        );
       }
 
       console.log(
@@ -159,7 +167,9 @@ export const getAIResponse: GetAIResponseFunction = async (
     const responseContent = result.response.text();
 
     if (!responseContent) {
-      throw new Error('Received empty response content from Gemini.');
+      throw new Error(
+        `Empty response from Gemini API. Model: ${settings.model}, Game: ${gameId}, Player: ${playerId}`
+      );
     }
 
     console.log(
@@ -168,12 +178,71 @@ export const getAIResponse: GetAIResponseFunction = async (
     return responseContent;
   } catch (error: unknown) {
     const modelName = settings.model;
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    let errorMessage = 'Unknown error';
+    let errorType = 'UNKNOWN_ERROR';
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+
+      // Categorize error types for better handling
+      if (
+        error.message.includes('API key not valid') ||
+        error.message.includes('401')
+      ) {
+        errorType = 'AUTHENTICATION_ERROR';
+        errorMessage =
+          'Invalid API key. Please check your GEMINI_API_KEY configuration.';
+      } else if (
+        error.message.includes('429') ||
+        error.message.includes('quota')
+      ) {
+        errorType = 'RATE_LIMIT_ERROR';
+        errorMessage =
+          'Rate limit or quota exceeded. Please try again later or check your Google AI quota.';
+      } else if (error.message.includes('timeout')) {
+        errorType = 'TIMEOUT_ERROR';
+        errorMessage = `Request timed out. The Gemini API may be experiencing high load.`;
+      } else if (
+        error.message.includes('ECONNREFUSED') ||
+        error.message.includes('network')
+      ) {
+        errorType = 'CONNECTION_ERROR';
+        errorMessage =
+          'Cannot connect to Gemini API. Please check your internet connection.';
+      } else if (error.message.includes('model')) {
+        errorType = 'MODEL_ERROR';
+        errorMessage = `Invalid model "${modelName}". Please check if this model is available in your region.`;
+      } else if (
+        error.message.includes('safety') ||
+        error.message.includes('blocked')
+      ) {
+        errorType = 'SAFETY_ERROR';
+        errorMessage =
+          'Response blocked by safety filters. The content may violate usage policies.';
+      } else if (
+        error.message.includes('context') ||
+        error.message.includes('token')
+      ) {
+        errorType = 'CONTEXT_LENGTH_ERROR';
+        errorMessage =
+          "Message too long. The conversation exceeds Gemini's context window.";
+      }
+    }
+
     console.error(
-      `[Gemini Error - ${gameId}|${playerId}] Failed AI call for model ${modelName}:`,
-      errorMessage
+      `[Gemini Error - ${gameId}|${playerId}] ${errorType} for model ${modelName}: ${errorMessage}`
     );
-    throw error;
+
+    // Create a more informative error
+    const detailedError = new Error(errorMessage);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).type = errorType;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).model = modelName;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).originalError = error;
+
+    throw detailedError;
   }
 };
 
