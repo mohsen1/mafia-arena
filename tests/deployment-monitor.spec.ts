@@ -64,7 +64,8 @@ test.describe('Deployment Monitoring', () => {
     
     // Verify Vercel-specific handling
     expect(scriptContent).toContain('if [ "$VERCEL" = "1" ]');
-    expect(scriptContent).toContain('Skipping database operations during build');
+    expect(scriptContent).toContain('DATABASE_URL is configured');
+    expect(scriptContent).toContain('Running database migrations');
     
     // Verify build command
     expect(scriptContent).toContain('pnpm run build');
@@ -125,7 +126,7 @@ test.describe('Deployment Monitoring', () => {
     expect(workflowContent).toContain('Troubleshooting Steps');
   });
 
-  test('should run database checks in non-Vercel environments', () => {
+  test('should handle database operations in both Vercel and non-Vercel environments', () => {
     const scriptPath = path.join(process.cwd(), 'scripts/ci-build.sh');
     const scriptContent = fs.readFileSync(scriptPath, 'utf8');
     
@@ -134,9 +135,13 @@ test.describe('Deployment Monitoring', () => {
     expect(scriptContent).toContain('pnpm run db:migrate');
     expect(scriptContent).toContain('pnpm run db:push');
     
+    // Verify Vercel-specific handling
+    expect(scriptContent).toContain('if [ "$VERCEL" = "1" ]');
+    expect(scriptContent).toContain('DATABASE_URL is configured');
+    
     // Verify graceful failure handling
-    expect(scriptContent).toContain('Migration failed, but this might be expected');
-    expect(scriptContent).toContain('Schema push failed, but continuing with build');
+    expect(scriptContent).toContain('This is expected if there are no new migrations to apply');
+    expect(scriptContent).toContain('This might be expected if schema is already up to date');
   });
 
   test('should have proper schedule configuration', () => {

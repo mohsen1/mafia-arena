@@ -76,6 +76,8 @@ Set these in your Vercel project settings under "Environment Variables":
 3. **Migration Errors**
    - These are often non-fatal if the schema is already up to date
    - Check the build logs for details
+   - Migrations run automatically during build when DATABASE_URL is set
+   - The build continues even if migrations report no changes
 
 ### Build Errors
 

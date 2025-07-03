@@ -13,12 +13,46 @@ handle_error() {
   exit $2
 }
 
-# Skip database operations in Vercel build environment
+# Handle database operations differently for Vercel
 if [ "$VERCEL" = "1" ]; then
   echo "📦 Running in Vercel build environment"
-  echo "⏭️  Skipping database operations during build"
-  echo "ℹ️  Database migrations will run at runtime if needed"
+  
+  # Check if DATABASE_URL is available
+  if [ -n "$DATABASE_URL" ]; then
+    echo "🔍 DATABASE_URL is configured"
+    
+    # Check database connection
+    echo "📊 Checking database connection..."
+    if pnpm run check-db; then
+      echo "✅ Database connection successful"
+      
+      # Run migrations
+      echo "🔄 Running database migrations..."
+      if pnpm run db:migrate; then
+        echo "✅ Migrations completed successfully"
+      else
+        echo "⚠️  Migration command returned non-zero exit code"
+        echo "ℹ️  This is expected if there are no new migrations to apply"
+      fi
+      
+      # Push schema changes
+      echo "📤 Applying database schema..."
+      if pnpm run db:push; then
+        echo "✅ Database schema applied successfully"
+      else
+        echo "⚠️  Schema push returned non-zero exit code"
+        echo "ℹ️  This might be expected if schema is already up to date"
+      fi
+    else
+      echo "⚠️  Database connection check failed"
+      echo "ℹ️  Proceeding with build - database might not be configured yet"
+    fi
+  else
+    echo "⚠️  DATABASE_URL not configured"
+    echo "ℹ️  Skipping database operations - ensure DATABASE_URL is set in Vercel environment variables"
+  fi
 else
+  # Non-Vercel environment (CI, local builds)
   # Check database connection
   echo "📊 Checking database connection..."
   pnpm run check-db || handle_error "Database connection check" $?
