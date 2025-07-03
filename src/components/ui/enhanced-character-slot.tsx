@@ -35,6 +35,7 @@ import {
   Stethoscope,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface EnhancedCharacterSlotProps {
   id: string;
@@ -96,6 +97,7 @@ export function EnhancedCharacterSlot({
   className,
 }: EnhancedCharacterSlotProps) {
   const [localName, setLocalName] = useState(name);
+  const { t } = useTranslation();
 
   const handleNameBlur = useCallback(() => {
     if (localName !== name) {
@@ -277,7 +279,9 @@ export function EnhancedCharacterSlot({
           <div className="bg-muted/30 rounded-md p-3">
             <div className="flex items-center gap-2 mb-1">
               <Bot className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">AI Configuration</span>
+              <span className="text-sm font-medium">
+                {t('AIConfiguration', 'AI Configuration')}
+              </span>
             </div>
             <div className="text-xs text-muted-foreground space-y-1">
               {aiProvider && <p>Provider: {aiProvider}</p>}

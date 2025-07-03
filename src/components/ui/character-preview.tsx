@@ -32,6 +32,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface PersonaPreview {
   name: string;
@@ -135,6 +136,7 @@ export function CharacterPreview({
   const [previewPersona, setPreviewPersona] = useState<PersonaPreview | null>(
     null
   );
+  const { t } = useTranslation();
 
   const generatePreview = useCallback(() => {
     if (selectedPersonality !== 'any' && SAMPLE_PERSONAS[selectedPersonality]) {
@@ -250,7 +252,9 @@ export function CharacterPreview({
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="text-sm font-medium">Personality Type</Label>
+                <Label className="text-sm font-medium">
+                  {t('PersonalityType', 'Personality Type')}
+                </Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                   {[
                     'any',

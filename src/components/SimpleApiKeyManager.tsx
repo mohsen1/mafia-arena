@@ -42,6 +42,7 @@ import {
   type CreateApiKeyData,
 } from '@/app/actions/api-keys.actions';
 import { availableProviders } from '@/lib/models';
+import { useTranslation } from 'react-i18next';
 
 interface SimpleApiKeyManagerProps {
   onKeysChanged?: () => void;
@@ -58,6 +59,7 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
 export function SimpleApiKeyManager({
   onKeysChanged,
 }: SimpleApiKeyManagerProps) {
+  const { t } = useTranslation();
   const [apiKeys, setApiKeys] = useState<UserApiKeyInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +79,7 @@ export function SimpleApiKeyManager({
   // Load user's API keys on component mount
   useEffect(() => {
     loadApiKeys();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadApiKeys = async () => {
@@ -86,7 +89,7 @@ export function SimpleApiKeyManager({
       setApiKeys(keys);
       setError(null);
     } catch (err) {
-      setError('Failed to load API keys');
+      setError(t('apiKeys.failedToLoad'));
       console.error('Error loading API keys:', err);
     } finally {
       setLoading(false);
@@ -98,10 +101,9 @@ export function SimpleApiKeyManager({
 
     // Validate form
     const errors: Record<string, string> = {};
-    if (!formData.provider) errors.provider = 'Please select a provider';
-    if (!formData.keyName.trim())
-      errors.keyName = 'Please enter a name for your key';
-    if (!formData.apiKey.trim()) errors.apiKey = 'Please enter your API key';
+    if (!formData.provider) errors.provider = t('apiKeys.providerRequired');
+    if (!formData.keyName.trim()) errors.keyName = t('apiKeys.keyNameRequired');
+    if (!formData.apiKey.trim()) errors.apiKey = t('apiKeys.apiKeyRequired');
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -118,10 +120,10 @@ export function SimpleApiKeyManager({
         await loadApiKeys();
         onKeysChanged?.();
       } else {
-        setFormErrors({ general: result.error || 'Failed to add API key' });
+        setFormErrors({ general: result.error || t('apiKeys.failedToAdd') });
       }
     } catch (err) {
-      setFormErrors({ general: 'Failed to add API key' });
+      setFormErrors({ general: t('apiKeys.failedToAdd') });
       console.error('Error adding API key:', err);
     } finally {
       setSubmitting(false);
@@ -132,10 +134,9 @@ export function SimpleApiKeyManager({
     setFormErrors({});
 
     const errors: Record<string, string> = {};
-    if (!formData.keyName.trim())
-      errors.keyName = 'Please enter a name for your key';
+    if (!formData.keyName.trim()) errors.keyName = t('apiKeys.keyNameRequired');
     if (formData.apiKey.trim() && formData.apiKey.length < 10) {
-      errors.apiKey = 'API key appears too short';
+      errors.apiKey = t('apiKeys.apiKeyTooShort');
     }
 
     if (Object.keys(errors).length > 0) {
@@ -166,10 +167,10 @@ export function SimpleApiKeyManager({
         await loadApiKeys();
         onKeysChanged?.();
       } else {
-        setFormErrors({ general: result.error || 'Failed to update API key' });
+        setFormErrors({ general: result.error || t('apiKeys.failedToUpdate') });
       }
     } catch (err) {
-      setFormErrors({ general: 'Failed to update API key' });
+      setFormErrors({ general: t('apiKeys.failedToUpdate') });
       console.error('Error updating API key:', err);
     } finally {
       setSubmitting(false);
@@ -177,11 +178,7 @@ export function SimpleApiKeyManager({
   };
 
   const handleDeleteKey = async (keyId: string) => {
-    if (
-      !confirm(
-        'Are you sure you want to delete this API key? This action cannot be undone.'
-      )
-    ) {
+    if (!confirm(t('apiKeys.deleteConfirmation'))) {
       return;
     }
 
@@ -192,10 +189,10 @@ export function SimpleApiKeyManager({
         await loadApiKeys();
         onKeysChanged?.();
       } else {
-        alert(result.error || 'Failed to delete API key');
+        alert(result.error || t('apiKeys.failedToDelete'));
       }
     } catch (err) {
-      alert('Failed to delete API key');
+      alert(t('apiKeys.failedToDelete'));
       console.error('Error deleting API key:', err);
     }
   };
@@ -243,7 +240,9 @@ export function SimpleApiKeyManager({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-4">Loading...</div>
+      <div className="flex items-center justify-center p-4">
+        {t('apiKeys.loading')}
+      </div>
     );
   }
 
@@ -254,17 +253,14 @@ export function SimpleApiKeyManager({
           <div>
             <CardTitle className="flex items-center gap-2">
               <Key className="w-5 h-5" />
-              API Keys
+              {t('apiKeys.yourApiKeys')}
             </CardTitle>
-            <CardDescription>
-              Manage your AI provider API keys. These are stored securely and
-              encrypted.
-            </CardDescription>
+            <CardDescription>{t('apiKeys.manageDescription')}</CardDescription>
           </div>
           {!showAddForm && !editingKeyId && (
             <Button onClick={startAdding}>
               <Plus className="w-4 h-4 me-2" />
-              Add API Key
+              {t('apiKeys.addApiKey')}
             </Button>
           )}
         </div>
@@ -282,10 +278,11 @@ export function SimpleApiKeyManager({
         {showAddForm && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Add New API Key</CardTitle>
+              <CardTitle className="text-lg">
+                {t('apiKeys.addNewApiKey')}
+              </CardTitle>
               <CardDescription>
-                Add an API key for an AI provider. Your key will be encrypted
-                and stored securely.
+                {t('apiKeys.addNewApiKeyDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -297,7 +294,7 @@ export function SimpleApiKeyManager({
               )}
 
               <div>
-                <Label htmlFor="provider">Provider</Label>
+                <Label htmlFor="provider">{t('apiKeys.provider')}</Label>
                 <Select
                   value={formData.provider}
                   onValueChange={(value) =>
@@ -305,7 +302,7 @@ export function SimpleApiKeyManager({
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select AI provider" />
+                    <SelectValue placeholder={t('apiKeys.selectProvider')} />
                   </SelectTrigger>
                   <SelectContent>
                     {getAvailableProvidersForDropdown().map((provider) => (
@@ -323,10 +320,10 @@ export function SimpleApiKeyManager({
               </div>
 
               <div>
-                <Label htmlFor="keyName">Key Name</Label>
+                <Label htmlFor="keyName">{t('apiKeys.keyName')}</Label>
                 <Input
                   id="keyName"
-                  placeholder="e.g., My OpenAI Key"
+                  placeholder={t('apiKeys.keyNamePlaceholder')}
                   value={formData.keyName}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -343,12 +340,12 @@ export function SimpleApiKeyManager({
               </div>
 
               <div>
-                <Label htmlFor="apiKey">API Key</Label>
+                <Label htmlFor="apiKey">{t('apiKeys.apiKey')}</Label>
                 <div className="relative">
                   <Input
                     id="apiKey"
                     type={showApiKey ? 'text' : 'password'}
-                    placeholder="Enter your API key"
+                    placeholder={t('apiKeys.apiKeyPlaceholder')}
                     value={formData.apiKey}
                     onChange={(e) =>
                       setFormData((prev) => ({
@@ -381,7 +378,7 @@ export function SimpleApiKeyManager({
               <div className="flex gap-2">
                 <Button onClick={handleAddKey} disabled={submitting}>
                   <Save className="w-4 h-4 me-2" />
-                  {submitting ? 'Adding...' : 'Add Key'}
+                  {submitting ? t('apiKeys.adding') : t('apiKeys.addKey')}
                 </Button>
                 <Button
                   variant="outline"
@@ -389,7 +386,7 @@ export function SimpleApiKeyManager({
                   disabled={submitting}
                 >
                   <X className="w-4 h-4 me-2" />
-                  Cancel
+                  {t('apiKeys.cancel')}
                 </Button>
               </div>
             </CardContent>
@@ -400,8 +397,8 @@ export function SimpleApiKeyManager({
         {apiKeys.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Key className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No API keys configured</p>
-            <p className="text-sm">Add your first API key to get started</p>
+            <p>{t('apiKeys.noKeysConfigured')}</p>
+            <p className="text-sm">{t('apiKeys.noKeysDescription')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -411,10 +408,11 @@ export function SimpleApiKeyManager({
                   // Edit Form
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Edit API Key</CardTitle>
+                      <CardTitle className="text-lg">
+                        {t('apiKeys.editApiKey')}
+                      </CardTitle>
                       <CardDescription>
-                        Update your API key details. Leave the API key field
-                        empty to keep the current key.
+                        {t('apiKeys.editApiKeyDescription')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -428,7 +426,9 @@ export function SimpleApiKeyManager({
                       )}
 
                       <div>
-                        <Label htmlFor="editProvider">Provider</Label>
+                        <Label htmlFor="editProvider">
+                          {t('apiKeys.provider')}
+                        </Label>
                         <Input
                           id="editProvider"
                           value={
@@ -440,7 +440,9 @@ export function SimpleApiKeyManager({
                       </div>
 
                       <div>
-                        <Label htmlFor="editKeyName">Key Name</Label>
+                        <Label htmlFor="editKeyName">
+                          {t('apiKeys.keyName')}
+                        </Label>
                         <Input
                           id="editKeyName"
                           value={formData.keyName}
@@ -460,13 +462,13 @@ export function SimpleApiKeyManager({
 
                       <div>
                         <Label htmlFor="editApiKey">
-                          New API Key (optional)
+                          {t('apiKeys.newApiKey')}
                         </Label>
                         <div className="relative">
                           <Input
                             id="editApiKey"
                             type={showApiKey ? 'text' : 'password'}
-                            placeholder="Enter new API key to replace current one"
+                            placeholder={t('apiKeys.newApiKeyPlaceholder')}
                             value={formData.apiKey}
                             onChange={(e) =>
                               setFormData((prev) => ({
@@ -502,7 +504,9 @@ export function SimpleApiKeyManager({
                           disabled={submitting}
                         >
                           <Save className="w-4 h-4 me-2" />
-                          {submitting ? 'Updating...' : 'Update Key'}
+                          {submitting
+                            ? t('apiKeys.updating')
+                            : t('apiKeys.updateKey')}
                         </Button>
                         <Button
                           variant="outline"
@@ -510,7 +514,7 @@ export function SimpleApiKeyManager({
                           disabled={submitting}
                         >
                           <X className="w-4 h-4 me-2" />
-                          Cancel
+                          {t('apiKeys.cancel')}
                         </Button>
                       </div>
                     </CardContent>
@@ -535,7 +539,8 @@ export function SimpleApiKeyManager({
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Added {new Date(key.createdAt).toLocaleDateString()}
+                          {t('apiKeys.added')}{' '}
+                          {new Date(key.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
