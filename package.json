@@ -31,7 +31,8 @@
     "dev:seed": "pnpm run db:seed && pnpm run dev",
     "prepare": "husky install",
     "knip": "knip --no-exit-code",
-    "ollama-manager": "tsx scripts/ollama-manager.ts"
+    "ollama-manager": "tsx scripts/ollama-manager.ts",
+    "test:ollama-two": "tsx scripts/test-ollama-two-models.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",

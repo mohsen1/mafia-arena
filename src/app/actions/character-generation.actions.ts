@@ -2,7 +2,6 @@
 
 import { Game } from '@/lib/engine/core/Game';
 import { Themes } from '@/lib/engine/interfaces/Theme';
-import { generateCharacterPersona } from './setup.actions';
 import { selectCharacterImage } from '@/lib/utils/imageUtils';
 import { loadGameData, saveGameData } from '@/lib/db/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
@@ -59,15 +58,15 @@ export async function generateGameCharactersAction(
 
     // Load game and use the optimized parallel persona generation
     const game = await Game.loadFromState(gameState);
-    
+
     // This now generates personas in parallel internally
     await game.ensurePersonasGenerated();
-    
+
     // Generate character images in parallel for all non-human players
     const aiPlayers = Object.values(gameState.players).filter(
       (player) => !player.isHuman
     );
-    
+
     const imagePromises = aiPlayers.map(async (player) => {
       if (!player.imageUrl) {
         try {
@@ -82,20 +81,20 @@ export async function generateGameCharactersAction(
       }
       return { playerId: player.id, imageUrl: player.imageUrl };
     });
-    
+
     // Wait for all images to be generated
     const imageResults = await Promise.all(imagePromises);
-    
+
     // Update the game state with generated personas and images
     const updatedState = game.getCurrentSerializableState();
-    
+
     // Apply generated images to the state
     for (const result of imageResults) {
       if (updatedState.players[result.playerId]) {
         updatedState.players[result.playerId].imageUrl = result.imageUrl;
       }
     }
-    
+
     // Save the updated state
     await saveGameData(gameId, updatedState);
 

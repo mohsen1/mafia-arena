@@ -207,6 +207,34 @@ ollama rm model_name
    - Configure other game settings
    - Click "Start Game"
 
+### Using Different Models for Teams
+
+Werewolf AI supports using different Ollama models for different teams, allowing you to experiment with model behaviors:
+
+1. **Enable Separate Mafia Model**
+   - Check "Use a separate AI engine for Mafia players"
+   - A new dropdown appears for Mafia AI configuration
+
+2. **Select Models**
+   - **Town Model**: Choose a model for Doctor, Seer, and Villagers
+   - **Mafia Model**: Choose a different model for Mafia players
+
+3. **Example Configurations**
+   ```
+   Town: llama3.2 (friendly, cooperative)
+   Mafia: mistral (strategic, deceptive)
+   ```
+   ```
+   Town: phi-4-mini (fast, simple)
+   Mafia: llama3.1:8b (complex reasoning)
+   ```
+
+4. **Testing Different Models**
+   ```bash
+   # Run the two-model test script
+   pnpm test:ollama-two
+   ```
+
 ### Configuration Options
 
 **Basic Configuration:**
