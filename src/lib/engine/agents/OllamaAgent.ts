@@ -42,14 +42,14 @@ export class OllamaAgent extends OpenAIAgent {
   ) {
     // Ollama doesn't need an API key
     super(id, model, apiBase, apiKey || 'ollama-no-key-needed');
-    
+
     // Store the base Ollama endpoint (without /v1)
     this.ollamaEndpoint = apiBase.replace('/v1', '');
-    
+
     log(
       `Initialized OllamaAgent ${this.id} with model: ${model}, endpoint: ${apiBase}`
     );
-    
+
     // Check available models on initialization
     this.checkAvailableModels().catch((error) => {
       log(`ERROR: Failed to check available models: ${error}`);
@@ -65,13 +65,13 @@ export class OllamaAgent extends OpenAIAgent {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       this.availableModels = data.models?.map((m: OllamaModel) => m.name) || [];
       this.lastModelCheck = Date.now();
-      
+
       log(`Available Ollama models: ${this.availableModels.join(', ')}`);
-      
+
       // Check if the requested model is available
       if (!this.isModelAvailable(this.model)) {
         log(
@@ -94,11 +94,12 @@ export class OllamaAgent extends OpenAIAgent {
         log(`ERROR: Failed to refresh model list: ${error}`);
       });
     }
-    
-    return this.availableModels.some(m => 
-      m === modelName || 
-      m.startsWith(modelName + ':') || 
-      modelName.startsWith(m + ':')
+
+    return this.availableModels.some(
+      (m) =>
+        m === modelName ||
+        m.startsWith(modelName + ':') ||
+        modelName.startsWith(m + ':')
     );
   }
 
@@ -107,14 +108,14 @@ export class OllamaAgent extends OpenAIAgent {
    */
   public async ensureModelAvailable(modelName: string): Promise<boolean> {
     await this.checkAvailableModels();
-    
+
     if (this.isModelAvailable(modelName)) {
       log(`Model '${modelName}' is already available`);
       return true;
     }
-    
+
     log(`Model '${modelName}' not found. Attempting to pull...`);
-    
+
     try {
       const response = await fetch(`${this.ollamaEndpoint}/api/pull`, {
         method: 'POST',
@@ -126,22 +127,22 @@ export class OllamaAgent extends OpenAIAgent {
           stream: false,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const result = await response.json();
-      
+
       if (result.error) {
         throw new Error(result.error);
       }
-      
+
       log(`Successfully pulled model '${modelName}'`);
-      
+
       // Refresh the model list
       await this.checkAvailableModels();
-      
+
       return true;
     } catch (error) {
       log(`ERROR: Failed to pull model '${modelName}': ${error}`);
@@ -158,7 +159,7 @@ export class OllamaAgent extends OpenAIAgent {
     endpoint: string;
   }> {
     await this.checkAvailableModels();
-    
+
     return {
       models: this.availableModels,
       endpoint: this.ollamaEndpoint,
@@ -174,7 +175,7 @@ export class OllamaAgent extends OpenAIAgent {
         const response = await fetch(`${this.ollamaEndpoint}/api/tags`, {
           signal: AbortSignal.timeout(5000), // 5 second timeout
         });
-        
+
         if (response.ok) {
           this.isConnected = true;
           this.connectionRetries = 0;
@@ -183,11 +184,11 @@ export class OllamaAgent extends OpenAIAgent {
       } catch (error) {
         log(`Connection attempt ${i + 1} failed: ${error}`);
         if (i < this.MAX_RETRIES - 1) {
-          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+          await new Promise((resolve) => setTimeout(resolve, this.RETRY_DELAY));
         }
       }
     }
-    
+
     this.isConnected = false;
     return false;
   }
@@ -203,15 +204,18 @@ export class OllamaAgent extends OpenAIAgent {
     try {
       // Check if Ollama is running with retries
       const isRunning = await this.checkConnection();
-      
+
       if (!isRunning) {
         throw new Error('Ollama service is not responding after retries');
       }
-      
+
       // Proceed with persona generation
       await super.generatePersona(themeDescription, language, existingNames);
     } catch (error) {
-      if (error instanceof Error && (error.message.includes('fetch') || error.message.includes('Ollama'))) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('fetch') || error.message.includes('Ollama'))
+      ) {
         log(
           `ERROR: Cannot connect to Ollama. Make sure Ollama is running (ollama serve)`
         );
@@ -243,23 +247,27 @@ export class OllamaAgent extends OpenAIAgent {
           return { type: 'noAction' };
         }
       }
-      
+
       return await super.getAction(gameState, allowedActions);
     } catch (error) {
       // If it's a connection error, try to reconnect
-      if (error instanceof Error && (error.message.includes('fetch') || error.message.includes('ECONNREFUSED'))) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('fetch') ||
+          error.message.includes('ECONNREFUSED'))
+      ) {
         log('Connection lost to Ollama. Attempting to reconnect...');
         this.isConnected = false;
-        
+
         const isRunning = await this.checkConnection();
         if (isRunning) {
           // Retry the action
           return await super.getAction(gameState, allowedActions);
         }
       }
-      
+
       log(`ERROR: Failed to get action: ${error}`);
       return { type: 'noAction' };
     }
   }
-} 
+}

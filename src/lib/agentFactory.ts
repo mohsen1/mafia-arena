@@ -99,7 +99,7 @@ export async function createAgentInstance(
     case 'Groq':
     case 'Fireworks':
       return new OpenAIAgent(playerId, agentConfig.modelName, apiBase, apiKey);
-    
+
     case 'Ollama':
       return new OllamaAgent(playerId, agentConfig.modelName, apiBase, apiKey);
 
