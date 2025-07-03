@@ -74,6 +74,7 @@ export class TaskOrchestrator {
       logger.info(`Objective selected: "${objective.title}" (Issue: #${objective.githubIssueNumber || 'self-generated'})`);
 
       // 2. Generate the multi-step implementation plan for the objective
+      logger.info('Calling Gemini to generate implementation plan...');
       const planSteps = await this.gemini.generateImplementationPlan(
         objective,
         situationReport.codeSnapshot
@@ -81,10 +82,14 @@ export class TaskOrchestrator {
 
       if (!planSteps || planSteps.length === 0) {
         logger.error('Gemini failed to generate a plan for the objective.');
+        logger.error('planSteps result:', planSteps);
+        logger.error('Objective was:', objective);
+        logger.error('Code snapshot length:', situationReport.codeSnapshot.length);
         await this.cursor.typeIntoChat(`I selected objective "${objective.title}" but could not create a plan. Please check the logs.`);
         return;
       }
       logger.info(`Generated a plan with ${planSteps.length} steps.`);
+      logger.info('Plan steps:', planSteps.map(step => ({ title: step.title, reasoning: step.reasoning })));
 
       // 3. Populate the backlog with the new plan
       this.backlog.addPlan(planSteps);

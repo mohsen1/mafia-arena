@@ -405,6 +405,9 @@ ${codeSnapshot}
     codeSnapshot: string
   ): Promise<ActionPlan[] | null> {
     logger.info(`Gemini generating implementation plan for: "${objective.title}"`);
+    logger.info(`Objective description: ${objective.description}`);
+    logger.info(`GitHub issue number: ${objective.githubIssueNumber || 'self-generated'}`);
+    
     const prompt = `
 You are a Staff Software Engineer creating an implementation plan.
 Your objective is: "${objective.title}"
@@ -434,11 +437,14 @@ ${codeSnapshot}
 ---
 `;
     
+    logger.info('Sending prompt to Gemini (length:', prompt.length, ')');
+    
     try {
       const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       const result = await model.generateContent(prompt);
       const responseText = result.response.text();
       logger.info('Gemini implementation plan response length:', responseText.length);
+      logger.info('Gemini implementation plan response (first 500 chars):', responseText.substring(0, 500));
       
       // Extract JSON from response
       const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
@@ -446,16 +452,30 @@ ${codeSnapshot}
       
       if (!jsonMatch) {
         logger.error('Could not parse JSON from Gemini response');
+        logger.error('Full response text:', responseText);
         return null;
       }
       
-      const parsed = JSON.parse(jsonMatch[1]);
+      logger.info('Found JSON match, attempting to parse...');
+      const jsonText = jsonMatch[1];
+      logger.info('JSON text to parse:', jsonText);
+      
+      const parsed = JSON.parse(jsonText);
       const steps = parsed.steps || [];
       logger.info(`Generated ${steps.length} implementation steps`);
+      
+      if (steps.length === 0) {
+        logger.error('Parsed JSON but found no steps in the response');
+        logger.error('Parsed object:', parsed);
+      }
       
       return steps;
     } catch (error) {
       logger.error('Failed to generate implementation plan:', error);
+      if (error instanceof Error) {
+        logger.error('Error message:', error.message);
+        logger.error('Error stack:', error.stack);
+      }
       return null;
     }
   }
