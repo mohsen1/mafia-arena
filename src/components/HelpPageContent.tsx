@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
+import { Header } from '@/components/Header';
+import { useParams } from 'next/navigation';
+import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface HelpSection {
   icon: React.ReactNode;
@@ -28,6 +31,8 @@ interface HelpSection {
 
 export function HelpPageContent() {
   const { t } = useTranslation();
+  const params = useParams();
+  const lang = params.lang as LanguageCode;
 
   const helpSections: HelpSection[] = [
     {
@@ -104,60 +109,64 @@ export function HelpPageContent() {
   ];
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold mb-4">{t('help.title')}</h1>
-        <p className="text-lg text-muted-foreground">{t('help.subtitle')}</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Header currentLang={lang} />
+      
+      <main className="container mx-auto py-8 px-4 max-w-6xl">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold mb-4">{t('help.title')}</h1>
+          <p className="text-lg text-muted-foreground">{t('help.subtitle')}</p>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {helpSections.map((section, index) => (
-          <Card key={index} className="h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {section.icon}
-                {t(section.titleKey)}
-              </CardTitle>
-              <CardDescription>{t(section.descriptionKey)}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-48">
-                <ul className="space-y-2">
-                  {section.contentKeys.map((contentKey, itemIndex) => (
-                    <li key={itemIndex} className="text-sm leading-relaxed">
-                      {t(contentKey)}
-                    </li>
-                  ))}
-                </ul>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {helpSections.map((section, index) => (
+            <Card key={index} className="h-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  {section.icon}
+                  {t(section.titleKey)}
+                </CardTitle>
+                <CardDescription>{t(section.descriptionKey)}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-48">
+                  <ul className="space-y-2">
+                    {section.contentKeys.map((contentKey, itemIndex) => (
+                      <li key={itemIndex} className="text-sm leading-relaxed">
+                        {t(contentKey)}
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>{t('help.readyToPlay.title')}</CardTitle>
-          <CardDescription>{t('help.readyToPlay.description')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-4">{t('help.readyToPlay.content')}</p>
-          <div className="flex gap-4">
-            <Link
-              href="/new"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              {t('help.readyToPlay.startNewGame')}
-            </Link>
-            <Link
-              href="/games"
-              className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-            >
-              {t('help.readyToPlay.viewMyGames')}
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>{t('help.readyToPlay.title')}</CardTitle>
+            <CardDescription>{t('help.readyToPlay.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4">{t('help.readyToPlay.content')}</p>
+            <div className="flex gap-4">
+              <Link
+                href={`/${lang}/new`}
+                className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                {t('help.readyToPlay.startNewGame')}
+              </Link>
+              <Link
+                href={`/${lang}/games`}
+                className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+              >
+                {t('help.readyToPlay.viewMyGames')}
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }

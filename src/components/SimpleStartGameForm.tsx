@@ -39,6 +39,7 @@ import {
   type OllamaConfiguration,
 } from '@/components/OllamaConfig';
 import { getAvailableProvidersFromEnv } from '@/app/actions/setup.actions';
+import type { GamePreset } from '@/components/GamePresetSelector';
 
 export interface SimpleStartGameFormProps {
   lang: LanguageCode;
@@ -46,6 +47,7 @@ export interface SimpleStartGameFormProps {
     name?: string | null;
     email?: string | null;
   } | null;
+  preset?: GamePreset | null;
 }
 
 function getAgentTypeFromProvider(
@@ -87,13 +89,14 @@ function getDefaultModelForProvider(providerValue: string): string {
 export default function SimpleStartGameForm({
   lang,
   user,
+  preset,
 }: SimpleStartGameFormProps) {
   const { t } = useTranslation();
 
   // Get default name from user profile
   const defaultPlayerName = user?.name || '';
 
-  // Form state
+  // Form state - initialize with preset values if provided
   const [globalProviderSelection, setGlobalProviderSelection] =
     useState<string>('');
   const [globalModelSelection, setGlobalModelSelection] = useState<string>('');
@@ -102,11 +105,11 @@ export default function SimpleStartGameForm({
   const [mafiaProviderSelection, setMafiaProviderSelection] =
     useState<string>('');
   const [mafiaModelSelection, setMafiaModelSelection] = useState<string>('');
-  const [isHumanJoining, setIsHumanJoining] = useState(false);
+  const [isHumanJoining, setIsHumanJoining] = useState(preset?.humanPlayer ?? false);
   const [humanPlayerName, setHumanPlayerName] = useState(defaultPlayerName);
   const [selectedGameThemeKey, setSelectedGameThemeKey] =
-    useState('UK_VILLAGE_1900S');
-  const [playerCount, setPlayerCount] = useState(6);
+    useState(preset?.theme || 'UK_VILLAGE_1900S');
+  const [playerCount, setPlayerCount] = useState(preset?.playerCount || 6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [userApiKeys, setUserApiKeys] = useState<UserApiKeyInfo[]>([]);
@@ -119,6 +122,20 @@ export default function SimpleStartGameForm({
     apiPath: '/v1',
     enabled: true,
   });
+
+  // Apply preset settings when preset changes
+  useEffect(() => {
+    if (preset && preset.id !== 'custom') {
+      setPlayerCount(preset.playerCount);
+      setIsHumanJoining(preset.humanPlayer);
+      setSelectedGameThemeKey(preset.theme);
+      
+      // For spectator mode, don't join as human
+      if (preset.id === 'spectator') {
+        setIsHumanJoining(false);
+      }
+    }
+  }, [preset]);
 
   // Compute all available providers combining env and user providers
   const allAvailableProviders = useMemo(() => {
