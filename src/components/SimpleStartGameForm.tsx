@@ -466,7 +466,10 @@ export default function SimpleStartGameForm({
             {t('AIConfiguration', 'AI Configuration')}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {t('AIConfigDescription', 'Choose the AI models that will power your game characters')}
+            {t(
+              'AIConfigDescription',
+              'Choose the AI models that will power your game characters'
+            )}
           </p>
         </div>
 
@@ -581,7 +584,10 @@ export default function SimpleStartGameForm({
             {t('GameSettings', 'Game Settings')}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {t('GameSettingsDescription', 'Configure your game preferences and player options')}
+            {t(
+              'GameSettingsDescription',
+              'Configure your game preferences and player options'
+            )}
           </p>
         </div>
 
@@ -592,7 +598,9 @@ export default function SimpleStartGameForm({
               <Checkbox
                 id="human-join"
                 checked={isHumanJoining}
-                onCheckedChange={(checked) => setIsHumanJoining(checked === true)}
+                onCheckedChange={(checked) =>
+                  setIsHumanJoining(checked === true)
+                }
                 disabled={isSubmitting}
               />
               <Label
@@ -617,7 +625,10 @@ export default function SimpleStartGameForm({
                   type="text"
                   value={humanPlayerName}
                   onChange={(e) => setHumanPlayerName(e.target.value)}
-                  placeholder={t('EnterYourNamePlaceholder', 'Enter your character name')}
+                  placeholder={t(
+                    'EnterYourNamePlaceholder',
+                    'Enter your character name'
+                  )}
                   disabled={isSubmitting}
                   required
                   className="max-w-sm"
@@ -642,7 +653,9 @@ export default function SimpleStartGameForm({
               >
                 -
               </Button>
-              <span className="text-2xl font-semibold w-12 text-center">{playerCount}</span>
+              <span className="text-2xl font-semibold w-12 text-center">
+                {playerCount}
+              </span>
               <Button
                 type="button"
                 variant="outline"

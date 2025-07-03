@@ -19,6 +19,17 @@ export function getEnvAvailableProviders(): AvailableProvider[] {
   const envProviders: AvailableProvider[] = [];
 
   for (const provider of availableProviders) {
+    // Always include Ollama since it doesn't require an API key
+    if (provider.value === 'ollama_local') {
+      envProviders.push({
+        value: provider.value,
+        title: provider.title,
+        source: 'env',
+      });
+      continue;
+    }
+
+    // For other providers, check if API key is available
     if (provider.apiKeyEnvVar && process.env[provider.apiKeyEnvVar]) {
       envProviders.push({
         value: provider.value,

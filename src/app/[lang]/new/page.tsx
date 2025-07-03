@@ -45,13 +45,16 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
             <Gamepad2 className="w-16 h-16 text-primary relative z-10" />
           </div>
         </div>
-        
+
         <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
           {werewolfAITitle}
         </h1>
-        
+
         <p className="text-xl text-muted-foreground">
-          {t('NewGameDescription', 'Create an immersive AI-powered social deduction game experience')}
+          {t(
+            'NewGameDescription',
+            'Create an immersive AI-powered social deduction game experience'
+          )}
         </p>
       </div>
 
@@ -67,11 +70,9 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
         <div className="w-full max-w-4xl space-y-6">
           <div className="flex items-center gap-3">
             <Sparkles className="w-6 h-6 text-primary" />
-            <h2 className="text-3xl font-semibold">
-              {existingGamesHeading}
-            </h2>
+            <h2 className="text-3xl font-semibold">{existingGamesHeading}</h2>
           </div>
-          
+
           <div className="grid gap-4">
             {existingGames.map((game) => (
               <GameCard key={game.gameId} game={game} />
