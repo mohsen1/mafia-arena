@@ -8,7 +8,7 @@ import type { FilteredGameState } from '@/lib/interfaces/client.types';
 // import { deleteGameAction } from "@/app/actions/index"; // Server Actions need care in Client Components
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { LogIn, Loader2 } from 'lucide-react';
+import { LogIn, Loader2, Sparkles, Gamepad2 } from 'lucide-react';
 // import { format } from "date-fns"; // Removed unused format import
 import SimpleStartGameForm from '@/components/SimpleStartGameForm';
 import GameCard from '@/components/GameCard';
@@ -36,23 +36,47 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
   const existingGamesHeading = t('ExistingGamesTitle', 'Existing Games');
 
   return (
-    <main className="mx-auto p-4 flex flex-col items-center space-y-8 min-h-screen">
-      <h1 className="text-4xl font-bold mt-8 mb-6 text-center">
-        {werewolfAITitle}
-      </h1>
+    <main className="mx-auto max-w-7xl px-4 py-8 flex flex-col items-center space-y-12 min-h-screen">
+      {/* Hero Section */}
+      <div className="text-center space-y-4 max-w-3xl">
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
+            <Gamepad2 className="w-16 h-16 text-primary relative z-10" />
+          </div>
+        </div>
+        
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          {werewolfAITitle}
+        </h1>
+        
+        <p className="text-xl text-muted-foreground">
+          {t('NewGameDescription', 'Create an immersive AI-powered social deduction game experience')}
+        </p>
+      </div>
 
-      <SimpleStartGameForm lang={lang} user={session?.user} />
+      {/* Game Creation Card */}
+      <div className="w-full max-w-4xl">
+        <div className="bg-card/50 backdrop-blur border rounded-2xl p-8 shadow-xl">
+          <SimpleStartGameForm lang={lang} user={session?.user} />
+        </div>
+      </div>
 
+      {/* Existing Games Section */}
       {existingGames.length > 0 && (
-        <div className="w-full mb-8">
-          <h2 className="text-2xl font-semibold mb-4 text-center">
-            {existingGamesHeading}
-          </h2>
-          <ul className="space-y-3">
+        <div className="w-full max-w-4xl space-y-6">
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-6 h-6 text-primary" />
+            <h2 className="text-3xl font-semibold">
+              {existingGamesHeading}
+            </h2>
+          </div>
+          
+          <div className="grid gap-4">
             {existingGames.map((game) => (
               <GameCard key={game.gameId} game={game} />
             ))}
-          </ul>
+          </div>
         </div>
       )}
     </main>

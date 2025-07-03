@@ -457,75 +457,84 @@ export default function SimpleStartGameForm({
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold mb-6 text-foreground text-center">
-        {t('StartNewGameTitle', 'Start New Game')}
-      </h2>
-
-      {/* AI Engine Selection */}
-      <div className="space-y-4">
-        <div>
-          <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
-            <Bot size={16} />
-            {t('AI Engine', 'AI Engine')}
-          </Label>
-          <EnhancedProviderModelSelector
-            idPrefix="global-provider"
-            selectedProviderValue={globalProviderSelection}
-            selectedModel={globalModelSelection}
-            onProviderModelChange={handleGlobalProviderModelChange}
-            availableProviders={allAvailableProviders}
-            disabled={isSubmitting}
-          />
+    <div className="w-full space-y-8">
+      {/* AI Configuration Section */}
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Bot className="w-5 h-5 text-primary" />
+            {t('AIConfiguration', 'AI Configuration')}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            {t('AIConfigDescription', 'Choose the AI models that will power your game characters')}
+          </p>
         </div>
 
-        {/* Separate Mafia AI Option */}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="mafia-engine-checkbox"
-            checked={useSeparateAIModelForMafia}
-            onCheckedChange={(checked) =>
-              setUseSeparateAIModelForMafia(checked === true)
-            }
-            disabled={isSubmitting}
-          />
-          <Label
-            htmlFor="mafia-engine-checkbox"
-            className="text-sm cursor-pointer"
-          >
-            {t(
-              'UseDifferentEngineForMafiaLabel',
-              'Use a separate AI engine for Mafia players'
-            )}
-          </Label>
-        </div>
-
-        {useSeparateAIModelForMafia && (
+        <div className="space-y-4 bg-secondary/10 rounded-lg p-6">
           <div>
-            <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
-              {t('MafiaEngineLabel', 'Mafia AI Engine')}
+            <Label className="text-sm font-medium mb-3 block">
+              {t('PrimaryAIEngine', 'Primary AI Engine')}
             </Label>
             <EnhancedProviderModelSelector
-              idPrefix="mafia-provider"
-              selectedProviderValue={mafiaProviderSelection}
-              selectedModel={mafiaModelSelection}
-              onProviderModelChange={handleMafiaProviderModelChange}
+              idPrefix="global-provider"
+              selectedProviderValue={globalProviderSelection}
+              selectedModel={globalModelSelection}
+              onProviderModelChange={handleGlobalProviderModelChange}
               availableProviders={allAvailableProviders}
               disabled={isSubmitting}
             />
           </div>
-        )}
+
+          {/* Separate Mafia AI Option */}
+          <div className="pt-4 border-t border-border/50">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mafia-engine-checkbox"
+                checked={useSeparateAIModelForMafia}
+                onCheckedChange={(checked) =>
+                  setUseSeparateAIModelForMafia(checked === true)
+                }
+                disabled={isSubmitting}
+              />
+              <Label
+                htmlFor="mafia-engine-checkbox"
+                className="text-sm cursor-pointer"
+              >
+                {t(
+                  'UseDifferentEngineForMafiaLabel',
+                  'Use a separate AI engine for Mafia players'
+                )}
+              </Label>
+            </div>
+
+            {useSeparateAIModelForMafia && (
+              <div className="mt-4 ms-6">
+                <Label className="text-sm font-medium mb-3 block">
+                  {t('MafiaAIEngine', 'Mafia AI Engine')}
+                </Label>
+                <EnhancedProviderModelSelector
+                  idPrefix="mafia-provider"
+                  selectedProviderValue={mafiaProviderSelection}
+                  selectedModel={mafiaModelSelection}
+                  onProviderModelChange={handleMafiaProviderModelChange}
+                  availableProviders={allAvailableProviders}
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* API Key Management */}
       {allAvailableProviders.length === 0 && (
-        <Alert>
+        <Alert className="border-destructive/50 bg-destructive/10">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             {t('NoProvidersConfigured')}{' '}
             <Link
               href={`/${lang}/profile`}
-              className="underline underline-offset-4 hover:text-primary"
+              className="underline underline-offset-4 hover:text-primary font-medium"
             >
               {t('AddApiKeysInProfile')}
             </Link>{' '}
@@ -537,25 +546,24 @@ export default function SimpleStartGameForm({
       {/* Ollama Configuration */}
       {(globalProviderSelection === 'ollama_local' ||
         mafiaProviderSelection === 'ollama_local') && (
-        <div className="space-y-4">
+        <div className="bg-secondary/10 rounded-lg p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium text-muted-foreground">
+            <Label className="text-sm font-medium">
               {t('OllamaConfiguration')}
             </Label>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setShowOllamaConfig(!showOllamaConfig)}
               disabled={isSubmitting}
             >
-              {showOllamaConfig ? t('HideOllama') : t('ConfigureOllama')}{' '}
-              {t('OllamaConfiguration').split(' ')[0]}
+              {showOllamaConfig ? t('Hide') : t('Configure')}
             </Button>
           </div>
 
           {showOllamaConfig && (
-            <div className="rounded-lg p-4 bg-secondary/20">
+            <div className="pt-4 border-t border-border/50">
               <OllamaConfig
                 initialConfig={ollamaConfig}
                 onConfigChange={setOllamaConfig}
@@ -565,93 +573,115 @@ export default function SimpleStartGameForm({
         </div>
       )}
 
-      {/* Human Player Option */}
-      <div className="space-y-3">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="human-join"
-            checked={isHumanJoining}
-            onCheckedChange={(checked) => setIsHumanJoining(checked === true)}
-            disabled={isSubmitting}
-          />
-          <Label
-            htmlFor="human-join"
-            className="text-sm cursor-pointer flex items-center gap-2"
-          >
-            <User size={16} />
-            {t('JoinAsHumanLabel', 'Join the game yourself?')}
-          </Label>
+      {/* Game Settings Section */}
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Settings2 className="w-5 h-5 text-primary" />
+            {t('GameSettings', 'Game Settings')}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            {t('GameSettingsDescription', 'Configure your game preferences and player options')}
+          </p>
         </div>
 
-        {isHumanJoining && (
-          <div>
-            <Label
-              htmlFor="human-name"
-              className="text-sm font-medium text-muted-foreground mb-2 block"
-            >
-              {t('YourPlayerNameLabel', 'Your Player Name')}
-            </Label>
-            <Input
-              id="human-name"
-              type="text"
-              value={humanPlayerName}
-              onChange={(e) => setHumanPlayerName(e.target.value)}
-              placeholder={t('EnterYourNamePlaceholder', 'Enter your name')}
-              disabled={isSubmitting}
-              required
-            />
+        <div className="space-y-6 bg-secondary/10 rounded-lg p-6">
+          {/* Human Player Option */}
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="human-join"
+                checked={isHumanJoining}
+                onCheckedChange={(checked) => setIsHumanJoining(checked === true)}
+                disabled={isSubmitting}
+              />
+              <Label
+                htmlFor="human-join"
+                className="text-sm cursor-pointer flex items-center gap-2"
+              >
+                <User className="w-4 h-4" />
+                {t('JoinAsHumanLabel', 'Join the game yourself')}
+              </Label>
+            </div>
+
+            {isHumanJoining && (
+              <div className="ms-6 mt-3">
+                <Label
+                  htmlFor="human-name"
+                  className="text-sm font-medium mb-2 block"
+                >
+                  {t('YourPlayerNameLabel', 'Your Character Name')}
+                </Label>
+                <Input
+                  id="human-name"
+                  type="text"
+                  value={humanPlayerName}
+                  onChange={(e) => setHumanPlayerName(e.target.value)}
+                  placeholder={t('EnterYourNamePlaceholder', 'Enter your character name')}
+                  disabled={isSubmitting}
+                  required
+                  className="max-w-sm"
+                />
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Player Count */}
-      <div>
-        <Label className="text-sm font-medium text-muted-foreground mb-2 block">
-          {t('PlayersLabel', 'Players')}: {playerCount}
-        </Label>
-        <div className="flex items-center space-x-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setPlayerCount(Math.max(5, playerCount - 1))}
-            disabled={isSubmitting || playerCount <= 5}
-          >
-            -
-          </Button>
-          <span className="w-12 text-center font-medium">{playerCount}</span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setPlayerCount(Math.min(12, playerCount + 1))}
-            disabled={isSubmitting || playerCount >= 12}
-          >
-            +
-          </Button>
+          {/* Player Count */}
+          <div className="pt-4 border-t border-border/50">
+            <Label className="text-sm font-medium mb-3 block">
+              {t('NumberOfPlayers', 'Number of Players')}
+            </Label>
+            <div className="flex items-center gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setPlayerCount(Math.max(5, playerCount - 1))}
+                disabled={isSubmitting || playerCount <= 5}
+                className="h-10 w-10"
+              >
+                -
+              </Button>
+              <span className="text-2xl font-semibold w-12 text-center">{playerCount}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setPlayerCount(Math.min(12, playerCount + 1))}
+                disabled={isSubmitting || playerCount >= 12}
+                className="h-10 w-10"
+              >
+                +
+              </Button>
+              <span className="text-sm text-muted-foreground ms-2">
+                {t('PlayersRange', '(5-12 players)')}
+              </span>
+            </div>
+          </div>
+
+          {/* Language and Theme */}
+          <div className="pt-4 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-2 mb-3">
+                <Languages className="w-4 h-4" />
+                {t('GameLanguageLabel', 'Game Language')}
+              </Label>
+              <LanguageSelector currentLang={lang} />
+            </div>
+
+            <div>
+              <GameThemeSelector
+                selectedThemeKey={selectedGameThemeKey}
+                onThemeChange={setSelectedGameThemeKey}
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Language Selector */}
-      <div>
-        <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
-          <Languages size={16} />
-          {t('GameLanguageLabel', 'Game Language')}
-        </Label>
-        <LanguageSelector currentLang={lang} />
-      </div>
-
-      {/* Game Theme Selector */}
-      <div>
-        <GameThemeSelector
-          selectedThemeKey={selectedGameThemeKey}
-          onThemeChange={setSelectedGameThemeKey}
-          disabled={isSubmitting}
-        />
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-col gap-3 pt-4">
+      <div className="flex flex-col gap-3 pt-6">
         <MagicalAIButton
           onClick={handleStartGame}
           disabled={!canStartGame}

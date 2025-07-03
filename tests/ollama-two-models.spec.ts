@@ -16,7 +16,7 @@ test.describe('Ollama Two Models E2E Tests', () => {
   test('should allow using different Ollama models for Town and Mafia', async ({ page }) => {
     // Navigate to new game page
     await page.goto('/en/new');
-    await expect(page.locator('h1:has-text("Start New Game")')).toBeVisible();
+    await expect(page.locator('h1:has-text("Werewolf AI")')).toBeVisible();
     
     // Select Local Ollama as the main provider
     const mainProviderSelector = page.locator('button[role="combobox"]').first();
@@ -70,7 +70,7 @@ test.describe('Ollama Two Models E2E Tests', () => {
 
   test('should show Ollama configuration when Ollama is selected', async ({ page }) => {
     await page.goto('/en/new');
-    await expect(page.locator('h1:has-text("Start New Game")')).toBeVisible();
+    await expect(page.locator('h1:has-text("Werewolf AI")')).toBeVisible();
     
     // Select Local Ollama
     const providerSelector = page.locator('button[role="combobox"]').first();

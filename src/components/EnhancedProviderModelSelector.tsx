@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Bot, CloudCog } from 'lucide-react';
+import { Bot, CloudCog, Sparkles, Zap, Brain, Cpu, Server, Cloud } from 'lucide-react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +30,28 @@ interface EnhancedProviderModelSelectorProps {
   mode?: 'both' | 'provider' | 'model';
 }
 
+// Provider icons mapping
+const PROVIDER_ICONS: Record<string, React.ReactNode> = {
+  openai: <Brain className="w-4 h-4" />,
+  anthropic: <Sparkles className="w-4 h-4" />,
+  claude: <Sparkles className="w-4 h-4" />,
+  gemini: <Zap className="w-4 h-4" />,
+  groq: <Cpu className="w-4 h-4" />,
+  ollama_local: <Server className="w-4 h-4" />,
+  fireworks: <Cloud className="w-4 h-4" />,
+};
+
+// Provider colors for badges
+const PROVIDER_COLORS: Record<string, string> = {
+  openai: 'bg-green-500/10 text-green-700 dark:text-green-400',
+  anthropic: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
+  claude: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
+  gemini: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+  groq: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
+  ollama_local: 'bg-gray-500/10 text-gray-700 dark:text-gray-400',
+  fireworks: 'bg-red-500/10 text-red-700 dark:text-red-400',
+};
+
 export const EnhancedProviderModelSelector = React.memo(
   function EnhancedProviderModelSelector({
     idPrefix,
@@ -39,7 +61,7 @@ export const EnhancedProviderModelSelector = React.memo(
     availableProviders,
     className,
     disabled = false,
-    selectTriggerClassName = 'w-full text-xs h-9',
+    selectTriggerClassName = 'w-full h-11',
     mode = 'both',
   }: EnhancedProviderModelSelectorProps) {
     const { t } = useTranslation();
@@ -97,7 +119,7 @@ export const EnhancedProviderModelSelector = React.memo(
     return (
       <div
         className={cn(
-          'flex items-start gap-4',
+          'flex items-start gap-3',
           mode === 'both' ? 'flex-col sm:flex-row' : 'flex-col',
           className
         )}
@@ -118,34 +140,61 @@ export const EnhancedProviderModelSelector = React.memo(
                 id={providerSelectId}
                 className={cn(
                   selectTriggerClassName,
-                  'text-left justify-between'
+                  'text-left justify-between hover:bg-secondary/50 transition-colors'
                 )}
               >
-                <span className="flex items-center gap-1 truncate">
-                  <CloudCog className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="flex items-center gap-2 truncate">
+                  {selectedProvider && PROVIDER_ICONS[selectedProvider.value] ? (
+                    <span className="text-primary">{PROVIDER_ICONS[selectedProvider.value]}</span>
+                  ) : (
+                    <CloudCog className="w-4 h-4 text-muted-foreground" />
+                  )}
                   <SelectValue
                     placeholder={t(
                       'SelectProviderPlaceholder',
-                      'Select provider'
+                      'Select AI Provider'
                     )}
                   />
+                  {selectedProvider?.source === 'user' && (
+                    <Badge variant="outline" className="text-xs ms-auto">
+                      USER
+                    </Badge>
+                  )}
                   {process.env.NODE_ENV === 'development' &&
                     process.env.NEXT_PUBLIC_DISABLE_GROQ_DEV_MODE !== 'true' &&
                     selectedProvider?.value === 'groq' && (
-                      <Badge variant="secondary" className="text-xs ms-1">
+                      <Badge variant="secondary" className="text-xs ms-auto">
                         DEV
                       </Badge>
                     )}
                 </span>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px]">
                 {availableProviders.map((provider) => (
                   <SelectItem
                     key={provider.value}
                     value={provider.value}
-                    className="text-xs"
+                    className="py-2"
                   >
-                    {getProviderDisplayTitle(provider)}
+                    <div className="flex items-center gap-2 w-full">
+                      <span className="text-primary">
+                        {PROVIDER_ICONS[provider.value] || <CloudCog className="w-4 h-4" />}
+                      </span>
+                      <span className="flex-1">{getProviderDisplayTitle(provider)}</span>
+                      {provider.source === 'user' && (
+                        <Badge variant="outline" className="text-xs ms-2">
+                          USER
+                        </Badge>
+                      )}
+                      {provider.source === 'both' && (
+                        <Badge 
+                          variant="outline" 
+                          className={cn("text-xs ms-2", PROVIDER_COLORS[provider.value])}
+                        >
+                          ENV + USER
+                        </Badge>
+                      )}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -170,27 +219,27 @@ export const EnhancedProviderModelSelector = React.memo(
                 id={modelSelectId}
                 className={cn(
                   selectTriggerClassName,
-                  'text-left justify-between'
+                  'text-left justify-between hover:bg-secondary/50 transition-colors'
                 )}
               >
-                <span className="flex items-center gap-1 truncate">
-                  <Bot className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="flex items-center gap-2 truncate">
+                  <Bot className="w-4 h-4 text-primary" />
                   <SelectValue
-                    placeholder={t('SelectModelPlaceholder', 'Select model')}
+                    placeholder={t('SelectModelPlaceholder', 'Select AI Model')}
                   />
                 </span>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px]">
                 {currentModels.length === 0 ? (
                   <SelectItem
                     key="loading..."
                     value="loading"
                     disabled
-                    className="text-xs italic"
+                    className="text-xs italic text-muted-foreground"
                   >
                     {t(
                       'NoModelsForProvider',
-                      'No models for selected provider'
+                      'No models available for selected provider'
                     )}
                   </SelectItem>
                 ) : (
@@ -198,9 +247,29 @@ export const EnhancedProviderModelSelector = React.memo(
                     <SelectItem
                       key={model.value}
                       value={model.value}
-                      className="text-xs"
+                      className="py-2"
                     >
-                      {model.title}
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">{model.title}</span>
+                        {model.value.includes('gpt-4') && (
+                          <span className="text-xs text-muted-foreground">Advanced reasoning</span>
+                        )}
+                        {model.value.includes('gpt-3.5') && (
+                          <span className="text-xs text-muted-foreground">Fast & efficient</span>
+                        )}
+                        {model.value.includes('claude-3-opus') && (
+                          <span className="text-xs text-muted-foreground">Most capable</span>
+                        )}
+                        {model.value.includes('claude-3-sonnet') && (
+                          <span className="text-xs text-muted-foreground">Balanced performance</span>
+                        )}
+                        {model.value.includes('gemini-2') && (
+                          <span className="text-xs text-muted-foreground">Latest multimodal</span>
+                        )}
+                        {model.value.includes('llama') && (
+                          <span className="text-xs text-muted-foreground">Open source</span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))
                 )}
