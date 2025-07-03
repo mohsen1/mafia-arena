@@ -177,6 +177,22 @@ export default function SimpleStartGameForm({
     loadEnvProviders();
   }, []);
 
+  // Load user API keys on mount
+  useEffect(() => {
+    const loadUserKeys = async () => {
+      if (!user?.email) return;
+      
+      try {
+        const keys = await getUserApiKeys();
+        setUserApiKeys(keys);
+      } catch (error) {
+        console.error('Failed to load user API keys:', error);
+      }
+    };
+
+    loadUserKeys();
+  }, [user?.email]);
+
   // Sync mafia settings when not using separate config
   useEffect(() => {
     if (
@@ -199,23 +215,6 @@ export default function SimpleStartGameForm({
       setHumanPlayerName(defaultPlayerName);
     }
   }, [isHumanJoining, humanPlayerName, defaultPlayerName]);
-
-  // Load user API keys
-  useEffect(() => {
-    const loadUserApiKeys = async () => {
-      try {
-        const keys = await getUserApiKeys();
-        setUserApiKeys(keys);
-      } catch (error) {
-        console.error('Failed to load user API keys:', error);
-        // Silently fail - user can still use environment keys
-      }
-    };
-
-    if (user?.email) {
-      loadUserApiKeys();
-    }
-  }, [user?.email]);
 
   // Auto-select first available provider and model as default
   useEffect(() => {
