@@ -15,7 +15,12 @@ import { RoleName, type IRole, type Allegiance } from '../interfaces/IRole';
 import { v4 as uuidv4 } from 'uuid';
 import type { IAgent, PlayerAction } from '../interfaces/IAgent';
 import { HumanAgent } from '../agents/HumanAgent';
-import { type GameTheme, Themes } from '../interfaces/Theme';
+import { type GameTheme } from '../interfaces/Theme';
+import {
+  getThemeWithFallback,
+  getThemes,
+  hasTheme,
+} from '@/lib/utils/themeLoader';
 import {
   type AgentMemory,
   createInitialMemory,
@@ -136,9 +141,10 @@ export class Game {
     createdAt?: number
   ) {
     this.id = gameId || uuidv4();
-    this.theme = Themes[themeKey] || Themes.UK_VILLAGE_1900S;
-    if (!this.theme)
-      throw new Error(`Invalid theme key: ${themeKey} for game ${this.id}`);
+    this.theme = getThemeWithFallback(themeKey);
+    if (!hasTheme(themeKey)) {
+      console.warn(`Theme key ${themeKey} not found, using default theme`);
+    }
     this.language = language;
     this.#createdAt = createdAt || Date.now();
 
@@ -339,8 +345,9 @@ export class Game {
       ? { outcome: this.#winningTeam, message: 'Game Over!' }
       : null;
 
+    const themes = getThemes();
     const themeKey =
-      Object.keys(Themes).find((key) => Themes[key] === this.theme) ||
+      Object.keys(themes).find((key) => themes[key] === this.theme) ||
       'UK_VILLAGE_1900S';
 
     const serializableLog = this.#conversationLog

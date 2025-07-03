@@ -3,7 +3,7 @@ import type { StartGameSetupData } from '@/lib/interfaces/actions.types';
 import { DEFAULT_GAME_SETTINGS } from '@/lib/config';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import type { Persona } from '@/lib/engine/interfaces/Persona';
-import { Themes } from '@/lib/engine/interfaces/Theme';
+import { getThemes } from '@/lib/utils/themeLoader';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import type { LanguageCode as Locale } from '@/lib/i18n/settings';
 import { useTranslation } from 'react-i18next';
@@ -97,7 +97,7 @@ export function useGameConfig(
 ) {
   const { t } = useTranslation('translation');
 
-  const firstThemeKey = Object.keys(Themes)[0] || 'UK_VILLAGE_1900S';
+  const firstThemeKey = Object.keys(getThemes())[0] || 'UK_VILLAGE_1900S';
   const [selectedGameThemeKey, setSelectedGameThemeKey] =
     useState<string>(firstThemeKey);
 

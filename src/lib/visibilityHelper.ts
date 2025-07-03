@@ -1,5 +1,5 @@
 import { RoleName } from './engine/interfaces/IRole';
-import { Themes } from './engine/interfaces/Theme';
+import { getThemes } from '@/lib/utils/themeLoader';
 import { MessageVisibility } from './engine/interfaces/IMessage';
 import type { SerializableGameState } from './interfaces/persistence.types';
 import type {
@@ -78,7 +78,8 @@ export function filterGameStateForClient(
       return true;
     });
 
-  const theme = Themes[fullState.themeKey] || Themes.UK_VILLAGE_1900S;
+  const theme =
+    getThemes()[fullState.themeKey] || getThemes()['UK_VILLAGE_1900S'];
 
   const filteredState: FilteredGameState = {
     id: fullState.gameId,

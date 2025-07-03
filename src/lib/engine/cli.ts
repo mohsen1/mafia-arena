@@ -10,7 +10,7 @@ import { Game } from './core/Game';
 import type { IAgent } from './interfaces/IAgent'; // Ensure IAgent is imported
 import type { PlayerId } from './interfaces/IPlayer'; // Import PlayerId
 import type { IRole } from './interfaces/IRole';
-import { Themes } from './interfaces/Theme'; // Import Themes from Theme.ts
+import { getThemes } from '@/lib/utils/themeLoader';
 import { ConsoleRenderer } from './rendering/ConsoleRenderer';
 import { MarkdownRenderer } from './rendering/MarkdownRenderer';
 import { DoctorRole } from './roles/DoctorRole';
@@ -291,7 +291,7 @@ async function main() {
       );
       // Define default settings
       playerCount = 5;
-      const themeKeys = Object.keys(Themes);
+      const themeKeys = Object.keys(getThemes());
       themeKey = themeKeys.length > 0 ? themeKeys[0] : 'western'; // Default theme or fallback
       humanPlayerIndex = -1; // No human player
       humanPlayerName = undefined;
@@ -357,7 +357,7 @@ async function main() {
       }
     }
 
-    const selectedTheme = Themes[themeKey];
+    const selectedTheme = getThemes()[themeKey];
     if (!selectedTheme) {
       throw new Error(
         `Selected theme key "${themeKey}" is invalid or theme definition is missing.`
