@@ -1,6 +1,13 @@
 'use client';
 
-import { AlertCircle, RefreshCw, Home, MessageSquare } from 'lucide-react';
+import {
+  AlertCircle,
+  RefreshCw,
+  Home,
+  MessageSquare,
+  Server,
+  Terminal,
+} from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,6 +62,26 @@ export function GameErrorDisplay({
 
   // Get user-friendly error title and description based on error type
   const getErrorDetails = () => {
+    // Check for Ollama-specific errors
+    if (
+      errorMessage.includes('Ollama') ||
+      errorMessage.includes('ollama') ||
+      errorCode === 'OLLAMA_NOT_RUNNING' ||
+      errorCode === 'OLLAMA_CONNECTION_ERROR'
+    ) {
+      return {
+        title: t('error.ollamaTitle', 'Ollama Connection Error'),
+        description:
+          errorMessage ||
+          t(
+            'error.ollamaDesc',
+            'Cannot connect to Ollama. Make sure Ollama is running locally.'
+          ),
+        showOllamaHelp: true,
+        showRetry: isRetryable,
+      };
+    }
+
     switch (errorCode) {
       case 'AUTHENTICATION_ERROR':
       case ErrorCode.AI_AUTHENTICATION:
@@ -80,6 +107,7 @@ export function GameErrorDisplay({
               'Too many requests. Please wait a moment and try again.'
             ),
           showRetry: isRetryable,
+          showRateLimitTip: true,
         };
       case 'TIMEOUT_ERROR':
       case ErrorCode.AI_TIMEOUT:
@@ -213,8 +241,15 @@ export function GameErrorDisplay({
     }
   };
 
-  const { title, description, showRetry, showSettings, showNewGame } =
-    getErrorDetails();
+  const {
+    title,
+    description,
+    showRetry,
+    showSettings,
+    showNewGame,
+    showOllamaHelp,
+    showRateLimitTip,
+  } = getErrorDetails();
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -232,7 +267,9 @@ export function GameErrorDisplay({
             <div className="font-semibold mb-1">
               {t('error.details', 'Error Details')}
             </div>
-            <div className="mt-2 font-mono text-sm">{technicalMessage}</div>
+            <div className="mt-2 font-mono text-sm opacity-90">
+              {technicalMessage}
+            </div>
             {process.env.NODE_ENV === 'development' &&
               typeof error === 'object' &&
               error.context && (
@@ -247,6 +284,52 @@ export function GameErrorDisplay({
               )}
           </AlertDescription>
         </Alert>
+
+        {/* Ollama-specific help */}
+        {showOllamaHelp && (
+          <Alert className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+            <Server className="h-4 w-4" />
+            <AlertDescription>
+              <div className="space-y-2">
+                <p className="font-semibold">
+                  {t('error.ollamaHelpTitle', 'Ollama Setup Instructions:')}
+                </p>
+                <ol className="list-decimal list-inside space-y-1 text-sm">
+                  <li>
+                    {t('error.ollamaStep1', 'Ensure Ollama is installed from')}{' '}
+                    <code className="px-1 py-0.5 bg-secondary rounded text-xs">
+                      ollama.ai
+                    </code>
+                  </li>
+                  <li>
+                    {t('error.ollamaStep2', 'Start Ollama service:')}{' '}
+                    <code className="px-1 py-0.5 bg-secondary rounded text-xs">
+                      ollama serve
+                    </code>
+                  </li>
+                  <li>
+                    {t('error.ollamaStep3', 'Pull a model if needed:')}{' '}
+                    <code className="px-1 py-0.5 bg-secondary rounded text-xs">
+                      ollama pull llama3.2
+                    </code>
+                  </li>
+                  <li>
+                    {t('error.ollamaStep4', 'Check if Ollama is running:')}{' '}
+                    <code className="px-1 py-0.5 bg-secondary rounded text-xs">
+                      curl http://localhost:11434/api/tags
+                    </code>
+                  </li>
+                </ol>
+                <div className="mt-3 flex items-center gap-2">
+                  <Terminal className="h-4 w-4" />
+                  <span className="text-sm text-muted-foreground">
+                    {t('error.ollamaPort', 'Default port: 11434')}
+                  </span>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex flex-wrap gap-2">
           {showRetry && onRetry && (
@@ -289,7 +372,7 @@ export function GameErrorDisplay({
           )}
         </div>
 
-        {errorCode === 'RATE_LIMIT_ERROR' && (
+        {showRateLimitTip && (
           <Alert className="mt-4">
             <AlertDescription>
               {t(

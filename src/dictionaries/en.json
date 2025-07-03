@@ -416,7 +416,7 @@
     "signInRequired": "Sign In Required",
     "signInRequiredDescription": "You need to be signed in to view your games.",
     "title": "My Games",
-    "subtitle": "View and manage your game history",
+    "description": "View and manage your game history",
     "newGame": "New Game",
     "playerCount": "{{count}} players",
     "waiting": "Waiting",
@@ -434,7 +434,14 @@
     "filterBy": "Filter by",
     "allGames": "All Games",
     "noGames": "No games found",
-    "createFirst": "Create your first game to get started!"
+    "createFirst": "Create your first game to get started!",
+    "continueGame": "Continue Game",
+    "viewGame": "View Game",
+    "status": {
+      "waiting": "Waiting",
+      "inProgress": "In Progress",
+      "completed": "Completed"
+    }
   },
   
   "DayBegins": "Day begins...",
@@ -444,6 +451,9 @@
   "DayStart": "Day {{round}} begins. The town gathers to discuss recent events.",
   "VotingPhase": "Time to vote! Who do you suspect?",
   "VotingComplete": "Voting complete.",
+  "VoteForPlayerConfirm": "You are voting to eliminate {{player}}",
+  "Abstained": "Abstained",
+  "Progress": "Progress",
   "ChoseNoActionVoting": "chooses not to vote.",
   "ChoseNoAction": "takes no action.",
   "VotesToAbstain": "abstains from voting.",
@@ -849,7 +859,15 @@
     "startNewGame": "Start New Game",
     "goHome": "Go Home",
     "getHelp": "Get Help",
-    "rateLimitTip": "Tip: You can add your own API keys in your profile to avoid rate limits."
+    "rateLimitTip": "Tip: You can add your own API keys in your profile to avoid rate limits.",
+    "ollamaTitle": "Ollama Connection Error",
+    "ollamaDesc": "Cannot connect to Ollama. Make sure Ollama is running locally.",
+    "ollamaHelpTitle": "Ollama Setup Instructions:",
+    "ollamaStep1": "Ensure Ollama is installed from",
+    "ollamaStep2": "Start Ollama service:",
+    "ollamaStep3": "Pull a model if needed:",
+    "ollamaStep4": "Check if Ollama is running:",
+    "ollamaPort": "Default port: 11434"
   },
   "ollama": {
     "title": "Ollama Configuration",
