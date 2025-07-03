@@ -209,8 +209,99 @@ export class OllamaAgent extends OpenAIAgent {
         throw new Error('Ollama service is not responding after retries');
       }
 
-      // Proceed with persona generation
-      await super.generatePersona(themeDescription, language, existingNames);
+      // For Ollama, use a simpler prompt that's more likely to work with local models
+      const simplePrompt = `Generate a character for a Mafia game set in: ${themeDescription}
+
+Create a JSON object with these fields:
+- name: A unique character name
+- backstory: One sentence about the character
+- personalityTraits: Array of 3-4 personality traits
+
+Example:
+{"name": "Thomas Baker", "backstory": "A gruff but honest blacksmith who has lived in the village for decades.", "personalityTraits": ["Honest", "Gruff", "Hardworking", "Suspicious"]}
+
+Respond with ONLY the JSON object, no other text.`;
+
+      try {
+        const response = await fetch(`${this.apiBase}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ollama-no-key-needed`,
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [{ role: 'user', content: simplePrompt }],
+            temperature: 0.7,
+            max_tokens: 200,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (content) {
+          // Try to extract JSON from the response
+          let jsonStr = content.trim();
+          
+          // Remove markdown code blocks if present
+          jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+          
+          // Try to find JSON object in the response
+          const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            jsonStr = jsonMatch[0];
+          }
+
+          try {
+            const persona = JSON.parse(jsonStr);
+            
+            // Validate the persona
+            if (persona.name && persona.backstory && Array.isArray(persona.personalityTraits)) {
+              // Check for duplicate names
+              if (existingNames?.includes(persona.name)) {
+                // Generate a unique variant
+                persona.name = `${persona.name} ${this.id.slice(-4)}`;
+              }
+              
+              this.persona = persona;
+              log(`Successfully generated Ollama persona: ${this.persona.name}`);
+              return;
+            }
+          } catch (parseError) {
+            log(`Failed to parse Ollama response as JSON: ${parseError}`);
+          }
+        }
+      } catch (apiError) {
+        log(`Ollama API error: ${apiError}`);
+      }
+
+      // If we get here, use fallback persona generation
+      const fallbackNames = [
+        'Thomas', 'Mary', 'John', 'Elizabeth', 'William', 'Margaret',
+        'James', 'Sarah', 'George', 'Alice', 'Charles', 'Emma'
+      ];
+      
+      let name = fallbackNames[Math.floor(Math.random() * fallbackNames.length)];
+      const suffix = this.id.slice(-4);
+      
+      // Ensure uniqueness
+      if (existingNames?.some(n => n.startsWith(name))) {
+        name = `${name} ${suffix}`;
+      }
+      
+      this.persona = {
+        name,
+        backstory: `A long-time resident of ${themeDescription}.`,
+        personalityTraits: ['Cautious', 'Observant', 'Thoughtful'],
+      };
+      
+      log(`Using fallback persona for Ollama: ${this.persona.name}`);
+      
     } catch (error) {
       if (
         error instanceof Error &&

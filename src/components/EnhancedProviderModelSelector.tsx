@@ -9,7 +9,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Bot, CloudCog, Sparkles, Zap, Brain, Cpu, Server, Cloud } from 'lucide-react';
+import {
+  Bot,
+  CloudCog,
+  Sparkles,
+  Zap,
+  Brain,
+  Cpu,
+  Server,
+  Cloud,
+} from 'lucide-react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -144,8 +153,11 @@ export const EnhancedProviderModelSelector = React.memo(
                 )}
               >
                 <span className="flex items-center gap-2 truncate">
-                  {selectedProvider && PROVIDER_ICONS[selectedProvider.value] ? (
-                    <span className="text-primary">{PROVIDER_ICONS[selectedProvider.value]}</span>
+                  {selectedProvider &&
+                  PROVIDER_ICONS[selectedProvider.value] ? (
+                    <span className="text-primary">
+                      {PROVIDER_ICONS[selectedProvider.value]}
+                    </span>
                   ) : (
                     <CloudCog className="w-4 h-4 text-muted-foreground" />
                   )}
@@ -178,18 +190,25 @@ export const EnhancedProviderModelSelector = React.memo(
                   >
                     <div className="flex items-center gap-2 w-full">
                       <span className="text-primary">
-                        {PROVIDER_ICONS[provider.value] || <CloudCog className="w-4 h-4" />}
+                        {PROVIDER_ICONS[provider.value] || (
+                          <CloudCog className="w-4 h-4" />
+                        )}
                       </span>
-                      <span className="flex-1">{getProviderDisplayTitle(provider)}</span>
+                      <span className="flex-1">
+                        {getProviderDisplayTitle(provider)}
+                      </span>
                       {provider.source === 'user' && (
                         <Badge variant="outline" className="text-xs ms-2">
                           USER
                         </Badge>
                       )}
                       {provider.source === 'both' && (
-                        <Badge 
-                          variant="outline" 
-                          className={cn("text-xs ms-2", PROVIDER_COLORS[provider.value])}
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-xs ms-2',
+                            PROVIDER_COLORS[provider.value]
+                          )}
                         >
                           ENV + USER
                         </Badge>
@@ -252,22 +271,34 @@ export const EnhancedProviderModelSelector = React.memo(
                       <div className="flex flex-col gap-0.5">
                         <span className="font-medium">{model.title}</span>
                         {model.value.includes('gpt-4') && (
-                          <span className="text-xs text-muted-foreground">Advanced reasoning</span>
+                          <span className="text-xs text-muted-foreground">
+                            Advanced reasoning
+                          </span>
                         )}
                         {model.value.includes('gpt-3.5') && (
-                          <span className="text-xs text-muted-foreground">Fast & efficient</span>
+                          <span className="text-xs text-muted-foreground">
+                            Fast & efficient
+                          </span>
                         )}
                         {model.value.includes('claude-3-opus') && (
-                          <span className="text-xs text-muted-foreground">Most capable</span>
+                          <span className="text-xs text-muted-foreground">
+                            Most capable
+                          </span>
                         )}
                         {model.value.includes('claude-3-sonnet') && (
-                          <span className="text-xs text-muted-foreground">Balanced performance</span>
+                          <span className="text-xs text-muted-foreground">
+                            Balanced performance
+                          </span>
                         )}
                         {model.value.includes('gemini-2') && (
-                          <span className="text-xs text-muted-foreground">Latest multimodal</span>
+                          <span className="text-xs text-muted-foreground">
+                            Latest multimodal
+                          </span>
                         )}
                         {model.value.includes('llama') && (
-                          <span className="text-xs text-muted-foreground">Open source</span>
+                          <span className="text-xs text-muted-foreground">
+                            Open source
+                          </span>
                         )}
                       </div>
                     </SelectItem>
