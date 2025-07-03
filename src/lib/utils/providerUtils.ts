@@ -106,9 +106,10 @@ export function getAllAvailableProviders(
   // Sort providers with Groq first if available, then alphabetically
   return Array.from(providerMap.values()).sort((a, b) => {
     // In development mode, always prioritize Groq (unless disabled)
-    const useGroqInDev = process.env.NODE_ENV === 'development' && 
-                        process.env.NEXT_PUBLIC_DISABLE_GROQ_DEV_MODE !== 'true';
-    
+    const useGroqInDev =
+      process.env.NODE_ENV === 'development' &&
+      process.env.NEXT_PUBLIC_DISABLE_GROQ_DEV_MODE !== 'true';
+
     if (useGroqInDev) {
       if (a.value === 'groq') return -1;
       if (b.value === 'groq') return 1;

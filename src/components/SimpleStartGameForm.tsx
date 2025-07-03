@@ -222,10 +222,11 @@ export default function SimpleStartGameForm({
     if (!globalProviderSelection && allAvailableProviders.length > 0) {
       // In development mode, prefer Groq if available (unless disabled)
       let selectedProvider = allAvailableProviders[0];
-      
-      const useGroqInDev = process.env.NODE_ENV === 'development' && 
-                          process.env.NEXT_PUBLIC_DISABLE_GROQ_DEV_MODE !== 'true';
-      
+
+      const useGroqInDev =
+        process.env.NODE_ENV === 'development' &&
+        process.env.NEXT_PUBLIC_DISABLE_GROQ_DEV_MODE !== 'true';
+
       if (useGroqInDev) {
         const groqProvider = allAvailableProviders.find(
           (p) => p.value === 'groq'
@@ -237,13 +238,13 @@ export default function SimpleStartGameForm({
           );
         }
       }
-      
+
       const defaultModel = getDefaultModelForProvider(selectedProvider.value);
 
       if (selectedProvider && defaultModel) {
         setGlobalProviderSelection(selectedProvider.value);
         setGlobalModelSelection(defaultModel);
-        
+
         // In development, also set Groq for Mafia if available
         if (useGroqInDev && selectedProvider.value === 'groq') {
           setMafiaProviderSelection(selectedProvider.value);
