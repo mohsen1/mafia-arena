@@ -179,40 +179,57 @@ export const getAIResponse: GetAIResponseFunction = async (
     return responseContent;
   } catch (error: unknown) {
     const modelName = settings.model;
-    
+
     // Convert to GameError for consistent error handling
     let gameError: GameError;
-    
+
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
-      
-      if (errorMessage.includes('api key not valid') || errorMessage.includes('401')) {
+
+      if (
+        errorMessage.includes('api key not valid') ||
+        errorMessage.includes('401')
+      ) {
         gameError = GameErrors.aiAuthentication('Gemini', error);
-      } else if (errorMessage.includes('429') || errorMessage.includes('quota')) {
+      } else if (
+        errorMessage.includes('429') ||
+        errorMessage.includes('quota')
+      ) {
         gameError = GameErrors.aiRateLimit('Gemini', error);
       } else if (errorMessage.includes('timeout')) {
         gameError = GameErrors.aiTimeout('Gemini', 30000, error);
-      } else if (errorMessage.includes('econnrefused') || errorMessage.includes('network')) {
+      } else if (
+        errorMessage.includes('econnrefused') ||
+        errorMessage.includes('network')
+      ) {
         gameError = new GameError({
           code: ErrorCode.NETWORK_ERROR,
           message: error.message,
-          userMessage: 'Cannot connect to Gemini API. Please check your internet connection.',
+          userMessage:
+            'Cannot connect to Gemini API. Please check your internet connection.',
           originalError: error,
           retryable: true,
-          httpStatus: 503
+          httpStatus: 503,
         });
       } else if (errorMessage.includes('model')) {
         gameError = GameErrors.aiModelNotFound(modelName, 'Gemini', error);
-      } else if (errorMessage.includes('safety') || errorMessage.includes('blocked')) {
+      } else if (
+        errorMessage.includes('safety') ||
+        errorMessage.includes('blocked')
+      ) {
         gameError = new GameError({
           code: ErrorCode.AI_SAFETY_FILTER,
           message: error.message,
-          userMessage: 'Response blocked by safety filters. The content may violate usage policies.',
+          userMessage:
+            'Response blocked by safety filters. The content may violate usage policies.',
           originalError: error,
           retryable: false,
-          httpStatus: 400
+          httpStatus: 400,
         });
-      } else if (errorMessage.includes('context') || errorMessage.includes('token')) {
+      } else if (
+        errorMessage.includes('context') ||
+        errorMessage.includes('token')
+      ) {
         gameError = GameErrors.aiContextLength('Gemini', error);
       } else {
         gameError = GameError.fromUnknown(error);

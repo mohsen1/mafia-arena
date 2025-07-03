@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error to error reporting service
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+
     // In production, you might want to send this to an error tracking service
     if (process.env.NODE_ENV === 'production') {
       // Example: logErrorToService(error, errorInfo);
@@ -48,9 +48,10 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       // Convert regular errors to GameError for consistent display
-      const gameError = this.state.error instanceof GameError 
-        ? this.state.error 
-        : GameError.fromUnknown(this.state.error);
+      const gameError =
+        this.state.error instanceof GameError
+          ? this.state.error
+          : GameError.fromUnknown(this.state.error);
 
       // Default error display
       return (
@@ -84,4 +85,4 @@ export function useErrorHandler() {
   const captureError = (error: Error) => setError(error);
 
   return { resetError, captureError };
-} 
+}

@@ -111,29 +111,42 @@ export const getAIResponse: GetAIResponseFunction = async (
     return responseContent;
   } catch (error: unknown) {
     const modelName = settings.model;
-    
+
     // Convert to GameError for consistent error handling
     let gameError: GameError;
-    
+
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
-      
-      if (errorMessage.includes('401') || errorMessage.includes('invalid_api_key')) {
+
+      if (
+        errorMessage.includes('401') ||
+        errorMessage.includes('invalid_api_key')
+      ) {
         gameError = GameErrors.aiAuthentication('OpenAI', error);
-      } else if (errorMessage.includes('429') || errorMessage.includes('rate_limit')) {
+      } else if (
+        errorMessage.includes('429') ||
+        errorMessage.includes('rate_limit')
+      ) {
         gameError = GameErrors.aiRateLimit('OpenAI', error);
       } else if (errorMessage.includes('timeout')) {
         gameError = GameErrors.aiTimeout('OpenAI', 30000, error);
-      } else if (errorMessage.includes('econnrefused') || errorMessage.includes('network')) {
+      } else if (
+        errorMessage.includes('econnrefused') ||
+        errorMessage.includes('network')
+      ) {
         gameError = new GameError({
           code: ErrorCode.NETWORK_ERROR,
           message: error.message,
-          userMessage: 'Cannot connect to OpenAI API. Please check your internet connection.',
+          userMessage:
+            'Cannot connect to OpenAI API. Please check your internet connection.',
           originalError: error,
           retryable: true,
-          httpStatus: 503
+          httpStatus: 503,
         });
-      } else if (errorMessage.includes('model_not_found') || errorMessage.includes('invalid model')) {
+      } else if (
+        errorMessage.includes('model_not_found') ||
+        errorMessage.includes('invalid model')
+      ) {
         gameError = GameErrors.aiModelNotFound(modelName, 'OpenAI', error);
       } else if (errorMessage.includes('context_length_exceeded')) {
         gameError = GameErrors.aiContextLength('OpenAI', error);

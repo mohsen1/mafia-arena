@@ -115,27 +115,37 @@ export const getAIResponse: GetAIResponseFunction = async (
     return responseContent.text;
   } catch (error: unknown) {
     const modelName = settings.model;
-    
+
     // Convert to GameError for consistent error handling
     let gameError: GameError;
-    
+
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
-      
-      if (errorMessage.includes('401') || errorMessage.includes('authentication')) {
+
+      if (
+        errorMessage.includes('401') ||
+        errorMessage.includes('authentication')
+      ) {
         gameError = GameErrors.aiAuthentication('Anthropic', error);
-      } else if (errorMessage.includes('429') || errorMessage.includes('rate_limit')) {
+      } else if (
+        errorMessage.includes('429') ||
+        errorMessage.includes('rate_limit')
+      ) {
         gameError = GameErrors.aiRateLimit('Anthropic', error);
       } else if (errorMessage.includes('timeout')) {
         gameError = GameErrors.aiTimeout('Anthropic', 60000, error);
-      } else if (errorMessage.includes('econnrefused') || errorMessage.includes('network')) {
+      } else if (
+        errorMessage.includes('econnrefused') ||
+        errorMessage.includes('network')
+      ) {
         gameError = new GameError({
           code: ErrorCode.NETWORK_ERROR,
           message: error.message,
-          userMessage: 'Cannot connect to Claude API. Please check your internet connection.',
+          userMessage:
+            'Cannot connect to Claude API. Please check your internet connection.',
           originalError: error,
           retryable: true,
-          httpStatus: 503
+          httpStatus: 503,
         });
       } else if (errorMessage.includes('model_not_found')) {
         gameError = GameErrors.aiModelNotFound(modelName, 'Anthropic', error);
