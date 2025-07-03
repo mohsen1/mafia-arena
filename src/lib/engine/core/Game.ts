@@ -652,15 +652,21 @@ export class Game {
     const generatedNames: string[] = [];
     const maxRetries = 3;
 
+    // Collect all players that need persona generation
+    const playersNeedingPersona: Player[] = [];
     for (const player of this.#players.values()) {
-      let attempts = 0;
-      let success = false;
-
       // Skip human players - they don't need AI-generated personas
       if (player.agent instanceof HumanAgent) {
         generatedNames.push(player.name);
         continue;
       }
+      playersNeedingPersona.push(player);
+    }
+
+    // Generate personas in parallel
+    const personaPromises = playersNeedingPersona.map(async (player) => {
+      let attempts = 0;
+      let success = false;
 
       while (attempts < maxRetries && !success) {
         attempts++;
@@ -679,15 +685,15 @@ export class Game {
               ...DEFAULT_PERSONA,
               name: fallbackName,
             };
-            generatedNames.push(fallbackName);
-            success = true;
-            break;
+            return { player, name: fallbackName, success: true };
           }
 
+          // Generate persona with existing names to avoid duplicates
+          // Note: This may still generate duplicates in parallel, but we'll handle that after
           await player.agent.generatePersona(
             this.theme.description,
             this.language,
-            generatedNames
+            [...generatedNames] // Pass a copy of current names
           );
 
           // Validate persona generation
@@ -697,18 +703,10 @@ export class Game {
             player.agent.persona.name.trim() !== '' &&
             player.agent.persona.name !== DEFAULT_PERSONA.name
           ) {
-            // Check for duplicate names
-            if (generatedNames.includes(player.agent.persona.name)) {
-              console.warn(
-                `Duplicate name generated: ${player.agent.persona.name}. Retrying...`
-              );
-              throw new Error('Duplicate name generated');
-            }
-            generatedNames.push(player.agent.persona.name);
-            success = true;
             console.log(
               `Successfully generated persona for ${player.name}: ${player.agent.persona.name}`
             );
+            return { player, name: player.agent.persona.name, success: true };
           } else {
             console.warn(
               `Player ${player.id} failed to generate valid persona name (attempt ${attempts}/${maxRetries})`
@@ -720,11 +718,10 @@ export class Game {
                 ...DEFAULT_PERSONA,
                 name: fallbackName,
               };
-              generatedNames.push(fallbackName);
-              success = true;
               console.warn(
                 `Using fallback name for ${player.name}: ${fallbackName}`
               );
+              return { player, name: fallbackName, success: true };
             }
           }
         } catch (error) {
@@ -763,10 +760,44 @@ export class Game {
               ...DEFAULT_PERSONA,
               name: fallbackName,
             };
-            generatedNames.push(fallbackName);
-            success = true;
+            return { player, name: fallbackName, success: true };
           }
         }
+
+        // Add a small delay between retries to avoid rate limits
+        if (!success && attempts < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      // Should not reach here, but handle it just in case
+      const fallbackName = `${player.name}-${player.id.slice(-4)}`;
+      player.agent.persona = {
+        ...DEFAULT_PERSONA,
+        name: fallbackName,
+      };
+      return { player, name: fallbackName, success: false };
+    });
+
+    // Wait for all personas to be generated
+    const results = await Promise.all(personaPromises);
+    
+    // Handle duplicate names
+    const nameCount = new Map<string, number>();
+    for (const result of results) {
+      const count = nameCount.get(result.name) || 0;
+      nameCount.set(result.name, count + 1);
+      
+      if (count > 0) {
+        // Duplicate found, append number
+        const newName = `${result.name} ${count + 1}`;
+        console.warn(`Duplicate name detected: ${result.name}, renaming to ${newName}`);
+        if (result.player.agent.persona) {
+          result.player.agent.persona.name = newName;
+        }
+        generatedNames.push(newName);
+      } else {
+        generatedNames.push(result.name);
       }
     }
 

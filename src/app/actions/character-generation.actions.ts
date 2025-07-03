@@ -57,101 +57,49 @@ export async function generateGameCharactersAction(
       return { error: `Invalid theme key: ${gameState.themeKey}` };
     }
 
-    // Generate characters for non-human players
+    // Load game and use the optimized parallel persona generation
+    const game = await Game.loadFromState(gameState);
+    
+    // This now generates personas in parallel internally
+    await game.ensurePersonasGenerated();
+    
+    // Generate character images in parallel for all non-human players
     const aiPlayers = Object.values(gameState.players).filter(
       (player) => !player.isHuman
     );
-
-    const generatedNames: string[] = [];
-
-    // First, collect names of human players who already have names
-    Object.values(gameState.players).forEach((player) => {
-      if (player.isHuman && player.name) {
-        generatedNames.push(player.name);
+    
+    const imagePromises = aiPlayers.map(async (player) => {
+      if (!player.imageUrl) {
+        try {
+          const gender = Math.random() > 0.5 ? 'male' : 'female';
+          const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
+          const imageUrl = await selectCharacterImage(gender, ageCategory);
+          return { playerId: player.id, imageUrl };
+        } catch (error) {
+          console.warn(`Failed to generate image for ${player.name}:`, error);
+          return { playerId: player.id, imageUrl: null };
+        }
       }
+      return { playerId: player.id, imageUrl: player.imageUrl };
     });
-
-    for (let i = 0; i < aiPlayers.length; i++) {
-      const player = aiPlayers[i];
-
-      try {
-        // Generate persona
-        const persona = await generateCharacterPersona(
-          player.name,
-          player.id,
-          player.agentConfig,
-          theme.description,
-          gameState.language,
-          generatedNames
-        );
-
-        // Check for duplicate names and retry if necessary
-        let finalPersona = persona;
-        if (generatedNames.includes(persona.name)) {
-          console.warn(
-            `Duplicate name generated: ${persona.name}. Retrying...`
-          );
-          // Retry with current existing names
-          try {
-            finalPersona = await generateCharacterPersona(
-              player.name,
-              player.id,
-              player.agentConfig,
-              theme.description,
-              gameState.language,
-              generatedNames
-            );
-          } catch (retryError) {
-            console.warn(
-              `Retry failed, using fallback name for ${player.name}:`,
-              retryError
-            );
-            finalPersona = {
-              ...persona,
-              name: `${persona.name}-${player.id.slice(-4)}`, // Ensure uniqueness
-            };
-          }
-        }
-
-        // Add the final name to the list
-        generatedNames.push(finalPersona.name);
-
-        // Generate character image
-        let characterImageUrl = player.imageUrl;
-        if (!characterImageUrl) {
-          try {
-            const gender = Math.random() > 0.5 ? 'male' : 'female';
-            const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
-            characterImageUrl = await selectCharacterImage(gender, ageCategory);
-          } catch (error) {
-            console.warn(`Failed to generate image for ${player.name}:`, error);
-            characterImageUrl = null;
-          }
-        }
-
-        // Update player with generated data
-        gameState.players[player.id] = {
-          ...player,
-          name: finalPersona.name,
-          persona: finalPersona,
-          imageUrl: characterImageUrl,
-        };
-
-        // Save progress after each character generation
-        await saveGameData(gameId, gameState);
-      } catch (error) {
-        console.error(
-          `Failed to generate character for ${player.name}:`,
-          error
-        );
-        // Keep placeholder data if generation fails
-        generatedNames.push(player.name); // Add original name to avoid conflicts
+    
+    // Wait for all images to be generated
+    const imageResults = await Promise.all(imagePromises);
+    
+    // Update the game state with generated personas and images
+    const updatedState = game.getCurrentSerializableState();
+    
+    // Apply generated images to the state
+    for (const result of imageResults) {
+      if (updatedState.players[result.playerId]) {
+        updatedState.players[result.playerId].imageUrl = result.imageUrl;
       }
     }
+    
+    // Save the updated state
+    await saveGameData(gameId, updatedState);
 
-    // Load game and transition to next phase
-    const game = await Game.loadFromState(gameState);
-
+    // Mark generation phases as complete and transition
     game.markRolesAssigned();
     game.markPersonasGenerated();
     game.createInitialAgentMemories();
