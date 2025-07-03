@@ -21,7 +21,7 @@ interface HeaderProps {
 }
 
 export function Header({ currentLang }: HeaderProps) {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -35,20 +35,6 @@ export function Header({ currentLang }: HeaderProps) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  // Force session refresh on mount to ensure latest user data
-  useEffect(() => {
-    if (status === 'authenticated') {
-      update();
-      // Debug logging
-      console.log('[Header] Session data:', {
-        user: session?.user,
-        image: session?.user?.image,
-        name: session?.user?.name,
-        email: session?.user?.email,
-      });
-    }
-  }, [status, update, session]);
 
   // Reset image error state when session changes
   useEffect(() => {
