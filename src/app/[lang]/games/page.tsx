@@ -226,11 +226,26 @@ function GameCard({
               </span>
               <Badge variant="default">
                 {(() => {
-                  const winCondition = game.winCondition as any;
-                  if (winCondition?.winner === 'Town') {
-                    return t('TownPlayersTitle', 'Town');
-                  } else if (winCondition?.winner === 'Mafia') {
-                    return t('MafiaPlayersTitle', 'Mafia');
+                  const winCondition = game.winCondition as {
+                    outcome?: string;
+                    message?: string;
+                  } | null;
+                  const outcome = winCondition?.outcome;
+
+                  if (
+                    outcome === 'Town Victory' ||
+                    outcome === 'Town Wins' ||
+                    outcome === 'Town'
+                  ) {
+                    return t('games.townWins');
+                  } else if (
+                    outcome === 'Mafia Victory' ||
+                    outcome === 'Mafia Wins' ||
+                    outcome === 'Mafia'
+                  ) {
+                    return t('games.mafiaWins');
+                  } else if (outcome === 'Stalemate') {
+                    return t('games.stalemate');
                   } else {
                     return t('games.gameComplete');
                   }
