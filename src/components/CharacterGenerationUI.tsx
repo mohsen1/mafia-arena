@@ -270,15 +270,86 @@ export default function CharacterGenerationUI({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-center text-muted-foreground">{error}</p>
-            <Button
-              onClick={() => {
-                setError(null);
-                startGeneration();
-              }}
-              className="w-full"
-            >
-              {t('character-generation.retry', 'Try Again')}
-            </Button>
+
+            {/* Add helpful suggestions based on error type */}
+            <div className="bg-secondary/20 rounded-md p-3 space-y-2">
+              <p className="text-sm font-medium">
+                {t('character-generation.suggestions', 'Suggestions:')}
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                {(error.includes('Ollama') ||
+                  error.includes('OLLAMA_NOT_RUNNING')) && (
+                  <>
+                    <li>
+                      • Ensure Ollama is running:{' '}
+                      <code className="text-xs bg-secondary px-1 py-0.5 rounded">
+                        ollama serve
+                      </code>
+                    </li>
+                    <li>
+                      • Check if the model is installed:{' '}
+                      <code className="text-xs bg-secondary px-1 py-0.5 rounded">
+                        ollama list
+                      </code>
+                    </li>
+                  </>
+                )}
+                {(error.includes('API key') ||
+                  error.includes('AUTH_ERROR')) && (
+                  <li>• Check your API key in the environment settings</li>
+                )}
+                {(error.includes('Rate limit') ||
+                  error.includes('RATE_LIMIT')) && (
+                  <li>
+                    • Wait a moment before trying again (rate limit exceeded)
+                  </li>
+                )}
+                {(error.includes('timeout') || error.includes('TIMEOUT')) && (
+                  <li>
+                    • The AI service is busy, please try again in a moment
+                  </li>
+                )}
+                {(error.includes('model') ||
+                  error.includes('MODEL_NOT_FOUND')) && (
+                  <li>
+                    • The selected AI model is not available, try a different
+                    model
+                  </li>
+                )}
+                {(error.includes('quota') ||
+                  error.includes('QUOTA_EXCEEDED')) && (
+                  <li>
+                    • Your API quota has been exceeded, check your account
+                    limits
+                  </li>
+                )}
+                <li>• Try using a different AI model or provider</li>
+                <li>• Return to the game setup to adjust settings</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setError(null);
+                  hasInitiatedGenerationRef.current = false;
+                  startGeneration();
+                }}
+                className="flex-1"
+              >
+                {t('character-generation.retry', 'Try Again')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Navigate back to game setup
+                  window.location.href = '/en/new';
+                }}
+                className="flex-1"
+              >
+                {t('character-generation.back-to-setup', 'Back to Setup')}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

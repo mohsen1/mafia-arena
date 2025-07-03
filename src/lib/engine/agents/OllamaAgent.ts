@@ -227,7 +227,7 @@ Respond with ONLY the JSON object, no other text.`;
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ollama-no-key-needed`,
+            Authorization: `Bearer ollama-no-key-needed`,
           },
           body: JSON.stringify({
             model: this.model,
@@ -247,10 +247,10 @@ Respond with ONLY the JSON object, no other text.`;
         if (content) {
           // Try to extract JSON from the response
           let jsonStr = content.trim();
-          
+
           // Remove markdown code blocks if present
           jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-          
+
           // Try to find JSON object in the response
           const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
@@ -259,17 +259,23 @@ Respond with ONLY the JSON object, no other text.`;
 
           try {
             const persona = JSON.parse(jsonStr);
-            
+
             // Validate the persona
-            if (persona.name && persona.backstory && Array.isArray(persona.personalityTraits)) {
+            if (
+              persona.name &&
+              persona.backstory &&
+              Array.isArray(persona.personalityTraits)
+            ) {
               // Check for duplicate names
               if (existingNames?.includes(persona.name)) {
                 // Generate a unique variant
                 persona.name = `${persona.name} ${this.id.slice(-4)}`;
               }
-              
+
               this.persona = persona;
-              log(`Successfully generated Ollama persona: ${this.persona.name}`);
+              log(
+                `Successfully generated Ollama persona: ${this.persona.name}`
+              );
               return;
             }
           } catch (parseError) {
@@ -282,26 +288,36 @@ Respond with ONLY the JSON object, no other text.`;
 
       // If we get here, use fallback persona generation
       const fallbackNames = [
-        'Thomas', 'Mary', 'John', 'Elizabeth', 'William', 'Margaret',
-        'James', 'Sarah', 'George', 'Alice', 'Charles', 'Emma'
+        'Thomas',
+        'Mary',
+        'John',
+        'Elizabeth',
+        'William',
+        'Margaret',
+        'James',
+        'Sarah',
+        'George',
+        'Alice',
+        'Charles',
+        'Emma',
       ];
-      
-      let name = fallbackNames[Math.floor(Math.random() * fallbackNames.length)];
+
+      let name =
+        fallbackNames[Math.floor(Math.random() * fallbackNames.length)];
       const suffix = this.id.slice(-4);
-      
+
       // Ensure uniqueness
-      if (existingNames?.some(n => n.startsWith(name))) {
+      if (existingNames?.some((n) => n.startsWith(name))) {
         name = `${name} ${suffix}`;
       }
-      
+
       this.persona = {
         name,
         backstory: `A long-time resident of ${themeDescription}.`,
         personalityTraits: ['Cautious', 'Observant', 'Thoughtful'],
       };
-      
+
       log(`Using fallback persona for Ollama: ${this.persona.name}`);
-      
     } catch (error) {
       if (
         error instanceof Error &&
