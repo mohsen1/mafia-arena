@@ -447,7 +447,9 @@
   
   "DayBegins": "Day begins...",
   "IntroductionPrompt": "Please introduce yourself to the village.",
-  "IntroductionComplete": "Introduction complete.",
+  "IntroductionComplete": "The introductions are complete. Let's begin our discussion.",
+  "DiscussionComplete": "The discussion phase has ended. It's time to vote.",
+  "DayStart": "Day {{round}} begins. The town gathers to discuss recent events.",
   "VotingPhase": "Time to vote! Who do you suspect?",
   "VotingComplete": "Voting complete.",
   "ChoseNoActionVoting": "chooses not to vote.",

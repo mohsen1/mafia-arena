@@ -321,11 +321,81 @@ export function getUserPrompt(
   // Game History / Memory - Removed memory.summary access
   if (currentGameState.memory) {
     promptLines.push('\n**Your Memory / Game History Summary:**');
-    if (Object.keys(currentGameState.memory).length > 0) {
-      promptLines.push('- *You have some memories recorded.*');
-    } else {
-      promptLines.push('- *Your memory is clear.*');
+
+    // 🎯 IMPROVED: Provide more strategic memory information
+    const memory = currentGameState.memory;
+
+    // Vote history analysis
+    if (memory.voteHistory && memory.voteHistory.length > 0) {
+      const lastVote = memory.voteHistory[memory.voteHistory.length - 1];
+      promptLines.push(`- Last voting round: ${lastVote.round}`);
+
+      // Analyze voting patterns
+      const voteCounts = new Map<PlayerId, number>();
+      lastVote.votes.forEach((target) => {
+        if (target) {
+          voteCounts.set(target, (voteCounts.get(target) || 0) + 1);
+        }
+      });
+
+      if (voteCounts.size > 0) {
+        const mostVoted = Array.from(voteCounts.entries()).sort(
+          (a, b) => b[1] - a[1]
+        )[0];
+        promptLines.push(
+          `- Most voted player last round: ${mostVoted[0]} (${mostVoted[1]} votes)`
+        );
+      }
     }
+
+    // Kill history for strategic planning
+    if (memory.killHistory && memory.killHistory.length > 0) {
+      const recentKills = memory.killHistory.slice(-3);
+      const killedPlayers = recentKills
+        .map((k) => k.killedPlayerId)
+        .filter((id) => id !== null);
+      if (killedPlayers.length > 0) {
+        promptLines.push(`- Recent kills: ${killedPlayers.join(', ')}`);
+      }
+    }
+
+    // Seer investigation results
+    if (memory.investigationResults && memory.investigationResults.length > 0) {
+      promptLines.push(
+        `- You have ${memory.investigationResults.length} investigation results`
+      );
+      memory.investigationResults.forEach((result) => {
+        const allegiance = result.allegiance === 'Mafia' ? 'MAFIA' : 'Town';
+        promptLines.push(`  - ${result.targetId}: ${allegiance}`);
+      });
+    }
+
+    // Save history for Doctor
+    if (memory.saveHistory && memory.saveHistory.length > 0) {
+      const lastSave = memory.saveHistory[memory.saveHistory.length - 1];
+      if (lastSave.savedPlayerId) {
+        promptLines.push(
+          `- Last save target: ${lastSave.savedPlayerId} (round ${lastSave.round})`
+        );
+      }
+    }
+
+    // Message patterns
+    if (memory.messageHistory && memory.messageHistory.length > 0) {
+      const uniqueSenders = new Set(
+        memory.messageHistory.map((m) => m.senderId)
+      );
+      const quietPlayers = Array.from(currentGameState.alivePlayerIds).filter(
+        (id) => !uniqueSenders.has(id) && id !== currentGameState.self.id
+      );
+      if (quietPlayers.length > 0) {
+        promptLines.push(
+          `- Quiet players (haven't spoken much): ${quietPlayers.join(', ')}`
+        );
+      }
+    }
+  } else {
+    promptLines.push('\n**Your Memory / Game History Summary:** None');
   }
 
   // Allowed Actions
