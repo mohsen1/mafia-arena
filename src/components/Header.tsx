@@ -24,6 +24,17 @@ export function Header({ currentLang }: HeaderProps) {
   const { data: session, status, update } = useSession();
   const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Force session refresh on mount to ensure latest user data
   useEffect(() => {
@@ -89,7 +100,9 @@ export function Header({ currentLang }: HeaderProps) {
   const validImageUrl = getValidImageUrl(session?.user?.image);
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+    <nav className={`sticky top-0 z-50 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 transition-shadow duration-300 ${
+      isScrolled ? 'shadow-md' : ''
+    }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
