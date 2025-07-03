@@ -216,11 +216,21 @@ export default function SimpleStartGameForm({
   // Auto-select first available provider and model as default
   useEffect(() => {
     if (!globalProviderSelection && allAvailableProviders.length > 0) {
-      const firstProvider = allAvailableProviders[0];
-      const defaultModel = getDefaultModelForProvider(firstProvider.value);
+      // In development mode, prefer Groq if available
+      let selectedProvider = allAvailableProviders[0];
+      
+      if (process.env.NODE_ENV === 'development') {
+        const groqProvider = allAvailableProviders.find(p => p.value === 'groq');
+        if (groqProvider) {
+          selectedProvider = groqProvider;
+          console.log('[SimpleStartGameForm] Development mode: Auto-selecting Groq provider');
+        }
+      }
+      
+      const defaultModel = getDefaultModelForProvider(selectedProvider.value);
 
-      if (firstProvider && defaultModel) {
-        setGlobalProviderSelection(firstProvider.value);
+      if (selectedProvider && defaultModel) {
+        setGlobalProviderSelection(selectedProvider.value);
         setGlobalModelSelection(defaultModel);
       }
     }

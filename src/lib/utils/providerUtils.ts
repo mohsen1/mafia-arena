@@ -105,9 +105,11 @@ export function getAllAvailableProviders(
 
   // Sort providers with Groq first if available, then alphabetically
   return Array.from(providerMap.values()).sort((a, b) => {
-    // Prioritize Groq as the default provider
-    if (a.value === 'groq') return -1;
-    if (b.value === 'groq') return 1;
+    // In development mode, always prioritize Groq
+    if (process.env.NODE_ENV === 'development') {
+      if (a.value === 'groq') return -1;
+      if (b.value === 'groq') return 1;
+    }
     // Then prioritize OpenAI
     if (a.value === 'openai') return -1;
     if (b.value === 'openai') return 1;

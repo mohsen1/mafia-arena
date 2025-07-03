@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Bot, CloudCog } from 'lucide-react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Badge } from '@/components/ui/badge';
 
 import { availableModelsByProvider } from '@/lib/models';
 import type { AvailableProvider } from '@/lib/utils/providerUtils';
@@ -128,6 +129,11 @@ export const EnhancedProviderModelSelector = React.memo(
                       'Select provider'
                     )}
                   />
+                  {process.env.NODE_ENV === 'development' && selectedProvider?.value === 'groq' && (
+                    <Badge variant="secondary" className="text-xs ms-1">
+                      DEV
+                    </Badge>
+                  )}
                 </span>
               </SelectTrigger>
               <SelectContent>
