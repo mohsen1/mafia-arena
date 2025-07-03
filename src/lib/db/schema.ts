@@ -113,7 +113,7 @@ export const userPreferences = pgTable('user_preferences', {
     .references(() => users.id, { onDelete: 'cascade' }),
   preferredLanguage: text('preferred_language').notNull().default('en'),
   preferredTheme: text('preferred_theme').notNull().default('system'), // light, dark, system
-  defaultGameTheme: text('default_game_theme').notNull().default('village'),
+  defaultGameTheme: text('default_game_theme').notNull().default('UK_VILLAGE_1900S'),
   preferredAiModel: text('preferred_ai_model')
     .notNull()
     .default('gemma2-9b-it'),

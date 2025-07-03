@@ -15,6 +15,13 @@
       "when": 1751400823323,
       "tag": "0001_magical_ted_forrester",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1735903519000,
+      "tag": "0002_update_default_theme",
+      "breakpoints": true
     }
   ]
 }
