@@ -22,3 +22,4 @@ Do not launch the dev server. we always have a dev server running during dev.
 do not run e2e tests headed
 
 ALWAYS use agentshell to run commands.
+ALWAYS pipe the output of dev server command to a temp file in the repo so you can see the output.
