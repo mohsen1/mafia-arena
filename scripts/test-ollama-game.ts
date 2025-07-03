@@ -4,13 +4,28 @@
  * This script creates and runs a simple game using Ollama models
  */
 
+import { OllamaAgent } from '../src/lib/engine/agents/OllamaAgent';
 import { Game } from '../src/lib/engine/core/Game';
-import { createAgentInstance } from '../src/lib/agentFactory';
 import { ConsoleRenderer } from '../src/lib/engine/rendering/ConsoleRenderer';
-import type { AgentConfig } from '../src/lib/interfaces/persistence.types';
-import type { CustomProviderConfig } from '../src/lib/utils/providerUtils';
+import type { IAgent } from '../src/lib/engine/interfaces/IAgent';
+import { RoleName } from '../src/lib/engine/interfaces/IRole';
+import { Themes } from '../src/lib/engine/interfaces/Theme';
+import { MafiaRole } from '../src/lib/engine/roles/MafiaRole';
+import { DoctorRole } from '../src/lib/engine/roles/DoctorRole';
+import { SeerRole } from '../src/lib/engine/roles/SeerRole';
+import { VillagerRole } from '../src/lib/engine/roles/VillagerRole';
+import type { IRole } from '../src/lib/engine/interfaces/IRole';
+import * as dotenv from 'dotenv';
 import chalk from 'chalk';
 import ora from 'ora';
+
+// Load environment variables
+dotenv.config();
+
+// Configuration
+const PLAYER_COUNT = 6;
+const THEME_KEY = 'WILD_WEST_FRONTIER';
+const MODEL = 'llama3.2'; // or any other Ollama model
 
 // Check if Ollama is running
 async function checkOllamaStatus(): Promise<boolean> {
@@ -30,8 +45,28 @@ async function checkOllamaStatus(): Promise<boolean> {
   }
 }
 
-async function runOllamaGame() {
-  console.log(chalk.bold.blue('\n🐺 Werewolf AI - Ollama Test Game\n'));
+// Helper function to create role instance
+function createRoleInstance(roleName: RoleName): IRole {
+  switch (roleName) {
+    case RoleName.Mafia:
+      return new MafiaRole();
+    case RoleName.Doctor:
+      return new DoctorRole();
+    case RoleName.Seer:
+      return new SeerRole();
+    case RoleName.Villager:
+      return new VillagerRole();
+    default:
+      throw new Error(`Unknown role: ${roleName}`);
+  }
+}
+
+async function runGame() {
+  console.log('🎮 Starting Werewolf AI Game with Ollama Agents');
+  console.log(`📍 Theme: ${Themes[THEME_KEY].name}`);
+  console.log(`🤖 Model: ${MODEL}`);
+  console.log(`👥 Players: ${PLAYER_COUNT}`);
+  console.log('');
 
   // Check Ollama status
   const isRunning = await checkOllamaStatus();
@@ -39,115 +74,136 @@ async function runOllamaGame() {
     process.exit(1);
   }
 
-  // Game configuration
-  const playerCount = 5;
-  const theme = 'Classic Village';
-  const language = 'en';
-  const modelName = process.env.OLLAMA_MODEL || 'llama3.2';
-  
-  console.log(chalk.cyan('\nGame Configuration:'));
-  console.log(`  Players: ${playerCount}`);
-  console.log(`  Theme: ${theme}`);
-  console.log(`  Model: ${modelName}`);
-  console.log(`  Language: ${language}\n`);
-
   // Create agents
-  const spinner = ora('Creating AI agents...').start();
-  const agents = [];
-  
-  const customConfig: CustomProviderConfig = {
-    ollamaEndpoint: 'http://localhost:11434/v1',
-  };
-
-  try {
-    for (let i = 0; i < playerCount; i++) {
-      const agentConfig: AgentConfig = {
-        agentType: 'Ollama',
-        modelName: modelName,
-        providerValue: 'ollama_local',
-      };
-      
-      const agent = await createAgentInstance(
-        agentConfig,
-        `player-${i}`,
-        undefined,
-        customConfig
-      );
-      
-      agents.push(agent);
-    }
-    
-    spinner.succeed('AI agents created');
-  } catch (error) {
-    spinner.fail('Failed to create agents');
-    console.error(chalk.red(error));
-    process.exit(1);
+  const agents: IAgent[] = [];
+  for (let i = 0; i < PLAYER_COUNT; i++) {
+    const agent = new OllamaAgent(`player${i + 1}`, MODEL);
+    agents.push(agent);
   }
 
-  // Create game
-  const game = new Game(
-    agents.map((agent, index) => ({
-      id: `player-${index}`,
-      name: `Player ${index + 1}`,
-      agent,
-    })),
-    new ConsoleRenderer(),
-    {
-      enableSpeech: false,
-      language,
-      theme,
+  // Generate personas for all agents
+  console.log('🎭 Generating personas...');
+  const existingNames: string[] = [];
+  for (const agent of agents) {
+    try {
+      if (agent.generatePersona) {
+        await agent.generatePersona(Themes[THEME_KEY].description, 'en', existingNames);
+        if (agent.persona?.name) {
+          existingNames.push(agent.persona.name);
+          console.log(`  ✓ ${agent.persona.name}`);
+        }
+      } else {
+        console.log(`  ⚠️  Agent ${agent.id} does not support persona generation`);
+      }
+    } catch (error) {
+      console.log(`  ⚠️  Failed to generate persona for ${agent.id}:`, error);
     }
+  }
+  console.log('');
+
+  // Assign roles
+  const roleNames: RoleName[] = [];
+  
+  // For 6 players: 2 Mafia, 1 Doctor, 1 Seer, 2 Villagers
+  if (PLAYER_COUNT === 6) {
+    roleNames.push(RoleName.Mafia, RoleName.Mafia);
+    roleNames.push(RoleName.Doctor);
+    roleNames.push(RoleName.Seer);
+    roleNames.push(RoleName.Villager, RoleName.Villager);
+  } else {
+    // Default distribution
+    const mafiaCount = Math.floor(PLAYER_COUNT / 3);
+    const hasDoctor = PLAYER_COUNT >= 5;
+    const hasSeer = PLAYER_COUNT >= 4;
+    
+    // Add Mafia
+    for (let i = 0; i < mafiaCount; i++) {
+      roleNames.push(RoleName.Mafia);
+    }
+    
+    // Add special roles
+    if (hasDoctor) roleNames.push(RoleName.Doctor);
+    if (hasSeer) roleNames.push(RoleName.Seer);
+    
+    // Fill rest with Villagers
+    while (roleNames.length < PLAYER_COUNT) {
+      roleNames.push(RoleName.Villager);
+    }
+  }
+
+  // Shuffle roles
+  for (let i = roleNames.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [roleNames[i], roleNames[j]] = [roleNames[j], roleNames[i]];
+  }
+
+  // Create role instances
+  const roles = roleNames.map(createRoleInstance);
+
+  console.log('🎲 Roles assigned:');
+  agents.forEach((agent, index) => {
+    console.log(`  ${agent.persona?.name || agent.id}: ${roles[index].name}`);
+  });
+  console.log('');
+
+  // Create game using the static factory method
+  const game = Game.createNewGame(
+    agents.map((agent, index) => ({
+      name: agent.persona?.name || `Player ${index + 1}`,
+      agent: agent,
+      role: roles[index],
+      imageUrl: null,
+    })),
+    THEME_KEY,
+    'en'
   );
 
-  console.log(chalk.green('\n🎮 Starting game...\n'));
+  // Add console renderer
+  const renderer = new ConsoleRenderer();
+  game.addRenderer(renderer);
 
-  // Run the game
-  try {
-    await game.start();
-    
-    // Run a few rounds
-    let round = 0;
-    const maxRounds = 10;
-    
-    while (!game.isGameOver() && round < maxRounds) {
-      console.log(chalk.bold.yellow(`\n📍 Round ${round + 1}\n`));
-      
-      // Process the current phase
-      await game.processPhase();
-      
-      // Check if we should advance to next phase
-      if (game.shouldAdvancePhase()) {
-        await game.advancePhase();
-      }
-      
-      round++;
-      
-      // Add a small delay between rounds for readability
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  console.log('🚀 Starting game...\n');
+  console.log('='.repeat(80));
+  console.log('');
+
+  // Run game loop
+  let maxRounds = 20; // Safety limit
+  while (game.getCurrentPhaseType() !== 'GameOver' && maxRounds > 0) {
+    try {
+      await game.runGameLoop();
+      maxRounds--;
+    } catch (error) {
+      console.error('❌ Error during game loop:', error);
+      break;
     }
-    
-    if (game.isGameOver()) {
-      console.log(chalk.bold.green('\n🏁 Game Over!\n'));
-      const winner = game.getWinner();
-      console.log(chalk.cyan(`Winner: ${winner === 'Town' ? '👥 Town' : '🐺 Mafia'}`));
-    } else {
-      console.log(chalk.yellow('\n⏱️ Maximum rounds reached\n'));
-    }
-    
-    // Display final statistics
-    console.log(chalk.bold('\n📊 Game Statistics:\n'));
-    const players = game.getPlayers();
-    players.forEach(player => {
-      const status = player.status === 'alive' ? '✅' : '💀';
-      const role = player.role || 'Unknown';
-      console.log(`${status} ${player.name} - ${role}`);
-    });
-    
-  } catch (error) {
-    console.error(chalk.red('\n❌ Game error:'), error);
-    process.exit(1);
   }
+
+  if (maxRounds === 0) {
+    console.log('\n⚠️  Game reached maximum rounds limit');
+  }
+
+  // Game over - show results
+  console.log('\n' + '='.repeat(80));
+  console.log('🏁 GAME OVER!\n');
+  
+  const gameState = game.getCurrentSerializableState();
+  const winCondition = gameState.winCondition?.outcome;
+  console.log(`🏆 Winners: ${winCondition === 'Mafia' ? '🔪 Mafia' : '👥 Town'}\n`);
+
+  console.log('Final Status:');
+  const players = game.getPublicPlayerArray();
+  players.forEach(player => {
+    const playerData = gameState.players[player.id];
+    const statusEmoji = player.status === 'Alive' ? '✅' : '💀';
+    const roleEmoji = playerData.roleName === RoleName.Mafia ? '🔪' : 
+                      playerData.roleName === RoleName.Doctor ? '🏥' :
+                      playerData.roleName === RoleName.Seer ? '🔮' : '👤';
+    console.log(`  ${statusEmoji} ${player.name} (${roleEmoji} ${playerData.roleName})`);
+  });
 }
 
-// Run the test
-runOllamaGame().catch(console.error); 
+// Run the game
+runGame().catch(error => {
+  console.error('❌ Fatal error:', error);
+  process.exit(1);
+}); 
