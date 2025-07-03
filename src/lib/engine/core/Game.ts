@@ -666,7 +666,7 @@ export class Game {
     // Generate personas in parallel
     const personaPromises = playersNeedingPersona.map(async (player) => {
       let attempts = 0;
-      let success = false;
+      const success = false;
 
       while (attempts < maxRetries && !success) {
         attempts++;
@@ -766,7 +766,7 @@ export class Game {
 
         // Add a small delay between retries to avoid rate limits
         if (!success && attempts < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
 
@@ -781,17 +781,19 @@ export class Game {
 
     // Wait for all personas to be generated
     const results = await Promise.all(personaPromises);
-    
+
     // Handle duplicate names
     const nameCount = new Map<string, number>();
     for (const result of results) {
       const count = nameCount.get(result.name) || 0;
       nameCount.set(result.name, count + 1);
-      
+
       if (count > 0) {
         // Duplicate found, append number
         const newName = `${result.name} ${count + 1}`;
-        console.warn(`Duplicate name detected: ${result.name}, renaming to ${newName}`);
+        console.warn(
+          `Duplicate name detected: ${result.name}, renaming to ${newName}`
+        );
         if (result.player.agent.persona) {
           result.player.agent.persona.name = newName;
         }
