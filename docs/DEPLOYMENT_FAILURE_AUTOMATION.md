@@ -81,10 +81,11 @@ pnpm run deploy:diagnose
 **File:** `scripts/ci-build.sh`
 
 **Features:**
-- Detects Vercel environment and skips database operations
+- Detects Vercel environment and runs migrations when DATABASE_URL is set
 - Handles errors gracefully
 - Provides clear error messages
-- Continues build even if migrations fail
+- Continues build even if migrations report no changes
+- Skips database operations if DATABASE_URL is not configured
 
 ## Automated Issue Creation
 
