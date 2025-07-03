@@ -42,7 +42,7 @@ export default defineConfig({
   webServer: {
     command: 'pnpm dev',
     port: 3099,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true, // Always reuse existing server, especially in CI
     timeout: 120 * 1000,
     env: {
       USE_MOCK_AI: 'true',
