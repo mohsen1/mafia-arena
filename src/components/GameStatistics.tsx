@@ -22,42 +22,59 @@ interface GameStatisticsProps {
 export function GameStatistics({ games }: GameStatisticsProps) {
   const { t } = useTranslation();
 
-  // Calculate statistics
+  // Calculate basic statistics
+  const totalGames = games.length;
+  const completedGames = games.filter((g) => g.status === 'completed').length;
+  const activeGames = games.filter(
+    (g) => g.status === 'active' && g.round > 0
+  ).length;
+  const waitingGames = games.filter(
+    (g) => g.status === 'active' && g.round === 0
+  ).length;
+
+  // Calculate wins
+  const townWins = games.filter((g) => {
+    if (g.status !== 'completed' || !g.winCondition) return false;
+    const outcome = (g.winCondition as { outcome?: string })?.outcome;
+    return (
+      outcome === 'Town Victory' ||
+      outcome === 'Town Wins' ||
+      outcome === 'Town'
+    );
+  }).length;
+
+  const mafiaWins = games.filter((g) => {
+    if (g.status !== 'completed' || !g.winCondition) return false;
+    const outcome = (g.winCondition as { outcome?: string })?.outcome;
+    return (
+      outcome === 'Mafia Victory' ||
+      outcome === 'Mafia Wins' ||
+      outcome === 'Mafia'
+    );
+  }).length;
+
+  // Calculate win rates
+  const townWinRate =
+    completedGames > 0 ? Math.round((townWins / completedGames) * 100) : 0;
+  const mafiaWinRate =
+    completedGames > 0 ? Math.round((mafiaWins / completedGames) * 100) : 0;
+
+  // Combine into stats object
   const stats = {
-    totalGames: games.length,
-    completedGames: games.filter((g) => g.status === 'completed').length,
-    activeGames: games.filter((g) => g.status === 'active' && g.round > 0)
-      .length,
-    waitingGames: games.filter((g) => g.status === 'active' && g.round === 0)
-      .length,
+    totalGames,
+    completedGames,
+    activeGames,
+    waitingGames,
+    townWins,
+    mafiaWins,
     winRate: {
-      town: 0,
-      mafia: 0,
+      town: townWinRate,
+      mafia: mafiaWinRate,
     },
     averageGameLength: 0,
     favoriteTheme: '',
     totalPlayers: 0,
   };
-
-  // Calculate win rates from completed games
-  const completedGamesWithWinner = games.filter(
-    (g) => g.status === 'completed' && g.winCondition
-  );
-
-  completedGamesWithWinner.forEach((game) => {
-    const winner = (game.winCondition as any)?.winner;
-    if (winner === 'Town') stats.winRate.town++;
-    else if (winner === 'Mafia') stats.winRate.mafia++;
-  });
-
-  if (completedGamesWithWinner.length > 0) {
-    stats.winRate.town = Math.round(
-      (stats.winRate.town / completedGamesWithWinner.length) * 100
-    );
-    stats.winRate.mafia = Math.round(
-      (stats.winRate.mafia / completedGamesWithWinner.length) * 100
-    );
-  }
 
   // Calculate average game length (rounds)
   const completedGamesWithRounds = games.filter(

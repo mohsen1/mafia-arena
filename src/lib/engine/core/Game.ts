@@ -1276,9 +1276,19 @@ export class Game {
   }
 
   public getVotes(): ReadonlyMap<PlayerId, PlayerId | null> {
-    console.warn(
-      'Game.getVotes() currently only returns recorded human votes.'
-    );
+    // Return all votes from the current phase if it's a voting phase
+    if (this.#currentState.type === 'Day' && this.#phaseState?.dayVotes) {
+      // Convert the dayVotes object to a Map
+      const votesMap = new Map<PlayerId, PlayerId | null>();
+      for (const [voterId, targetId] of Object.entries(
+        this.#phaseState.dayVotes
+      )) {
+        votesMap.set(voterId as PlayerId, targetId as PlayerId | null);
+      }
+      return votesMap;
+    }
+
+    // Otherwise return human votes as a fallback
     return this.#humanVotes;
   }
 
