@@ -11,29 +11,39 @@ interface GameErrorDisplayProps {
   className?: string;
 }
 
-export function GameErrorDisplay({ error, onRetry, className }: GameErrorDisplayProps) {
+export function GameErrorDisplay({
+  error,
+  onRetry,
+  className,
+}: GameErrorDisplayProps) {
   const { t } = useTranslation();
 
   // Determine if this is an API-related error
-  const isApiError = error.toLowerCase().includes('api') || 
-                     error.toLowerCase().includes('failed to call') ||
-                     error.toLowerCase().includes('model') ||
-                     error.toLowerCase().includes('groq') ||
-                     error.toLowerCase().includes('openai') ||
-                     error.toLowerCase().includes('anthropic') ||
-                     error.toLowerCase().includes('gemini');
+  const isApiError =
+    error.toLowerCase().includes('api') ||
+    error.toLowerCase().includes('failed to call') ||
+    error.toLowerCase().includes('model') ||
+    error.toLowerCase().includes('groq') ||
+    error.toLowerCase().includes('openai') ||
+    error.toLowerCase().includes('anthropic') ||
+    error.toLowerCase().includes('gemini');
 
   return (
     <Alert variant="destructive" className={className}>
       <AlertCircle className="h-4 w-4" />
       <AlertDescription>
         <div className="font-semibold mb-1">
-          {isApiError ? t('errors.apiError', 'API Error') : t('errors.gameError', 'Game Error')}
+          {isApiError
+            ? t('errors.apiError', 'API Error')
+            : t('errors.gameError', 'Game Error')}
         </div>
         <p className="mb-3">{error}</p>
         {isApiError && (
           <p className="text-sm opacity-90 mb-3">
-            {t('errors.apiErrorHelp', 'This may be due to an invalid API key, rate limiting, or service unavailability. Please check your API keys in your profile.')}
+            {t(
+              'errors.apiErrorHelp',
+              'This may be due to an invalid API key, rate limiting, or service unavailability. Please check your API keys in your profile.'
+            )}
           </p>
         )}
         {onRetry && (
@@ -50,4 +60,4 @@ export function GameErrorDisplay({ error, onRetry, className }: GameErrorDisplay
       </AlertDescription>
     </Alert>
   );
-} 
+}

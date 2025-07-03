@@ -154,7 +154,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       }
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       setError(errorMessage);
       return { error: errorMessage };
     } finally {
@@ -330,7 +331,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         }
         return result;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
         setError(errorMessage);
         return { error: errorMessage };
       } finally {
