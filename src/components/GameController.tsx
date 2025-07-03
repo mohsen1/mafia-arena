@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'; // Import Button
 import { useGameContext } from '@/context/GameContext'; // Import context hook
-import { Loader, Pause, Play, SkipForward } from 'lucide-react';
+import { Loader, Pause, Play, SkipForward, Keyboard } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next'; // Import from react-i18next
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
@@ -30,6 +30,11 @@ export default function GameController() {
     if (!isAutoRunning) {
       runNextTurnAction();
     }
+  };
+
+  const showKeyboardShortcuts = () => {
+    const event = new CustomEvent('showKeyboardShortcuts');
+    window.dispatchEvent(event);
   };
 
   // Get phase-aware loading message
@@ -77,6 +82,7 @@ export default function GameController() {
           variant="outline"
           size="icon"
           aria-label={isAutoRunning ? t('PauseButton') : t('ResumeButton')}
+          title={isAutoRunning ? 'Pause (P)' : 'Play (P)'}
         >
           {isAutoRunning ? (
             <Pause className="h-4 w-4 rtl:-scale-x-100" />
@@ -94,10 +100,23 @@ export default function GameController() {
           size="sm"
           className="px-4 py-2"
           aria-label={t('NextTurnButton')}
+          title="Next Turn (N or →)"
         >
           <SkipForward className="h-4 w-4 mr-1 rtl:-scale-x-100" />
           {/* Translate button text */}
           {t('NextTurnButton')}
+        </Button>
+
+        {/* Keyboard shortcuts help button */}
+        <Button
+          onClick={showKeyboardShortcuts}
+          variant="ghost"
+          size="icon"
+          className="ms-auto"
+          aria-label={t('KeyboardShortcuts')}
+          title="Keyboard Shortcuts (?)"
+        >
+          <Keyboard className="h-4 w-4" />
         </Button>
       </div>
 
@@ -111,6 +130,12 @@ export default function GameController() {
               {getLoadingMessage()}
             </span>
           </>
+        )}
+        {/* Show keyboard hint when not loading */}
+        {!isLoadingNextTurn && (
+          <span className="text-xs text-muted-foreground">
+            {t('KeyboardHint', 'Press ? for keyboard shortcuts')}
+          </span>
         )}
       </div>
     </div>

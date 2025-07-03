@@ -666,7 +666,8 @@ export class Game {
     // Generate personas in parallel
     const personaPromises = playersNeedingPersona.map(async (player) => {
       let attempts = 0;
-      const success = false;
+      let success = false;
+      let lastError: string | undefined;
 
       while (attempts < maxRetries && !success) {
         attempts++;
@@ -685,7 +686,12 @@ export class Game {
               ...DEFAULT_PERSONA,
               name: fallbackName,
             };
-            return { player, name: fallbackName, success: true };
+            return {
+              player,
+              name: fallbackName,
+              success: false,
+              error: 'No persona generation support',
+            };
           }
 
           // Generate persona with existing names to avoid duplicates
@@ -701,27 +707,27 @@ export class Game {
             player.agent.persona &&
             player.agent.persona.name &&
             player.agent.persona.name.trim() !== '' &&
-            player.agent.persona.name !== DEFAULT_PERSONA.name
+            player.agent.persona.name !== DEFAULT_PERSONA.name &&
+            player.agent.persona.name !== player.name // Also check it's not the original name
           ) {
             console.log(
               `Successfully generated persona for ${player.name}: ${player.agent.persona.name}`
             );
+            success = true;
             return { player, name: player.agent.persona.name, success: true };
           } else {
             console.warn(
               `Player ${player.id} failed to generate valid persona name (attempt ${attempts}/${maxRetries})`
             );
+            lastError = 'Failed to generate valid persona';
             if (attempts >= maxRetries) {
-              // Use default name with unique suffix if all attempts fail
-              const fallbackName = `${player.name}-${player.id.slice(-4)}`;
-              player.agent.persona = {
-                ...DEFAULT_PERSONA,
-                name: fallbackName,
+              // Failed all attempts
+              return {
+                player,
+                name: player.name,
+                success: false,
+                error: lastError,
               };
-              console.warn(
-                `Using fallback name for ${player.name}: ${fallbackName}`
-              );
-              return { player, name: fallbackName, success: true };
             }
           }
         } catch (error) {
@@ -731,60 +737,121 @@ export class Game {
             `Error generating persona for ${player.name} (attempt ${attempts}/${maxRetries}): ${errorMessage}`
           );
 
+          // Determine error type and provide helpful message
+          let userMessage = 'Failed to generate character';
+          let errorCode = 'UNKNOWN';
+
+          if (
+            errorMessage.includes('401') ||
+            errorMessage.includes('authentication') ||
+            errorMessage.includes('Unauthorized')
+          ) {
+            userMessage =
+              'Invalid API key. Please check your AI provider settings.';
+            errorCode = 'AUTH_ERROR';
+          } else if (
+            errorMessage.includes('429') ||
+            errorMessage.includes('rate') ||
+            errorMessage.includes('Too Many Requests')
+          ) {
+            userMessage =
+              'Rate limit exceeded. Please wait a moment and try again.';
+            errorCode = 'RATE_LIMIT';
+          } else if (
+            errorMessage.includes('timeout') ||
+            errorMessage.includes('ETIMEDOUT') ||
+            errorMessage.includes('ECONNABORTED')
+          ) {
+            userMessage = 'Request timed out. The AI service may be busy.';
+            errorCode = 'TIMEOUT';
+          } else if (
+            errorMessage.includes('Ollama service is not responding') ||
+            errorMessage.includes('ECONNREFUSED') ||
+            errorMessage.includes('fetch failed')
+          ) {
+            userMessage =
+              'Ollama service is not responding. Please ensure Ollama is running.';
+            errorCode = 'OLLAMA_NOT_RUNNING';
+          } else if (
+            errorMessage.includes('model') &&
+            (errorMessage.includes('not found') ||
+              errorMessage.includes('not available'))
+          ) {
+            userMessage =
+              'AI model not found. Please check your model selection.';
+            errorCode = 'MODEL_NOT_FOUND';
+          } else if (
+            errorMessage.includes('quota') ||
+            errorMessage.includes('limit exceeded')
+          ) {
+            userMessage =
+              'API quota exceeded. Please check your account limits.';
+            errorCode = 'QUOTA_EXCEEDED';
+          }
+
+          lastError = `${userMessage} (${errorCode})`;
+
           if (attempts >= maxRetries) {
-            // Determine error type and provide helpful message
-            let userMessage = 'Failed to generate character';
-            if (
-              errorMessage.includes('401') ||
-              errorMessage.includes('authentication')
-            ) {
-              userMessage =
-                'Invalid API key. Please check your AI provider settings.';
-            } else if (
-              errorMessage.includes('429') ||
-              errorMessage.includes('rate')
-            ) {
-              userMessage =
-                'Rate limit exceeded. Please wait a moment and try again.';
-            } else if (errorMessage.includes('timeout')) {
-              userMessage = 'Request timed out. The AI service may be busy.';
-            }
-
-            console.error(
-              `Player ${player.name} continuing with default name due to generation error: ${userMessage}`
-            );
-
-            // Use fallback name
-            const fallbackName = `${player.name}-${player.id.slice(-4)}`;
-            player.agent.persona = {
-              ...DEFAULT_PERSONA,
-              name: fallbackName,
+            return {
+              player,
+              name: player.name,
+              success: false,
+              error: lastError,
             };
-            return { player, name: fallbackName, success: true };
           }
         }
 
         // Add a small delay between retries to avoid rate limits
         if (!success && attempts < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
         }
       }
 
       // Should not reach here, but handle it just in case
-      const fallbackName = `${player.name}-${player.id.slice(-4)}`;
-      player.agent.persona = {
-        ...DEFAULT_PERSONA,
-        name: fallbackName,
+      return {
+        player,
+        name: player.name,
+        success: false,
+        error: lastError || 'Unknown error',
       };
-      return { player, name: fallbackName, success: false };
     });
 
     // Wait for all personas to be generated
     const results = await Promise.all(personaPromises);
 
-    // Handle duplicate names
+    // Check for failures
+    const failures = results.filter((r) => !r.success);
+    if (failures.length > 0) {
+      // Group errors by type for better reporting
+      const errorGroups = new Map<string, string[]>();
+
+      failures.forEach((f) => {
+        const errorKey = f.error || 'Unknown error';
+        const players = errorGroups.get(errorKey) || [];
+        players.push(f.player.name);
+        errorGroups.set(errorKey, players);
+      });
+
+      // Build detailed error message
+      let detailedError = `Character generation failed for ${failures.length} player(s):\n`;
+      errorGroups.forEach((players, error) => {
+        detailedError += `\n• ${error}: ${players.join(', ')}`;
+      });
+
+      // Get the most common error for the main message
+      const mainError = Array.from(errorGroups.entries()).sort(
+        (a, b) => b[1].length - a[1].length
+      )[0][0];
+
+      console.error(detailedError);
+
+      // Throw error to prevent game from starting
+      throw new Error(mainError);
+    }
+
+    // Handle duplicate names for successful generations
     const nameCount = new Map<string, number>();
-    for (const result of results) {
+    for (const result of results.filter((r) => r.success)) {
       const count = nameCount.get(result.name) || 0;
       nameCount.set(result.name, count + 1);
 
@@ -797,8 +864,10 @@ export class Game {
         if (result.player.agent.persona) {
           result.player.agent.persona.name = newName;
         }
+        result.player.setName(newName);
         generatedNames.push(newName);
       } else {
+        result.player.setName(result.name);
         generatedNames.push(result.name);
       }
     }

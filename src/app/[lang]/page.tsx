@@ -35,10 +35,12 @@ interface FeatureCardProps {
 
 function FeatureCard({ icon, title, description }: FeatureCardProps) {
   return (
-    <div className="group relative bg-card/50 backdrop-blur-sm p-6 rounded-lg transition-all duration-300 hover:bg-card/80 hover:scale-105">
-      <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      <div className="relative">
-        <div className="mb-4 text-primary">{icon}</div>
+    <div className="group relative card-hover bg-card/50 backdrop-blur-sm p-6 rounded-xl border border-border/50 transition-all duration-300">
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="relative z-10">
+        <div className="mb-4 text-primary group-hover:scale-110 transition-transform duration-300">
+          {icon}
+        </div>
         <h3 className="text-lg font-semibold mb-2 text-foreground">{title}</h3>
         <p className="text-muted-foreground text-sm leading-relaxed">
           {description}
@@ -52,19 +54,42 @@ interface AIProviderCardProps {
   name: string;
   description: string;
   gradient: string;
+  icon: React.ReactNode;
+  delay?: number;
 }
 
-function AIProviderCard({ name, description, gradient }: AIProviderCardProps) {
+function AIProviderCard({
+  name,
+  description,
+  gradient,
+  icon,
+  delay = 0,
+}: AIProviderCardProps) {
   return (
     <div
-      className={`relative p-6 rounded-lg bg-gradient-to-br ${gradient} text-white overflow-hidden group hover:scale-105 transition-transform duration-300`}
+      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 transition-all duration-300 hover:scale-105 hover:border-primary/50 animate-scale-in"
+      style={{ animationDelay: `${delay}s` }}
     >
-      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      <div className="relative">
-        <Brain className="w-8 h-8 mb-4" />
-        <h3 className="text-lg font-semibold mb-2">{name}</h3>
-        <p className="text-white/90 text-sm">{description}</p>
+      <div
+        className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-10 group-hover:opacity-20 transition-opacity duration-300`}
+      />
+      <div className="relative z-10">
+        <div className="mb-4 text-4xl">{icon}</div>
+        <h3 className="text-lg font-semibold text-foreground mb-2">{name}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {description}
+        </p>
       </div>
+      <div
+        className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={
+          {
+            backgroundImage: `linear-gradient(to right, var(--tw-gradient-stops))`,
+            '--tw-gradient-from': gradient.split(' ')[1],
+            '--tw-gradient-to': gradient.split(' ')[3],
+          } as React.CSSProperties
+        }
+      />
     </div>
   );
 }
@@ -115,13 +140,22 @@ interface StatCardProps {
   number: string;
   label: string;
   icon: React.ReactNode;
+  delay: string;
 }
 
-function StatCard({ number, label, icon }: StatCardProps) {
+function StatCard({ number, label, icon, delay }: StatCardProps) {
   return (
-    <div className="text-center">
-      <div className="text-primary mb-2">{icon}</div>
-      <div className="text-3xl font-bold text-foreground mb-1">{number}</div>
+    <div
+      className="text-center stat-card bg-card/50 backdrop-blur-sm rounded-lg p-6 border border-border/50 hover:border-primary/50 transition-all duration-300 animate-scale-in"
+      style={{ animationDelay: `${delay}s` }}
+    >
+      <div
+        className="mb-4 text-muted-foreground animate-float"
+        style={{ animationDelay: `${parseFloat(delay) + 0.2}s` }}
+      >
+        {icon}
+      </div>
+      <div className="text-3xl font-bold text-foreground mb-2">{number}</div>
       <div className="text-sm text-muted-foreground">{label}</div>
     </div>
   );
@@ -273,35 +307,60 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-secondary/5" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,theme(colors.primary/10),transparent)] opacity-60" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,theme(colors.accent/10),transparent)] opacity-60" />
+        <div className="absolute inset-0 hero-pattern" />
+        <div className="absolute inset-0 hero-gradient animate-glow" />
+
+        {/* Animated background shapes */}
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-float" />
+        <div
+          className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-float"
+          style={{ animationDelay: '1.5s' }}
+        />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-secondary/5 rounded-full blur-3xl animate-pulse" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 sm:pt-24 sm:pb-20">
           <div className="text-center">
-            <div className="mb-8">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary animate-pulse">
+            <div className="mb-8 animate-scale-in">
+              <span className="inline-flex items-center px-4 py-2 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 backdrop-blur-sm">
+                <Sparkles className="w-3 h-3 me-2 animate-pulse" />
                 {t('landingHeroBadge')}
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 tracking-tight animate-in fade-in duration-1000">
-              {t('landingHeroTitle')}
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 tracking-tight">
+              <span className="block text-foreground animate-slide-up">
+                {t('landingHeroTitle')}
+              </span>
+              <span
+                className="block text-3xl sm:text-4xl lg:text-5xl mt-2 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient animate-slide-up"
+                style={{ animationDelay: '0.2s' }}
+              >
+                {t('Werewolf AI')}
+              </span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed animate-in fade-in duration-1000 delay-200">
+            <p
+              className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed animate-slide-up"
+              style={{ animationDelay: '0.4s' }}
+            >
               {t('landingHeroSubtitle')}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-in fade-in duration-1000 delay-300">
+            <div
+              className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slide-up"
+              style={{ animationDelay: '0.6s' }}
+            >
               <AuthCTAButton currentLang={currentLang} magical={true} t={t}>
                 {t('landingHeroCTA')}
                 <ArrowIcon
                   className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`}
                 />
               </AuthCTAButton>
-              <Button variant="outline" size="lg" asChild>
-                <Link href="#features">{t('landingHeroSecondary')}</Link>
+              <Button variant="outline" size="lg" asChild className="group">
+                <Link href="#features">
+                  {t('landingHeroSecondary')}
+                  <Sparkles className="ms-2 w-4 h-4 group-hover:rotate-12 transition-transform duration-300" />
+                </Link>
               </Button>
             </div>
           </div>
@@ -309,28 +368,32 @@ export default function LandingPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 bg-card/20">
+      <section className="py-12 bg-gradient-to-b from-background to-card/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <StatCard
               number="25+"
               label={t('landingStatsLanguages')}
-              icon={<Languages className="w-8 h-8 mx-auto" />}
+              icon={<Languages className="w-8 h-8 mx-auto text-primary" />}
+              delay="0"
             />
             <StatCard
               number="4+"
               label={t('landingStatsProviders')}
-              icon={<Cpu className="w-8 h-8 mx-auto" />}
+              icon={<Cpu className="w-8 h-8 mx-auto text-accent" />}
+              delay="0.1"
             />
             <StatCard
               number="∞"
               label={t('landingStatsPlayers')}
-              icon={<Users className="w-8 h-8 mx-auto" />}
+              icon={<Users className="w-8 h-8 mx-auto text-secondary" />}
+              delay="0.2"
             />
             <StatCard
               number="4"
               label={t('landingStatsRoles')}
-              icon={<Star className="w-8 h-8 mx-auto" />}
+              icon={<Star className="w-8 h-8 mx-auto text-primary" />}
+              delay="0.3"
             />
           </div>
         </div>
@@ -418,21 +481,29 @@ export default function LandingPage() {
               name={t('landingAIOpenAI')}
               description={t('landingAIOpenAIDesc')}
               gradient="from-emerald-500 to-teal-600"
+              icon={<Brain className="w-8 h-8" />}
+              delay={0}
             />
             <AIProviderCard
               name={t('landingAIClaude')}
               description={t('landingAIClaudeDesc')}
               gradient="from-purple-500 to-indigo-600"
+              icon={<Sparkles className="w-8 h-8" />}
+              delay={0.1}
             />
             <AIProviderCard
               name={t('landingAIGemini')}
               description={t('landingAIGeminiDesc')}
               gradient="from-blue-500 to-cyan-600"
+              icon="✨"
+              delay={0.2}
             />
             <AIProviderCard
               name={t('landingAIGroq')}
               description={t('landingAIGroqDesc')}
               gradient="from-orange-500 to-red-600"
+              icon={<Cpu className="w-8 h-8" />}
+              delay={0.3}
             />
           </div>
 

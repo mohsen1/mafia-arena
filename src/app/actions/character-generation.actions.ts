@@ -62,11 +62,43 @@ export async function generateGameCharactersAction(
     // This now generates personas in parallel internally
     await game.ensurePersonasGenerated();
 
-    // Generate character images in parallel for all non-human players
+    // Validate that all AI players have proper personas generated
     const aiPlayers = Object.values(gameState.players).filter(
       (player) => !player.isHuman
     );
 
+    // Get the updated state after persona generation
+    const updatedState = game.getCurrentSerializableState();
+
+    // Check if any AI player failed to generate a proper persona
+    const failedPersonas = aiPlayers.filter((player) => {
+      const updatedPlayer = updatedState.players[player.id];
+      if (!updatedPlayer || !updatedPlayer.persona) {
+        return true; // No persona at all
+      }
+
+      // Check if the persona is still using default/placeholder values
+      const persona = updatedPlayer.persona;
+      const isPlaceholder =
+        persona.name === player.name || // Still using original name
+        persona.name === 'Anonymous Player' || // Default name
+        persona.backstory === 'A human player' || // Human placeholder
+        persona.backstory === `A resident of ${theme.name.toLowerCase()}` || // AI placeholder
+        !persona.name ||
+        persona.name.trim() === '';
+
+      return isPlaceholder;
+    });
+
+    if (failedPersonas.length > 0) {
+      const failedNames = failedPersonas.map((p) => p.name).join(', ');
+      console.error(`Character generation failed for: ${failedNames}`);
+      return {
+        error: `Failed to generate personas for ${failedPersonas.length} character(s). Please try again or use a different AI model.`,
+      };
+    }
+
+    // Generate character images in parallel for all non-human players
     const imagePromises = aiPlayers.map(async (player) => {
       if (!player.imageUrl) {
         try {
@@ -84,9 +116,6 @@ export async function generateGameCharactersAction(
 
     // Wait for all images to be generated
     const imageResults = await Promise.all(imagePromises);
-
-    // Update the game state with generated personas and images
-    const updatedState = game.getCurrentSerializableState();
 
     // Apply generated images to the state
     for (const result of imageResults) {
