@@ -669,10 +669,26 @@
     "retry": "Try Again"
   },
   "ollama": {
+    "title": "Ollama Configuration",
+    "description": "Configure your local Ollama instance for AI model hosting.",
+    "learnMore": "Learn more about Ollama",
+    "host": "Host",
+    "port": "Port",
+    "protocol": "Protocol",
+    "apiPath": "API Path",
+    "testConnection": "Test Connection",
+    "testing": "Testing...",
+    "connectionSuccess": "Successfully connected to Ollama instance",
+    "connectionError": "Failed to connect to Ollama",
+    "setupInstructions": "Setup Instructions",
+    "installOllama": "Install Ollama from",
     "runServeCommand": "Run",
     "toStartServer": "to start the server",
+    "pullModel": "Pull a model:",
+    "troubleshooting": "Troubleshooting",
     "ensureRunning": "Ensure Ollama is running",
-    "apiPath": "API Path"
+    "checkFirewall": "Check firewall settings for port",
+    "forRemoteConnections": "For remote connections, check Ollama CORS settings"
   },
   "Light": "Light",
   "Dark": "Dark",

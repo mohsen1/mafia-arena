@@ -21,13 +21,23 @@ import {
   ExternalLink,
   AlertTriangle,
   Info,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface OllamaConfigProps {
   onConfigChange?: (config: OllamaConfiguration) => void;
   initialConfig?: OllamaConfiguration;
   className?: string;
+  disabled?: boolean;
 }
 
 export interface OllamaConfiguration {
@@ -57,6 +67,7 @@ export function OllamaConfig({
   onConfigChange,
   initialConfig = DEFAULT_OLLAMA_CONFIG,
   className,
+  disabled = false,
 }: OllamaConfigProps) {
   const [config, setConfig] = useState<OllamaConfiguration>(initialConfig);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
@@ -94,7 +105,7 @@ export function OllamaConfig({
 
       setConnectionResult({
         success: true,
-        message: 'Successfully connected to Ollama instance',
+        message: t('ollama.connectionSuccess'),
         availableModels: models,
         ollamaVersion: data.version || 'Unknown',
       });
@@ -103,7 +114,7 @@ export function OllamaConfig({
         error instanceof Error ? error.message : 'Unknown error';
       setConnectionResult({
         success: false,
-        message: `Failed to connect: ${errorMessage}`,
+        message: `${t('ollama.connectionError')}: ${errorMessage}`,
       });
     } finally {
       setIsTestingConnection(false);
@@ -137,16 +148,16 @@ export function OllamaConfig({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Server className="w-5 h-5" />
-          Ollama Configuration
+          {t('ollama.title')}
         </CardTitle>
         <CardDescription>
-          Configure your local Ollama instance for AI model hosting.
+          {t('ollama.description')}
           <Button
             variant="link"
             className="p-0 h-auto text-sm"
             onClick={() => window.open('https://ollama.ai', '_blank')}
           >
-            Learn more about Ollama <ExternalLink className="w-3 h-3 ml-1" />
+            {t('ollama.learnMore')} <ExternalLink className="w-3 h-3 ml-1" />
           </Button>
         </CardDescription>
       </CardHeader>
@@ -155,16 +166,17 @@ export function OllamaConfig({
         {/* Basic Configuration */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="ollama-host">Host</Label>
+            <Label htmlFor="ollama-host">{t('ollama.host')}</Label>
             <Input
               id="ollama-host"
               value={config.host}
               onChange={(e) => updateConfig({ host: e.target.value })}
               placeholder="localhost"
+              disabled={disabled}
             />
           </div>
           <div>
-            <Label htmlFor="ollama-port">Port</Label>
+            <Label htmlFor="ollama-port">{t('ollama.port')}</Label>
             <Input
               id="ollama-port"
               type="number"
@@ -173,6 +185,7 @@ export function OllamaConfig({
                 updateConfig({ port: parseInt(e.target.value) || 11434 })
               }
               placeholder="11434"
+              disabled={disabled}
             />
           </div>
         </div>
@@ -193,7 +206,7 @@ export function OllamaConfig({
               {isTestingConnection ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                'Test'
+                t('ollama.testConnection')
               )}
             </Button>
           </div>
@@ -263,30 +276,33 @@ export function OllamaConfig({
             <div className="mt-3 space-y-3 pl-4 border-l-2 border-muted">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="ollama-protocol">Protocol</Label>
-                  <select
-                    id="ollama-protocol"
+                  <Label htmlFor="ollama-protocol">{t('ollama.protocol')}</Label>
+                  <Select
                     value={config.protocol}
-                    onChange={(e) =>
-                      updateConfig({
-                        protocol: e.target.value as 'http' | 'https',
-                      })
+                    onValueChange={(value: 'http' | 'https') =>
+                      updateConfig({ protocol: value })
                     }
-                    className="w-full px-3 py-2 border border-input rounded-md"
+                    disabled={disabled}
                   >
-                    <option value="http">HTTP</option>
-                    <option value="https">HTTPS</option>
-                  </select>
+                    <SelectTrigger id="ollama-protocol">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="http">HTTP</SelectItem>
+                      <SelectItem value="https">HTTPS</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="ollama-api-path">
-                    {t('apiKeys.apiPath', 'API Path')}
+                    {t('ollama.apiPath')}
                   </Label>
                   <Input
                     id="ollama-api-path"
                     value={config.apiPath}
                     onChange={(e) => updateConfig({ apiPath: e.target.value })}
                     placeholder="/v1"
+                    disabled={disabled}
                   />
                 </div>
               </div>
@@ -300,20 +316,20 @@ export function OllamaConfig({
           <AlertDescription>
             <div className="space-y-2 text-sm">
               <p>
-                <strong>Quick Setup:</strong>
+                <strong>{t('ollama.setupInstructions')}:</strong>
               </p>
               <ol className="list-decimal list-inside space-y-1 ml-2">
                 <li>
-                  Install Ollama from <code>ollama.ai</code>
+                  {t('ollama.installOllama')} <code>ollama.ai</code>
                 </li>
                 <li>
-                  {t('ollama.runServeCommand', 'Run')} <code>ollama serve</code>{' '}
-                  {t('ollama.toStartServer', 'to start the server')}
+                  {t('ollama.runServeCommand')} <code>ollama serve</code>{' '}
+                  {t('ollama.toStartServer')}
                 </li>
                 <li>
-                  Pull a model: <code>ollama pull llama3.1</code>
+                  {t('ollama.pullModel')} <code>ollama pull llama3.1</code>
                 </li>
-                <li>Test the connection above</li>
+                <li>{t('ollama.testConnection')}</li>
               </ol>
             </div>
           </AlertDescription>
@@ -326,16 +342,16 @@ export function OllamaConfig({
             <AlertDescription>
               <div className="space-y-2 text-sm">
                 <p>
-                  <strong>Common Issues:</strong>
+                  <strong>{t('ollama.troubleshooting')}:</strong>
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li>
-                    {t('ollama.ensureRunning', 'Ensure Ollama is running')}:{' '}
+                    {t('ollama.ensureRunning')}:{' '}
                     <code>ollama serve</code>
                   </li>
-                  <li>Check if port {config.port} is available</li>
-                  <li>Verify firewall settings allow connections</li>
-                  <li>For remote connections, check Ollama CORS settings</li>
+                  <li>{t('ollama.checkFirewall')} {config.port}</li>
+                  <li>{t('ollama.checkFirewall')}</li>
+                  <li>{t('ollama.forRemoteConnections')}</li>
                 </ul>
               </div>
             </AlertDescription>
