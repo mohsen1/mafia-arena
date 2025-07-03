@@ -15,14 +15,16 @@ import Link from 'next/link';
 import { ErrorCode } from '@/lib/errors/GameError';
 
 interface GameErrorDisplayProps {
-  error: string | { 
-    message: string; 
-    userMessage?: string;
-    code?: ErrorCode | string;
-    type?: string;
-    retryable?: boolean;
-    context?: Record<string, unknown>;
-  };
+  error:
+    | string
+    | {
+        message: string;
+        userMessage?: string;
+        code?: ErrorCode | string;
+        type?: string;
+        retryable?: boolean;
+        context?: Record<string, unknown>;
+      };
   onRetry?: () => void;
   gameId?: string;
   lang?: string;
@@ -37,20 +39,19 @@ export function GameErrorDisplay({
   const { t } = useTranslation();
 
   // Parse error details
-  const errorMessage = typeof error === 'string' 
-    ? error 
-    : error.userMessage || error.message;
-  const technicalMessage = typeof error === 'string'
-    ? error
-    : error.message;
-  const errorCode = typeof error === 'object' && error.code 
-    ? error.code 
-    : typeof error === 'object' && error.type 
-    ? error.type 
-    : 'UNKNOWN_ERROR';
-  const isRetryable = typeof error === 'object' && error.retryable !== undefined
-    ? error.retryable
-    : true; // Default to retryable
+  const errorMessage =
+    typeof error === 'string' ? error : error.userMessage || error.message;
+  const technicalMessage = typeof error === 'string' ? error : error.message;
+  const errorCode =
+    typeof error === 'object' && error.code
+      ? error.code
+      : typeof error === 'object' && error.type
+        ? error.type
+        : 'UNKNOWN_ERROR';
+  const isRetryable =
+    typeof error === 'object' && error.retryable !== undefined
+      ? error.retryable
+      : true; // Default to retryable
 
   // Get user-friendly error title and description based on error type
   const getErrorDetails = () => {
@@ -59,10 +60,12 @@ export function GameErrorDisplay({
       case ErrorCode.AI_AUTHENTICATION:
         return {
           title: t('error.authenticationTitle', 'Authentication Error'),
-          description: errorMessage || t(
-            'error.authenticationDesc',
-            'Your API key is invalid or missing. Please check your settings.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.authenticationDesc',
+              'Your API key is invalid or missing. Please check your settings.'
+            ),
           showSettings: true,
           showRetry: false,
         };
@@ -70,20 +73,24 @@ export function GameErrorDisplay({
       case ErrorCode.AI_RATE_LIMIT:
         return {
           title: t('error.rateLimitTitle', 'Rate Limit Exceeded'),
-          description: errorMessage || t(
-            'error.rateLimitDesc',
-            'Too many requests. Please wait a moment and try again.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.rateLimitDesc',
+              'Too many requests. Please wait a moment and try again.'
+            ),
           showRetry: isRetryable,
         };
       case 'TIMEOUT_ERROR':
       case ErrorCode.AI_TIMEOUT:
         return {
           title: t('error.timeoutTitle', 'Request Timeout'),
-          description: errorMessage || t(
-            'error.timeoutDesc',
-            'The request took too long. The AI service may be busy.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.timeoutDesc',
+              'The request took too long. The AI service may be busy.'
+            ),
           showRetry: isRetryable,
         };
       case 'CONNECTION_ERROR':
@@ -91,20 +98,24 @@ export function GameErrorDisplay({
       case ErrorCode.AI_CONNECTION:
         return {
           title: t('error.connectionTitle', 'Connection Error'),
-          description: errorMessage || t(
-            'error.connectionDesc',
-            'Cannot connect to the AI service. Check your internet connection.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.connectionDesc',
+              'Cannot connect to the AI service. Check your internet connection.'
+            ),
           showRetry: isRetryable,
         };
       case 'MODEL_ERROR':
       case ErrorCode.AI_MODEL_NOT_FOUND:
         return {
           title: t('error.modelTitle', 'Invalid Model'),
-          description: errorMessage || t(
-            'error.modelDesc',
-            'The selected AI model is not available. Try a different model.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.modelDesc',
+              'The selected AI model is not available. Try a different model.'
+            ),
           showSettings: true,
           showRetry: false,
         };
@@ -112,10 +123,12 @@ export function GameErrorDisplay({
       case ErrorCode.AI_CONTEXT_LENGTH:
         return {
           title: t('error.contextLengthTitle', 'Message Too Long'),
-          description: errorMessage || t(
-            'error.contextLengthDesc',
-            'The conversation is too long. Start a new game to continue.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.contextLengthDesc',
+              'The conversation is too long. Start a new game to continue.'
+            ),
           showNewGame: true,
           showRetry: false,
         };
@@ -123,58 +136,67 @@ export function GameErrorDisplay({
       case ErrorCode.AI_SAFETY_FILTER:
         return {
           title: t('error.safetyTitle', 'Content Blocked'),
-          description: errorMessage || t(
-            'error.safetyDesc',
-            'The AI response was blocked by safety filters.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.safetyDesc',
+              'The AI response was blocked by safety filters.'
+            ),
           showRetry: isRetryable,
         };
       case ErrorCode.GAME_NOT_FOUND:
         return {
           title: t('error.gameNotFoundTitle', 'Game Not Found'),
-          description: errorMessage || t(
-            'error.gameNotFoundDesc',
-            'This game could not be found. It may have been deleted.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.gameNotFoundDesc',
+              'This game could not be found. It may have been deleted.'
+            ),
           showNewGame: true,
           showRetry: false,
         };
       case ErrorCode.CHARACTER_GEN_FAILED:
         return {
           title: t('error.characterGenTitle', 'Character Generation Failed'),
-          description: errorMessage || t(
-            'error.characterGenDesc',
-            'Failed to generate characters. Please try again.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.characterGenDesc',
+              'Failed to generate characters. Please try again.'
+            ),
           showRetry: isRetryable,
         };
       case ErrorCode.DB_CONNECTION_FAILED:
       case ErrorCode.DB_QUERY_FAILED:
         return {
           title: t('error.databaseTitle', 'Database Error'),
-          description: errorMessage || t(
-            'error.databaseDesc',
-            'A database error occurred. Please try again later.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.databaseDesc',
+              'A database error occurred. Please try again later.'
+            ),
           showRetry: isRetryable,
         };
       case ErrorCode.AUTH_UNAUTHORIZED:
         return {
           title: t('error.unauthorizedTitle', 'Unauthorized'),
-          description: errorMessage || t(
-            'error.unauthorizedDesc',
-            'You are not authorized to perform this action.'
-          ),
+          description:
+            errorMessage ||
+            t(
+              'error.unauthorizedDesc',
+              'You are not authorized to perform this action.'
+            ),
           showRetry: false,
         };
       case ErrorCode.VALIDATION_FAILED:
       case ErrorCode.INVALID_INPUT:
         return {
           title: t('error.validationTitle', 'Invalid Input'),
-          description: errorMessage || t(
-            'error.validationDesc',
-            'Please check your input and try again.'
-          ),
+          description:
+            errorMessage ||
+            t('error.validationDesc', 'Please check your input and try again.'),
           showRetry: false,
         };
       default:
@@ -211,16 +233,18 @@ export function GameErrorDisplay({
               {t('error.details', 'Error Details')}
             </div>
             <div className="mt-2 font-mono text-sm">{technicalMessage}</div>
-            {process.env.NODE_ENV === 'development' && typeof error === 'object' && error.context && (
-              <details className="mt-2">
-                <summary className="cursor-pointer text-sm font-medium">
-                  Debug Information
-                </summary>
-                <pre className="mt-1 text-xs overflow-auto bg-background p-2 rounded">
-                  {JSON.stringify(error.context, null, 2)}
-                </pre>
-              </details>
-            )}
+            {process.env.NODE_ENV === 'development' &&
+              typeof error === 'object' &&
+              error.context && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Debug Information
+                  </summary>
+                  <pre className="mt-1 text-xs overflow-auto bg-background p-2 rounded">
+                    {JSON.stringify(error.context, null, 2)}
+                  </pre>
+                </details>
+              )}
           </AlertDescription>
         </Alert>
 

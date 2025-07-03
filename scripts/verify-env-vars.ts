@@ -5,19 +5,38 @@
  * Run this locally or in CI to ensure configuration is complete
  */
 
-// import chalk from 'chalk';
-const chalk = {
-  bold: (s: string) => s,
-  green: (s: string) => s,
-  red: (s: string) => s,
-  yellow: (s: string) => s,
-  gray: (s: string) => s,
+// Mock chalk since it's a dev dependency
+interface ChalkFunction {
+  (s: string): string;
+  bold?: ChalkFunction;
+  blue?: ChalkFunction;
+  red?: ChalkFunction;
+  green?: ChalkFunction;
+  yellow?: ChalkFunction;
+  gray?: ChalkFunction;
+}
+
+const createChalkFunction = (): ChalkFunction => {
+  const fn: ChalkFunction = (s: string) => s;
+  return fn;
 };
-chalk.bold.blue = (s: string) => s;
-chalk.bold.red = (s: string) => s;
-chalk.red.bold = (s: string) => s;
-chalk.yellow.bold = (s: string) => s;
-chalk.green.bold = (s: string) => s;
+
+const chalk = {
+  bold: Object.assign(createChalkFunction(), {
+    blue: createChalkFunction(),
+    red: createChalkFunction(),
+    green: createChalkFunction(),
+    yellow: createChalkFunction(),
+  }),
+  green: createChalkFunction(),
+  red: Object.assign(createChalkFunction(), {
+    bold: createChalkFunction(),
+  }),
+  yellow: Object.assign(createChalkFunction(), {
+    bold: createChalkFunction(),
+  }),
+  gray: createChalkFunction(),
+};
 
 interface EnvVarCheck {
   name: string;
@@ -244,15 +263,15 @@ function checkEnvironmentVariables() {
   console.log(chalk.bold.blue('\n📊 Summary:\n'));
   
   console.log(chalk.bold('Required Variables:'));
-  console.log(`  Set: ${chalk.green(results.required.set)}`);
-  console.log(`  Missing: ${chalk.red(results.required.missing)}`);
+  console.log(`  Set: ${chalk.green(String(results.required.set))}`);
+  console.log(`  Missing: ${chalk.red(String(results.required.missing))}`);
   
   console.log(chalk.bold('\nOptional Variables:'));
-  console.log(`  Set: ${chalk.green(results.optional.set)}`);
-  console.log(`  Missing: ${chalk.gray(results.optional.missing)}`);
+  console.log(`  Set: ${chalk.green(String(results.optional.set))}`);
+  console.log(`  Missing: ${chalk.gray(String(results.optional.missing))}`);
   
   console.log(chalk.bold('\nAI Providers:'));
-  console.log(`  Set: ${chalk.green(results.aiProviders.set)} / ${results.aiProviders.total}`);
+  console.log(`  Set: ${chalk.green(String(results.aiProviders.set))} / ${results.aiProviders.total}`);
   
   // Validation results
   if (missingRequired.length > 0) {
@@ -282,10 +301,10 @@ function checkEnvironmentVariables() {
   const hasNoFormatErrors = invalidFormat.length === 0;
   
   if (hasAllRequired && hasAtLeastOneAI && hasNoFormatErrors) {
-    console.log(chalk.green.bold('\n✅ All required environment variables are properly configured!\n'));
+    console.log(chalk.green.bold ? chalk.green.bold('\n✅ All required environment variables are properly configured!\n') : '\n✅ All required environment variables are properly configured!\n');
     return 0;
   } else {
-    console.log(chalk.red.bold('\n❌ Environment configuration incomplete!\n'));
+    console.log(chalk.red.bold ? chalk.red.bold('\n❌ Environment configuration incomplete!\n') : '\n❌ Environment configuration incomplete!\n');
     return 1;
   }
 }

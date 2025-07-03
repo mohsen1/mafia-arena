@@ -29,18 +29,23 @@ export function logError(
     timestamp,
     context,
     additionalInfo,
-    error: error instanceof Error ? {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      ...(error instanceof GameError ? {
-        code: error.code,
-        userMessage: error.userMessage,
-        retryable: error.retryable,
-        httpStatus: error.httpStatus,
-        context: error.context
-      } : {})
-    } : error
+    error:
+      error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            ...(error instanceof GameError
+              ? {
+                  code: error.code,
+                  userMessage: error.userMessage,
+                  retryable: error.retryable,
+                  httpStatus: error.httpStatus,
+                  context: error.context,
+                }
+              : {}),
+          }
+        : error,
   };
 
   if (process.env.NODE_ENV === 'development') {
@@ -76,34 +81,34 @@ export async function retryWithBackoff<T>(
       }
       return true;
     },
-    onRetry
+    onRetry,
   } = options;
 
   let lastError: unknown;
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
     } catch (error) {
       lastError = error;
-      
+
       if (attempt === maxRetries || !shouldRetry(error, attempt)) {
         throw error;
       }
-      
+
       if (onRetry) {
         onRetry(error, attempt);
       }
-      
+
       const delay = Math.min(
         initialDelay * Math.pow(backoffFactor, attempt),
         maxDelay
       );
-      
-      await new Promise(resolve => setTimeout(resolve, delay));
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  
+
   throw lastError;
 }
 
@@ -124,19 +129,19 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
       return await fn(...args);
     } catch (error) {
       logError(context, error, { args });
-      
+
       if (options.onError) {
         options.onError(error);
       }
-      
+
       if (options.transformError) {
         throw options.transformError(error);
       }
-      
+
       if (options.fallbackValue !== undefined) {
         return options.fallbackValue;
       }
-      
+
       throw error;
     }
   }) as T;
@@ -154,7 +159,7 @@ export function timeout<T>(
     promise,
     new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
-    )
+    ),
   ]);
 }
 
@@ -177,7 +182,7 @@ export function validateEnvVar(
       code: ErrorCode.VALIDATION_FAILED,
       message: `Missing required environment variable: ${name}`,
       userMessage: 'Application configuration error. Please contact support.',
-      context: { variable: name }
+      context: { variable: name },
     });
   }
 
@@ -186,7 +191,7 @@ export function validateEnvVar(
       code: ErrorCode.VALIDATION_FAILED,
       message: `Invalid format for environment variable: ${name}`,
       userMessage: 'Application configuration error. Please contact support.',
-      context: { variable: name, pattern: pattern.toString() }
+      context: { variable: name, pattern: pattern.toString() },
     });
   }
 
@@ -195,4 +200,4 @@ export function validateEnvVar(
   }
 
   return value;
-} 
+}
