@@ -77,12 +77,13 @@ export const getAIResponse: GetAIResponseFunction = async (
   playerId,
   settings
 ) => {
-  const anthropic = getAnthropicInstance();
-  if (!anthropic) {
+  if (!apiKey) {
     throw new Error(
-      'Anthropic client not initialized. Missing ANTHROPIC_API_KEY.'
+      'Anthropic API key not configured. Please set ANTHROPIC_API_KEY in your environment variables.'
     );
   }
+
+  const anthropic = getAnthropicInstance();
 
   console.log(
     `[Claude Request - ${gameId}|${playerId}] Calling model ${
@@ -103,7 +104,7 @@ export const getAIResponse: GetAIResponseFunction = async (
     const responseContent = response.content[0];
     if (!responseContent || responseContent.type !== 'text') {
       throw new Error(
-        'Received empty or non-text response content from Claude.'
+        `Invalid response from Claude API. Expected text response but got: ${responseContent?.type || 'empty'}`
       );
     }
 
@@ -113,11 +114,60 @@ export const getAIResponse: GetAIResponseFunction = async (
     return responseContent.text;
   } catch (error: unknown) {
     const modelName = settings.model;
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    let errorMessage = 'Unknown error';
+    let errorType = 'UNKNOWN_ERROR';
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+
+      // Categorize error types for better handling
+      if (
+        error.message.includes('401') ||
+        error.message.includes('authentication')
+      ) {
+        errorType = 'AUTHENTICATION_ERROR';
+        errorMessage =
+          'Invalid API key. Please check your Anthropic API key configuration.';
+      } else if (
+        error.message.includes('429') ||
+        error.message.includes('rate_limit')
+      ) {
+        errorType = 'RATE_LIMIT_ERROR';
+        errorMessage =
+          'Rate limit exceeded. Please wait a moment before trying again.';
+      } else if (error.message.includes('timeout')) {
+        errorType = 'TIMEOUT_ERROR';
+        errorMessage = `Request timed out after 60 seconds. The Claude API may be experiencing high load.`;
+      } else if (
+        error.message.includes('ECONNREFUSED') ||
+        error.message.includes('network')
+      ) {
+        errorType = 'CONNECTION_ERROR';
+        errorMessage =
+          'Cannot connect to Claude API. Please check your internet connection.';
+      } else if (error.message.includes('model_not_found')) {
+        errorType = 'MODEL_ERROR';
+        errorMessage = `Model "${modelName}" not found. Please check if this model is available.`;
+      } else if (error.message.includes('context_length')) {
+        errorType = 'CONTEXT_LENGTH_ERROR';
+        errorMessage =
+          "Message too long. The conversation exceeds Claude's context window.";
+      }
+    }
+
     console.error(
-      `[Claude Error - ${gameId}|${playerId}] Failed AI call for model ${modelName}:`,
-      errorMessage
+      `[Claude Error - ${gameId}|${playerId}] ${errorType} for model ${modelName}: ${errorMessage}`
     );
-    throw error;
+
+    // Create a more informative error
+    const detailedError = new Error(errorMessage);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).type = errorType;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).model = modelName;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (detailedError as any).originalError = error;
+
+    throw detailedError;
   }
 };

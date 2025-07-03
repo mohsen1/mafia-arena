@@ -5,18 +5,25 @@ import { useGameContext } from '@/context/GameContext'; // Import context hook
 import { Loader, Pause, Play, SkipForward } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next'; // Import from react-i18next
+import { GameErrorDisplay } from '@/components/GameErrorDisplay';
+import { useParams } from 'next/navigation';
 
 export default function GameController() {
+  const { t } = useTranslation();
+  const params = useParams();
+  const gameId = params?.gameId as string;
+  const lang = (params?.lang as string) || 'en';
+
   const {
+    isLoadingNextTurn,
     isAutoRunning,
     toggleAutoRun,
-    isLoadingNextTurn,
     runNextTurnAction,
     gameState,
+    error,
   } = useGameContext();
 
-  // Use standard hook
-  const { t } = useTranslation('translation'); // Keep namespace for now
+
 
   const handleNextClick = () => {
     // Don't run next if auto-running is on, let it proceed naturally
@@ -47,6 +54,19 @@ export default function GameController() {
         return t('LoadingNextTurnGeneral');
     }
   };
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <GameErrorDisplay
+          error={error}
+          onRetry={() => window.location.reload()}
+          gameId={gameId}
+          lang={lang}
+        />
+      </div>
+    );
+  }
 
   return (
     // Use flex-col for rows, add gap between rows

@@ -639,98 +639,125 @@ export class Game {
   }
 
   async ensurePersonasGenerated(): Promise<void> {
-    const themeDescription = this.theme.description;
+    if (this.#personasGenerated) return;
+
+    console.log('Generating personas for all players...');
     const generatedNames: string[] = [];
     const maxRetries = 3;
 
-    // First, collect names of players who already have personas
     for (const player of this.#players.values()) {
-      if (
-        player.agent.persona &&
-        player.agent.persona.name !== DEFAULT_PERSONA.name
-      ) {
-        generatedNames.push(player.agent.persona.name);
+      let attempts = 0;
+      let success = false;
+
+      // Skip human players - they don't need AI-generated personas
+      if (player.agent instanceof HumanAgent) {
+        generatedNames.push(player.name);
+        continue;
       }
-    }
 
-    // Then generate personas for players who need them, STRICTLY SEQUENTIALLY
-    for (const player of this.#players.values()) {
-      if (
-        player.agent.persona?.name === DEFAULT_PERSONA.name &&
-        typeof player.agent.generatePersona === 'function'
-      ) {
-        console.log(`Generating persona for ${player.name} (${player.id})...`);
+      while (attempts < maxRetries && !success) {
+        attempts++;
+        try {
+          console.log(
+            `Generating persona for ${player.name} (attempt ${attempts}/${maxRetries})...`
+          );
 
-        let attempts = 0;
-        let success = false;
-
-        while (attempts < maxRetries && !success) {
-          attempts++;
-          try {
-            await player.agent.generatePersona(
-              themeDescription,
-              this.language,
-              generatedNames
+          // Check if agent has generatePersona method
+          if (typeof player.agent.generatePersona !== 'function') {
+            console.warn(
+              `Agent for ${player.name} does not support persona generation`
             );
+            const fallbackName = `${player.name}-${player.id.slice(-4)}`;
+            player.agent.persona = {
+              ...DEFAULT_PERSONA,
+              name: fallbackName,
+            };
+            generatedNames.push(fallbackName);
+            success = true;
+            break;
+          }
 
-            if (
-              player.agent.persona?.name &&
-              player.agent.persona.name !== DEFAULT_PERSONA.name
-            ) {
-              const generatedName = player.agent.persona.name.trim();
+          await player.agent.generatePersona(
+            this.theme.description,
+            this.language,
+            generatedNames
+          );
 
-              // Check for duplicate names AFTER generation
-              if (generatedNames.includes(generatedName)) {
-                console.warn(
-                  `Player ${player.id} generated duplicate name "${generatedName}" (attempt ${attempts}/${maxRetries}). Retrying...`
-                );
-                if (attempts >= maxRetries) {
-                  // Final attempt failed, use a unique fallback name
-                  const fallbackName = `${player.name}-${player.id.slice(-4)}`;
-                  console.warn(
-                    `Player ${player.id} failed to generate unique name after ${maxRetries} attempts. Using fallback: ${fallbackName}`
-                  );
-                  // Update both agent persona and player name
-                  player.agent.persona = {
-                    ...player.agent.persona,
-                    name: fallbackName,
-                  };
-                  player.setName(fallbackName);
-                  generatedNames.push(fallbackName);
-                  success = true;
-                }
-                // Continue to next attempt if not final
-              } else {
-                // Success! Unique name generated
-                player.setName(generatedName); // CRITICAL: Set the player name
-                generatedNames.push(generatedName);
-                console.log(
-                  `Player ${player.id} generated unique persona: ${generatedName}`
-                );
-                success = true;
-              }
-            } else {
+          // Validate persona generation
+          if (
+            player.agent.persona &&
+            player.agent.persona.name &&
+            player.agent.persona.name.trim() !== '' &&
+            player.agent.persona.name !== DEFAULT_PERSONA.name
+          ) {
+            // Check for duplicate names
+            if (generatedNames.includes(player.agent.persona.name)) {
               console.warn(
-                `Player ${player.id} failed to generate valid persona name (attempt ${attempts}/${maxRetries})`
+                `Duplicate name generated: ${player.agent.persona.name}. Retrying...`
               );
-              if (attempts >= maxRetries) {
-                // Use default name if all attempts fail
-                generatedNames.push(player.name);
-                success = true;
-              }
+              throw new Error('Duplicate name generated');
             }
-          } catch (error) {
-            console.error(
-              `Error generating persona for ${player.name} (attempt ${attempts}/${maxRetries}):`,
-              error
+            generatedNames.push(player.agent.persona.name);
+            success = true;
+            console.log(
+              `Successfully generated persona for ${player.name}: ${player.agent.persona.name}`
+            );
+          } else {
+            console.warn(
+              `Player ${player.id} failed to generate valid persona name (attempt ${attempts}/${maxRetries})`
             );
             if (attempts >= maxRetries) {
-              console.error(
-                `Player ${player.name} continuing with default name due to generation error`
-              );
-              generatedNames.push(player.name);
+              // Use default name with unique suffix if all attempts fail
+              const fallbackName = `${player.name}-${player.id.slice(-4)}`;
+              player.agent.persona = {
+                ...DEFAULT_PERSONA,
+                name: fallbackName,
+              };
+              generatedNames.push(fallbackName);
               success = true;
+              console.warn(
+                `Using fallback name for ${player.name}: ${fallbackName}`
+              );
             }
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error(
+            `Error generating persona for ${player.name} (attempt ${attempts}/${maxRetries}): ${errorMessage}`
+          );
+
+          if (attempts >= maxRetries) {
+            // Determine error type and provide helpful message
+            let userMessage = 'Failed to generate character';
+            if (
+              errorMessage.includes('401') ||
+              errorMessage.includes('authentication')
+            ) {
+              userMessage =
+                'Invalid API key. Please check your AI provider settings.';
+            } else if (
+              errorMessage.includes('429') ||
+              errorMessage.includes('rate')
+            ) {
+              userMessage =
+                'Rate limit exceeded. Please wait a moment and try again.';
+            } else if (errorMessage.includes('timeout')) {
+              userMessage = 'Request timed out. The AI service may be busy.';
+            }
+
+            console.error(
+              `Player ${player.name} continuing with default name due to generation error: ${userMessage}`
+            );
+
+            // Use fallback name
+            const fallbackName = `${player.name}-${player.id.slice(-4)}`;
+            player.agent.persona = {
+              ...DEFAULT_PERSONA,
+              name: fallbackName,
+            };
+            generatedNames.push(fallbackName);
+            success = true;
           }
         }
       }
@@ -739,6 +766,7 @@ export class Game {
     console.log(
       `Persona generation complete. Final names: ${generatedNames.join(', ')}`
     );
+    this.#personasGenerated = true;
   }
 
   getPlayer(id: PlayerId): Player | undefined {
