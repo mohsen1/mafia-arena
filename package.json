@@ -7,7 +7,7 @@
     "dev": "PORT=3099 DEBUG=mafia:* next dev --turbopack",
     "build": "next build",
     "build:ci": "./scripts/ci-build.sh",
-    "start": "PORT=3100 next start",
+    "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "test": "vitest run",
