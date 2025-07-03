@@ -459,6 +459,7 @@ export class Game {
     let lastPhaseStep = this.getPhaseStep();
     let lastPlayerIndex = this.getNextPlayerIndexToAction();
     let stuckCounter = 0;
+    let lastActionTime = Date.now();
 
     while (
       this.getCurrentPhaseType() !== 'GameOver' &&
@@ -520,7 +521,8 @@ export class Game {
         } else {
           console.log('Already in GameOver phase. Loop will terminate.');
         }
-      } else {
+      } else if (this.#phaseStep === 'Finished') {
+        // Only transition when the phase is actually finished
         const nextPhaseType = this.#currentState.transition(this);
         console.log(
           `Transitioning from ${this.#currentState.type} to ${nextPhaseType}`
@@ -528,10 +530,11 @@ export class Game {
         this.advanceToPhase(nextPhaseType, undefined);
       }
 
-      // Safety check for infinite loops
+      // Enhanced safety check for infinite loops
       const currentPhaseTypeAfter = this.getCurrentPhaseType();
       const currentPhaseStepAfter = this.getPhaseStep();
       const currentPlayerIndexAfter = this.getNextPlayerIndexToAction();
+      const currentTime = Date.now();
 
       if (
         lastPhaseType === currentPhaseTypeAfter &&
@@ -539,27 +542,49 @@ export class Game {
         lastPlayerIndex === currentPlayerIndexAfter
       ) {
         stuckCounter++;
+        const timeSinceLastAction = currentTime - lastActionTime;
+
         console.warn(
-          `Game loop appears stuck: Phase ${currentPhaseTypeAfter}, Step ${currentPhaseStepAfter}, Index ${currentPlayerIndexAfter} (stuck count: ${stuckCounter})`
+          `Game loop appears stuck: Phase ${currentPhaseTypeAfter}, Step ${currentPhaseStepAfter}, Index ${currentPlayerIndexAfter} (stuck count: ${stuckCounter}, time since last action: ${timeSinceLastAction}ms)`
         );
 
-        if (stuckCounter >= 5) {
-          console.error(
-            'Game loop is stuck in infinite loop. Forcing game over.'
-          );
-          this.logEvent('Game ended due to infinite loop detection.');
-          this.#winningTeam = null;
-          this.advanceToPhase('GameOver', undefined);
-          break;
+        // If we're stuck for too long or too many iterations, check if we need to force progress
+        if (stuckCounter >= 3 || timeSinceLastAction > 30000) {
+          console.warn('Attempting to force progress in stuck game loop...');
+
+          // Try to advance the phase step if possible
+          if (this.#phaseStep !== 'Finished' && this.#players.size > 0) {
+            const alivePlayers = this.getAlivePlayers();
+            if (this.#nextPlayerIndexToAction >= alivePlayers.length) {
+              // We've processed all players, move to next step
+              console.log('Forcing phase step advancement...');
+              this.#phaseStep = 'Finished';
+            } else {
+              // Skip the current player and move to next
+              console.log('Skipping stuck player and moving to next...');
+              this.#nextPlayerIndexToAction++;
+            }
+          } else {
+            // Force transition to next phase
+            console.error('Game loop is severely stuck. Forcing game over.');
+            this.logEvent('Game ended due to infinite loop detection.');
+            this.#winningTeam = null;
+            this.advanceToPhase('GameOver', undefined);
+            break;
+          }
         }
       } else {
         stuckCounter = 0; // Reset counter if progress was made
+        lastActionTime = currentTime;
       }
 
       lastPhaseType = currentPhaseTypeAfter;
       lastPhaseStep = currentPhaseStepAfter;
       lastPlayerIndex = currentPlayerIndexAfter;
       loopIterations++;
+
+      // Add a small delay to prevent CPU spinning
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
     if (loopIterations >= maxLoopIterations) {

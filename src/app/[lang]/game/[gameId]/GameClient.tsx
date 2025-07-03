@@ -8,11 +8,13 @@ import { AutoSaveIndicator } from '@/components/AutoSaveIndicator';
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
 import { PhaseTransitionNotification } from '@/components/PhaseTransitionNotification';
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
+import { GameHistory } from '@/components/GameHistory';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
+import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 
@@ -106,6 +108,14 @@ function GameLayout({ gameId }: { gameId: string }) {
               </div>
             )}
             <ConversationLog />
+            {/* Game History */}
+            {gameState && 'memory' in gameState && (
+              <div className="p-4">
+                <GameHistory
+                  gameState={gameState as FilteredGameState & { memory: AgentMemory }}
+                />
+              </div>
+            )}
           </div>
           {humanPlayerId && <HumanChatInput />}
           {!humanPlayerId && (
