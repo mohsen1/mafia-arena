@@ -40,8 +40,8 @@ export function MessageBubble({
   // Determine if the speaker is human (assuming FilteredPlayer might have an isHuman flag, or we derive it)
   // For now, let's assume human if senderId matches humanPlayerId from context
   const isHuman = message.senderId === gameState?.humanPlayerId;
-  // Assume bot if not moderator and not human
-  const isBot = !isModerator && !isHuman;
+  // Player messages should be distinct - any non-moderator message is a player message
+  const isPlayerMessage = !isModerator;
 
   const imageUrl = speakerPlayer?.imageUrl;
 
@@ -57,7 +57,7 @@ export function MessageBubble({
     {
       'self-end bg-blue-500 text-white': isHuman,
       'self-end bg-secondary text-secondary-foreground': isModerator,
-      'self-start bg-muted text-foreground': isBot,
+      'self-start bg-muted text-foreground': isPlayerMessage && !isHuman,
       'border border-red-500/50 bg-red-900/10': isWerewolfChat,
     }
   );
@@ -65,7 +65,7 @@ export function MessageBubble({
   // Container for image + bubble
   const containerClasses = cn('flex items-start gap-2 mb-4', {
     'justify-end': isHuman || isModerator,
-    'justify-start': isBot,
+    'justify-start': isPlayerMessage && !isHuman,
   });
 
   // Use message.senderName directly
@@ -84,7 +84,7 @@ export function MessageBubble({
 
   return (
     <div className={containerClasses}>
-      {isBot && (
+      {isPlayerMessage && !isHuman && (
         <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden flex-shrink-0">
           {imageUrl ? (
             <Image
@@ -116,7 +116,7 @@ export function MessageBubble({
           >
             {translatedSpeakerName}
           </span>
-          {isBot && isAudioGloballyEnabled && (
+          {isPlayerMessage && !isHuman && isAudioGloballyEnabled && (
             <SpeakText
               voiceId={speakerPlayer?.voiceId}
               className="text-xs"
