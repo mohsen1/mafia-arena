@@ -120,24 +120,26 @@ export class DayPhase extends AbstractGamePhase {
       // Finished this step for all players
       const currentStep = game.getPhaseStep();
 
-      // Removed redundant completion messages to reduce moderator chattiness
-      // Only log completion for Introduction phase as it's special
+      // 🎯 IMPROVED: Add brief transition messages for better flow
       if (currentStep === 'Introduction') {
         game.logMessage(
           null,
           translate('IntroductionComplete', game.language),
           MessageVisibility.Public
         );
+        // Add a brief pause for readability
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } else if (currentStep === 'Discussion' && nextStep === 'Voting') {
+        game.logMessage(
+          null,
+          translate('DiscussionComplete', game.language),
+          MessageVisibility.Public
+        );
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
       game.setPhaseStep(nextStep); // Move to the next defined step
       game.setNextPlayerIndexToAction(0); // Reset index for the next step
-
-      // If we just completed Introduction and are moving to Discussion,
-      // automatically start the Discussion phase
-      if (currentStep === 'Introduction' && nextStep === 'Discussion') {
-        await this.runStep(game);
-      }
       return;
     }
 

@@ -162,12 +162,10 @@ describe('Prompts', () => {
 
       const prompt = getUserPrompt(mockStateData, allowedActions);
 
-      // Check for the simplified memory indication
+      // Check for the improved memory indication
       expect(prompt).toContain('**Your Memory / Game History Summary:**');
-      expect(prompt).toContain('- *You have some memories recorded.*');
-
-      // Remove detailed checks as they are no longer applicable to the current prompt format
-      // expect(prompt).toContain('--- Your Memory ---'); // Old format
+      expect(prompt).toContain('- Last voting round: 1');
+      expect(prompt).toContain('- Most voted player last round: p2 (1 votes)');
     });
 
     it('should include allowed actions and examples', () => {

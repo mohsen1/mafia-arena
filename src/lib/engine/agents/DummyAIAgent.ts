@@ -1,19 +1,19 @@
-import { IAgent, PlayerAction } from '../interfaces/IAgent';
-import { VisibleGameState } from '../interfaces/GameState';
-import { PlayerId } from '../interfaces/IPlayer';
-import { delay } from '../core/utils';
+import type { IAgent, PlayerAction } from '../interfaces/IAgent';
+import type { VisibleGameState } from '../interfaces/GameState';
+import type { PlayerId } from '../interfaces/IPlayer';
 import { RoleName } from '../interfaces/IRole';
 import { Persona, DEFAULT_PERSONA } from '../interfaces/Persona';
 
-export class DummyAIAgent implements IAgent {
-  public readonly id: PlayerId;
-  public readonly agentName = 'DummyAIAgent';
-  public persona: Persona = DEFAULT_PERSONA;
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  constructor(id: PlayerId, persona?: Persona) {
+export class DummyAIAgent implements IAgent {
+  readonly id: PlayerId;
+  readonly agentName = 'DummyAI';
+  persona: Persona;
+
+  constructor(id: PlayerId) {
     this.id = id;
-    // Use provided persona or default. Note: Dummy agent won't generate.
-    this.persona = persona || DEFAULT_PERSONA;
+    this.persona = DEFAULT_PERSONA;
   }
 
   async getAction(
@@ -32,87 +32,140 @@ export class DummyAIAgent implements IAgent {
         const canVote = allowedActions?.includes('vote');
         const canMessage = allowedActions?.includes('message');
 
-        // 🎯 FIX: During Introduction/Discussion phases, prioritize messaging over voting
-        // This ensures AI agents actually participate in conversations
-        if (canMessage && !canVote && Math.random() < 0.9) {
-          // Introduction phase: High chance to introduce yourself
-          const message = `[${gameState.language}] Hello everyone! I am ${gameState.self.name}. ${gameState.round === 1 ? "I'm worried about these dark rumors in our village." : `I've been thinking about yesterday's events.`}`;
-          console.log(
-            `[${agentIdForLog}] Deciding to SEND MESSAGE (Introduction): ${message}`
-          );
-          return { type: 'message', content: message };
-        } else if (canMessage && canVote && Math.random() < 0.6) {
-          // Discussion phase: Good chance to discuss before voting
-          const message = `[${gameState.language}] I have some thoughts about who might be suspicious. ${gameState.self.name} is observing carefully.`;
-          console.log(
-            `[${agentIdForLog}] Deciding to SEND MESSAGE (Discussion): ${message}`
-          );
-          return { type: 'message', content: message };
-        } else if (canVote && aliveOthers.length > 0 && Math.random() < 0.8) {
-          // Voting phase or fallback: Vote for someone
+        // 🎯 IMPROVED: More strategic messaging based on game state
+        if (canMessage) {
+          // Always message during Introduction phase
+          if (gameState.round === 1 && Math.random() < 0.95) {
+            const introMessages = [
+              `Hello everyone! I am ${this.persona.name}. ${this.persona.backstory} I hope we can work together to find the truth.`,
+              `Greetings, I'm ${this.persona.name}. These are dark times for our ${gameState.themeName || 'village'}. We must be vigilant.`,
+              `My name is ${this.persona.name}. I've lived here all my life, and I won't let evil destroy our community.`,
+            ];
+            const message =
+              introMessages[Math.floor(Math.random() * introMessages.length)];
+            console.log(
+              `[${agentIdForLog}] Deciding to SEND MESSAGE (Introduction): ${message}`
+            );
+            return { type: 'message', content: message };
+          }
+
+          // Discussion phase: Share strategic thoughts
+          if (!canVote && Math.random() < 0.85) {
+            const discussionMessages = [
+              `I've been observing carefully. Some players have been unusually quiet. What do you all think?`,
+              `Based on the voting patterns, I have my suspicions. We need to act decisively.`,
+              `The ${gameState.self.role === RoleName.Mafia ? 'town seems confused' : 'mafia are among us'}. Let's analyze who's been acting strangely.`,
+              `I think we should focus on players who haven't contributed much to the discussion.`,
+            ];
+            const message =
+              discussionMessages[
+                Math.floor(Math.random() * discussionMessages.length)
+              ];
+            console.log(
+              `[${agentIdForLog}] Deciding to SEND MESSAGE (Discussion): ${message}`
+            );
+            return { type: 'message', content: message };
+          }
+        }
+
+        // 🎯 IMPROVED: Always vote when possible, with strategic targeting
+        if (canVote && aliveOthers.length > 0) {
+          // Mafia: Target non-mafia players strategically
+          if (
+            gameState.self.role === RoleName.Mafia &&
+            gameState.mafiaPlayerIds
+          ) {
+            const nonMafiaPlayers = aliveOthers.filter(
+              (id) => !gameState.mafiaPlayerIds?.has(id)
+            );
+            if (nonMafiaPlayers.length > 0) {
+              const targetId =
+                nonMafiaPlayers[
+                  Math.floor(Math.random() * nonMafiaPlayers.length)
+                ];
+              console.log(
+                `[${agentIdForLog} - MAFIA] Strategically voting for non-mafia: ${targetId}`
+              );
+              return { type: 'vote', targetPlayerId: targetId };
+            }
+          }
+
+          // Town: Vote for someone (random for DummyAI, but always vote)
           const targetId =
             aliveOthers[Math.floor(Math.random() * aliveOthers.length)];
           console.log(`[${agentIdForLog}] Deciding to VOTE for ${targetId}`);
           return { type: 'vote', targetPlayerId: targetId };
-        } else {
-          // Final fallback
-          console.log(`[${agentIdForLog}] Deciding NO ACTION for day.`);
-          return { type: 'noAction' };
         }
-      case 'Night':
-        const selfRole = gameState.self.role;
-        // Filter potential targets: non-mafia and not self
-        const potentialTargets = aliveOthers.filter(
-          (id) => !gameState.mafiaPlayerIds?.has(id) && id !== this.id
-        );
-        // Select any alive player other than self (removed unused variable)
-        // const anyAliveTarget = aliveOthers.length > 0
-        //     ? aliveOthers[Math.floor(Math.random() * aliveOthers.length)]
-        //     : null; // Handle case where no others are alive
 
-        if (selfRole === RoleName.Mafia && potentialTargets.length > 0) {
-          const targetId =
-            potentialTargets[
-              Math.floor(Math.random() * potentialTargets.length)
-            ];
-          console.log(
-            `[${agentIdForLog} - MAFIA] Deciding to KILL ${targetId}`
+        // Only return noAction if truly no actions available
+        console.log(
+          `[${agentIdForLog}] No valid actions available for day phase.`
+        );
+        return { type: 'noAction' };
+
+      case 'Night':
+      case 'FirstNight':
+        const selfRole = gameState.self.role;
+
+        // 🎯 IMPROVED: More decisive night actions
+        if (
+          selfRole === RoleName.Mafia &&
+          allowedActions?.includes('mafiaKill')
+        ) {
+          // Mafia: Always kill when possible
+          const potentialVictims = aliveOthers.filter(
+            (id) => !gameState.mafiaPlayerIds?.has(id)
           );
-          return { type: 'mafiaKill', targetPlayerId: targetId };
-        } else if (selfRole === RoleName.Doctor && aliveOthers.length > 0) {
-          // Simple AI: 70% chance to save a random non-mafia player, 30% chance no save
-          if (Math.random() < 0.7 && potentialTargets.length > 0) {
+          if (potentialVictims.length > 0) {
             const targetId =
-              potentialTargets[
-                Math.floor(Math.random() * potentialTargets.length)
+              potentialVictims[
+                Math.floor(Math.random() * potentialVictims.length)
               ];
+            console.log(
+              `[${agentIdForLog} - MAFIA] Deciding to KILL ${targetId}`
+            );
+            return { type: 'mafiaKill', targetPlayerId: targetId };
+          }
+        } else if (
+          selfRole === RoleName.Doctor &&
+          allowedActions?.includes('doctorSave')
+        ) {
+          // Doctor: Always save someone (90% others, 10% self)
+          if (aliveOthers.length > 0) {
+            const saveOthers = Math.random() < 0.9;
+            const targetId = saveOthers
+              ? aliveOthers[Math.floor(Math.random() * aliveOthers.length)]
+              : this.id;
             console.log(
               `[${agentIdForLog} - DOCTOR] Deciding to SAVE ${targetId}`
             );
             return { type: 'doctorSave', targetPlayerId: targetId };
+          } else {
+            // Save self if no others alive
+            console.log(
+              `[${agentIdForLog} - DOCTOR] Deciding to SAVE self (no others alive)`
+            );
+            return { type: 'doctorSave', targetPlayerId: this.id };
           }
-          console.log(`[${agentIdForLog} - DOCTOR] Deciding NO SAVE`);
-          return { type: 'doctorSave', targetPlayerId: null };
-        } else if (selfRole === RoleName.Seer && aliveOthers.length > 0) {
-          // Simple AI: 70% chance to investigate a random player (not self), 30% no investigation
-          const targetsToInvestigate = aliveOthers.filter(
-            (id) => id !== this.id
-          );
-          if (Math.random() < 0.7 && targetsToInvestigate.length > 0) {
+        } else if (
+          selfRole === RoleName.Seer &&
+          allowedActions?.includes('seerInvestigate')
+        ) {
+          // Seer: Always investigate someone
+          if (aliveOthers.length > 0) {
             const targetId =
-              targetsToInvestigate[
-                Math.floor(Math.random() * targetsToInvestigate.length)
-              ];
+              aliveOthers[Math.floor(Math.random() * aliveOthers.length)];
             console.log(
               `[${agentIdForLog} - SEER] Deciding to INVESTIGATE ${targetId}`
             );
             return { type: 'seerInvestigate', targetPlayerId: targetId };
           }
-          console.log(`[${agentIdForLog} - SEER] Deciding NO INVESTIGATION`);
-          return { type: 'seerInvestigate', targetPlayerId: null };
         }
-        // Villagers (or roles with no targets/decided no action) do nothing specific at night
-        console.log(`[${agentIdForLog}] Deciding NO ACTION for night.`);
+
+        // Only return noAction if role has no night ability
+        console.log(
+          `[${agentIdForLog}] No night action available for ${selfRole}.`
+        );
         return { type: 'noAction' };
 
       default:
