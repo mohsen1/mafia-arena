@@ -20,3 +20,5 @@ when editing translations, only update en.json. the rest is automatically transl
 Do not launch the dev server. we always have a dev server running during dev.
 
 do not run e2e tests headed
+
+ALWAYS use agentshell to run commands.
