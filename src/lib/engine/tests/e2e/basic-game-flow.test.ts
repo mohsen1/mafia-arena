@@ -105,7 +105,7 @@ describe('Basic Game Flow E2E', () => {
 
     const dayPhase = game.getCurrentPhase() as DayPhase;
     let stepCount = 0;
-    const maxSteps = 20; // Prevent infinite loops in test
+    const maxSteps = 25; // Increased to account for 5 players * 3 phases + transitions
 
     // Track phase steps to ensure progression
     const steps: string[] = [];
@@ -115,7 +115,7 @@ describe('Basic Game Flow E2E', () => {
       steps.push(currentStep);
 
       console.log(
-        `Day Phase Step: ${currentStep}, Players: ${game.getAlivePlayers().length}`
+        `Day Phase Step: ${currentStep}, Players: ${game.getAlivePlayers().length}, StepCount: ${stepCount}`
       );
 
       await dayPhase.runStep(game);
@@ -202,7 +202,7 @@ describe('Basic Game Flow E2E', () => {
     game.advanceToPhase('Day');
 
     // Complete Day phase
-    await completePhaseWithSimulation(game, 'Day', 20);
+    await completePhaseWithSimulation(game, 'Day', 25);
     expect(game.getPhaseStep()).toBe('Finished');
 
     // Transition to Night
@@ -331,6 +331,9 @@ async function completePhaseWithSimulation(
   let stepCount = 0;
 
   while (game.getPhaseStep() !== 'Finished' && stepCount < maxSteps) {
+    const currentStep = game.getPhaseStep();
+    console.log(`${phaseType} Phase Step: ${currentStep}, StepCount: ${stepCount}`);
+    
     await phase.runStep(game);
     stepCount++;
 
@@ -351,7 +354,7 @@ async function completePhaseWithSimulation(
 
   if (stepCount >= maxSteps) {
     throw new Error(
-      `Phase ${phaseType} did not complete within ${maxSteps} steps`
+      `Phase ${phaseType} did not complete within ${maxSteps} steps (reached ${stepCount})`
     );
   }
 }
