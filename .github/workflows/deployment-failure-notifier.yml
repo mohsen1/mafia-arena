@@ -1,0 +1,225 @@
+name: Deployment Failure Notifier
+
+on:
+  workflow_dispatch:
+  # Trigger on deployment status changes
+  deployment_status:
+
+permissions:
+  contents: read
+  issues: write
+  deployments: read
+
+jobs:
+  notify-deployment-failure:
+    name: Notify on Deployment Failure
+    runs-on: ubuntu-latest
+    if: github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Get deployment details
+        id: deployment-info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = context.payload.deployment;
+            const status = context.payload.deployment_status;
+            
+            // Get commit info
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: deployment.sha
+            });
+            
+            // Get PR info if available
+            let prInfo = null;
+            try {
+              const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: deployment.sha
+              });
+              if (prs.length > 0) {
+                prInfo = prs[0];
+              }
+            } catch (e) {
+              console.log('No associated PR found');
+            }
+            
+            core.setOutput('deployment_id', deployment.id);
+            core.setOutput('deployment_url', deployment.url);
+            core.setOutput('deployment_env', deployment.environment);
+            core.setOutput('commit_sha', deployment.sha);
+            core.setOutput('commit_message', commit.commit.message);
+            core.setOutput('commit_author', commit.commit.author.name);
+            core.setOutput('pr_number', prInfo ? prInfo.number : '');
+            core.setOutput('pr_title', prInfo ? prInfo.title : '');
+            core.setOutput('error_message', status.description || 'Unknown error');
+
+      - name: Analyze failure patterns
+        id: failure-analysis
+        run: |
+          ERROR_MSG="${{ steps.deployment-info.outputs.error_message }}"
+          COMMIT_MSG="${{ steps.deployment-info.outputs.commit_message }}"
+          
+          # Categorize the failure
+          if [[ "$ERROR_MSG" =~ "database" ]] || [[ "$ERROR_MSG" =~ "DATABASE_URL" ]]; then
+            echo "category=database" >> $GITHUB_OUTPUT
+            echo "priority=high" >> $GITHUB_OUTPUT
+            echo "suggested_fix=Check DATABASE_URL environment variable and database connectivity" >> $GITHUB_OUTPUT
+          elif [[ "$ERROR_MSG" =~ "build" ]] || [[ "$ERROR_MSG" =~ "compile" ]]; then
+            echo "category=build" >> $GITHUB_OUTPUT
+            echo "priority=high" >> $GITHUB_OUTPUT
+            echo "suggested_fix=Check TypeScript errors and build logs" >> $GITHUB_OUTPUT
+          elif [[ "$ERROR_MSG" =~ "memory" ]] || [[ "$ERROR_MSG" =~ "heap" ]]; then
+            echo "category=memory" >> $GITHUB_OUTPUT
+            echo "priority=medium" >> $GITHUB_OUTPUT
+            echo "suggested_fix=Consider optimizing build process or increasing memory limits" >> $GITHUB_OUTPUT
+          elif [[ "$ERROR_MSG" =~ "timeout" ]]; then
+            echo "category=timeout" >> $GITHUB_OUTPUT
+            echo "priority=medium" >> $GITHUB_OUTPUT
+            echo "suggested_fix=Build process may be taking too long, consider optimization" >> $GITHUB_OUTPUT
+          else
+            echo "category=unknown" >> $GITHUB_OUTPUT
+            echo "priority=medium" >> $GITHUB_OUTPUT
+            echo "suggested_fix=Check deployment logs for more details" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create deployment failure issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentInfo = {
+              id: '${{ steps.deployment-info.outputs.deployment_id }}',
+              url: '${{ steps.deployment-info.outputs.deployment_url }}',
+              env: '${{ steps.deployment-info.outputs.deployment_env }}',
+              sha: '${{ steps.deployment-info.outputs.commit_sha }}',
+              message: '${{ steps.deployment-info.outputs.commit_message }}',
+              author: '${{ steps.deployment-info.outputs.commit_author }}',
+              prNumber: '${{ steps.deployment-info.outputs.pr_number }}',
+              prTitle: '${{ steps.deployment-info.outputs.pr_title }}',
+              error: '${{ steps.deployment-info.outputs.error_message }}'
+            };
+            
+            const failureAnalysis = {
+              category: '${{ steps.failure-analysis.outputs.category }}',
+              priority: '${{ steps.failure-analysis.outputs.priority }}',
+              suggestedFix: '${{ steps.failure-analysis.outputs.suggested_fix }}'
+            };
+            
+            // Check for existing open issues
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'deployment-failure,automated'
+            });
+            
+            const existingIssue = issues.find(issue => 
+              issue.title.includes('Deployment Failure') && 
+              issue.title.includes(failureAnalysis.category)
+            );
+            
+            const issueBody = `## 🚨 Deployment Failure Alert
+            
+            **Environment:** ${deploymentInfo.env}
+            **Deployment ID:** ${deploymentInfo.id}
+            **Failure Category:** ${failureAnalysis.category}
+            **Priority:** ${failureAnalysis.priority}
+            **Time:** ${new Date().toISOString()}
+            
+            ### Deployment Details
+            
+            - **Commit:** ${deploymentInfo.sha.substring(0, 7)} - ${deploymentInfo.message}
+            - **Author:** ${deploymentInfo.author}
+            ${deploymentInfo.prNumber ? `- **Pull Request:** #${deploymentInfo.prNumber} - ${deploymentInfo.prTitle}` : ''}
+            - **Error:** ${deploymentInfo.error}
+            
+            ### Failure Analysis
+            
+            **Category:** ${failureAnalysis.category}
+            **Suggested Fix:** ${failureAnalysis.suggestedFix}
+            
+            ### Quick Actions
+            
+            1. [View Deployment Logs](${deploymentInfo.url})
+            2. [View Commit](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${deploymentInfo.sha})
+            ${deploymentInfo.prNumber ? `3. [View Pull Request](https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${deploymentInfo.prNumber})` : ''}
+            
+            ### Troubleshooting Checklist
+            
+            - [ ] Check deployment logs for detailed error messages
+            - [ ] Verify all environment variables are set correctly
+            - [ ] Test the build locally: \`pnpm run build:ci\`
+            - [ ] Check for recent dependency updates
+            - [ ] Review recent code changes in the failing commit
+            
+            ### Recovery Steps
+            
+            1. **Immediate Actions:**
+               - Review the error message and logs
+               - Check if this is a known issue pattern
+               - Verify environment configuration
+            
+            2. **If Database Related:**
+               - Verify DATABASE_URL is set correctly
+               - Check database connectivity
+               - Run migrations locally: \`pnpm db:migrate\`
+            
+            3. **If Build Related:**
+               - Run \`pnpm tsc\` to check for TypeScript errors
+               - Run \`pnpm lint\` to check for linting issues
+               - Clear build cache and retry
+            
+            4. **Rollback if Necessary:**
+               - Revert to last known good deployment
+               - Create a hotfix branch if urgent
+            
+            ---
+            *This issue was automatically created by the Deployment Failure Notifier workflow.*
+            `;
+            
+            if (existingIssue) {
+              // Add comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `## 🔄 New Deployment Failure
+                
+                ${issueBody}
+                
+                ---
+                *This deployment failure is related to the ongoing issue.*`
+              });
+              
+              console.log(`Updated existing issue #${existingIssue.number}`);
+            } else {
+              // Create new issue
+              const { data: issue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Deployment Failure [${failureAnalysis.category}] - ${deploymentInfo.env}`,
+                body: issueBody,
+                labels: ['deployment-failure', 'automated', failureAnalysis.category, `priority:${failureAnalysis.priority}`]
+              });
+              
+              console.log(`Created new issue #${issue.number}: ${issue.html_url}`);
+            }
+
+      - name: Send notification summary
+        run: |
+          echo "## Deployment Failure Notification Sent"
+          echo "- **Category:** ${{ steps.failure-analysis.outputs.category }}"
+          echo "- **Priority:** ${{ steps.failure-analysis.outputs.priority }}"
+          echo "- **Environment:** ${{ steps.deployment-info.outputs.deployment_env }}"
+          echo "- **Suggested Fix:** ${{ steps.failure-analysis.outputs.suggested_fix }}" 
