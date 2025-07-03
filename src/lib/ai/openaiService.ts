@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { OpenAI } from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { GameError, GameErrors, ErrorCode } from '../errors/GameError';
 
 // Load environment variables
 dotenv.config();
@@ -110,47 +111,43 @@ export const getAIResponse: GetAIResponseFunction = async (
     return responseContent;
   } catch (error: unknown) {
     const modelName = settings.model;
-    let errorMessage = 'Unknown error';
-    let errorType = 'UNKNOWN_ERROR';
-
+    
+    // Convert to GameError for consistent error handling
+    let gameError: GameError;
+    
     if (error instanceof Error) {
-      errorMessage = error.message;
-
-      // Categorize error types for better handling
-      if (error.message.includes('401')) {
-        errorType = 'AUTHENTICATION_ERROR';
-        errorMessage =
-          'Invalid API key. Please check your OpenAI API key configuration.';
-      } else if (error.message.includes('429')) {
-        errorType = 'RATE_LIMIT_ERROR';
-        errorMessage =
-          'Rate limit exceeded. Please try again later or upgrade your OpenAI plan.';
-      } else if (error.message.includes('timeout')) {
-        errorType = 'TIMEOUT_ERROR';
-        errorMessage = `Request timed out after 30 seconds. The AI service may be experiencing high load.`;
-      } else if (error.message.includes('ECONNREFUSED')) {
-        errorType = 'CONNECTION_ERROR';
-        errorMessage =
-          'Cannot connect to OpenAI API. Please check your internet connection.';
-      } else if (error.message.includes('model')) {
-        errorType = 'MODEL_ERROR';
-        errorMessage = `Invalid model "${modelName}". Please check if this model is available for your API key.`;
+      const errorMessage = error.message.toLowerCase();
+      
+      if (errorMessage.includes('401') || errorMessage.includes('invalid_api_key')) {
+        gameError = GameErrors.aiAuthentication('OpenAI', error);
+      } else if (errorMessage.includes('429') || errorMessage.includes('rate_limit')) {
+        gameError = GameErrors.aiRateLimit('OpenAI', error);
+      } else if (errorMessage.includes('timeout')) {
+        gameError = GameErrors.aiTimeout('OpenAI', 30000, error);
+      } else if (errorMessage.includes('econnrefused') || errorMessage.includes('network')) {
+        gameError = new GameError({
+          code: ErrorCode.NETWORK_ERROR,
+          message: error.message,
+          userMessage: 'Cannot connect to OpenAI API. Please check your internet connection.',
+          originalError: error,
+          retryable: true,
+          httpStatus: 503
+        });
+      } else if (errorMessage.includes('model_not_found') || errorMessage.includes('invalid model')) {
+        gameError = GameErrors.aiModelNotFound(modelName, 'OpenAI', error);
+      } else if (errorMessage.includes('context_length_exceeded')) {
+        gameError = GameErrors.aiContextLength('OpenAI', error);
+      } else {
+        gameError = GameError.fromUnknown(error);
       }
+    } else {
+      gameError = GameError.fromUnknown(error);
     }
 
     console.error(
-      `[AI Error - ${gameId}|${playerId}] ${errorType} for model ${modelName}: ${errorMessage}`
+      `[AI Error - ${gameId}|${playerId}] ${gameError.code} for model ${modelName}: ${gameError.userMessage}`
     );
 
-    // Create a more informative error
-    const detailedError = new Error(errorMessage);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).type = errorType;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).model = modelName;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).originalError = error;
-
-    throw detailedError;
+    throw gameError;
   }
 };

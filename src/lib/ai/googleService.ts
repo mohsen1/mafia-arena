@@ -8,6 +8,7 @@ import {
 } from '@google/generative-ai';
 
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { GameError, GameErrors, ErrorCode } from '../errors/GameError';
 
 // Load environment variables
 dotenv.config();
@@ -178,71 +179,53 @@ export const getAIResponse: GetAIResponseFunction = async (
     return responseContent;
   } catch (error: unknown) {
     const modelName = settings.model;
-    let errorMessage = 'Unknown error';
-    let errorType = 'UNKNOWN_ERROR';
-
+    
+    // Convert to GameError for consistent error handling
+    let gameError: GameError;
+    
     if (error instanceof Error) {
-      errorMessage = error.message;
-
-      // Categorize error types for better handling
-      if (
-        error.message.includes('API key not valid') ||
-        error.message.includes('401')
-      ) {
-        errorType = 'AUTHENTICATION_ERROR';
-        errorMessage =
-          'Invalid API key. Please check your GEMINI_API_KEY configuration.';
-      } else if (
-        error.message.includes('429') ||
-        error.message.includes('quota')
-      ) {
-        errorType = 'RATE_LIMIT_ERROR';
-        errorMessage =
-          'Rate limit or quota exceeded. Please try again later or check your Google AI quota.';
-      } else if (error.message.includes('timeout')) {
-        errorType = 'TIMEOUT_ERROR';
-        errorMessage = `Request timed out. The Gemini API may be experiencing high load.`;
-      } else if (
-        error.message.includes('ECONNREFUSED') ||
-        error.message.includes('network')
-      ) {
-        errorType = 'CONNECTION_ERROR';
-        errorMessage =
-          'Cannot connect to Gemini API. Please check your internet connection.';
-      } else if (error.message.includes('model')) {
-        errorType = 'MODEL_ERROR';
-        errorMessage = `Invalid model "${modelName}". Please check if this model is available in your region.`;
-      } else if (
-        error.message.includes('safety') ||
-        error.message.includes('blocked')
-      ) {
-        errorType = 'SAFETY_ERROR';
-        errorMessage =
-          'Response blocked by safety filters. The content may violate usage policies.';
-      } else if (
-        error.message.includes('context') ||
-        error.message.includes('token')
-      ) {
-        errorType = 'CONTEXT_LENGTH_ERROR';
-        errorMessage =
-          "Message too long. The conversation exceeds Gemini's context window.";
+      const errorMessage = error.message.toLowerCase();
+      
+      if (errorMessage.includes('api key not valid') || errorMessage.includes('401')) {
+        gameError = GameErrors.aiAuthentication('Gemini', error);
+      } else if (errorMessage.includes('429') || errorMessage.includes('quota')) {
+        gameError = GameErrors.aiRateLimit('Gemini', error);
+      } else if (errorMessage.includes('timeout')) {
+        gameError = GameErrors.aiTimeout('Gemini', 30000, error);
+      } else if (errorMessage.includes('econnrefused') || errorMessage.includes('network')) {
+        gameError = new GameError({
+          code: ErrorCode.NETWORK_ERROR,
+          message: error.message,
+          userMessage: 'Cannot connect to Gemini API. Please check your internet connection.',
+          originalError: error,
+          retryable: true,
+          httpStatus: 503
+        });
+      } else if (errorMessage.includes('model')) {
+        gameError = GameErrors.aiModelNotFound(modelName, 'Gemini', error);
+      } else if (errorMessage.includes('safety') || errorMessage.includes('blocked')) {
+        gameError = new GameError({
+          code: ErrorCode.AI_SAFETY_FILTER,
+          message: error.message,
+          userMessage: 'Response blocked by safety filters. The content may violate usage policies.',
+          originalError: error,
+          retryable: false,
+          httpStatus: 400
+        });
+      } else if (errorMessage.includes('context') || errorMessage.includes('token')) {
+        gameError = GameErrors.aiContextLength('Gemini', error);
+      } else {
+        gameError = GameError.fromUnknown(error);
       }
+    } else {
+      gameError = GameError.fromUnknown(error);
     }
 
     console.error(
-      `[Gemini Error - ${gameId}|${playerId}] ${errorType} for model ${modelName}: ${errorMessage}`
+      `[Gemini Error - ${gameId}|${playerId}] ${gameError.code} for model ${modelName}: ${gameError.userMessage}`
     );
 
-    // Create a more informative error
-    const detailedError = new Error(errorMessage);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).type = errorType;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).model = modelName;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (detailedError as any).originalError = error;
-
-    throw detailedError;
+    throw gameError;
   }
 };
 
