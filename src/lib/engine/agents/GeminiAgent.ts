@@ -16,7 +16,7 @@ import type { Persona } from '../interfaces/Persona'; // Import the type
 import * as dotenv from 'dotenv'; // Import dotenv
 import debug from 'debug'; // Import debug
 import { RoleName, type Allegiance } from '../interfaces/IRole'; // Import RoleName and Allegiance
-import type { AgentMemory } from '../interfaces/AgentMemory'; // Corrected import path
+import type { AgentMemory, AIConversationLog } from '../interfaces/AgentMemory'; // Import AgentMemory and AIConversationLog
 
 // Create a specific debugger instance
 const log = debug('mafia:agent:gemini');
@@ -35,6 +35,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // Define the model to use (updated to Gemini 2.0 Flash)
 // Consider making this configurable via environment variable GEMINI_MODEL
 const defaultModelName = 'gemini-2.0-flash'; // Default model
+
+// Configuration for AI conversation logging (disabled by default to keep game saves small)
+const ENABLE_VERBOSE_AI_LOGGING =
+  process.env.ENABLE_VERBOSE_AI_LOGGING === 'true' || false;
 
 // Configure safety settings to be less restrictive for game context
 // Adjust these as needed, but be aware of potential harmful content generation
@@ -197,18 +201,29 @@ export class GeminiAgent implements IAgent {
     const userPrompt = getUserPrompt(promptInputState, allowedActions);
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
-    // Use original memory for logging the current AI conversation (removed unused variable)
-    // const memoryForLogging = gameState.memory;
+    // Use original memory for logging the current AI conversation
+    const memoryForLogging = gameState.memory;
 
-    // TODO: Add logging for Gemini agent similar to OpenAI agent
-    // const logEntry: Partial<AIConversationLog> = {
-    //     round: gameState.round,
-    //     phase: gameState.phase,
-    //     timestamp: new Date(),
-    //     model: this.modelName,
-    //     prompt: { system: systemPrompt, user: userPrompt },
-    //     response: { raw: null, parsedAction: null }
-    // };
+    // Create log entry for AI conversation history
+    const logEntry: Partial<AIConversationLog> = ENABLE_VERBOSE_AI_LOGGING
+      ? {
+          round: gameState.round,
+          phase: gameState.phase,
+          timestamp: new Date(),
+          model: this.modelName,
+          prompt: { system: systemPrompt, user: userPrompt },
+          response: { raw: null, parsedAction: null },
+        }
+      : {
+          round: gameState.round,
+          phase: gameState.phase,
+          timestamp: new Date(),
+          model: this.modelName,
+          prompt: {
+            user: '[Game state omitted - enable ENABLE_VERBOSE_AI_LOGGING=true for full prompts]',
+          },
+          response: { raw: null, parsedAction: null },
+        };
 
     try {
       const model = genAI.getGenerativeModel({
@@ -222,6 +237,19 @@ export class GeminiAgent implements IAgent {
       const response = result.response;
       const responseText = response.text();
 
+      // Store minimal response info unless verbose logging is enabled
+      if (ENABLE_VERBOSE_AI_LOGGING) {
+        if (logEntry.response) {
+          logEntry.response.raw = responseText;
+        }
+      } else {
+        if (logEntry.response) {
+          logEntry.response.raw = responseText
+            ? `[Response omitted - ${responseText.length} chars]`
+            : null;
+        }
+      }
+
       // 🎯 ENHANCED LOGGING: Log raw API response
       log(
         `[${agentIdForLog} (Gemini)] Raw API response (${responseText ? responseText.length : 0} chars): ${responseText || '(empty)'}`
@@ -229,6 +257,10 @@ export class GeminiAgent implements IAgent {
 
       if (!responseText) {
         log(`ERROR: [${agentIdForLog} (Gemini)] API response was empty.`);
+        if (logEntry.response) {
+          logEntry.response.error = 'Empty API response';
+        }
+        memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
         return { type: 'noAction' };
       }
 
@@ -260,6 +292,10 @@ export class GeminiAgent implements IAgent {
           `ERROR: [${agentIdForLog} (Gemini)] Failed to parse JSON response: ${potentialJson} %O`,
           parseError
         );
+        if (logEntry.response) {
+          logEntry.response.error = `JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
+        }
+        memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
         return { type: 'noAction' };
       }
 
@@ -269,6 +305,11 @@ export class GeminiAgent implements IAgent {
           log(
             `WARN: [${agentIdForLog} (Gemini)] Action type '${action.type}' is not allowed (no actions specified). Defaulting to noAction.`
           );
+          if (logEntry.response) {
+            logEntry.response.parsedAction = action;
+            logEntry.response.error = 'No actions allowed but action requested';
+          }
+          memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
           return { type: 'noAction' };
         }
       } else {
@@ -277,9 +318,20 @@ export class GeminiAgent implements IAgent {
           log(
             `WARN: [${agentIdForLog} (Gemini)] Action type '${action.type}' is not in allowed actions: ${allowedActions.join(', ')}. Defaulting to noAction.`
           );
+          if (logEntry.response) {
+            logEntry.response.parsedAction = action;
+            logEntry.response.error = 'Disallowed action type received';
+          }
+          memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
           return { type: 'noAction' };
         }
       }
+
+      // Success - log the action and store in memory
+      if (logEntry.response) {
+        logEntry.response.parsedAction = action;
+      }
+      memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
 
       log(
         `[${agentIdForLog} (Gemini)] Successfully chose action: ${action.type}${action.type === 'message' ? ` with content: "${action.content}"` : ''}`
@@ -290,6 +342,11 @@ export class GeminiAgent implements IAgent {
         `ERROR: [${agentIdForLog} (Gemini)] API call failed during action generation: %O`,
         error
       );
+      if (logEntry.response) {
+        logEntry.response.raw = null;
+        logEntry.response.error = `API call failed: ${error instanceof Error ? error.message : String(error)}`;
+      }
+      memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
       return { type: 'noAction' };
     }
   }
