@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Themes } from '@/lib/engine/interfaces/Theme'; // Import the game themes
+import { getThemes } from '@/lib/utils/themeLoader'; // Import theme loader utility
 import { useTranslation } from 'react-i18next';
 import { BookOpen } from 'lucide-react'; // Example icon
 
@@ -25,7 +25,8 @@ export function GameThemeSelector({
   disabled = false,
 }: GameThemeSelectorProps) {
   const { t } = useTranslation();
-  const themeEntries = Object.entries(Themes);
+  const themes = getThemes();
+  const themeEntries = Object.entries(themes);
 
   return (
     <div className="flex flex-col items-start justify-center gap-1 w-full">
@@ -53,11 +54,11 @@ export function GameThemeSelector({
         </SelectContent>
       </Select>
       {/* Display translated description */}
-      {Themes[selectedThemeKey] && (
+      {themes[selectedThemeKey] && (
         <p className="text-xs text-muted-foreground mt-1 px-1">
           {t(
             `${selectedThemeKey}_description`,
-            Themes[selectedThemeKey].description
+            themes[selectedThemeKey].description
           )}
         </p>
       )}
