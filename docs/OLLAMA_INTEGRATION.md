@@ -2,6 +2,8 @@
 
 Werewolf AI supports running games with locally hosted AI models through Ollama, providing a completely self-hosted AI experience.
 
+> **📚 For detailed setup instructions, see [OLLAMA_LOCAL_SETUP.md](./OLLAMA_LOCAL_SETUP.md)**
+
 ## Overview
 
 Ollama integration allows you to:

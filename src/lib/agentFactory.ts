@@ -10,6 +10,7 @@ import { DummyAIAgent } from './engine/agents/DummyAIAgent';
 import { MockAIAgent } from './engine/agents/MockAIAgent';
 import { ClaudeAgent } from './engine/agents/ClaudeAgent';
 import { GeminiAgent } from './engine/agents/GeminiAgent';
+import { OllamaAgent } from './engine/agents/OllamaAgent';
 
 import { openAIProviders } from './models';
 import { getDecryptedApiKey } from '@/app/actions/api-keys.actions';
@@ -96,9 +97,11 @@ export async function createAgentInstance(
   switch (agentConfig.agentType) {
     case 'OpenAI':
     case 'Groq':
-    case 'Ollama':
     case 'Fireworks':
       return new OpenAIAgent(playerId, agentConfig.modelName, apiBase, apiKey);
+    
+    case 'Ollama':
+      return new OllamaAgent(playerId, agentConfig.modelName, apiBase, apiKey);
 
     case 'Claude':
       if (!agentConfig.modelName)

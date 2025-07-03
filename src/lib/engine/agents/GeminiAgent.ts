@@ -309,7 +309,9 @@ export class GeminiAgent implements IAgent {
             logEntry.response.parsedAction = action;
             logEntry.response.error = 'No actions allowed but action requested';
           }
-          memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
+          memoryForLogging.aiConversationLogs.push(
+            logEntry as AIConversationLog
+          );
           return { type: 'noAction' };
         }
       } else {
@@ -322,7 +324,9 @@ export class GeminiAgent implements IAgent {
             logEntry.response.parsedAction = action;
             logEntry.response.error = 'Disallowed action type received';
           }
-          memoryForLogging.aiConversationLogs.push(logEntry as AIConversationLog);
+          memoryForLogging.aiConversationLogs.push(
+            logEntry as AIConversationLog
+          );
           return { type: 'noAction' };
         }
       }

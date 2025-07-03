@@ -35,8 +35,8 @@ export class OpenAIAgent implements IAgent {
   public readonly agentName = 'OpenAIAgent';
   public persona: Persona = DEFAULT_PERSONA;
   private openai: OpenAI;
-  private model: string;
-  private apiBase: string;
+  protected model: string;
+  protected apiBase: string;
 
   constructor(
     id: PlayerId,
