@@ -36,9 +36,14 @@ interface GamePresetSelectorProps {
   className?: string;
 }
 
-export function GamePresetSelector({ onSelect, className }: GamePresetSelectorProps) {
+export function GamePresetSelector({
+  onSelect,
+  className,
+}: GamePresetSelectorProps) {
   const { t } = useTranslation();
-  const [selectedPreset, setSelectedPreset] = React.useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = React.useState<string | null>(
+    null
+  );
 
   const presets: GamePreset[] = [
     {
@@ -160,7 +165,7 @@ export function GamePresetSelector({ onSelect, className }: GamePresetSelectorPr
                   preset.color
                 )}
               />
-              
+
               <CardHeader className="relative">
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -230,4 +235,4 @@ export function GamePresetSelector({ onSelect, className }: GamePresetSelectorPr
       </div>
     </div>
   );
-} 
+}

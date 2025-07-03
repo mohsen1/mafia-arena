@@ -111,7 +111,7 @@ export function HelpPageContent() {
   return (
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
-      
+
       <main className="container mx-auto py-8 px-4 max-w-6xl">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-4">{t('help.title')}</h1>
@@ -146,7 +146,9 @@ export function HelpPageContent() {
         <Card className="mt-8">
           <CardHeader>
             <CardTitle>{t('help.readyToPlay.title')}</CardTitle>
-            <CardDescription>{t('help.readyToPlay.description')}</CardDescription>
+            <CardDescription>
+              {t('help.readyToPlay.description')}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="mb-4">{t('help.readyToPlay.content')}</p>

@@ -2,10 +2,21 @@
 
 import { Button } from '@/components/ui/button'; // Import Button
 import { useGameContext } from '@/context/GameContext'; // Import context hook
-import { Loader, Pause, Play, SkipForward, Keyboard, Volume2 } from 'lucide-react';
+import {
+  Loader,
+  Pause,
+  Play,
+  SkipForward,
+  Keyboard,
+  Volume2,
+} from 'lucide-react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { SoundSettings } from '@/components/SoundSettings';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useEffect, useState } from 'react';
 
 import { useTranslation } from 'react-i18next'; // Import from react-i18next
@@ -30,7 +41,10 @@ export default function GameController() {
   // Sound effects state
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [soundVolume, setSoundVolume] = useState(0.5);
-  const soundEffects = useSoundEffects({ enabled: soundEnabled, volume: soundVolume });
+  const soundEffects = useSoundEffects({
+    enabled: soundEnabled,
+    volume: soundVolume,
+  });
 
   // Track phase changes for sound effects
   useEffect(() => {
@@ -39,12 +53,18 @@ export default function GameController() {
     // Play phase change sounds
     if (gameState.phase === 'Day') {
       soundEffects.playSound('dayStart');
-    } else if (gameState.phase === 'Night' || gameState.phase === 'FirstNight') {
+    } else if (
+      gameState.phase === 'Night' ||
+      gameState.phase === 'FirstNight'
+    ) {
       soundEffects.playSound('nightStart');
     } else if (gameState.phase === 'GameOver') {
       // Determine if player won or lost
-      const winCondition = gameState.winCondition as { outcome?: string } | null;
-      const playerWon = winCondition?.outcome?.includes('Town') && gameState.humanPlayerId;
+      const winCondition = gameState.winCondition as {
+        outcome?: string;
+      } | null;
+      const playerWon =
+        winCondition?.outcome?.includes('Town') && gameState.humanPlayerId;
       soundEffects.playSound(playerWon ? 'victory' : 'defeat');
     }
   }, [gameState?.phase, soundEnabled, soundEffects, gameState]);
@@ -54,9 +74,15 @@ export default function GameController() {
     if (!gameState || !soundEnabled) return;
 
     const latestMessage = gameState.log?.[0];
-    if (latestMessage?.content?.includes('votes for') || latestMessage?.content?.includes('abstains')) {
+    if (
+      latestMessage?.content?.includes('votes for') ||
+      latestMessage?.content?.includes('abstains')
+    ) {
       soundEffects.playSound('vote');
-    } else if (latestMessage?.content?.includes('eliminated') || latestMessage?.content?.includes('killed')) {
+    } else if (
+      latestMessage?.content?.includes('eliminated') ||
+      latestMessage?.content?.includes('killed')
+    ) {
       soundEffects.playSound('elimination');
     }
   }, [gameState?.log, soundEnabled, soundEffects]);

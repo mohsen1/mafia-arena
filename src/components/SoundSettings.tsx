@@ -75,4 +75,4 @@ export function SoundSettings({
       </CardContent>
     </Card>
   );
-} 
+}
