@@ -21,8 +21,6 @@ import {
   ExternalLink,
   AlertTriangle,
   Info,
-  CheckCircle2,
-  AlertCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -119,7 +117,7 @@ export function OllamaConfig({
     } finally {
       setIsTestingConnection(false);
     }
-  }, [config]);
+  }, [config, t]);
 
   // Update configuration
   const updateConfig = useCallback(
@@ -276,7 +274,9 @@ export function OllamaConfig({
             <div className="mt-3 space-y-3 pl-4 border-l-2 border-muted">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="ollama-protocol">{t('ollama.protocol')}</Label>
+                  <Label htmlFor="ollama-protocol">
+                    {t('ollama.protocol')}
+                  </Label>
                   <Select
                     value={config.protocol}
                     onValueChange={(value: 'http' | 'https') =>
@@ -294,9 +294,7 @@ export function OllamaConfig({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="ollama-api-path">
-                    {t('ollama.apiPath')}
-                  </Label>
+                  <Label htmlFor="ollama-api-path">{t('ollama.apiPath')}</Label>
                   <Input
                     id="ollama-api-path"
                     value={config.apiPath}
@@ -346,10 +344,11 @@ export function OllamaConfig({
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li>
-                    {t('ollama.ensureRunning')}:{' '}
-                    <code>ollama serve</code>
+                    {t('ollama.ensureRunning')}: <code>ollama serve</code>
                   </li>
-                  <li>{t('ollama.checkFirewall')} {config.port}</li>
+                  <li>
+                    {t('ollama.checkFirewall')} {config.port}
+                  </li>
                   <li>{t('ollama.checkFirewall')}</li>
                   <li>{t('ollama.forRemoteConnections')}</li>
                 </ul>
