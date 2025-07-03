@@ -679,8 +679,8 @@ function takeScreenshot(): string {
 async function analyzeScreenshotWithGemini(screenshotPath: string): Promise<string> {
   const MAX_RETRIES = 3;
   const INITIAL_DELAY = 2000; // 2 seconds
-  const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-  
+  const MODELS = ['gemini-2.5-pro-preview-05-06']; // Always use 2.5-pro
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     for (const modelName of MODELS) {
       try {
@@ -988,9 +988,9 @@ const screenshotHistory: Array<{ path: string; timestamp: number }> = [];
  *   keypress:kp:esc;kp:return
  */
 async function analyzeScreenshotForWatchdog(screenshotPaths: string[]): Promise<string> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro-preview-05-06' });
+  
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    
     // Build image parts from all screenshots
     const imageParts = screenshotPaths.map((path, index) => {
       const base64Image = readFileSync(path).toString('base64');
@@ -1205,8 +1205,8 @@ async function detectDialogOpen(): Promise<boolean> {
       const imageData = readFileSync(screenshotPath);
       const base64Image = imageData.toString('base64');
 
-      // Try different models in order of preference
-      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+      // Always use 2.5-pro for dialog detection
+      const models = ['gemini-2.5-pro-preview-05-06'];
       let lastError: Error | null = null;
       
       for (const modelName of models) {
