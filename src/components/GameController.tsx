@@ -23,8 +23,6 @@ export default function GameController() {
     error,
   } = useGameContext();
 
-
-
   const handleNextClick = () => {
     // Don't run next if auto-running is on, let it proceed naturally
     // Or, maybe clicking Next manually should always work and disable auto-run?
