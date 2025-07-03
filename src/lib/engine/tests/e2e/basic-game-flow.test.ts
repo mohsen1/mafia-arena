@@ -332,8 +332,10 @@ async function completePhaseWithSimulation(
 
   while (game.getPhaseStep() !== 'Finished' && stepCount < maxSteps) {
     const currentStep = game.getPhaseStep();
-    console.log(`${phaseType} Phase Step: ${currentStep}, StepCount: ${stepCount}`);
-    
+    console.log(
+      `${phaseType} Phase Step: ${currentStep}, StepCount: ${stepCount}`
+    );
+
     await phase.runStep(game);
     stepCount++;
 
