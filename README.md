@@ -81,6 +81,20 @@ Database migrations are automatically applied during Vercel deploys. The
 and then runs `pnpm run db:push` before building the application so no manual
 database setup is required.
 
+### Deployment Failure Automation
+
+The project includes comprehensive deployment failure automation:
+
+- **Automatic monitoring** of deployment status
+- **Issue creation** for deployment failures with categorization
+- **Recovery scripts** to diagnose and fix common issues
+- **Daily health checks** to ensure deployment stability
+
+If a deployment fails:
+1. An issue is automatically created with troubleshooting steps
+2. Run `pnpm run deploy:check` locally to diagnose issues
+3. See [Deployment Failure Automation](docs/DEPLOYMENT_FAILURE_AUTOMATION.md) for details
+
 ## Contributing
 
 Please read our [contributing guidelines](CONTRIBUTING.md) before opening a pull request.
