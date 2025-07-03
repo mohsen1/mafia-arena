@@ -11,12 +11,13 @@ Werewolf AI brings the classic Werewolf/Mafia party game to the web. It pairs a 
 
 ## Key Features
 
-- Multiple AI providers (OpenAI, Claude, Gemini, Groq)
+- Multiple AI providers (OpenAI, Claude, Gemini, Groq, **Local Ollama**)
 - OAuth login with Google and GitHub or username/password
 - PostgreSQL persistence via Drizzle ORM
 - Full internationalization with auto-generated translations
 - ElevenLabs text-to-speech for immersive play
 - Configurable roles, themes and AI models
+- **Self-hosted AI support** - Run completely offline with Ollama
 
 ## Architecture
 
@@ -46,7 +47,7 @@ The repository separates the front-end UI from the core game engine. The engine 
 - Node.js 18+
 - pnpm 9+
 - PostgreSQL
-- API keys for at least one AI provider
+- API keys for at least one AI provider (or [Ollama](docs/OLLAMA_INTEGRATION.md) for local AI)
 - OAuth credentials for Google and GitHub
 
 ## Getting Started
