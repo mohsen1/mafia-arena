@@ -52,7 +52,7 @@ export const PlayerCard = React.memo(function PlayerCard({
   return (
     <div
       className={cn(
-        'flex items-center gap-3 p-3 rounded-lg transition-all',
+        'flex items-center gap-3 p-3.5 rounded-lg transition-all',
         'bg-card hover:bg-accent/50',
         isDead && 'opacity-60'
       )}
@@ -81,12 +81,12 @@ export const PlayerCard = React.memo(function PlayerCard({
         </div>
       </div>
       <div className="flex-grow min-w-0 ms-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-0.5">
           <p className="text-sm font-medium truncate text-card-foreground">
             {player.name}
           </p>
           {player.isHuman && (
-            <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+            <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
               {t('You', 'You')}
             </Badge>
           )}
@@ -110,7 +110,7 @@ export const PlayerCard = React.memo(function PlayerCard({
       </div>
       {/* AI indicator for non-human players */}
       {!player.isHuman && isAlive && (
-        <Bot className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
+        <Bot className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
       )}
     </div>
   );

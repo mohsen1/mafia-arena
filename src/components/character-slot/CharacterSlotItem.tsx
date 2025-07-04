@@ -24,6 +24,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'; // Import Popover components
+import { CharacterPreview } from '@/components/ui/character-preview';
+import type { CharacterPreferences } from '@/components/ui/character-preview';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 
 // Hardcoded image paths (consider fetching dynamically later)
 const characterImagePaths = [
@@ -79,6 +91,11 @@ interface CharacterSlotItemProps {
   onRemove: (clientId: string) => void;
   onUpdateName: (clientId: string, newName: string) => void;
   onUpdateImageUrl: (clientId: string, newImageUrl: string | null) => void;
+  onUpdatePreferences?: (
+    clientId: string,
+    preferences: CharacterPreferences
+  ) => void;
+  gameTheme?: string;
 }
 
 // --- Helper Component for Character Info (reusable for both layouts) ---
@@ -88,10 +105,23 @@ interface CharacterInfoProps {
   isSubmitting: boolean;
   onUpdateName: (clientId: string, newName: string) => void;
   onUpdateImageUrl: (clientId: string, newImageUrl: string | null) => void;
+  onUpdatePreferences?: (
+    clientId: string,
+    preferences: CharacterPreferences
+  ) => void;
+  gameTheme?: string;
 }
 
 const CharacterInfo: React.FC<CharacterInfoProps> = React.memo(
-  ({ slot, isHuman, isSubmitting, onUpdateName, onUpdateImageUrl }) => {
+  ({
+    slot,
+    isHuman,
+    isSubmitting,
+    onUpdateName,
+    onUpdateImageUrl,
+    onUpdatePreferences,
+    gameTheme,
+  }) => {
     const { t } = useTranslation();
     const [isImagePopoverOpen, setIsImagePopoverOpen] = useState(false);
 
@@ -246,6 +276,22 @@ const CharacterInfo: React.FC<CharacterInfoProps> = React.memo(
               {t('HumanPlayerLabel', '(You)')}
             </span>
           )}
+
+          {/* Add Character Preview button for AI characters */}
+          {!isHuman && onUpdatePreferences && gameTheme && (
+            <div className="mt-1">
+              <CharacterPreview
+                characterName={slot.profile?.characterName || ''}
+                imageUrl={slot.imageUrl || null}
+                role={slot.roleSelection}
+                gameTheme={gameTheme}
+                onPreferencesUpdate={(preferences) =>
+                  onUpdatePreferences(slot.clientId, preferences)
+                }
+                className="h-7 text-xs px-2"
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -255,6 +301,17 @@ const CharacterInfo: React.FC<CharacterInfoProps> = React.memo(
 CharacterInfo.displayName = 'CharacterInfo';
 
 // --- End Helper Component ---
+
+// Role descriptions
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+  Villager:
+    'A regular townsperson trying to identify and eliminate the Mafia members during day discussions.',
+  Mafia:
+    'A secret villain who eliminates players at night and tries to blend in during the day.',
+  Seer: 'A mystical villager who can investigate one player each night to learn their true role.',
+  Doctor:
+    'A protective villager who can save one player from elimination each night.',
+};
 
 export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
   slot,
@@ -268,6 +325,8 @@ export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
   onRemove,
   onUpdateName,
   onUpdateImageUrl,
+  onUpdatePreferences,
+  gameTheme,
 }: CharacterSlotItemProps) {
   const { t } = useTranslation();
 
@@ -346,6 +405,8 @@ export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
           isSubmitting={isSubmitting}
           onUpdateName={onUpdateName}
           onUpdateImageUrl={onUpdateImageUrl}
+          onUpdatePreferences={onUpdatePreferences}
+          gameTheme={gameTheme}
         />
         {/* Move remove button here for mobile next to character info */}
         <div className="ms-2 flex-shrink-0">{removeButton}</div>
@@ -358,6 +419,19 @@ export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
           className="text-xs font-medium text-muted-foreground mb-1 block"
         >
           {t('TableHeader_Role', 'Role')}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3 w-3 inline-block ms-1 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">
+                  {ROLE_DESCRIPTIONS[slot.roleSelection] ||
+                    'Select a role to see its description'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </Label>
         <Select
           value={slot.roleSelection}
@@ -425,155 +499,192 @@ export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
   );
 });
 
-export const CharacterSlotItem = React.memo(function CharacterSlotItem({
-  slot,
-  isHuman,
-  index,
-  availableRoles,
-  isSubmitting,
-  canRemove,
-  onUpdateRole,
-  onUpdateProviderAndModel,
-  onRemove,
-  onUpdateName,
-  onUpdateImageUrl,
-}: CharacterSlotItemProps) {
-  const { t } = useTranslation();
+export const CharacterSlotItem: React.FC<CharacterSlotItemProps> = React.memo(
+  ({
+    slot,
+    isHuman,
+    index,
+    availableRoles,
+    isSubmitting,
+    canRemove,
+    onUpdateRole,
+    onUpdateProviderAndModel,
+    onRemove,
+    onUpdateName,
+    onUpdateImageUrl,
+    onUpdatePreferences,
+    gameTheme,
+  }) => {
+    const { t } = useTranslation();
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: slot.clientId });
 
-  const handleRemoveClick = useCallback(() => {
-    onRemove(slot.clientId);
-  }, [onRemove, slot.clientId]);
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
 
-  const handleSlotProviderModelChange = useCallback(
-    (provider: string, model: string) => {
-      onUpdateProviderAndModel(slot.clientId, provider, model);
-    },
-    [onUpdateProviderAndModel, slot.clientId]
-  );
+    const handleRoleChange = useCallback(
+      (newRole: string) => {
+        onUpdateRole(slot.clientId, newRole as RoleName);
+      },
+      [onUpdateRole, slot.clientId]
+    );
 
-  const handleRoleChange = useCallback(
-    (newRole: string) => {
-      onUpdateRole(slot.clientId, newRole as RoleName);
-    },
-    [onUpdateRole, slot.clientId]
-  );
+    const handleProviderModelChange = useCallback(
+      (provider: string, model: string) => {
+        onUpdateProviderAndModel(slot.clientId, provider, model);
+      },
+      [onUpdateProviderAndModel, slot.clientId]
+    );
 
-  // Common props for ProviderModelSelector
-  const providerModelSelectorProps = useMemo(
-    () => ({
-      selectedModel: slot.aiModel,
-      selectedProviderValue: slot.provider,
-      onProviderModelChange: handleSlotProviderModelChange,
-      disabled: isSubmitting,
-      className: 'flex-col !items-start w-full !gap-1',
-      labelClassName: 'hidden',
-      selectTriggerClassName: 'w-full text-xs h-9',
-    }),
-    [slot.aiModel, slot.provider, handleSlotProviderModelChange, isSubmitting]
-  );
+    const handleRemove = useCallback(() => {
+      onRemove(slot.clientId);
+    }, [onRemove, slot.clientId]);
 
-  // Remove Button
-  const removeButton = canRemove && (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      onClick={handleRemoveClick}
-      disabled={isSubmitting}
-      className="p-1 text-muted-foreground hover:text-destructive h-9 w-auto"
-      aria-label={`${t('RemovePlayerSlotAriaLabel', 'Remove player slot')} ${index + 1}`}
-    >
-      {isSubmitting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <>
-          <X className="h-5 w-5" />
-          <span className="ms-1 text-xs">
-            {t('DeleteButtonLabel', 'Delete')}
-          </span>
-        </>
-      )}
-    </Button>
-  );
+    // Common props for ProviderModelSelector
+    const providerModelSelectorProps = useMemo(
+      () => ({
+        selectedModel: slot.aiModel,
+        selectedProviderValue: slot.provider,
+        onProviderModelChange: handleProviderModelChange,
+        disabled: isSubmitting,
+        className: 'flex-col !items-start w-full !gap-1',
+        labelClassName: 'hidden',
+        selectTriggerClassName: 'w-full text-xs h-9',
+      }),
+      [slot.aiModel, slot.provider, handleProviderModelChange, isSubmitting]
+    );
 
-  return (
-    <TableRow
-      className={cn(
-        'transition-colors',
-        slot.generationError
-          ? 'bg-destructive/10 hover:bg-destructive/20'
-          : 'hover:bg-muted/50',
-        isHuman ? 'border-primary/30 data-[state=selected]:bg-primary/10' : ''
-      )}
-      data-state={isHuman ? 'selected' : undefined}
-    >
-      {/* Character Cell */}
-      <TableCell className="font-medium w-[250px]">
-        <CharacterInfo
-          slot={slot}
-          isHuman={isHuman}
-          isSubmitting={isSubmitting}
-          onUpdateName={onUpdateName}
-          onUpdateImageUrl={onUpdateImageUrl}
-        />
-      </TableCell>
-
-      {/* Role Cell */}
-      <TableCell>
-        <Select
-          value={slot.roleSelection}
-          onValueChange={handleRoleChange}
-          required
-          disabled={isSubmitting}
-        >
-          <SelectTrigger
-            className="w-[150px] text-xs h-9 text-left"
-            id={`role-${slot.clientId}-desktop`}
-          >
-            <SelectValue
-              className="truncate"
-              placeholder={t('SelectRolePlaceholder', 'Select role')}
+    return (
+      <TableRow
+        ref={setNodeRef}
+        style={style}
+        className={cn('transition-colors', isDragging && 'bg-muted/50')}
+      >
+        <TableCell className="font-medium">
+          <div className="flex items-center gap-2">
+            {!isHuman && (
+              <button
+                className="cursor-grab touch-none p-1 hover:bg-accent rounded"
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+            <CharacterInfo
+              slot={slot}
+              isHuman={isHuman}
+              isSubmitting={isSubmitting}
+              onUpdateName={onUpdateName}
+              onUpdateImageUrl={onUpdateImageUrl}
+              onUpdatePreferences={onUpdatePreferences}
+              gameTheme={gameTheme}
             />
-          </SelectTrigger>
-          <SelectContent>
-            {availableRoles.map((roleId) => (
-              <SelectItem key={roleId} value={roleId} className="text-xs">
-                {t(roleId, roleId)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </TableCell>
-
-      {/* AI Provider & Model Cells (Conditional) */}
-      {isHuman ? (
-        <TableCell
-          colSpan={2}
-          className="text-muted-foreground italic text-center"
-        >
-          {t('HumanControlledLabel', 'Human Controlled')}
+          </div>
         </TableCell>
-      ) : (
-        <>
-          <TableCell>
-            <ProviderModelSelector
-              {...providerModelSelectorProps}
-              idPrefix={`slot-${slot.clientId}-pv-desktop`}
-              mode="provider"
-            />
-          </TableCell>
-          <TableCell>
-            <ProviderModelSelector
-              {...providerModelSelectorProps}
-              idPrefix={`slot-${slot.clientId}-md-desktop`}
-              mode="model"
-            />
-          </TableCell>
-        </>
-      )}
 
-      {/* Action Cell */}
-      <TableCell className="text-right">{removeButton}</TableCell>
-    </TableRow>
-  );
-});
+        {/* Role Cell */}
+        <TableCell>
+          <div className="flex items-center gap-1">
+            <Select
+              value={slot.roleSelection}
+              onValueChange={handleRoleChange}
+              required
+              disabled={isSubmitting}
+            >
+              <SelectTrigger
+                className="w-[150px] text-xs h-9 text-left"
+                id={`role-${slot.clientId}-desktop`}
+              >
+                <SelectValue
+                  className="truncate"
+                  placeholder={t('SelectRolePlaceholder', 'Select role')}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {availableRoles.map((roleId) => (
+                  <SelectItem key={roleId} value={roleId} className="text-xs">
+                    {t(roleId, roleId)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">
+                    {ROLE_DESCRIPTIONS[slot.roleSelection] ||
+                      'Select a role to see its description'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </TableCell>
+
+        {/* AI Provider & Model Cells (Conditional) */}
+        {isHuman ? (
+          <TableCell
+            colSpan={2}
+            className="text-muted-foreground italic text-center"
+          >
+            {t('HumanControlledLabel', 'Human Controlled')}
+          </TableCell>
+        ) : (
+          <>
+            <TableCell>
+              <ProviderModelSelector
+                {...providerModelSelectorProps}
+                idPrefix={`slot-${slot.clientId}-pv-desktop`}
+                mode="provider"
+              />
+            </TableCell>
+            <TableCell>
+              <ProviderModelSelector
+                {...providerModelSelectorProps}
+                idPrefix={`slot-${slot.clientId}-md-desktop`}
+                mode="model"
+              />
+            </TableCell>
+          </>
+        )}
+
+        {/* Action Cell */}
+        <TableCell className="text-right">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRemove}
+            disabled={isSubmitting}
+            className="p-1 text-muted-foreground hover:text-destructive h-9 w-auto"
+            aria-label={`${t('RemovePlayerSlotAriaLabel', 'Remove player slot')} ${index + 1}`}
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <X className="h-5 w-5" />
+                <span className="ms-1 text-xs">
+                  {t('DeleteButtonLabel', 'Delete')}
+                </span>
+              </>
+            )}
+          </Button>
+        </TableCell>
+      </TableRow>
+    );
+  }
+);

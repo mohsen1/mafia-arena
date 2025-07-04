@@ -17,20 +17,18 @@ export function GameHeader() {
   const translatedPhase = t(phase, { defaultValue: phase });
 
   return (
-    <div className="p-2 flex-shrink-0 bg-card/50 border-b">
-      <div className="flex items-center justify-between gap-2">
+    <div className="p-4 flex-shrink-0 bg-card/50 border-b">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <h1 className="text-sm font-bold truncate">
-              {/* Use title or default */}
-              {title || t('WerewolfAITitle')}
-            </h1>
-            {description && (
-              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                {description}
-              </p>
-            )}
-          </div>
+          <h1 className="text-base font-bold truncate mb-1">
+            {/* Use title or default */}
+            {title || t('WerewolfAITitle')}
+          </h1>
+          {description && (
+            <p className="text-xs text-muted-foreground truncate mb-2">
+              {description}
+            </p>
+          )}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>
               {t('RoundLabel')}: <span className="font-medium">{round}</span>

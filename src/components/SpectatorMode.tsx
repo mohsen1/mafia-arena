@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
   Pause,
@@ -34,6 +33,22 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
   className,
 }) => {
   const [isPlaying, setIsPlaying] = useState(true);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollContentRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollContentRef.current && scrollAreaRef.current) {
+      // Find the ScrollArea viewport
+      const viewport = scrollAreaRef.current.querySelector(
+        '[data-radix-scroll-area-viewport]'
+      );
+      if (viewport) {
+        // Scroll to bottom
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    }
+  }, [messages.length]);
 
   return (
     <div className={cn('flex flex-col gap-2 h-full', className)}>
@@ -83,24 +98,16 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-2">
-          <ScrollArea className="h-[calc(100vh-200px)]">
-            <div className="space-y-1">
-              <AnimatePresence mode="popLayout">
-                {messages.slice(-50).map((message) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <MessageBubble
-                      message={message}
-                      players={gameState.players}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+          <ScrollArea ref={scrollAreaRef} className="h-[calc(100vh-200px)]">
+            <div ref={scrollContentRef} className="space-y-1">
+              {messages.slice(-50).map((message) => (
+                <div key={message.id}>
+                  <MessageBubble
+                    message={message}
+                    players={gameState.players}
+                  />
+                </div>
+              ))}
             </div>
           </ScrollArea>
         </CardContent>

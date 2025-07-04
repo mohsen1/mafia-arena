@@ -109,6 +109,10 @@ export function filterGameStateForClient(
       (shouldRevealAllRoles && isObserver) || isViewingPlayerMafia,
     canSeeDeadChat: true,
     availableVoices: [],
+    // Include agent memories (with AI conversation logs) when game is over
+    ...(fullState.phase === 'GameOver' && {
+      agentMemories: fullState.agentMemories,
+    }),
   };
 
   return filteredState;

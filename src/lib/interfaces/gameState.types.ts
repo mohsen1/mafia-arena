@@ -6,6 +6,7 @@ export type GamePhaseType = EngineGamePhaseType;
 import type { MessageVisibility } from '../engine/interfaces/IMessage';
 import type { PlayerAction } from '../engine/interfaces/IAgent';
 import type { SerializableGameState as PersistenceSerializableGameState } from './persistence.types';
+import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 
 /** Unique identifier for a player. */
 export type PlayerId = string;
@@ -109,4 +110,6 @@ export interface FilteredGameState extends BaseGameState {
   availableVoices?: string[];
   _rawStateForDebug?: PersistenceSerializableGameState;
   winCondition?: string | null;
+  /** Agent memories including AI conversation logs - only included when game is over */
+  agentMemories?: Record<PlayerId, AgentMemory>;
 }

@@ -4,7 +4,6 @@ import { ConversationLog } from '@/components/ConversationLog';
 import { GameSidebar } from '@/components/GameSidebar';
 import HumanChatInput from '@/components/HumanChatInput';
 import CharacterGenerationUI from '@/components/CharacterGenerationUI';
-import { AutoSaveIndicator } from '@/components/AutoSaveIndicator';
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
 import { PhaseTransitionNotification } from '@/components/PhaseTransitionNotification';
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
@@ -145,6 +144,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
         )}
 
         <div className="min-h-screen bg-background" dir={direction}>
+          <Header currentLang={lang} />
           <div className="container mx-auto p-4">
             <GameReplay gameState={gameState} />
           </div>
@@ -219,7 +219,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
               </div>
               <HumanChatInput />
             </main>
-            <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
           </div>
         </div>
       ) : (
@@ -245,7 +244,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                 className="h-full"
               />
             )}
-            <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
           </div>
         </div>
       )}

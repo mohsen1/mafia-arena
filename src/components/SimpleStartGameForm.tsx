@@ -40,6 +40,7 @@ import {
 } from '@/components/OllamaConfig';
 import { getAvailableProvidersFromEnv } from '@/app/actions/setup.actions';
 import type { GamePreset } from '@/components/GamePresetSelector';
+import { getThemeKeys } from '@/lib/utils/themeLoader';
 
 export interface SimpleStartGameFormProps {
   lang: LanguageCode;
@@ -87,6 +88,12 @@ function getDefaultModelForProvider(providerValue: string): string {
   return '';
 }
 
+function getRandomTheme(): string {
+  const themeKeys = getThemeKeys();
+  const randomIndex = Math.floor(Math.random() * themeKeys.length);
+  return themeKeys[randomIndex];
+}
+
 export default function SimpleStartGameForm({
   lang,
   user,
@@ -110,9 +117,12 @@ export default function SimpleStartGameForm({
     preset?.humanPlayer ?? false
   );
   const [humanPlayerName, setHumanPlayerName] = useState(defaultPlayerName);
-  const [selectedGameThemeKey, setSelectedGameThemeKey] = useState(
-    preset?.theme || 'UK_VILLAGE_1900S'
-  );
+  const [selectedGameThemeKey, setSelectedGameThemeKey] = useState(() => {
+    // Use random theme if preset theme is not provided or is empty
+    return preset?.theme && preset.theme !== ''
+      ? preset.theme
+      : getRandomTheme();
+  });
   const [playerCount, setPlayerCount] = useState(preset?.playerCount || 6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -132,7 +142,10 @@ export default function SimpleStartGameForm({
     if (preset && preset.id !== 'custom') {
       setPlayerCount(preset.playerCount);
       setIsHumanJoining(preset.humanPlayer);
-      setSelectedGameThemeKey(preset.theme);
+      // Only set theme if it's not empty
+      if (preset.theme && preset.theme !== '') {
+        setSelectedGameThemeKey(preset.theme);
+      }
 
       // For spectator mode, don't join as human
       if (preset.id === 'spectator') {
@@ -499,10 +512,12 @@ export default function SimpleStartGameForm({
         </div>
 
         <div className="space-y-4 bg-secondary/10 rounded-lg p-6">
-          <div>
-            <Label className="text-sm font-medium mb-3 block">
-              {t('PrimaryAIEngine', 'Primary AI Engine')}
-            </Label>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                {t('PrimaryAIEngine', 'Primary AI Engine')}
+              </Label>
+            </div>
             <EnhancedProviderModelSelector
               idPrefix="global-provider"
               selectedProviderValue={globalProviderSelection}
@@ -515,7 +530,7 @@ export default function SimpleStartGameForm({
 
           {/* Separate Mafia AI Option */}
           <div className="pt-4 border-t border-border/50">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 mb-4">
               <Checkbox
                 id="mafia-engine-checkbox"
                 checked={useSeparateAIModelForMafia}
@@ -536,10 +551,12 @@ export default function SimpleStartGameForm({
             </div>
 
             {useSeparateAIModelForMafia && (
-              <div className="mt-4 ms-6">
-                <Label className="text-sm font-medium mb-3 block">
-                  {t('MafiaAIEngine', 'Mafia AI Engine')}
-                </Label>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">
+                    {t('MafiaAIEngine', 'Mafia AI Engine')}
+                  </Label>
+                </div>
                 <EnhancedProviderModelSelector
                   idPrefix="mafia-provider"
                   selectedProviderValue={mafiaProviderSelection}

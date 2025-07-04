@@ -5,6 +5,7 @@ import { Themes } from '@/lib/engine/interfaces/Theme';
 import {
   selectCharacterImage,
   analyzePersonaForImage,
+  getDefaultCharacterImage,
 } from '@/lib/utils/imageUtils';
 import { loadGameData, saveGameData } from '@/lib/db/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
@@ -342,7 +343,15 @@ export async function generateGameCharactersAction(
 
     // Generate character images in parallel for all players (including human) who don't have images
     const allPlayers = Object.values(updatedState.players);
-    const imagePromises = allPlayers.map(async (player) => {
+    console.log(
+      `[CharacterGen] Processing images for ${allPlayers.length} players`
+    );
+
+    const imagePromises = allPlayers.map(async (player, index) => {
+      console.log(
+        `[CharacterGen] Processing image for player ${player.name}, current imageUrl: ${player.imageUrl}`
+      );
+
       if (!player.imageUrl) {
         try {
           // For human players, first check if they have a profile image from auth provider
@@ -357,23 +366,37 @@ export async function generateGameCharactersAction(
           const updatedPlayer = updatedState.players[player.id];
           const persona = updatedPlayer?.persona;
 
-          // Analyze persona to determine appropriate gender and age
-          let gender: 'male' | 'female' = 'male';
-          let ageCategory: 'young' | 'old' = 'young';
+          let imageUrl: string | null = null;
 
           if (persona) {
+            // Try to select an image based on persona analysis
             const analysis = analyzePersonaForImage(persona);
-            gender = analysis.gender;
-            ageCategory = analysis.ageCategory;
-          } else {
-            // Fallback to random if no persona
-            gender = Math.random() > 0.5 ? 'male' : 'female';
-            ageCategory = Math.random() > 0.5 ? 'young' : 'old';
+            const gender = analysis.gender;
+            const ageCategory = analysis.ageCategory;
+            console.log(
+              `[CharacterGen] Analyzed persona for ${player.name}: gender=${gender}, age=${ageCategory}`
+            );
+
+            try {
+              imageUrl = await selectCharacterImage(gender, ageCategory);
+            } catch (error) {
+              console.warn(
+                `[CharacterGen] Failed to select image for ${player.name}, using default:`,
+                error
+              );
+            }
           }
 
-          const imageUrl = await selectCharacterImage(gender, ageCategory);
+          // If no image was selected, use a default one
+          if (!imageUrl) {
+            imageUrl = getDefaultCharacterImage(index);
+            console.log(
+              `[CharacterGen] Using default image for ${player.name}: ${imageUrl}`
+            );
+          }
+
           console.log(
-            `[CharacterGen] Generated image for ${player.name} (${gender}, ${ageCategory}): ${imageUrl}`
+            `[CharacterGen] Final image for ${player.name}: ${imageUrl}`
           );
           return { playerId: player.id, imageUrl };
         } catch (error) {
@@ -381,21 +404,38 @@ export async function generateGameCharactersAction(
             `[CharacterGen] Failed to generate image for ${player.name}:`,
             error
           );
-          return { playerId: player.id, imageUrl: null };
+          // Even on error, provide a default image
+          const defaultImage = getDefaultCharacterImage(index);
+          return { playerId: player.id, imageUrl: defaultImage };
         }
       }
+      console.log(
+        `[CharacterGen] Player ${player.name} already has image: ${player.imageUrl}`
+      );
       return { playerId: player.id, imageUrl: player.imageUrl };
     });
 
     // Wait for all images to be generated
     const imageResults = await Promise.all(imagePromises);
+    console.log('[CharacterGen] Image generation results:', imageResults);
 
     // Apply generated images to the state
     for (const result of imageResults) {
       if (updatedState.players[result.playerId]) {
         updatedState.players[result.playerId].imageUrl = result.imageUrl;
+        console.log(
+          `[CharacterGen] Set imageUrl for player ${result.playerId}: ${result.imageUrl}`
+        );
       }
     }
+
+    // Debug: Log the final state of all players
+    console.log('[CharacterGen] Final player states before saving:');
+    Object.values(updatedState.players).forEach((player) => {
+      console.log(
+        `  ${player.name} (${player.id}): imageUrl = ${player.imageUrl}`
+      );
+    });
 
     // Save the updated state
     await saveGameData(gameId, updatedState);

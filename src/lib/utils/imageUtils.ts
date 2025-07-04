@@ -1,4 +1,3 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const BASE_IMAGE_PATH = path.join(
@@ -8,6 +7,58 @@ const BASE_IMAGE_PATH = path.join(
   'characters'
 );
 
+// Predefined list of character images that we know exist
+const KNOWN_IMAGES = {
+  'male-young': [
+    'unnamed-1.png',
+    'unnamed-2.png',
+    'unnamed-3.png',
+    'unnamed-4.png',
+    'unnamed-5.png',
+    'unnamed-6.png',
+    'unnamed-7.png',
+    'unnamed-8.png',
+    'unnamed-9.png',
+    'unnamed-10.png',
+  ],
+  'female-young': [
+    'unnamed-1.png',
+    'unnamed-2.png',
+    'unnamed-3.png',
+    'unnamed-4.png',
+    'unnamed-5.png',
+    'unnamed-6.png',
+    'unnamed-7.png',
+    'unnamed-8.png',
+    'unnamed-9.png',
+    'unnamed-10.png',
+  ],
+  'male-old': [
+    'unnamed-1.png',
+    'unnamed-2.png',
+    'unnamed-3.png',
+    'unnamed-4.png',
+    'unnamed-5.png',
+    'unnamed-6.png',
+    'unnamed-7.png',
+    'unnamed-8.png',
+    'unnamed-9.png',
+    'unnamed-10.png',
+  ],
+  'female-old': [
+    'unnamed-1.png',
+    'unnamed-2.png',
+    'unnamed-3.png',
+    'unnamed-4.png',
+    'unnamed-5.png',
+    'unnamed-6.png',
+    'unnamed-7.png',
+    'unnamed-8.png',
+    'unnamed-9.png',
+    'unnamed-10.png',
+  ],
+};
+
 let imageCache: Record<string, string[]> = {};
 let cacheInitialized = false;
 
@@ -15,40 +66,22 @@ let cacheInitialized = false;
  * Pre-loads the list of available character images for each category.
  */
 async function initializeImageCache(): Promise<void> {
-  if (cacheInitialized) return;
-  console.log('Initializing character image cache...');
-  imageCache = {};
-  const genders = ['male', 'female'];
-  const ages = ['young', 'old'];
-
-  for (const gender of genders) {
-    for (const age of ages) {
-      const dirPath = path.join(BASE_IMAGE_PATH, gender, age);
-      const key = `${gender}-${age}`;
-      try {
-        await fs.access(dirPath);
-        const files = await fs.readdir(dirPath);
-        imageCache[key] = files.filter((f) => f.match(/\.(png|jpe?g|webp)$/i));
-        console.log(`Cached ${imageCache[key].length} images for ${key}`);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          typeof error === 'object' &&
-          error !== null &&
-          'code' in error &&
-          error.code === 'ENOENT'
-        ) {
-          console.warn(`Image directory not found, skipping cache: ${dirPath}`);
-          imageCache[key] = [];
-        } else {
-          console.error(`Error reading image directory ${dirPath}:`, error);
-          imageCache[key] = [];
-        }
-      }
-    }
+  if (cacheInitialized) {
+    console.log('[ImageUtils] Image cache already initialized');
+    return;
   }
+  console.log('[ImageUtils] Initializing character image cache...');
+  console.log('[ImageUtils] Base image path:', BASE_IMAGE_PATH);
+
+  // Use the predefined list instead of reading from file system
+  imageCache = KNOWN_IMAGES;
   cacheInitialized = true;
-  console.log('Image cache initialization complete.');
+  console.log(
+    '[ImageUtils] Image cache initialization complete. Cache contents:',
+    Object.entries(imageCache).map(
+      ([key, files]) => `${key}: ${files.length} files`
+    )
+  );
 }
 
 /**
@@ -62,6 +95,8 @@ export async function selectCharacterImage(
   gender: 'male' | 'female',
   ageCategory: 'young' | 'old'
 ): Promise<string | null> {
+  console.log(`[ImageUtils] Selecting image for ${gender} ${ageCategory}`);
+
   await initializeImageCache();
 
   const key = `${gender}-${ageCategory}`;
@@ -72,10 +107,14 @@ export async function selectCharacterImage(
     return null;
   }
 
+  console.log(`[ImageUtils] Found ${availableImages.length} images for ${key}`);
+
   const randomIndex = Math.floor(Math.random() * availableImages.length);
   const imageName = availableImages[randomIndex];
 
   const imageUrl = `/images/characters/${gender}/${ageCategory}/${imageName}`;
+
+  console.log(`[ImageUtils] Selected image: ${imageUrl}`);
 
   return imageUrl;
 }
@@ -140,4 +179,21 @@ export function analyzePersonaForImage(persona: {
   }
 
   return { gender, ageCategory };
+}
+
+/**
+ * Get a default character image based on index for testing
+ * This ensures we always have valid images even if the dynamic selection fails
+ */
+export function getDefaultCharacterImage(index: number): string {
+  // We know these images exist based on the file listing
+  const defaultImages = [
+    '/images/characters/male/young/unnamed-10.png',
+    '/images/characters/female/young/unnamed-1.png',
+    '/images/characters/male/old/unnamed-10.png',
+    '/images/characters/female/old/unnamed-1.png',
+    '/images/characters/male/young/unnamed-2.png',
+  ];
+
+  return defaultImages[index % defaultImages.length];
 }

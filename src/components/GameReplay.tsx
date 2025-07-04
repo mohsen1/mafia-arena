@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
   Play,
   Pause,
@@ -16,6 +16,7 @@ import {
   Sun,
   Skull,
   Shield,
+  Brain,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,8 +28,16 @@ import type {
   ClientMessage,
   FilteredGameState,
 } from '@/lib/interfaces/gameState.types';
+
 import { MessageBubble } from './MessageBubble';
 import { DynamicAvatar } from './ui/dynamic-avatar';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface GameEvent {
   id: string;
@@ -56,6 +65,10 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [selectedPlayerAIThoughts, setSelectedPlayerAIThoughts] = useState<
+    string | null
+  >(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Parse game events from the game state
   const gameEvents = useMemo(() => {
@@ -241,6 +254,13 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
   };
 
   const currentEvent = gameEvents[currentEventIndex];
+
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
+  }, [currentState.messages]);
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -434,9 +454,30 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
                             </p>
                           )}
                         </div>
-                        {!isAlive && (
-                          <Skull className="w-4 h-4 text-destructive" />
-                        )}
+                        <div className="flex items-center gap-1">
+                          {!isAlive && (
+                            <Skull className="w-4 h-4 text-destructive" />
+                          )}
+                          {gameState.agentMemories?.[player.id] &&
+                            gameState.agentMemories[player.id]
+                              .aiConversationLogs &&
+                            gameState.agentMemories[player.id]
+                              .aiConversationLogs.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setSelectedPlayerAIThoughts(player.id)
+                                }
+                                title={t(
+                                  'replay.viewAIThoughts',
+                                  'View AI thoughts'
+                                )}
+                              >
+                                <Brain className="w-4 h-4" />
+                              </Button>
+                            )}
+                        </div>
                       </div>
                     </div>
                   </motion.div>
@@ -462,23 +503,18 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              <AnimatePresence mode="popLayout">
-                {currentState.messages.slice(-10).map((message, index) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                  >
-                    <MessageBubble
-                      message={message}
-                      players={gameState.players}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+            <div
+              className="space-y-2 max-h-[400px] overflow-y-auto"
+              ref={messagesContainerRef}
+            >
+              {currentState.messages.slice(-10).map((message) => (
+                <div key={message.id}>
+                  <MessageBubble
+                    message={message}
+                    players={gameState.players}
+                  />
+                </div>
+              ))}
               {currentState.messages.length === 0 && (
                 <p className="text-center text-muted-foreground py-8">
                   {t('replay.noMessages', 'No messages yet')}
@@ -488,6 +524,98 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Thoughts Dialog */}
+      <Dialog
+        open={!!selectedPlayerAIThoughts}
+        onOpenChange={(open) => !open && setSelectedPlayerAIThoughts(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="w-5 h-5" />
+              {selectedPlayerAIThoughts &&
+                gameState.players[selectedPlayerAIThoughts]?.name}{' '}
+              - {t('replay.aiThoughts', 'AI Thoughts')}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] pr-4">
+            {selectedPlayerAIThoughts &&
+              gameState.agentMemories?.[selectedPlayerAIThoughts]
+                ?.aiConversationLogs && (
+                <div className="space-y-6">
+                  {gameState.agentMemories[
+                    selectedPlayerAIThoughts
+                  ].aiConversationLogs.map((log, index) => (
+                    <Card key={index} className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <Badge variant="outline">
+                            {t('replay.round', 'Round')} {log.round} -{' '}
+                            {log.phase}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            {new Date(log.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+
+                        {log.prompt.user && (
+                          <div>
+                            <p className="text-sm font-medium mb-1">
+                              {t('replay.gameState', 'Game State')}:
+                            </p>
+                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                              {log.prompt.user}
+                            </pre>
+                          </div>
+                        )}
+
+                        {log.response.raw && (
+                          <div>
+                            <p className="text-sm font-medium mb-1">
+                              {t('replay.aiResponse', 'AI Response')}:
+                            </p>
+                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                              {log.response.raw}
+                            </pre>
+                          </div>
+                        )}
+
+                        {log.response.parsedAction && (
+                          <div>
+                            <p className="text-sm font-medium mb-1">
+                              {t('replay.action', 'Action')}:
+                            </p>
+                            <Badge variant="secondary">
+                              {log.response.parsedAction.type}
+                              {log.response.parsedAction.type === 'vote' &&
+                                log.response.parsedAction.targetPlayerId &&
+                                ' → ' +
+                                  gameState.players[
+                                    log.response.parsedAction.targetPlayerId
+                                  ]?.name}
+                              {log.response.parsedAction.type === 'message' &&
+                                ': ' + log.response.parsedAction.content}
+                            </Badge>
+                          </div>
+                        )}
+
+                        {log.response.error && (
+                          <div className="text-destructive text-sm">
+                            <p className="font-medium">
+                              {t('replay.error', 'Error')}:
+                            </p>
+                            <p>{log.response.error}</p>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
