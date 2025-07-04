@@ -36,4 +36,4 @@ export const LazyGameReplay = dynamic(
   }
 );
 
-export default LazyGameReplay; 
+export default LazyGameReplay;

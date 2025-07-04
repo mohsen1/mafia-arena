@@ -19,4 +19,4 @@ export const LazyUserStatsDisplay = dynamic(
   }
 );
 
-export default LazyUserStatsDisplay; 
+export default LazyUserStatsDisplay;
