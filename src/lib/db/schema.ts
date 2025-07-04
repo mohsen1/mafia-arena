@@ -157,11 +157,124 @@ export const userAchievements = pgTable('user_achievements', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
 
+// Game Statistics table
+export const gameStatistics = pgTable('game_statistics', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  gameId: text('game_id')
+    .notNull()
+    .references(() => games.id, { onDelete: 'cascade' }),
+  participantId: text('participant_id')
+    .notNull()
+    .references(() => gameParticipants.id, { onDelete: 'cascade' }),
+
+  // Game outcome
+  won: boolean('won').notNull(),
+  survived: boolean('survived').notNull(),
+  roundsPlayed: integer('rounds_played').notNull(),
+  gameDuration: integer('game_duration').notNull(), // in seconds
+
+  // Performance metrics
+  messagesCount: integer('messages_count').notNull().default(0),
+  votesCount: integer('votes_count').notNull().default(0),
+  correctVotes: integer('correct_votes').notNull().default(0), // votes for actual mafia
+  votesReceived: integer('votes_received').notNull().default(0),
+
+  // Role-specific stats
+  roleActions: integer('role_actions').notNull().default(0), // seer investigations, doctor saves, mafia kills
+  successfulActions: integer('successful_actions').notNull().default(0), // successful saves, correct investigations
+
+  // Social metrics
+  trustScore: integer('trust_score'), // calculated based on voting patterns
+  influenceScore: integer('influence_score'), // how often others followed their voting lead
+
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+});
+
+// Aggregated User Statistics table (for fast queries)
+export const userStatsSummary = pgTable('user_stats_summary', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' })
+    .unique(),
+
+  // Overall stats
+  totalGames: integer('total_games').notNull().default(0),
+  totalWins: integer('total_wins').notNull().default(0),
+  winRate: integer('win_rate').notNull().default(0), // stored as percentage (0-100)
+
+  // Role-specific stats
+  gamesAsVillager: integer('games_as_villager').notNull().default(0),
+  winsAsVillager: integer('wins_as_villager').notNull().default(0),
+  gamesAsMafia: integer('games_as_mafia').notNull().default(0),
+  winsAsMafia: integer('wins_as_mafia').notNull().default(0),
+  gamesAsSeer: integer('games_as_seer').notNull().default(0),
+  winsAsSeer: integer('wins_as_seer').notNull().default(0),
+  gamesAsDoctor: integer('games_as_doctor').notNull().default(0),
+  winsAsDoctor: integer('wins_as_doctor').notNull().default(0),
+
+  // Streaks
+  currentWinStreak: integer('current_win_streak').notNull().default(0),
+  longestWinStreak: integer('longest_win_streak').notNull().default(0),
+
+  // Activity metrics
+  totalPlayTime: integer('total_play_time').notNull().default(0), // in seconds
+  averageGameDuration: integer('average_game_duration').notNull().default(0), // in seconds
+  lastPlayedAt: timestamp('last_played_at', { mode: 'date' }),
+
+  // Social metrics
+  averageTrustScore: integer('average_trust_score').notNull().default(0),
+  averageInfluenceScore: integer('average_influence_score')
+    .notNull()
+    .default(0),
+  favoriteRole: text('favorite_role'), // most played role
+
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});
+
+// Relations
 export const userAchievementsRelations = relations(
   userAchievements,
   ({ one }) => ({
     user: one(users, {
       fields: [userAchievements.userId],
+      references: [users.id],
+    }),
+  })
+);
+
+export const gamesRelations = relations(games, ({ many }) => ({
+  participants: many(gameParticipants),
+}));
+
+export const gameStatisticsRelations = relations(gameStatistics, ({ one }) => ({
+  user: one(users, {
+    fields: [gameStatistics.userId],
+    references: [users.id],
+  }),
+  game: one(games, {
+    fields: [gameStatistics.gameId],
+    references: [games.id],
+  }),
+  participant: one(gameParticipants, {
+    fields: [gameStatistics.participantId],
+    references: [gameParticipants.id],
+  }),
+}));
+
+export const userStatsSummaryRelations = relations(
+  userStatsSummary,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userStatsSummary.userId],
       references: [users.id],
     }),
   })
@@ -186,3 +299,7 @@ export type UserApiKey = typeof userApiKeys.$inferSelect;
 export type NewUserApiKey = typeof userApiKeys.$inferInsert;
 export type UserAchievement = typeof userAchievements.$inferSelect;
 export type NewUserAchievement = typeof userAchievements.$inferInsert;
+export type GameStatistics = typeof gameStatistics.$inferSelect;
+export type NewGameStatistics = typeof gameStatistics.$inferInsert;
+export type UserStatsSummary = typeof userStatsSummary.$inferSelect;
+export type NewUserStatsSummary = typeof userStatsSummary.$inferInsert;

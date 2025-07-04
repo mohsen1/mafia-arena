@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { UserApiKeyManager } from '@/components/UserApiKeyManager';
+import { UserStatsDisplay } from '@/components/UserStatsDisplay';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface PageProps {
@@ -311,6 +312,14 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Game Statistics Section */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            {t('profile.gameStatistics', 'Game Statistics')}
+          </h2>
+          <UserStatsDisplay />
         </div>
       </main>
     </div>

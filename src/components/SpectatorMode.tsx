@@ -1,27 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye,
   EyeOff,
   Play,
   Pause,
-  FastForward,
   SkipForward,
-  Info,
   Brain,
   Users,
   Moon,
   Sun,
   MessageSquare,
-  Vote,
   Shield,
   Search,
   Skull,
-  Crown,
-  ChevronRight,
-  ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +27,10 @@ import { Toggle } from '@/components/ui/toggle';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import type { FilteredGameState, ClientMessage, FilteredPlayer } from '@/lib/interfaces/gameState.types';
+import type {
+  FilteredGameState,
+  ClientMessage,
+} from '@/lib/interfaces/gameState.types';
 import { MessageBubble } from './MessageBubble';
 import { DynamicAvatar } from './ui/dynamic-avatar';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
@@ -388,7 +385,10 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                                       {player.name}
                                     </h5>
                                     {!insight.isAlive && (
-                                      <Badge variant="outline" className="text-xs">
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
                                         Dead
                                       </Badge>
                                     )}
@@ -454,10 +454,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                               className="p-3 rounded-lg bg-secondary/30"
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <DynamicAvatar
-                                  name={player.name}
-                                  size="xs"
-                                />
+                                <DynamicAvatar name={player.name} size="xs" />
                                 <h5 className="font-medium text-sm">
                                   {player.name}
                                 </h5>
@@ -487,4 +484,4 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
   );
 };
 
-export default SpectatorMode; 
+export default SpectatorMode;
