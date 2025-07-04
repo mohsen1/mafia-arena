@@ -191,7 +191,7 @@ export function CharacterPreview({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className={cn('gap-2', className)}>
           <Eye className="h-4 w-4" />
-          Preview Character
+          {t('characterPreview.previewCharacter')}
         </Button>
       </DialogTrigger>
 
@@ -199,7 +199,7 @@ export function CharacterPreview({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" />
-            Character Preview & Customization
+            {t('characterPreview.characterPreviewCustomization')}
           </DialogTitle>
         </DialogHeader>
 
@@ -209,7 +209,7 @@ export function CharacterPreview({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Current Setup
+                {t('characterPreview.currentSetup')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -229,13 +229,13 @@ export function CharacterPreview({
                 )}
                 <div>
                   <h3 className="font-medium text-lg">
-                    {characterName || 'Unnamed Character'}
+                    {characterName || t('characterPreview.unnamedCharacter')}
                   </h3>
                   <Badge variant="secondary" className="mb-1">
                     {role}
                   </Badge>
                   <p className="text-sm text-muted-foreground">
-                    Theme: {gameTheme}
+                    {t('characterPreview.theme')}: {gameTheme}
                   </p>
                 </div>
               </div>
@@ -247,13 +247,13 @@ export function CharacterPreview({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Settings className="h-5 w-5" />
-                Personality Preferences
+                {t('characterPreview.personalityPreferences')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label className="text-sm font-medium">
-                  {t('PersonalityType', 'Personality Type')}
+                  {t('characterPreview.personalityType')}
                 </Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                   {[
@@ -273,8 +273,8 @@ export function CharacterPreview({
                       className="justify-start"
                     >
                       {type === 'any'
-                        ? 'Surprise Me'
-                        : type.charAt(0).toUpperCase() + type.slice(1)}
+                        ? t('characterPreview.surpriseMe')
+                        : t(`characterPreview.${type}`)}
                     </Button>
                   ))}
                 </div>
@@ -282,11 +282,11 @@ export function CharacterPreview({
 
               <div>
                 <Label htmlFor="occupation" className="text-sm font-medium">
-                  Preferred Occupation (optional)
+                  {t('characterPreview.preferredOccupation')}
                 </Label>
                 <Input
                   id="occupation"
-                  placeholder="e.g., Baker, Scholar, Blacksmith..."
+                  placeholder={t('characterPreview.occupationPlaceholder')}
                   value={occupationPreference}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setOccupationPreference(e.target.value)
@@ -300,11 +300,13 @@ export function CharacterPreview({
                   htmlFor="personality-hints"
                   className="text-sm font-medium"
                 >
-                  Personality Hints (optional)
+                  {t('characterPreview.personalityHints')}
                 </Label>
                 <Input
                   id="personality-hints"
-                  placeholder="e.g., loves books, suspicious of strangers, has a good sense of humor..."
+                  placeholder={t(
+                    'characterPreview.personalityHintsPlaceholder'
+                  )}
                   value={customPersonalityHints}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setCustomPersonalityHints(e.target.value)
@@ -312,8 +314,7 @@ export function CharacterPreview({
                   className="mt-1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Separate multiple hints with commas. These will influence the
-                  AI character generation.
+                  {t('characterPreview.personalityHintsHelp')}
                 </p>
               </div>
 
@@ -323,7 +324,7 @@ export function CharacterPreview({
                 variant="secondary"
               >
                 <Wand2 className="h-4 w-4" />
-                Generate Preview
+                {t('characterPreview.generatePreview')}
               </Button>
             </CardContent>
           </Card>
@@ -334,7 +335,7 @@ export function CharacterPreview({
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Brain className="h-5 w-5" />
-                  Character Preview
+                  {t('characterPreview.characterPreview')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -352,7 +353,7 @@ export function CharacterPreview({
                 <div>
                   <h4 className="font-medium text-sm mb-2 flex items-center gap-1">
                     <Heart className="h-4 w-4" />
-                    Backstory
+                    {t('characterPreview.backstory')}
                   </h4>
                   <p className="text-sm text-muted-foreground">
                     {previewPersona.backstory}
@@ -361,7 +362,7 @@ export function CharacterPreview({
 
                 <div>
                   <h4 className="font-medium text-sm mb-2">
-                    Personality Traits
+                    {t('characterPreview.personalityTraits')}
                   </h4>
                   <div className="flex flex-wrap gap-1">
                     {previewPersona.personalityTraits.map((trait, index) => (
@@ -378,7 +379,9 @@ export function CharacterPreview({
 
                 {previewPersona.relationships && (
                   <div>
-                    <h4 className="font-medium text-sm mb-2">Relationships</h4>
+                    <h4 className="font-medium text-sm mb-2">
+                      {t('characterPreview.relationships')}
+                    </h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       {previewPersona.relationships.map((rel, index) => (
                         <li key={index} className="flex items-center gap-2">
@@ -392,9 +395,7 @@ export function CharacterPreview({
 
                 <div className="bg-muted/30 p-3 rounded-md">
                   <p className="text-xs text-muted-foreground">
-                    <strong>Note:</strong> This is just a preview. The actual
-                    character will be generated by AI during the game setup and
-                    may vary from this preview while following your preferences.
+                    <strong>Note:</strong> {t('characterPreview.previewNote')}
                   </p>
                 </div>
               </CardContent>
@@ -405,14 +406,14 @@ export function CharacterPreview({
           <div className="flex gap-2 pt-4">
             <Button onClick={handleSavePreferences} className="flex-1 gap-2">
               <Sparkles className="h-4 w-4" />
-              Save Preferences
+              {t('characterPreview.savePreferences')}
             </Button>
             <Button
               variant="outline"
               onClick={() => setIsOpen(false)}
               className="flex-1"
             >
-              Cancel
+              {t('characterPreview.cancel')}
             </Button>
           </div>
         </div>

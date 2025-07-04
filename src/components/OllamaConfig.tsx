@@ -190,7 +190,9 @@ export function OllamaConfig({
 
         {/* Endpoint Preview */}
         <div>
-          <Label className="text-sm text-muted-foreground">Endpoint</Label>
+          <Label className="text-sm text-muted-foreground">
+            {t('ollamaConfig.endpoint')}
+          </Label>
           <div className="flex items-center gap-2 mt-1">
             <code className="flex-1 px-3 py-2 bg-muted rounded-md text-sm">
               {endpointUrl}
@@ -288,8 +290,12 @@ export function OllamaConfig({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="http">HTTP</SelectItem>
-                      <SelectItem value="https">HTTPS</SelectItem>
+                      <SelectItem value="http">
+                        {t('ollamaConfig.http')}
+                      </SelectItem>
+                      <SelectItem value="https">
+                        {t('ollamaConfig.https')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
