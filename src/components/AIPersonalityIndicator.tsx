@@ -39,7 +39,7 @@ const TRAIT_MAPPINGS: Record<string, PersonalityTrait> = {
     color: 'text-purple-500',
     description: 'Notices details others might miss',
   },
-  
+
   // Emotional traits
   emotional: {
     trait: 'Emotional',
@@ -53,7 +53,7 @@ const TRAIT_MAPPINGS: Record<string, PersonalityTrait> = {
     color: 'text-red-500',
     description: 'Strong convictions and enthusiasm',
   },
-  
+
   // Action traits
   aggressive: {
     trait: 'Aggressive',
@@ -67,7 +67,7 @@ const TRAIT_MAPPINGS: Record<string, PersonalityTrait> = {
     color: 'text-yellow-500',
     description: 'Acts on instinct without hesitation',
   },
-  
+
   // Defensive traits
   cautious: {
     trait: 'Cautious',
@@ -102,7 +102,7 @@ export function AIPersonalityIndicator({
 
   // Map personality traits to visual indicators
   const mappedTraits = persona.personalityTraits
-    .map(trait => {
+    .map((trait) => {
       const lowerTrait = trait.toLowerCase();
       // Find matching trait mapping
       for (const [key, mapping] of Object.entries(TRAIT_MAPPINGS)) {
@@ -121,14 +121,14 @@ export function AIPersonalityIndicator({
     .slice(0, showAll ? undefined : 3); // Show max 3 traits unless expanded
 
   return (
-    <div className={cn("flex items-center gap-1", className)}>
+    <div className={cn('flex items-center gap-1', className)}>
       <TooltipProvider>
         {mappedTraits.map((traitInfo, index) => (
           <Tooltip key={index}>
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  "rounded-full p-1 bg-background border",
+                  'rounded-full p-1 bg-background border',
                   sizeClasses[size],
                   traitInfo.color
                 )}
@@ -147,7 +147,7 @@ export function AIPersonalityIndicator({
           </Tooltip>
         ))}
       </TooltipProvider>
-      
+
       {persona.personalityTraits.length > 3 && !showAll && (
         <Badge
           variant="secondary"
@@ -157,7 +157,7 @@ export function AIPersonalityIndicator({
           +{persona.personalityTraits.length - 3}
         </Badge>
       )}
-      
+
       {persona.quirk && (
         <TooltipProvider>
           <Tooltip>
@@ -174,4 +174,4 @@ export function AIPersonalityIndicator({
       )}
     </div>
   );
-} 
+}

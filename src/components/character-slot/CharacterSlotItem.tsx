@@ -506,7 +506,7 @@ export const CharacterSlotItem: React.FC<CharacterSlotItemProps> = React.memo(
     index,
     availableRoles,
     isSubmitting,
-    canRemove, // eslint-disable-line @typescript-eslint/no-unused-vars
+    canRemove,
     onUpdateRole,
     onUpdateProviderAndModel,
     onRemove,
