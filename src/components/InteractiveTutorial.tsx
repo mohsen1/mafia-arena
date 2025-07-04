@@ -52,7 +52,7 @@ export function InteractiveTutorial({
   const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(0);
   const [isOpen, setIsOpen] = useState(true);
-  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [, setCompletedSteps] = useState<Set<string>>(new Set());
 
   const tutorialSteps: TutorialStep[] = [
     {

@@ -188,7 +188,13 @@ export class ClaudeAgent implements IAgent {
     };
 
     // Ensure these helper functions are accessible and correctly defined
-    const systemPrompt = getSystemPrompt();
+    const systemPrompt = getSystemPrompt(
+      gameState.self.role,
+      gameState.themeName || 'Unknown Theme',
+      '', // Theme description not available in gameState
+      this.persona,
+      gameState.language || 'en'
+    );
     const userPrompt = getUserPrompt(promptInputState, allowedActions);
 
     try {

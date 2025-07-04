@@ -35,7 +35,7 @@ interface GameClientProps {
 }
 
 function GameLayout({ gameId }: { gameId: string }) {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const lang = i18n.language;
   const direction = i18n.dir(lang);
 
@@ -252,6 +252,7 @@ export default function GameClient({
   boundAdvanceGameStateAction,
   boundSubmitHumanAction,
 }: GameClientProps) {
+
   return (
     <SpokenTextProvider>
       <GameProvider
