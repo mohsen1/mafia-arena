@@ -36,8 +36,15 @@ const MemoizedMessage = memo(function MemoizedMessage({
   isWerewolfChat: boolean;
 }) {
   return (
-    <div key={message.id || index} ref={isLastMessage ? lastMessageRef : undefined}>
-      <MessageBubble message={message} players={players} isWerewolfChat={isWerewolfChat} />
+    <div
+      key={message.id || index}
+      ref={isLastMessage ? lastMessageRef : undefined}
+    >
+      <MessageBubble
+        message={message}
+        players={players}
+        isWerewolfChat={isWerewolfChat}
+      />
     </div>
   );
 });
@@ -53,7 +60,12 @@ export function ConversationLog() {
 
   // Memoize the visibility check function
   const isMessageVisible = useCallback(
-    (msg: ClientMessage, humanPlayerId: string | null | undefined, humanPlayer: FilteredPlayer | null, isObserver: boolean): boolean => {
+    (
+      msg: ClientMessage,
+      humanPlayerId: string | null | undefined,
+      humanPlayer: FilteredPlayer | null,
+      isObserver: boolean
+    ): boolean => {
       if (msg.visibility === MessageVisibility.Public) return true;
       if (msg.visibility === undefined) return true;
       if (msg.visibility === MessageVisibility.Mafia) {
@@ -75,8 +87,15 @@ export function ConversationLog() {
     const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
     const isObserver = !humanPlayerId;
 
-    return log.filter((msg) => isMessageVisible(msg, humanPlayerId ?? null, humanPlayer, isObserver));
-  }, [gameState?.log, gameState?.players, gameState?.humanPlayerId, isMessageVisible]);
+    return log.filter((msg) =>
+      isMessageVisible(msg, humanPlayerId ?? null, humanPlayer, isObserver)
+    );
+  }, [
+    gameState?.log,
+    gameState?.players,
+    gameState?.humanPlayerId,
+    isMessageVisible,
+  ]);
 
   // Memoized scroll function
   const scrollToBottom = useCallback(() => {
@@ -109,14 +128,14 @@ export function ConversationLog() {
     if (!containerRef.current) return;
     const parentNode = containerRef.current.parentElement;
     if (!parentNode) return;
-    
+
     const resizeObserver = new ResizeObserver(() => {
       setTimeout(scrollToBottom, 50);
     });
-    
+
     resizeObserver.observe(containerRef.current);
     resizeObserver.observe(parentNode);
-    
+
     return () => {
       resizeObserver.disconnect();
     };

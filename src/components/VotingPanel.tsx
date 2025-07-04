@@ -157,32 +157,52 @@ export function VotingPanel({
 
   // Keyboard navigation
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isVotingPhase || !humanPlayerId || !alivePlayersArray.length) return;
+    if (!isVotingPhase || !humanPlayerId || !alivePlayersArray.length) return;
 
-      // Number keys 1-9 for quick voting
-      const key = parseInt(e.key);
-      if (key >= 1 && key <= 9) {
-        const playerIndex = key - 1;
-        const sortedPlayers = alivePlayersArray.filter(
-          (p) => p.id !== humanPlayerId
-        );
-        if (playerIndex < sortedPlayers.length) {
-          setSelectedTarget(sortedPlayers[playerIndex].id);
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Prevent if user is typing in an input
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      const key = e.key;
+      
+      // Number keys 1-9 for voting
+      if (key >= '1' && key <= '9') {
+        const index = parseInt(key) - 1;
+        if (index < alivePlayersArray.length) {
+          e.preventDefault();
+          setSelectedTarget(alivePlayersArray[index].id);
           setShowConfirmation(true);
         }
       }
-
-      // 0 key for abstain
-      if (e.key === '0') {
+      
+      // 0 for abstain
+      if (key === '0') {
+        e.preventDefault();
         setSelectedTarget(null);
         setShowConfirmation(true);
       }
+      
+      // Enter to confirm
+      if (key === 'Enter' && showConfirmation) {
+        e.preventDefault();
+        handleVoteSubmit();
+      }
+      
+      // Escape to cancel
+      if (key === 'Escape' && showConfirmation) {
+        e.preventDefault();
+        setShowConfirmation(false);
+      }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVotingPhase, humanPlayerId, alivePlayersArray]);
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isVotingPhase, humanPlayerId, alivePlayersArray, showConfirmation, handleVoteSubmit]);
 
   if (!isVotingPhase) return null;
 
