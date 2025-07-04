@@ -514,8 +514,8 @@ export default function CharacterGenerationUI({
                   error.includes('MODEL_NOT_FOUND')) && (
                   <>
                     <li>
-                      • The model &quot;{progress.currentCharacterModel}&quot; is not
-                      available
+                      • The model &quot;{progress.currentCharacterModel}&quot;
+                      is not available
                     </li>
                     <li>• Select a different model in the game setup</li>
                     {progress.currentCharacterProvider === 'ollama' && (
