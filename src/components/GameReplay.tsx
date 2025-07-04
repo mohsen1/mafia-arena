@@ -66,7 +66,7 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
     events.push({
       id: `event-${eventId++}`,
       type: 'phase_change',
-      timestamp: gameState.createdAt,
+      timestamp: new Date(gameState.createdAt).getTime(),
       round: 0,
       phase: 'Init',
       data: { phase: 'Init' },
@@ -84,7 +84,7 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
         events.push({
           id: `event-${eventId++}`,
           type: 'phase_change',
-          timestamp: message.timestamp,
+          timestamp: new Date(message.timestamp).getTime(),
           round: gameState.round,
           phase: isDay ? 'Day' : 'Night',
           data: { phase: isDay ? 'Day' : 'Night' },
@@ -100,7 +100,7 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
           events.push({
             id: `event-${eventId++}`,
             type: 'vote',
-            timestamp: message.timestamp,
+            timestamp: new Date(message.timestamp).getTime(),
             round: gameState.round,
             phase: 'Day',
             data: {
@@ -130,7 +130,7 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
           events.push({
             id: `event-${eventId++}`,
             type: 'elimination',
-            timestamp: message.timestamp,
+            timestamp: new Date(message.timestamp).getTime(),
             round: gameState.round,
             phase: message.content.includes('eliminated') ? 'Day' : 'Night',
             data: {
@@ -147,7 +147,7 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
         events.push({
           id: `event-${eventId++}`,
           type: 'message',
-          timestamp: message.timestamp,
+          timestamp: new Date(message.timestamp).getTime(),
           round: gameState.round,
           phase: gameState.phase,
           data: { message },
@@ -163,7 +163,9 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
       events.push({
         id: `event-${eventId++}`,
         type: 'game_end',
-        timestamp: gameState.updatedAt,
+        timestamp: new Date(
+          gameState.updatedAt || gameState.createdAt
+        ).getTime(),
         round: gameState.round,
         phase: 'GameOver',
         data: { winCondition: gameState.winCondition },
@@ -239,10 +241,6 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
   };
 
   const currentEvent = gameEvents[currentEventIndex];
-  const progress =
-    gameEvents.length > 0
-      ? (currentEventIndex / (gameEvents.length - 1)) * 100
-      : 0;
 
   return (
     <div className={cn('space-y-4', className)}>
