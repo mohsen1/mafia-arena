@@ -206,7 +206,11 @@ function GameLayout({ gameId }: { gameId: string }) {
                     gameState={
                       gameState as FilteredGameState & { memory: AgentMemory }
                     }
-                    className={gameState.phase !== 'Day' || !gameState ? 'lg:col-span-2' : ''}
+                    className={
+                      gameState.phase !== 'Day' || !gameState
+                        ? 'lg:col-span-2'
+                        : ''
+                    }
                   />
                 )}
               </div>

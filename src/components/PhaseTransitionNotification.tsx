@@ -64,16 +64,16 @@ const phaseConfig: Record<
   },
   Day: {
     icon: Sun,
-    title: 'Day Phase',
-    subtitle: 'Time for discussion and voting',
-    bgClass: 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20',
+    title: 'Day',
+    subtitle: undefined,
+    bgClass: 'bg-gradient-to-br from-yellow-500/10 to-orange-500/10',
     iconClass: 'text-yellow-500',
   },
   Night: {
     icon: Moon,
-    title: 'Night Phase',
-    subtitle: 'Special roles take action...',
-    bgClass: 'bg-gradient-to-br from-indigo-800/20 to-purple-800/20',
+    title: 'Night',
+    subtitle: undefined,
+    bgClass: 'bg-gradient-to-br from-indigo-800/10 to-purple-800/10',
     iconClass: 'text-indigo-400',
   },
   GameOver: {
@@ -100,7 +100,7 @@ export function PhaseTransitionNotification({
   phase,
   round,
   show,
-  duration = 1500,
+  duration = 1000,
 }: PhaseTransitionNotificationProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -123,57 +123,52 @@ export function PhaseTransitionNotification({
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.8, y: -20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.8, y: -20 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="fixed top-4 right-4 z-30 pointer-events-none"
           role="status"
           aria-live="polite"
           aria-atomic="true"
         >
           <div
             className={cn(
-              'rounded-xl p-6 backdrop-blur-md shadow-2xl border border-border/50',
+              'rounded-lg px-4 py-2 backdrop-blur-sm shadow-lg border border-border/30',
               config.bgClass
             )}
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <motion.div
-                initial={{ rotate: -180, scale: 0 }}
+                initial={{ rotate: -90, scale: 0.8 }}
                 animate={{ rotate: 0, scale: 1 }}
-                transition={{ duration: 0.5, ease: 'easeOut', delay: 0.1 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
                 aria-hidden="true"
               >
-                <Icon className={cn('w-12 h-12', config.iconClass)} />
+                <Icon className={cn('w-6 h-6', config.iconClass)} />
               </motion.div>
               <div>
                 <motion.h2
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.2 }}
-                  className="text-2xl font-bold text-foreground"
+                  transition={{ duration: 0.2, delay: 0.1 }}
+                  className="text-lg font-semibold text-foreground"
                 >
                   {config.title}
+                  {phase === 'Day' && round > 0 && (
+                    <span className="text-sm font-normal text-muted-foreground ms-2">
+                      Round {round}
+                    </span>
+                  )}
                 </motion.h2>
                 {config.subtitle && (
                   <motion.p
-                    initial={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.3 }}
-                    className="text-sm text-muted-foreground"
+                    transition={{ duration: 0.2, delay: 0.2 }}
+                    className="text-xs text-muted-foreground"
                   >
                     {config.subtitle}
-                  </motion.p>
-                )}
-                {phase === 'Day' && round > 0 && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: 0.4 }}
-                    className="text-xs text-muted-foreground mt-1"
-                  >
-                    Round {round}
                   </motion.p>
                 )}
               </div>
@@ -194,7 +189,7 @@ interface SubPhaseNotificationProps {
 export function SubPhaseNotification({
   subPhase,
   show,
-  duration = 2000,
+  duration = 1500,
 }: SubPhaseNotificationProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -215,18 +210,18 @@ export function SubPhaseNotification({
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ opacity: 0, x: 50 }}
+          initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 50 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="fixed top-32 right-4 z-40 pointer-events-none"
+          exit={{ opacity: 0, x: 30 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="fixed top-16 right-4 z-40 pointer-events-none"
           role="status"
           aria-live="polite"
           aria-atomic="true"
         >
-          <div className="bg-secondary/80 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg border border-border/50">
-            <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
-            <span className="text-sm font-medium">{subPhase}</span>
+          <div className="bg-secondary/60 backdrop-blur-sm rounded-md px-3 py-1.5 flex items-center gap-2 shadow-md border border-border/30">
+            <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+            <span className="text-xs font-medium">{subPhase}</span>
           </div>
         </motion.div>
       )}
