@@ -30,10 +30,13 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import type { GameListItem } from '@/app/actions/games';
+import { AchievementsDisplay } from '@/components/AchievementsDisplay';
+import type { UserAchievements } from '@/lib/achievements';
 
 interface GameStatsDashboardProps {
   games: GameListItem[];
   className?: string;
+  userAchievements?: UserAchievements;
 }
 
 interface RoleStats {
@@ -139,6 +142,7 @@ function calculateGameStats(games: GameListItem[]): GameStats {
 export function GameStatsDashboard({
   games,
   className,
+  userAchievements,
 }: GameStatsDashboardProps) {
   const { t } = useTranslation();
   const stats = useMemo(() => calculateGameStats(games), [games]);
@@ -353,19 +357,26 @@ export function GameStatsDashboard({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
-              {t('stats.achievements', 'Achievements')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground text-center py-4">
-              {t('stats.comingSoon', 'Achievement system coming soon!')}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Achievements Section */}
+        <div className="col-span-full">
+          {userAchievements ? (
+            <AchievementsDisplay userAchievements={userAchievements} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-primary" />
+                  {t('stats.achievements')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-center py-8">
+                  {t('stats.comingSoon')}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

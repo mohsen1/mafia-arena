@@ -1028,5 +1028,15 @@
   "System": "System",
   "AIConfiguration": "AI Configuration",
   "PersonalityType": "Personality Type",
-  "test-connection-failed": "Test failed: {{error}}"
+  "test-connection-failed": "Test failed: {{error}}",
+  "achievements": {
+    "title": "Achievements",
+    "points": "points",
+    "overallProgress": "Overall Progress",
+    "all": "All",
+    "hidden": "Hidden Achievement",
+    "unlockedOn": "Unlocked on",
+    "hideSecret": "Hide Secret Achievements",
+    "showSecret": "Show Secret Achievements"
+  }
 } 
