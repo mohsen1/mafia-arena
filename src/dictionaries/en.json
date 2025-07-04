@@ -375,7 +375,7 @@
     "enterEmail": "Enter your email",
     "createStrongPassword": "Create a strong password",
     "confirmYourPassword": "Confirm your password",
-    "passwordRequirements": "Password must be at least 8 characters with uppercase, lowercase, and number",
+    "passwordRequirements": "Must be at least 8 characters with uppercase, lowercase, and numbers",
     "createAccount": "Create Account",
     "creatingAccount": "Creating Account...",
     "orContinueWith": "Or continue with",
@@ -390,7 +390,8 @@
     "invalidEmail": "Please enter a valid email address",
     "emailExists": "A user with this email already exists",
     "accountCreatedButSignInFailed": "Account created successfully, but failed to sign in. Please try signing in manually.",
-    "unexpectedError": "An unexpected error occurred. Please try again."
+    "unexpectedError": "An unexpected error occurred. Please try again.",
+    "passwordAddedToOAuthAccount": "Password successfully added to your existing account. You can now sign in with either your social account or email/password."
   },
   "forgotPassword": {
     "title": "Forgot Password",

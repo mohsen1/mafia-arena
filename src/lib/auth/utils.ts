@@ -14,6 +14,7 @@ export interface CreateUserData {
 export interface AuthResponse {
   success: boolean;
   error?: string;
+  message?: string;
   user?: {
     id: string;
     email: string;
@@ -46,6 +47,30 @@ export async function createUser(
       .limit(1);
 
     if (existingUser) {
+      // If user exists but has no password (OAuth user), allow setting password
+      if (!existingUser.password) {
+        const hashedPassword = await hashPassword(password);
+        
+        await db
+          .update(users)
+          .set({
+            password: hashedPassword,
+            name: existingUser.name || name, // Keep existing name if present
+          })
+          .where(eq(users.id, existingUser.id));
+        
+        return {
+          success: true,
+          message: 'signUp.passwordAddedToOAuthAccount',
+          user: {
+            id: existingUser.id,
+            email: existingUser.email,
+            name: existingUser.name || name,
+          },
+        };
+      }
+      
+      // User exists with password already
       return {
         success: false,
         error: 'signUp.emailExists',
