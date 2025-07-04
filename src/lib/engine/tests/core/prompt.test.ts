@@ -29,18 +29,38 @@ interface MockStateData {
 describe('Prompts', () => {
   describe('getSystemPrompt', () => {
     it('should return a non-empty string', () => {
-      const prompt = getSystemPrompt();
+      const prompt = getSystemPrompt(
+        RoleName.Villager,
+        'UK Village 1900s',
+        'A quaint but suspicious village in the English countryside',
+        {
+          name: 'Test Player',
+          backstory: 'Test backstory',
+          personalityTraits: ['Test'],
+        },
+        'en'
+      );
       expect(prompt).toBeTypeOf('string');
       expect(prompt.length).toBeGreaterThan(0);
     });
 
     it('should contain essential keywords', () => {
-      const prompt = getSystemPrompt();
-      expect(prompt).toContain('Mafia game');
-      expect(prompt).toContain('Persona');
-      expect(prompt).toContain('JSON object');
-      expect(prompt).toContain('DECISIVE ACTION');
-      expect(prompt).toContain('Valid Action Types:');
+      const prompt = getSystemPrompt(
+        RoleName.Villager,
+        'UK Village 1900s',
+        'A quaint but suspicious village in the English countryside',
+        {
+          name: 'Test Player',
+          backstory: 'Test backstory',
+          personalityTraits: ['Test'],
+        },
+        'en'
+      );
+      expect(prompt).toContain('Mafia');
+      expect(prompt).toContain('Your Character:');
+      expect(prompt).toContain('Theme Description:');
+      expect(prompt).toContain('Roleplaying Guidelines:');
+      expect(prompt).toContain('Strategic Guidelines:');
     });
   });
 

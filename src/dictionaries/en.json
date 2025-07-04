@@ -250,8 +250,18 @@
     "google": "Google",
     "github": "GitHub",
     "toggleTheme": "Toggle theme",
-    "players": "players"
+    "players": "players",
+    "menu": "Menu",
+    "newGame": "New Game",
+    "home": "Home"
   },
+  "Human": "Human",
+  "AI": "AI",
+  "VotePlayer": "Vote Player",
+  "Abstain": "Abstain",
+  "SwipeToNavigatePlayers": "Swipe left/right to navigate players",
+  "MuteSound": "Mute Sound",
+  "UnmuteSound": "Unmute Sound",
   "soundSettings": {
     "title": "Sound Settings",
     "enableSounds": "Enable sound effects",

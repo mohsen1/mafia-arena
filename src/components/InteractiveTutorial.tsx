@@ -45,7 +45,10 @@ interface InteractiveTutorialProps {
   className?: string;
 }
 
-export function InteractiveTutorial({ onComplete, className }: InteractiveTutorialProps) {
+export function InteractiveTutorial({
+  onComplete,
+  className,
+}: InteractiveTutorialProps) {
   const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(0);
   const [isOpen, setIsOpen] = useState(true);
@@ -55,7 +58,10 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
     {
       id: 'welcome',
       title: t('tutorial.welcome.title', 'Welcome to Werewolf AI'),
-      description: t('tutorial.welcome.description', 'Learn how to play this classic social deduction game'),
+      description: t(
+        'tutorial.welcome.description',
+        'Learn how to play this classic social deduction game'
+      ),
       icon: <HelpCircle className="w-6 h-6" />,
       content: (
         <div className="space-y-4">
@@ -68,12 +74,15 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
           <p className="text-sm">
             {t(
               'tutorial.welcome.content2',
-              'In this AI-powered version, you\'ll play alongside intelligent AI characters, each with unique personalities and strategies.'
+              "In this AI-powered version, you'll play alongside intelligent AI characters, each with unique personalities and strategies."
             )}
           </p>
           <div className="bg-primary/10 p-4 rounded-lg">
             <p className="text-sm font-medium">
-              {t('tutorial.welcome.tip', 'Tip: Pay attention to what players say and how they vote!')}
+              {t(
+                'tutorial.welcome.tip',
+                'Tip: Pay attention to what players say and how they vote!'
+              )}
             </p>
           </div>
         </div>
@@ -82,7 +91,10 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
     {
       id: 'roles',
       title: t('tutorial.roles.title', 'Understanding Roles'),
-      description: t('tutorial.roles.description', 'Learn about the different roles in the game'),
+      description: t(
+        'tutorial.roles.description',
+        'Learn about the different roles in the game'
+      ),
       icon: <Users className="w-6 h-6" />,
       content: (
         <div className="space-y-4">
@@ -92,9 +104,14 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
                 <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h4 className="font-medium text-sm">{t('tutorial.roles.villager', 'Villager')}</h4>
+                <h4 className="font-medium text-sm">
+                  {t('tutorial.roles.villager', 'Villager')}
+                </h4>
                 <p className="text-xs text-muted-foreground">
-                  {t('tutorial.roles.villagerDesc', 'Regular townspeople who must identify the werewolves')}
+                  {t(
+                    'tutorial.roles.villagerDesc',
+                    'Regular townspeople who must identify the werewolves'
+                  )}
                 </p>
               </div>
             </div>
@@ -104,9 +121,14 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
                 <Sword className="w-4 h-4 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h4 className="font-medium text-sm">{t('tutorial.roles.werewolf', 'Werewolf')}</h4>
+                <h4 className="font-medium text-sm">
+                  {t('tutorial.roles.werewolf', 'Werewolf')}
+                </h4>
                 <p className="text-xs text-muted-foreground">
-                  {t('tutorial.roles.werewolfDesc', 'Secret killers who eliminate villagers at night')}
+                  {t(
+                    'tutorial.roles.werewolfDesc',
+                    'Secret killers who eliminate villagers at night'
+                  )}
                 </p>
               </div>
             </div>
@@ -116,9 +138,14 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
                 <Eye className="w-4 h-4 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <h4 className="font-medium text-sm">{t('tutorial.roles.seer', 'Seer')}</h4>
+                <h4 className="font-medium text-sm">
+                  {t('tutorial.roles.seer', 'Seer')}
+                </h4>
                 <p className="text-xs text-muted-foreground">
-                  {t('tutorial.roles.seerDesc', 'Can investigate one player each night to learn their role')}
+                  {t(
+                    'tutorial.roles.seerDesc',
+                    'Can investigate one player each night to learn their role'
+                  )}
                 </p>
               </div>
             </div>
@@ -128,9 +155,14 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
                 <Heart className="w-4 h-4 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <h4 className="font-medium text-sm">{t('tutorial.roles.doctor', 'Doctor')}</h4>
+                <h4 className="font-medium text-sm">
+                  {t('tutorial.roles.doctor', 'Doctor')}
+                </h4>
                 <p className="text-xs text-muted-foreground">
-                  {t('tutorial.roles.doctorDesc', 'Can protect one player from werewolf attacks each night')}
+                  {t(
+                    'tutorial.roles.doctorDesc',
+                    'Can protect one player from werewolf attacks each night'
+                  )}
                 </p>
               </div>
             </div>
@@ -141,7 +173,10 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
     {
       id: 'day-phase',
       title: t('tutorial.dayPhase.title', 'Day Phase'),
-      description: t('tutorial.dayPhase.description', 'What happens during the day'),
+      description: t(
+        'tutorial.dayPhase.description',
+        'What happens during the day'
+      ),
       icon: <Sun className="w-6 h-6" />,
       content: (
         <div className="space-y-4">
@@ -153,18 +188,44 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
           </p>
 
           <div className="space-y-2">
-            <h4 className="font-medium text-sm">{t('tutorial.dayPhase.activities', 'Day Activities:')}</h4>
+            <h4 className="font-medium text-sm">
+              {t('tutorial.dayPhase.activities', 'Day Activities:')}
+            </h4>
             <ul className="text-xs space-y-1 ms-4">
-              <li>• {t('tutorial.dayPhase.activity1', 'Players discuss who they suspect')}</li>
-              <li>• {t('tutorial.dayPhase.activity2', 'Share information from night actions')}</li>
-              <li>• {t('tutorial.dayPhase.activity3', 'Build alliances and trust')}</li>
-              <li>• {t('tutorial.dayPhase.activity4', 'Vote to eliminate suspected werewolves')}</li>
+              <li>
+                •{' '}
+                {t(
+                  'tutorial.dayPhase.activity1',
+                  'Players discuss who they suspect'
+                )}
+              </li>
+              <li>
+                •{' '}
+                {t(
+                  'tutorial.dayPhase.activity2',
+                  'Share information from night actions'
+                )}
+              </li>
+              <li>
+                •{' '}
+                {t('tutorial.dayPhase.activity3', 'Build alliances and trust')}
+              </li>
+              <li>
+                •{' '}
+                {t(
+                  'tutorial.dayPhase.activity4',
+                  'Vote to eliminate suspected werewolves'
+                )}
+              </li>
             </ul>
           </div>
 
           <Badge variant="secondary" className="text-xs">
             <Vote className="w-3 h-3 mr-1" />
-            {t('tutorial.dayPhase.votingTip', 'Majority vote eliminates a player')}
+            {t(
+              'tutorial.dayPhase.votingTip',
+              'Majority vote eliminates a player'
+            )}
           </Badge>
         </div>
       ),
@@ -172,7 +233,10 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
     {
       id: 'night-phase',
       title: t('tutorial.nightPhase.title', 'Night Phase'),
-      description: t('tutorial.nightPhase.description', 'What happens during the night'),
+      description: t(
+        'tutorial.nightPhase.description',
+        'What happens during the night'
+      ),
       icon: <Moon className="w-6 h-6" />,
       content: (
         <div className="space-y-4">
@@ -184,25 +248,45 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
           </p>
 
           <div className="space-y-2">
-            <h4 className="font-medium text-sm">{t('tutorial.nightPhase.actions', 'Night Actions:')}</h4>
+            <h4 className="font-medium text-sm">
+              {t('tutorial.nightPhase.actions', 'Night Actions:')}
+            </h4>
             <div className="space-y-2 text-xs">
               <div className="flex items-center gap-2">
                 <Sword className="w-3 h-3 text-red-500" />
-                <span>{t('tutorial.nightPhase.werewolfAction', 'Werewolves choose a victim')}</span>
+                <span>
+                  {t(
+                    'tutorial.nightPhase.werewolfAction',
+                    'Werewolves choose a victim'
+                  )}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Heart className="w-3 h-3 text-green-500" />
-                <span>{t('tutorial.nightPhase.doctorAction', 'Doctor protects a player')}</span>
+                <span>
+                  {t(
+                    'tutorial.nightPhase.doctorAction',
+                    'Doctor protects a player'
+                  )}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Eye className="w-3 h-3 text-purple-500" />
-                <span>{t('tutorial.nightPhase.seerAction', 'Seer investigates a player')}</span>
+                <span>
+                  {t(
+                    'tutorial.nightPhase.seerAction',
+                    'Seer investigates a player'
+                  )}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="bg-yellow-500/10 p-3 rounded text-xs">
-            {t('tutorial.nightPhase.tip', 'Remember: Regular villagers do nothing at night!')}
+            {t(
+              'tutorial.nightPhase.tip',
+              'Remember: Regular villagers do nothing at night!'
+            )}
           </div>
         </div>
       ),
@@ -210,7 +294,10 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
     {
       id: 'winning',
       title: t('tutorial.winning.title', 'How to Win'),
-      description: t('tutorial.winning.description', 'Victory conditions for each team'),
+      description: t(
+        'tutorial.winning.description',
+        'Victory conditions for each team'
+      ),
       icon: <Trophy className="w-6 h-6" />,
       content: (
         <div className="space-y-4">
@@ -218,20 +305,30 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
             <div className="p-3 bg-blue-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <h4 className="font-medium text-sm">{t('tutorial.winning.townVictory', 'Town Victory')}</h4>
+                <h4 className="font-medium text-sm">
+                  {t('tutorial.winning.townVictory', 'Town Victory')}
+                </h4>
               </div>
               <p className="text-xs text-muted-foreground">
-                {t('tutorial.winning.townCondition', 'Eliminate all werewolves to save the village')}
+                {t(
+                  'tutorial.winning.townCondition',
+                  'Eliminate all werewolves to save the village'
+                )}
               </p>
             </div>
 
             <div className="p-3 bg-red-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Sword className="w-4 h-4 text-red-600 dark:text-red-400" />
-                <h4 className="font-medium text-sm">{t('tutorial.winning.werewolfVictory', 'Werewolf Victory')}</h4>
+                <h4 className="font-medium text-sm">
+                  {t('tutorial.winning.werewolfVictory', 'Werewolf Victory')}
+                </h4>
               </div>
               <p className="text-xs text-muted-foreground">
-                {t('tutorial.winning.werewolfCondition', 'Equal or outnumber the villagers')}
+                {t(
+                  'tutorial.winning.werewolfCondition',
+                  'Equal or outnumber the villagers'
+                )}
               </p>
             </div>
           </div>
@@ -239,7 +336,7 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
           <div className="text-center pt-2">
             <CheckCircle className="w-8 h-8 text-primary mx-auto mb-2" />
             <p className="text-sm font-medium">
-              {t('tutorial.winning.ready', 'You\'re ready to play!')}
+              {t('tutorial.winning.ready', "You're ready to play!")}
             </p>
           </div>
         </div>
@@ -250,7 +347,7 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
   const handleNext = () => {
     const currentStepId = tutorialSteps[currentStep].id;
     setCompletedSteps((prev) => new Set([...prev, currentStepId]));
-    
+
     if (currentStep < tutorialSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -307,7 +404,9 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
                   {currentTutorialStep.icon}
                 </div>
                 <div className="flex-1">
-                  <CardTitle className="text-lg">{currentTutorialStep.title}</CardTitle>
+                  <CardTitle className="text-lg">
+                    {currentTutorialStep.title}
+                  </CardTitle>
                   <CardDescription className="text-xs">
                     {currentTutorialStep.description}
                   </CardDescription>
@@ -349,8 +448,8 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
                         index === currentStep
                           ? 'bg-primary'
                           : index < currentStep
-                          ? 'bg-primary/50'
-                          : 'bg-muted'
+                            ? 'bg-primary/50'
+                            : 'bg-muted'
                       )}
                     />
                   ))}
@@ -380,4 +479,4 @@ export function InteractiveTutorial({ onComplete, className }: InteractiveTutori
       </motion.div>
     </AnimatePresence>
   );
-} 
+}

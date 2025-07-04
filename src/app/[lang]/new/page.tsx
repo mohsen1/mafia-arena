@@ -8,7 +8,14 @@ import type { FilteredGameState } from '@/lib/interfaces/client.types';
 // import { deleteGameAction } from "@/app/actions/index"; // Server Actions need care in Client Components
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { LogIn, Loader2, Sparkles, Gamepad2, ArrowLeft, HelpCircle } from 'lucide-react';
+import {
+  LogIn,
+  Loader2,
+  Sparkles,
+  Gamepad2,
+  ArrowLeft,
+  HelpCircle,
+} from 'lucide-react';
 // import { format } from "date-fns"; // Removed unused format import
 import SimpleStartGameForm from '@/components/SimpleStartGameForm';
 import GameCard from '@/components/GameCard';
@@ -78,7 +85,7 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
             'Create an immersive AI-powered social deduction game experience'
           )}
         </p>
-        
+
         <Button
           variant="outline"
           onClick={() => setShowTutorial(true)}
