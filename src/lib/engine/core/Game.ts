@@ -673,7 +673,13 @@ export class Game {
   async ensurePersonasGenerated(): Promise<void> {
     if (this.#personasGenerated) return;
 
-    console.log('Generating personas for all players...');
+    console.log(
+      '[Game.ensurePersonasGenerated] Starting persona generation...'
+    );
+    console.log(
+      `[Game.ensurePersonasGenerated] Theme: ${this.theme.name}, Language: ${this.language}`
+    );
+
     const generatedNames: string[] = [];
     const maxRetries = 3;
 
@@ -683,10 +689,17 @@ export class Game {
       // Skip human players - they don't need AI-generated personas
       if (player.agent instanceof HumanAgent) {
         generatedNames.push(player.name);
+        console.log(
+          `[Game.ensurePersonasGenerated] Skipping human player: ${player.name}`
+        );
         continue;
       }
       playersNeedingPersona.push(player);
     }
+
+    console.log(
+      `[Game.ensurePersonasGenerated] Found ${playersNeedingPersona.length} AI players needing personas`
+    );
 
     // Generate personas in parallel
     const personaPromises = playersNeedingPersona.map(async (player) => {
@@ -698,13 +711,16 @@ export class Game {
         attempts++;
         try {
           console.log(
-            `Generating persona for ${player.name} (attempt ${attempts}/${maxRetries})...`
+            `[Game.ensurePersonasGenerated] Generating persona for ${player.name} (${player.id}) - attempt ${attempts}/${maxRetries}...`
+          );
+          console.log(
+            `[Game.ensurePersonasGenerated] Agent type: ${player.agent.constructor.name}, Config: ${JSON.stringify(player.initialAgentConfig)}`
           );
 
           // Check if agent has generatePersona method
           if (typeof player.agent.generatePersona !== 'function') {
             console.warn(
-              `Agent for ${player.name} does not support persona generation`
+              `[Game.ensurePersonasGenerated] Agent for ${player.name} does not support persona generation`
             );
             const fallbackName = `${player.name}-${player.id.slice(-4)}`;
             player.agent.persona = {
@@ -736,13 +752,16 @@ export class Game {
             player.agent.persona.name !== player.name // Also check it's not the original name
           ) {
             console.log(
-              `Successfully generated persona for ${player.name}: ${player.agent.persona.name}`
+              `[Game.ensurePersonasGenerated] Successfully generated persona for ${player.name}: ${player.agent.persona.name}`
             );
             success = true;
             return { player, name: player.agent.persona.name, success: true };
           } else {
             console.warn(
-              `Player ${player.id} failed to generate valid persona name (attempt ${attempts}/${maxRetries})`
+              `[Game.ensurePersonasGenerated] Player ${player.id} failed to generate valid persona name (attempt ${attempts}/${maxRetries})`
+            );
+            console.warn(
+              `[Game.ensurePersonasGenerated] Generated persona: ${JSON.stringify(player.agent.persona)}`
             );
             lastError = 'Failed to generate valid persona';
             if (attempts >= maxRetries) {
@@ -759,8 +778,15 @@ export class Game {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           console.error(
-            `Error generating persona for ${player.name} (attempt ${attempts}/${maxRetries}): ${errorMessage}`
+            `[Game.ensurePersonasGenerated] Error generating persona for ${player.name} (attempt ${attempts}/${maxRetries}): ${errorMessage}`
           );
+
+          if (error instanceof Error && error.stack) {
+            console.error(
+              `[Game.ensurePersonasGenerated] Stack trace:`,
+              error.stack
+            );
+          }
 
           // Determine error type and provide helpful message
           let userMessage = 'Failed to generate character';
@@ -815,6 +841,9 @@ export class Game {
           }
 
           lastError = `${userMessage} (${errorCode})`;
+          console.error(
+            `[Game.ensurePersonasGenerated] Categorized error: ${lastError}`
+          );
 
           if (attempts >= maxRetries) {
             return {
@@ -828,7 +857,11 @@ export class Game {
 
         // Add a small delay between retries to avoid rate limits
         if (!success && attempts < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
+          const delay = 1000 * attempts; // Exponential backoff
+          console.log(
+            `[Game.ensurePersonasGenerated] Waiting ${delay}ms before retry...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
 
@@ -842,6 +875,9 @@ export class Game {
     });
 
     // Wait for all personas to be generated
+    console.log(
+      `[Game.ensurePersonasGenerated] Waiting for ${personaPromises.length} persona generations to complete...`
+    );
     const results = await Promise.all(personaPromises);
 
     // Check for failures
@@ -868,7 +904,7 @@ export class Game {
         (a, b) => b[1].length - a[1].length
       )[0][0];
 
-      console.error(detailedError);
+      console.error(`[Game.ensurePersonasGenerated] ${detailedError}`);
 
       // Throw error to prevent game from starting
       throw new Error(mainError);
@@ -884,7 +920,7 @@ export class Game {
         // Duplicate found, append number
         const newName = `${result.name} ${count + 1}`;
         console.warn(
-          `Duplicate name detected: ${result.name}, renaming to ${newName}`
+          `[Game.ensurePersonasGenerated] Duplicate name detected: ${result.name}, renaming to ${newName}`
         );
         if (result.player.agent.persona) {
           result.player.agent.persona.name = newName;
@@ -898,7 +934,7 @@ export class Game {
     }
 
     console.log(
-      `Persona generation complete. Final names: ${generatedNames.join(', ')}`
+      `[Game.ensurePersonasGenerated] Persona generation complete. Final names: ${generatedNames.join(', ')}`
     );
     this.#personasGenerated = true;
   }

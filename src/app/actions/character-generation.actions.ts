@@ -30,42 +30,94 @@ export async function generateGameCharactersAction(
   gameId: string
 ): Promise<FilteredGameState | { error: string }> {
   try {
+    console.log(
+      `[CharacterGen] Starting character generation for game ${gameId}`
+    );
+
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
+      console.error('[CharacterGen] No authenticated session');
       return { error: 'Authentication required' };
     }
 
     // Check if user owns the game
     const isOwner = await GameService.isGameOwner(gameId, session.user.id);
     if (!isOwner) {
+      console.error(
+        `[CharacterGen] User ${session.user.id} does not own game ${gameId}`
+      );
       return { error: "You don't have permission to modify this game" };
     }
 
     const gameState = await loadGameData(gameId);
     if (!gameState) {
+      console.error(`[CharacterGen] Game ${gameId} not found in database`);
       return { error: 'Game not found' };
     }
 
     if (gameState.phase !== 'CharacterGeneration') {
+      console.log(
+        `[CharacterGen] Game ${gameId} is in phase ${gameState.phase}, not CharacterGeneration`
+      );
       return { error: 'Character generation already completed' };
     }
 
     const theme = Themes[gameState.themeKey];
     if (!theme) {
+      console.error(`[CharacterGen] Invalid theme key: ${gameState.themeKey}`);
       return { error: `Invalid theme key: ${gameState.themeKey}` };
     }
+
+    // Log AI players configuration
+    const aiPlayers = Object.values(gameState.players).filter(
+      (player) => !player.isHuman
+    );
+
+    console.log(
+      `[CharacterGen] Found ${aiPlayers.length} AI players to generate personas for`
+    );
+    aiPlayers.forEach((player) => {
+      console.log(
+        `[CharacterGen] Player ${player.id}: ${player.name}, Agent: ${player.agentConfig?.agentType}, Provider: ${player.agentConfig?.providerValue}, Model: ${player.agentConfig?.modelName}`
+      );
+    });
+
+    // Check environment variables for API keys
+    const envVars = {
+      GROQ_API_KEY: !!process.env.GROQ_API_KEY,
+      OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+      ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
+      GOOGLE_AI_API_KEY: !!process.env.GOOGLE_AI_API_KEY,
+      FIREWORKS_API_KEY: !!process.env.FIREWORKS_API_KEY,
+    };
+    console.log('[CharacterGen] Available API keys:', Object.entries(envVars).filter(([, v]) => v).map(([k]) => k).join(', '));
 
     // Load game and use the optimized parallel persona generation
     const game = await Game.loadFromState(gameState);
 
-    // This now generates personas in parallel internally
-    await game.ensurePersonasGenerated();
+    console.log('[CharacterGen] Starting persona generation...');
 
-    // Validate that all AI players have proper personas generated
-    const aiPlayers = Object.values(gameState.players).filter(
-      (player) => !player.isHuman
-    );
+    try {
+      // This now generates personas in parallel internally
+      await game.ensurePersonasGenerated();
+      console.log('[CharacterGen] Persona generation completed successfully');
+    } catch (error) {
+      console.error('[CharacterGen] Error during persona generation:', error);
+      console.error(
+        '[CharacterGen] Error stack:',
+        error instanceof Error ? error.stack : 'No stack trace'
+      );
+
+      // Return more detailed error message
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Unknown error during persona generation';
+      return {
+        error: `Character generation failed: ${errorMessage}. Please check your API keys and try again.`,
+      };
+    }
 
     // Get the updated state after persona generation
     const updatedState = game.getCurrentSerializableState();
@@ -74,6 +126,7 @@ export async function generateGameCharactersAction(
     const failedPersonas = aiPlayers.filter((player) => {
       const updatedPlayer = updatedState.players[player.id];
       if (!updatedPlayer || !updatedPlayer.persona) {
+        console.log(`[CharacterGen] Player ${player.id} has no persona at all`);
         return true; // No persona at all
       }
 
@@ -87,16 +140,37 @@ export async function generateGameCharactersAction(
         !persona.name ||
         persona.name.trim() === '';
 
+      if (isPlaceholder) {
+        console.log(
+          `[CharacterGen] Player ${player.id} has placeholder persona: name="${persona.name}", backstory="${persona.backstory}"`
+        );
+      }
+
       return isPlaceholder;
     });
 
     if (failedPersonas.length > 0) {
       const failedNames = failedPersonas.map((p) => p.name).join(', ');
-      console.error(`Character generation failed for: ${failedNames}`);
+      console.error(
+        `[CharacterGen] Character generation failed for: ${failedNames}`
+      );
+      console.error(
+        `[CharacterGen] Failed personas details:`,
+        failedPersonas.map((p) => ({
+          id: p.id,
+          name: p.name,
+          agentConfig: p.agentConfig,
+          persona: updatedState.players[p.id]?.persona,
+        }))
+      );
       return {
-        error: `Failed to generate personas for ${failedPersonas.length} character(s). Please try again or use a different AI model.`,
+        error: `Failed to generate personas for ${failedPersonas.length} character(s): ${failedNames}. Please try again or use a different AI model.`,
       };
     }
+
+    console.log(
+      '[CharacterGen] All personas generated successfully, generating images...'
+    );
 
     // Generate character images in parallel for all non-human players
     const imagePromises = aiPlayers.map(async (player) => {
@@ -105,9 +179,15 @@ export async function generateGameCharactersAction(
           const gender = Math.random() > 0.5 ? 'male' : 'female';
           const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
           const imageUrl = await selectCharacterImage(gender, ageCategory);
+          console.log(
+            `[CharacterGen] Generated image for ${player.name}: ${imageUrl}`
+          );
           return { playerId: player.id, imageUrl };
         } catch (error) {
-          console.warn(`Failed to generate image for ${player.name}:`, error);
+          console.warn(
+            `[CharacterGen] Failed to generate image for ${player.name}:`,
+            error
+          );
           return { playerId: player.id, imageUrl: null };
         }
       }
@@ -126,6 +206,9 @@ export async function generateGameCharactersAction(
 
     // Save the updated state
     await saveGameData(gameId, updatedState);
+    console.log(
+      '[CharacterGen] Game state saved with generated personas and images'
+    );
 
     // Mark generation phases as complete and transition
     game.markRolesAssigned();
@@ -137,6 +220,9 @@ export async function generateGameCharactersAction(
 
     const initPhase = game.getCurrentPhase();
     if (initPhase.type !== 'Init') {
+      console.error(
+        `[CharacterGen] Failed to transition to Init phase, current phase: ${initPhase.type}`
+      );
       throw new Error('Game did not transition to Init phase correctly.');
     }
 
@@ -155,9 +241,15 @@ export async function generateGameCharactersAction(
       finalState,
       finalState.humanPlayerId
     );
+
+    console.log('[CharacterGen] Character generation completed successfully');
     return filteredState;
   } catch (error) {
-    console.error('Error generating characters:', error);
+    console.error('[CharacterGen] Unexpected error:', error);
+    console.error(
+      '[CharacterGen] Error stack:',
+      error instanceof Error ? error.stack : 'No stack trace'
+    );
     return {
       error:
         error instanceof Error
