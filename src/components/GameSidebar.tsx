@@ -12,9 +12,6 @@ import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'next/navigation';
 import { GameHeader } from './GameHeader';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Users, Shield, Sword, Eye, Heart, Activity } from 'lucide-react';
 
 export function GameSidebar() {
   const { gameState } = useGameContext();
@@ -71,38 +68,6 @@ export function GameSidebar() {
   const { townPlayers, mafiaPlayers, otherPlayers } =
     groupPlayersByAlignment(livingPlayers);
 
-  // Calculate game statistics
-  const totalPlayers = Object.keys(players).length;
-  const alivePlayers = livingPlayers.length;
-  const deadPlayersCount = deadPlayers.length;
-  const survivalRate =
-    totalPlayers > 0 ? (alivePlayers / totalPlayers) * 100 : 0;
-
-  // Count roles in living players
-  const roleCount = livingPlayers.reduce(
-    (acc, player) => {
-      const role = player.roleName || 'Unknown';
-      acc[role] = (acc[role] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'Villager':
-        return <Users className="h-3 w-3" />;
-      case 'Mafia':
-        return <Sword className="h-3 w-3" />;
-      case 'Seer':
-        return <Eye className="h-3 w-3" />;
-      case 'Doctor':
-        return <Heart className="h-3 w-3" />;
-      default:
-        return <Shield className="h-3 w-3" />;
-    }
-  };
-
   return (
     <aside className="flex flex-col h-screen">
       <h2 className="text-lg font-semibold p-3 ">
@@ -123,65 +88,14 @@ export function GameSidebar() {
       </h2>
       <GameHeader />
 
-      {/* Game Statistics Section */}
-      <div className="px-3 py-2 border-t border-border/50">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
-              {t('SurvivalRate', 'Survival Rate')}
-            </span>
-            <span className="font-medium">{Math.round(survivalRate)}%</span>
-          </div>
-          <Progress value={survivalRate} className="h-1.5" />
-
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <div className="flex items-center gap-1.5">
-              <Activity className="h-3 w-3 text-green-500" />
-              <span className="text-xs">
-                {alivePlayers} {t('Alive', 'Alive')}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Activity className="h-3 w-3 text-red-500" />
-              <span className="text-xs">
-                {deadPlayersCount} {t('Dead', 'Dead')}
-              </span>
-            </div>
-          </div>
-
-          {/* Role distribution */}
-          {gameState.phase === 'GameOver' && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {Object.entries(roleCount).map(([role, count]) => (
-                <Badge
-                  key={role}
-                  variant="secondary"
-                  className="text-xs px-1.5 py-0.5 flex items-center gap-1"
-                >
-                  {getRoleIcon(role)}
-                  <span>
-                    {count} {t(role, role)}
-                  </span>
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="flex-grow p-2 overflow-y-auto">
         <div className="space-y-3">
           {/* Town Players Section */}
           {townPlayers.length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
-                  {t('RoleGroupTown', 'Town Players')}
-                </h3>
-                <Badge variant="outline" className="text-xs">
-                  {townPlayers.length}
-                </Badge>
-              </div>
+              <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                {t('RoleGroupTown', 'Town Players')} ({townPlayers.length})
+              </h3>
               <div className="space-y-1">
                 {townPlayers.map((player: FilteredPlayer) => (
                   <PlayerCard key={player.id} player={player} />
@@ -193,14 +107,9 @@ export function GameSidebar() {
           {/* Mafia Players Section */}
           {mafiaPlayers.length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
-                  {t('RoleGroupMafia', 'Mafia Players')}
-                </h3>
-                <Badge variant="destructive" className="text-xs">
-                  {mafiaPlayers.length}
-                </Badge>
-              </div>
+              <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                {t('RoleGroupMafia', 'Mafia Players')} ({mafiaPlayers.length})
+              </h3>
               <div className="space-y-1">
                 {mafiaPlayers.map((player: FilteredPlayer) => (
                   <PlayerCard key={player.id} player={player} />
@@ -212,14 +121,10 @@ export function GameSidebar() {
           {/* Other Players Section (for any custom roles) */}
           {otherPlayers.length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
-                  {t('LivingPlayersTitle', 'Living Players')}
-                </h3>
-                <Badge variant="outline" className="text-xs">
-                  {otherPlayers.length}
-                </Badge>
-              </div>
+              <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                {t('LivingPlayersTitle', 'Living Players')} (
+                {otherPlayers.length})
+              </h3>
               <div className="space-y-1">
                 {otherPlayers.map((player: FilteredPlayer) => (
                   <PlayerCard key={player.id} player={player} />
@@ -234,8 +139,9 @@ export function GameSidebar() {
             otherPlayers.length === 0 &&
             livingPlayers.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5 mb-1">
-                  {t('LivingPlayersTitle', 'Living Players')}
+                <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                  {t('LivingPlayersTitle', 'Living Players')} (
+                  {livingPlayers.length})
                 </h3>
                 <div className="space-y-1">
                   {livingPlayers.map((player: FilteredPlayer) => (
@@ -250,14 +156,9 @@ export function GameSidebar() {
             <>
               <hr className="my-2 border-muted" /> {/* Add a divider */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-sm font-medium text-muted-foreground px-1 py-0.5">
-                    {t('DeadPlayersTitle', 'Dead Players')}
-                  </h3>
-                  <Badge variant="secondary" className="text-xs opacity-60">
-                    {deadPlayers.length}
-                  </Badge>
-                </div>
+                <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-1">
+                  {t('DeadPlayersTitle', 'Dead Players')} ({deadPlayers.length})
+                </h3>
                 <div className="space-y-1 opacity-75">
                   {deadPlayers.map((player: FilteredPlayer) => (
                     <PlayerCard key={player.id} player={player} />
