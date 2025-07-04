@@ -79,13 +79,26 @@ pnpm test
 
 ## Deployment
 
+### Required Environment Variables
+
+**⚠️ IMPORTANT: Deployment will fail without these required variables:**
+
+1. **Database**: `DATABASE_URL` (PostgreSQL connection string)
+2. **Authentication**: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`
+3. **AI Provider** (at least ONE required):
+   - `GOOGLE_API_KEY` or `GEMINI_API_KEY` for Google's Gemini models
+   - `GROQ_API_KEY` for Groq's fast inference
+   
+The build process validates these requirements and will fail if they're not met.
+
 Database migrations are automatically applied during Vercel deploys when DATABASE_URL
 is configured. The build process will:
-1. Check database connectivity
-2. Run any pending migrations with `pnpm run db:migrate`
-3. Apply schema changes with `pnpm run db:push`
+1. Validate required environment variables
+2. Check database connectivity
+3. Run any pending migrations with `pnpm run db:migrate`
+4. Apply schema changes with `pnpm run db:push`
 
-Ensure DATABASE_URL is set in your Vercel environment variables before deploying.
+Ensure all required environment variables are set in your Vercel project settings before deploying. See [docs/VERCEL_ENV_CHECKLIST.md](docs/VERCEL_ENV_CHECKLIST.md) for a complete checklist.
 
 ### Deployment Failure Automation
 

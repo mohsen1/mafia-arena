@@ -8,5 +8,10 @@
       "NODE_ENV": "production",
       "CI": "true"
     }
+  },
+  "functions": {
+    "src/app/api/speak/route.ts": {
+      "maxDuration": 60
+    }
   }
 }

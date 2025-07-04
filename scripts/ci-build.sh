@@ -13,6 +13,11 @@ handle_error() {
   exit $2
 }
 
+# Validate required environment variables first
+echo ""
+echo "🔐 Validating required environment variables..."
+pnpm run verify:env || handle_error "Environment validation" $?
+
 # Handle database operations differently for Vercel
 if [ "$VERCEL" = "1" ]; then
   echo "📦 Running in Vercel build environment"
