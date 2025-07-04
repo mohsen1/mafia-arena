@@ -238,7 +238,9 @@ export class StatisticsService {
     );
 
     for (const roundVotes of Object.values(votesByRound)) {
-      const playerVote = (roundVotes as any[]).find((v) => v.voterId === playerId);
+      const playerVote = (roundVotes as any[]).find(
+        (v) => v.voterId === playerId
+      );
       if (!playerVote) continue;
 
       opportunities++;

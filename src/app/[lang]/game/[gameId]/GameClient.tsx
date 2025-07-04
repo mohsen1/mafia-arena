@@ -252,7 +252,6 @@ export default function GameClient({
   boundAdvanceGameStateAction,
   boundSubmitHumanAction,
 }: GameClientProps) {
-
   return (
     <SpokenTextProvider>
       <GameProvider

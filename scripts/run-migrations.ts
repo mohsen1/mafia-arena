@@ -40,7 +40,7 @@ async function runMigrations() {
     // Run migrations
     console.log('🔄 Running database migrations...');
     try {
-      execSync('pnpm run db:migrate', { stdio: 'inherit' });
+      execSync('drizzle-kit migrate', { stdio: 'inherit' });
       console.log('✅ Migrations completed successfully');
     } catch (error) {
       // Migration errors might be expected if no new migrations
@@ -52,7 +52,7 @@ async function runMigrations() {
     // Apply schema
     console.log('📤 Applying database schema...');
     try {
-      execSync('pnpm run db:push', { stdio: 'inherit' });
+      execSync('drizzle-kit push', { stdio: 'inherit' });
       console.log('✅ Database schema applied successfully');
     } catch (error) {
       // Schema push errors might be expected if schema is already up to date

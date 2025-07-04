@@ -163,7 +163,9 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
       events.push({
         id: `event-${eventId++}`,
         type: 'game_end',
-        timestamp: new Date(gameState.lastUpdatedAt || gameState.createdAt).getTime(),
+        timestamp: new Date(
+          gameState.lastUpdatedAt || gameState.createdAt
+        ).getTime(),
         round: gameState.round,
         phase: 'GameOver',
         data: { winCondition: gameState.winCondition },
