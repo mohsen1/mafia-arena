@@ -104,7 +104,7 @@ export function GameSidebar() {
           aria-label={t('Werewolf AI')}
         >
           <Image
-            src="/logo.png"
+            src="/images/logo.png"
             alt="Werewolf AI Logo"
             width={32}
             height={32}
