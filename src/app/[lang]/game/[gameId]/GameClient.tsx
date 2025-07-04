@@ -11,6 +11,7 @@ import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
 import { GameHistory } from '@/components/GameHistory';
 import { VotingPanel } from '@/components/VotingPanel';
 import { RoleRevealAnimation } from '@/components/RoleRevealAnimation';
+import { GameReplay } from '@/components/GameReplay';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -113,6 +114,39 @@ function GameLayout({ gameId }: { gameId: string }) {
           // Could show an error message or handle appropriately
         }}
       />
+    );
+  }
+
+  // Show game replay UI if game is completed
+  if (gameState?.phase === 'GameOver') {
+    return (
+      <>
+        {/* Phase transition notification */}
+        {gameState && (
+          <PhaseTransitionNotification
+            phase={gameState.phase}
+            round={gameState.round}
+            show={showPhaseNotification}
+          />
+        )}
+
+        {/* Role reveal animation */}
+        {roleReveal && (
+          <RoleRevealAnimation
+            playerName={roleReveal.playerName}
+            role={roleReveal.role}
+            isEvil={roleReveal.isEvil}
+            reason={roleReveal.reason}
+            onComplete={() => setRoleReveal(null)}
+          />
+        )}
+
+        <div className="min-h-screen bg-background" dir={direction}>
+          <div className="container mx-auto p-4">
+            <GameReplay gameState={gameState} />
+          </div>
+        </div>
+      </>
     );
   }
 

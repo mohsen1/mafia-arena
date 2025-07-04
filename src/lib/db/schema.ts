@@ -9,7 +9,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { AdapterAccount } from 'next-auth/adapters';
 import { relations } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
 
 // NextAuth.js required tables
 export const users = pgTable('user', {
@@ -144,7 +143,9 @@ export const userApiKeys = pgTable('user_api_keys', {
 
 // User Achievements table
 export const userAchievements = pgTable('user_achievements', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   userId: text('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
@@ -156,12 +157,15 @@ export const userAchievements = pgTable('user_achievements', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
 
-export const userAchievementsRelations = relations(userAchievements, ({ one }) => ({
-  user: one(users, {
-    fields: [userAchievements.userId],
-    references: [users.id],
-  }),
-}));
+export const userAchievementsRelations = relations(
+  userAchievements,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userAchievements.userId],
+      references: [users.id],
+    }),
+  })
+);
 
 // Types for easier usage
 export type User = typeof users.$inferSelect;

@@ -266,7 +266,9 @@ export function getAchievementsByCategory(
   return ACHIEVEMENTS.filter((a) => a.category === category);
 }
 
-export function calculateTotalPoints(achievements: AchievementProgress[]): number {
+export function calculateTotalPoints(
+  achievements: AchievementProgress[]
+): number {
   return achievements
     .filter((a) => a.unlockedAt !== undefined)
     .reduce((total, a) => {
@@ -396,4 +398,4 @@ export function checkAchievements(
   });
 
   return [...currentAchievements, ...newAchievements];
-} 
+}

@@ -7,9 +7,7 @@ import type {
 import { useGameContext } from '@/context/GameContext';
 import { SpeakText } from '@/components/SpeakText';
 import { cn } from '@/lib/utils';
-import { Bot, User } from 'lucide-react';
 import { useSpokenText } from '@/context/SpokenTextContext';
-import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { DynamicAvatar } from '@/components/ui/dynamic-avatar';
@@ -96,7 +94,12 @@ export function MessageBubble({
         />
       )}
 
-      <div className={cn('flex flex-col', isHuman || isModerator ? 'items-end' : 'items-start')}>
+      <div
+        className={cn(
+          'flex flex-col',
+          isHuman || isModerator ? 'items-end' : 'items-start'
+        )}
+      >
         <div className={bubbleClasses}>
           {/* Speaker name for non-human messages */}
           {!isHuman && !isModerator && (
@@ -104,9 +107,9 @@ export function MessageBubble({
               {speakerDisplayName}
             </p>
           )}
-          
+
           <p className="text-sm">{message.content}</p>
-          
+
           {/* Timestamp */}
           <p className="text-xs opacity-50 mt-1">
             {new Date(message.timestamp).toLocaleTimeString([], {
