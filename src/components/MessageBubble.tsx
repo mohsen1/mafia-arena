@@ -90,14 +90,17 @@ export function MessageBubble({
           isHuman || isModerator ? 'items-end' : 'items-start'
         )}
       >
-        <div 
+        <div
           className={bubbleClasses}
           role="article"
           aria-label={`${speakerDisplayName}: ${message.content}`}
         >
           {/* Speaker name for non-human messages */}
           {!isHuman && !isModerator && (
-            <p className="text-xs font-medium mb-1 opacity-70" aria-hidden="true">
+            <p
+              className="text-xs font-medium mb-1 opacity-70"
+              aria-hidden="true"
+            >
               {speakerDisplayName}
             </p>
           )}
@@ -105,7 +108,10 @@ export function MessageBubble({
           <p className="text-sm">{message.content}</p>
 
           {/* Timestamp */}
-          <p className="text-xs opacity-50 mt-1" aria-label={`Sent at ${new Date(message.timestamp).toLocaleTimeString()}`}>
+          <p
+            className="text-xs opacity-50 mt-1"
+            aria-label={`Sent at ${new Date(message.timestamp).toLocaleTimeString()}`}
+          >
             {new Date(message.timestamp).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -115,7 +121,10 @@ export function MessageBubble({
 
         {/* Audio control */}
         {isAudioGloballyEnabled && isPlayerMessage && !isHuman && (
-          <div className="mt-1" aria-label={`Play audio for ${speakerDisplayName}'s message`}>
+          <div
+            className="mt-1"
+            aria-label={`Play audio for ${speakerDisplayName}'s message`}
+          >
             <SpeakText
               voiceId={speakerPlayer?.voiceId}
               onEnd={handleAudioEnd}

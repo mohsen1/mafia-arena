@@ -1,0 +1,12 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {},
+  "schemas": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  }
+} 
