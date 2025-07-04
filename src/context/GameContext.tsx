@@ -34,6 +34,8 @@ export interface GameContextType {
   ) => void;
   reportAudioFinished: (messageId: string) => void;
   toggleGlobalAudio: () => void;
+  gameSpeed: number;
+  setGameSpeed: (speed: number) => void;
 }
 
 interface GameContextState {
@@ -59,6 +61,8 @@ interface GameContextState {
   clearError: () => void;
   runNextTurn: () => void;
   toggleGlobalAudio: () => void;
+  gameSpeed: number;
+  setGameSpeed: (speed: number) => void;
 }
 
 const GameContext = createContext<GameContextState | undefined>(undefined);
@@ -98,6 +102,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [gameSpeed, setGameSpeed] = useState<number>(1);
 
   const { currentlySpeakingId: spokenTextCurrentlySpeakingId } =
     useSpokenText();
@@ -228,7 +233,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         ) {
           runNextTurnAction();
         }
-      }, 500);
+      }, 500 / gameSpeed);
       return () => clearTimeout(timerId);
     }
   }, [
@@ -238,6 +243,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     isLoadingNextTurn,
     gameState,
     runNextTurnAction,
+    gameSpeed,
   ]);
 
   // Auto-run logic when audio is disabled: run with simulated reading delay
@@ -261,7 +267,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         ) {
           runNextTurnAction();
         }
-      }, 1500);
+      }, 1500 / gameSpeed);
       return () => clearTimeout(timerId);
     }
   }, [
@@ -270,6 +276,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     isLoadingNextTurn,
     gameState,
     runNextTurnAction,
+    gameSpeed,
   ]);
 
   const reportAudioFinished = useCallback(
@@ -364,6 +371,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     clearError,
     runNextTurn: runNextTurnAction,
     toggleGlobalAudio: toggleAudioGloballyEnabled,
+    gameSpeed,
+    setGameSpeed,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

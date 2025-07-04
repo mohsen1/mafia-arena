@@ -47,6 +47,7 @@ function GameLayout({ gameId }: { gameId: string }) {
     error,
     clearError,
     runNextTurn,
+    setGameSpeed,
   } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
 
@@ -233,8 +234,7 @@ function GameLayout({ gameId }: { gameId: string }) {
               gameState={gameState}
               messages={gameState.log}
               onSpeedChange={(speed) => {
-                // TODO: Implement game speed control
-                console.log('Speed changed to:', speed);
+                setGameSpeed(speed);
               }}
               className="h-full"
             />
