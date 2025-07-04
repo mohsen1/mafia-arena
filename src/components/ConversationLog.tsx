@@ -85,15 +85,45 @@ export function ConversationLog() {
 
   const items = virtualizer.getVirtualItems();
 
+  // Force scroll to bottom on initial mount and when messages change
+  useEffect(() => {
+    // Always scroll to bottom on mount
+    if (displayLogMemo.length > 0) {
+      // Set initial state
+      autoScrollRef.current = true;
+      prevLogLengthRef.current = displayLogMemo.length;
+
+      // Multiple attempts to ensure scroll happens
+      const scrollAttempts = [50, 150, 300, 500];
+      scrollAttempts.forEach((delay) => {
+        setTimeout(() => {
+          if (containerRef.current) {
+            virtualizer.scrollToIndex(displayLogMemo.length - 1, {
+              align: 'end',
+              behavior: 'auto',
+            });
+            // Also use direct scroll as fallback
+            const { scrollHeight } = containerRef.current;
+            containerRef.current.scrollTop = scrollHeight;
+          }
+        }, delay);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only on mount - we intentionally want this to run once
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (
       displayLogMemo.length > prevLogLengthRef.current &&
       autoScrollRef.current
     ) {
-      virtualizer.scrollToIndex(displayLogMemo.length - 1, {
-        align: 'end',
-        behavior: 'smooth',
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        virtualizer.scrollToIndex(displayLogMemo.length - 1, {
+          align: 'end',
+          behavior: 'smooth',
+        });
       });
       prevLogLengthRef.current = displayLogMemo.length;
     }
@@ -104,24 +134,39 @@ export function ConversationLog() {
     if (!containerRef.current) return;
 
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100; // Increased threshold
     autoScrollRef.current = isAtBottom;
   }, []);
 
-  // Scroll to bottom when pending action changes
+  // Manual scroll to bottom function as fallback
+  const scrollToBottom = useCallback(() => {
+    if (containerRef.current) {
+      const { scrollHeight } = containerRef.current;
+      containerRef.current.scrollTop = scrollHeight;
+    }
+  }, []);
+
+  // Scroll to bottom when pending action changes or phase changes
   useEffect(() => {
     if (!gameState) return;
 
-    const pendingActionString = JSON.stringify(gameState.pendingHumanAction);
-    if (autoScrollRef.current && pendingActionString) {
+    if (autoScrollRef.current) {
       setTimeout(() => {
         virtualizer.scrollToIndex(displayLogMemo.length - 1, {
           align: 'end',
           behavior: 'smooth',
         });
+        // Fallback to manual scroll
+        setTimeout(scrollToBottom, 100);
       }, 100);
     }
-  }, [gameState, virtualizer, displayLogMemo.length]);
+  }, [
+    gameState?.pendingHumanAction,
+    gameState?.phase,
+    virtualizer,
+    displayLogMemo.length,
+    scrollToBottom,
+  ]);
 
   if (!gameState) {
     return <div>{t('LoadingLog', 'Loading conversation...')}</div>;
