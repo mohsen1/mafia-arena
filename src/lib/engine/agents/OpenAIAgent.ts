@@ -126,7 +126,7 @@ export class OpenAIAgent implements IAgent {
       console.log(
         `[OpenAIAgent.generatePersona] Received response, parsing JSON...`
       );
-      
+
       // Log first 200 chars of response for debugging
       if (isGroq) {
         console.log(
