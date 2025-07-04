@@ -32,7 +32,7 @@ export function MobileVotingPanel({
   className,
 }: MobileVotingPanelProps) {
   const { t } = useTranslation();
-  const { gameState: contextGameState } = useGameContext();
+  const { } = useGameContext();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
 

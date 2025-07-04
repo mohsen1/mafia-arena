@@ -42,8 +42,6 @@ export function MessageBubble({
   // Player messages should be distinct - any non-moderator message is a player message
   const isPlayerMessage = !isModerator;
 
-  const imageUrl = speakerPlayer?.imageUrl;
-
   // Callback for when SpeakText finishes
   const handleAudioEnd = () => {
     reportAudioFinished(message.id);
@@ -71,15 +69,6 @@ export function MessageBubble({
   const speakerDisplayName = isModerator
     ? t('ModeratorName', { defaultValue: 'Moderator' })
     : message.senderName;
-  // Translate the display name if needed (e.g., role names used as senderName)
-  const translatedSpeakerName = t(speakerDisplayName, {
-    defaultValue: speakerDisplayName,
-  });
-
-  // Placeholder translation logic (assuming message.content contains the key/text)
-  // TODO: Adapt if message structure for translations changes (e.g., separate phraseKey)
-  const messageContent = message.content;
-  // const translatePlaceholders = ... (This logic might need adjustment based on how placeholders are stored)
 
   return (
     <div className={containerClasses}>

@@ -72,14 +72,11 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
   onSpeedChange,
   className,
 }) => {
-  const { t } = useTranslation();
+  const {} = useTranslation();
   const [isPlaying, setIsPlaying] = useState(true);
   const [gameSpeed, setGameSpeed] = useState(1); // 0.5x, 1x, 2x, 3x
   const [showInsights, setShowInsights] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['overview', 'players', 'activity'])
-  );
 
   // Mock insights data - in real implementation, this would come from the game engine
   const insights: SpectatorInsights = {
@@ -115,18 +112,6 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
     },
     [onSpeedChange]
   );
-
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(section)) {
-        next.delete(section);
-      } else {
-        next.add(section);
-      }
-      return next;
-    });
-  };
 
   const getRoleIcon = (role: RoleName) => {
     switch (role) {

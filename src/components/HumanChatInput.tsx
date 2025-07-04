@@ -241,9 +241,6 @@ export default function HumanChatInput() {
       const ariaLabel = isWWChat
         ? t('WerewolfChatMessageInputLabel', 'Werewolf chat message input')
         : t('ChatMessageInputLabel', 'Chat message input');
-      const buttonLabel = isWWChat
-        ? t('SendWerewolfChatButtonLabel', 'Send (Pack)')
-        : t('SendButtonLabel', 'Send');
       return (
         <div className="flex flex-col gap-2 p-4">
           <Label htmlFor="chat-input" className="sr-only">

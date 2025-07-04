@@ -10,6 +10,7 @@ import {
 } from './schema';
 import { eq, desc } from 'drizzle-orm';
 import type { RoleName } from '../engine/interfaces/IRole';
+import { users } from './schema';
 
 export class StatisticsService {
   /**
@@ -21,14 +22,13 @@ export class StatisticsService {
     gameEndTime: Date
   ): Promise<void> {
     // Get game data
-    const game = await db.query.games.findFirst({
-      where: eq(games.id, gameId),
-      with: {
-        participants: true,
-      },
-    });
+    const game = await db
+      .select()
+      .from(games)
+      .where(eq(games.id, gameId))
+      .limit(1);
 
-    if (!game || game.status !== 'completed') {
+    if (!game[0] || game[0].status !== 'completed') {
       throw new Error('Game not found or not completed');
     }
 
@@ -47,11 +47,11 @@ export class StatisticsService {
       if (!participant.userId) continue; // Skip AI players
 
       // Calculate statistics from game state
-      const gameState = game.gameState as any;
+      const gameState = game[0].gameState as any;
       const playerStats = this.calculatePlayerStatistics(
         participant,
         gameState,
-        game.winCondition || ''
+        game[0].winCondition || ''
       );
 
       // Record individual game statistics
@@ -61,7 +61,7 @@ export class StatisticsService {
         participantId: participant.id,
         won: playerStats.won,
         survived: participant.isAlive,
-        roundsPlayed: game.round,
+        roundsPlayed: game[0].round,
         gameDuration: gameDuration,
         messagesCount: playerStats.messagesCount,
         votesCount: playerStats.votesCount,
@@ -210,7 +210,6 @@ export class StatisticsService {
     const correctVotes = playerVotes.filter((v) =>
       mafiaPlayerIds.includes(v.targetId)
     ).length;
-    const incorrectVotes = playerVotes.length - correctVotes;
 
     // Score from 0-100
     return Math.round((correctVotes / playerVotes.length) * 100);
@@ -239,13 +238,13 @@ export class StatisticsService {
     );
 
     for (const roundVotes of Object.values(votesByRound)) {
-      const playerVote = roundVotes.find((v) => v.voterId === playerId);
+      const playerVote = (roundVotes as any[]).find((v) => v.voterId === playerId);
       if (!playerVote) continue;
 
       opportunities++;
 
       // Count how many players voted the same way after this player
-      const followingVotes = roundVotes.filter(
+      const followingVotes = (roundVotes as any[]).filter(
         (v) =>
           v.voterId !== playerId &&
           v.targetId === playerVote.targetId &&
@@ -270,9 +269,12 @@ export class StatisticsService {
     roleName: RoleName
   ): Promise<void> {
     // Get existing summary or create new one
-    const summary = await db.query.userStatsSummary.findFirst({
-      where: eq(userStatsSummary.userId, userId),
-    });
+    const summaryResult = await db
+      .select()
+      .from(userStatsSummary)
+      .where(eq(userStatsSummary.userId, userId))
+      .limit(1);
+    const summary = summaryResult[0];
 
     if (!summary) {
       // Create new summary
@@ -361,10 +363,12 @@ export class StatisticsService {
    * Get user statistics summary
    */
   static async getUserStats(userId: string): Promise<UserStatsSummary | null> {
-    const stats = await db.query.userStatsSummary.findFirst({
-      where: eq(userStatsSummary.userId, userId),
-    });
-    return stats || null;
+    const stats = await db
+      .select()
+      .from(userStatsSummary)
+      .where(eq(userStatsSummary.userId, userId))
+      .limit(1);
+    return stats[0] || null;
   }
 
   /**
@@ -390,20 +394,15 @@ export class StatisticsService {
     metric: 'winRate' | 'totalGames' | 'totalWins' = 'winRate',
     limit: number = 10
   ): Promise<(UserStatsSummary & { userName?: string })[]> {
-    const results = await db.query.userStatsSummary.findMany({
-      orderBy: desc(userStatsSummary[metric]),
-      limit,
-      with: {
-        user: {
-          columns: {
-            name: true,
-          },
-        },
-      },
-    });
+    const results = await db
+      .select()
+      .from(userStatsSummary)
+      .leftJoin(users, eq(userStatsSummary.userId, users.id))
+      .orderBy(desc(userStatsSummary[metric]))
+      .limit(limit);
 
     return results.map((r) => ({
-      ...r,
+      ...r.user_stats_summary,
       userName: r.user?.name || 'Anonymous',
     }));
   }

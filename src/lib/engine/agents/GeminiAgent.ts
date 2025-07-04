@@ -196,7 +196,13 @@ export class GeminiAgent implements IAgent {
       memory: memoryForPrompt,
     };
 
-    const systemPrompt = getSystemPrompt();
+    const systemPrompt = getSystemPrompt(
+      gameState.self.role,
+      gameState.themeName || 'Unknown Theme',
+      '', // Theme description not available in gameState
+      this.persona,
+      gameState.language || 'en'
+    );
     // Pass the modified state with the array to getUserPrompt
     const userPrompt = getUserPrompt(promptInputState, allowedActions);
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;

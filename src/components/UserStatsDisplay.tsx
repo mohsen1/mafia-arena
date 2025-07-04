@@ -345,7 +345,7 @@ export function UserStatsDisplay() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {recentGames.map((game, index) => (
+              {recentGames.map((game) => (
                 <div
                   key={game.id}
                   className="flex items-center justify-between p-2 rounded-lg bg-secondary/20"
