@@ -82,7 +82,7 @@ export async function selectCharacterImage(
 
 /**
  * Analyzes a persona to determine appropriate gender and age category for image selection.
- * 
+ *
  * @param persona - The character persona containing name, backstory, and traits
  * @returns Object with gender and ageCategory
  */
@@ -91,32 +91,53 @@ export function analyzePersonaForImage(persona: {
   backstory: string;
   personalityTraits: string[];
 }): { gender: 'male' | 'female'; ageCategory: 'young' | 'old' } {
-  const personaText = `${persona.name} ${persona.backstory} ${persona.personalityTraits.join(' ')}`.toLowerCase();
-  
+  const personaText =
+    `${persona.name} ${persona.backstory} ${persona.personalityTraits.join(' ')}`.toLowerCase();
+
   // Gender detection based on common indicators
   let gender: 'male' | 'female' = 'male';
-  if (personaText.match(/\b(she|her|hers|woman|lady|girl|mother|daughter|sister|wife|mrs|ms|miss|female)\b/)) {
+  if (
+    personaText.match(
+      /\b(she|her|hers|woman|lady|girl|mother|daughter|sister|wife|mrs|ms|miss|female)\b/
+    )
+  ) {
     gender = 'female';
-  } else if (personaText.match(/\b(he|him|his|man|boy|father|son|brother|husband|mr|male)\b/)) {
+  } else if (
+    personaText.match(
+      /\b(he|him|his|man|boy|father|son|brother|husband|mr|male)\b/
+    )
+  ) {
     gender = 'male';
   } else {
     // If no clear gender indicators, default to male (could be made random)
     gender = 'male';
   }
-  
+
   // Age detection based on common indicators
   let ageCategory: 'young' | 'old' = 'young';
-  if (personaText.match(/\b(young|youth|teenage|child|kid|student|apprentice|junior|novice|maiden)\b/)) {
+  if (
+    personaText.match(
+      /\b(young|youth|teenage|child|kid|student|apprentice|junior|novice|maiden)\b/
+    )
+  ) {
     ageCategory = 'young';
-  } else if (personaText.match(/\b(old|elderly|senior|veteran|experienced|wise|retired|grandfather|grandmother|elder|ancient)\b/)) {
+  } else if (
+    personaText.match(
+      /\b(old|elderly|senior|veteran|experienced|wise|retired|grandfather|grandmother|elder|ancient)\b/
+    )
+  ) {
     ageCategory = 'old';
-  } else if (personaText.match(/\b(middle-aged|adult|parent|established|seasoned|mature)\b/)) {
+  } else if (
+    personaText.match(
+      /\b(middle-aged|adult|parent|established|seasoned|mature)\b/
+    )
+  ) {
     // For middle-aged, lean towards old
     ageCategory = 'old';
   } else {
     // If no clear age indicators, default to young
     ageCategory = 'young';
   }
-  
+
   return { gender, ageCategory };
 }

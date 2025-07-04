@@ -51,8 +51,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
       className={cn(
         'flex items-center gap-3 p-3 rounded-lg transition-all',
         'bg-card hover:bg-accent/50',
-        isDead && 'opacity-60',
-        player.isMafia && 'bg-danger/10 hover:bg-danger/20'
+        isDead && 'opacity-60'
       )}
     >
       <div className="relative flex-shrink-0">
