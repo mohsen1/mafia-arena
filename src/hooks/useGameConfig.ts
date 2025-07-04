@@ -378,6 +378,16 @@ export function useGameConfig(
     [updateSlotName]
   );
 
+  // Clean up any pending debounce timers on unmount
+  useEffect(() => {
+    return () => {
+      debounceTimersRef.current.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      debounceTimersRef.current.clear();
+    };
+  }, []);
+
   const updateSlotImageUrl = useCallback(
     (clientId: string, newImageUrl: string | null) => {
       setCharacterSlots((prev) =>
@@ -541,16 +551,6 @@ export function useGameConfig(
       }
     }
   }, [initialSlotsSet, characterSlots]);
-
-  useEffect(() => {
-    const timers = debounceTimersRef.current;
-    return () => {
-      for (const timer of timers.values()) {
-        clearTimeout(timer);
-      }
-      timers.clear();
-    };
-  }, []);
 
   return {
     characterSlots,
