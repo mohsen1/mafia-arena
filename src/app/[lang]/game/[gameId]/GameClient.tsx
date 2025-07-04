@@ -13,6 +13,8 @@ import { RoleRevealToast } from '@/components/RoleRevealToast';
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
 import { GameStatsTracker } from '@/components/GameStatsTracker';
+import { VotingVisualization } from '@/components/VotingVisualization';
+import { GameInsights } from '@/components/GameInsights';
 import { Header } from '@/components/Header';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
@@ -199,6 +201,14 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                   {/* Game Statistics */}
                   {gameState && (
                     <GameStatsTracker gameState={gameState} />
+                  )}
+                  {/* Voting Visualization */}
+                  {gameState && (
+                    <VotingVisualization gameState={gameState} />
+                  )}
+                  {/* Game Insights */}
+                  {gameState && (
+                    <GameInsights gameState={gameState} />
                   )}
                   {/* Game History */}
                   {gameState && 'memory' in gameState && (
