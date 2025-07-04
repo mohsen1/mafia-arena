@@ -8,6 +8,8 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core';
 import type { AdapterAccount } from 'next-auth/adapters';
+import { relations } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 
 // NextAuth.js required tables
 export const users = pgTable('user', {
@@ -140,9 +142,36 @@ export const userApiKeys = pgTable('user_api_keys', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
 
+// User Achievements table
+export const userAchievements = pgTable('user_achievements', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  achievementId: text('achievement_id').notNull(),
+  progress: integer('progress').notNull().default(0),
+  maxProgress: integer('max_progress').notNull().default(1),
+  unlockedAt: timestamp('unlocked_at', { mode: 'date' }),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});
+
+export const userAchievementsRelations = relations(userAchievements, ({ one }) => ({
+  user: one(users, {
+    fields: [userAchievements.userId],
+    references: [users.id],
+  }),
+}));
+
 // Types for easier usage
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Account = typeof accounts.$inferSelect;
+export type NewAccount = typeof accounts.$inferInsert;
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+export type VerificationToken = typeof verificationTokens.$inferSelect;
+export type NewVerificationToken = typeof verificationTokens.$inferInsert;
 export type Game = typeof games.$inferSelect;
 export type NewGame = typeof games.$inferInsert;
 export type GameParticipant = typeof gameParticipants.$inferSelect;
@@ -151,3 +180,5 @@ export type UserPreferences = typeof userPreferences.$inferSelect;
 export type NewUserPreferences = typeof userPreferences.$inferInsert;
 export type UserApiKey = typeof userApiKeys.$inferSelect;
 export type NewUserApiKey = typeof userApiKeys.$inferInsert;
+export type UserAchievement = typeof userAchievements.$inferSelect;
+export type NewUserAchievement = typeof userAchievements.$inferInsert;
