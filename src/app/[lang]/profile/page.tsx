@@ -18,9 +18,7 @@ import {
   User,
   Mail,
   Calendar,
-  Settings,
   Shield,
-  ExternalLink,
   Key,
   GamepadIcon,
   Trophy,
@@ -126,12 +124,18 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
           </h1>
           <p className="text-muted-foreground">{user.email}</p>
           <div className="flex items-center justify-center gap-2 mt-3">
-            <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+            <Badge
+              variant="default"
+              className="bg-primary/10 text-primary border-primary/20"
+            >
               <Calendar className="w-3 h-3 me-1" />
               {t('profile.memberSince')} {joinDate}
             </Badge>
             {user.email === 'dev@werewolf-ai.com' && (
-              <Badge variant="secondary" className="bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20">
+              <Badge
+                variant="secondary"
+                className="bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20"
+              >
                 {t('profile.developmentAccount')}
               </Badge>
             )}
@@ -140,13 +144,23 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
-          <Button asChild variant="default" size="lg" className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
+          <Button
+            asChild
+            variant="default"
+            size="lg"
+            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+          >
             <Link href={`/${lang}/new`}>
               <GamepadIcon className="w-5 h-5 me-2" />
               {t('profile.startNewGame')}
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="border-primary/20 hover:bg-primary/10">
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="border-primary/20 hover:bg-primary/10"
+          >
             <Link href={`/${lang}/games`}>
               <Trophy className="w-5 h-5 me-2" />
               {t('profile.viewMyGames')}
@@ -197,7 +211,10 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-2">
               {user.image?.includes('googleusercontent.com') && (
-                <Badge variant="outline" className="border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400">
+                <Badge
+                  variant="outline"
+                  className="border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400"
+                >
                   <svg
                     className="w-4 h-4 me-2"
                     viewBox="0 0 24 24"
@@ -226,7 +243,10 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
               )}
 
               {user.image?.includes('githubusercontent.com') && (
-                <Badge variant="outline" className="border-gray-500/20 bg-gray-500/10 text-gray-700 dark:text-gray-400">
+                <Badge
+                  variant="outline"
+                  className="border-gray-500/20 bg-gray-500/10 text-gray-700 dark:text-gray-400"
+                >
                   <svg
                     className="w-4 h-4 me-2"
                     fill="currentColor"
@@ -241,13 +261,19 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
               )}
 
               {user.email === 'dev@werewolf-ai.com' && (
-                <Badge variant="outline" className="border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                <Badge
+                  variant="outline"
+                  className="border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                >
                   <Mail className="w-4 h-4 me-2" />
                   {t('profile.emailPassword')}
                 </Badge>
               )}
 
-              <Badge variant="outline" className="border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400">
+              <Badge
+                variant="outline"
+                className="border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
+              >
                 <Shield className="w-3 h-3 me-1" />
                 {t('profile.verified')}
               </Badge>
