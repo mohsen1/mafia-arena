@@ -27,6 +27,8 @@ import {
 
 // Hardcoded image paths (consider fetching dynamically later)
 const characterImagePaths = [
+  // Special
+  '/images/characters/mod.png',
   // Female - Old
   '/images/characters/female/old/unnamed.png',
   '/images/characters/female/old/unnamed-1.png',

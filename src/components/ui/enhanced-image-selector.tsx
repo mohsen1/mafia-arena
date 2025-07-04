@@ -30,8 +30,8 @@ import { useTranslation } from 'react-i18next';
 interface ImageData {
   path: string;
   category: {
-    gender: 'male' | 'female';
-    age: 'young' | 'old';
+    gender: 'male' | 'female' | 'neutral';
+    age: 'young' | 'old' | 'timeless';
     style?: string;
   };
   description: string;
@@ -41,18 +41,25 @@ interface ImageData {
 // Mock data structure for better image organization
 // In production, this would come from your image management system
 const ORGANIZED_IMAGES: ImageData[] = [
+  // Special
+  {
+    path: '/images/characters/mod.png',
+    category: { gender: 'neutral', age: 'timeless', style: 'moderator' },
+    description: 'Mysterious moderator figure',
+    tags: ['moderator', 'special', 'mysterious', 'authority'],
+  },
   // Female Young
   {
     path: '/images/characters/female/young/unnamed.png',
-    category: { gender: 'female', age: 'young', style: 'elegant' },
-    description: 'Young woman with elegant appearance',
-    tags: ['elegant', 'sophisticated', 'professional'],
-  },
-  {
-    path: '/images/characters/female/young/unnamed-1.png',
     category: { gender: 'female', age: 'young', style: 'casual' },
     description: 'Young woman with casual style',
     tags: ['casual', 'friendly', 'approachable'],
+  },
+  {
+    path: '/images/characters/female/young/unnamed-1.png',
+    category: { gender: 'female', age: 'young', style: 'elegant' },
+    description: 'Young woman with elegant appearance',
+    tags: ['elegant', 'sophisticated', 'professional'],
   },
   {
     path: '/images/characters/female/young/unnamed-3.png',
@@ -350,7 +357,9 @@ export function EnhancedImageSelector({
                           variant={
                             image.category.gender === 'male'
                               ? 'default'
-                              : 'secondary'
+                              : image.category.gender === 'female'
+                              ? 'secondary'
+                              : 'destructive'
                           }
                           className="text-xs px-1"
                         >

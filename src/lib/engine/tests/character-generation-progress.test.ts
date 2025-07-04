@@ -89,7 +89,7 @@ describe('Character Generation Progress', () => {
           name: 'AI Player 2',
           isHuman: false,
           persona: {
-            backstory: 'A resident of medieval',
+            backstory: 'A resident of Medieval',
           },
           imageUrl: null,
         },

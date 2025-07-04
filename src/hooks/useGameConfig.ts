@@ -93,6 +93,7 @@ export function useGameConfig(
   user?: {
     name?: string | null;
     email?: string | null;
+    image?: string | null;
   } | null
 ) {
   const { t } = useTranslation('translation');
@@ -206,6 +207,7 @@ export function useGameConfig(
         profile: {
           characterName: defaultHumanName,
         },
+        imageUrl: user?.image || null,
       });
       playerIndex++;
     }
