@@ -2,11 +2,9 @@
 
 import type { FilteredPlayer } from '@/lib/interfaces/client.types';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 import {
   PersonStanding,
   Skull,
-  User,
   Bot,
   Shield,
   Sword,

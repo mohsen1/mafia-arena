@@ -334,16 +334,15 @@
     "older": "Older",
     "newer": "Newer",
     "rolePerformance": "Role Performance",
-    "performanceByRole": "Your win rate with different roles",
-    "noRoleData": "No role data available yet",
-    "favorite": "Favorite",
-    "wins": "wins",
+    "winRateWith": "Your win rate with different roles",
     "gameActivity": "Game Activity",
     "activeGames": "Active Games",
     "completedGames": "Completed Games",
     "longestStreak": "Longest Win Streak",
     "achievements": "Achievements",
-    "comingSoon": "Achievement system coming soon!"
+    "comingSoon": "Achievement system coming soon!",
+    "favorite": "Favorite",
+    "wins": "wins"
   },
   
   "signIn": {
@@ -1038,5 +1037,19 @@
     "unlockedOn": "Unlocked on",
     "hideSecret": "Hide Secret Achievements",
     "showSecret": "Show Secret Achievements"
+  },
+  "replay": {
+    "title": "Game Replay",
+    "event": "Event",
+    "round": "Round",
+    "gameStarted": "Game started",
+    "dayBegins": "Day begins",
+    "nightFalls": "Night falls",
+    "playerVoted": "{{voter}} voted for {{target}}",
+    "playerSpoke": "{{player}} spoke",
+    "speed": "Speed",
+    "players": "Players",
+    "conversation": "Conversation",
+    "noMessages": "No messages yet"
   }
 } 

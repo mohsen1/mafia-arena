@@ -154,12 +154,12 @@ function generatePixelAvatar(seed: string, colors: AvatarColors): string {
           seededRandom(seed, 100 + y * gridSize + x) > 0.5
             ? colors.primary
             : colors.secondary;
-        
+
         // Left side
         pixels.push(
           `<rect x="${x * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${color}" />`
         );
-        
+
         // Right side (mirror)
         pixels.push(
           `<rect x="${(gridSize - x - 1) * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${color}" />`
@@ -203,9 +203,7 @@ function generateGeometricAvatar(seed: string, colors: AvatarColors): string {
         `<line x1="50" y1="50" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="3" opacity="0.7" />`
       );
     }
-    patterns.push(
-      `<circle cx="50" cy="50" r="15" fill="${colors.accent}" />`
-    );
+    patterns.push(`<circle cx="50" cy="50" r="15" fill="${colors.accent}" />`);
   } else {
     // Nested squares
     for (let i = 0; i < 4; i++) {
@@ -258,4 +256,4 @@ export function generateInitialsAvatar(
 
   const base64 = btoa(unescape(encodeURIComponent(svg)));
   return `data:image/svg+xml;base64,${base64}`;
-} 
+}

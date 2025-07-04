@@ -6,12 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Trophy,
   Star,
@@ -24,14 +19,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import type {
-  Achievement,
-  AchievementProgress,
-  UserAchievements,
-} from '@/lib/achievements';
+import type { Achievement, UserAchievements } from '@/lib/achievements';
 import {
   ACHIEVEMENTS,
-  getAchievementById,
   getAchievementsByCategory,
   calculateTotalPoints,
 } from '@/lib/achievements';
@@ -108,7 +98,8 @@ export function AchievementsDisplay({
             {t('achievements.title', 'Achievements')}
           </span>
           <Badge variant="secondary" className="text-lg px-3 py-1">
-            {earnedPoints} / {totalPossiblePoints} {t('achievements.points', 'points')}
+            {earnedPoints} / {totalPossiblePoints}{' '}
+            {t('achievements.points', 'points')}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -149,7 +140,8 @@ export function AchievementsDisplay({
             <TabsTrigger value="milestone" className="text-xs">
               {categoryIcons.milestone}
               <span className="ms-1">
-                {categoryStats.milestone.unlocked}/{categoryStats.milestone.total}
+                {categoryStats.milestone.unlocked}/
+                {categoryStats.milestone.total}
               </span>
             </TabsTrigger>
             <TabsTrigger value="special" className="text-xs">
@@ -210,7 +202,10 @@ export function AchievementsDisplay({
                                     )}
                                   >
                                     {isHidden
-                                      ? t('achievements.hidden', 'Hidden Achievement')
+                                      ? t(
+                                          'achievements.hidden',
+                                          'Hidden Achievement'
+                                        )
                                       : achievement.name}
                                   </h4>
                                   {!isHidden && (
@@ -228,24 +223,36 @@ export function AchievementsDisplay({
                               </div>
 
                               {/* Progress Bar */}
-                              {progress && !isUnlocked && progress.maxProgress > 1 && (
-                                <div className="space-y-1">
-                                  <Progress
-                                    value={(progress.progress / progress.maxProgress) * 100}
-                                    className="h-2"
-                                  />
-                                  <p className="text-xs text-muted-foreground text-end">
-                                    {progress.progress} / {progress.maxProgress}
-                                  </p>
-                                </div>
-                              )}
+                              {progress &&
+                                !isUnlocked &&
+                                progress.maxProgress > 1 && (
+                                  <div className="space-y-1">
+                                    <Progress
+                                      value={
+                                        (progress.progress /
+                                          progress.maxProgress) *
+                                        100
+                                      }
+                                      className="h-2"
+                                    />
+                                    <p className="text-xs text-muted-foreground text-end">
+                                      {progress.progress} /{' '}
+                                      {progress.maxProgress}
+                                    </p>
+                                  </div>
+                                )}
 
                               {/* Unlock Date */}
                               {isUnlocked && progress?.unlockedAt && (
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Star className="w-3 h-3" />
-                                  {t('achievements.unlockedOn', 'Unlocked on')}{' '}
-                                  {new Date(progress.unlockedAt).toLocaleDateString()}
+                                  {t(
+                                    'achievements.unlockedOn',
+                                    'Unlocked on'
+                                  )}{' '}
+                                  {new Date(
+                                    progress.unlockedAt
+                                  ).toLocaleDateString()}
                                 </p>
                               )}
                             </div>
@@ -281,4 +288,4 @@ export function AchievementsDisplay({
       </CardContent>
     </Card>
   );
-} 
+}

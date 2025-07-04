@@ -96,10 +96,10 @@ export function DynamicAvatar({
               size === 'xl'
                 ? '96px'
                 : size === 'lg'
-                ? '64px'
-                : size === 'md'
-                ? '40px'
-                : '32px'
+                  ? '64px'
+                  : size === 'md'
+                    ? '40px'
+                    : '32px'
             }
           />
         ) : generatedAvatar ? (
@@ -154,4 +154,4 @@ export function DynamicAvatar({
       )}
     </div>
   );
-} 
+}
