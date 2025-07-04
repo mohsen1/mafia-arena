@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
-import { LogIn, LogOut, User, Gamepad2, HelpCircle } from 'lucide-react';
+import { LogIn, LogOut, User, Gamepad2, HelpCircle, Menu } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,9 +15,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useEffect, useState } from 'react';
+import { MobileMenu } from '@/components/MobileMenu';
+import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface HeaderProps {
-  currentLang: string;
+  currentLang: LanguageCode;
 }
 
 export function Header({ currentLang }: HeaderProps) {
@@ -25,6 +27,7 @@ export function Header({ currentLang }: HeaderProps) {
   const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Handle scroll effect
   useEffect(() => {
@@ -119,7 +122,7 @@ export function Header({ currentLang }: HeaderProps) {
               // Authenticated User Menu
               <div className="flex items-center space-x-2">
                 <ThemeToggle />
-                <Button asChild>
+                <Button asChild className="hidden sm:flex">
                   <Link href={`/${currentLang}/new`}>
                     <Gamepad2 className="w-4 h-4 me-2" />
                     {t('landingNavPlayNow')}
@@ -224,9 +227,26 @@ export function Header({ currentLang }: HeaderProps) {
                 </Button>
               </div>
             )}
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        currentLang={currentLang}
+      />
     </nav>
   );
 }

@@ -70,10 +70,10 @@ function calculateGameStats(games: GameListItem[]): GameStats {
   completedGames.forEach((game) => {
     const winCondition = game.winCondition as { outcome?: string } | null;
     const outcome = winCondition?.outcome;
-    
+
     // Assuming the player played as Town most of the time
     const playerWon = outcome?.includes('Town');
-    
+
     if (playerWon) {
       totalWins++;
     } else {
@@ -100,10 +100,11 @@ function calculateGameStats(games: GameListItem[]): GameStats {
   );
 
   // Find favorite role
-  const favoriteRole = roleStats.reduce(
-    (fav, curr) => (curr.gamesPlayed > (fav?.gamesPlayed || 0) ? curr : fav),
-    null as RoleStats | null
-  )?.role || null;
+  const favoriteRole =
+    roleStats.reduce(
+      (fav, curr) => (curr.gamesPlayed > (fav?.gamesPlayed || 0) ? curr : fav),
+      null as RoleStats | null
+    )?.role || null;
 
   // Calculate average game duration (placeholder)
   const averageGameDuration = 25; // minutes
@@ -113,12 +114,10 @@ function calculateGameStats(games: GameListItem[]): GameStats {
   const currentStreak = 2;
 
   // Recent performance (last 10 games)
-  const recentPerformance = completedGames
-    .slice(-10)
-    .map((game) => {
-      const winCondition = game.winCondition as { outcome?: string } | null;
-      return winCondition?.outcome?.includes('Town') ? 1 : 0;
-    });
+  const recentPerformance = completedGames.slice(-10).map((game) => {
+    const winCondition = game.winCondition as { outcome?: string } | null;
+    return winCondition?.outcome?.includes('Town') ? 1 : 0;
+  });
 
   return {
     totalGames: games.length,
@@ -126,7 +125,8 @@ function calculateGameStats(games: GameListItem[]): GameStats {
     activeGames: activeGames.length,
     totalWins,
     totalLosses,
-    winRate: completedGames.length > 0 ? (totalWins / completedGames.length) * 100 : 0,
+    winRate:
+      completedGames.length > 0 ? (totalWins / completedGames.length) * 100 : 0,
     favoriteRole,
     averageGameDuration,
     longestStreak,
@@ -136,7 +136,10 @@ function calculateGameStats(games: GameListItem[]): GameStats {
   };
 }
 
-export function GameStatsDashboard({ games, className }: GameStatsDashboardProps) {
+export function GameStatsDashboard({
+  games,
+  className,
+}: GameStatsDashboardProps) {
   const { t } = useTranslation();
   const stats = useMemo(() => calculateGameStats(games), [games]);
 
@@ -168,8 +171,14 @@ export function GameStatsDashboard({ games, className }: GameStatsDashboardProps
       title: t('stats.winRate', 'Win Rate'),
       value: `${Math.round(stats.winRate)}%`,
       icon: stats.winRate >= 50 ? TrendingUp : TrendingDown,
-      color: stats.winRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
-      bgColor: stats.winRate >= 50 ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20',
+      color:
+        stats.winRate >= 50
+          ? 'text-green-600 dark:text-green-400'
+          : 'text-red-600 dark:text-red-400',
+      bgColor:
+        stats.winRate >= 50
+          ? 'bg-green-100 dark:bg-green-900/20'
+          : 'bg-red-100 dark:bg-red-900/20',
     },
     {
       title: t('stats.currentStreak', 'Current Streak'),
@@ -295,7 +304,8 @@ export function GameStatsDashboard({ games, className }: GameStatsDashboardProps
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {roleStat.wins}/{roleStat.gamesPlayed} {t('stats.wins', 'wins')}
+                      {roleStat.wins}/{roleStat.gamesPlayed}{' '}
+                      {t('stats.wins', 'wins')}
                     </div>
                   </div>
                   <Progress
@@ -359,4 +369,4 @@ export function GameStatsDashboard({ games, className }: GameStatsDashboardProps
       </div>
     </div>
   );
-} 
+}
