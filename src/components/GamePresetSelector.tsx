@@ -53,7 +53,7 @@ export function GamePresetSelector({
       icon: <Zap className="w-5 h-5" />,
       playerCount: 5,
       humanPlayer: true,
-      theme: 'CLASSIC',
+      theme: 'UK_VILLAGE_1900S',
       difficulty: 'easy',
       estimatedTime: '10-15 min',
       features: [
@@ -70,7 +70,7 @@ export function GamePresetSelector({
       icon: <Trophy className="w-5 h-5" />,
       playerCount: 7,
       humanPlayer: true,
-      theme: 'CLASSIC',
+      theme: 'UK_VILLAGE_1900S',
       difficulty: 'normal',
       estimatedTime: '20-30 min',
       features: [
@@ -104,7 +104,7 @@ export function GamePresetSelector({
       icon: <Settings className="w-5 h-5" />,
       playerCount: 0,
       humanPlayer: true,
-      theme: 'CLASSIC',
+      theme: 'UK_VILLAGE_1900S',
       difficulty: 'normal',
       estimatedTime: t('gamePresets.custom.time'),
       features: [
