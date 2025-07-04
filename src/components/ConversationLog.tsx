@@ -133,7 +133,7 @@ export function ConversationLog() {
   return (
     <div
       ref={containerRef}
-      className="flex-grow bg-background p-4 overflow-y-auto"
+      className="flex-grow bg-background px-4 py-2 overflow-y-auto"
       onScroll={handleScroll}
     >
       {displayLogMemo.length > 0 ? (
@@ -160,7 +160,7 @@ export function ConversationLog() {
                   key={virtualRow.key}
                   data-index={virtualRow.index}
                   ref={virtualizer.measureElement}
-                  className="pb-4"
+                  className="pb-2"
                 >
                   <MemoizedMessage
                     message={message}

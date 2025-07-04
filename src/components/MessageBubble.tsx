@@ -50,20 +50,20 @@ export const MessageBubble = React.memo(function MessageBubble({
   };
 
   // iMessage-like styling
-  const bubbleClasses = cn(
-    'mb-2 flex max-w-[85%] flex-col rounded-2xl px-4 py-2',
-    {
-      'self-end bg-blue-500 text-white': isHuman,
-      'self-end bg-secondary text-secondary-foreground': isModerator,
-      'self-start bg-muted text-foreground': isPlayerMessage && !isHuman,
-      'border border-red-500/50 bg-red-900/10': isWerewolfChat,
-    }
-  );
+  const bubbleClasses = cn('flex flex-col rounded-2xl px-4 py-2', {
+    'self-end bg-blue-500 text-white max-w-[85%]': isHuman,
+    'self-center bg-transparent text-muted-foreground text-sm italic max-w-[70%] px-0':
+      isModerator,
+    'self-start bg-muted text-foreground max-w-[85%]':
+      isPlayerMessage && !isHuman,
+    'border border-red-500/50 bg-red-900/10': isWerewolfChat,
+  });
 
   // Container for image + bubble
-  const containerClasses = cn('flex items-start gap-2 mb-4', {
+  const containerClasses = cn('flex items-start gap-2 mb-2', {
     'justify-end': isHuman,
     'justify-start': !isHuman,
+    'justify-center': isModerator,
   });
 
   // Use message.senderName directly
@@ -79,17 +79,6 @@ export const MessageBubble = React.memo(function MessageBubble({
           name={speakerPlayer?.name || 'Unknown'}
           role={speakerPlayer?.role}
           imageUrl={speakerPlayer?.imageUrl}
-          size="sm"
-          className="flex-shrink-0"
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Show moderator avatar */}
-      {isModerator && (
-        <DynamicAvatar
-          name="Moderator"
-          imageUrl="/images/characters/mod.png"
           size="sm"
           className="flex-shrink-0"
           aria-hidden="true"

@@ -13,6 +13,7 @@ import { VotingPanel } from '@/components/VotingPanel';
 import { RoleRevealAnimation } from '@/components/RoleRevealAnimation';
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
+import { Header } from '@/components/Header';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -21,6 +22,7 @@ import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
+import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
@@ -34,9 +36,8 @@ interface GameClientProps {
   ) => Promise<FilteredGameState | { error: string }>;
 }
 
-function GameLayout({ gameId }: { gameId: string }) {
+function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const { i18n } = useTranslation();
-  const lang = i18n.language;
   const direction = i18n.dir(lang);
 
   const {
@@ -179,45 +180,48 @@ function GameLayout({ gameId }: { gameId: string }) {
 
       {humanPlayerId ? (
         // Human player view
-        <div className="grid grid-cols-[280px_1fr] h-screen" dir={direction}>
-          <GameSidebar />
-          <main className="grid grid-rows-[1fr_auto] h-screen overflow-hidden">
-            <div className="overflow-y-auto">
-              {error && (
-                <div className="p-4">
-                  <GameErrorDisplay
-                    error={error}
-                    onRetry={() => {
-                      clearError();
-                      runNextTurn();
-                    }}
-                  />
+        <div className="min-h-screen bg-background" dir={direction}>
+          <Header currentLang={lang} />
+          <div className="grid grid-cols-[280px_1fr] h-[calc(100vh-4rem)]">
+            <GameSidebar />
+            <main className="grid grid-rows-[1fr_auto] h-full overflow-hidden">
+              <div className="overflow-y-auto">
+                {error && (
+                  <div className="p-4">
+                    <GameErrorDisplay
+                      error={error}
+                      onRetry={() => {
+                        clearError();
+                        runNextTurn();
+                      }}
+                    />
+                  </div>
+                )}
+                <ConversationLog />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+                  {/* Voting Panel */}
+                  {gameState && humanPlayerId && (
+                    <VotingPanel gameState={gameState} />
+                  )}
+                  {/* Game History */}
+                  {gameState && 'memory' in gameState && (
+                    <GameHistory
+                      gameState={
+                        gameState as FilteredGameState & { memory: AgentMemory }
+                      }
+                      className={
+                        gameState.phase !== 'Day' || !gameState
+                          ? 'lg:col-span-2'
+                          : ''
+                      }
+                    />
+                  )}
                 </div>
-              )}
-              <ConversationLog />
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
-                {/* Voting Panel */}
-                {gameState && humanPlayerId && (
-                  <VotingPanel gameState={gameState} />
-                )}
-                {/* Game History */}
-                {gameState && 'memory' in gameState && (
-                  <GameHistory
-                    gameState={
-                      gameState as FilteredGameState & { memory: AgentMemory }
-                    }
-                    className={
-                      gameState.phase !== 'Day' || !gameState
-                        ? 'lg:col-span-2'
-                        : ''
-                    }
-                  />
-                )}
               </div>
-            </div>
-            <HumanChatInput />
-          </main>
-          <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+              <HumanChatInput />
+            </main>
+            <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+          </div>
         </div>
       ) : (
         // AI-only spectator view
@@ -253,6 +257,7 @@ function GameLayout({ gameId }: { gameId: string }) {
 export default function GameClient({
   initialGameState,
   gameId,
+  lang,
   boundAdvanceGameStateAction,
   boundSubmitHumanAction,
 }: GameClientProps) {
@@ -263,7 +268,7 @@ export default function GameClient({
         boundRunGameTurnAction={boundAdvanceGameStateAction}
         boundSubmitHumanAction={boundSubmitHumanAction}
       >
-        <GameLayout gameId={gameId} />
+        <GameLayout gameId={gameId} lang={lang as LanguageCode} />
       </GameProvider>
     </SpokenTextProvider>
   );
