@@ -116,13 +116,38 @@ export async function generateGameCharactersAction(
         error instanceof Error ? error.stack : 'No stack trace'
       );
 
-      // Return more detailed error message
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Unknown error during persona generation';
+      // Try to extract more specific error information
+      let detailedErrorMessage = 'Character generation failed';
+      
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        
+        // Check for specific error patterns in the error message
+        if (errorMessage.includes('401') || errorMessage.includes('authentication')) {
+          detailedErrorMessage = 'Authentication error - Invalid API key. Please check your Groq API key in environment settings.';
+        } else if (errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+          detailedErrorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        } else if (errorMessage.includes('timeout')) {
+          detailedErrorMessage = 'Request timeout - The AI service is busy. Please try again.';
+        } else if (errorMessage.includes('model') || errorMessage.includes('not found') || errorMessage.includes('not available')) {
+          detailedErrorMessage = 'The selected AI model is not available. Please try a different model.';
+        } else if (errorMessage.includes('ollama') || errorMessage.includes('econnrefused')) {
+          detailedErrorMessage = 'Ollama service is not running. Please start Ollama with: ollama serve';
+        } else if (errorMessage.includes('quota') || errorMessage.includes('insufficient')) {
+          detailedErrorMessage = 'API quota exceeded. Please check your account limits.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          detailedErrorMessage = 'Network error. Please check your internet connection.';
+        } else if (errorMessage.includes('groq')) {
+          // Specific Groq error handling
+          detailedErrorMessage = `Groq API error: ${error.message}`;
+        } else {
+          // Use the original error message if no specific pattern matches
+          detailedErrorMessage = `Character generation failed: ${error.message}`;
+        }
+      }
+
       return {
-        error: `Character generation failed: ${errorMessage}. Please check your API keys and try again.`,
+        error: detailedErrorMessage,
       };
     }
 
