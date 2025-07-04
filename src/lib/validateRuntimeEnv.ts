@@ -12,15 +12,16 @@ export interface RuntimeEnvValidation {
 export function validateRuntimeEnvironment(): RuntimeEnvValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const isVercel = process.env.VERCEL === '1';
 
   // Core requirements
   if (!process.env.DATABASE_URL) {
     errors.push('DATABASE_URL is not set');
-  } else if (!process.env.DATABASE_URL.startsWith('postgresql://')) {
-    errors.push('DATABASE_URL must be a PostgreSQL connection string');
   }
+  // Don't check format - different providers use different formats
 
-  if (!process.env.NEXTAUTH_URL) {
+  // NEXTAUTH_URL is automatically set by Vercel
+  if (!isVercel && !process.env.NEXTAUTH_URL) {
     errors.push('NEXTAUTH_URL is not set');
   }
 
@@ -46,24 +47,17 @@ export function validateRuntimeEnvironment(): RuntimeEnvValidation {
   }
 
   // Validate API key formats
-  if (
-    process.env.GROQ_API_KEY &&
-    !process.env.GROQ_API_KEY.startsWith('gsk_')
-  ) {
+  if (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.startsWith('gsk_')) {
     warnings.push('GROQ_API_KEY should start with "gsk_"');
   }
 
   // Production-specific warnings
   if (process.env.NODE_ENV === 'production') {
     if (!process.env.RESEND_API_KEY) {
-      warnings.push(
-        'RESEND_API_KEY is not set - email functionality will be disabled'
-      );
+      warnings.push('RESEND_API_KEY is not set - email functionality will be disabled');
     }
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      warnings.push(
-        'Rate limiting is not configured (missing KV_REST_API_URL or KV_REST_API_TOKEN)'
-      );
+      warnings.push('Rate limiting is not configured (missing KV_REST_API_URL or KV_REST_API_TOKEN)');
     }
   }
 
