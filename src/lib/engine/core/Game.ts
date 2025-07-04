@@ -899,15 +899,10 @@ export class Game {
         detailedError += `\n• ${error}: ${players.join(', ')}`;
       });
 
-      // Get the most common error for the main message
-      const mainError = Array.from(errorGroups.entries()).sort(
-        (a, b) => b[1].length - a[1].length
-      )[0][0];
-
       console.error(`[Game.ensurePersonasGenerated] ${detailedError}`);
 
-      // Throw error to prevent game from starting
-      throw new Error(mainError);
+      // Throw the detailed error message to preserve error information
+      throw new Error(detailedError.trim());
     }
 
     // Handle duplicate names for successful generations
