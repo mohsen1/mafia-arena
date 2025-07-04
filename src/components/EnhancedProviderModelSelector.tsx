@@ -156,12 +156,15 @@ export const EnhancedProviderModelSelector = React.memo(
               }));
             } catch {
               clearTimeout(timeoutId);
-              
+
               // Retry logic for Ollama
               if (retryCount < 2) {
-                setTimeout(() => {
-                  checkProviderStatus(provider, retryCount + 1);
-                }, 1000 * (retryCount + 1)); // Exponential backoff
+                setTimeout(
+                  () => {
+                    checkProviderStatus(provider, retryCount + 1);
+                  },
+                  1000 * (retryCount + 1)
+                ); // Exponential backoff
               } else {
                 setProviderStatuses((prev) => ({
                   ...prev,
