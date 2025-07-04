@@ -23,7 +23,25 @@ This checklist ensures all required environment variables are properly configure
   - ⚠️ Must be different for each environment
   - ✅ Should be set for: Production, Preview, Development
 
-### 🟡 AI Provider Keys (At least ONE required)
+### 🔴 Required AI Provider Keys (At least ONE is MANDATORY)
+
+**⚠️ IMPORTANT: The build will fail if none of these are set!**
+
+You must provide at least one of the following API keys:
+
+- [ ] `GOOGLE_API_KEY` or `GEMINI_API_KEY`
+  - Required if using Google's Gemini models
+  - Format: Should match `/^[a-zA-Z0-9_-]+$/`
+  - ✅ Should be set for: Production, Preview
+
+- [ ] `GROQ_API_KEY`
+  - Required if using Groq's fast inference
+  - Format: Must start with `gsk_`
+  - ✅ Should be set for: Production, Preview
+
+**Note:** While other AI providers (OpenAI, Anthropic) are supported, at least one of Google/Gemini/Groq is required for the application to build and deploy successfully.
+
+### 🟡 Additional AI Provider Keys (Optional)
 
 - [ ] `OPENAI_API_KEY`
   - Required if using OpenAI models
@@ -31,14 +49,6 @@ This checklist ensures all required environment variables are properly configure
 
 - [ ] `ANTHROPIC_API_KEY`
   - Required if using Claude models
-  - ✅ Should be set for: Production, Preview
-
-- [ ] `GEMINI_API_KEY` or `GOOGLE_API_KEY`
-  - Required if using Google's Gemini models
-  - ✅ Should be set for: Production, Preview
-
-- [ ] `GROQ_API_KEY`
-  - Required if using Groq's fast inference
   - ✅ Should be set for: Production, Preview
 
 ### 🟢 Optional but Recommended

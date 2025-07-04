@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.15.7",
   "scripts": {
     "dev": "next dev -p 3099",
+    "prebuild": "pnpm run verify:env",
     "build": "next build",
     "build:ci": "./scripts/ci-build.sh",
     "start": "next start -p 3099",
@@ -35,6 +36,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:vercel": "tsx scripts/run-migrations.ts",
     "check-db": "tsx scripts/check-db.ts",
+    "verify:env": "tsx scripts/verify-required-env.ts",
     "deploy:check": "./scripts/deployment-recovery.sh",
     "deploy:recover": "./scripts/deployment-recovery.sh --skip-build",
     "deploy:diagnose": "pnpm run deploy:check && echo '\\n📊 Deployment diagnostics complete'",
