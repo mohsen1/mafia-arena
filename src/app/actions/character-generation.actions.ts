@@ -138,17 +138,24 @@ export async function generateGameCharactersAction(
 
       // Check if the persona is still using default/placeholder values
       const persona = updatedPlayer.persona;
+      
+      // The initial placeholder backstory for AI players is exactly this format
+      const expectedPlaceholderBackstory = `A resident of ${theme.name.toLowerCase()}`;
+      
       const isPlaceholder =
         persona.name === player.name || // Still using original name
         persona.name === 'Anonymous Player' || // Default name
         persona.backstory === 'A human player' || // Human placeholder
-        persona.backstory === `A resident of ${theme.name.toLowerCase()}` || // AI placeholder
+        persona.backstory === expectedPlaceholderBackstory || // AI placeholder - exact match
+        persona.backstory === 'Their past is shrouded in mystery.' || // DEFAULT_PERSONA backstory
         !persona.name ||
-        persona.name.trim() === '';
+        persona.name.trim() === '' ||
+        // Check if personality traits are still the placeholder ones
+        (persona.personalityTraits.length === 1 && persona.personalityTraits[0] === 'Mysterious');
 
       if (isPlaceholder) {
         console.log(
-          `[CharacterGen] Player ${player.id} has placeholder persona: name="${persona.name}", backstory="${persona.backstory}"`
+          `[CharacterGen] Player ${player.id} has placeholder persona: name="${persona.name}", backstory="${persona.backstory}", expected placeholder: "${expectedPlaceholderBackstory}"`
         );
       }
 

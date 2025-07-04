@@ -126,6 +126,13 @@ export class OpenAIAgent implements IAgent {
       console.log(
         `[OpenAIAgent.generatePersona] Received response, parsing JSON...`
       );
+      
+      // Log first 200 chars of response for debugging
+      if (isGroq) {
+        console.log(
+          `[OpenAIAgent.generatePersona] Groq response preview: ${responseContent.substring(0, 200)}...`
+        );
+      }
 
       try {
         const parsedPersona = JSON.parse(responseContent) as Persona;
