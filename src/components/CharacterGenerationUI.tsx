@@ -84,7 +84,9 @@ const CharacterCard: React.FC<CharacterCardProps> = ({
           ) : (
             <>
               <div className="flex items-center gap-2 mb-1">
-                <h4 className="font-medium text-sm truncate">{character.name}</h4>
+                <h4 className="font-medium text-sm truncate">
+                  {character.name}
+                </h4>
                 {character.occupation && (
                   <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-md">
                     {character.occupation}
@@ -101,23 +103,26 @@ const CharacterCard: React.FC<CharacterCardProps> = ({
                   ✨ {character.quirk}
                 </p>
               )}
-              {character.personalityTraits && character.personalityTraits.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {character.personalityTraits.slice(0, 3).map((trait, index) => (
-                    <span
-                      key={index}
-                      className="text-xs px-1.5 py-0.5 bg-secondary text-secondary-foreground rounded-md"
-                    >
-                      {trait}
-                    </span>
-                  ))}
-                  {character.personalityTraits.length > 3 && (
-                    <span className="text-xs text-muted-foreground">
-                      +{character.personalityTraits.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
+              {character.personalityTraits &&
+                character.personalityTraits.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {character.personalityTraits
+                      .slice(0, 3)
+                      .map((trait, index) => (
+                        <span
+                          key={index}
+                          className="text-xs px-1.5 py-0.5 bg-secondary text-secondary-foreground rounded-md"
+                        >
+                          {trait}
+                        </span>
+                      ))}
+                    {character.personalityTraits.length > 3 && (
+                      <span className="text-xs text-muted-foreground">
+                        +{character.personalityTraits.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
             </>
           )}
         </div>

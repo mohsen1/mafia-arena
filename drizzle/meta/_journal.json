@@ -22,6 +22,20 @@
       "when": 1735903519000,
       "tag": "0002_update_default_theme",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1735956000000,
+      "tag": "0003_add_achievements",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1735957000000,
+      "tag": "0004_add_game_statistics",
+      "breakpoints": true
     }
   ]
 }
