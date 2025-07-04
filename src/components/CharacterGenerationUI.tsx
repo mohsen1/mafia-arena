@@ -256,7 +256,10 @@ export default function CharacterGenerationUI({
       return;
     }
 
-    const interval = setInterval(async () => {
+    let pollCount = 0;
+    let timeoutId: NodeJS.Timeout;
+
+    const pollProgress = async () => {
       if (isComplete || error || !isGeneratingRef.current) {
         return; // Additional safety check
       }
@@ -271,14 +274,28 @@ export default function CharacterGenerationUI({
 
         if (result.progress >= 100 && !isComplete) {
           setIsComplete(true);
+          return;
         }
+
+        // Exponential backoff: start at 1s, max at 5s
+        pollCount++;
+        const nextDelay = Math.min(1000 * Math.pow(1.5, pollCount - 1), 5000);
+        
+        timeoutId = setTimeout(pollProgress, nextDelay);
       } catch (err) {
         console.error('Error getting progress:', err);
         setError('Failed to get generation progress');
       }
-    }, 1000);
+    };
 
-    return () => clearInterval(interval);
+    // Start polling after initial delay
+    timeoutId = setTimeout(pollProgress, 1000);
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [isGenerating, isComplete, error, gameId]);
 
   // ✅ FIXED: Auto-start generation with proper state guards
