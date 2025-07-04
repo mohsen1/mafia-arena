@@ -91,7 +91,13 @@ export async function generateGameCharactersAction(
       GOOGLE_AI_API_KEY: !!process.env.GOOGLE_AI_API_KEY,
       FIREWORKS_API_KEY: !!process.env.FIREWORKS_API_KEY,
     };
-    console.log('[CharacterGen] Available API keys:', Object.entries(envVars).filter(([, v]) => v).map(([k]) => k).join(', '));
+    console.log(
+      '[CharacterGen] Available API keys:',
+      Object.entries(envVars)
+        .filter(([, v]) => v)
+        .map(([k]) => k)
+        .join(', ')
+    );
 
     // Load game and use the optimized parallel persona generation
     const game = await Game.loadFromState(gameState);
