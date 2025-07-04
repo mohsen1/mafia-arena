@@ -12,6 +12,7 @@ import { useSpokenText } from '@/context/SpokenTextContext';
 import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
+import { DynamicAvatar } from '@/components/ui/dynamic-avatar';
 
 // Define the props using ClientMessage
 interface MessageBubbleProps {
@@ -84,77 +85,61 @@ export function MessageBubble({
 
   return (
     <div className={containerClasses}>
+      {/* Show avatar for non-human, non-moderator messages */}
       {isPlayerMessage && !isHuman && (
-        <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden flex-shrink-0">
-          {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={translatedSpeakerName}
-              width={32}
-              height={32}
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted">
-              <Bot size={18} />
-            </div>
-          )}
-        </div>
+        <DynamicAvatar
+          name={speakerPlayer?.name || 'Unknown'}
+          role={speakerPlayer?.role}
+          imageUrl={speakerPlayer?.imageUrl}
+          size="sm"
+          className="flex-shrink-0"
+        />
       )}
 
-      <div className={bubbleClasses}>
-        <div
-          className={cn('flex items-center gap-2 justify-start', {
-            'justify-end': isHuman || isModerator,
-          })}
-        >
-          <span
-            className={cn(
-              'text-xs font-semibold opacity-80',
-              isHuman ? 'text-blue-100' : 'text-foreground'
-            )}
-          >
-            {translatedSpeakerName}
-          </span>
-          {isPlayerMessage && !isHuman && isAudioGloballyEnabled && (
+      <div className={cn('flex flex-col', isHuman || isModerator ? 'items-end' : 'items-start')}>
+        <div className={bubbleClasses}>
+          {/* Speaker name for non-human messages */}
+          {!isHuman && !isModerator && (
+            <p className="text-xs font-medium mb-1 opacity-70">
+              {speakerDisplayName}
+            </p>
+          )}
+          
+          <p className="text-sm">{message.content}</p>
+          
+          {/* Timestamp */}
+          <p className="text-xs opacity-50 mt-1">
+            {new Date(message.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        </div>
+
+        {/* Audio control */}
+        {isAudioGloballyEnabled && isPlayerMessage && !isHuman && (
+          <div className="mt-1">
             <SpeakText
               voiceId={speakerPlayer?.voiceId}
-              className="text-xs"
-              autoQueue
               onEnd={handleAudioEnd}
+              autoQueue
               disabled={isWerewolfChat}
             >
-              {messageContent}
+              {message.content}
             </SpeakText>
-          )}
-        </div>
-        <p className="text-sm whitespace-pre-wrap">{messageContent}</p>
+          </div>
+        )}
       </div>
 
-      {(isHuman || isModerator) && (
-        <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden flex-shrink-0">
-          {isModerator ? (
-            <Image
-              src="/images/characters/mod.png"
-              alt={t('ModeratorName', { defaultValue: 'Moderator' })}
-              width={32}
-              height={32}
-              className="object-cover"
-            />
-          ) : imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={translatedSpeakerName}
-              width={32}
-              height={32}
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-primary text-primary-foreground">
-              <User size={18} />
-            </div>
-          )}
-        </div>
+      {/* Show avatar for human messages on the right */}
+      {isPlayerMessage && isHuman && speakerPlayer && (
+        <DynamicAvatar
+          name={speakerPlayer.name}
+          role={speakerPlayer.role}
+          imageUrl={speakerPlayer.imageUrl}
+          size="sm"
+          className="flex-shrink-0"
+        />
       )}
     </div>
   );
