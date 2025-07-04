@@ -224,26 +224,29 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
         </div>
       ) : (
         // AI-only spectator view
-        <div className="h-screen overflow-hidden p-2" dir={direction}>
-          {error && (
-            <div className="mb-2">
-              <GameErrorDisplay
-                error={error}
-                onRetry={() => {
-                  clearError();
-                  runNextTurn();
-                }}
+        <div className="min-h-screen bg-background" dir={direction}>
+          <Header currentLang={lang} />
+          <div className="h-[calc(100vh-4rem)] overflow-hidden p-2">
+            {error && (
+              <div className="mb-2">
+                <GameErrorDisplay
+                  error={error}
+                  onRetry={() => {
+                    clearError();
+                    runNextTurn();
+                  }}
+                />
+              </div>
+            )}
+            {gameState && (
+              <SpectatorMode
+                gameState={gameState}
+                messages={gameState.log}
+                className="h-full"
               />
-            </div>
-          )}
-          {gameState && (
-            <SpectatorMode
-              gameState={gameState}
-              messages={gameState.log}
-              className="h-full"
-            />
-          )}
-          <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+            )}
+            <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+          </div>
         </div>
       )}
     </>
