@@ -62,7 +62,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
           imageUrl={player.imageUrl}
           size="md"
           showRole={!!player.roleName}
-          animate={isAlive}
+          animate={false}
         />
         <div
           className={cn(
