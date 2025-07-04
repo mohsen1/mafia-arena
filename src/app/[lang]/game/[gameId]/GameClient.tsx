@@ -12,6 +12,7 @@ import { GameHistory } from '@/components/GameHistory';
 import { VotingPanel } from '@/components/VotingPanel';
 import { RoleRevealAnimation } from '@/components/RoleRevealAnimation';
 import { GameReplay } from '@/components/GameReplay';
+import SpectatorMode from '@/components/SpectatorMode';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -175,96 +176,72 @@ function GameLayout({ gameId }: { gameId: string }) {
       {/* Keyboard shortcuts dialog */}
       <KeyboardShortcutsDialog />
 
-      <div className="grid grid-cols-[280px_1fr] h-screen" dir={direction}>
-        <GameSidebar />
-        <main className="grid grid-rows-[1fr_auto] h-screen overflow-hidden">
-          <div className="overflow-y-auto">
-            {error && (
-              <div className="p-4">
-                <GameErrorDisplay
-                  error={error}
-                  onRetry={() => {
-                    clearError();
-                    runNextTurn();
-                  }}
-                />
-              </div>
-            )}
-            <ConversationLog />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
-              {/* Voting Panel */}
-              {gameState && gameState.phase === 'Day' && (
-                <VotingPanel gameState={gameState} />
-              )}
-              {/* Game History */}
-              {gameState && 'memory' in gameState && (
-                <GameHistory
-                  gameState={
-                    gameState as FilteredGameState & { memory: AgentMemory }
-                  }
-                  className={gameState.phase !== 'Day' ? 'lg:col-span-2' : ''}
-                />
-              )}
-            </div>
-          </div>
-          {humanPlayerId && <HumanChatInput />}
-          {!humanPlayerId && (
-            <div className="p-4 border-t bg-secondary/20">
-              <div className="flex items-center justify-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
-                  <span className="text-sm font-medium text-foreground">
-                    {t('ObservingGame', 'Observing the game...')}
-                  </span>
+      {humanPlayerId ? (
+        // Human player view
+        <div className="grid grid-cols-[280px_1fr] h-screen" dir={direction}>
+          <GameSidebar />
+          <main className="grid grid-rows-[1fr_auto] h-screen overflow-hidden">
+            <div className="overflow-y-auto">
+              {error && (
+                <div className="p-4">
+                  <GameErrorDisplay
+                    error={error}
+                    onRetry={() => {
+                      clearError();
+                      runNextTurn();
+                    }}
+                  />
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {gameState?.phase && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md">
-                      AI Auto Mode • {gameState.phase}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="text-center text-xs text-muted-foreground mt-2">
-                {gameState?.phase === 'Day' ? (
-                  <div className="space-y-1">
-                    <div>
-                      {t(
-                        'AutoModeDescriptionDay',
-                        'AI agents are discussing and voting strategically'
-                      )}
-                    </div>
-                    <div className="text-xs opacity-75">
-                      💭 Analyzing suspicions • 🗳️ Making elimination decisions
-                    </div>
-                  </div>
-                ) : gameState?.phase === 'Night' ? (
-                  <div className="space-y-1">
-                    <div>
-                      {t(
-                        'AutoModeDescriptionNight',
-                        'AI agents are using their special abilities'
-                      )}
-                    </div>
-                    <div className="text-xs opacity-75">
-                      🎯 Mafia targeting • 🛡️ Doctor protecting • 🔍 Seer
-                      investigating
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    {t(
-                      'AutoModeDescription',
-                      'AI agents are making decisions automatically'
-                    )}
-                  </div>
+              )}
+              <ConversationLog />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+                {/* Voting Panel */}
+                {gameState && gameState.phase === 'Day' && (
+                  <VotingPanel gameState={gameState} />
+                )}
+                {/* Game History */}
+                {gameState && 'memory' in gameState && (
+                  <GameHistory
+                    gameState={
+                      gameState as FilteredGameState & { memory: AgentMemory }
+                    }
+                    className={gameState.phase !== 'Day' ? 'lg:col-span-2' : ''}
+                  />
                 )}
               </div>
             </div>
+            <HumanChatInput />
+          </main>
+          <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+        </div>
+      ) : (
+        // AI-only spectator view
+        <div className="h-screen overflow-hidden p-4" dir={direction}>
+          {error && (
+            <div className="mb-4">
+              <GameErrorDisplay
+                error={error}
+                onRetry={() => {
+                  clearError();
+                  runNextTurn();
+                }}
+              />
+            </div>
           )}
-        </main>
-        <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
-      </div>
+          {gameState && (
+            <SpectatorMode
+              gameState={gameState}
+              messages={gameState.log}
+              onSpeedChange={(speed) => {
+                // TODO: Implement game speed control
+                console.log('Speed changed to:', speed);
+              }}
+              className="h-full"
+            />
+          )}
+          <AutoSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+        </div>
+      )}
     </>
   );
 }
