@@ -100,7 +100,7 @@ export function PhaseTransitionNotification({
   phase,
   round,
   show,
-  duration = 3000,
+  duration = 2000,
 }: PhaseTransitionNotificationProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -127,7 +127,7 @@ export function PhaseTransitionNotification({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: -20 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
         >
           <div
             className={cn(
