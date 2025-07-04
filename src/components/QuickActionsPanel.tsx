@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { 
-  MessageSquare, 
-  Vote, 
-  Shield, 
-  Eye, 
+import {
+  MessageSquare,
+  Vote,
+  Shield,
+  Eye,
   Sword,
   Zap,
   ChevronRight,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +37,7 @@ interface QuickAction {
 
 export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
   const { t } = useTranslation();
-  const { submitHumanAction } = useGameContext();
+  const {} = useGameContext(); // Will use submitHumanAction later when implementing actions
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
   const humanPlayerId = gameState.humanPlayerId;
@@ -45,19 +45,19 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
   const isAlive = humanPlayer?.status === 'Alive';
   const currentPhase = gameState.phase;
 
-  // Quick message templates based on phase
-  const messageTemplates = {
-    Day: [
-      t('QuickMessage.Suspicious', "I find {{player}}'s behavior suspicious"),
-      t('QuickMessage.Trust', "I trust {{player}}, they seem genuine"),
-      t('QuickMessage.NeedInfo', "We need more information before voting"),
-      t('QuickMessage.Agree', "I agree with the previous statement"),
-    ],
-    Night: [
-      t('QuickMessage.Quiet', "It's awfully quiet tonight..."),
-      t('QuickMessage.Worried', "I'm worried about tomorrow"),
-    ],
-  };
+  // Quick message templates based on phase - will be used in future implementation
+  // const messageTemplates = {
+  //   Day: [
+  //     t('QuickMessage.Suspicious', "I find {{player}}'s behavior suspicious"),
+  //     t('QuickMessage.Trust', 'I trust {{player}}, they seem genuine'),
+  //     t('QuickMessage.NeedInfo', 'We need more information before voting'),
+  //     t('QuickMessage.Agree', 'I agree with the previous statement'),
+  //   ],
+  //   Night: [
+  //     t('QuickMessage.Quiet', "It's awfully quiet tonight..."),
+  //     t('QuickMessage.Worried', "I'm worried about tomorrow"),
+  //   ],
+  // };
 
   const quickActions: QuickAction[] = [
     {
@@ -69,7 +69,8 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
         // Show message templates
         setSelectedAction('message');
       },
-      available: isAlive && (currentPhase === 'Day' || currentPhase === 'Night'),
+      available:
+        isAlive && (currentPhase === 'Day' || currentPhase === 'Night'),
       description: t('QuickAction.MessageDesc', 'Send a pre-written message'),
     },
     {
@@ -81,8 +82,11 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
         // Show voting UI
         setSelectedAction('vote');
       },
-      available: isAlive && currentPhase === 'Day' && 
-        (gameState.pendingHumanAction?.allowedActions?.includes('vote') ?? false),
+      available:
+        isAlive &&
+        currentPhase === 'Day' &&
+        (gameState.pendingHumanAction?.allowedActions?.includes('vote') ??
+          false),
       description: t('QuickAction.VoteDesc', 'Vote to eliminate a player'),
     },
     {
@@ -93,9 +97,16 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       action: () => {
         setSelectedAction('protect');
       },
-      available: isAlive && humanPlayer?.role === 'Doctor' && currentPhase === 'Night' &&
-        (gameState.pendingHumanAction?.allowedActions?.includes('doctorSave') ?? false),
-      description: t('QuickAction.ProtectDesc', 'Save someone from elimination'),
+      available:
+        isAlive &&
+        humanPlayer?.role === 'Doctor' &&
+        currentPhase === 'Night' &&
+        (gameState.pendingHumanAction?.allowedActions?.includes('doctorSave') ??
+          false),
+      description: t(
+        'QuickAction.ProtectDesc',
+        'Save someone from elimination'
+      ),
     },
     {
       id: 'investigate',
@@ -105,9 +116,18 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       action: () => {
         setSelectedAction('investigate');
       },
-      available: isAlive && humanPlayer?.role === 'Seer' && currentPhase === 'Night' &&
-        (gameState.pendingHumanAction?.allowedActions?.includes('seerInvestigate') ?? false),
-      description: t('QuickAction.InvestigateDesc', 'Learn a player\'s allegiance'),
+      available:
+        isAlive &&
+        humanPlayer?.role === 'Seer' &&
+        currentPhase === 'Night' &&
+        (gameState.pendingHumanAction?.allowedActions?.includes(
+          'seerInvestigate'
+        ) ??
+          false),
+      description: t(
+        'QuickAction.InvestigateDesc',
+        "Learn a player's allegiance"
+      ),
     },
     {
       id: 'eliminate',
@@ -117,20 +137,24 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       action: () => {
         setSelectedAction('eliminate');
       },
-      available: isAlive && humanPlayer?.isMafia === true && currentPhase === 'Night' &&
-        (gameState.pendingHumanAction?.allowedActions?.includes('mafiaKill') ?? false),
+      available:
+        isAlive &&
+        humanPlayer?.isMafia === true &&
+        currentPhase === 'Night' &&
+        (gameState.pendingHumanAction?.allowedActions?.includes('mafiaKill') ??
+          false),
       description: t('QuickAction.EliminateDesc', 'Choose elimination target'),
     },
   ];
 
-  const availableActions = quickActions.filter(action => action.available);
+  const availableActions = quickActions.filter((action) => action.available);
 
   if (availableActions.length === 0) {
     return null;
   }
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn('overflow-hidden', className)}>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <Zap className="w-4 h-4" />
@@ -153,9 +177,9 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
                 size="sm"
                 onClick={action.action}
                 className={cn(
-                  "w-full justify-start gap-2 text-left",
-                  "hover:border-primary/50",
-                  selectedAction === action.id && "border-primary bg-primary/10"
+                  'w-full justify-start gap-2 text-left',
+                  'hover:border-primary/50',
+                  selectedAction === action.id && 'border-primary bg-primary/10'
                 )}
               >
                 <span className={action.color}>{action.icon}</span>
@@ -177,10 +201,12 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
         <div className="mt-3 pt-3 border-t">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Sparkles className="w-3 h-3" />
-            <span>{t('QuickActionsHint', 'Use number keys 1-5 for quick access')}</span>
+            <span>
+              {t('QuickActionsHint', 'Use number keys 1-5 for quick access')}
+            </span>
           </div>
         </div>
       </CardContent>
     </Card>
   );
-} 
+}

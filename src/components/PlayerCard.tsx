@@ -16,6 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { DynamicAvatar } from '@/components/ui/dynamic-avatar';
+import { PlayerActivityIndicator } from '@/components/PlayerActivityIndicator';
 
 interface PlayerCardProps {
   player: FilteredPlayer;

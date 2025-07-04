@@ -41,7 +41,8 @@ export function GameTimer() {
 
     // Reset timer when phase changes
     setPhaseStartTime(Date.now());
-    const timeLimit = PHASE_TIME_LIMITS[gameState.phase as keyof PhaseTimeConfig] || 0;
+    const timeLimit =
+      PHASE_TIME_LIMITS[gameState.phase as keyof PhaseTimeConfig] || 0;
     setTimeRemaining(timeLimit);
 
     if (timeLimit === 0) return; // No timer for this phase
@@ -64,12 +65,19 @@ export function GameTimer() {
     return () => clearInterval(interval);
   }, [gameState?.phase, phaseStartTime]);
 
-  if (!gameState || gameState.phase === 'GameOver' || timeRemaining === 0 && PHASE_TIME_LIMITS[gameState.phase as keyof PhaseTimeConfig] === 0) {
+  if (
+    !gameState ||
+    gameState.phase === 'GameOver' ||
+    (timeRemaining === 0 &&
+      PHASE_TIME_LIMITS[gameState.phase as keyof PhaseTimeConfig] === 0)
+  ) {
     return null;
   }
 
-  const timeLimit = PHASE_TIME_LIMITS[gameState.phase as keyof PhaseTimeConfig] || 0;
-  const progress = timeLimit > 0 ? ((timeLimit - timeRemaining) / timeLimit) * 100 : 0;
+  const timeLimit =
+    PHASE_TIME_LIMITS[gameState.phase as keyof PhaseTimeConfig] || 0;
+  const progress =
+    timeLimit > 0 ? ((timeLimit - timeRemaining) / timeLimit) * 100 : 0;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -78,11 +86,13 @@ export function GameTimer() {
   };
 
   return (
-    <Card className={cn(
-      "p-3 transition-all duration-300",
-      isWarning && "border-yellow-500 bg-yellow-500/10",
-      isCritical && "border-red-500 bg-red-500/10 animate-pulse"
-    )}>
+    <Card
+      className={cn(
+        'p-3 transition-all duration-300',
+        isWarning && 'border-yellow-500 bg-yellow-500/10',
+        isCritical && 'border-red-500 bg-red-500/10 animate-pulse'
+      )}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {isCritical ? (
@@ -94,24 +104,26 @@ export function GameTimer() {
             {t('PhaseTimer', 'Phase Timer')}
           </span>
         </div>
-        <div className={cn(
-          "text-lg font-mono font-bold",
-          isWarning && "text-yellow-500",
-          isCritical && "text-red-500"
-        )}>
+        <div
+          className={cn(
+            'text-lg font-mono font-bold',
+            isWarning && 'text-yellow-500',
+            isCritical && 'text-red-500'
+          )}
+        >
           {formatTime(timeRemaining)}
         </div>
       </div>
       {timeLimit > 0 && (
-        <Progress 
-          value={progress} 
+        <Progress
+          value={progress}
           className={cn(
-            "mt-2 h-2",
-            isWarning && "[&>*]:bg-yellow-500",
-            isCritical && "[&>*]:bg-red-500"
+            'mt-2 h-2',
+            isWarning && '[&>*]:bg-yellow-500',
+            isCritical && '[&>*]:bg-red-500'
           )}
         />
       )}
     </Card>
   );
-} 
+}

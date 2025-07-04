@@ -12,6 +12,7 @@ import { VotingPanel } from '@/components/VotingPanel';
 import { RoleRevealToast } from '@/components/RoleRevealToast';
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
+import { GameStatsTracker } from '@/components/GameStatsTracker';
 import { Header } from '@/components/Header';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
@@ -195,17 +196,17 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                   {gameState && humanPlayerId && (
                     <VotingPanel gameState={gameState} />
                   )}
+                  {/* Game Statistics */}
+                  {gameState && (
+                    <GameStatsTracker gameState={gameState} />
+                  )}
                   {/* Game History */}
                   {gameState && 'memory' in gameState && (
                     <GameHistory
                       gameState={
                         gameState as FilteredGameState & { memory: AgentMemory }
                       }
-                      className={
-                        gameState.phase !== 'Day' || !gameState
-                          ? 'lg:col-span-2'
-                          : ''
-                      }
+                      className="lg:col-span-2"
                     />
                   )}
                 </div>

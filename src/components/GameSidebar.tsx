@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { GameHeader } from './GameHeader';
 import { GameTimer } from './GameTimer';
 import { QuickActionsPanel } from './QuickActionsPanel';
+import { RoleTipsPanel } from './RoleTipsPanel';
 
 export function GameSidebar() {
   const { gameState } = useGameContext();
@@ -82,6 +83,13 @@ export function GameSidebar() {
         {gameState && (
           <div className="mb-4">
             <QuickActionsPanel gameState={gameState} />
+          </div>
+        )}
+
+        {/* Role Tips */}
+        {gameState && (
+          <div className="mb-4">
+            <RoleTipsPanel gameState={gameState} />
           </div>
         )}
         <div className="space-y-4">
