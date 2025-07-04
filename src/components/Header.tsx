@@ -29,6 +29,14 @@ export function Header({ currentLang }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Debug session status in production
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[Header] Session status:', status);
+      console.log('[Header] Session data:', session);
+    }
+  }, [status, session]);
+
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
@@ -203,10 +211,15 @@ export function Header({ currentLang }: HeaderProps) {
                 </DropdownMenu>
               </div>
             ) : (
-              // Guest User Buttons
+              // Guest User Buttons - Show when not loading AND no session
               <div className="flex items-center space-x-2">
                 <ThemeToggle />
-                <Button variant="ghost" size="sm" asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="hidden sm:inline-flex"
+                >
                   <Link href={`/${currentLang}/help`}>
                     <HelpCircle className="w-4 h-4" />
                   </Link>
@@ -217,9 +230,10 @@ export function Header({ currentLang }: HeaderProps) {
                   className="flex items-center"
                 >
                   <LogIn className="w-4 h-4 me-2" />
-                  {t('common.signIn')}
+                  <span className="hidden sm:inline">{t('common.signIn')}</span>
+                  <span className="sm:hidden">{t('common.signIn')}</span>
                 </Button>
-                <Button asChild className="flex items-center">
+                <Button asChild className="hidden sm:flex items-center">
                   <Link href={`/${currentLang}/auth/signup`}>
                     <User className="w-4 h-4 me-2" />
                     {t('common.signUp')}
