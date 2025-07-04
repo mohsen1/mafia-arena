@@ -139,7 +139,7 @@ export const authOptions: NextAuthOptions = {
                 email: email,
                 name: user.name || profile?.name || null,
                 image: user.image || profile?.image || null,
-                emailVerified: new Date(),
+                emailVerified: new Date(), // OAuth providers verify email
               })
               .returning();
 
@@ -147,7 +147,13 @@ export const authOptions: NextAuthOptions = {
             user.id = newUser.id;
           } else {
             // Update existing user's image and name if they don't have one
-            const updates: Record<string, string> = {};
+            const updates: Record<string, any> = {};
+            
+            // If user signed up with password but not verified, verify them now
+            if (!existingUser.emailVerified) {
+              updates.emailVerified = new Date();
+            }
+            
             if (!existingUser.image && (user.image || profile?.image)) {
               updates.image = (user.image || profile?.image) as string;
             }
@@ -173,6 +179,25 @@ export const authOptions: NextAuthOptions = {
         } catch (error) {
           console.error('Error saving OAuth user:', error);
           return false;
+        }
+      }
+
+      // For credentials provider, check if email is verified
+      if (account?.provider === 'credentials' && user?.email) {
+        try {
+          const [dbUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, user.email))
+            .limit(1);
+          
+          // For now, allow login even if email is not verified
+          // In a production app, you might want to require verification
+          if (dbUser && !dbUser.emailVerified) {
+            console.log(`User ${user.email} logged in but email not verified`);
+          }
+        } catch (error) {
+          console.error('Error checking email verification:', error);
         }
       }
 

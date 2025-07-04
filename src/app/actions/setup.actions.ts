@@ -156,7 +156,10 @@ export async function startGameAction(
           console.log('[startGameAction] Found existing dev user:', userId);
         } else {
           // Create dev user if it doesn't exist
-          console.log('[startGameAction] Creating new dev user with email:', DEV_USER_EMAIL);
+          console.log(
+            '[startGameAction] Creating new dev user with email:',
+            DEV_USER_EMAIL
+          );
           const [newDevUser] = await db
             .insert(users)
             .values({
@@ -180,7 +183,9 @@ export async function startGameAction(
           error
         );
         // Don't continue without a valid user ID
-        throw new Error('Failed to create or retrieve dev user for game creation');
+        throw new Error(
+          'Failed to create or retrieve dev user for game creation'
+        );
       }
     }
 
@@ -196,19 +201,25 @@ export async function startGameAction(
       const { db } = await import('@/lib/db/config');
       const { users } = await import('@/lib/db/schema');
       const { eq } = await import('drizzle-orm');
-      
+
       const [userExists] = await db
         .select({ id: users.id })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
-        
+
       if (!userExists) {
-        console.error('[startGameAction] User ID does not exist in database:', userId);
+        console.error(
+          '[startGameAction] User ID does not exist in database:',
+          userId
+        );
         throw new Error('User not found in database');
       }
     } catch (error) {
-      console.error('[startGameAction] Failed to verify user existence:', error);
+      console.error(
+        '[startGameAction] Failed to verify user existence:',
+        error
+      );
       throw new Error('Failed to verify user account');
     }
 

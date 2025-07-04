@@ -41,6 +41,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,6 +54,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       const result = await signUpAction(formData);
@@ -60,6 +62,11 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
       if (!result.success) {
         setError(result.error ? t(result.error) : t('signUp.unexpectedError'));
         return;
+      }
+
+      // Show message if OAuth account was updated
+      if (result.message) {
+        setSuccessMessage(t(result.message));
       }
 
       // Sign in the user after successful registration
@@ -107,6 +114,12 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {successMessage && (
+              <Alert>
+                <AlertDescription>{successMessage}</AlertDescription>
               </Alert>
             )}
 

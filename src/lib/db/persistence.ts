@@ -94,7 +94,7 @@ export async function createGameData(
     console.log('[createGameData] Game saved successfully to database');
   } catch (error) {
     console.error('[createGameData] Database error:', error);
-    
+
     // Check for foreign key constraint error
     if (error instanceof Error) {
       if (error.message.includes('games_owner_id_user_id_fk')) {
@@ -103,7 +103,7 @@ export async function createGameData(
         );
       }
     }
-    
+
     throw error;
   }
 }
