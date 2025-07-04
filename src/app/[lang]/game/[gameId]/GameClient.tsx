@@ -225,9 +225,9 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
         </div>
       ) : (
         // AI-only spectator view
-        <div className="h-screen overflow-hidden p-4" dir={direction}>
+        <div className="h-screen overflow-hidden p-2" dir={direction}>
           {error && (
-            <div className="mb-4">
+            <div className="mb-2">
               <GameErrorDisplay
                 error={error}
                 onRetry={() => {
