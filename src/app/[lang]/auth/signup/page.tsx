@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import Link from 'next/link';
 import { ArrowLeft, Eye, EyeOff, UserPlus, Github } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
@@ -276,6 +277,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
           </CardContent>
         </Card>
       </div>
+      <Footer currentLang={lang} />
     </div>
   );
 }

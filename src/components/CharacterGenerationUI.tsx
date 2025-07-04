@@ -13,6 +13,9 @@ import {
   CheckCircle2,
   AlertCircle,
   User,
+  Eye,
+  EyeOff,
+  Code,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -22,6 +25,7 @@ import {
 } from '@/app/actions/character-generation.actions';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import { cn } from '@/lib/utils';
+import { getPersonaGenerationPrompt } from '@/lib/engine/prompts';
 
 interface CharacterGenerationUIProps {
   gameId: string;
@@ -38,19 +42,34 @@ interface CharacterCardProps {
     occupation?: string;
     quirk?: string;
     personalityTraits?: string[];
+    provider?: string;
+    model?: string;
   };
   isLoading?: boolean;
+  currentProvider?: string;
+  currentModel?: string;
 }
 
 const CharacterCard: React.FC<CharacterCardProps> = ({
   character,
   isLoading,
+  currentProvider,
+  currentModel,
 }) => {
+  const getStatusIcon = () => {
+    if (isLoading) {
+      return <Loader2 className="w-5 h-5 animate-spin text-primary" />;
+    }
+    return <CheckCircle2 className="w-5 h-5 text-primary" />;
+  };
+
   return (
     <div
       className={cn(
         'relative bg-card rounded-lg p-4 transition-all duration-300',
-        isLoading ? 'animate-pulse' : 'animate-in fade-in-50 zoom-in-95'
+        isLoading
+          ? 'animate-pulse border-primary/20 border'
+          : 'animate-in fade-in-50 zoom-in-95'
       )}
     >
       <div className="flex items-start gap-3">
@@ -69,8 +88,8 @@ const CharacterCard: React.FC<CharacterCardProps> = ({
             </div>
           )}
           {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full">
+              <Sparkles className="w-5 h-5 animate-pulse text-primary" />
             </div>
           )}
         </div>
@@ -80,6 +99,14 @@ const CharacterCard: React.FC<CharacterCardProps> = ({
             <>
               <div className="h-4 bg-secondary rounded animate-pulse mb-1 w-3/4"></div>
               <div className="h-3 bg-secondary rounded animate-pulse w-1/2"></div>
+              {currentProvider && currentModel && (
+                <div className="flex items-center gap-1 mt-1">
+                  <Sparkles className="w-3 h-3 text-primary animate-pulse" />
+                  <span className="text-xs text-muted-foreground">
+                    {currentProvider} ({currentModel})
+                  </span>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -123,13 +150,19 @@ const CharacterCard: React.FC<CharacterCardProps> = ({
                     )}
                   </div>
                 )}
+              {character.provider && character.model && (
+                <div className="flex items-center gap-1 mt-1">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  <span className="text-xs text-muted-foreground">
+                    {character.provider} ({character.model})
+                  </span>
+                </div>
+              )}
             </>
           )}
         </div>
 
-        {!isLoading && (
-          <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-        )}
+        <div className="flex-shrink-0">{getStatusIcon()}</div>
       </div>
     </div>
   );
@@ -152,6 +185,12 @@ export default function CharacterGenerationUI({
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [currentPrompt, setCurrentPrompt] = useState<string>('');
+  const [gameTheme, setGameTheme] = useState<{
+    name: string;
+    description: string;
+  } | null>(null);
 
   // ✅ FIXED: Use refs for stable callback references
   const onCompleteRef = useRef(onComplete);
@@ -312,7 +351,46 @@ export default function CharacterGenerationUI({
     }
   }, [progress.progress, isGenerating, error, isComplete, startGeneration]);
 
+  // Fetch game theme for prompt display
+  useEffect(() => {
+    const fetchGameTheme = async () => {
+      try {
+        // This is a simplified approach - in production, you'd want to get this from the game state
+        const response = await fetch(`/api/games/${gameId}/theme`).catch(
+          () => null
+        );
+        if (response && response.ok) {
+          const theme = await response.json();
+          setGameTheme(theme);
+        }
+      } catch (error) {
+        console.error('Failed to fetch game theme:', error);
+      }
+    };
+
+    fetchGameTheme();
+  }, [gameId]);
+
+  // Update current prompt when progress changes
+  useEffect(() => {
+    if (progress.currentCharacterName && gameTheme) {
+      const existingNames = progress.characters?.map((c) => c.name) || [];
+      const prompt = getPersonaGenerationPrompt(
+        `${gameTheme.name}: ${gameTheme.description}`,
+        'English', // This should come from game state
+        existingNames
+      );
+      setCurrentPrompt(prompt);
+    }
+  }, [progress.currentCharacterName, progress.characters, gameTheme]);
+
   if (error) {
+    // Parse error to extract specific details
+    const errorLines = error.split('\n');
+    const isMultiCharacterError = error.includes(
+      'Character generation failed for'
+    );
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md mx-4">
@@ -323,7 +401,42 @@ export default function CharacterGenerationUI({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-center text-muted-foreground">{error}</p>
+            <div className="text-center space-y-2">
+              {isMultiCharacterError ? (
+                <div className="space-y-2">
+                  <p className="font-medium text-muted-foreground">
+                    {errorLines[0]}
+                  </p>
+                  {errorLines.slice(1).map(
+                    (line, index) =>
+                      line.trim() && (
+                        <p
+                          key={index}
+                          className="text-sm text-muted-foreground"
+                        >
+                          {line}
+                        </p>
+                      )
+                  )}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">{error}</p>
+              )}
+
+              {/* Show which model failed if available */}
+              {progress.currentCharacterProvider &&
+                progress.currentCharacterModel && (
+                  <div className="mt-2 p-2 bg-secondary/20 rounded-md">
+                    <p className="text-xs text-muted-foreground">
+                      Failed while using:{' '}
+                      <span className="font-medium">
+                        {progress.currentCharacterProvider} (
+                        {progress.currentCharacterModel})
+                      </span>
+                    </p>
+                  </div>
+                )}
+            </div>
 
             {/* Add helpful suggestions based on error type */}
             <div className="bg-secondary/20 rounded-md p-3 space-y-2">
@@ -346,39 +459,103 @@ export default function CharacterGenerationUI({
                         ollama list
                       </code>
                     </li>
+                    <li>
+                      • Pull the required model:{' '}
+                      <code className="text-xs bg-secondary px-1 py-0.5 rounded">
+                        ollama pull {progress.currentCharacterModel || 'llama2'}
+                      </code>
+                    </li>
                   </>
                 )}
                 {(error.includes('API key') ||
-                  error.includes('AUTH_ERROR')) && (
-                  <li>• Check your API key in the environment settings</li>
+                  error.includes('AUTH_ERROR') ||
+                  error.includes('401')) && (
+                  <>
+                    <li>• Check your API key in the profile settings</li>
+                    {progress.currentCharacterProvider && (
+                      <li>
+                        • Verify your {progress.currentCharacterProvider} API
+                        key is valid and has credits
+                      </li>
+                    )}
+                    <li>
+                      • Consider using a different AI provider temporarily
+                    </li>
+                  </>
                 )}
                 {(error.includes('Rate limit') ||
-                  error.includes('RATE_LIMIT')) && (
-                  <li>
-                    • Wait a moment before trying again (rate limit exceeded)
-                  </li>
+                  error.includes('RATE_LIMIT') ||
+                  error.includes('429')) && (
+                  <>
+                    <li>
+                      • Wait a moment before trying again (rate limit exceeded)
+                    </li>
+                    {progress.currentCharacterProvider === 'groq' && (
+                      <li>
+                        • Groq has strict rate limits - try spacing out requests
+                      </li>
+                    )}
+                    <li>
+                      • Consider using a different AI provider with higher
+                      limits
+                    </li>
+                  </>
                 )}
                 {(error.includes('timeout') || error.includes('TIMEOUT')) && (
-                  <li>
-                    • The AI service is busy, please try again in a moment
-                  </li>
+                  <>
+                    <li>
+                      • The AI service is busy, please try again in a moment
+                    </li>
+                    <li>• Check your internet connection</li>
+                    <li>• Try a different model or provider</li>
+                  </>
                 )}
                 {(error.includes('model') ||
                   error.includes('MODEL_NOT_FOUND')) && (
-                  <li>
-                    • The selected AI model is not available, try a different
-                    model
-                  </li>
+                  <>
+                    <li>
+                      • The model &quot;{progress.currentCharacterModel}&quot; is not
+                      available
+                    </li>
+                    <li>• Select a different model in the game setup</li>
+                    {progress.currentCharacterProvider === 'ollama' && (
+                      <li>• For Ollama, ensure the model is pulled locally</li>
+                    )}
+                  </>
                 )}
                 {(error.includes('quota') ||
                   error.includes('QUOTA_EXCEEDED')) && (
-                  <li>
-                    • Your API quota has been exceeded, check your account
-                    limits
-                  </li>
+                  <>
+                    <li>• Your API quota has been exceeded</li>
+                    <li>
+                      • Check your {progress.currentCharacterProvider} account
+                      for usage limits
+                    </li>
+                    <li>
+                      • Consider upgrading your plan or using a different
+                      provider
+                    </li>
+                  </>
                 )}
+                {(error.includes('network') ||
+                  error.includes('ECONNREFUSED')) && (
+                  <>
+                    <li>• Check your internet connection</li>
+                    <li>• Verify the AI service is accessible</li>
+                    {progress.currentCharacterProvider === 'ollama' && (
+                      <li>
+                        • Ensure Ollama is running on the correct port (default:
+                        11434)
+                      </li>
+                    )}
+                  </>
+                )}
+                {/* Generic suggestions */}
                 <li>• Try using a different AI model or provider</li>
                 <li>• Return to the game setup to adjust settings</li>
+                {isMultiCharacterError && (
+                  <li>• Consider reducing the number of AI players</li>
+                )}
               </ul>
             </div>
 
@@ -454,6 +631,45 @@ export default function CharacterGenerationUI({
                 )}
               </span>
             </div>
+
+            {/* Detailed progress information */}
+            {progress.currentCharacterName && (
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span className="text-primary">
+                  {t(
+                    'character-generation.current-character',
+                    'Creating: {{name}}',
+                    { name: progress.currentCharacterName }
+                  )}
+                </span>
+                {progress.currentCharacterProvider &&
+                  progress.currentCharacterModel && (
+                    <span className="text-xs text-muted-foreground">
+                      ({progress.currentCharacterProvider} -{' '}
+                      {progress.currentCharacterModel})
+                    </span>
+                  )}
+              </div>
+            )}
+
+            {/* Estimated time remaining */}
+            {progress.totalCharacters > 0 &&
+              progress.completedCharacters < progress.totalCharacters && (
+                <div className="text-xs text-muted-foreground">
+                  {t(
+                    'character-generation.estimated-time',
+                    'Estimated time: {{minutes}} minutes',
+                    {
+                      minutes: Math.ceil(
+                        (progress.totalCharacters -
+                          progress.completedCharacters) *
+                          0.5
+                      ),
+                    }
+                  )}
+                </div>
+              )}
           </div>
 
           <div className="space-y-2">
@@ -463,6 +679,59 @@ export default function CharacterGenerationUI({
             </div>
             <Progress value={progress.progress} className="w-full h-2" />
           </div>
+
+          {/* Prompt Display Toggle */}
+          {progress.currentCharacterName &&
+            progress.currentCharacterProvider && (
+              <div className="space-y-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPrompt(!showPrompt)}
+                  className="flex items-center gap-2 text-xs"
+                >
+                  {showPrompt ? (
+                    <>
+                      <EyeOff className="w-3 h-3" />
+                      {t('character-generation.hide-prompt', 'Hide Prompt')}
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-3 h-3" />
+                      {t('character-generation.show-prompt', 'Show Prompt')}
+                    </>
+                  )}
+                </Button>
+
+                {showPrompt && currentPrompt && (
+                  <Card className="bg-secondary/10 border-secondary/20">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Code className="w-4 h-4" />
+                        {t('character-generation.prompt-title', 'AI Prompt')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-3 space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        {t(
+                          'character-generation.prompt-description',
+                          'This is the prompt being sent to {{provider}} ({{model}}) to generate the character:',
+                          {
+                            provider: progress.currentCharacterProvider,
+                            model: progress.currentCharacterModel,
+                          }
+                        )}
+                      </p>
+                      <div className="bg-background/50 rounded-md p-3 max-h-40 overflow-y-auto">
+                        <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground">
+                          {currentPrompt}
+                        </pre>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
 
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">
@@ -484,6 +753,8 @@ export default function CharacterGenerationUI({
                     imageUrl: null,
                   }}
                   isLoading
+                  currentProvider={progress.currentCharacterProvider}
+                  currentModel={progress.currentCharacterModel}
                 />
               )}
 

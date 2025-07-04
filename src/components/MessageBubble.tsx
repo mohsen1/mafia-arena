@@ -12,7 +12,6 @@ import { useSpokenText } from '@/context/SpokenTextContext';
 import { useTranslation } from 'react-i18next';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { DynamicAvatar } from '@/components/ui/dynamic-avatar';
-import { Gavel } from 'lucide-react';
 
 // Define the props using ClientMessage
 interface MessageBubbleProps {
