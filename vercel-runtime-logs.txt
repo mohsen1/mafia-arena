@@ -1,7 +1,0 @@
-{
-  "status": "INTERACTIVE",
-  "exit_code": null,
-  "stdout": "",
-  "stderr": "Vercel CLI 39.3.0\nThe \"--follow\" option was ignored because it is now deprecated. Please remove it.\nFetching deployment \"werewolf-ai.vercel.app\" in mohsen-azimis-projects\nWARN! This command now displays runtime logs. To access your build logs, run `vercel inspect --logs werewolf-k07etesx8-mohsen-azimis-projects.vercel.app`\nDisplaying runtime logs for deployment werewolf-k07etesx8-mohsen-azimis-projects.vercel.app (dpl_BB19Bopx52KoNVAftJZ9UqME7pM1) starting from Jul Fr 11:49:13.59\n\nwaiting for new logs...\n",
-  "message": "Command did not exit within 5s. Assumed to be interactive or long-running. Process terminated."
-}
