@@ -280,7 +280,7 @@ export default function CharacterGenerationUI({
         // Exponential backoff: start at 1s, max at 5s
         pollCount++;
         const nextDelay = Math.min(1000 * Math.pow(1.5, pollCount - 1), 5000);
-        
+
         timeoutId = setTimeout(pollProgress, nextDelay);
       } catch (err) {
         console.error('Error getting progress:', err);

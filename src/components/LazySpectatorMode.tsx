@@ -21,4 +21,4 @@ export const LazySpectatorMode = dynamic(
   }
 );
 
-export default LazySpectatorMode; 
+export default LazySpectatorMode;
