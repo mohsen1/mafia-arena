@@ -148,12 +148,12 @@ export const authOptions: NextAuthOptions = {
           } else {
             // Update existing user's image and name if they don't have one
             const updates: Record<string, any> = {};
-            
+
             // If user signed up with password but not verified, verify them now
             if (!existingUser.emailVerified) {
               updates.emailVerified = new Date();
             }
-            
+
             if (!existingUser.image && (user.image || profile?.image)) {
               updates.image = (user.image || profile?.image) as string;
             }
@@ -190,7 +190,7 @@ export const authOptions: NextAuthOptions = {
             .from(users)
             .where(eq(users.email, user.email))
             .limit(1);
-          
+
           // For now, allow login even if email is not verified
           // In a production app, you might want to require verification
           if (dbUser && !dbUser.emailVerified) {

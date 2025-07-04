@@ -11,6 +11,7 @@ import { useSpokenText } from '@/context/SpokenTextContext';
 import { useTranslation } from 'react-i18next';
 import type { PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { DynamicAvatar } from '@/components/ui/dynamic-avatar';
+import { Gavel } from 'lucide-react';
 
 // Define the props using ClientMessage
 interface MessageBubbleProps {
@@ -61,8 +62,8 @@ export function MessageBubble({
 
   // Container for image + bubble
   const containerClasses = cn('flex items-start gap-2 mb-4', {
-    'justify-end': isHuman || isModerator,
-    'justify-start': isPlayerMessage && !isHuman,
+    'justify-end': isHuman,
+    'justify-start': !isHuman,
   });
 
   // Use message.senderName directly
@@ -82,6 +83,13 @@ export function MessageBubble({
           className="flex-shrink-0"
           aria-hidden="true"
         />
+      )}
+
+      {/* Show moderator avatar */}
+      {isModerator && (
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <Gavel className="w-4 h-4 text-primary" />
+        </div>
       )}
 
       <div

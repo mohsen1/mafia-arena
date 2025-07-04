@@ -50,7 +50,7 @@ export async function createUser(
       // If user exists but has no password (OAuth user), allow setting password
       if (!existingUser.password) {
         const hashedPassword = await hashPassword(password);
-        
+
         await db
           .update(users)
           .set({
@@ -58,7 +58,7 @@ export async function createUser(
             name: existingUser.name || name, // Keep existing name if present
           })
           .where(eq(users.id, existingUser.id));
-        
+
         return {
           success: true,
           message: 'signUp.passwordAddedToOAuthAccount',
@@ -69,7 +69,7 @@ export async function createUser(
           },
         };
       }
-      
+
       // User exists with password already
       return {
         success: false,

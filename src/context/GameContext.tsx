@@ -83,10 +83,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     initialGameState
   );
 
-  // Auto-enable auto-run for AI-only games (Issue #49)
+  // Auto-enable auto-run for all games
   const shouldAutoEnableAutoRun = useMemo(() => {
-    return initialGameState && !initialGameState.humanPlayerId;
-  }, [initialGameState]);
+    return true; // Always start with autoplay enabled
+  }, []);
 
   const [isAutoRunning, setIsAutoRunning] = useState<boolean>(
     shouldAutoEnableAutoRun
