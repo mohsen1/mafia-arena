@@ -65,7 +65,7 @@ export function GameThemeSelector({
             ))}
           </SelectContent>
         </Select>
-        
+
         {/* Info button */}
         {selectedTheme && (
           <Button
@@ -77,24 +77,28 @@ export function GameThemeSelector({
             disabled={disabled}
           >
             <Info className="h-4 w-4" />
-            <span className="sr-only">{t('ThemeInfoButton', 'Theme information')}</span>
+            <span className="sr-only">
+              {t('ThemeInfoButton', 'Theme information')}
+            </span>
           </Button>
         )}
       </div>
 
       {/* Theme description modal */}
-      <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
+      <Dialog
+        open={showDescriptionModal}
+        onOpenChange={setShowDescriptionModal}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
-              {selectedTheme && t(`${selectedThemeKey}_name`, selectedTheme.name)}
+              {selectedTheme &&
+                t(`${selectedThemeKey}_name`, selectedTheme.name)}
             </DialogTitle>
             <DialogDescription className="text-left mt-4">
-              {selectedTheme && t(
-                `${selectedThemeKey}_description`,
-                selectedTheme.description
-              )}
+              {selectedTheme &&
+                t(`${selectedThemeKey}_description`, selectedTheme.description)}
             </DialogDescription>
           </DialogHeader>
         </DialogContent>

@@ -1,19 +1,12 @@
-'use client'; // Ensure this is a client component
+'use client';
 
-import { useState } from 'react'; // Added import for state
 import GameController from '@/components/GameController';
 import { useGameContext } from '@/context/GameContext';
-// Import from react-i18next
 import { useTranslation } from 'react-i18next';
 
 export function GameHeader() {
-  const { gameState } = useGameContext(); // Only get gameState
-
-  // Use standard hook
+  const { gameState } = useGameContext();
   const { t } = useTranslation();
-
-  // State for description expansion
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   if (!gameState) return null;
 
@@ -24,64 +17,41 @@ export function GameHeader() {
   const translatedPhase = t(phase, { defaultValue: phase });
 
   return (
-    <div className="p-4 space-y-3 flex-shrink-0">
-      <div>
-        <h1 className="text-xl font-bold mb-1 truncate">
-          {/* Use title or default */}
-          {title || t('WerewolfAITitle')}
-        </h1>
-
-        {/* Use description */}
-        {description && (
-          <div>
-            {' '}
-            {/* Wrapper div for description and toggle button */}
-            <p
-              className={[
-                'text-sm text-muted-foreground italic',
-                !isDescriptionExpanded ? 'line-clamp-1 mb-0' : 'mb-1', // Apply line clamp and adjust margin
-              ].join(' ')}
-            >
-              {description}
-            </p>
-            {/* Toggle button */}
-            <button
-              type="button"
-              onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-              className="text-sm text-primary hover:underline mt-0.5" // Use primary color
-            >
-              {isDescriptionExpanded ? t('ShowLess') : t('ShowMore')}
-            </button>
+    <div className="p-2 flex-shrink-0 bg-card/50 border-b">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-sm font-bold truncate">
+              {/* Use title or default */}
+              {title || t('WerewolfAITitle')}
+            </h1>
+            {description && (
+              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                {description}
+              </p>
+            )}
           </div>
-        )}
-
-        <p className="text-sm text-muted-foreground mt-2">
-          {' '}
-          {/* Added margin top */}
-          {t('RoundLabel')}: <span className="font-semibold">{round}</span> |{' '}
-          <span className="font-semibold capitalize">
-            {/* Assuming phase names might be translation keys */}
-            {translatedPhase}
-          </span>
-        </p>
-        <div className="mt-1">
-          {winCondition && (
-            <span className="text-lg font-bold text-success">
-              {/* Assuming outcome strings might be translation keys */}
-              {t(`Outcome${winCondition.replace(/\s/g, '')}`, {
-                defaultValue: winCondition,
-              })}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              {t('RoundLabel')}: <span className="font-medium">{round}</span>
             </span>
-          )}
-          {phase === 'GameOver' && !winCondition && (
-            <span className="text-lg font-bold text-destructive">
-              {t('GameOverStatus')}
-            </span>
-          )}
+            <span>•</span>
+            <span className="font-medium capitalize">{translatedPhase}</span>
+            {winCondition && (
+              <>
+                <span>•</span>
+                <span className="text-success font-medium">
+                  {t(`Outcome${winCondition.replace(/\s/g, '')}`, {
+                    defaultValue: winCondition,
+                  })}
+                </span>
+              </>
+            )}
+          </div>
         </div>
+        {/* Action Buttons - Now appears below game info */}
+        {phase !== 'GameOver' && <GameController />}
       </div>
-      {/* Action Buttons - Now appears below game info */}
-      {phase !== 'GameOver' && <GameController />}
     </div>
   );
 }
