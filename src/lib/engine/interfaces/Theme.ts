@@ -3,6 +3,9 @@ export interface Persona {
   name: string; // e.g., "Bartholomew Quill, the nervous librarian"
   backstory: string; // Short background
   personalityTraits: string[]; // e.g., ["Anxious", "Bookish", "Observant"]
+  occupation?: string; // The character's role/job in the theme setting
+  quirk?: string; // A unique habit or characteristic
+  secretOrFear?: string; // Something hidden about the character
 }
 
 // Represents the overall theme and provides related resources.
