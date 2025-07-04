@@ -22,6 +22,7 @@ const nextConfig = {
   },
   reactStrictMode: true,
   experimental: {
+    instrumentationHook: true,
     turbo: {
       resolveAlias: {
         '@/dictionaries/*.json': '@/dictionaries/*',

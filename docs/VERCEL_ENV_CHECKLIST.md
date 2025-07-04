@@ -4,6 +4,19 @@
 
 This checklist ensures all required environment variables are properly configured in Vercel for all deployment environments (Production, Preview, Development).
 
+## Important: Build-time vs Runtime Variables
+
+In Vercel, environment variables marked as "Secret" are only available at runtime, not during the build process. This is a security feature to prevent secrets from being exposed in build logs or cached build artifacts.
+
+### Build-time Validation
+- During build, we check that you've configured the variables (warnings only)
+- The build won't fail if secrets are missing (they're not accessible during build)
+
+### Runtime Validation  
+- When your app starts, it validates all required variables are present
+- If critical variables are missing, the app will fail to start
+- This ensures your deployment won't serve requests without proper configuration
+
 ### 🔴 Required Variables (Application won't work without these)
 
 #### Database
