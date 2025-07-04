@@ -160,6 +160,7 @@ export function ConversationLog() {
         setTimeout(scrollToBottom, 100);
       }, 100);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     gameState?.pendingHumanAction,
     gameState?.phase,
