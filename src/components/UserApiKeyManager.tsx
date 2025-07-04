@@ -45,6 +45,7 @@ import {
 } from '@/app/actions/api-keys.actions';
 import { availableProviders } from '@/lib/models';
 import { useTranslation } from 'react-i18next';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface UserApiKeyManagerProps {
   onKeysChanged?: () => void;
@@ -279,8 +280,37 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-4">
-        {t('apiKeys.loading')}
+      <div className="space-y-4">
+        {/* Skeleton loader for API keys list */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Skeleton for API key items */}
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-3 rounded-lg bg-secondary/10"
+              >
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }
