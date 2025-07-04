@@ -16,16 +16,17 @@ import {
 // Import from react-i18next
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
+import { DynamicAvatar } from '@/components/ui/dynamic-avatar';
 
 interface PlayerCardProps {
   player: FilteredPlayer;
 }
 
 export function PlayerCard({ player }: PlayerCardProps) {
-  // Use standard hook
-  const { t } = useTranslation('translation'); // Keep namespace for now
-
+  const { t } = useTranslation();
   const isAlive = player.status === 'Alive';
+  const isDead = player.status === 'Dead';
+
   const roleToDisplay = player.roleName
     ? t(player.roleName, player.roleName)
     : t('RoleUnknown', 'Unknown Role');
@@ -50,26 +51,21 @@ export function PlayerCard({ player }: PlayerCardProps) {
   return (
     <div
       className={cn(
-        'flex items-center space-x-2 rtl:space-x-reverse p-2 rounded-md transition-all duration-200',
-        isAlive ? 'opacity-100 hover:bg-accent/50' : 'opacity-60',
+        'flex items-center gap-3 p-3 rounded-lg transition-all',
+        'bg-card hover:bg-accent/50',
+        isDead && 'opacity-60',
         player.isMafia && 'bg-danger/10 hover:bg-danger/20'
       )}
     >
-      <div className="relative flex-shrink-0 w-10 h-10">
-        {/* Note: isHuman is not available in FilteredPlayer, so checking if imageUrl exists */}
-        {player.imageUrl ? (
-          <Image
-            src={player.imageUrl}
-            alt={t('PlayerImageAltText', { name: player.name })}
-            width={40}
-            height={40}
-            className="rounded-full w-10 h-10 object-cover"
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-            <User className="h-5 w-5 text-primary" />
-          </div>
-        )}
+      <div className="relative flex-shrink-0">
+        <DynamicAvatar
+          name={player.name}
+          role={player.roleName}
+          imageUrl={player.imageUrl}
+          size="md"
+          showRole={!!player.roleName}
+          animate={isAlive}
+        />
         <div
           className={cn(
             'absolute -bottom-1 -right-1 transform',
