@@ -909,7 +909,7 @@ export class Game {
     }
 
     // Handle duplicate names for successful generations
-    const nameCount = new Map<string, number>();
+    // const nameCount = new Map<string, number>();
     const usedNames = new Set<string>();
 
     for (const result of results.filter((r) => r.success)) {

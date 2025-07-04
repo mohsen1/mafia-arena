@@ -8,12 +8,12 @@ import type { PlayerId } from '@/lib/engine/interfaces/IPlayer'; // Import Playe
 
 // Import from react-i18next
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'next/navigation';
 import { GameHeader } from './GameHeader';
+import { GameTimer } from './GameTimer';
+import { QuickActionsPanel } from './QuickActionsPanel';
 
 export function GameSidebar() {
   const { gameState } = useGameContext();
-  const { lang } = useParams();
   // Use standard hook
   const { t } = useTranslation('translation'); // Keep namespace for now
 
@@ -71,6 +71,19 @@ export function GameSidebar() {
       <GameHeader />
 
       <div className="flex-grow p-3 overflow-y-auto">
+        {/* Game Timer */}
+        {gameState && gameState.phase !== 'GameOver' && (
+          <div className="mb-4">
+            <GameTimer />
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        {gameState && (
+          <div className="mb-4">
+            <QuickActionsPanel gameState={gameState} />
+          </div>
+        )}
         <div className="space-y-4">
           {/* Town Players Section */}
           {townPlayers.length > 0 && (
