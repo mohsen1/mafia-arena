@@ -9,6 +9,7 @@ import { type LanguageCode, defaultNS } from '@/lib/i18n/settings';
 import i18nInstance from '@/lib/i18n/i18n.client';
 import { I18nextProvider } from 'react-i18next';
 import { use } from 'react';
+import { Toaster } from '@/components/ui/toaster';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({
@@ -56,6 +57,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               {children}
+              <Toaster />
             </ThemeProvider>
           </I18nextProvider>
         </SessionProvider>

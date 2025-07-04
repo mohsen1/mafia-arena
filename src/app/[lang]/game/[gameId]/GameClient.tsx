@@ -10,7 +10,7 @@ import { PhaseTransitionNotification } from '@/components/PhaseTransitionNotific
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
 import { GameHistory } from '@/components/GameHistory';
 import { VotingPanel } from '@/components/VotingPanel';
-import { RoleRevealAnimation } from '@/components/RoleRevealAnimation';
+import { RoleRevealToast } from '@/components/RoleRevealToast';
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
 import { Header } from '@/components/Header';
@@ -99,6 +99,8 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
             reason: isVoted ? 'voted' : 'killed',
           });
           setRevealedPlayers((prev) => new Set([...prev, player.id]));
+          // Clear the role reveal after a short delay
+          setTimeout(() => setRoleReveal(null), 100);
         }
       }
     });
@@ -133,14 +135,13 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
           />
         )}
 
-        {/* Role reveal animation */}
+        {/* Role reveal toast */}
         {roleReveal && (
-          <RoleRevealAnimation
+          <RoleRevealToast
             playerName={roleReveal.playerName}
             role={roleReveal.role}
             isEvil={roleReveal.isEvil}
             reason={roleReveal.reason}
-            onComplete={() => setRoleReveal(null)}
           />
         )}
 
@@ -164,14 +165,13 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
         />
       )}
 
-      {/* Role reveal animation */}
+      {/* Role reveal toast */}
       {roleReveal && (
-        <RoleRevealAnimation
+        <RoleRevealToast
           playerName={roleReveal.playerName}
           role={roleReveal.role}
           isEvil={roleReveal.isEvil}
           reason={roleReveal.reason}
-          onComplete={() => setRoleReveal(null)}
         />
       )}
 
