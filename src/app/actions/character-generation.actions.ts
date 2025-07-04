@@ -2,7 +2,7 @@
 
 import { Game } from '@/lib/engine/core/Game';
 import { Themes } from '@/lib/engine/interfaces/Theme';
-import { selectCharacterImage } from '@/lib/utils/imageUtils';
+import { selectCharacterImage, analyzePersonaForImage } from '@/lib/utils/imageUtils';
 import { loadGameData, saveGameData } from '@/lib/db/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
@@ -334,11 +334,27 @@ export async function generateGameCharactersAction(
     const imagePromises = aiPlayers.map(async (player) => {
       if (!player.imageUrl) {
         try {
-          const gender = Math.random() > 0.5 ? 'male' : 'female';
-          const ageCategory = Math.random() > 0.5 ? 'young' : 'old';
+          // Get the updated player with persona
+          const updatedPlayer = updatedState.players[player.id];
+          const persona = updatedPlayer?.persona;
+          
+          // Analyze persona to determine appropriate gender and age
+          let gender: 'male' | 'female' = 'male';
+          let ageCategory: 'young' | 'old' = 'young';
+          
+          if (persona) {
+            const analysis = analyzePersonaForImage(persona);
+            gender = analysis.gender;
+            ageCategory = analysis.ageCategory;
+          } else {
+            // Fallback to random if no persona
+            gender = Math.random() > 0.5 ? 'male' : 'female';
+            ageCategory = Math.random() > 0.5 ? 'young' : 'old';
+          }
+          
           const imageUrl = await selectCharacterImage(gender, ageCategory);
           console.log(
-            `[CharacterGen] Generated image for ${player.name}: ${imageUrl}`
+            `[CharacterGen] Generated image for ${player.name} (${gender}, ${ageCategory}): ${imageUrl}`
           );
           return { playerId: player.id, imageUrl };
         } catch (error) {
