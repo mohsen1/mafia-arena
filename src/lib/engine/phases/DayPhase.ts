@@ -80,6 +80,8 @@ export class DayPhase extends AbstractGamePhase {
             translate('VotingPhase', game.language),
             MessageVisibility.Public
           );
+          // Restore any saved votes if phase was recreated
+          this.restorePhaseState(game);
         }
         await this.handlePlayerAction(
           game,
@@ -190,15 +192,35 @@ export class DayPhase extends AbstractGamePhase {
         break;
       case 'vote': {
         if (currentStep === 'Voting') {
+          // Always restore saved votes when processing votes
+          // This handles cases where phase was recreated mid-voting
+          if (this.#votes.size === 0) {
+            const savedState = game.getPhaseState();
+            if (savedState?.dayVotes) {
+              for (const [voterId, targetId] of Object.entries(
+                savedState.dayVotes
+              )) {
+                this.#votes.set(
+                  voterId as PlayerId,
+                  targetId as PlayerId | null
+                );
+              }
+            }
+          }
+
           const targetPlayer = action.targetPlayerId
             ? game.getPlayer(action.targetPlayerId)
             : null;
           if (action.targetPlayerId === null) {
             this.#votes.set(player.id, null);
+            // Save votes to game state for persistence
+            this.saveVotesToGameState(game);
             // Removed abstain vote announcement to reduce chattiness
           } else if (targetPlayer?.isAlive()) {
             // Check targetPlayer is not undefined AND alive
             this.#votes.set(player.id, action.targetPlayerId);
+            // Save votes to game state for persistence
+            this.saveVotesToGameState(game);
             game.logMessage(
               player.id,
               translate('VotesFor', game.language, {
@@ -208,6 +230,8 @@ export class DayPhase extends AbstractGamePhase {
             );
           } else {
             this.#votes.set(player.id, null); // Invalid vote counts as abstain
+            // Save votes to game state for persistence
+            this.saveVotesToGameState(game);
             // Only log invalid votes, as these are important feedback
             const invalidTargetName = action.targetPlayerId ?? 'unknown';
             game.logMessage(
@@ -228,6 +252,8 @@ export class DayPhase extends AbstractGamePhase {
       case 'noAction':
         if (currentStep === 'Voting') {
           this.#votes.set(player.id, null);
+          // Save votes to game state for persistence
+          this.saveVotesToGameState(game);
           // Removed noAction vote announcement to reduce chattiness
         } else if (
           currentStep === 'Introduction' ||
@@ -241,8 +267,37 @@ export class DayPhase extends AbstractGamePhase {
     }
   }
 
+  /** Restore phase state from game if phase was recreated */
+  private restorePhaseState(game: Game): void {
+    const savedState = game.getPhaseState();
+    if (savedState?.dayVotes) {
+      for (const [voterId, targetId] of Object.entries(savedState.dayVotes)) {
+        this.#votes.set(voterId as PlayerId, targetId as PlayerId | null);
+      }
+    }
+  }
+
+  /** Save votes to game state for persistence */
+  private saveVotesToGameState(game: Game): void {
+    const currentVotes: Record<PlayerId, PlayerId | null> = {};
+    for (const [id, target] of this.#votes.entries()) {
+      currentVotes[id] = target;
+    }
+    game.setPhaseState({ dayVotes: currentVotes });
+  }
+
   /** Tally votes and execute player */
   private tallyAndExecuteVotes(game: Game): void {
+    // Restore votes from game state if phase was recreated
+    if (this.#votes.size === 0) {
+      const savedState = game.getPhaseState();
+      if (savedState?.dayVotes) {
+        for (const [voterId, targetId] of Object.entries(savedState.dayVotes)) {
+          this.#votes.set(voterId as PlayerId, targetId as PlayerId | null);
+        }
+      }
+    }
+
     const voteCounts = new Map<PlayerId, number>();
     let maxVotes = 0;
     let playersToExecute: PlayerId[] = [];

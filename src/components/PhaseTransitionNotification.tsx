@@ -127,7 +127,7 @@ export function PhaseTransitionNotification({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="fixed top-4 right-4 z-30 pointer-events-none"
+          className="fixed top-20 right-4 z-30 pointer-events-none"
           role="status"
           aria-live="polite"
           aria-atomic="true"
@@ -214,7 +214,7 @@ export function SubPhaseNotification({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 30 }}
           transition={{ duration: 0.15, ease: 'easeOut' }}
-          className="fixed top-16 right-4 z-40 pointer-events-none"
+          className="fixed top-32 right-4 z-40 pointer-events-none"
           role="status"
           aria-live="polite"
           aria-atomic="true"

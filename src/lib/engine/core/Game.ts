@@ -910,25 +910,77 @@ export class Game {
 
     // Handle duplicate names for successful generations
     const nameCount = new Map<string, number>();
-    for (const result of results.filter((r) => r.success)) {
-      const count = nameCount.get(result.name) || 0;
-      nameCount.set(result.name, count + 1);
+    const usedNames = new Set<string>();
 
-      if (count > 0) {
-        // Duplicate found, append number
-        const newName = `${result.name} ${count + 1}`;
-        console.warn(
-          `[Game.ensurePersonasGenerated] Duplicate name detected: ${result.name}, renaming to ${newName}`
-        );
-        if (result.player.agent.persona) {
-          result.player.agent.persona.name = newName;
+    for (const result of results.filter((r) => r.success)) {
+      let finalName = result.name;
+
+      // Check if name is already used
+      if (usedNames.has(finalName)) {
+        // Try adding middle initials first
+        const initials = [
+          'A',
+          'B',
+          'C',
+          'D',
+          'E',
+          'F',
+          'G',
+          'H',
+          'J',
+          'K',
+          'L',
+          'M',
+        ];
+        let renamed = false;
+
+        for (const initial of initials) {
+          const nameWithInitial =
+            finalName.split(' ').length > 1
+              ? `${finalName.split(' ')[0]} ${initial}. ${finalName.split(' ').slice(1).join(' ')}`
+              : `${finalName} ${initial}.`;
+
+          if (!usedNames.has(nameWithInitial)) {
+            finalName = nameWithInitial;
+            renamed = true;
+            break;
+          }
         }
-        result.player.setName(newName);
-        generatedNames.push(newName);
-      } else {
-        result.player.setName(result.name);
-        generatedNames.push(result.name);
+
+        // If all initials are taken, add Jr., Sr., III, etc.
+        if (!renamed) {
+          const suffixes = ['Jr.', 'Sr.', 'III', 'IV', 'V'];
+          for (const suffix of suffixes) {
+            const nameWithSuffix = `${finalName} ${suffix}`;
+            if (!usedNames.has(nameWithSuffix)) {
+              finalName = nameWithSuffix;
+              renamed = true;
+              break;
+            }
+          }
+        }
+
+        // Last resort: add number
+        if (!renamed) {
+          let counter = 2;
+          while (usedNames.has(`${finalName} ${counter}`)) {
+            counter++;
+          }
+          finalName = `${finalName} ${counter}`;
+        }
+
+        console.warn(
+          `[Game.ensurePersonasGenerated] Duplicate name detected: ${result.name}, renamed to ${finalName}`
+        );
       }
+
+      // Update the persona and player with the final name
+      if (result.player.agent.persona) {
+        result.player.agent.persona.name = finalName;
+      }
+      result.player.setName(finalName);
+      generatedNames.push(finalName);
+      usedNames.add(finalName);
     }
 
     console.log(

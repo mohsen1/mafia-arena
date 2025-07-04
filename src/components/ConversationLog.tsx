@@ -3,7 +3,7 @@
 import { useGameContext } from '@/context/GameContext';
 import { MessageBubble } from './MessageBubble';
 import { useTranslation } from 'react-i18next';
-import { useRef, useEffect, useCallback, useMemo, memo } from 'react';
+import { useRef, useEffect, useCallback, useMemo } from 'react';
 import type {
   ClientMessage,
   FilteredPlayer,
@@ -11,33 +11,11 @@ import type {
 } from '@/lib/interfaces/gameState.types';
 import { RoleName } from '@/lib/engine/interfaces/IRole'; // Fix RoleName import path
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
-import { useVirtualizer } from '@tanstack/react-virtual';
-
-// Memoized message component to prevent unnecessary re-renders
-const MemoizedMessage = memo(function MemoizedMessage({
-  message,
-  players,
-  isWerewolfChat,
-}: {
-  message: ClientMessage;
-  players: Record<PlayerId, FilteredPlayer>;
-  isWerewolfChat: boolean;
-}) {
-  return (
-    <MessageBubble
-      message={message}
-      players={players}
-      isWerewolfChat={isWerewolfChat}
-    />
-  );
-});
 
 export function ConversationLog() {
   const { gameState } = useGameContext();
   const containerRef = useRef<HTMLDivElement>(null);
-  const prevLogLengthRef = useRef<number>(0);
   const autoScrollRef = useRef<boolean>(true);
-
   const { t } = useTranslation('translation'); // Keep namespace for now
 
   // Memoize the visibility check function
@@ -74,100 +52,21 @@ export function ConversationLog() {
     );
   }, [gameState, isMessageVisible]);
 
-  // Initialize virtualizer
-  const virtualizer = useVirtualizer({
-    count: displayLogMemo.length,
-    getScrollElement: () => containerRef.current,
-    estimateSize: useCallback(() => 120, []), // Estimated height of each message
-    overscan: 5, // Number of items to render outside of the visible area
-    scrollPaddingEnd: 20,
-  });
-
-  const items = virtualizer.getVirtualItems();
-
-  // Force scroll to bottom on initial mount and when messages change
-  useEffect(() => {
-    // Always scroll to bottom on mount
-    if (displayLogMemo.length > 0) {
-      // Set initial state
-      autoScrollRef.current = true;
-      prevLogLengthRef.current = displayLogMemo.length;
-
-      // Multiple attempts to ensure scroll happens
-      const scrollAttempts = [50, 150, 300, 500];
-      scrollAttempts.forEach((delay) => {
-        setTimeout(() => {
-          if (containerRef.current) {
-            virtualizer.scrollToIndex(displayLogMemo.length - 1, {
-              align: 'end',
-              behavior: 'auto',
-            });
-            // Also use direct scroll as fallback
-            const { scrollHeight } = containerRef.current;
-            containerRef.current.scrollTop = scrollHeight;
-          }
-        }, delay);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only on mount - we intentionally want this to run once
-
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (
-      displayLogMemo.length > prevLogLengthRef.current &&
-      autoScrollRef.current
-    ) {
-      // Use requestAnimationFrame to ensure DOM has updated
-      requestAnimationFrame(() => {
-        virtualizer.scrollToIndex(displayLogMemo.length - 1, {
-          align: 'end',
-          behavior: 'smooth',
-        });
-      });
-      prevLogLengthRef.current = displayLogMemo.length;
+    if (containerRef.current && autoScrollRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [displayLogMemo.length, virtualizer]);
+  }, [displayLogMemo]);
 
   // Handle scroll to detect if user is at bottom
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
 
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100; // Increased threshold
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
     autoScrollRef.current = isAtBottom;
   }, []);
-
-  // Manual scroll to bottom function as fallback
-  const scrollToBottom = useCallback(() => {
-    if (containerRef.current) {
-      const { scrollHeight } = containerRef.current;
-      containerRef.current.scrollTop = scrollHeight;
-    }
-  }, []);
-
-  // Scroll to bottom when pending action changes or phase changes
-  useEffect(() => {
-    if (!gameState) return;
-
-    if (autoScrollRef.current) {
-      setTimeout(() => {
-        virtualizer.scrollToIndex(displayLogMemo.length - 1, {
-          align: 'end',
-          behavior: 'smooth',
-        });
-        // Fallback to manual scroll
-        setTimeout(scrollToBottom, 100);
-      }, 100);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    gameState?.pendingHumanAction,
-    gameState?.phase,
-    virtualizer,
-    displayLogMemo.length,
-    scrollToBottom,
-  ]);
 
   if (!gameState) {
     return <div>{t('LoadingLog', 'Loading conversation...')}</div>;
@@ -183,42 +82,15 @@ export function ConversationLog() {
       onScroll={handleScroll}
     >
       {displayLogMemo.length > 0 ? (
-        <div
-          style={{
-            height: virtualizer.getTotalSize(),
-            width: '100%',
-            position: 'relative',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              transform: `translateY(${items[0]?.start ?? 0}px)`,
-            }}
-          >
-            {items.map((virtualRow) => {
-              const message = displayLogMemo[virtualRow.index];
-              return (
-                <div
-                  key={virtualRow.key}
-                  data-index={virtualRow.index}
-                  ref={virtualizer.measureElement}
-                  className="pb-2"
-                >
-                  <MemoizedMessage
-                    message={message}
-                    players={playersRecord}
-                    isWerewolfChat={
-                      message.visibility === MessageVisibility.Mafia
-                    }
-                  />
-                </div>
-              );
-            })}
-          </div>
+        <div className="space-y-2">
+          {displayLogMemo.map((message) => (
+            <MessageBubble
+              key={message.id}
+              message={message}
+              players={playersRecord}
+              isWerewolfChat={message.visibility === MessageVisibility.Mafia}
+            />
+          ))}
         </div>
       ) : (
         <p className="text-muted-foreground italic text-center py-4">

@@ -359,12 +359,7 @@ export const EnhancedProviderModelSelector = React.memo(
           </Select>
 
           {(mode === 'both' || mode === 'model') && (
-            <div
-              className={cn(
-                'flex flex-col items-start justify-start gap-1 w-full',
-                mode === 'both' ? 'sm:w-1/2' : ''
-              )}
-            >
+            <div className="w-full">
               <Select
                 key={`${selectedProvider?.value}-model`}
                 value={validModelValue}

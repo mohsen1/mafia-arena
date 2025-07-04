@@ -104,7 +104,7 @@ export function GamePresetSelector({
       icon: <Settings className="w-5 h-5" />,
       playerCount: 0,
       humanPlayer: true,
-      theme: 'UK_VILLAGE_1900S',
+      theme: '',
       difficulty: 'normal',
       estimatedTime: t('gamePresets.custom.time'),
       features: [

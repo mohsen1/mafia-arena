@@ -105,9 +105,6 @@ export function DynamicAvatar({
         ) : generatedAvatar ? (
           <div
             className="w-full h-full"
-            dangerouslySetInnerHTML={{
-              __html: generatedAvatar.replace('data:image/svg+xml;base64,', ''),
-            }}
             style={{
               backgroundImage: `url("${generatedAvatar}")`,
               backgroundSize: 'cover',

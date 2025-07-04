@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import type { AgentConfig } from '@/lib/interfaces/agent.types';
 import { availableModelsByProvider, availableProviders } from '@/lib/models';
 import React from 'react';
+import type { CharacterPreferences } from '@/components/ui/character-preview';
 
 const getDefaultModelForProvider = (providerValue: string): string => {
   if (providerValue === 'groq') {
@@ -48,6 +49,7 @@ export interface ConfigCharacterSlot {
   imageUrl?: string | null;
   generationError?: string;
   persona?: Persona;
+  preferences?: CharacterPreferences;
 }
 
 export interface PlayerInitializationData {
@@ -554,6 +556,17 @@ export function useGameConfig(
     }
   }, [initialSlotsSet, characterSlots]);
 
+  const updateSlotPreferences = useCallback(
+    (clientId: string, preferences: CharacterPreferences) => {
+      setCharacterSlots((prev) =>
+        prev.map((slot) =>
+          slot.clientId === clientId ? { ...slot, preferences } : slot
+        )
+      );
+    },
+    []
+  );
+
   return {
     characterSlots,
     isSubmitting,
@@ -585,5 +598,6 @@ export function useGameConfig(
     selectedGameThemeKey,
     setSelectedGameThemeKey,
     setCharacterSlots,
+    updateSlotPreferences,
   };
 }
