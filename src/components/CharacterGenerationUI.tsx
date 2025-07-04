@@ -35,6 +35,9 @@ interface CharacterCardProps {
     name: string;
     imageUrl: string | null;
     backstory?: string;
+    occupation?: string;
+    quirk?: string;
+    personalityTraits?: string[];
   };
   isLoading?: boolean;
 }
@@ -50,8 +53,8 @@ const CharacterCard: React.FC<CharacterCardProps> = ({
         isLoading ? 'animate-pulse' : 'animate-in fade-in-50 zoom-in-95'
       )}
     >
-      <div className="flex items-center gap-3">
-        <div className="relative">
+      <div className="flex items-start gap-3">
+        <div className="relative flex-shrink-0">
           {character.imageUrl ? (
             <Image
               src={character.imageUrl}
@@ -80,11 +83,40 @@ const CharacterCard: React.FC<CharacterCardProps> = ({
             </>
           ) : (
             <>
-              <h4 className="font-medium text-sm truncate">{character.name}</h4>
+              <div className="flex items-center gap-2 mb-1">
+                <h4 className="font-medium text-sm truncate">{character.name}</h4>
+                {character.occupation && (
+                  <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-md">
+                    {character.occupation}
+                  </span>
+                )}
+              </div>
               {character.backstory && (
-                <p className="text-xs text-muted-foreground truncate">
-                  {character.backstory.split('.')[0]}...
+                <p className="text-xs text-muted-foreground line-clamp-2 mb-1">
+                  {character.backstory}
                 </p>
+              )}
+              {character.quirk && (
+                <p className="text-xs text-muted-foreground italic">
+                  ✨ {character.quirk}
+                </p>
+              )}
+              {character.personalityTraits && character.personalityTraits.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {character.personalityTraits.slice(0, 3).map((trait, index) => (
+                    <span
+                      key={index}
+                      className="text-xs px-1.5 py-0.5 bg-secondary text-secondary-foreground rounded-md"
+                    >
+                      {trait}
+                    </span>
+                  ))}
+                  {character.personalityTraits.length > 3 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{character.personalityTraits.length - 3}
+                    </span>
+                  )}
+                </div>
               )}
             </>
           )}

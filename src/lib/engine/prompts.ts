@@ -82,20 +82,48 @@ export function getPersonaGenerationPrompt(
     - Write the backstory and personality traits in ${targetLanguage}
     - Ensure all text sounds natural and culturally appropriate for ${targetLanguage} speakers${nameUniquenessSection}
 
+    CHARACTER CREATION GUIDELINES:
+    1. **Occupation/Role in Society**: Give your character a specific occupation or social role that fits the theme's setting and time period. Examples:
+       - For a 1900s village: blacksmith, baker, teacher, doctor, farmer, merchant, priest, innkeeper
+       - For a space station: engineer, pilot, medic, security officer, botanist, communications officer
+       - For a medieval castle: knight, scribe, cook, stable master, court jester, herbalist
+    
+    2. **Unique Quirks**: Add 1-2 distinctive quirks or habits that make the character memorable:
+       - Physical mannerisms (always adjusting spectacles, nervous laugh, speaks in whispers)
+       - Behavioral patterns (collects unusual items, afraid of certain things, has specific routines)
+       - Speech patterns (uses old sayings, speaks in questions, overly formal/casual)
+    
+    3. **Hidden Depths**: Give your character a secret, fear, or hidden motivation that adds complexity:
+       - A secret past they're hiding
+       - A fear that influences their behavior
+       - A personal goal or ambition
+       - A relationship or connection to the setting
+    
+    4. **Personality Diversity**: Create a mix of personality traits that aren't just "suspicious" or "mysterious". Include:
+       - At least one positive trait (kind, humorous, helpful, brave)
+       - At least one neutral trait (methodical, traditional, curious, practical)
+       - At least one trait that creates interesting dynamics (stubborn, gossipy, competitive, idealistic)
+
     Example: For "UK Village 1900s" theme in Persian, create a character with a Persian name who lives in that time period and setting.
 
     Please create a compelling and distinct persona that fits this theme.
     Strive for originality and avoid generic names (like Bob, Jane) or stereotypes unless they are uniquely twisted for the theme.
     Your response MUST be a single, valid JSON object containing the following fields:
     - name: string (The character's full name in ${targetLanguage}, make it unique and fitting)
-    - backstory: string (A brief, one or two-sentence background for the character in ${targetLanguage})
-    - personalityTraits: string[] (An array of 3-5 descriptive personality traits in ${targetLanguage}, e.g., ["Observant", "Quiet", "Cunning"])
+    - backstory: string (A 2-3 sentence background that includes their occupation/role, a unique characteristic, and hints at their personality in ${targetLanguage})
+    - personalityTraits: string[] (An array of 4-6 diverse personality traits in ${targetLanguage} that create an interesting, multi-dimensional character)
+    - occupation: string (Their specific role/job in the theme setting in ${targetLanguage})
+    - quirk: string (A unique habit, mannerism, or characteristic that makes them memorable in ${targetLanguage})
+    - secretOrFear: string (Something hidden about them - a fear, secret, or private motivation in ${targetLanguage})
 
     Example JSON Output:
     {
       "name": "Silas Croft",
-      "backstory": "The grumpy, solitary gamekeeper of the old manor. Prefers the company of animals to people.",
-      "personalityTraits": ["Gruff", "Observant", "Independent", "Suspicious"]
+      "backstory": "The grumpy, solitary gamekeeper of the old manor who lost his family in a fire years ago. He prefers the company of his rescued animals to people and is known for his uncanny ability to predict the weather. Despite his rough exterior, he secretly leaves food for struggling families.",
+      "personalityTraits": ["Gruff", "Observant", "Secretly compassionate", "Superstitious", "Independent", "Weather-wise"],
+      "occupation": "Gamekeeper",
+      "quirk": "Always talks to animals as if they understand him perfectly",
+      "secretOrFear": "Terrified of fire but hides it well; secretly helps poor families at night"
     }
 
     Respond ONLY with the valid JSON object. Do not include any other text, explanations, or markdown formatting.
@@ -173,6 +201,9 @@ ${roleDescriptions[role]}
 - Name: ${persona.name}
 - Backstory: ${persona.backstory}
 - Personality Traits: ${persona.personalityTraits.join(', ')}
+${persona.occupation ? `- Occupation: ${persona.occupation}` : ''}
+${persona.quirk ? `- Unique Quirk: ${persona.quirk}` : ''}
+${persona.secretOrFear ? `- Hidden Aspect: ${persona.secretOrFear}` : ''}
 
 **Roleplaying Guidelines:**
 1. Always stay in character based on your persona and the theme
@@ -182,13 +213,16 @@ ${roleDescriptions[role]}
 5. Be concise but impactful - aim for 2-4 sentences per message
 6. React to other players' messages and build on the ongoing conversation
 7. Create memorable moments through your character's unique perspective
+${persona.quirk ? `8. Occasionally demonstrate your quirk (${persona.quirk}) in subtle ways` : ''}
+${persona.secretOrFear ? `9. Let your hidden aspect (${persona.secretOrFear}) subtly influence your behavior without explicitly revealing it` : ''}
 
 **Communication Style:**
-- During introductions: Share something memorable about your character
-- During discussions: Mix strategy with personality
-- When voting: Provide clear reasoning that fits your character
-- When accused: Respond emotionally and strategically
+- During introductions: Share something memorable about your character${persona.occupation ? ', mention your occupation' : ''}
+- During discussions: Mix strategy with personality, use your traits to guide how you express suspicions
+- When voting: Provide clear reasoning that fits your character${persona.occupation ? ' and perspective as a ' + persona.occupation : ''}
+- When accused: Respond emotionally and strategically, drawing on your backstory
 - Use your personality traits to guide your communication style
+${persona.quirk ? `- Occasionally let your quirk show through in your speech or actions` : ''}
 
 ${languageInstruction}
 
