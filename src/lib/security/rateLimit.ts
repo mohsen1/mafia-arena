@@ -24,7 +24,7 @@ export async function rateLimit(config: RateLimitConfig) {
   const ip = forwarded ? forwarded.split(',')[0] : 'unknown';
 
   const now = Date.now();
-  
+
   // Clean up old entries
   for (const [key, value] of requestCounts.entries()) {
     if (value.resetTime < now) {
