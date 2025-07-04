@@ -11,18 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface LanguageSelectorProps {
   currentLang: Locale;
-  id?: string;
+  className?: string;
 }
 
 export default function LanguageSelector({
   currentLang,
-  id,
+  className,
 }: LanguageSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   const handleLanguageChange = (newLangCode: string) => {
     if (!newLangCode || newLangCode === currentLang) return;
@@ -41,11 +44,9 @@ export default function LanguageSelector({
 
   return (
     <Select value={currentLang} onValueChange={handleLanguageChange}>
-      <SelectTrigger id={id} className="w-full">
-        <div className="flex items-center gap-2">
-          <Globe className="h-4 w-4 text-primary" />
-          <SelectValue placeholder="Select language" />
-        </div>
+      <SelectTrigger className={cn('w-[180px]', className)}>
+        <Globe className="mr-2 h-4 w-4" />
+        <SelectValue placeholder={t('languageSelector.selectLanguage')} />
       </SelectTrigger>
       <SelectContent>
         {Object.entries(supportedLanguagesInfo).map(([code, { label }]) => (

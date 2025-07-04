@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Search, User, X, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface ImageData {
   path: string;
@@ -113,6 +114,7 @@ export function EnhancedImageSelector({
   triggerClassName,
   triggerContent,
 }: EnhancedImageSelectorProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState<'all' | 'male' | 'female'>(
@@ -191,7 +193,7 @@ export function EnhancedImageSelector({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Choose Character Image
+            {t('imageSelector.chooseCharacterImage')}
           </DialogTitle>
         </DialogHeader>
 
@@ -202,7 +204,7 @@ export function EnhancedImageSelector({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by style, personality, or description..."
+                placeholder={t('imageSelector.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -213,7 +215,9 @@ export function EnhancedImageSelector({
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Gender Filter */}
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium">Gender</label>
+                <label className="text-sm font-medium">
+                  {t('imageSelector.gender')}
+                </label>
                 <div className="flex border rounded-md">
                   <Button
                     type="button"
@@ -222,7 +226,7 @@ export function EnhancedImageSelector({
                     className="flex-1 rounded-none border-0 rounded-l-md"
                     onClick={() => setSelectedTab('all')}
                   >
-                    All
+                    {t('imageSelector.all')}
                   </Button>
                   <Button
                     type="button"
@@ -231,7 +235,7 @@ export function EnhancedImageSelector({
                     className="flex-1 rounded-none border-0"
                     onClick={() => setSelectedTab('male')}
                   >
-                    Male
+                    {t('imageSelector.male')}
                   </Button>
                   <Button
                     type="button"
@@ -240,14 +244,16 @@ export function EnhancedImageSelector({
                     className="flex-1 rounded-none border-0 rounded-r-md"
                     onClick={() => setSelectedTab('female')}
                   >
-                    Female
+                    {t('imageSelector.female')}
                   </Button>
                 </div>
               </div>
 
               {/* Age Filter */}
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium">Age</label>
+                <label className="text-sm font-medium">
+                  {t('imageSelector.age')}
+                </label>
                 <div className="flex border rounded-md">
                   <Button
                     type="button"
@@ -256,7 +262,7 @@ export function EnhancedImageSelector({
                     className="flex-1 rounded-none border-0 rounded-l-md"
                     onClick={() => setSelectedAge('all')}
                   >
-                    All
+                    {t('imageSelector.all')}
                   </Button>
                   <Button
                     type="button"
@@ -265,7 +271,7 @@ export function EnhancedImageSelector({
                     className="flex-1 rounded-none border-0"
                     onClick={() => setSelectedAge('young')}
                   >
-                    Young
+                    {t('imageSelector.young')}
                   </Button>
                   <Button
                     type="button"
@@ -274,7 +280,7 @@ export function EnhancedImageSelector({
                     className="flex-1 rounded-none border-0 rounded-r-md"
                     onClick={() => setSelectedAge('old')}
                   >
-                    Older
+                    {t('imageSelector.older')}
                   </Button>
                 </div>
               </div>
@@ -297,7 +303,7 @@ export function EnhancedImageSelector({
                 <CardContent className="p-3 flex flex-col items-center justify-center h-32">
                   <X className="h-8 w-8 text-muted-foreground mb-2" />
                   <span className="text-xs text-center text-muted-foreground">
-                    No Image
+                    {t('imageSelector.noImage')}
                   </span>
                 </CardContent>
               </Card>
@@ -366,8 +372,8 @@ export function EnhancedImageSelector({
             {filteredImages.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <User className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No images match your current filters</p>
-                <p className="text-sm">Try adjusting your search or filters</p>
+                <p>{t('imageSelector.noImagesMatch')}</p>
+                <p className="text-sm">{t('imageSelector.tryAdjusting')}</p>
               </div>
             )}
           </div>
@@ -401,7 +407,7 @@ export function EnhancedImageSelector({
                         ))}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Click to select this character image
+                        {t('imageSelector.clickToSelect')}
                       </p>
                     </div>
                   </div>

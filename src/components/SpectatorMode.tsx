@@ -72,7 +72,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
   onSpeedChange,
   className,
 }) => {
-  const {} = useTranslation();
+  const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(true);
   const [gameSpeed, setGameSpeed] = useState(1); // 0.5x, 1x, 2x, 3x
   const [showInsights, setShowInsights] = useState(true);
@@ -189,7 +189,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                 ) : (
                   <EyeOff className="w-4 h-4" />
                 )}
-                <span className="ml-2">Insights</span>
+                <span className="ml-2">{t('spectator.insights')}</span>
               </Toggle>
             </div>
           </CardContent>
@@ -264,20 +264,20 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="w-5 h-5" />
-                Spectator Insights
+                {t('spectator.spectatorInsights')}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="w-full rounded-none">
                   <TabsTrigger value="overview" className="flex-1">
-                    Overview
+                    {t('spectator.overview')}
                   </TabsTrigger>
                   <TabsTrigger value="players" className="flex-1">
-                    Players
+                    {t('spectator.players')}
                   </TabsTrigger>
                   <TabsTrigger value="ai" className="flex-1">
-                    AI Thoughts
+                    {t('spectator.aiThoughts')}
                   </TabsTrigger>
                 </TabsList>
 
@@ -285,11 +285,13 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                   <TabsContent value="overview" className="mt-0 space-y-4">
                     {/* Team Balance */}
                     <div>
-                      <h4 className="text-sm font-medium mb-2">Team Balance</h4>
+                      <h4 className="text-sm font-medium mb-2">
+                        {t('spectator.teamBalance')}
+                      </h4>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">
-                            Town
+                            {t('spectator.town')}
                           </span>
                           <Badge variant="secondary">
                             {
@@ -301,7 +303,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">
-                            Mafia
+                            {t('spectator.mafia')}
                           </span>
                           <Badge variant="destructive">
                             {
@@ -319,20 +321,20 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                     {/* Current Actions */}
                     <div>
                       <h4 className="text-sm font-medium mb-2">
-                        Current Phase Actions
+                        {t('spectator.currentPhaseActions')}
                       </h4>
                       <div className="space-y-1 text-sm text-muted-foreground">
                         {gameState.phase === 'Night' ? (
                           <>
-                            <p>• Mafia discussing targets</p>
-                            <p>• Doctor choosing protection</p>
-                            <p>• Seer investigating a player</p>
+                            <p>• {t('spectator.mafiaDiscussingTargets')}</p>
+                            <p>• {t('spectator.doctorChoosingProtection')}</p>
+                            <p>• {t('spectator.seerInvestigating')}</p>
                           </>
                         ) : (
                           <>
-                            <p>• Players discussing suspicions</p>
-                            <p>• Building cases against suspects</p>
-                            <p>• Preparing for voting phase</p>
+                            <p>• {t('spectator.playersDiscussing')}</p>
+                            <p>• {t('spectator.buildingCases')}</p>
+                            <p>• {t('spectator.preparingForVoting')}</p>
                           </>
                         )}
                       </div>
@@ -377,7 +379,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                                         variant="outline"
                                         className="text-xs"
                                       >
-                                        Dead
+                                        {t('spectator.dead')}
                                       </Badge>
                                     )}
                                   </div>
@@ -402,7 +404,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                                     <div className="mt-2">
                                       <div className="flex items-center justify-between text-xs">
                                         <span className="text-muted-foreground">
-                                          Suspicion
+                                          {t('spectator.suspicion')}
                                         </span>
                                         <span>
                                           {Math.round(insight.suspicionLevel)}%
@@ -454,7 +456,8 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                                   variant="outline"
                                   className="text-xs ml-auto"
                                 >
-                                  {Math.round(reasoning.confidence)}% confident
+                                  {Math.round(reasoning.confidence)}%{' '}
+                                  {t('spectator.confident')}
                                 </Badge>
                               </div>
                               <p className="text-sm text-muted-foreground italic">

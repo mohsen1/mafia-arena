@@ -96,8 +96,8 @@ export function EnhancedCharacterSlot({
   onPreferencesUpdate,
   className,
 }: EnhancedCharacterSlotProps) {
-  const [localName, setLocalName] = useState(name);
   const { t } = useTranslation();
+  const [localName, setLocalName] = useState(name);
 
   const handleNameBlur = useCallback(() => {
     if (localName !== name) {
@@ -239,8 +239,10 @@ export function EnhancedCharacterSlot({
         </div>
 
         {/* Role Selection */}
-        <div>
-          <Label className="text-sm font-medium mb-2 block">Role</Label>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium mb-2 block">
+            {t('enhancedCharacterSlot.role')}
+          </Label>
           <Select value={role} onValueChange={handleRoleSelect}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select a role" />
