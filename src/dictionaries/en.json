@@ -1312,5 +1312,18 @@
   "Reaction.Insightful": "Insightful",
   "Reaction.Suspicious": "Suspicious",
   "Reaction.Confused": "Confused",
+  "Notifications": "Notifications",
+  "MarkAllRead": "Mark all read",
+  "NoNotifications": "No notifications yet",
+  "PlayerEliminated": "Player Eliminated",
+  "PlayerEliminatedDesc": "{{player}} has been eliminated",
+  "VoteRecorded": "Vote Recorded",
+  "YourVoteRecorded": "Your vote has been recorded",
+  "InvestigationComplete": "Investigation Complete",
+  "CheckYourMessages": "Check your private messages for results",
+  "ProtectionApplied": "Protection Applied",
+  "YourProtectionActive": "Your protection is active for tonight",
+  "PhaseChange": "Phase Change",
+  "NowEntering": "Now entering {{phase}} phase",
   "BeginningNightLabel": "Beginning night {{round}}..."
 } 

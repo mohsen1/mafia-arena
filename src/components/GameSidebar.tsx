@@ -12,6 +12,7 @@ import { GameHeader } from './GameHeader';
 import { GameTimer } from './GameTimer';
 import { QuickActionsPanel } from './QuickActionsPanel';
 import { RoleTipsPanel } from './RoleTipsPanel';
+import { GameNotificationCenter } from './GameNotificationCenter';
 
 export function GameSidebar() {
   const { gameState } = useGameContext();
@@ -69,7 +70,10 @@ export function GameSidebar() {
 
   return (
     <aside className="flex flex-col h-full bg-card border-e">
-      <GameHeader />
+      <div className="flex items-center justify-between pe-3">
+        <GameHeader />
+        {gameState && <GameNotificationCenter gameState={gameState} />}
+      </div>
 
       <div className="flex-grow p-3 overflow-y-auto">
         {/* Game Timer */}
