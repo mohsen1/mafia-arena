@@ -9,6 +9,7 @@ import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { GameService } from '@/lib/db/game.service';
+import { createAgentInstance } from '@/lib/agentFactory';
 
 export interface CharacterGenerationProgress {
   currentStep: string;
@@ -168,17 +169,82 @@ export async function generateGameCharactersAction(
       console.error(
         `[CharacterGen] Character generation failed for: ${failedNames}`
       );
-      console.error(
-        `[CharacterGen] Failed personas details:`,
-        failedPersonas.map((p) => ({
-          id: p.id,
-          name: p.name,
-          agentConfig: p.agentConfig,
-          persona: updatedState.players[p.id]?.persona,
-        }))
+      
+      // Collect detailed error information for each failed persona
+      const failedDetails = await Promise.all(
+        failedPersonas.map(async (player) => {
+          const updatedPlayer = updatedState.players[player.id];
+          
+          // Try to get more detailed error info by attempting to regenerate and catching the error
+          let errorDetails = 'Unknown error';
+          try {
+            // Create a temporary agent to get the actual error
+            const tempAgent = await createAgentInstance(
+              player.agentConfig!,
+              player.id
+            );
+            
+            if (tempAgent.generatePersona) {
+              await tempAgent.generatePersona(
+                `${theme.name} ${theme.description}`,
+                gameState.language,
+                []
+              );
+            }
+          } catch (error) {
+            if (error instanceof Error) {
+              errorDetails = error.message;
+              
+              // Extract specific error types from the message
+              if (error.message.includes('401') || error.message.includes('authentication')) {
+                errorDetails = `Authentication error - Invalid API key for ${player.agentConfig?.providerValue || 'provider'}`;
+              } else if (error.message.includes('429') || error.message.includes('rate limit')) {
+                errorDetails = `Rate limit exceeded for ${player.agentConfig?.providerValue || 'provider'}`;
+              } else if (error.message.includes('timeout')) {
+                errorDetails = `Request timeout - ${player.agentConfig?.providerValue || 'provider'} service is busy`;
+              } else if (error.message.includes('model') || error.message.includes('not found')) {
+                errorDetails = `Model "${player.agentConfig?.modelName}" not available for ${player.agentConfig?.providerValue || 'provider'}`;
+              } else if (error.message.includes('Ollama') || error.message.includes('ECONNREFUSED')) {
+                errorDetails = 'Ollama service is not running. Please start Ollama with: ollama serve';
+              } else if (error.message.includes('quota') || error.message.includes('insufficient')) {
+                errorDetails = `API quota exceeded for ${player.agentConfig?.providerValue || 'provider'}`;
+              } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                errorDetails = `Network error connecting to ${player.agentConfig?.providerValue || 'provider'}`;
+              }
+            }
+          }
+          
+          return {
+            id: player.id,
+            name: player.name,
+            agentConfig: player.agentConfig,
+            persona: updatedPlayer?.persona,
+            error: errorDetails
+          };
+        })
       );
+      
+      console.error(
+        `[CharacterGen] Failed personas with detailed errors:`,
+        JSON.stringify(failedDetails, null, 2)
+      );
+      
+      // Build a more informative error message
+      const errorGroups = new Map<string, string[]>();
+      failedDetails.forEach((detail) => {
+        const errorKey = detail.error || 'Unknown error';
+        const players = errorGroups.get(errorKey) || [];
+        players.push(detail.name);
+        errorGroups.set(errorKey, players);
+      });
+      
+      let detailedErrorMessage = `Character generation failed for ${failedPersonas.length} character(s):\n`;
+      errorGroups.forEach((players, error) => {
+        detailedErrorMessage += `\n• ${error}: ${players.join(', ')}`;
+      });
+      
       return {
-        error: `Failed to generate personas for ${failedPersonas.length} character(s): ${failedNames}. Please try again or use a different AI model.`,
+        error: detailedErrorMessage.trim(),
       };
     }
 

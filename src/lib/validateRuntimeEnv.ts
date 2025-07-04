@@ -47,17 +47,24 @@ export function validateRuntimeEnvironment(): RuntimeEnvValidation {
   }
 
   // Validate API key formats
-  if (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.startsWith('gsk_')) {
+  if (
+    process.env.GROQ_API_KEY &&
+    !process.env.GROQ_API_KEY.startsWith('gsk_')
+  ) {
     warnings.push('GROQ_API_KEY should start with "gsk_"');
   }
 
   // Production-specific warnings
   if (process.env.NODE_ENV === 'production') {
     if (!process.env.RESEND_API_KEY) {
-      warnings.push('RESEND_API_KEY is not set - email functionality will be disabled');
+      warnings.push(
+        'RESEND_API_KEY is not set - email functionality will be disabled'
+      );
     }
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      warnings.push('Rate limiting is not configured (missing KV_REST_API_URL or KV_REST_API_TOKEN)');
+      warnings.push(
+        'Rate limiting is not configured (missing KV_REST_API_URL or KV_REST_API_TOKEN)'
+      );
     }
   }
 
