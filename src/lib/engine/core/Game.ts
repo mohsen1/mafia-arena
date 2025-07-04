@@ -246,9 +246,12 @@ export class Game {
     game.#winningTeam =
       outcome === 'Mafia' || outcome === 'Town' ? outcome : null;
 
-    game.#rolesAssigned = state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
-    game.#personasGenerated = state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
-    game.#initialMemoriesCreated = state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
+    game.#rolesAssigned =
+      state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
+    game.#personasGenerated =
+      state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
+    game.#initialMemoriesCreated =
+      state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
 
     for (const pState of Object.values(state.players)) {
       const agentConfig = pState.agentConfig;
