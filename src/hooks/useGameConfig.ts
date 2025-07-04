@@ -371,7 +371,7 @@ export function useGameConfig(
       const timer = setTimeout(() => {
         updateSlotName(clientId, newName);
         debounceTimersRef.current.delete(clientId);
-      }, 150);
+      }, 300);
 
       debounceTimersRef.current.set(clientId, timer);
     },
@@ -398,12 +398,11 @@ export function useGameConfig(
         return;
       }
 
-      // Optimistically update global provider/model
-      setGlobalProviderSelection(newProvider);
-      setGlobalModelSelection(newModel);
-
-      // Defer expensive slot updates
+      // Batch state updates
       React.startTransition(() => {
+        setGlobalProviderSelection(newProvider);
+        setGlobalModelSelection(newModel);
+
         setCharacterSlots((prevSlots) => {
           const needsUpdate = prevSlots.some(
             (slot) =>
