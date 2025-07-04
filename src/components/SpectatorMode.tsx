@@ -89,7 +89,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
         {
           playerId: player.id,
           role: player.role || RoleName.Villager,
-          allegiance: player.allegiance || 'Town',
+          allegiance: player.role === RoleName.Mafia ? 'Mafia' : 'Town',
           isAlive: player.status === 'Alive',
           suspicionLevel: Math.random() * 100,
           targetedBy: [],
