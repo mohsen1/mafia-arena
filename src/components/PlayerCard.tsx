@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type { FilteredPlayer } from '@/lib/interfaces/client.types';
 import { cn } from '@/lib/utils';
 import {
@@ -20,7 +21,9 @@ interface PlayerCardProps {
   player: FilteredPlayer;
 }
 
-export function PlayerCard({ player }: PlayerCardProps) {
+export const PlayerCard = React.memo(function PlayerCard({
+  player,
+}: PlayerCardProps) {
   const { t } = useTranslation();
   const isAlive = player.status === 'Alive';
   const isDead = player.status === 'Dead';
@@ -111,4 +114,4 @@ export function PlayerCard({ player }: PlayerCardProps) {
       )}
     </div>
   );
-}
+});

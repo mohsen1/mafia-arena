@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Keyboard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -62,7 +61,7 @@ export function KeyboardShortcutsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent 
+      <DialogContent
         className="max-w-md"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >

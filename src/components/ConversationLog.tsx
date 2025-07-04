@@ -3,14 +3,7 @@
 import { useGameContext } from '@/context/GameContext';
 import { MessageBubble } from './MessageBubble';
 import { useTranslation } from 'react-i18next';
-import {
-  useRef,
-  useEffect,
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  memo,
-} from 'react';
+import { useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import type {
   ClientMessage,
   FilteredPlayer,
@@ -18,43 +11,32 @@ import type {
 } from '@/lib/interfaces/gameState.types';
 import { RoleName } from '@/lib/engine/interfaces/IRole'; // Fix RoleName import path
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 // Memoized message component to prevent unnecessary re-renders
 const MemoizedMessage = memo(function MemoizedMessage({
   message,
-  index,
-  isLastMessage,
-  lastMessageRef,
   players,
   isWerewolfChat,
 }: {
   message: ClientMessage;
-  index: number;
-  isLastMessage: boolean;
-  lastMessageRef: React.RefObject<HTMLDivElement | null>;
   players: Record<PlayerId, FilteredPlayer>;
   isWerewolfChat: boolean;
 }) {
   return (
-    <div
-      key={message.id || index}
-      ref={isLastMessage ? lastMessageRef : undefined}
-    >
-      <MessageBubble
-        message={message}
-        players={players}
-        isWerewolfChat={isWerewolfChat}
-      />
-    </div>
+    <MessageBubble
+      message={message}
+      players={players}
+      isWerewolfChat={isWerewolfChat}
+    />
   );
 });
 
 export function ConversationLog() {
   const { gameState } = useGameContext();
-  const lastMessageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const prevPendingActionRef = useRef<unknown>(null);
   const prevLogLengthRef = useRef<number>(0);
+  const autoScrollRef = useRef<boolean>(true);
 
   const { t } = useTranslation('translation'); // Keep namespace for now
 
@@ -90,56 +72,56 @@ export function ConversationLog() {
     return log.filter((msg) =>
       isMessageVisible(msg, humanPlayerId ?? null, humanPlayer, isObserver)
     );
-  }, [
-    gameState?.log,
-    gameState?.players,
-    gameState?.humanPlayerId,
-    isMessageVisible,
-  ]);
+  }, [gameState, isMessageVisible]);
 
-  // Memoized scroll function
-  const scrollToBottom = useCallback(() => {
-    if (lastMessageRef.current && displayLogMemo.length > 0) {
-      lastMessageRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [displayLogMemo.length]);
+  // Initialize virtualizer
+  const virtualizer = useVirtualizer({
+    count: displayLogMemo.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: useCallback(() => 120, []), // Estimated height of each message
+    overscan: 5, // Number of items to render outside of the visible area
+    scrollPaddingEnd: 20,
+  });
 
-  // Only scroll when new messages are added
+  const items = virtualizer.getVirtualItems();
+
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (displayLogMemo.length > prevLogLengthRef.current) {
-      scrollToBottom();
+    if (
+      displayLogMemo.length > prevLogLengthRef.current &&
+      autoScrollRef.current
+    ) {
+      virtualizer.scrollToIndex(displayLogMemo.length - 1, {
+        align: 'end',
+        behavior: 'smooth',
+      });
       prevLogLengthRef.current = displayLogMemo.length;
     }
-  }, [displayLogMemo.length, scrollToBottom]);
+  }, [displayLogMemo.length, virtualizer]);
 
-  // Scroll effect for pending action changes
+  // Handle scroll to detect if user is at bottom
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    autoScrollRef.current = isAtBottom;
+  }, []);
+
+  // Scroll to bottom when pending action changes
   useEffect(() => {
     if (!gameState) return;
 
     const pendingActionString = JSON.stringify(gameState.pendingHumanAction);
-    if (prevPendingActionRef.current !== pendingActionString) {
-      setTimeout(scrollToBottom, 100);
-      prevPendingActionRef.current = pendingActionString;
+    if (autoScrollRef.current && pendingActionString) {
+      setTimeout(() => {
+        virtualizer.scrollToIndex(displayLogMemo.length - 1, {
+          align: 'end',
+          behavior: 'smooth',
+        });
+      }, 100);
     }
-  }, [gameState?.pendingHumanAction, scrollToBottom]);
-
-  // Layout effect for resize observer
-  useLayoutEffect(() => {
-    if (!containerRef.current) return;
-    const parentNode = containerRef.current.parentElement;
-    if (!parentNode) return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      setTimeout(scrollToBottom, 50);
-    });
-
-    resizeObserver.observe(containerRef.current);
-    resizeObserver.observe(parentNode);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [scrollToBottom]);
+  }, [gameState, virtualizer, displayLogMemo.length]);
 
   if (!gameState) {
     return <div>{t('LoadingLog', 'Loading conversation...')}</div>;
@@ -152,26 +134,51 @@ export function ConversationLog() {
     <div
       ref={containerRef}
       className="flex-grow bg-background p-4 overflow-y-auto"
+      onScroll={handleScroll}
     >
-      <div className="space-y-4">
-        {displayLogMemo.length > 0 ? (
-          displayLogMemo.map((message, index) => (
-            <MemoizedMessage
-              key={message.id}
-              message={message}
-              index={index}
-              isLastMessage={index === displayLogMemo.length - 1}
-              lastMessageRef={lastMessageRef}
-              players={playersRecord}
-              isWerewolfChat={message.visibility === MessageVisibility.Mafia}
-            />
-          ))
-        ) : (
-          <p className="text-muted-foreground italic text-center py-4">
-            {t('EmptyConversationLog')}
-          </p>
-        )}
-      </div>
+      {displayLogMemo.length > 0 ? (
+        <div
+          style={{
+            height: virtualizer.getTotalSize(),
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${items[0]?.start ?? 0}px)`,
+            }}
+          >
+            {items.map((virtualRow) => {
+              const message = displayLogMemo[virtualRow.index];
+              return (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  className="pb-4"
+                >
+                  <MemoizedMessage
+                    message={message}
+                    players={playersRecord}
+                    isWerewolfChat={
+                      message.visibility === MessageVisibility.Mafia
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="text-muted-foreground italic text-center py-4">
+          {t('EmptyConversationLog')}
+        </p>
+      )}
     </div>
   );
 }

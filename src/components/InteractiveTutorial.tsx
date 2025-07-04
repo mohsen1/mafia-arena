@@ -453,10 +453,14 @@ export function InteractiveTutorial({
                             : 'bg-muted'
                       )}
                       role="progressbar"
-                      aria-label={t('tutorial.stepProgress', 'Step {{current}} of {{total}}', {
-                        current: index + 1,
-                        total: tutorialSteps.length
-                      })}
+                      aria-label={t(
+                        'tutorial.stepProgress',
+                        'Step {{current}} of {{total}}',
+                        {
+                          current: index + 1,
+                          total: tutorialSteps.length,
+                        }
+                      )}
                       aria-valuenow={index + 1}
                       aria-valuemin={1}
                       aria-valuemax={tutorialSteps.length}
