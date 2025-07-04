@@ -1,7 +1,0 @@
-{
-  "status": "INTERACTIVE",
-  "exit_code": null,
-  "stdout": "",
-  "stderr": "Vercel CLI 39.3.0\nFetching deployment \"werewolf-ai.vercel.app\" in mohsen-azimis-projects\nWARN! This command now displays runtime logs. To access your build logs, run `vercel inspect --logs werewolf-m4u4ahjkn-mohsen-azimis-projects.vercel.app`\nDisplaying runtime logs for deployment werewolf-m4u4ahjkn-mohsen-azimis-projects.vercel.app (dpl_ExvUMKCt4GvgvjvPciLUr4k5YPn4) starting from Jul Fr 11:30:30.86\n\nwaiting for new logs...\n",
-  "message": "Command did not exit within 5s. Assumed to be interactive or long-running. Process terminated."
-}
