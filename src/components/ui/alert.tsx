@@ -20,11 +20,14 @@ const alertVariants = cva(
 
 const Alert = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants> & {
+    'aria-live'?: 'polite' | 'assertive' | 'off';
+  }
+>(({ className, variant, 'aria-live': ariaLive = 'polite', ...props }, ref) => (
   <div
     ref={ref}
     role="alert"
+    aria-live={ariaLive}
     className={cn(alertVariants({ variant }), className)}
     {...props}
   />
@@ -38,6 +41,7 @@ const AlertDescription = React.forwardRef<
   <div
     ref={ref}
     className={cn('text-sm [&_p]:leading-relaxed', className)}
+    aria-describedby={props.id}
     {...props}
   />
 ));

@@ -128,6 +128,9 @@ export function PhaseTransitionNotification({
           exit={{ opacity: 0, scale: 0.8, y: -20 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
           className="fixed top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
         >
           <div
             className={cn(
@@ -140,6 +143,7 @@ export function PhaseTransitionNotification({
                 initial={{ rotate: -180, scale: 0 }}
                 animate={{ rotate: 0, scale: 1 }}
                 transition={{ duration: 0.5, ease: 'easeOut', delay: 0.1 }}
+                aria-hidden="true"
               >
                 <Icon className={cn('w-12 h-12', config.iconClass)} />
               </motion.div>
@@ -216,9 +220,12 @@ export function SubPhaseNotification({
           exit={{ opacity: 0, x: 50 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
           className="fixed top-32 right-4 z-40 pointer-events-none"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
         >
           <div className="bg-secondary/80 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg border border-border/50">
-            <Icon className="w-4 h-4 text-primary" />
+            <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
             <span className="text-sm font-medium">{subPhase}</span>
           </div>
         </motion.div>

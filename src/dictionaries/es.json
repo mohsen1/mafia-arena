@@ -505,5 +505,22 @@
   "TableHeader_Role": "Rol",
   "DiscussionComplete": "La fase de discusión ha terminado. Es hora de votar.",
   "test-connection-failed": "Prueba fallida: {{error}}",
-  "DayStart": "Comienza el día {{round}}. El pueblo se reúne para discutir los acontecimientos recientes."
+  "DayStart": "Comienza el día {{round}}. El pueblo se reúne para discutir los acontecimientos recientes.",
+  "spectator": "espectador",
+  "Abstain": "Abstenerse",
+  "stats": "estadísticas",
+  "VoteForPlayerConfirm": "Estás votando para eliminar a {{player}}",
+  "Abstained": "Abstenido",
+  "MuteSound": "Silenciar Sonido",
+  "AI": "IA",
+  "soundSettings": "ajustes de sonido",
+  "tutorial": "tutorial",
+  "achievements": "logros",
+  "UnmuteSound": "Activar Sonido",
+  "replay": "repetición",
+  "SwipeToNavigatePlayers": "Desliza a la izquierda/derecha para navegar entre jugadores",
+  "Human": "Humano",
+  "VotePlayer": "Votar Jugador",
+  "Progress": "Progreso",
+  "gamePresets": "ajustes preestablecidos"
 }

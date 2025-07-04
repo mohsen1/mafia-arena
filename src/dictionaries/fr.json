@@ -514,5 +514,22 @@
   "CustomProvider": "(Personnalisé)",
   "DiscussionComplete": "La phase de discussion est terminée. Il est temps de voter.",
   "test-connection-failed": "Test échoué : {{error}}",
-  "DayStart": "Le jour {{round}} commence. La ville se réunit pour discuter des événements récents."
+  "DayStart": "Le jour {{round}} commence. La ville se réunit pour discuter des événements récents.",
+  "tutorial": "Tutoriel",
+  "VoteForPlayerConfirm": "Vous votez pour éliminer {{player}}",
+  "gamePresets": "Préréglages de jeu",
+  "replay": "Relecture",
+  "UnmuteSound": "Réactiver le son",
+  "AI": "IA",
+  "Abstained": "Abstenu(e)",
+  "MuteSound": "Couper le son",
+  "Human": "Humain",
+  "Abstain": "S'abstenir",
+  "Progress": "Progression",
+  "spectator": "Spectateur",
+  "stats": "Stats",
+  "SwipeToNavigatePlayers": "Glisser à gauche/droite pour naviguer entre les joueurs",
+  "achievements": "Succès",
+  "VotePlayer": "Voter pour le joueur",
+  "soundSettings": "Paramètres audio"
 }

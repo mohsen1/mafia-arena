@@ -505,5 +505,22 @@
   "Light": "लाइट",
   "DiscussionComplete": "चर्चा का दौर समाप्त हो गया है। अब वोट करने का समय है।",
   "DayStart": "दिन {{round}} शुरू होता है। शहर हाल की घटनाओं पर चर्चा करने के लिए इकट्ठा होता है।",
-  "test-connection-failed": "परीक्षण विफल: {{error}}"
+  "test-connection-failed": "परीक्षण विफल: {{error}}",
+  "achievements": "उपलब्धियाँ",
+  "VotePlayer": "खिलाड़ी को वोट करें",
+  "replay": "रीप्ले",
+  "AI": "एआई",
+  "UnmuteSound": "ध्वनि चालू करें",
+  "Human": "मानव",
+  "Abstained": "त्यागा",
+  "VoteForPlayerConfirm": "आप {{player}} को हटाने के लिए वोट कर रहे हैं",
+  "spectator": "दर्शक",
+  "soundSettings": "ध्वनि सेटिंग्स",
+  "gamePresets": "गेम प्रीसेट",
+  "tutorial": "ट्यूटोरियल",
+  "stats": "आंकड़े",
+  "Progress": "प्रगति",
+  "MuteSound": "ध्वनि बंद करें",
+  "Abstain": "त्याग",
+  "SwipeToNavigatePlayers": "खिलाड़ियों को नेविगेट करने के लिए बाएं/दाएं स्वाइप करें"
 }

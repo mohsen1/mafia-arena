@@ -505,5 +505,22 @@
   "Add": "إضافة",
   "DiscussionComplete": "انتهت مرحلة المناقشة. حان وقت التصويت.",
   "DayStart": "اليوم {{round}} يبدأ. تجتمع المدينة لمناقشة الأحداث الأخيرة.",
-  "test-connection-failed": "فشل الاختبار: {{error}}"
+  "test-connection-failed": "فشل الاختبار: {{error}}",
+  "replay": "إعادة العرض",
+  "VoteForPlayerConfirm": "أنت تصوت لإقصاء {{player}}",
+  "UnmuteSound": "إلغاء كتم الصوت",
+  "Abstain": "يمتنع",
+  "Human": "بشري",
+  "soundSettings": "إعدادات الصوت",
+  "SwipeToNavigatePlayers": "اسحب لليسار/اليمين للتنقل بين اللاعبين",
+  "achievements": "الإنجازات",
+  "Abstained": "ممتنع",
+  "MuteSound": "كتم الصوت",
+  "Progress": "التقدم",
+  "spectator": "متفرج",
+  "stats": "الإحصائيات",
+  "tutorial": "درس تعليمي",
+  "gamePresets": "إعدادات اللعبة المسبقة",
+  "VotePlayer": "تصويت للاعب",
+  "AI": "منظمة العفو الدولية"
 }

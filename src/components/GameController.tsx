@@ -146,9 +146,18 @@ export default function GameController() {
   }
 
   return (
-    // Use flex-col for rows, add gap between rows
-    <div className="flex flex-col gap-2 items-start">
-      {/* Row 1: Buttons */}
+    <div className="flex flex-col gap-2">
+      {/* Aria-live region for game state announcements */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {gameState && (
+          <>
+            {t('CurrentPhase', 'Current phase: {{phase}}', { phase: gameState.phase })}
+            {gameState.phase === 'Day' && t('RoundNumber', ', Round {{round}}', { round: gameState.round })}
+          </>
+        )}
+      </div>
+
+      {/* Row 1: Controls */}
       <div className="flex items-center gap-3">
         {/* Pause/Play Button */}
         <Button

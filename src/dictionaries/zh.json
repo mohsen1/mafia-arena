@@ -505,5 +505,22 @@
   "errors": "错误",
   "DayStart": "Day {{round}} begins. The town gathers to discuss recent events.",
   "test-connection-failed": "Test failed: {{error}}",
-  "DiscussionComplete": "The discussion phase has ended. It's time to vote."
+  "DiscussionComplete": "The discussion phase has ended. It's time to vote.",
+  "tutorial": "教程",
+  "AI": "人工智能",
+  "MuteSound": "静音",
+  "stats": "统计",
+  "achievements": "成就",
+  "Abstain": "弃权",
+  "gamePresets": "游戏预设",
+  "Abstained": "已弃权",
+  "UnmuteSound": "取消静音",
+  "VotePlayer": "投票给玩家",
+  "replay": "游戏回放",
+  "VoteForPlayerConfirm": "您确定要投票淘汰{{player}}",
+  "Progress": "进度",
+  "spectator": "旁观者",
+  "soundSettings": "声音设置",
+  "SwipeToNavigatePlayers": "左右滑动浏览玩家",
+  "Human": "人类"
 }

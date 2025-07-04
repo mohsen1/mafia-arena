@@ -505,5 +505,22 @@
   "AIConfiguration": "Configuração da IA",
   "DiscussionComplete": "A fase de discussão terminou. É hora de votar.",
   "DayStart": "Dia {{round}} começa. A cidade se reúne para discutir os eventos recentes.",
-  "test-connection-failed": "Teste falhou: {{error}}"
+  "test-connection-failed": "Teste falhou: {{error}}",
+  "MuteSound": "Silenciar Som",
+  "stats": "estatísticas",
+  "SwipeToNavigatePlayers": "Deslize para a esquerda/direita para navegar entre os jogadores",
+  "VotePlayer": "Votar no Jogador",
+  "Progress": "Progresso",
+  "achievements": "conquistas",
+  "Abstained": "Absteve-se",
+  "VoteForPlayerConfirm": "Você está votando para eliminar {{player}}",
+  "tutorial": "tutorial",
+  "spectator": "espectador",
+  "Human": "Humano",
+  "gamePresets": "predefinições de jogo",
+  "Abstain": "Abster-se",
+  "UnmuteSound": "Reativar Som",
+  "soundSettings": "configurações de som",
+  "replay": "replay",
+  "AI": "IA"
 }

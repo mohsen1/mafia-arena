@@ -505,5 +505,22 @@
   "landingFooterHelp": "সাহায্য",
   "DayStart": "Day {{round}} begins. The town gathers to discuss recent events.",
   "DiscussionComplete": "The discussion phase has ended. It's time to vote.",
-  "test-connection-failed": "Test failed: {{error}}"
+  "test-connection-failed": "Test failed: {{error}}",
+  "UnmuteSound": "শব্দ আনমিউট করুন",
+  "AI": "এআই",
+  "Human": "মানুষ",
+  "spectator": "দর্শক",
+  "tutorial": "টিউটোরিয়াল",
+  "achievements": "কৃতিত্বসমূহ",
+  "MuteSound": "শব্দ নিঃশব্দ করুন",
+  "Abstain": "বিরত থাকুন",
+  "gamePresets": "গেম প্রিসেট",
+  "Progress": "অগ্রগতি",
+  "VoteForPlayerConfirm": "আপনি {{player}}-কে সরিয়ে দেওয়ার জন্য ভোট দিচ্ছেন",
+  "Abstained": "বিরত",
+  "soundSettings": "শব্দ সেটিংস",
+  "replay": "রিপ্লে",
+  "SwipeToNavigatePlayers": "প্লেয়ারদের নেভিগেট করতে বাম/ডানে সোয়াইপ করুন",
+  "stats": "পরিসংখ্যান",
+  "VotePlayer": "প্লেয়ার ভোট দিন"
 }
