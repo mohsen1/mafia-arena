@@ -276,7 +276,7 @@ async function createGame(
       name: playerSetup.name,
       backstory: playerSetup.isHuman
         ? 'A human player'
-        : `A resident of ${theme.name.toLowerCase()}`,
+        : `A resident of ${theme.name}`,
       personalityTraits: playerSetup.isHuman ? ['Human'] : ['Mysterious'],
     };
 
