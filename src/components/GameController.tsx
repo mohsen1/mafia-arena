@@ -67,7 +67,7 @@ export default function GameController() {
         winCondition?.outcome?.includes('Town') && gameState.humanPlayerId;
       soundEffects.playSound(playerWon ? 'victory' : 'defeat');
     }
-  }, [gameState?.phase, soundEnabled, soundEffects, gameState]);
+  }, [gameState, soundEnabled, soundEffects]);
 
   // Play sound for voting
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function GameController() {
     ) {
       soundEffects.playSound('elimination');
     }
-  }, [gameState?.log, soundEnabled, soundEffects]);
+  }, [gameState, soundEnabled, soundEffects]);
 
   const handleNextClick = () => {
     // Don't run next if auto-running is on, let it proceed naturally
@@ -148,11 +148,19 @@ export default function GameController() {
   return (
     <div className="flex flex-col gap-2">
       {/* Aria-live region for game state announcements */}
-      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {gameState && (
           <>
-            {t('CurrentPhase', 'Current phase: {{phase}}', { phase: gameState.phase })}
-            {gameState.phase === 'Day' && t('RoundNumber', ', Round {{round}}', { round: gameState.round })}
+            {t('CurrentPhase', 'Current phase: {{phase}}', {
+              phase: gameState.phase,
+            })}
+            {gameState.phase === 'Day' &&
+              t('RoundNumber', ', Round {{round}}', { round: gameState.round })}
           </>
         )}
       </div>

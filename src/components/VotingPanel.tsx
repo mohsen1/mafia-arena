@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Vote,
@@ -118,7 +118,7 @@ export function VotingPanel({
     }
   }, [currentVotes, humanPlayerId]);
 
-  const handleVoteSubmit = async () => {
+  const handleVoteSubmit = useCallback(async () => {
     if (!canVote || !submitHumanAction) return;
 
     setShowConfirmation(false);
@@ -138,22 +138,43 @@ export function VotingPanel({
       console.error('Failed to submit vote:', error);
       setHasVoted(false);
     }
-  };
+  }, [canVote, submitHumanAction, humanPlayerId, selectedTarget, onVote]);
 
-  const getPlayerVoteStatus = (playerId: string) => {
-    const vote = currentVotes.find((v) => v.voterId === playerId);
-    if (!vote) return null;
+  const getPlayerVoteStatus = useCallback(
+    (playerId: string) => {
+      const vote = currentVotes.find((v) => v.voterId === playerId);
+      if (!vote) return null;
 
-    if (vote.targetId === null) {
-      return { type: 'abstain', target: null };
-    }
+      if (vote.targetId === null) {
+        return { type: 'abstain', target: null };
+      }
 
-    const target = gameState.players[vote.targetId];
-    return {
-      type: 'voted',
-      target: target?.name || vote.targetName,
-    };
-  };
+      const target = gameState.players[vote.targetId];
+      return {
+        type: 'voted',
+        target: target?.name || vote.targetName,
+      };
+    },
+    [currentVotes, gameState.players]
+  );
+
+  const handlePlayerClick = useCallback((playerId: string) => {
+    setSelectedTarget(playerId);
+    setShowConfirmation(true);
+  }, []);
+
+  const handleAbstainClick = useCallback(() => {
+    setSelectedTarget(null);
+    setShowConfirmation(true);
+  }, []);
+
+  const handleCancelClick = useCallback(() => {
+    setShowConfirmation(false);
+  }, []);
+
+  const handlePlayerHover = useCallback((playerId: string | null) => {
+    setHoveredPlayer(playerId);
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -294,12 +315,9 @@ export function VotingPanel({
                         selectedTarget === player.id ? 'default' : 'outline'
                       }
                       size="sm"
-                      onClick={() => {
-                        setSelectedTarget(player.id);
-                        setShowConfirmation(true);
-                      }}
-                      onMouseEnter={() => setHoveredPlayer(player.id)}
-                      onMouseLeave={() => setHoveredPlayer(null)}
+                      onClick={() => handlePlayerClick(player.id)}
+                      onMouseEnter={() => handlePlayerHover(player.id)}
+                      onMouseLeave={() => handlePlayerHover(null)}
                       className={cn(
                         'justify-start text-left w-full transition-all relative group',
                         hoveredPlayer === player.id && 'shadow-md'
@@ -336,10 +354,7 @@ export function VotingPanel({
                       : 'ghost'
                   }
                   size="sm"
-                  onClick={() => {
-                    setSelectedTarget(null);
-                    setShowConfirmation(true);
-                  }}
+                  onClick={handleAbstainClick}
                   className="w-full relative group"
                   aria-label={t(
                     'AbstainFromVoting',
@@ -359,22 +374,28 @@ export function VotingPanel({
             </div>
             <div className="mt-3 p-3 rounded-md bg-muted/30 border border-border/50">
               <p className="text-xs text-muted-foreground text-center">
-                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">1</kbd>
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">
+                  1
+                </kbd>
                 {' - '}
-                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">9</kbd>
-                {' '}
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">
+                  9
+                </kbd>{' '}
                 {t('VotingKeyboardHint', 'to vote')}
                 {' • '}
-                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">0</kbd>
-                {' '}
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">
+                  0
+                </kbd>{' '}
                 {t('ToAbstain', 'to abstain')}
                 {' • '}
-                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">Enter</kbd>
-                {' '}
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">
+                  Enter
+                </kbd>{' '}
                 {t('ToConfirm', 'to confirm')}
                 {' • '}
-                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">Esc</kbd>
-                {' '}
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">
+                  Esc
+                </kbd>{' '}
                 {t('ToCancel', 'to cancel')}
               </p>
             </div>
@@ -475,11 +496,7 @@ export function VotingPanel({
               </div>
 
               <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowConfirmation(false)}
-                >
+                <Button variant="outline" size="sm" onClick={handleCancelClick}>
                   {t('Cancel', 'Cancel')}
                 </Button>
                 <Button

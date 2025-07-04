@@ -49,24 +49,26 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     if (open) {
       // Store the currently focused element
       previousActiveElement.current = document.activeElement as HTMLElement;
-      
+
       // Focus the dialog
       dialogRef.current?.focus();
-      
+
       // Trap focus within dialog
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           e.preventDefault();
           onOpenChange(false);
         }
-        
+
         if (e.key === 'Tab' && dialogRef.current) {
           const focusableElements = dialogRef.current.querySelectorAll(
             'a[href], button, textarea, input[type="text"], input[type="radio"], input[type="checkbox"], select, [tabindex]:not([tabindex="-1"])'
           );
           const firstFocusable = focusableElements[0] as HTMLElement;
-          const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement;
-          
+          const lastFocusable = focusableElements[
+            focusableElements.length - 1
+          ] as HTMLElement;
+
           if (e.shiftKey && document.activeElement === firstFocusable) {
             e.preventDefault();
             lastFocusable?.focus();
@@ -76,9 +78,9 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
           }
         }
       };
-      
+
       document.addEventListener('keydown', handleKeyDown);
-      
+
       return () => {
         document.removeEventListener('keydown', handleKeyDown);
         // Restore focus to the previously focused element
@@ -99,10 +101,10 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       />
 
       {/* Dialog content */}
-      <div 
+      <div
         ref={dialogRef}
-        className="relative z-50" 
-        role="dialog" 
+        className="relative z-50"
+        role="dialog"
         aria-modal="true"
         tabIndex={-1}
       >
@@ -123,24 +125,24 @@ export function DialogTrigger({
   return <div>{children}</div>;
 }
 
-export function DialogContent({ 
-  className, 
+export function DialogContent({
+  className,
   children,
   onOpenAutoFocus,
   onCloseAutoFocus,
 }: DialogContentProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     const event = new Event('focus');
     onOpenAutoFocus?.(event);
-    
+
     return () => {
       const event = new Event('focus');
       onCloseAutoFocus?.(event);
     };
   }, [onOpenAutoFocus, onCloseAutoFocus]);
-  
+
   return (
     <div
       ref={contentRef}
@@ -170,7 +172,7 @@ export function DialogHeader({ className, children }: DialogHeaderProps) {
 
 export function DialogTitle({ className, children }: DialogTitleProps) {
   const id = React.useId();
-  
+
   return (
     <h2
       id={id}
@@ -189,12 +191,9 @@ export function DialogDescription({
   children,
 }: DialogDescriptionProps) {
   const id = React.useId();
-  
+
   return (
-    <p 
-      id={id}
-      className={cn('text-sm text-muted-foreground', className)}
-    >
+    <p id={id} className={cn('text-sm text-muted-foreground', className)}>
       {children}
     </p>
   );

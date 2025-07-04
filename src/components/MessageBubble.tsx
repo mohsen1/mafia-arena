@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type {
   FilteredPlayer,
   ClientMessage,
@@ -20,8 +21,8 @@ interface MessageBubbleProps {
   isWerewolfChat?: boolean;
 }
 
-// Message Component with Dark Mode
-export function MessageBubble({
+// Message Component with Dark Mode - wrapped with React.memo
+export const MessageBubble = React.memo(function MessageBubble({
   message,
   players,
   isWerewolfChat,
@@ -158,4 +159,4 @@ export function MessageBubble({
       )}
     </div>
   );
-}
+});
