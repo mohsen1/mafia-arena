@@ -116,7 +116,7 @@ export default function SignUpPage({ params: paramsPromise }: PageProps) {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             {successMessage && (
               <Alert>
                 <AlertDescription>{successMessage}</AlertDescription>

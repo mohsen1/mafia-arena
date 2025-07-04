@@ -196,7 +196,7 @@ function GameLayout({ gameId }: { gameId: string }) {
               <ConversationLog />
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
                 {/* Voting Panel */}
-                {gameState && gameState.phase === 'Day' && (
+                {gameState && gameState.phase === 'Day' && humanPlayerId && (
                   <VotingPanel gameState={gameState} />
                 )}
                 {/* Game History */}

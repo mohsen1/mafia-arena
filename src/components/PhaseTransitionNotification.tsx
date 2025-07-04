@@ -100,7 +100,7 @@ export function PhaseTransitionNotification({
   phase,
   round,
   show,
-  duration = 2000,
+  duration = 1500,
 }: PhaseTransitionNotificationProps) {
   const [isVisible, setIsVisible] = useState(false);
 
