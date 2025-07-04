@@ -59,9 +59,6 @@ playwright-report/
 test-results/
 *.png
 
-# Gemini assistant files
-.gemini-prompt-history.json
+# Log files
 dev-server.log
-gemini-mcp-server.log
-gemini-mcp-backlog.json
 *.log

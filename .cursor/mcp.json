@@ -3,10 +3,6 @@
     "browsermcp": {
       "command": "npx",
       "args": ["@browsermcp/mcp@latest"]
-    },
-    "gemini-guidance": {
-      "command": "./scripts/gemini-mcp/run.sh",
-      "env": {}
     }
   }
 }
