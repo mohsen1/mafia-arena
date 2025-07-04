@@ -197,7 +197,7 @@ function GameLayout({ gameId }: { gameId: string }) {
               <ConversationLog />
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
                 {/* Voting Panel */}
-                {gameState && gameState.phase === 'Day' && humanPlayerId && (
+                {gameState && humanPlayerId && (
                   <VotingPanel gameState={gameState} />
                 )}
                 {/* Game History */}
@@ -206,7 +206,7 @@ function GameLayout({ gameId }: { gameId: string }) {
                     gameState={
                       gameState as FilteredGameState & { memory: AgentMemory }
                     }
-                    className={gameState.phase !== 'Day' ? 'lg:col-span-2' : ''}
+                    className={gameState.phase !== 'Day' || !gameState ? 'lg:col-span-2' : ''}
                   />
                 )}
               </div>

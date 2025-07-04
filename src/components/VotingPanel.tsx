@@ -51,6 +51,23 @@ export function VotingPanel({
   const isVotingPhase = gameState.phase === 'Day';
   const canVote = isVotingPhase && humanPlayerId && !hasVoted;
 
+  // Check if we're in the voting step by looking at recent messages
+  const isInVotingStep = useMemo(() => {
+    if (!isVotingPhase) return false;
+    
+    // Look for voting announcement in recent messages
+    const recentMessages = gameState.log.slice(0, 10);
+    return recentMessages.some(msg => 
+      msg.content.includes('time to vote') || 
+      msg.content.includes('Voting time') ||
+      msg.content.includes('VotingPhase') ||
+      msg.content.includes('vote to eliminate')
+    );
+  }, [gameState.log, isVotingPhase]);
+
+  // Only show panel if we're in voting phase AND actively voting
+  const shouldShowPanel = isVotingPhase && isInVotingStep;
+
   // Extract current round votes from conversation log
   const currentVotes = useMemo(() => {
     const votes: VoteData[] = [];
@@ -231,7 +248,7 @@ export function VotingPanel({
     handleVoteSubmit,
   ]);
 
-  if (!isVotingPhase) return null;
+  if (!shouldShowPanel) return null;
 
   return (
     <Card
