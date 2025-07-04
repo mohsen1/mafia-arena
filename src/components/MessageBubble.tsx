@@ -17,10 +17,7 @@ interface MessageBubbleProps {
   isWerewolfChat?: boolean;
 }
 
-export function MessageBubble({
-  message,
-  players,
-}: MessageBubbleProps) {
+export function MessageBubble({ message, players }: MessageBubbleProps) {
   const sender = message.senderId ? players[message.senderId] : null;
   const isModeratorMessage = message.senderId === 'moderator';
   const isMafiaMessage = message.visibility === MessageVisibility.Mafia;
