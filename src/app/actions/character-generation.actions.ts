@@ -200,7 +200,7 @@ export async function generateGameCharactersAction(
       const persona = updatedPlayer.persona;
 
       // The initial placeholder backstory for AI players is exactly this format
-      const expectedPlaceholderBackstory = `A resident of ${theme.name.toLowerCase()}`;
+      const expectedPlaceholderBackstory = `A resident of ${theme.name}`;
 
       const isPlaceholder =
         persona.name === player.name || // Still using original name
@@ -470,7 +470,7 @@ export async function getCharacterGenerationProgressAction(
       };
     }
     // Default backstory for AI players, used to determine if a persona has been generated.
-    const aiPlaceholderBackstory = `A resident of ${theme.name.toLowerCase()}`;
+    const aiPlaceholderBackstory = `A resident of ${theme.name}`;
 
     const generatedCharacters = aiPlayers.filter(
       (player) =>
