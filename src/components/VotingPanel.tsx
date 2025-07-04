@@ -301,7 +301,7 @@ export function VotingPanel({
                       onMouseEnter={() => setHoveredPlayer(player.id)}
                       onMouseLeave={() => setHoveredPlayer(null)}
                       className={cn(
-                        'justify-start text-left w-full transition-all',
+                        'justify-start text-left w-full transition-all relative group',
                         hoveredPlayer === player.id && 'shadow-md'
                       )}
                       aria-label={t(
@@ -314,11 +314,13 @@ export function VotingPanel({
                       )}
                       title={`Press ${index + 1} to vote`}
                     >
-                      <span className="text-xs text-muted-foreground mr-2 font-mono">
+                      <kbd className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono bg-muted/50 rounded px-1.5 py-0.5 border border-border/50 group-hover:bg-muted group-hover:border-border">
                         {index + 1}
+                      </kbd>
+                      <span className="ml-8 flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        {player.name}
                       </span>
-                      <User className="w-3 h-3 mr-1" />
-                      {player.name}
                     </Button>
                   </motion.div>
                 ))}
@@ -338,24 +340,44 @@ export function VotingPanel({
                     setSelectedTarget(null);
                     setShowConfirmation(true);
                   }}
-                  className="w-full"
+                  className="w-full relative group"
                   aria-label={t(
                     'AbstainFromVoting',
                     'Abstain from voting (press 0)'
                   )}
                   title="Press 0 to abstain"
                 >
-                  <Ban className="w-4 h-4 mr-2" />
-                  {t('AbstainFromVoting', 'Abstain from voting')}
+                  <kbd className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono bg-muted/50 rounded px-1.5 py-0.5 border border-border/50 group-hover:bg-muted group-hover:border-border">
+                    0
+                  </kbd>
+                  <span className="ml-8 flex items-center gap-2">
+                    <Ban className="w-4 h-4" />
+                    {t('AbstainFromVoting', 'Abstain from voting')}
+                  </span>
                 </Button>
               </motion.div>
             </div>
-            <p className="text-xs text-muted-foreground text-center italic">
-              {t(
-                'VotingKeyboardHint',
-                'Press number keys 1-9 to vote, 0 to abstain'
-              )}
-            </p>
+            <div className="mt-3 p-3 rounded-md bg-muted/30 border border-border/50">
+              <p className="text-xs text-muted-foreground text-center">
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">1</kbd>
+                {' - '}
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">9</kbd>
+                {' '}
+                {t('VotingKeyboardHint', 'to vote')}
+                {' • '}
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">0</kbd>
+                {' '}
+                {t('ToAbstain', 'to abstain')}
+                {' • '}
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">Enter</kbd>
+                {' '}
+                {t('ToConfirm', 'to confirm')}
+                {' • '}
+                <kbd className="text-xs font-mono bg-muted rounded px-1.5 py-0.5 border border-border/50">Esc</kbd>
+                {' '}
+                {t('ToCancel', 'to cancel')}
+              </p>
+            </div>
           </motion.div>
         )}
 

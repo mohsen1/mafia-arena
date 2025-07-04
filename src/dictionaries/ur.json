@@ -505,5 +505,22 @@
   "DiscussionComplete": "بحث کا مرحلہ ختم ہو گیا ہے۔ اب ووٹ ڈالنے کا وقت ہے۔",
   "error": "خرابی",
   "test-connection-failed": "ٹیسٹ ناکام: {{error}}",
-  "DayStart": "دن {{round}} شروع ہوتا ہے۔ قصبہ حالیہ واقعات پر تبادلہ خیال کرنے کے لئے جمع ہوتا ہے۔"
+  "DayStart": "دن {{round}} شروع ہوتا ہے۔ قصبہ حالیہ واقعات پر تبادلہ خیال کرنے کے لئے جمع ہوتا ہے۔",
+  "Abstained": "باز رہا",
+  "tutorial": "ٹیوٹوریل",
+  "UnmuteSound": "آواز بحال",
+  "AI": "اے آئی",
+  "replay": "دوبارہ چلائیں",
+  "MuteSound": "آواز بند",
+  "VotePlayer": "کھلاڑی کو ووٹ دیں",
+  "SwipeToNavigatePlayers": "کھلاڑیوں کو نیویگیٹ کرنے کے لیے بائیں/دائیں سوائپ کریں",
+  "stats": "شماریات",
+  "VoteForPlayerConfirm": "آپ {{player}} کو ختم کرنے کے لیے ووٹ دے رہے ہیں",
+  "Human": "انسان",
+  "achievements": "کامیابیاں",
+  "Abstain": "باز رہنا",
+  "soundSettings": "آواز کی ترتیبات",
+  "gamePresets": "گیم پری سیٹ",
+  "spectator": "تماشائی",
+  "Progress": "پیش رفت"
 }

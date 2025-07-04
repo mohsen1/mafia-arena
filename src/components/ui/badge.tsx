@@ -29,6 +29,7 @@ function Badge({
   className,
   variant,
   asChild = false,
+  'aria-label': ariaLabel,
   ...props
 }: React.ComponentProps<'span'> &
   VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
@@ -38,6 +39,7 @@ function Badge({
     <Comp
       data-slot="badge"
       className={cn(badgeVariants({ variant }), className)}
+      aria-label={ariaLabel}
       {...props}
     />
   );

@@ -505,5 +505,22 @@
   "test-connection-failed": "Tes gagal: {{error}}",
   "Dark": "Gelap",
   "TableHeader_Model": "Model AI",
-  "Light": "Terang"
+  "Light": "Terang",
+  "SwipeToNavigatePlayers": "Geser kiri/kanan untuk menavigasi pemain",
+  "Abstain": "Abstain",
+  "achievements": "Pencapaian",
+  "replay": "Putar Ulang",
+  "Abstained": "Abstain",
+  "MuteSound": "Matikan Suara",
+  "Progress": "Progres",
+  "VotePlayer": "Pilih Pemain",
+  "AI": "AI",
+  "gamePresets": "Preset Game",
+  "stats": "Statistik",
+  "tutorial": "Tutorial",
+  "soundSettings": "Pengaturan Suara",
+  "VoteForPlayerConfirm": "Anda memilih untuk mengeliminasi {{player}}",
+  "UnmuteSound": "Nyalakan Suara",
+  "spectator": "Spectator",
+  "Human": "Manusia"
 }

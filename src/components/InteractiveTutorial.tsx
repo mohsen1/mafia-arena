@@ -394,6 +394,7 @@ export function InteractiveTutorial({
               size="icon"
               className="absolute right-2 top-2 z-10"
               onClick={() => setIsOpen(false)}
+              aria-label={t('tutorial.closeButton', 'Close tutorial')}
             >
               <X className="w-4 h-4" />
             </Button>
@@ -440,7 +441,7 @@ export function InteractiveTutorial({
                 </Button>
 
                 <div className="flex gap-1">
-                  {tutorialSteps.map((_, index) => (
+                  {tutorialSteps.map((step, index) => (
                     <div
                       key={index}
                       className={cn(
@@ -451,6 +452,14 @@ export function InteractiveTutorial({
                             ? 'bg-primary/50'
                             : 'bg-muted'
                       )}
+                      role="progressbar"
+                      aria-label={t('tutorial.stepProgress', 'Step {{current}} of {{total}}', {
+                        current: index + 1,
+                        total: tutorialSteps.length
+                      })}
+                      aria-valuenow={index + 1}
+                      aria-valuemin={1}
+                      aria-valuemax={tutorialSteps.length}
                     />
                   ))}
                 </div>

@@ -321,7 +321,9 @@
     "previous": "Previous",
     "next": "Next",
     "start": "Start Playing",
-    "showTutorial": "How to Play"
+    "showTutorial": "How to Play",
+    "closeButton": "Close tutorial",
+    "stepProgress": "Step {{current}} of {{total}}"
   },
   "stats": {
     "totalGames": "Total Games",
@@ -586,9 +588,15 @@
   "VotingComplete": "Voting complete.",
   "VoteForPlayerConfirm": "You are voting to eliminate {{player}}",
   "Abstained": "Abstained",
+  "VotingKeyboardHint": "to vote",
+  "ToAbstain": "to abstain",
+  "ToConfirm": "to confirm",
+  "ToCancel": "to cancel",
   "Progress": "Progress",
   "ChoseNoActionVoting": "chooses not to vote.",
   "ChoseNoAction": "takes no action.",
+  "CurrentPhase": "Current phase: {{phase}}",
+  "RoundNumber": ", Round {{round}}",
   "VotesToAbstain": "abstains from voting.",
   "VotesFor": "votes for {{playerName}}.",
   "VotesInvalidTarget": "tried to vote for {{targetName}} who cannot be voted for, so abstains instead.",

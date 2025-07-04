@@ -62,7 +62,10 @@ export function KeyboardShortcutsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent 
+        className="max-w-md"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="w-5 h-5" />
@@ -76,28 +79,29 @@ export function KeyboardShortcutsDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6" role="list">
           {/* Game Controls */}
           <div>
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
               {t('GameControls', 'Game Controls')}
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-2" role="list">
               {gameShortcuts.map((shortcut, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-secondary/50 transition-colors"
+                  role="listitem"
                 >
                   <span className="text-sm">{shortcut.description}</span>
                   <div className="flex gap-1">
                     {shortcut.keys.map((key, keyIndex) => (
-                      <Badge
+                      <kbd
                         key={keyIndex}
-                        variant="outline"
-                        className="font-mono text-xs px-2 py-0.5"
+                        className="font-mono text-xs px-2 py-0.5 rounded border bg-muted"
+                        aria-label={`Key: ${key}`}
                       >
                         {key}
-                      </Badge>
+                      </kbd>
                     ))}
                   </div>
                 </div>
@@ -110,22 +114,23 @@ export function KeyboardShortcutsDialog() {
             <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
               {t('GlobalShortcuts', 'Global Shortcuts')}
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-2" role="list">
               {globalShortcuts.map((shortcut, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-secondary/50 transition-colors"
+                  role="listitem"
                 >
                   <span className="text-sm">{shortcut.description}</span>
                   <div className="flex gap-1">
                     {shortcut.keys.map((key, keyIndex) => (
-                      <Badge
+                      <kbd
                         key={keyIndex}
-                        variant="outline"
-                        className="font-mono text-xs px-2 py-0.5"
+                        className="font-mono text-xs px-2 py-0.5 rounded border bg-muted"
+                        aria-label={`Key: ${key}`}
                       >
                         {key}
-                      </Badge>
+                      </kbd>
                     ))}
                   </div>
                 </div>
