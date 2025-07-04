@@ -333,10 +333,19 @@ export async function generateGameCharactersAction(
       '[CharacterGen] All personas generated successfully, generating images...'
     );
 
-    // Generate character images in parallel for all non-human players
-    const imagePromises = aiPlayers.map(async (player) => {
+    // Generate character images in parallel for all players (including human) who don't have images
+    const allPlayers = Object.values(updatedState.players);
+    const imagePromises = allPlayers.map(async (player) => {
       if (!player.imageUrl) {
         try {
+          // For human players, first check if they have a profile image from auth provider
+          if (player.isHuman && session?.user?.image) {
+            console.log(
+              `[CharacterGen] Using auth provider image for human player ${player.name}: ${session.user.image}`
+            );
+            return { playerId: player.id, imageUrl: session.user.image };
+          }
+
           // Get the updated player with persona
           const updatedPlayer = updatedState.players[player.id];
           const persona = updatedPlayer?.persona;

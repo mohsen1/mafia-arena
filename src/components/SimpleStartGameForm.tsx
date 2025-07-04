@@ -46,6 +46,7 @@ export interface SimpleStartGameFormProps {
   user?: {
     name?: string | null;
     email?: string | null;
+    image?: string | null;
   } | null;
   preset?: GamePreset | null;
 }
@@ -367,7 +368,7 @@ export default function SimpleStartGameForm({
           name: humanPlayerName.trim(),
           rolePreference: RoleName.Villager,
           isHuman: true,
-          imageUrl: null,
+          imageUrl: user?.image || null,
           agentConfig: { agentType: 'Human' as const },
         });
       }
@@ -465,6 +466,7 @@ export default function SimpleStartGameForm({
     selectedGameThemeKey,
     lang,
     t,
+    user?.image,
   ]);
 
   if (errorMsg) {

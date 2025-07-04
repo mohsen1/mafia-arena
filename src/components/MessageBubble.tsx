@@ -88,9 +88,13 @@ export const MessageBubble = React.memo(function MessageBubble({
 
       {/* Show moderator avatar */}
       {isModerator && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-          <Gavel className="w-4 h-4 text-primary" />
-        </div>
+        <DynamicAvatar
+          name="Moderator"
+          imageUrl="/images/characters/mod.png"
+          size="sm"
+          className="flex-shrink-0"
+          aria-hidden="true"
+        />
       )}
 
       <div
