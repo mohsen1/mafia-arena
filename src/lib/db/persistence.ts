@@ -94,6 +94,16 @@ export async function createGameData(
     console.log('[createGameData] Game saved successfully to database');
   } catch (error) {
     console.error('[createGameData] Database error:', error);
+    
+    // Check for foreign key constraint error
+    if (error instanceof Error) {
+      if (error.message.includes('games_owner_id_user_id_fk')) {
+        throw new Error(
+          `User account not found. Please ensure you are logged in with a valid account. (User ID: ${ownerId})`
+        );
+      }
+    }
+    
     throw error;
   }
 }

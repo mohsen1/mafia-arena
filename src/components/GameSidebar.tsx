@@ -47,7 +47,7 @@ export function GameSidebar() {
 
     // Only group by roles if the game is over or if we can see all roles
     const canSeeRoles = gameState.phase === 'GameOver';
-    
+
     if (!canSeeRoles) {
       // During active game, don't group by alignment
       return { townPlayers: [], mafiaPlayers: [], otherPlayers: players };
