@@ -127,7 +127,7 @@ export const EnhancedProviderModelSelector = React.memo(
 
     // Check provider availability when component mounts or providers change
     useEffect(() => {
-      const checkProviderStatus = async (provider: string) => {
+      const checkProviderStatus = async (provider: string, retryCount = 0) => {
         setProviderStatuses((prev) => ({
           ...prev,
           [provider]: { available: false, checking: true },
@@ -136,16 +136,43 @@ export const EnhancedProviderModelSelector = React.memo(
         try {
           // Special handling for Ollama
           if (provider === 'ollama_local') {
-            const response = await fetch('http://localhost:11434/api/tags');
-            const available = response.ok;
-            setProviderStatuses((prev) => ({
-              ...prev,
-              [provider]: {
-                available,
-                checking: false,
-                message: available ? 'Connected' : 'Not running',
-              },
-            }));
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+            try {
+              const response = await fetch('http://localhost:11434/api/tags', {
+                signal: controller.signal,
+              });
+              clearTimeout(timeoutId);
+
+              const available = response.ok;
+              setProviderStatuses((prev) => ({
+                ...prev,
+                [provider]: {
+                  available,
+                  checking: false,
+                  message: available ? 'Connected' : 'Not running',
+                },
+              }));
+            } catch {
+              clearTimeout(timeoutId);
+              
+              // Retry logic for Ollama
+              if (retryCount < 2) {
+                setTimeout(() => {
+                  checkProviderStatus(provider, retryCount + 1);
+                }, 1000 * (retryCount + 1)); // Exponential backoff
+              } else {
+                setProviderStatuses((prev) => ({
+                  ...prev,
+                  [provider]: {
+                    available: false,
+                    checking: false,
+                    message: 'Connection failed',
+                  },
+                }));
+              }
+            }
           } else {
             // For other providers, assume they're available if they're in the list
             setProviderStatuses((prev) => ({
@@ -157,7 +184,8 @@ export const EnhancedProviderModelSelector = React.memo(
               },
             }));
           }
-        } catch {
+        } catch (error) {
+          console.error(`Error checking provider ${provider}:`, error);
           setProviderStatuses((prev) => ({
             ...prev,
             [provider]: {

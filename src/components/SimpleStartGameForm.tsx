@@ -476,7 +476,11 @@ export default function SimpleStartGameForm({
   }
 
   return (
-    <div className="w-full space-y-8">
+    <div className="max-w-2xl mx-auto space-y-6 relative">
+      <h2 className="text-2xl font-bold text-center">
+        {t('ConfigureNewGameTitle', 'Configure New Game')}
+      </h2>
+
       {/* AI Configuration Section */}
       <div className="space-y-6">
         <div className="space-y-2">
@@ -731,13 +735,35 @@ export default function SimpleStartGameForm({
           )}
         </MagicalAIButton>
 
-        <Button variant="outline" asChild className="w-full">
+        <Button
+          variant="outline"
+          asChild
+          className="w-full"
+          disabled={isSubmitting}
+        >
           <Link href={`/${lang}/character-setup`}>
             <Settings2 className="mr-2 h-4 w-4" />
             {t('CustomizeCharactersButton', 'Customize Characters')}
           </Link>
         </Button>
       </div>
+
+      {/* Loading Overlay */}
+      {isSubmitting && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
+          <div className="text-center space-y-3">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium">
+                {t('CreatingGame', 'Creating your game...')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t('GeneratingCharacters', 'Generating unique AI characters')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
