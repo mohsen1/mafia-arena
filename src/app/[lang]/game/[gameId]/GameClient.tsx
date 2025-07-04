@@ -48,7 +48,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
     error,
     clearError,
     runNextTurn,
-    setGameSpeed,
   } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
 
@@ -241,9 +240,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
             <SpectatorMode
               gameState={gameState}
               messages={gameState.log}
-              onSpeedChange={(speed) => {
-                setGameSpeed(speed);
-              }}
               className="h-full"
             />
           )}

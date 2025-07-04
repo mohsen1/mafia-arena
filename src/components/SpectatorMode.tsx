@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
@@ -14,7 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import type {
   FilteredGameState,
@@ -32,21 +31,9 @@ interface SpectatorModeProps {
 const SpectatorMode: React.FC<SpectatorModeProps> = ({
   gameState,
   messages,
-  onSpeedChange,
   className,
 }) => {
-
   const [isPlaying, setIsPlaying] = useState(true);
-  const [gameSpeed, setGameSpeed] = useState(1);
-
-  const handleSpeedChange = useCallback(
-    (value: number[]) => {
-      const speed = value[0];
-      setGameSpeed(speed);
-      onSpeedChange?.(speed);
-    },
-    [onSpeedChange]
-  );
 
   return (
     <div className={cn('flex flex-col gap-2 h-full', className)}>
@@ -67,20 +54,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
           <SkipForward className="w-4 h-4" />
         </Button>
 
-        <div className="flex items-center gap-2 flex-1">
-          <span className="text-xs text-muted-foreground">Speed:</span>
-          <Slider
-            value={[gameSpeed]}
-            onValueChange={handleSpeedChange}
-            min={0.5}
-            max={3}
-            step={0.5}
-            className="w-24"
-          />
-          <span className="text-xs font-medium w-8">{gameSpeed}x</span>
-        </div>
-
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm ml-auto">
           {gameState.phase === 'Day' ? (
             <Sun className="w-4 h-4 text-yellow-500" />
           ) : (
