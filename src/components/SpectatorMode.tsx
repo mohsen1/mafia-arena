@@ -84,7 +84,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
   // Mock insights data - in real implementation, this would come from the game engine
   const insights: SpectatorInsights = {
     players: new Map(
-      gameState.players.map((player) => [
+      Object.values(gameState.players).map((player) => [
         player.id,
         {
           playerId: player.id,
@@ -98,7 +98,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
     ),
     currentPhase: gameState.phase,
     votingIntentions: new Map(),
-    aiReasoning: gameState.players
+    aiReasoning: Object.values(gameState.players)
       .filter((p) => p.status === 'Alive')
       .map((p) => ({
         playerId: p.id,
@@ -223,7 +223,11 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                 {gameState.phase} - Round {gameState.round}
               </CardTitle>
               <Badge variant="outline">
-                {gameState.players.filter((p) => p.status === 'Alive').length}{' '}
+                {
+                  Object.values(gameState.players).filter(
+                    (p) => p.status === 'Alive'
+                  ).length
+                }{' '}
                 alive
               </Badge>
             </div>
@@ -252,8 +256,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                     >
                       <MessageBubble
                         message={message}
-                        isOwnMessage={false}
-                        showSenderInfo
+                        players={gameState.players}
                       />
                     </motion.div>
                   ))}
@@ -354,7 +357,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                   <TabsContent value="players" className="mt-0">
                     <ScrollArea className="h-[400px]">
                       <div className="space-y-2">
-                        {gameState.players.map((player) => {
+                        {Object.values(gameState.players).map((player) => {
                           const insight = insights.players.get(player.id);
                           if (!insight) return null;
 
@@ -376,8 +379,8 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                                 <DynamicAvatar
                                   name={player.name}
                                   role={insight.role}
+                                  imageUrl={player.imageUrl}
                                   size="sm"
-                                  showRoleBadge
                                 />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
@@ -443,7 +446,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                     <ScrollArea className="h-[400px]">
                       <div className="space-y-3">
                         {insights.aiReasoning?.map((reasoning, index) => {
-                          const player = gameState.players.find(
+                          const player = Object.values(gameState.players).find(
                             (p) => p.id === reasoning.playerId
                           );
                           if (!player) return null;
@@ -454,7 +457,11 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                               className="p-3 rounded-lg bg-secondary/30"
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <DynamicAvatar name={player.name} size="xs" />
+                                <DynamicAvatar
+                                  name={player.name}
+                                  size="sm"
+                                  imageUrl={player.imageUrl}
+                                />
                                 <h5 className="font-medium text-sm">
                                   {player.name}
                                 </h5>
@@ -466,7 +473,7 @@ const SpectatorMode: React.FC<SpectatorModeProps> = ({
                                 </Badge>
                               </div>
                               <p className="text-sm text-muted-foreground italic">
-                                "{reasoning.thought}"
+                                &quot;{reasoning.thought}&quot;
                               </p>
                             </div>
                           );
