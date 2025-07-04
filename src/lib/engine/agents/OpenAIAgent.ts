@@ -74,6 +74,19 @@ export class OpenAIAgent implements IAgent {
       `[${agentIdForLog}] Generating persona with theme: ${themeDescription}, language: ${language || 'en'}, avoiding names: ${existingNames?.join(', ') || 'none'}`
     );
 
+    // Add production logging
+    console.log(
+      `[OpenAIAgent.generatePersona] Starting for ${this.id}, model: ${this.model}, endpoint: ${this.apiBase}`
+    );
+
+    // Check if this is a Groq endpoint
+    const isGroq = this.apiBase.includes('groq.com');
+    if (isGroq) {
+      console.log(
+        `[OpenAIAgent.generatePersona] Using Groq API with model: ${this.model}`
+      );
+    }
+
     const personaPrompt = getPersonaGenerationPrompt(
       themeDescription,
       language,
@@ -81,6 +94,11 @@ export class OpenAIAgent implements IAgent {
     );
 
     try {
+      console.log(
+        `[OpenAIAgent.generatePersona] Making API call to ${this.apiBase}...`
+      );
+      const startTime = Date.now();
+
       const completion = await this.openai.chat.completions.create({
         model: this.model,
         messages: [{ role: 'user', content: personaPrompt }],
@@ -89,18 +107,33 @@ export class OpenAIAgent implements IAgent {
         response_format: { type: 'json_object' },
       });
 
+      const duration = Date.now() - startTime;
+      console.log(
+        `[OpenAIAgent.generatePersona] API call completed in ${duration}ms`
+      );
+
       const responseContent = completion.choices[0]?.message?.content;
 
       if (!responseContent) {
         log(
           `ERROR: [${agentIdForLog}] Persona generation API response was empty.`
         );
+        console.error(`[OpenAIAgent.generatePersona] Empty response from API`);
         this.persona = DEFAULT_PERSONA;
         return;
       }
 
+      console.log(
+        `[OpenAIAgent.generatePersona] Received response, parsing JSON...`
+      );
+
       try {
         const parsedPersona = JSON.parse(responseContent) as Persona;
+        console.log(
+          `[OpenAIAgent.generatePersona] Parsed persona:`,
+          parsedPersona
+        );
+
         if (
           typeof parsedPersona.name === 'string' &&
           typeof parsedPersona.backstory === 'string' &&
@@ -111,9 +144,16 @@ export class OpenAIAgent implements IAgent {
           log(
             `[${agentIdForLog}] Successfully generated persona: ${this.persona.name}`
           );
+          console.log(
+            `[OpenAIAgent.generatePersona] Success! Generated persona: ${this.persona.name}`
+          );
         } else {
           log(
             `ERROR: [${agentIdForLog}] Parsed persona JSON has invalid structure: %o`,
+            parsedPersona
+          );
+          console.error(
+            `[OpenAIAgent.generatePersona] Invalid persona structure:`,
             parsedPersona
           );
           this.persona = DEFAULT_PERSONA;
@@ -123,6 +163,14 @@ export class OpenAIAgent implements IAgent {
           `ERROR: [${agentIdForLog}] Failed to parse persona JSON response. Error: %O\nRaw Response: ${responseContent}`,
           parseError
         );
+        console.error(
+          `[OpenAIAgent.generatePersona] JSON parse error:`,
+          parseError
+        );
+        console.error(
+          `[OpenAIAgent.generatePersona] Raw response:`,
+          responseContent
+        );
         this.persona = DEFAULT_PERSONA;
       }
     } catch (error) {
@@ -130,6 +178,32 @@ export class OpenAIAgent implements IAgent {
         `ERROR: [${agentIdForLog}] API call failed during persona generation: %O`,
         error
       );
+      console.error(`[OpenAIAgent.generatePersona] API call failed:`, error);
+
+      // Add more detailed error logging for production
+      if (error instanceof Error) {
+        console.error(
+          `[OpenAIAgent.generatePersona] Error message: ${error.message}`
+        );
+        console.error(
+          `[OpenAIAgent.generatePersona] Error stack:`,
+          error.stack
+        );
+
+        // Check for specific error types
+        if (error.message.includes('401')) {
+          console.error(
+            `[OpenAIAgent.generatePersona] Authentication error - check API key`
+          );
+        } else if (error.message.includes('429')) {
+          console.error(`[OpenAIAgent.generatePersona] Rate limit error`);
+        } else if (error.message.includes('model')) {
+          console.error(
+            `[OpenAIAgent.generatePersona] Model error - model may not be available`
+          );
+        }
+      }
+
       this.persona = DEFAULT_PERSONA; // Fallback on API error
     }
   }
