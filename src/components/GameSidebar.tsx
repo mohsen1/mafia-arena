@@ -45,6 +45,14 @@ export function GameSidebar() {
     const townRoles = ['Villager', 'Seer', 'Doctor'];
     const mafiaRoles = ['Mafia'];
 
+    // Only group by roles if the game is over or if we can see all roles
+    const canSeeRoles = gameState.phase === 'GameOver';
+    
+    if (!canSeeRoles) {
+      // During active game, don't group by alignment
+      return { townPlayers: [], mafiaPlayers: [], otherPlayers: players };
+    }
+
     const townPlayers = players.filter(
       (p) => p.roleName && townRoles.includes(p.roleName)
     );
@@ -142,20 +150,22 @@ export function GameSidebar() {
           </div>
 
           {/* Role distribution */}
-          <div className="flex flex-wrap gap-1 mt-2">
-            {Object.entries(roleCount).map(([role, count]) => (
-              <Badge
-                key={role}
-                variant="secondary"
-                className="text-xs px-1.5 py-0.5 flex items-center gap-1"
-              >
-                {getRoleIcon(role)}
-                <span>
-                  {count} {t(role, role)}
-                </span>
-              </Badge>
-            ))}
-          </div>
+          {gameState.phase === 'GameOver' && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {Object.entries(roleCount).map(([role, count]) => (
+                <Badge
+                  key={role}
+                  variant="secondary"
+                  className="text-xs px-1.5 py-0.5 flex items-center gap-1"
+                >
+                  {getRoleIcon(role)}
+                  <span>
+                    {count} {t(role, role)}
+                  </span>
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
