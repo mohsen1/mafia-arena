@@ -54,14 +54,15 @@ export function VotingPanel({
   // Check if we're in the voting step by looking at recent messages
   const isInVotingStep = useMemo(() => {
     if (!isVotingPhase) return false;
-    
+
     // Look for voting announcement in recent messages
     const recentMessages = gameState.log.slice(0, 10);
-    return recentMessages.some(msg => 
-      msg.content.includes('time to vote') || 
-      msg.content.includes('Voting time') ||
-      msg.content.includes('VotingPhase') ||
-      msg.content.includes('vote to eliminate')
+    return recentMessages.some(
+      (msg) =>
+        msg.content.includes('time to vote') ||
+        msg.content.includes('Voting time') ||
+        msg.content.includes('VotingPhase') ||
+        msg.content.includes('vote to eliminate')
     );
   }, [gameState.log, isVotingPhase]);
 
