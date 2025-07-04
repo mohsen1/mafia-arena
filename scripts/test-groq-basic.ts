@@ -25,7 +25,7 @@ dotenv.config();
 
 // Configuration
 const PLAYER_COUNT = 5;
-const THEME_KEY = 'CLASSIC_VILLAGE';
+const THEME_KEY = 'UK_VILLAGE_1900S';
 const MODEL = 'llama-3.1-8b-instant'; // Fast Groq model
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1';
 
