@@ -169,7 +169,7 @@ export function VotingPanel({
       }
 
       const key = e.key;
-      
+
       // Number keys 1-9 for voting
       if (key >= '1' && key <= '9') {
         const index = parseInt(key) - 1;
@@ -179,20 +179,20 @@ export function VotingPanel({
           setShowConfirmation(true);
         }
       }
-      
+
       // 0 for abstain
       if (key === '0') {
         e.preventDefault();
         setSelectedTarget(null);
         setShowConfirmation(true);
       }
-      
+
       // Enter to confirm
       if (key === 'Enter' && showConfirmation) {
         e.preventDefault();
         handleVoteSubmit();
       }
-      
+
       // Escape to cancel
       if (key === 'Escape' && showConfirmation) {
         e.preventDefault();
@@ -202,7 +202,13 @@ export function VotingPanel({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isVotingPhase, humanPlayerId, alivePlayersArray, showConfirmation, handleVoteSubmit]);
+  }, [
+    isVotingPhase,
+    humanPlayerId,
+    alivePlayersArray,
+    showConfirmation,
+    handleVoteSubmit,
+  ]);
 
   if (!isVotingPhase) return null;
 
