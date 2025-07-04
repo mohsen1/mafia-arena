@@ -39,15 +39,8 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const { i18n } = useTranslation();
   const direction = i18n.dir(lang);
 
-  const {
-    gameState,
-    setGameState,
-    isSaving,
-    lastSaved,
-    error,
-    clearError,
-    runNextTurn,
-  } = useGameContext();
+  const { gameState, setGameState, error, clearError, runNextTurn } =
+    useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
 
   // Track phase changes for notifications

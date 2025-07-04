@@ -489,23 +489,37 @@ function CharacterSetupContent({ lang }: { lang: LanguageCode }) {
           }
 
           // Apply imported configuration
-          config.characterSlots.forEach((importedSlot: any, index: number) => {
-            if (index < characterSlots.length) {
-              const slot = characterSlots[index];
-              if (importedSlot.roleSelection) {
-                updateSlotRole(slot.clientId, importedSlot.roleSelection);
-              }
-              if (importedSlot.name && !slot.isHuman) {
-                updateSlotName(slot.clientId, importedSlot.name);
-              }
-              if (importedSlot.imageUrl) {
-                updateSlotImageUrl(slot.clientId, importedSlot.imageUrl);
-              }
-              if (importedSlot.preferences) {
-                updateSlotPreferences(slot.clientId, importedSlot.preferences);
+          config.characterSlots.forEach(
+            (
+              importedSlot: {
+                roleSelection?: RoleName;
+                name?: string;
+                imageUrl?: string | null;
+                preferences?: CharacterPreferences;
+                isHuman?: boolean;
+              },
+              index: number
+            ) => {
+              if (index < characterSlots.length) {
+                const slot = characterSlots[index];
+                if (importedSlot.roleSelection) {
+                  updateSlotRole(slot.clientId, importedSlot.roleSelection);
+                }
+                if (importedSlot.name && !slot.isHuman) {
+                  updateSlotName(slot.clientId, importedSlot.name);
+                }
+                if (importedSlot.imageUrl) {
+                  updateSlotImageUrl(slot.clientId, importedSlot.imageUrl);
+                }
+                if (importedSlot.preferences) {
+                  updateSlotPreferences(
+                    slot.clientId,
+                    importedSlot.preferences
+                  );
+                }
               }
             }
-          });
+          );
 
           // Show success message
           alert(t('ConfigImported', 'Configuration imported successfully!'));
@@ -623,7 +637,7 @@ function CharacterSetupContent({ lang }: { lang: LanguageCode }) {
       }
     });
     return Array.from(nameCount.entries())
-      .filter(([_, count]) => count > 1)
+      .filter(([, count]) => count > 1)
       .map(([name]) => name);
   }, [characterSlots]);
 
@@ -811,7 +825,6 @@ function CharacterSetupContent({ lang }: { lang: LanguageCode }) {
                 return (
                   <>
                     {Object.entries(roleCount).map(([role, count]) => {
-                      const roleInfo = ROLE_DESCRIPTIONS[role];
                       const isBalanced =
                         role === 'Mafia'
                           ? mafiaPercentage >= 25 && mafiaPercentage <= 40

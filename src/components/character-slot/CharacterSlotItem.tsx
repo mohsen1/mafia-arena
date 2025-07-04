@@ -500,13 +500,13 @@ export const CharacterSlotMobile = React.memo(function CharacterSlotMobile({
 });
 
 export const CharacterSlotItem: React.FC<CharacterSlotItemProps> = React.memo(
-  ({
+  function CharacterSlotItem({
     slot,
     isHuman,
     index,
     availableRoles,
     isSubmitting,
-    canRemove,
+    canRemove, // eslint-disable-line @typescript-eslint/no-unused-vars
     onUpdateRole,
     onUpdateProviderAndModel,
     onRemove,
@@ -514,7 +514,7 @@ export const CharacterSlotItem: React.FC<CharacterSlotItemProps> = React.memo(
     onUpdateImageUrl,
     onUpdatePreferences,
     gameTheme,
-  }) => {
+  }) {
     const { t } = useTranslation();
     const {
       attributes,
