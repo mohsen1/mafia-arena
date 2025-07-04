@@ -21,12 +21,19 @@ export interface CharacterGenerationProgress {
   completedCharacters: number;
   totalCharacters: number;
   currentCharacterName?: string;
+  currentCharacterModel?: string;
+  currentCharacterProvider?: string;
   error?: string;
   characters?: Array<{
     id: string;
     name: string;
     imageUrl: string | null;
     backstory?: string;
+    occupation?: string;
+    quirk?: string;
+    personalityTraits?: string[];
+    provider?: string;
+    model?: string;
   }>;
 }
 
@@ -527,12 +534,23 @@ export async function getCharacterGenerationProgressAction(
         ? aiPlayers[completedCharacters]?.name
         : undefined;
 
+    // Get current character's model info
+    const currentCharacter = aiPlayers[completedCharacters];
+    const currentCharacterModel = currentCharacter?.agentConfig?.modelName;
+    const currentCharacterProvider =
+      currentCharacter?.agentConfig?.providerValue;
+
     // Prepare character data for completed characters
     const characters = generatedCharacters.map((player) => ({
       id: player.id,
       name: player.persona?.name || player.name,
       imageUrl: player.imageUrl || null,
       backstory: player.persona?.backstory,
+      occupation: player.persona?.occupation,
+      quirk: player.persona?.quirk,
+      personalityTraits: player.persona?.personalityTraits,
+      provider: player.agentConfig?.providerValue,
+      model: player.agentConfig?.modelName,
     }));
 
     return {
@@ -542,6 +560,8 @@ export async function getCharacterGenerationProgressAction(
       completedCharacters,
       totalCharacters,
       currentCharacterName,
+      currentCharacterModel,
+      currentCharacterProvider,
       characters,
     };
   } catch (error) {

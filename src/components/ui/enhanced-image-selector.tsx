@@ -358,8 +358,8 @@ export function EnhancedImageSelector({
                             image.category.gender === 'male'
                               ? 'default'
                               : image.category.gender === 'female'
-                              ? 'secondary'
-                              : 'destructive'
+                                ? 'secondary'
+                                : 'destructive'
                           }
                           className="text-xs px-1"
                         >

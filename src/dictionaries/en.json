@@ -19,6 +19,14 @@
   "character-generation.step-creating": "Creating character profiles...",
   "character-generation.step-generating": "Generating backstories...",
   "character-generation.step-finalizing": "Finalizing character details...",
+  "character-generation.suggestions": "Suggestions:",
+  "character-generation.show-prompt": "Show Prompt",
+  "character-generation.hide-prompt": "Hide Prompt",
+  "character-generation.prompt-title": "AI Prompt",
+  "character-generation.prompt-description": "This is the prompt being sent to {{provider}} ({{model}}) to generate the character:",
+  "character-generation.prompt-theme": "Theme: {{theme}}",
+  "character-generation.prompt-language": "Language: {{language}}",
+  "character-generation.prompt-existing-names": "Already taken names: {{names}}",
   "ConfigInvalid": "Game configuration needs adjustment",
   "ConfigLooksGood": "Configuration looks good ({{playerCount}} players).",
   "ConfigLooksGood_Prefix": "Configuration ready",
@@ -1160,5 +1168,18 @@
   "profilePage": {
     "google": "Google",
     "github": "GitHub"
+  },
+  "footer": {
+    "description": "Experience the classic social deduction game like never before with intelligent AI characters.",
+    "quickLinks": "Quick Links",
+    "playGame": "Play Game",
+    "myGames": "My Games",
+    "profile": "Profile",
+    "help": "Help",
+    "resources": "Resources",
+    "github": "GitHub",
+    "documentation": "Documentation",
+    "language": "Language",
+    "copyright": "Built with care using Next.js and AI."
   }
 } 

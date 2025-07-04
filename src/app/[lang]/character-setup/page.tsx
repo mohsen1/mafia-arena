@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { useTranslation } from 'react-i18next';
 import type { LanguageCode } from '@/lib/i18n/settings';
 import { Loader2, Settings2, UserPlus, Trash2, ArrowLeft } from 'lucide-react';
@@ -356,6 +357,7 @@ export default function CharacterSetupPage({
       <div className="min-h-screen bg-background">
         <Header currentLang={lang} />
         <LoadingView />
+        <Footer currentLang={lang} />
       </div>
     );
   }
@@ -365,6 +367,7 @@ export default function CharacterSetupPage({
       <div className="min-h-screen bg-background">
         <Header currentLang={lang} />
         <UnauthenticatedView lang={lang} />
+        <Footer currentLang={lang} />
       </div>
     );
   }
@@ -373,6 +376,7 @@ export default function CharacterSetupPage({
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
       <CharacterSetupContent lang={lang} />
+      <Footer currentLang={lang} />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { use } from 'react';
 import { useSession } from 'next-auth/react';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -47,6 +48,7 @@ function LoadingView({ lang }: { lang: LanguageCode }) {
           </p>
         </div>
       </main>
+      <Footer currentLang={lang} />
     </div>
   );
 }
@@ -82,6 +84,7 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
           </div>
         </div>
       </main>
+      <Footer currentLang={lang} />
     </div>
   );
 }
@@ -281,6 +284,7 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
           </CardContent>
         </Card>
       </main>
+      <Footer currentLang={lang} />
     </div>
   );
 }

@@ -20,6 +20,7 @@ import {
 import SimpleStartGameForm from '@/components/SimpleStartGameForm';
 import GameCard from '@/components/GameCard';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import {
   GamePresetSelector,
   type GamePreset,
@@ -205,6 +206,7 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
           </div>
         </div>
       </main>
+      <Footer currentLang={lang} />
     </div>
   );
 }
@@ -220,6 +222,7 @@ function LoadingView({ lang }: { lang: LanguageCode }) {
           <p className="text-lg text-muted-foreground">Loading...</p>
         </div>
       </main>
+      <Footer currentLang={lang} />
     </div>
   );
 }
@@ -248,6 +251,7 @@ export default function NewGamePage({ params: paramsPromise }: PageProps) {
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
       <AuthProtectedContent lang={lang} />
+      <Footer currentLang={lang} />
     </div>
   );
 }
