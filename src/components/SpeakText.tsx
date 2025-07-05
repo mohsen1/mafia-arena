@@ -29,16 +29,16 @@ interface SpeakTextProps {
   showControls?: boolean;
 }
 
-// Helper function to convert Base64 to Blob
-function base64ToBlob(base64: string, contentType = 'audio/mpeg'): Blob {
-  const byteCharacters = atob(base64);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray], { type: contentType });
-}
+// Helper function to convert Base64 to Blob (currently unused but kept for future use)
+// function base64ToBlob(base64: string, contentType = 'audio/mpeg'): Blob {
+//   const byteCharacters = atob(base64);
+//   const byteNumbers = new Array(byteCharacters.length);
+//   for (let i = 0; i < byteCharacters.length; i++) {
+//     byteNumbers[i] = byteCharacters.charCodeAt(i);
+//   }
+//   const byteArray = new Uint8Array(byteNumbers);
+//   return new Blob([byteArray], { type: contentType });
+// }
 
 export function SpeakText({
   text,
@@ -48,18 +48,24 @@ export function SpeakText({
   className = '',
   showControls = false,
 }: SpeakTextProps) {
-  const { isAudioGloballyEnabled, currentlySpeakingId, requestToSpeak, doneSpeaking } =
-    useSpokenText();
-  
+  const {
+    isAudioGloballyEnabled,
+    currentlySpeakingId,
+    requestToSpeak,
+    doneSpeaking,
+  } = useSpokenText();
+
   // Make GameContext optional for voice testing
   let gameContext;
   try {
     gameContext = useGameContext();
   } catch (error) {
-    console.log('[SpeakText] GameContext not available, running in standalone mode');
+    console.log(
+      '[SpeakText] GameContext not available, running in standalone mode'
+    );
     gameContext = null;
   }
-  
+
   const reportAudioFinished = gameContext?.reportAudioFinished || (() => {});
   const registerStopAudio = gameContext?.registerStopAudio || (() => {});
   const unregisterStopAudio = gameContext?.unregisterStopAudio || (() => {});
@@ -70,14 +76,14 @@ export function SpeakText({
   const audioIdRef = useRef<string>(
     `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   );
-  const wordTimingsRef = useRef<Array<{ word: string; start: number; end: number }>>([]);
+  // const wordTimingsRef = useRef<Array<{ word: string; start: number; end: number }>>([]);
   const hasStartedRef = useRef(false);
   const isMountedRef = useRef(true);
   const cleanupCalledRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
-  
+
   console.log(`[SpeakText] ${timestamp()} Component render:`, {
     audioId: audioIdRef.current,
     text: text.substring(0, 50) + '...',
@@ -103,7 +109,7 @@ export function SpeakText({
       isAudioGloballyEnabled,
       currentlySpeakingId,
     });
-    
+
     isMountedRef.current = true;
     cleanupCalledRef.current = false;
 
@@ -115,23 +121,31 @@ export function SpeakText({
         cleanupCalled: cleanupCalledRef.current,
         currentlySpeakingId,
       });
-      
+
       isMountedRef.current = false;
-      
+
       if (!cleanupCalledRef.current) {
         cleanupCalledRef.current = true;
-        console.log(`[SpeakText] ${timestamp()} 🧽 CLEANUP starting for:`, audioIdRef.current);
-        
+        console.log(
+          `[SpeakText] ${timestamp()} 🧽 CLEANUP starting for:`,
+          audioIdRef.current
+        );
+
         if (audioRef.current) {
-          console.log(`[SpeakText] ${timestamp()} ⏹️ Pausing and removing audio element`);
+          console.log(
+            `[SpeakText] ${timestamp()} ⏹️ Pausing and removing audio element`
+          );
           audioRef.current.pause();
           audioRef.current.src = '';
           audioRef.current = null;
         }
-        
+
         // Always clear the speaking ID on unmount
         if (currentlySpeakingId === audioIdRef.current) {
-          console.log(`[SpeakText] ${timestamp()} 🗑️ CLEARING speaking ID on unmount:`, audioIdRef.current);
+          console.log(
+            `[SpeakText] ${timestamp()} 🗑️ CLEARING speaking ID on unmount:`,
+            audioIdRef.current
+          );
           doneSpeaking(audioIdRef.current);
           unregisterStopAudio();
         }
@@ -150,8 +164,16 @@ export function SpeakText({
       currentlySpeakingId,
     });
 
-    if (autoPlay && !hasStartedRef.current && isAudioGloballyEnabled && isMountedRef.current) {
-      console.log(`[SpeakText] ${timestamp()} 🎯 AUTO-PLAYING audio on mount for:`, audioIdRef.current);
+    if (
+      autoPlay &&
+      !hasStartedRef.current &&
+      isAudioGloballyEnabled &&
+      isMountedRef.current
+    ) {
+      console.log(
+        `[SpeakText] ${timestamp()} 🎯 AUTO-PLAYING audio on mount for:`,
+        audioIdRef.current
+      );
       hasStartedRef.current = true;
       handleSpeak();
     }
@@ -168,7 +190,9 @@ export function SpeakText({
     });
 
     if (!isMountedRef.current) {
-      console.log(`[SpeakText] ${timestamp()} ❌ Component unmounted, aborting speak`);
+      console.log(
+        `[SpeakText] ${timestamp()} ❌ Component unmounted, aborting speak`
+      );
       return;
     }
 
@@ -178,18 +202,25 @@ export function SpeakText({
       return;
     }
 
-    console.log(`[SpeakText] ${timestamp()} 🔓 REQUESTING permission to speak...`);
+    console.log(
+      `[SpeakText] ${timestamp()} 🔓 REQUESTING permission to speak...`
+    );
     const canSpeak = requestToSpeak(audioIdRef.current);
     if (!canSpeak) {
-      console.log(`[SpeakText] ${timestamp()} 🚫 DENIED - Cannot speak, another audio is playing:`, {
-        requestingId: audioIdRef.current,
-        blockingId: currentlySpeakingId,
-      });
+      console.log(
+        `[SpeakText] ${timestamp()} 🚫 DENIED - Cannot speak, another audio is playing:`,
+        {
+          requestingId: audioIdRef.current,
+          blockingId: currentlySpeakingId,
+        }
+      );
       setError('Another audio is playing');
       return;
     }
 
-    console.log(`[SpeakText] ${timestamp()} ✅ PERMISSION GRANTED, proceeding with speak`);
+    console.log(
+      `[SpeakText] ${timestamp()} ✅ PERMISSION GRANTED, proceeding with speak`
+    );
     setError(null);
 
     try {
@@ -241,7 +272,10 @@ export function SpeakText({
         setIsPlaying(true);
         // Register this audio with GameContext for auto-run coordination
         registerStopAudio(audioIdRef.current, () => {
-          console.log(`[SpeakText] ${timestamp()} ⏹️ Stop callback called from GameContext for:`, audioIdRef.current);
+          console.log(
+            `[SpeakText] ${timestamp()} ⏹️ Stop callback called from GameContext for:`,
+            audioIdRef.current
+          );
           if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
@@ -277,7 +311,7 @@ export function SpeakText({
         console.error('[SpeakText] Audio error event:', e);
         const audioError = audioRef.current?.error;
         let errorMessage = 'Audio playback error';
-        
+
         if (audioError) {
           // MediaError codes: 1=ABORTED, 2=NETWORK, 3=DECODE, 4=SRC_NOT_SUPPORTED
           switch (audioError.code) {
@@ -294,9 +328,13 @@ export function SpeakText({
               errorMessage = 'Audio format not supported';
               break;
           }
-          console.error('[SpeakText] MediaError:', audioError.code, audioError.message);
+          console.error(
+            '[SpeakText] MediaError:',
+            audioError.code,
+            audioError.message
+          );
         }
-        
+
         setError(errorMessage);
         setIsPlaying(false);
         // Clear from both contexts on error
@@ -312,11 +350,11 @@ export function SpeakText({
       console.log('[SpeakText] Audio playback started successfully');
     } catch (error) {
       console.error('[SpeakText] Error in handleSpeak:', error);
-      
+
       // Immediately clear the speaking ID on any error
       doneSpeaking(audioIdRef.current);
       unregisterStopAudio();
-      
+
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           console.log('[SpeakText] Fetch aborted');
@@ -354,14 +392,16 @@ export function SpeakText({
           <span
             key={index}
             className={`word ${
-              index === currentWordIndex ? 'highlighted font-bold text-primary' : ''
+              index === currentWordIndex
+                ? 'highlighted font-bold text-primary'
+                : ''
             }`}
           >
             {word}{' '}
           </span>
         ))}
       </div>
-      
+
       {showControls && (
         <div className="controls mt-2">
           {!isPlaying ? (
@@ -370,7 +410,10 @@ export function SpeakText({
               size="sm"
               variant="ghost"
               className="gap-2"
-              disabled={currentlySpeakingId !== null && currentlySpeakingId !== audioIdRef.current}
+              disabled={
+                currentlySpeakingId !== null &&
+                currentlySpeakingId !== audioIdRef.current
+              }
             >
               <Volume2 className="h-4 w-4" />
               Speak
@@ -388,12 +431,8 @@ export function SpeakText({
           )}
         </div>
       )}
-      
-      {error && (
-        <div className="text-sm text-destructive mt-1">
-          {error}
-        </div>
-      )}
+
+      {error && <div className="text-sm text-destructive mt-1">{error}</div>}
     </div>
   );
 }

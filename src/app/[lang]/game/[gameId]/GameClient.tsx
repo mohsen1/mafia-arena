@@ -42,8 +42,14 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const { i18n } = useTranslation();
   const direction = i18n.dir(lang);
 
-  const { gameState, setGameState, error, clearError, runNextTurn, isAudioGloballyEnabled } =
-    useGameContext();
+  const {
+    gameState,
+    setGameState,
+    error,
+    clearError,
+    runNextTurn,
+    isAudioGloballyEnabled,
+  } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -224,7 +230,7 @@ export default function GameClient({
 
 function GameClientInner({ gameId, lang }: { gameId: string; lang: string }) {
   const { isAudioGloballyEnabled } = useGameContext();
-  
+
   return (
     <SpokenTextProvider isAudioGloballyEnabled={isAudioGloballyEnabled}>
       <GameLayout gameId={gameId} lang={lang as LanguageCode} />

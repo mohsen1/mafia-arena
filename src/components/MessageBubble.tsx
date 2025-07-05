@@ -29,7 +29,7 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
   const isHumanMessage = message.senderId === gameState?.humanPlayerId;
 
   const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
-  
+
   console.log(`[MessageBubble] ${timestamp()} Component render:`, {
     messageId: message.id,
     senderId: message.senderId,
@@ -55,7 +55,7 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
   const renderContent = (content: string) => {
     // Use isAudioGloballyEnabled which is properly initialized from voiceModeEnabled
     const voiceEnabled = isAudioGloballyEnabled;
-    
+
     // Debug logging
     console.log(`[MessageBubble] ${timestamp()} 🔊 Voice check:`, {
       messageId: message.id,
@@ -66,14 +66,17 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
       messageContent: content.substring(0, 50) + '...',
       willUseSpeakText: voiceEnabled && !isHumanMessage,
     });
-    
+
     // Only use voice for AI messages, not human messages
     if (voiceEnabled && !isHumanMessage) {
-      console.log(`[MessageBubble] ${timestamp()} 🎤 RENDERING with SpeakText:`, {
-        messageId: message.id,
-        voiceId: getVoiceId(),
-        autoPlay: true,
-      });
+      console.log(
+        `[MessageBubble] ${timestamp()} 🎤 RENDERING with SpeakText:`,
+        {
+          messageId: message.id,
+          voiceId: getVoiceId(),
+          autoPlay: true,
+        }
+      );
       return (
         <SpeakText
           text={content}
@@ -83,7 +86,7 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
         />
       );
     }
-    
+
     console.log(`[MessageBubble] ${timestamp()} 📝 RENDERING without voice:`, {
       messageId: message.id,
       reason: voiceEnabled ? 'isHumanMessage' : 'voiceDisabled',
@@ -184,13 +187,17 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
 };
 
 // Memoize the component to prevent re-renders unless props actually change
-export const MessageBubble = React.memo(MessageBubbleComponent, (prevProps, nextProps) => {
-  // Custom comparison function
-  return (
-    prevProps.message.id === nextProps.message.id &&
-    prevProps.message.content === nextProps.message.content &&
-    prevProps.isWerewolfChat === nextProps.isWerewolfChat &&
-    // Don't re-render just because of players object reference change
-    Object.keys(prevProps.players).length === Object.keys(nextProps.players).length
-  );
-});
+export const MessageBubble = React.memo(
+  MessageBubbleComponent,
+  (prevProps, nextProps) => {
+    // Custom comparison function
+    return (
+      prevProps.message.id === nextProps.message.id &&
+      prevProps.message.content === nextProps.message.content &&
+      prevProps.isWerewolfChat === nextProps.isWerewolfChat &&
+      // Don't re-render just because of players object reference change
+      Object.keys(prevProps.players).length ===
+        Object.keys(nextProps.players).length
+    );
+  }
+);

@@ -15,19 +15,22 @@ export default function VoiceTestPage() {
     {
       id: '1',
       sender: 'Moderator',
-      content: 'Welcome to the village meeting. Strange things have been happening at night.',
+      content:
+        'Welcome to the village meeting. Strange things have been happening at night.',
       voiceId: 'EXAVITQu4vr4xnSDxMaL', // Narrator voice
     },
     {
       id: '2',
       sender: 'John',
-      content: 'I heard howling last night near the old mill. We must find out who among us is the werewolf!',
+      content:
+        'I heard howling last night near the old mill. We must find out who among us is the werewolf!',
       voiceId: '21m00Tcm4TlvDq8ikWAM', // Default voice
     },
     {
       id: '3',
       sender: 'Sarah',
-      content: 'I agree. We cannot let fear divide us. We must work together to uncover the truth.',
+      content:
+        'I agree. We cannot let fear divide us. We must work together to uncover the truth.',
       voiceId: 'ThT5KcBeYPX3keUQqHPh', // Female voice
     },
   ];
@@ -91,11 +94,14 @@ export default function VoiceTestPage() {
 
           <div className="text-sm text-muted-foreground">
             <p>Click "Show Test Messages" to test the voice functionality.</p>
-            <p>Messages will be spoken automatically with word-level highlighting.</p>
+            <p>
+              Messages will be spoken automatically with word-level
+              highlighting.
+            </p>
             <p>Toggle audio on/off to test both modes.</p>
           </div>
         </CardContent>
       </Card>
     </div>
   );
-} 
+}

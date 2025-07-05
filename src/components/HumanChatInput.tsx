@@ -2,10 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useGameContext } from '@/context/GameContext';
-import type {
-  FilteredPlayer,
-  PlayerId,
-} from '@/lib/interfaces/gameState.types';
+import type { FilteredPlayer } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 import { PlayerStatus } from '@/lib/engine/interfaces/IPlayer';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
@@ -140,13 +137,16 @@ export default function HumanChatInput() {
   );
 
   // Define handleKeyDown after handleSubmit
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Submit on Enter (without shift)
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e as any);
-    }
-  }, [handleSubmit]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      // Submit on Enter (without shift)
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit(e as any);
+      }
+    },
+    [handleSubmit]
+  );
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -267,7 +267,7 @@ export default function HumanChatInput() {
               className="mb-3"
             />
           )}
-          
+
           <div className="flex gap-2">
             <Input
               ref={inputRef}
@@ -280,7 +280,7 @@ export default function HumanChatInput() {
               aria-label={ariaLabel}
               onKeyDown={handleKeyDown}
             />
-            
+
             {gameState.voiceModeEnabled && (
               <Button
                 type="button"
@@ -293,7 +293,7 @@ export default function HumanChatInput() {
                 <Mic className="w-4 h-4" />
               </Button>
             )}
-            
+
             <Button
               type="submit"
               disabled={disabled || !message.trim()}

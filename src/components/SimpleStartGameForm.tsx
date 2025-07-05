@@ -710,7 +710,10 @@ export default function SimpleStartGameForm({
                 className="text-sm cursor-pointer flex items-center gap-2"
               >
                 <Volume2 className="w-4 h-4" />
-                {t('EnableVoiceModeLabel', 'Enable voice mode (text-to-speech)')}
+                {t(
+                  'EnableVoiceModeLabel',
+                  'Enable voice mode (text-to-speech)'
+                )}
               </Label>
             </div>
           </div>

@@ -80,15 +80,21 @@ function calculateAverageGameDuration(completedGames: GameListItem[]): number {
   return Math.round(totalDuration / completedGames.length);
 }
 
-function calculateStreaks(completedGames: GameListItem[]): { longestStreak: number; currentStreak: number } {
+function calculateStreaks(completedGames: GameListItem[]): {
+  longestStreak: number;
+  currentStreak: number;
+} {
   if (completedGames.length === 0) {
     return { longestStreak: 0, currentStreak: 0 };
   }
 
   // Sort games by creation date (most recent last)
   const sortedGames = completedGames
-    .filter(game => game.createdAt) // Only include games with timestamps
-    .sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
+    .filter((game) => game.createdAt) // Only include games with timestamps
+    .sort(
+      (a, b) =>
+        new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
+    );
 
   if (sortedGames.length === 0) {
     return { longestStreak: 0, currentStreak: 0 };
