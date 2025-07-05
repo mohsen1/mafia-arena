@@ -1044,7 +1044,8 @@
     "troubleshooting": "Troubleshooting",
     "ensureRunning": "Ensure Ollama is running",
     "checkFirewall": "Check firewall settings for port",
-    "forRemoteConnections": "For remote connections, set OLLAMA_HOST=0.0.0.0"
+    "forRemoteConnections": "For remote connections, set OLLAMA_HOST=0.0.0.0",
+    "productionNotSupported": "Ollama connection testing is not supported in production due to CORS restrictions. Use cloud AI providers for production deployments."
   },
   "Light": "Light",
   "Dark": "Dark",
