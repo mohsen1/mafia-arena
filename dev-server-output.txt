@@ -1,0 +1,7 @@
+{
+  "status": "COMPLETED",
+  "exit_code": 0,
+  "stdout": "\n> werewolf-ai@0.1.0 dev /Users/mohsen/code/werewolf-ai\n> next dev -p 3099\n\n[?25h\n",
+  "stderr": " ⨯ Failed to start server\nError: listen EADDRINUSE: address already in use :::3099\n    at <unknown> (Error: listen EADDRINUSE: address already in use :::3099)\n    at new Promise (<anonymous>) {\n  code: 'EADDRINUSE',\n  errno: -48,\n  syscall: 'listen',\n  address: '::',\n  port: 3099\n}\n",
+  "message": "Command completed within the timeout."
+}

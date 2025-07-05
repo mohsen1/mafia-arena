@@ -33,6 +33,12 @@ import {
   Save,
   X,
   AlertCircle,
+  Sparkles,
+  Bot,
+  Zap,
+  Brain,
+  Cpu,
+  Calendar,
 } from 'lucide-react';
 import {
   getUserApiKeys,
@@ -57,6 +63,24 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   gemini: 'Google Gemini',
   groq: 'Groq',
   fireworks: 'Fireworks AI',
+};
+
+const PROVIDER_ICONS: Record<string, React.ReactNode> = {
+  openai: <Bot className="w-5 h-5" />,
+  anthropic: <Brain className="w-5 h-5" />,
+  gemini: <Sparkles className="w-5 h-5" />,
+  groq: <Zap className="w-5 h-5" />,
+  fireworks: <Cpu className="w-5 h-5" />,
+};
+
+const PROVIDER_COLORS: Record<string, string> = {
+  openai:
+    'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+  anthropic:
+    'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
+  gemini: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+  groq: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
+  fireworks: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
 };
 
 export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
@@ -281,36 +305,39 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
   if (loading) {
     return (
       <div className="space-y-4">
-        {/* Skeleton loader for API keys list */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-9 w-24" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Skeleton for API key items */}
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-3 rounded-lg bg-secondary/10"
-              >
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-32" />
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-6 w-32 mb-2" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-28" />
+        </div>
+
+        {/* Skeleton for API key items */}
+        <div className="space-y-3">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 flex-1">
+                    <Skeleton className="h-12 w-12 rounded-lg" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                      </div>
+                      <Skeleton className="h-4 w-48" />
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Skeleton className="h-8 w-8" />
-                  <Skeleton className="h-8 w-8" />
-                </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -491,11 +518,23 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
 
       {/* API Keys List */}
       {apiKeys.length === 0 && !showAddForm ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <Key className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>{t('apiKeys.noKeysConfigured')}</p>
-          <p className="text-sm">{t('apiKeys.noKeysDescription')}</p>
-        </div>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="rounded-full bg-primary/10 p-4 mb-4">
+              <Key className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">
+              {t('apiKeys.noKeysConfigured')}
+            </h3>
+            <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
+              {t('apiKeys.noKeysDescription')}
+            </p>
+            <Button onClick={startAdding} variant="default">
+              <Plus className="w-4 h-4 me-2" />
+              {t('apiKeys.addFirstKey', 'Add your first API key')}
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {apiKeys.map((key) => (
@@ -617,49 +656,84 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                   </CardContent>
                 </Card>
               ) : (
-                // Display Mode
-                <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{key.keyName}</span>
-                        <Badge variant={key.isActive ? 'default' : 'secondary'}>
-                          {t(`apiKeys.providers.${key.provider}`) ||
-                            PROVIDER_DISPLAY_NAMES[key.provider] ||
-                            key.provider}
-                        </Badge>
-                        {key.isActive ? (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-gray-400" />
-                        )}
+                // Display Mode - Improved layout
+                <Card className="overflow-hidden transition-all hover:shadow-md">
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      {/* Left side - Key info */}
+                      <div className="flex items-start gap-4 flex-1 min-w-0">
+                        {/* Provider Icon */}
+                        <div
+                          className={`p-2.5 rounded-lg ${PROVIDER_COLORS[key.provider] || 'bg-gray-100 dark:bg-gray-800'}`}
+                        >
+                          {PROVIDER_ICONS[key.provider] || (
+                            <Key className="w-5 h-5" />
+                          )}
+                        </div>
+
+                        {/* Key Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <h4 className="font-semibold text-foreground truncate">
+                              {key.keyName}
+                            </h4>
+                            <Badge
+                              variant="outline"
+                              className={`${PROVIDER_COLORS[key.provider] || 'border-gray-300'}`}
+                            >
+                              {t(`apiKeys.providers.${key.provider}`) ||
+                                PROVIDER_DISPLAY_NAMES[key.provider] ||
+                                key.provider}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {t('apiKeys.added')}{' '}
+                              {new Date(key.createdAt).toLocaleDateString()}
+                            </span>
+                            {key.isActive ? (
+                              <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                <CheckCircle className="w-3 h-3" />
+                                {t('apiKeys.active', 'Active')}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-gray-500">
+                                <XCircle className="w-3 h-3" />
+                                {t('apiKeys.inactive', 'Inactive')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {t('apiKeys.added')}{' '}
-                        {new Date(key.createdAt).toLocaleDateString()}
-                      </p>
+
+                      {/* Right side - Actions */}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEditing(key)}
+                          disabled={showAddForm}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          <span className="sr-only">{t('apiKeys.edit')}</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteKey(key.id)}
+                          disabled={showAddForm || editingKeyId !== null}
+                          className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="sr-only">{t('apiKeys.delete')}</span>
+                        </Button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEditing(key)}
-                      disabled={showAddForm}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteKey(key.id)}
-                      disabled={showAddForm || editingKeyId !== null}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+                </Card>
               )}
             </div>
           ))}

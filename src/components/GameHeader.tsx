@@ -10,8 +10,8 @@ export function GameHeader() {
 
   if (!gameState) return null;
 
-  // Use title and description from FilteredGameState
-  const { title, description, phase, round, winCondition } = gameState;
+  // Use title from FilteredGameState (description is not used)
+  const { title, phase, round, winCondition } = gameState;
 
   // Translate phase and win condition
   const translatedPhase = t(phase, { defaultValue: phase });

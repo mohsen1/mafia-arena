@@ -6,6 +6,7 @@ import {
   selectCharacterImage,
   analyzePersonaForImage,
   getDefaultCharacterImage,
+  resetUsedImages,
 } from '@/lib/utils/imageUtils';
 import { loadGameData, saveGameData } from '@/lib/db/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
@@ -340,6 +341,9 @@ export async function generateGameCharactersAction(
     console.log(
       '[CharacterGen] All personas generated successfully, generating images...'
     );
+
+    // Reset used images tracker for this new game
+    resetUsedImages();
 
     // Generate character images in parallel for all players (including human) who don't have images
     const allPlayers = Object.values(updatedState.players);

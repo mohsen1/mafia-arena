@@ -126,6 +126,7 @@ export default function SimpleStartGameForm({
   const [playerCount, setPlayerCount] = useState(preset?.playerCount || 6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showError, setShowError] = useState(false);
   const [userApiKeys, setUserApiKeys] = useState<UserApiKeyInfo[]>([]);
   const [envProviders, setEnvProviders] = useState<AvailableProvider[]>([]);
   const [showOllamaConfig, setShowOllamaConfig] = useState(false);
@@ -339,6 +340,7 @@ export default function SimpleStartGameForm({
 
     setIsSubmitting(true);
     setErrorMsg(null);
+    setShowError(false);
 
     try {
       const globalAgentConfig: AgentConfig = {
@@ -448,6 +450,8 @@ export default function SimpleStartGameForm({
           result.error
         );
         setErrorMsg(t(result.error, { defaultValue: result.error }));
+        // Add a small delay before showing error to avoid flash
+        setTimeout(() => setShowError(true), 100);
         setIsSubmitting(false);
       }
     } catch (error: unknown) {
@@ -464,6 +468,8 @@ export default function SimpleStartGameForm({
       }
 
       setErrorMsg(t(errorMessage, { defaultValue: errorMessage }));
+      // Add a small delay before showing error to avoid flash
+      setTimeout(() => setShowError(true), 100);
       setIsSubmitting(false);
     }
   }, [
@@ -482,11 +488,14 @@ export default function SimpleStartGameForm({
     user?.image,
   ]);
 
-  if (errorMsg) {
+  if (errorMsg && showError) {
     return (
-      <div className="text-red-500 p-4">
-        {t('ErrorPrefix', 'Error')}: {t(errorMsg, errorMsg)}
-      </div>
+      <Alert variant="destructive" className="max-w-2xl mx-auto">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          {t('ErrorPrefix', 'Error')}: {errorMsg}
+        </AlertDescription>
+      </Alert>
     );
   }
 
