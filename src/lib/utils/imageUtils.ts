@@ -47,11 +47,6 @@ const KNOWN_IMAGES = {
   ],
 };
 
-// Special character images (like moderator)
-const SPECIAL_IMAGES = {
-  moderator: '/images/characters/mod.png',
-};
-
 let imageCache: Record<string, string[]> = {};
 let cacheInitialized = false;
 // Track used images to avoid duplicates within a game
