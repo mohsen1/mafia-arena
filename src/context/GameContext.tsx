@@ -9,7 +9,6 @@ import {
   useMemo,
 } from 'react';
 import type { Dispatch, SetStateAction, ReactNode } from 'react';
-import { useSpokenText } from './SpokenTextContext';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 
@@ -48,7 +47,7 @@ interface GameContextState {
   runNextTurnAction: () => Promise<FilteredGameState | { error: string }>;
   stopCurrentAudio: () => void;
   registerStopAudio: (messageId: string, stopFn: () => void) => void;
-  unregisterStopAudio: (messageId: string) => void;
+  unregisterStopAudio: () => void;
   isAudioGloballyEnabled: boolean;
   toggleAudioGloballyEnabled: () => void;
   reportAudioFinished: (messageId: string) => void;
@@ -84,51 +83,102 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   boundSubmitHumanAction,
 }) => {
   const [gameState, setGameState] = useState<FilteredGameState | null>(
-    initialGameState
+    initialGameState || null
   );
+  const [isAutoRunning, setIsAutoRunning] = useState(false);
+  const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] = useState(() => {
+    console.log('[GameContext] Voice mode initialization:', {
+      initialGameStateVoiceMode: initialGameState?.voiceModeEnabled,
+      gameId: initialGameState?.id,
+    });
+    
+    // Proper implementation: Initialize from game state
+    return initialGameState?.voiceModeEnabled ?? false;
+  });
 
-  // Auto-enable auto-run for all games
-  const shouldAutoEnableAutoRun = useMemo(() => {
-    return true; // Always start with autoplay enabled
+  // Initialize audio state from game state
+  useEffect(() => {
+    if (gameState?.voiceModeEnabled !== undefined) {
+      console.log('[GameContext] Updating audio state from game state:', {
+        voiceModeEnabled: gameState.voiceModeEnabled,
+        currentAudioState: isAudioGloballyEnabled,
+      });
+      setIsAudioGloballyEnabled(gameState.voiceModeEnabled);
+    }
+  }, [gameState?.voiceModeEnabled]);
+
+  const updateGameState = useCallback((newState: FilteredGameState) => {
+    console.log('[GameContext] updateGameState called:', {
+      gameId: newState.id,
+      phase: newState.phase,
+      round: newState.round,
+      messageCount: newState.log?.length || 0,
+      voiceModeEnabled: newState.voiceModeEnabled,
+    });
+    setGameState(newState);
   }, []);
 
-  const [isAutoRunning, setIsAutoRunning] = useState<boolean>(
-    shouldAutoEnableAutoRun
-  );
+  const toggleGlobalAudio = useCallback(() => {
+    console.log('[GameContext] toggleGlobalAudio called, current state:', isAudioGloballyEnabled);
+    setIsAudioGloballyEnabled((prev) => {
+      const newState = !prev;
+      console.log('[GameContext] Audio state changing to:', newState);
+      return newState;
+    });
+  }, [isAudioGloballyEnabled]);
+
+  const toggleAutoRun = useCallback(() => {
+    console.log('[GameContext] toggleAutoRun called, current state:', isAutoRunning);
+    setIsAutoRunning((prev) => !prev);
+  }, [isAutoRunning]);
+
   const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
   const stopAudioCallbackRef = useRef<(() => void) | null>(null);
-  const [isAudioGloballyEnabled, setIsAudioGloballyEnabled] =
-    useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gameSpeed, setGameSpeed] = useState<number>(1);
 
-  const { currentlySpeakingId: spokenTextCurrentlySpeakingId } =
-    useSpokenText();
+  // Track if audio is currently playing (we'll update this from reportAudioFinished)
+  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(false);
 
-  // Track the latest spoken text ID to avoid stale closures in setTimeout callbacks
-  const spokenTextIdRef = useRef<string | null>(spokenTextCurrentlySpeakingId);
-  useEffect(() => {
-    spokenTextIdRef.current = spokenTextCurrentlySpeakingId;
-  }, [spokenTextCurrentlySpeakingId]);
+  const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
+  
+  console.log(`[GameContext] ${timestamp()} Provider render:`, {
+    hasGameState: !!gameState,
+    gameId: gameState?.id,
+    voiceModeEnabled: gameState?.voiceModeEnabled,
+    isAudioGloballyEnabled,
+    isAutoRunning,
+    isAudioPlaying,
+  });
 
   const registerStopAudio = useCallback(
     (messageId: string, stopFn: () => void) => {
-      if (messageId === spokenTextCurrentlySpeakingId) {
-        stopAudioCallbackRef.current = stopFn;
-      }
+      console.log(`[GameContext] ${timestamp()} 🎵 REGISTER audio:`, {
+        messageId,
+        wasPlaying: isAudioPlaying,
+        previousCallback: !!stopAudioCallbackRef.current,
+      });
+      stopAudioCallbackRef.current = stopFn;
+      setIsAudioPlaying(true);
     },
-    [spokenTextCurrentlySpeakingId]
+    []
   );
 
   const unregisterStopAudio = useCallback(() => {
+    console.log(`[GameContext] ${timestamp()} 🎵 UNREGISTER audio:`, {
+      wasPlaying: isAudioPlaying,
+      hadCallback: !!stopAudioCallbackRef.current,
+    });
     stopAudioCallbackRef.current = null;
+    setIsAudioPlaying(false);
   }, []);
 
   const stopCurrentAudio = useCallback(() => {
     stopAudioCallbackRef.current?.();
     stopAudioCallbackRef.current = null;
+    setIsAudioPlaying(false);
   }, []);
 
   const toggleAudioGloballyEnabled = useCallback(() => {
@@ -169,43 +219,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     }
   }, [boundRunGameTurnAction]);
 
-  const toggleAutoRun = useCallback(() => {
-    setIsAutoRunning((prev) => {
-      const newState = !prev;
-      if (!newState && spokenTextCurrentlySpeakingId) {
-        stopCurrentAudio();
-      }
-
-      if (
-        newState &&
-        isAudioGloballyEnabled &&
-        spokenTextCurrentlySpeakingId === null &&
-        !isLoadingNextTurn &&
-        gameState?.phase !== 'GameOver'
-      ) {
-        setTimeout(() => runNextTurnAction(), 0);
-      }
-
-      if (
-        newState &&
-        !isAudioGloballyEnabled &&
-        !isLoadingNextTurn &&
-        gameState?.phase !== 'GameOver'
-      ) {
-        setTimeout(() => runNextTurnAction(), 0);
-      }
-
-      return newState;
-    });
-  }, [
-    stopCurrentAudio,
-    isAudioGloballyEnabled,
-    isLoadingNextTurn,
-    gameState?.phase,
-    runNextTurnAction,
-    spokenTextCurrentlySpeakingId,
-  ]);
-
   useEffect(() => {
     setGameState(initialGameState);
   }, [initialGameState]);
@@ -215,7 +228,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     if (
       isAutoRunning &&
       isAudioGloballyEnabled &&
-      spokenTextCurrentlySpeakingId === null &&
+      !isAudioPlaying &&
       !isLoadingNextTurn &&
       gameState &&
       !gameState.pendingHumanAction &&
@@ -225,7 +238,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         if (
           isAutoRunning &&
           isAudioGloballyEnabled &&
-          spokenTextCurrentlySpeakingId === null &&
+          !isAudioPlaying &&
           !isLoadingNextTurn &&
           gameState &&
           !gameState.pendingHumanAction &&
@@ -239,7 +252,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   }, [
     isAutoRunning,
     isAudioGloballyEnabled,
-    spokenTextCurrentlySpeakingId,
+    isAudioPlaying,
     isLoadingNextTurn,
     gameState,
     runNextTurnAction,
@@ -285,6 +298,18 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       const isLatestMessage =
         latestLogMessage && messageId === latestLogMessage.timestamp;
 
+      console.log(`[GameContext] ${timestamp()} 🎵 AUDIO FINISHED:`, {
+        messageId,
+        latestMessageId: latestLogMessage?.timestamp,
+        isLatestMessage,
+        isAutoRunning,
+        isAudioGloballyEnabled,
+        isLoadingNextTurn,
+        pendingHumanAction: gameState?.pendingHumanAction,
+        phase: gameState?.phase,
+        isAudioPlaying,
+      });
+
       unregisterStopAudio();
 
       if (
@@ -295,20 +320,41 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         !gameState?.pendingHumanAction
       ) {
         if (gameState?.phase !== 'GameOver') {
+          console.log(`[GameContext] ${timestamp()} ⏰ SCHEDULING next turn in 500ms...`);
           setTimeout(() => {
-            // Re-check conditions using ref to avoid stale closure issues
+            // Re-check conditions
             if (
               isAutoRunning &&
               isAudioGloballyEnabled &&
-              spokenTextIdRef.current === null &&
+              !isAudioPlaying &&
               !isLoadingNextTurn &&
               !gameState?.pendingHumanAction &&
               gameState?.phase !== 'GameOver'
             ) {
+              console.log(`[GameContext] ${timestamp()} ▶️ TRIGGERING next turn after audio`);
               runNextTurnAction();
+            } else {
+              console.log(`[GameContext] ${timestamp()} ❌ SKIPPED next turn - conditions changed:`, {
+                isAutoRunning,
+                isAudioGloballyEnabled,
+                isAudioPlaying,
+                isLoadingNextTurn,
+                pendingHumanAction: gameState?.pendingHumanAction,
+                phase: gameState?.phase,
+              });
             }
           }, 500);
+        } else {
+          console.log(`[GameContext] ${timestamp()} 🏁 Game over, no next turn`);
         }
+      } else {
+        console.log(`[GameContext] ${timestamp()} ⏸️ NOT scheduling next turn:`, {
+          autoRunning: isAutoRunning,
+          audioEnabled: isAudioGloballyEnabled,
+          isLatest: isLatestMessage,
+          loading: isLoadingNextTurn,
+          pendingAction: gameState?.pendingHumanAction,
+        });
       }
     },
     [
@@ -320,6 +366,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       runNextTurnAction,
       unregisterStopAudio,
       isAudioGloballyEnabled,
+      isAudioPlaying,
     ]
   );
 
@@ -386,3 +433,5 @@ export const useGameContext = (): GameContextState => {
   }
   return context;
 };
+
+

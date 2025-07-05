@@ -37,6 +37,8 @@ export async function advanceGameStateAction(
     const newState = game.getCurrentSerializableState(
       game.getPendingHumanAction()
     );
+    // Preserve voiceModeEnabled from original state
+    newState.voiceModeEnabled = gameState.voiceModeEnabled;
     await saveGameData(gameId, newState);
 
     const filteredState = filterGameStateForClient(

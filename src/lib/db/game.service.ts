@@ -19,6 +19,12 @@ export namespace GameService {
     ownerId: string,
     title?: string
   ): Promise<Game> {
+    console.log('[GameService.createGame] Input gameState voiceModeEnabled:', {
+      voiceModeEnabled: gameState.voiceModeEnabled,
+      hasVoiceMode: 'voiceModeEnabled' in gameState,
+      gameStateKeys: Object.keys(gameState).filter(key => key.toLowerCase().includes('voice')),
+    });
+
     const newGame: NewGame = {
       id: gameState.gameId,
       ownerId,
@@ -34,6 +40,11 @@ export namespace GameService {
       isPublic: false,
       gameState: gameState as unknown as Record<string, unknown>,
     };
+
+    console.log('[GameService.createGame] About to save newGame with gameState:', {
+      voiceModeEnabled: (newGame.gameState as any).voiceModeEnabled,
+      gameStateType: typeof newGame.gameState,
+    });
 
     const [game] = await db.insert(games).values(newGame).returning();
 
@@ -73,7 +84,16 @@ export namespace GameService {
       return null;
     }
 
-    return game.gameState as SerializableGameState;
+    const gameState = game.gameState as SerializableGameState;
+    
+    console.log('[loadGameData] Loaded game state voiceModeEnabled:', {
+      gameId,
+      voiceModeEnabled: gameState.voiceModeEnabled,
+      hasVoiceMode: 'voiceModeEnabled' in gameState,
+      gameStateKeys: Object.keys(gameState).filter(key => key.includes('voice')),
+    });
+
+    return gameState;
   }
 
   /**

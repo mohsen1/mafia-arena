@@ -18,6 +18,7 @@ import {
   Settings2,
   User,
   AlertTriangle,
+  Volume2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -137,6 +138,7 @@ export default function SimpleStartGameForm({
     apiPath: '/v1',
     enabled: true,
   });
+  const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
 
   // Apply preset settings when preset changes
   useEffect(() => {
@@ -431,12 +433,15 @@ export default function SimpleStartGameForm({
         players,
         themeKey: selectedGameThemeKey,
         language: lang,
+        voiceModeEnabled: isVoiceModeEnabled,
       };
 
       console.log('[SimpleStartGameForm] Calling startGameAction with:', {
         playerCount: setupData.players.length,
         themeKey: setupData.themeKey,
         language: setupData.language,
+        voiceModeEnabled: setupData.voiceModeEnabled,
+        voiceModeType: typeof setupData.voiceModeEnabled,
       });
 
       const result = await startGameAction(setupData);
@@ -486,6 +491,7 @@ export default function SimpleStartGameForm({
     lang,
     t,
     user?.image,
+    isVoiceModeEnabled,
   ]);
 
   if (errorMsg && showError) {
@@ -686,6 +692,27 @@ export default function SimpleStartGameForm({
                 />
               </div>
             )}
+          </div>
+
+          {/* Voice Mode Option */}
+          <div className="pt-4 border-t border-border/50">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="voice-mode"
+                checked={isVoiceModeEnabled}
+                onCheckedChange={(checked) =>
+                  setIsVoiceModeEnabled(checked === true)
+                }
+                disabled={isSubmitting}
+              />
+              <Label
+                htmlFor="voice-mode"
+                className="text-sm cursor-pointer flex items-center gap-2"
+              >
+                <Volume2 className="w-4 h-4" />
+                {t('EnableVoiceModeLabel', 'Enable voice mode (text-to-speech)')}
+              </Label>
+            </div>
           </div>
 
           {/* Player Count */}

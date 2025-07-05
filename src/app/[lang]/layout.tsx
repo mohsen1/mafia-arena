@@ -6,9 +6,9 @@ import { SessionProvider } from 'next-auth/react';
 import '../globals.css';
 
 import { type LanguageCode, defaultNS } from '@/lib/i18n/settings';
-import i18nInstance, { ensureLanguageLoaded } from '@/lib/i18n/client';
+import i18nInstance from '@/lib/i18n/client';
 import { I18nextProvider } from 'react-i18next';
-import { use } from 'react';
+import { use, useEffect } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
@@ -19,18 +19,19 @@ const geistMono = Geist_Mono({
 
 export default function RootLayout({
   children,
-  params: paramsProp,
+  params,
 }: Readonly<{
   children: React.ReactNode;
-  params: { lang: LanguageCode };
+  params: Promise<{ lang: LanguageCode }>;
 }>) {
-  const params = use(
-    paramsProp as unknown as Promise<{ lang: LanguageCode }>
-  ) as { lang: LanguageCode };
-  const { lang } = params;
+  const { lang } = use(params);
 
   // Ensure the language is loaded
-  use(ensureLanguageLoaded(lang));
+  useEffect(() => {
+    if (i18nInstance.language !== lang) {
+      i18nInstance.changeLanguage(lang);
+    }
+  }, [lang]);
 
   const direction = i18nInstance.dir(lang);
 

@@ -4,6 +4,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { DynamicAvatar } from './ui/dynamic-avatar';
 import { MemoizedReactMarkdown } from './MemoizedReactMarkdown';
+import { SpeakText } from './SpeakText';
 import type {
   ClientMessage,
   FilteredPlayer,
@@ -19,13 +20,76 @@ interface MessageBubbleProps {
   isWerewolfChat?: boolean;
 }
 
-export function MessageBubble({ message, players }: MessageBubbleProps) {
-  const { gameState } = useGameContext();
+const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
+  const { gameState, isAudioGloballyEnabled } = useGameContext();
   const sender = message.senderId ? players[message.senderId] : null;
   const isModeratorMessage =
     message.senderId === 'moderator' || !message.senderId;
   const isMafiaMessage = message.visibility === MessageVisibility.Mafia;
   const isHumanMessage = message.senderId === gameState?.humanPlayerId;
+
+  const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
+  
+  console.log(`[MessageBubble] ${timestamp()} Component render:`, {
+    messageId: message.id,
+    senderId: message.senderId,
+    senderName: sender?.name || 'Unknown',
+    isModeratorMessage,
+    isHumanMessage,
+    isMafiaMessage,
+    contentLength: message.content.length,
+    contentPreview: message.content.substring(0, 30) + '...',
+    isAudioGloballyEnabled,
+  });
+
+  // Default voice IDs - you should replace these with actual voice IDs from ElevenLabs
+  const getVoiceId = () => {
+    if (isModeratorMessage) {
+      return 'EXAVITQu4vr4xnSDxMaL'; // Narrator voice
+    }
+    // You can assign different voices based on player characteristics
+    // For now, using a default voice
+    return '21m00Tcm4TlvDq8ikWAM'; // Default voice
+  };
+
+  const renderContent = (content: string) => {
+    // Use isAudioGloballyEnabled which is properly initialized from voiceModeEnabled
+    const voiceEnabled = isAudioGloballyEnabled;
+    
+    // Debug logging
+    console.log(`[MessageBubble] ${timestamp()} 🔊 Voice check:`, {
+      messageId: message.id,
+      voiceModeEnabled: gameState?.voiceModeEnabled,
+      isAudioGloballyEnabled,
+      voiceEnabled,
+      isHumanMessage,
+      messageContent: content.substring(0, 50) + '...',
+      willUseSpeakText: voiceEnabled && !isHumanMessage,
+    });
+    
+    // Only use voice for AI messages, not human messages
+    if (voiceEnabled && !isHumanMessage) {
+      console.log(`[MessageBubble] ${timestamp()} 🎤 RENDERING with SpeakText:`, {
+        messageId: message.id,
+        voiceId: getVoiceId(),
+        autoPlay: true,
+      });
+      return (
+        <SpeakText
+          text={content}
+          voiceId={getVoiceId()}
+          autoPlay={true}
+          showControls={false}
+        />
+      );
+    }
+    
+    console.log(`[MessageBubble] ${timestamp()} 📝 RENDERING without voice:`, {
+      messageId: message.id,
+      reason: voiceEnabled ? 'isHumanMessage' : 'voiceDisabled',
+    });
+    return <MemoizedReactMarkdown>{content}</MemoizedReactMarkdown>;
+  };
 
   if (isModeratorMessage) {
     return (
@@ -41,7 +105,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
             />
           </div>
           <div className="text-xs text-muted-foreground italic text-center">
-            {message.content}
+            {renderContent(message.content)}
           </div>
         </div>
       </div>
@@ -102,7 +166,7 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
             isHumanMessage ? 'text-primary-foreground' : 'text-foreground'
           )}
         >
-          <MemoizedReactMarkdown>{message.content}</MemoizedReactMarkdown>
+          {renderContent(message.content)}
         </div>
       </div>
       {sender && isHumanMessage && (
@@ -117,4 +181,16 @@ export function MessageBubble({ message, players }: MessageBubbleProps) {
       )}
     </div>
   );
-}
+};
+
+// Memoize the component to prevent re-renders unless props actually change
+export const MessageBubble = React.memo(MessageBubbleComponent, (prevProps, nextProps) => {
+  // Custom comparison function
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.isWerewolfChat === nextProps.isWerewolfChat &&
+    // Don't re-render just because of players object reference change
+    Object.keys(prevProps.players).length === Object.keys(nextProps.players).length
+  );
+});

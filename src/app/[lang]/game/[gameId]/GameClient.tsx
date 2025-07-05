@@ -42,7 +42,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const { i18n } = useTranslation();
   const direction = i18n.dir(lang);
 
-  const { gameState, setGameState, error, clearError, runNextTurn } =
+  const { gameState, setGameState, error, clearError, runNextTurn, isAudioGloballyEnabled } =
     useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -211,18 +211,23 @@ export default function GameClient({
   boundAdvanceGameStateAction,
   boundSubmitHumanAction,
 }: GameClientProps) {
-  const [currentGameState, setCurrentGameState] = useState(initialGameState);
-  const [isConnected, setIsConnected] = useState(false);
-
   return (
-    <SpokenTextProvider>
-      <GameProvider
-        initialGameState={initialGameState}
-        boundRunGameTurnAction={boundAdvanceGameStateAction}
-        boundSubmitHumanAction={boundSubmitHumanAction}
-      >
-        <GameLayout gameId={gameId} lang={lang as LanguageCode} />
-      </GameProvider>
+    <GameProvider
+      initialGameState={initialGameState}
+      boundRunGameTurnAction={boundAdvanceGameStateAction}
+      boundSubmitHumanAction={boundSubmitHumanAction}
+    >
+      <GameClientInner gameId={gameId} lang={lang} />
+    </GameProvider>
+  );
+}
+
+function GameClientInner({ gameId, lang }: { gameId: string; lang: string }) {
+  const { isAudioGloballyEnabled } = useGameContext();
+  
+  return (
+    <SpokenTextProvider isAudioGloballyEnabled={isAudioGloballyEnabled}>
+      <GameLayout gameId={gameId} lang={lang as LanguageCode} />
     </SpokenTextProvider>
   );
 }

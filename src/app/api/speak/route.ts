@@ -13,9 +13,11 @@ import type { NextRequest } from 'next/server';
 // Define an interface for the expected request body
 interface SpeakRequestBody {
   text: string;
-  voiceId: string;
+  voice_id?: string; // Support both voice_id and voiceId
+  voiceId?: string;
   stability?: number;
   similarity?: number;
+  with_timestamps?: boolean;
 }
 
 export async function POST(req: NextRequest) {
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { text, voiceId, stability, similarity } = validation.data;
+    const { text, voiceId, stability, similarity, with_timestamps } = validation.data;
 
     const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
@@ -46,52 +48,92 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-      {
-        method: 'POST',
-        headers: {
-          Accept: 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          text: text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: {
-            stability: stability,
-            similarity_boost: similarity,
+    // If timestamps are requested, use the with-timestamps endpoint
+    if (with_timestamps) {
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': apiKey,
           },
-        }),
+          body: JSON.stringify({
+            text: text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: {
+              stability: stability,
+              similarity_boost: similarity,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `ElevenLabs API Error (${response.status}): ${errorText.slice(0, 500)}...`
+        );
+        return NextResponse.json(
+          { error: `ElevenLabs API error: ${response.statusText}` },
+          { status: response.status }
+        );
       }
-    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(
-        `ElevenLabs API Error (${response.status}): ${errorText.slice(0, 500)}...`
+      // The with-timestamps endpoint returns JSON with audio_base64 and alignment
+      const responseData = await response.json();
+      
+      // Return the response as-is, it should already have the correct format
+      return NextResponse.json(responseData);
+    } else {
+      // Regular TTS without timestamps
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'audio/mpeg',
+            'Content-Type': 'application/json',
+            'xi-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            text: text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: {
+              stability: stability,
+              similarity_boost: similarity,
+            },
+          }),
+        }
       );
-      return NextResponse.json(
-        { error: `ElevenLabs API error: ${response.statusText}` },
-        { status: response.status }
-      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `ElevenLabs API Error (${response.status}): ${errorText.slice(0, 500)}...`
+        );
+        return NextResponse.json(
+          { error: `ElevenLabs API error: ${response.statusText}` },
+          { status: response.status }
+        );
+      }
+
+      const audioStream = response.body;
+
+      if (!audioStream) {
+        console.error('No audio stream received from ElevenLabs API.');
+        return NextResponse.json(
+          { error: 'No audio stream received' },
+          { status: 500 }
+        );
+      }
+
+      return new Response(audioStream, {
+        headers: {
+          'Content-Type': 'audio/mpeg',
+        },
+      });
     }
-
-    const audioStream = response.body;
-
-    if (!audioStream) {
-      console.error('No audio stream received from ElevenLabs API.');
-      return NextResponse.json(
-        { error: 'No audio stream received' },
-        { status: 500 }
-      );
-    }
-
-    return new Response(audioStream, {
-      headers: {
-        'Content-Type': 'audio/mpeg',
-      },
-    });
   } catch (error) {
     console.error('!!! Error in /api/speak handler:', error);
     let errorMessage = 'An unknown error occurred';
@@ -108,7 +150,7 @@ export async function POST(req: NextRequest) {
 // Helper function to validate input
 function validateInput(body: unknown): {
   success: boolean;
-  data?: SpeakRequestBody;
+  data?: SpeakRequestBody & { voiceId: string; with_timestamps: boolean };
   error?: string;
 } {
   if (typeof body !== 'object' || body === null) {
@@ -123,9 +165,13 @@ function validateInput(body: unknown): {
   ) {
     return { success: false, error: 'Invalid input: text is required.' };
   }
+  
+  // Support both voice_id and voiceId
+  const voiceId = potentialBody.voice_id || potentialBody.voiceId;
+  
   if (
-    typeof potentialBody.voiceId !== 'string' ||
-    potentialBody.voiceId.trim() === ''
+    typeof voiceId !== 'string' ||
+    voiceId.trim() === ''
   ) {
     return { success: false, error: 'Invalid input: voiceId is required.' };
   }
@@ -139,14 +185,17 @@ function validateInput(body: unknown): {
 
   const clampedStability = Math.max(0, Math.min(1, stability));
   const clampedSimilarity = Math.max(0, Math.min(1, similarity));
+  
+  const with_timestamps = potentialBody.with_timestamps === true;
 
   return {
     success: true,
     data: {
       text: potentialBody.text,
-      voiceId: potentialBody.voiceId,
+      voiceId: voiceId,
       stability: clampedStability,
       similarity: clampedSimilarity,
+      with_timestamps: with_timestamps,
     },
   };
 }

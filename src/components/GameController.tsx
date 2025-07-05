@@ -2,8 +2,10 @@
 
 import { Button } from '@/components/ui/button';
 import { useGameContext } from '@/context/GameContext';
-import { Loader, Pause, Play, SkipForward } from 'lucide-react';
+import { Loader, Pause, Play, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useSpokenText } from '@/context/SpokenTextContext';
+import { useEffect } from 'react';
 
 export default function GameController() {
   const { t } = useTranslation();
@@ -13,7 +15,19 @@ export default function GameController() {
     toggleAutoRun,
     runNextTurnAction,
     gameState,
+    isAudioGloballyEnabled,
+    toggleGlobalAudio,
   } = useGameContext();
+  
+  const { currentlySpeakingId, resetAudio } = useSpokenText();
+
+  // Clear any stuck audio on mount
+  useEffect(() => {
+    if (currentlySpeakingId) {
+      console.log('[GameController] Clearing stuck audio on mount:', currentlySpeakingId);
+      resetAudio();
+    }
+  }, []); // Run only on mount
 
   const handleNextClick = () => {
     if (!isAutoRunning) {
@@ -21,19 +35,59 @@ export default function GameController() {
     }
   };
 
+  const handleClearAudio = () => {
+    console.log('[GameController] Manually clearing audio');
+    resetAudio();
+  };
+
+  if (!gameState) return null;
+
   return (
     <div className="flex items-center gap-2">
+      {/* Audio Toggle Button - only show if voice mode is enabled */}
+      {gameState?.voiceModeEnabled && (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={toggleGlobalAudio}
+            aria-label={isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')}
+            title={isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')}
+          >
+            {isAudioGloballyEnabled ? (
+              <Volume2 className="h-4 w-4" />
+            ) : (
+              <VolumeX className="h-4 w-4" />
+            )}
+          </Button>
+          {currentlySpeakingId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={handleClearAudio}
+              aria-label={t('SkipAudio')}
+              title="Skip current audio"
+            >
+              <SkipForward className="h-4 w-4" />
+            </Button>
+          )}
+        </>
+      )}
+
       <Button
         onClick={toggleAutoRun}
         variant="ghost"
         size="sm"
         className="h-7 w-7 p-0"
         aria-label={isAutoRunning ? t('PauseButton') : t('ResumeButton')}
+        title={isAutoRunning ? t('PauseButton') : t('ResumeButton')}
       >
         {isAutoRunning ? (
-          <Pause className="h-3 w-3" />
+          <Pause className="h-4 w-4" />
         ) : (
-          <Play className="h-3 w-3" />
+          <Play className="h-4 w-4" />
         )}
       </Button>
 

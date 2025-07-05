@@ -138,6 +138,8 @@ export async function submitHumanAction(
     const intermediateState = game.getCurrentSerializableState(
       game.getPendingHumanAction()
     );
+    // Preserve voiceModeEnabled from original state
+    intermediateState.voiceModeEnabled = gameState.voiceModeEnabled;
     await saveGameData(gameId, intermediateState);
 
     // Continue game loop after human action
@@ -146,6 +148,8 @@ export async function submitHumanAction(
     const finalState = game.getCurrentSerializableState(
       game.getPendingHumanAction()
     );
+    // Preserve voiceModeEnabled from original state
+    finalState.voiceModeEnabled = gameState.voiceModeEnabled;
     await saveGameData(gameId, finalState);
 
     const filteredState = filterGameStateForClient(

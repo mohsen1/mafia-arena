@@ -98,6 +98,7 @@ export function filterGameStateForClient(
     winner: fullState.winCondition?.outcome ?? null,
     language: fullState.language,
     themeKey: fullState.themeKey,
+    voiceModeEnabled: fullState.voiceModeEnabled ?? false,
     players: playersRecord,
     log: filteredLog,
     pendingHumanAction: fullState.pendingHumanAction,
