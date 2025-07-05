@@ -6,6 +6,14 @@ async function startVoiceGame() {
   console.log('🎮 Starting a game with voice enabled...\n');
 
   try {
+    // Note: This script needs to be updated to use the new StartGameSetupData interface
+    // which requires a players array instead of playerCount and provider configs
+    console.log('❌ This script is temporarily disabled due to API changes.');
+    console.log('The startGameAction now requires a different interface.');
+    console.log('Please use the web interface to start games.');
+    
+    /* 
+    // Old interface - needs to be updated
     const gameConfig = {
       playerCount: 5,
       themeKey: 'UK_VILLAGE_1900S',
@@ -35,6 +43,7 @@ async function startVoiceGame() {
     } else if ('error' in result) {
       console.error('❌ Error creating game:', result.error);
     }
+    */
   } catch (error) {
     console.error('❌ Failed to start game:', error);
   }
