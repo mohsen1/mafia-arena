@@ -63,24 +63,24 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 flex flex-col items-center space-y-12 min-h-screen">
+    <main className="mx-auto max-w-7xl px-4 py-6 flex flex-col items-center space-y-8 min-h-screen">
       {showTutorial && (
         <InteractiveTutorial onComplete={() => setShowTutorial(false)} />
       )}
       {/* Hero Section */}
-      <div className="text-center space-y-4 max-w-3xl">
-        <div className="flex items-center justify-center gap-3 mb-6">
+      <div className="text-center space-y-3 max-w-3xl">
+        <div className="flex items-center justify-center gap-3 mb-4">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
-            <Gamepad2 className="w-16 h-16 text-primary relative z-10" />
+            <Gamepad2 className="w-12 h-12 text-primary relative z-10" />
           </div>
         </div>
 
-        <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
           {werewolfAITitle}
         </h1>
 
-        <p className="text-xl text-muted-foreground">
+        <p className="text-lg text-muted-foreground">
           {t(
             'NewGameDescription',
             'Create an immersive AI-powered social deduction game experience'
@@ -91,6 +91,7 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
           variant="outline"
           onClick={() => setShowTutorial(true)}
           className="mt-2"
+          size="sm"
         >
           <HelpCircle className="w-4 h-4 mr-2" />
           {t('tutorial.showTutorial')}
@@ -129,7 +130,7 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
                 {t('common.back', 'Back to presets')}
               </Button>
 
-              <div className="bg-card/50 backdrop-blur border rounded-2xl p-8 shadow-xl">
+              <div className="bg-card/50 backdrop-blur border rounded-2xl p-6 shadow-xl">
                 <SimpleStartGameForm
                   lang={lang}
                   user={session?.user}
@@ -143,7 +144,7 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
 
       {/* Existing Games Section */}
       {existingGames.length > 0 && (
-        <div className="w-full max-w-4xl space-y-6">
+        <div className="w-full max-w-4xl space-y-4">
           <div className="flex items-center gap-3">
             <Sparkles className="w-6 h-6 text-primary" />
             <h2 className="text-3xl font-semibold">{existingGamesHeading}</h2>
