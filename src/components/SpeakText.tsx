@@ -55,7 +55,7 @@ export function SpeakText({
     doneSpeaking,
   } = useSpokenText();
 
-  // Make GameContext optional for voice testing
+  // GameContext is required - page should wrap with GameProvider
   const gameContext = useGameContext();
 
   const reportAudioFinished = gameContext?.reportAudioFinished || (() => {});
