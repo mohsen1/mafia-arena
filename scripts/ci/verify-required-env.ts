@@ -70,23 +70,34 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
   const warnings: string[] = [];
   const isVercel = process.env.VERCEL === '1';
   const isVercelBuild = isVercel && process.env.VERCEL_ENV !== undefined;
+  // Improve local detection: if not in Vercel and NODE_ENV is not set, assume local development
+  const isLocalBuild = !isVercel && (!process.env.NODE_ENV || process.env.NODE_ENV === 'development');
   const isDevelopment = process.env.NODE_ENV === 'development' && !isVercel;
 
   console.log('🔍 Validating required environment variables...\n');
-  console.log(`Environment: ${isVercel ? 'Vercel' : isDevelopment ? 'Development' : 'Production'}`);
+  console.log(`Environment: ${isVercel ? 'Vercel' : isLocalBuild ? 'Local Development' : isDevelopment ? 'Development' : 'Production'}`);
   console.log(`Build context: ${process.env.VERCEL_ENV || 'local'}`);
   
   if (isVercelBuild) {
     console.log('ℹ️  Note: Running in Vercel build environment.');
     console.log('   Runtime secrets are not available during build phase.\n');
+  } else if (isLocalBuild) {
+    console.log('ℹ️  Note: Running in local development build.');
+    console.log('   Environment validation will be relaxed for local development.\n');
   }
 
   // Check core required variables
   console.log('📋 Core Requirements:');
   for (const envVar of REQUIRED_VARS) {
-    // Skip NEXTAUTH_URL in development
-    if (envVar.name === 'NEXTAUTH_URL' && isDevelopment) {
-      console.log(`  ⏭️  ${envVar.name} - Skipped (development)`);
+    // Skip NEXTAUTH_URL in development or local builds
+    if (envVar.name === 'NEXTAUTH_URL' && (isDevelopment || isLocalBuild)) {
+      console.log(`  ⏭️  ${envVar.name} - Skipped (local development)`);
+      continue;
+    }
+
+    // Skip DATABASE_URL and NEXTAUTH_SECRET for local builds
+    if ((envVar.name === 'DATABASE_URL' || envVar.name === 'NEXTAUTH_SECRET') && isLocalBuild) {
+      console.log(`  ⏭️  ${envVar.name} - Skipped (local development)`);
       continue;
     }
 
@@ -97,6 +108,17 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
       if (!value) {
         warnings.push(`${envVar.name} - Will need to be set in Vercel dashboard`);
         console.log(`  ⚠️  ${envVar.name} - Not available during build (set in Vercel dashboard)`);
+      } else if (envVar.format && !envVar.format.test(value)) {
+        warnings.push(`${envVar.name} - Invalid format detected`);
+        console.log(`  ⚠️  ${envVar.name} - Set but INVALID FORMAT`);
+      } else {
+        console.log(`  ✅ ${envVar.name} - Set`);
+      }
+    } else if (isLocalBuild) {
+      // For local builds, make all requirements optional but warn if missing
+      if (!value) {
+        warnings.push(`${envVar.name} - Not set (optional for local development)`);
+        console.log(`  ⚠️  ${envVar.name} - Not set (optional for local dev)`);
       } else if (envVar.format && !envVar.format.test(value)) {
         warnings.push(`${envVar.name} - Invalid format detected`);
         console.log(`  ⚠️  ${envVar.name} - Set but INVALID FORMAT`);
@@ -140,6 +162,19 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
         } else {
           console.log(`  ⚠️  ${provider.name} - Not available during build`);
         }
+      } else if (isLocalBuild) {
+        // For local builds, make AI providers optional
+        if (value) {
+          if (provider.format && !provider.format.test(value)) {
+            console.log(`  ⚠️  ${provider.name} - Set but INVALID FORMAT`);
+          } else {
+            console.log(`  ✅ ${provider.name} - Set`);
+            groupSatisfied = true;
+            availableProviders.push(provider.name);
+          }
+        } else {
+          console.log(`  ⭕ ${provider.name} - Not set (optional for local dev)`);
+        }
       } else {
         if (value) {
           if (provider.format && !provider.format.test(value)) {
@@ -155,10 +190,18 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
       }
     }
 
-    // In Vercel build, we can't validate runtime-only provider groups
+    // Handle provider group validation
     if (isVercelBuild && group.providers.every(p => p.runtimeOnly)) {
       warnings.push(`AI Provider Keys: Ensure at least one of [${group.providers.map(p => p.name).join(', ')}] is set in Vercel dashboard`);
       console.log(`\n  ⚠️  Cannot validate AI providers during build - ensure they're set in Vercel dashboard`);
+    } else if (isLocalBuild) {
+      // For local builds, AI providers are optional but warn if none are set
+      if (!groupSatisfied) {
+        warnings.push(`No AI providers configured - some features may not work in local development`);
+        console.log(`\n  ⚠️  No AI providers set (features may be limited in local dev)`);
+      } else if (availableProviders.length > 0) {
+        console.log(`\n  ✅ Group satisfied with: ${availableProviders.join(', ')}`);
+      }
     } else if (!groupSatisfied) {
       const providerNames = group.providers.map(p => p.name).join(', ');
       errors.push(`Missing required provider: Need at least one of [${providerNames}]`);
