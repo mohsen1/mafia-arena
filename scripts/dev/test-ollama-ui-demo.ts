@@ -5,7 +5,7 @@
  */
 
 import chalk from 'chalk';
-import { OllamaAgent } from '../src/lib/engine/agents/OllamaAgent';
+import { OllamaAgent } from '../../src/lib/engine/agents/OllamaAgent';
 
 // Configuration
 const OLLAMA_MODELS = [

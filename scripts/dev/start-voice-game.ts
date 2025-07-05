@@ -24,7 +24,7 @@ async function startVoiceGame() {
 
     const result = await startGameAction(gameConfig);
 
-    if (result.redirect) {
+    if ('redirect' in result) {
       console.log('\n✅ Game created successfully!');
       console.log(`🔗 Open this URL in your browser: http://localhost:3099${result.redirect}`);
       console.log('\n📊 Check the browser console for voice logs:');
@@ -32,7 +32,7 @@ async function startVoiceGame() {
       console.log('- [SpokenTextContext] logs show queue management');
       console.log('- [MessageBubble] logs show voice enablement');
       console.log('- [GameContext] logs show audio state');
-    } else if (result.error) {
+    } else if ('error' in result) {
       console.error('❌ Error creating game:', result.error);
     }
   } catch (error) {
