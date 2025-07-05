@@ -16,7 +16,7 @@ interface SpokenTextContextType {
   currentlySpeakingId: string | null;
   requestToSpeak: (id: string) => boolean; // Can component `id` play now? (manual trigger check)
   doneSpeaking: (id: string) => void;
-  registerForAutoPlay: (id: string) => void; // Add component `id` to the auto-play queue
+  // registerForAutoPlay removed – queueing handled implicitly
   resetAudio: () => void; // Force clear any stuck audio
   // Subscriptions might be less relevant now, but keep for potential other uses
   subscribeOnDoneSpeaking: (callback: OnDoneSpeakingCallback) => void;
@@ -181,21 +181,6 @@ export const SpokenTextProvider: React.FC<SpokenTextProviderProps> = ({
     }
   }, [currentlySpeakingId]);
 
-  const registerForAutoPlay = useCallback((id: string) => {
-    console.log(`[SpokenTextContext] ${timestamp()} registerForAutoPlay:`, {
-      registeringId: id,
-      currentQueue: playbackQueueRef.current,
-      alreadyInQueue: playbackQueueRef.current.includes(id),
-    });
-    if (!playbackQueueRef.current.includes(id)) {
-      playbackQueueRef.current.push(id);
-      console.log(`[SpokenTextContext] ${timestamp()} Added to queue:`, {
-        addedId: id,
-        newQueue: playbackQueueRef.current,
-      });
-    }
-  }, []);
-
   const subscribeOnDoneSpeaking = useCallback(
     (callback: OnDoneSpeakingCallback) => {
       subscribersRef.current.add(callback);
@@ -233,10 +218,9 @@ export const SpokenTextProvider: React.FC<SpokenTextProviderProps> = ({
         currentlySpeakingId,
         requestToSpeak,
         doneSpeaking,
-        registerForAutoPlay,
-        resetAudio,
         subscribeOnDoneSpeaking,
         unsubscribeOnDoneSpeaking,
+        resetAudio,
         isAudioGloballyEnabled,
       }}
     >

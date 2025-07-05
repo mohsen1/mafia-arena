@@ -31,6 +31,11 @@ export default function GameController() {
 
   const handleNextClick = () => {
     if (!isAutoRunning) {
+      // In manual mode, stop any current audio before advancing
+      if (currentlySpeakingId) {
+        console.log('[GameController] Stopping audio before manual next turn');
+        resetAudio();
+      }
       runNextTurnAction();
     }
   };
