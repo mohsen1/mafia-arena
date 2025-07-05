@@ -37,27 +37,30 @@ interface QuickAction {
 
 export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
   const { t } = useTranslation();
-  const {} = useGameContext(); // Will use submitHumanAction later when implementing actions
+  const { submitHumanAction } = useGameContext();
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
+  const [draftMessage, setDraftMessage] = useState<string>('');
 
   const humanPlayerId = gameState.humanPlayerId;
   const humanPlayer = humanPlayerId ? gameState.players[humanPlayerId] : null;
   const isAlive = humanPlayer?.status === 'Alive';
   const currentPhase = gameState.phase;
 
-  // Quick message templates based on phase - will be used in future implementation
-  // const messageTemplates = {
-  //   Day: [
-  //     t('QuickMessage.Suspicious', "I find {{player}}'s behavior suspicious"),
-  //     t('QuickMessage.Trust', 'I trust {{player}}, they seem genuine'),
-  //     t('QuickMessage.NeedInfo', 'We need more information before voting'),
-  //     t('QuickMessage.Agree', 'I agree with the previous statement'),
-  //   ],
-  //   Night: [
-  //     t('QuickMessage.Quiet', "It's awfully quiet tonight..."),
-  //     t('QuickMessage.Worried', "I'm worried about tomorrow"),
-  //   ],
-  // };
+  // Quick message templates based on phase
+  const messageTemplates = {
+    Day: [
+      t('QuickMessage.Suspicious', "I find their behavior suspicious"),
+      t('QuickMessage.Trust', 'I trust them, they seem genuine'),
+      t('QuickMessage.NeedInfo', 'We need more information before voting'),
+      t('QuickMessage.Agree', 'I agree with the previous statement'),
+      t('QuickMessage.Disagree', 'I disagree, we should reconsider'),
+    ],
+    Night: [
+      t('QuickMessage.Quiet', "It's awfully quiet tonight..."),
+      t('QuickMessage.Worried', "I'm worried about tomorrow"),
+      t('QuickMessage.Planning', "We should discuss our strategy"),
+    ],
+  };
 
   const quickActions: QuickAction[] = [
     {
@@ -66,8 +69,7 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       icon: <MessageSquare className="w-4 h-4" />,
       color: 'text-blue-500',
       action: () => {
-        // Show message templates
-        setSelectedAction('message');
+        setSelectedAction(selectedAction === 'message' ? null : 'message');
       },
       available:
         isAlive && (currentPhase === 'Day' || currentPhase === 'Night'),
@@ -79,8 +81,7 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       icon: <Vote className="w-4 h-4" />,
       color: 'text-orange-500',
       action: () => {
-        // Show voting UI
-        setSelectedAction('vote');
+        setSelectedAction(selectedAction === 'vote' ? null : 'vote');
       },
       available:
         isAlive &&
@@ -154,17 +155,8 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
   }
 
   return (
-    <Card className={cn('overflow-hidden', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Zap className="w-4 h-4" />
-          {t('QuickActions', 'Quick Actions')}
-          <Badge variant="secondary" className="text-xs">
-            {availableActions.length}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3">
+    <div className={cn('overflow-hidden', className)}>
+      <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
           {availableActions.map((action) => (
             <motion.div
@@ -197,8 +189,45 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
           ))}
         </div>
 
+        {/* Message Templates - Show when message action is selected */}
+        {selectedAction === 'message' && (
+          <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+            <h4 className="text-xs font-medium text-muted-foreground mb-2">
+              {t('QuickMessage.Templates', 'Message Templates')}
+            </h4>
+            {((currentPhase === 'Day' || currentPhase === 'Night') ? messageTemplates[currentPhase] || [] : []).map((template, index) => (
+              <Button
+                key={index}
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  if (gameState.pendingHumanAction?.allowedActions?.includes('message')) {
+                    try {
+                      await submitHumanAction({
+                        playerId: humanPlayerId!,
+                        type: 'message',
+                        content: template,
+                      });
+                      setSelectedAction(null);
+                    } catch (error) {
+                      console.error('Failed to send quick message:', error);
+                    }
+                  } else {
+                    // Store as draft if not ready to send
+                    setDraftMessage(template);
+                    setSelectedAction(null);
+                  }
+                }}
+                className="w-full justify-start text-left h-auto py-2 px-3"
+              >
+                <div className="text-xs">{template}</div>
+              </Button>
+            ))}
+          </div>
+        )}
+
         {/* Shortcuts hint */}
-        <div className="mt-3 pt-3 border-t">
+        <div className="mt-3 pt-3 border-t border-border/50">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Sparkles className="w-3 h-3" />
             <span>
@@ -206,7 +235,7 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
             </span>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
