@@ -3,6 +3,7 @@
 import { ConversationLog } from '@/components/ConversationLog';
 import { GameSidebar } from '@/components/GameSidebar';
 import HumanChatInput from '@/components/HumanChatInput';
+import { GameTabsLayout } from '@/components/GameTabsLayout';
 import CharacterGenerationUI from '@/components/CharacterGenerationUI';
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
 import { PhaseTransitionNotification } from '@/components/PhaseTransitionNotification';
@@ -162,21 +163,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                   />
                 </div>
               )}
-              <div className="flex-1 flex flex-col min-h-0">
-                <ConversationLog />
-                <div className="p-3 border-t bg-background/50 backdrop-blur flex-shrink-0">
-                  {/* Game Analytics in Tabs */}
-                  {gameState && (
-                    <GameAnalyticsTabs
-                      gameState={gameState}
-                      humanPlayerId={humanPlayerId}
-                    />
-                  )}
-                </div>
-              </div>
-              <div className="border-t bg-foreground/5 dark:bg-background/50 backdrop-blur">
-                <HumanChatInput />
-              </div>
+              <GameTabsLayout humanPlayerId={humanPlayerId} />
             </main>
           </div>
         </div>
