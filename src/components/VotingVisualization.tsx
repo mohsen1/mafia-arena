@@ -3,16 +3,14 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { 
-  Vote, 
-  Users, 
-  TrendingUp, 
+import {
+  Vote,
+  TrendingUp,
   AlertTriangle,
   ArrowRight,
-  Target
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -46,20 +44,23 @@ interface VotingPattern {
   suspicionLevel: 'high' | 'medium' | 'low';
 }
 
-export function VotingVisualization({ gameState, className }: VotingVisualizationProps) {
+export function VotingVisualization({
+  gameState,
+  className,
+}: VotingVisualizationProps) {
   const { t } = useTranslation();
 
   // Extract voting data from game log
   const votingData = useMemo((): VoteData[] => {
     const votes: VoteData[] = [];
-    
-    gameState.log.forEach(msg => {
+
+    gameState.log.forEach((msg) => {
       // Parse vote messages like "Player A votes for Player B"
       const voteMatch = msg.content.match(/^(.+?) votes for (.+?)$/);
       if (voteMatch && msg.senderId) {
         const voterName = voteMatch[1];
         const targetName = voteMatch[2];
-        
+
         // Find player IDs by name
         const voterId = Object.entries(gameState.players).find(
           ([_, p]) => p.name === voterName
@@ -67,26 +68,26 @@ export function VotingVisualization({ gameState, className }: VotingVisualizatio
         const targetId = Object.entries(gameState.players).find(
           ([_, p]) => p.name === targetName
         )?.[0];
-        
+
         if (voterId && targetId) {
           votes.push({
             voterId,
             voterName,
             targetId,
             targetName,
-            round: msg.round
+            round: msg.round,
           });
         }
       }
     });
-    
+
     return votes;
   }, [gameState]);
 
   // Analyze voting patterns
   const votingPatterns = useMemo((): VotingPattern[] => {
     const patterns: Map<string, VotingPattern> = new Map();
-    
+
     // Initialize patterns for all players
     Object.entries(gameState.players).forEach(([id, player]) => {
       patterns.set(id, {
@@ -96,22 +97,22 @@ export function VotingVisualization({ gameState, className }: VotingVisualizatio
         votesReceivedFrom: [],
         votesCast: 0,
         votingTargets: [],
-        suspicionLevel: 'low'
+        suspicionLevel: 'low',
       });
     });
-    
+
     // Process votes
-    votingData.forEach(vote => {
+    votingData.forEach((vote) => {
       const voterPattern = patterns.get(vote.voterId);
       const targetPattern = patterns.get(vote.targetId);
-      
+
       if (voterPattern) {
         voterPattern.votesCast++;
         if (!voterPattern.votingTargets.includes(vote.targetName)) {
           voterPattern.votingTargets.push(vote.targetName);
         }
       }
-      
+
       if (targetPattern) {
         targetPattern.votesReceived++;
         if (!targetPattern.votesReceivedFrom.includes(vote.voterName)) {
@@ -119,48 +120,55 @@ export function VotingVisualization({ gameState, className }: VotingVisualizatio
         }
       }
     });
-    
+
     // Calculate suspicion levels
-    const maxVotes = Math.max(...Array.from(patterns.values()).map(p => p.votesReceived));
-    patterns.forEach(pattern => {
+    const maxVotes = Math.max(
+      ...Array.from(patterns.values()).map((p) => p.votesReceived)
+    );
+    patterns.forEach((pattern) => {
       if (pattern.votesReceived >= maxVotes * 0.7 && maxVotes > 0) {
         pattern.suspicionLevel = 'high';
       } else if (pattern.votesReceived >= maxVotes * 0.4 && maxVotes > 0) {
         pattern.suspicionLevel = 'medium';
       }
     });
-    
+
     return Array.from(patterns.values())
-      .filter(p => gameState.players[p.playerId]?.status === 'Alive')
+      .filter((p) => gameState.players[p.playerId]?.status === 'Alive')
       .sort((a, b) => b.votesReceived - a.votesReceived);
   }, [votingData, gameState]);
 
   // Get current round votes
   const currentRoundVotes = useMemo(() => {
-    return votingData.filter(v => v.round === gameState.round);
+    return votingData.filter((v) => v.round === gameState.round);
   }, [votingData, gameState.round]);
 
   // Calculate voting consensus
   const votingConsensus = useMemo(() => {
     if (currentRoundVotes.length === 0) return null;
-    
+
     const voteTargets = new Map<string, number>();
-    currentRoundVotes.forEach(vote => {
-      voteTargets.set(vote.targetName, (voteTargets.get(vote.targetName) || 0) + 1);
+    currentRoundVotes.forEach((vote) => {
+      voteTargets.set(
+        vote.targetName,
+        (voteTargets.get(vote.targetName) || 0) + 1
+      );
     });
-    
+
     const totalVotes = currentRoundVotes.length;
     const maxVotes = Math.max(...voteTargets.values());
     const leadingTarget = Array.from(voteTargets.entries()).find(
       ([_, votes]) => votes === maxVotes
     );
-    
-    return leadingTarget ? {
-      target: leadingTarget[0],
-      votes: leadingTarget[1],
-      percentage: (leadingTarget[1] / totalVotes) * 100,
-      hasConsensus: leadingTarget[1] > totalVotes / 2
-    } : null;
+
+    return leadingTarget
+      ? {
+          target: leadingTarget[0],
+          votes: leadingTarget[1],
+          percentage: (leadingTarget[1] / totalVotes) * 100,
+          hasConsensus: leadingTarget[1] > totalVotes / 2,
+        }
+      : null;
   }, [currentRoundVotes]);
 
   if (gameState.phase !== 'Day' || votingPatterns.length === 0) {
@@ -168,19 +176,17 @@ export function VotingVisualization({ gameState, className }: VotingVisualizatio
   }
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Vote className="w-4 h-4" />
-            {t('VotingAnalysis', 'Voting Analysis')}
-          </span>
-          <Badge variant="outline" className="text-xs">
-            {t('Round', 'Round')} {gameState.round}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 p-3">
+    <div className={cn('space-y-4', className)}>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium flex items-center gap-2">
+          <Vote className="w-4 h-4 text-muted-foreground" />
+          {t('VotingAnalysis', 'Voting Analysis')}
+        </h3>
+        <Badge variant="secondary" className="text-xs">
+          {t('Round', 'Round')} {gameState.round}
+        </Badge>
+      </div>
+      <div className="space-y-4">
         {/* Current Round Consensus */}
         {votingConsensus && (
           <div className="p-3 rounded-lg bg-accent/50">
@@ -196,15 +202,14 @@ export function VotingVisualization({ gameState, className }: VotingVisualizatio
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{votingConsensus.target}</span>
+                <span className="text-sm font-medium">
+                  {votingConsensus.target}
+                </span>
                 <span className="text-sm text-muted-foreground">
                   {votingConsensus.votes} {t('votes', 'votes')}
                 </span>
               </div>
-              <Progress 
-                value={votingConsensus.percentage} 
-                className="h-2"
-              />
+              <Progress value={votingConsensus.percentage} className="h-2" />
             </div>
           </div>
         )}
@@ -225,19 +230,25 @@ export function VotingVisualization({ gameState, className }: VotingVisualizatio
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className={cn(
-                        "flex items-center justify-between p-2 rounded-lg",
-                        "hover:bg-accent/50 transition-colors cursor-pointer",
-                        pattern.suspicionLevel === 'high' && "bg-red-500/10",
-                        pattern.suspicionLevel === 'medium' && "bg-orange-500/10"
-                      )}>
+                      <div
+                        className={cn(
+                          'flex items-center justify-between p-2 rounded-lg',
+                          'hover:bg-accent/50 transition-colors cursor-pointer',
+                          pattern.suspicionLevel === 'high' && 'bg-red-500/10',
+                          pattern.suspicionLevel === 'medium' &&
+                            'bg-orange-500/10'
+                        )}
+                      >
                         <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "w-2 h-2 rounded-full",
-                            pattern.suspicionLevel === 'high' && "bg-red-500",
-                            pattern.suspicionLevel === 'medium' && "bg-orange-500",
-                            pattern.suspicionLevel === 'low' && "bg-green-500"
-                          )} />
+                          <div
+                            className={cn(
+                              'w-2 h-2 rounded-full',
+                              pattern.suspicionLevel === 'high' && 'bg-red-500',
+                              pattern.suspicionLevel === 'medium' &&
+                                'bg-orange-500',
+                              pattern.suspicionLevel === 'low' && 'bg-green-500'
+                            )}
+                          />
                           <span className="text-sm font-medium">
                             {pattern.playerName}
                           </span>
@@ -314,17 +325,20 @@ export function VotingVisualization({ gameState, className }: VotingVisualizatio
         )}
 
         {/* Insights */}
-        {votingPatterns.some(p => p.suspicionLevel === 'high') && (
+        {votingPatterns.some((p) => p.suspicionLevel === 'high') && (
           <div className="pt-3 border-t">
             <div className="flex items-start gap-2 text-xs text-muted-foreground">
               <TrendingUp className="w-3 h-3 mt-0.5" />
               <p>
-                {t('HighSuspicionAlert', 'Players with high suspicion levels may be eliminated soon')}
+                {t(
+                  'HighSuspicionAlert',
+                  'Players with high suspicion levels may be eliminated soon'
+                )}
               </p>
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
-} 
+}

@@ -3,14 +3,14 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { 
-  Network, 
-  Users, 
+import {
+  Network,
+  Users,
   Heart,
   Swords,
   MessageSquare,
   AlertTriangle,
-  Eye
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,13 +42,16 @@ interface PlayerRelationship {
   influenceLevel: 'high' | 'medium' | 'low';
 }
 
-export function PlayerRelationshipMap({ gameState, className }: PlayerRelationshipMapProps) {
+export function PlayerRelationshipMap({
+  gameState,
+  className,
+}: PlayerRelationshipMapProps) {
   const { t } = useTranslation();
 
   // Analyze player relationships from game log
   const relationships = useMemo((): Map<string, PlayerRelationship> => {
     const relationshipMap = new Map<string, PlayerRelationship>();
-    
+
     // Initialize relationships for all living players
     Object.entries(gameState.players).forEach(([id, player]) => {
       if (player.status === 'Alive') {
@@ -57,41 +60,45 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
           playerName: player.name,
           relationships: [],
           trustScore: 50, // Start neutral
-          influenceLevel: 'medium'
+          influenceLevel: 'medium',
         });
       }
     });
-    
+
     // Analyze interactions from messages
-    gameState.log.forEach(msg => {
+    gameState.log.forEach((msg) => {
       if (msg.type !== 'chat' || !msg.senderId) return;
-      
+
       const sender = relationshipMap.get(msg.senderId);
       if (!sender) return;
-      
+
       // Look for mentions of other players
       Object.entries(gameState.players).forEach(([targetId, targetPlayer]) => {
         if (targetId === msg.senderId || targetPlayer.status === 'Dead') return;
-        
+
         if (msg.content.includes(targetPlayer.name)) {
           // Analyze sentiment
           const isPositive = msg.content.match(/trust|agree|support|defend/i);
-          const isNegative = msg.content.match(/suspect|vote|accuse|doubt|mafia/i);
+          const isNegative = msg.content.match(
+            /suspect|vote|accuse|doubt|mafia/i
+          );
           const isVote = msg.content.includes('votes for ' + targetPlayer.name);
-          
+
           // Find or create relationship
-          let relationship = sender.relationships.find(r => r.targetId === targetId);
+          let relationship = sender.relationships.find(
+            (r) => r.targetId === targetId
+          );
           if (!relationship) {
             relationship = {
               targetId,
               targetName: targetPlayer.name,
               type: 'neutral',
               strength: 0,
-              interactions: []
+              interactions: [],
             };
             sender.relationships.push(relationship);
           }
-          
+
           // Update relationship
           if (isVote) {
             relationship.type = 'suspicion';
@@ -106,7 +113,7 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
             relationship.strength = Math.min(100, relationship.strength + 10);
             relationship.interactions.push('showed support');
           }
-          
+
           // Update trust score
           if (isPositive) {
             sender.trustScore = Math.min(100, sender.trustScore + 5);
@@ -116,13 +123,14 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
         }
       });
     });
-    
+
     // Calculate influence levels based on activity and relationships
-    relationshipMap.forEach(player => {
+    relationshipMap.forEach((player) => {
       const totalInteractions = player.relationships.reduce(
-        (sum, r) => sum + r.interactions.length, 0
+        (sum, r) => sum + r.interactions.length,
+        0
       );
-      
+
       if (totalInteractions > 10) {
         player.influenceLevel = 'high';
       } else if (totalInteractions > 5) {
@@ -131,7 +139,7 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
         player.influenceLevel = 'low';
       }
     });
-    
+
     return relationshipMap;
   }, [gameState]);
 
@@ -144,30 +152,28 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
       strength: number;
       description: string;
     }> = [];
-    
-    relationships.forEach(player => {
+
+    relationships.forEach((player) => {
       player.relationships
-        .filter(r => r.strength > 20)
-        .forEach(rel => {
+        .filter((r) => r.strength > 20)
+        .forEach((rel) => {
           allRelationships.push({
             source: player.playerName,
             target: rel.targetName,
             type: rel.type,
             strength: rel.strength,
-            description: rel.interactions[rel.interactions.length - 1] || ''
+            description: rel.interactions[rel.interactions.length - 1] || '',
           });
         });
     });
-    
-    return allRelationships
-      .sort((a, b) => b.strength - a.strength)
-      .slice(0, 8);
+
+    return allRelationships.sort((a, b) => b.strength - a.strength).slice(0, 8);
   }, [relationships]);
 
   // Get influence leaders
   const influenceLeaders = useMemo(() => {
     return Array.from(relationships.values())
-      .filter(p => p.influenceLevel === 'high')
+      .filter((p) => p.influenceLevel === 'high')
       .sort((a, b) => b.relationships.length - a.relationships.length)
       .slice(0, 3);
   }, [relationships]);
@@ -177,7 +183,7 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
   }
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn('overflow-hidden', className)}>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <Network className="w-4 h-4" />
@@ -193,7 +199,7 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
               {t('InfluentialPlayers', 'Influential Players')}
             </h4>
             <div className="flex flex-wrap gap-2">
-              {influenceLeaders.map(player => (
+              {influenceLeaders.map((player) => (
                 <Badge
                   key={player.playerId}
                   variant="secondary"
@@ -226,39 +232,55 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className={cn(
-                        "flex items-center justify-between p-2 rounded-lg text-xs",
-                        "hover:bg-accent/50 transition-colors cursor-pointer",
-                        rel.type === 'alliance' && "bg-green-500/10",
-                        rel.type === 'suspicion' && "bg-red-500/10"
-                      )}>
+                      <div
+                        className={cn(
+                          'flex items-center justify-between p-2 rounded-lg text-xs',
+                          'hover:bg-accent/50 transition-colors cursor-pointer',
+                          rel.type === 'alliance' && 'bg-green-500/10',
+                          rel.type === 'suspicion' && 'bg-red-500/10'
+                        )}
+                      >
                         <div className="flex items-center gap-2 flex-1">
                           <span className="font-medium truncate">
                             {rel.source}
                           </span>
-                          <div className={cn(
-                            "flex items-center gap-1",
-                            rel.type === 'alliance' && "text-green-500",
-                            rel.type === 'suspicion' && "text-red-500",
-                            rel.type === 'neutral' && "text-gray-500"
-                          )}>
-                            {rel.type === 'alliance' && <Heart className="w-3 h-3" />}
-                            {rel.type === 'suspicion' && <AlertTriangle className="w-3 h-3" />}
-                            {rel.type === 'neutral' && <MessageSquare className="w-3 h-3" />}
+                          <div
+                            className={cn(
+                              'flex items-center gap-1',
+                              rel.type === 'alliance' && 'text-green-500',
+                              rel.type === 'suspicion' && 'text-red-500',
+                              rel.type === 'neutral' && 'text-gray-500'
+                            )}
+                          >
+                            {rel.type === 'alliance' && (
+                              <Heart className="w-3 h-3" />
+                            )}
+                            {rel.type === 'suspicion' && (
+                              <AlertTriangle className="w-3 h-3" />
+                            )}
+                            {rel.type === 'neutral' && (
+                              <MessageSquare className="w-3 h-3" />
+                            )}
                           </div>
                           <span className="font-medium truncate">
                             {rel.target}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className={cn(
-                            "w-8 h-1 rounded-full bg-gradient-to-r",
-                            rel.type === 'alliance' && "from-green-200 to-green-500",
-                            rel.type === 'suspicion' && "from-red-200 to-red-500",
-                            rel.type === 'neutral' && "from-gray-200 to-gray-500"
-                          )} style={{
-                            width: `${(rel.strength / 100) * 32}px`
-                          }} />
+                          <div
+                            className={cn(
+                              'w-8 h-1 rounded-full bg-gradient-to-r',
+                              rel.type === 'alliance' &&
+                                'from-green-200 to-green-500',
+                              rel.type === 'suspicion' &&
+                                'from-red-200 to-red-500',
+                              rel.type === 'neutral' &&
+                                'from-gray-200 to-gray-500'
+                            )}
+                            style={{
+                              width: `${(rel.strength / 100) * 32}px`,
+                            }}
+                          />
                         </div>
                       </div>
                     </TooltipTrigger>
@@ -294,12 +316,18 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
             <p>
               {relationships.size > 0 && (
                 <>
-                  {Array.from(relationships.values()).filter(
-                    p => p.relationships.some(r => r.type === 'alliance')
-                  ).length} {t('alliances', 'alliances')} • 
-                  {' '}{Array.from(relationships.values()).filter(
-                    p => p.relationships.some(r => r.type === 'suspicion')
-                  ).length} {t('conflicts', 'conflicts')}
+                  {
+                    Array.from(relationships.values()).filter((p) =>
+                      p.relationships.some((r) => r.type === 'alliance')
+                    ).length
+                  }{' '}
+                  {t('alliances', 'alliances')} •{' '}
+                  {
+                    Array.from(relationships.values()).filter((p) =>
+                      p.relationships.some((r) => r.type === 'suspicion')
+                    ).length
+                  }{' '}
+                  {t('conflicts', 'conflicts')}
                 </>
               )}
             </p>
@@ -308,4 +336,4 @@ export function PlayerRelationshipMap({ gameState, className }: PlayerRelationsh
       </CardContent>
     </Card>
   );
-} 
+}
