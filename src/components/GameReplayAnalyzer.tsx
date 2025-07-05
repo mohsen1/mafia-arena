@@ -5,14 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3,
-  TrendingUp,
-  MessageSquare,
-  Vote,
-  Shield,
-  Zap,
-  Clock,
-  Award,
-  AlertTriangle,
   ChevronRight,
   ChevronDown,
   PlayCircle,
@@ -24,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 
@@ -39,15 +30,12 @@ interface PlayerAnalytics {
   role?: string;
   messageCount: number;
   averageMessageLength: number;
-  votesReceived: number;
-  votesCast: number;
   survivalRounds: number;
   influenceScore: number;
-  suspicionScore: number;
   activityScore: number;
   keyMoments: Array<{
     round: number;
-    type: 'vote' | 'message' | 'action' | 'elimination';
+    type: 'message' | 'action';
     description: string;
   }>;
 }
@@ -58,18 +46,11 @@ interface GameAnalytics {
   averageMessagesPerRound: number;
   mostActivePlayer: string;
   leastActivePlayer: string;
-  firstElimination: { round: number; player: string } | null;
-  lastElimination: { round: number; player: string } | null;
-  votingPatterns: {
-    unanimous: number;
-    split: number;
-    noConsensus: number;
-  };
   phaseDistribution: {
     day: number;
     night: number;
   };
-  winningTeam: 'Town' | 'Mafia' | null;
+  winningTeam: string | null;
   gameDuration: number; // in minutes
   criticalTurningPoints: Array<{
     round: number;
@@ -81,11 +62,11 @@ interface GameAnalytics {
 interface TimelineEvent {
   round: number;
   phase: string;
-  type: 'message' | 'vote' | 'elimination' | 'action' | 'phase_change';
+  type: 'message' | 'action' | 'phase_change';
   playerId?: string;
   playerName?: string;
   description: string;
-  timestamp?: number;
+  timestamp?: Date;
   importance: 'high' | 'medium' | 'low';
 }
 
@@ -107,16 +88,8 @@ export function GameReplayAnalyzer({
 
     Object.entries(gameState.players).forEach(([playerId, player]) => {
       const messages = gameState.log.filter(
-        (msg) => msg.type === 'chat' && msg.senderId === playerId
+        (msg) => msg.senderId === playerId && (msg.type === 'chat' || !msg.type)
       );
-
-      const votesReceived = gameState.log.filter(
-        (msg) => msg.type === 'vote' && msg.targetId === playerId
-      ).length;
-
-      const votesCast = gameState.log.filter(
-        (msg) => msg.type === 'vote' && msg.senderId === playerId
-      ).length;
 
       analytics[playerId] = {
         playerId,
@@ -130,15 +103,10 @@ export function GameReplayAnalyzer({
                 0
               ) / messages.length
             : 0,
-        votesReceived,
-        votesCast,
         survivalRounds:
-          player.status === 'Alive'
-            ? gameState.round
-            : player.eliminatedRound || 0,
-        influenceScore: messages.length * 2 + votesCast * 3,
-        suspicionScore: votesReceived * 10,
-        activityScore: messages.length + votesCast,
+          player.status === 'Alive' ? gameState.round : gameState.round, // Simple fallback since we don't have elimination tracking
+        influenceScore: messages.length * 2,
+        activityScore: messages.length,
         keyMoments: [],
       };
     });
@@ -148,20 +116,9 @@ export function GameReplayAnalyzer({
 
   // Calculate game analytics
   const gameAnalytics = useMemo((): GameAnalytics => {
-    const messages = gameState.log.filter((msg) => msg.type === 'chat');
-    const votes = gameState.log.filter((msg) => msg.type === 'vote');
-    const eliminations = gameState.log.filter(
-      (msg) => msg.type === 'elimination'
+    const messages = gameState.log.filter(
+      (msg) => msg.type === 'chat' || !msg.type
     );
-
-    const votingRounds = new Map<number, number>();
-    votes.forEach((vote) => {
-      const round = vote.round || 0;
-      votingRounds.set(round, (votingRounds.get(round) || 0) + 1);
-    });
-
-    const firstElim = eliminations[0];
-    const lastElim = eliminations[eliminations.length - 1];
 
     return {
       totalRounds: gameState.round,
@@ -175,35 +132,11 @@ export function GameReplayAnalyzer({
         Object.values(playerAnalytics).sort(
           (a, b) => a.activityScore - b.activityScore
         )[0]?.playerName || '',
-      firstElimination: firstElim
-        ? {
-            round: firstElim.round || 0,
-            player:
-              gameState.players[firstElim.targetId || '']?.name || 'Unknown',
-          }
-        : null,
-      lastElimination: lastElim
-        ? {
-            round: lastElim.round || 0,
-            player:
-              gameState.players[lastElim.targetId || '']?.name || 'Unknown',
-          }
-        : null,
-      votingPatterns: {
-        unanimous: Array.from(votingRounds.values()).filter(
-          (v) => v >= Object.keys(gameState.players).length - 1
-        ).length,
-        split: Array.from(votingRounds.values()).filter(
-          (v) => v > 2 && v < Object.keys(gameState.players).length - 1
-        ).length,
-        noConsensus: Array.from(votingRounds.values()).filter((v) => v <= 2)
-          .length,
-      },
       phaseDistribution: {
         day: gameState.log.filter((msg) => msg.phase === 'Day').length,
         night: gameState.log.filter((msg) => msg.phase === 'Night').length,
       },
-      winningTeam: gameState.winner,
+      winningTeam: gameState.winner || null,
       gameDuration: 0, // Would need timestamp data
       criticalTurningPoints: [],
     };
@@ -216,60 +149,30 @@ export function GameReplayAnalyzer({
     gameState.log.forEach((msg, index) => {
       let event: TimelineEvent | null = null;
 
-      switch (msg.type) {
-        case 'chat':
-          if (msg.content && msg.content.length > 100) {
-            event = {
-              round: msg.round || 0,
-              phase: msg.phase || 'Unknown',
-              type: 'message',
-              playerId: msg.senderId,
-              playerName: msg.senderId
-                ? gameState.players[msg.senderId]?.name
-                : 'System',
-              description: `${gameState.players[msg.senderId || '']?.name || 'System'} made a significant statement`,
-              importance: 'medium',
-            };
-          }
-          break;
-
-        case 'vote':
+      if (msg.type === 'chat' || !msg.type) {
+        if (msg.content && msg.content.length > 100) {
           event = {
             round: msg.round || 0,
-            phase: msg.phase || 'Unknown',
-            type: 'vote',
-            playerId: msg.senderId,
+            phase: msg.phase,
+            type: 'message',
+            playerId: msg.senderId || undefined,
             playerName: msg.senderId
               ? gameState.players[msg.senderId]?.name
-              : 'Unknown',
-            description: `${gameState.players[msg.senderId || '']?.name || 'Unknown'} voted for ${gameState.players[msg.targetId || '']?.name || 'Unknown'}`,
-            importance: 'medium',
+              : 'System',
+            description: `${gameState.players[msg.senderId || '']?.name || 'System'} made a significant statement`,
+            importance: 'medium' as const,
+            timestamp: new Date(msg.timestamp),
           };
-          break;
-
-        case 'elimination':
-          event = {
-            round: msg.round || 0,
-            phase: msg.phase || 'Unknown',
-            type: 'elimination',
-            playerId: msg.targetId,
-            playerName: msg.targetId
-              ? gameState.players[msg.targetId]?.name
-              : 'Unknown',
-            description: `${gameState.players[msg.targetId || '']?.name || 'Unknown'} was eliminated`,
-            importance: 'high',
-          };
-          break;
-
-        case 'phase':
-          event = {
-            round: msg.round || 0,
-            phase: msg.phase || 'Unknown',
-            type: 'phase_change',
-            description: `Phase changed to ${msg.phase}`,
-            importance: 'low',
-          };
-          break;
+        }
+      } else if (msg.type === 'system') {
+        event = {
+          round: msg.round || 0,
+          phase: msg.phase,
+          type: 'action',
+          description: msg.content,
+          importance: 'high' as const,
+          timestamp: new Date(msg.timestamp),
+        };
       }
 
       if (event) {
@@ -301,7 +204,8 @@ export function GameReplayAnalyzer({
 
   const getActivityLevel = (score: number) => {
     const maxScore = Math.max(
-      ...Object.values(playerAnalytics).map((p) => p.activityScore)
+      ...Object.values(playerAnalytics).map((p) => p.activityScore),
+      1
     );
     const percentage = (score / maxScore) * 100;
 
@@ -393,40 +297,10 @@ export function GameReplayAnalyzer({
                 >
                   {gameAnalytics.winningTeam === 'Town'
                     ? t('TownVictory', 'Town Victory')
-                    : t('MafiaVictory', 'Mafia Victory')}
+                    : gameAnalytics.winningTeam === 'Mafia'
+                      ? t('MafiaVictory', 'Mafia Victory')
+                      : t('InProgress', 'In Progress')}
                 </Badge>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-medium">
-                {t('VotingPatterns', 'Voting Patterns')}
-              </p>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {t('UnanimousVotes', 'Unanimous')}
-                  </span>
-                  <span className="text-xs font-medium">
-                    {gameAnalytics.votingPatterns.unanimous}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {t('SplitVotes', 'Split')}
-                  </span>
-                  <span className="text-xs font-medium">
-                    {gameAnalytics.votingPatterns.split}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {t('NoConsensus', 'No Consensus')}
-                  </span>
-                  <span className="text-xs font-medium">
-                    {gameAnalytics.votingPatterns.noConsensus}
-                  </span>
-                </div>
               </div>
             </div>
 
@@ -527,22 +401,6 @@ export function GameReplayAnalyzer({
                                     {Math.round(player.averageMessageLength)}
                                   </span>
                                 </div>
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    {t('VotesCast', 'Votes Cast')}:
-                                  </span>
-                                  <span className="ms-1 font-medium">
-                                    {player.votesCast}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    {t('VotesReceived', 'Votes Received')}:
-                                  </span>
-                                  <span className="ms-1 font-medium">
-                                    {player.votesReceived}
-                                  </span>
-                                </div>
                               </div>
 
                               <div className="space-y-1">
@@ -556,21 +414,6 @@ export function GameReplayAnalyzer({
                                 </div>
                                 <Progress
                                   value={(player.influenceScore / 100) * 100}
-                                  className="h-1"
-                                />
-                              </div>
-
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="text-muted-foreground">
-                                    {t('SuspicionLevel', 'Suspicion')}
-                                  </span>
-                                  <span className="font-medium">
-                                    {player.suspicionScore}
-                                  </span>
-                                </div>
-                                <Progress
-                                  value={(player.suspicionScore / 50) * 100}
                                   className="h-1"
                                 />
                               </div>
@@ -608,162 +451,97 @@ export function GameReplayAnalyzer({
 
               <ScrollArea className="h-80">
                 <div className="space-y-2">
-                  {timelineEvents.map((event, index) => {
-                    const isActive = index <= currentEventIndex;
-                    const icon = {
-                      message: <MessageSquare className="w-3 h-3" />,
-                      vote: <Vote className="w-3 h-3" />,
-                      elimination: <Zap className="w-3 h-3" />,
-                      action: <Shield className="w-3 h-3" />,
-                      phase_change: <Clock className="w-3 h-3" />,
-                    }[event.type];
-
-                    return (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{
-                          opacity: isActive ? 1 : 0.3,
-                          x: 0,
-                        }}
-                        className={cn(
-                          'flex items-start gap-3 p-2 rounded',
-                          event.importance === 'high' && 'bg-destructive/10',
-                          event.importance === 'medium' && 'bg-accent/50',
-                          isActive && 'border-s-2 border-primary'
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            'mt-0.5',
-                            event.importance === 'high' && 'text-destructive',
-                            event.importance === 'medium' && 'text-primary'
-                          )}
+                  {timelineEvents.map((event, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        'border-s-2 ps-3 py-2 transition-colors',
+                        index <= currentEventIndex && isPlaying
+                          ? 'border-primary bg-accent'
+                          : 'border-border'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          R{event.round}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {event.phase}
+                        </Badge>
+                        <Badge
+                          variant={
+                            event.importance === 'high'
+                              ? 'destructive'
+                              : event.importance === 'medium'
+                                ? 'default'
+                                : 'outline'
+                          }
+                          className="text-xs"
                         >
-                          {icon}
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <p className="text-xs font-medium">
-                            {t('Round', 'Round')} {event.round} - {event.phase}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {event.description}
-                          </p>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                          {event.type}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {event.description}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </ScrollArea>
             </div>
           </TabsContent>
 
           {/* Insights Tab */}
-          <TabsContent value="insights" className="space-y-4 mt-4">
-            <TooltipProvider>
-              <div className="space-y-3">
-                {/* Key Insights */}
+          <TabsContent value="insights" className="mt-4">
+            <div className="space-y-4">
+              <div className="border rounded-lg p-3">
+                <h4 className="text-sm font-medium mb-2">
+                  {t('GamePhases', 'Game Phase Distribution')}
+                </h4>
                 <div className="space-y-2">
-                  <p className="text-xs font-medium flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    {t('KeyInsights', 'Key Insights')}
-                  </p>
-                  <div className="space-y-2">
-                    {gameAnalytics.firstElimination && (
-                      <div className="p-2 bg-muted rounded-lg">
-                        <p className="text-xs">
-                          <span className="font-medium">
-                            {t('FirstBlood', 'First Blood')}:
-                          </span>{' '}
-                          {gameAnalytics.firstElimination.player} was eliminated
-                          in round {gameAnalytics.firstElimination.round}
-                        </p>
-                      </div>
-                    )}
-
-                    {gameAnalytics.votingPatterns.unanimous >
-                      gameAnalytics.votingPatterns.split && (
-                      <div className="p-2 bg-muted rounded-lg">
-                        <p className="text-xs">
-                          <span className="font-medium">
-                            {t('ConsensusGame', 'Consensus Game')}:
-                          </span>{' '}
-                          Most votes were unanimous, indicating strong town
-                          coordination
-                        </p>
-                      </div>
-                    )}
-
-                    {Object.values(playerAnalytics).some(
-                      (p) => p.messageCount === 0
-                    ) && (
-                      <div className="p-2 bg-muted rounded-lg">
-                        <p className="text-xs">
-                          <span className="font-medium">
-                            {t('SilentPlayers', 'Silent Players')}:
-                          </span>{' '}
-                          Some players never spoke, which could indicate lurking
-                          Mafia
-                        </p>
-                      </div>
-                    )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {t('DayPhase', 'Day Phase')}
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {gameAnalytics.phaseDistribution.day}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {t('NightPhase', 'Night Phase')}
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {gameAnalytics.phaseDistribution.night}
+                    </Badge>
                   </div>
                 </div>
-
-                {/* Performance Metrics */}
-                <div className="space-y-2">
-                  <p className="text-xs font-medium flex items-center gap-1">
-                    <Award className="w-3 h-3" />
-                    {t('PerformanceMetrics', 'Performance Metrics')}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="p-2 border rounded">
-                      <p className="text-xs text-muted-foreground">
-                        {t('GamePace', 'Game Pace')}
-                      </p>
-                      <p className="text-sm font-bold">
-                        {gameAnalytics.averageMessagesPerRound > 10
-                          ? t('Fast', 'Fast')
-                          : gameAnalytics.averageMessagesPerRound > 5
-                            ? t('Normal', 'Normal')
-                            : t('Slow', 'Slow')}
-                      </p>
-                    </div>
-                    <div className="p-2 border rounded">
-                      <p className="text-xs text-muted-foreground">
-                        {t('Engagement', 'Engagement')}
-                      </p>
-                      <p className="text-sm font-bold">
-                        {
-                          Object.values(playerAnalytics).filter(
-                            (p) => p.activityScore > 10
-                          ).length
-                        }{' '}
-                        / {Object.keys(playerAnalytics).length}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Warnings */}
-                {gameAnalytics.votingPatterns.noConsensus > 2 && (
-                  <div className="flex items-start gap-2 p-2 bg-destructive/10 rounded-lg">
-                    <AlertTriangle className="w-4 h-4 text-destructive mt-0.5" />
-                    <div>
-                      <p className="text-xs font-medium">
-                        {t('LowConsensus', 'Low Consensus Warning')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {t(
-                          'LowConsensusDesc',
-                          'Multiple rounds with no voting consensus may indicate confusion or manipulation'
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
-            </TooltipProvider>
+
+              <div className="border rounded-lg p-3">
+                <h4 className="text-sm font-medium mb-2">
+                  {t('PlayerEngagement', 'Player Engagement')}
+                </h4>
+                <div className="space-y-2">
+                  {Object.values(playerAnalytics)
+                    .sort((a, b) => b.activityScore - a.activityScore)
+                    .slice(0, 3)
+                    .map((player, index) => (
+                      <div
+                        key={player.playerId}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="text-xs">
+                          #{index + 1} {player.playerName}
+                        </span>
+                        <Badge variant="outline" className="text-xs">
+                          {player.activityScore} pts
+                        </Badge>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </CardContent>
