@@ -15,9 +15,7 @@ export default function UI() {
           <h2 className="text-2xl font-semibold mb-6">SpeakText</h2>
           <div className="rounded-lg border bg-card p-6">
             <SpokenTextProvider>
-              <SpeakText className="text-card-foreground">
-                Hello world!
-              </SpeakText>
+              <SpeakText text="Hello world!" className="text-card-foreground" />
             </SpokenTextProvider>
           </div>
           <div>
@@ -61,9 +59,11 @@ function PlayMultipleSpeak() {
         messages.map((text, index) => (
           <div key={`message-${index}-${text.slice(0, 20)}`}>
             <SpokenTextProvider>
-              <SpeakText autoQueue={true} className="text-card-foreground">
-                {text}
-              </SpeakText>
+              <SpeakText 
+                text={text}
+                autoPlay={true} 
+                className="text-card-foreground"
+              />
             </SpokenTextProvider>
           </div>
         ))}
