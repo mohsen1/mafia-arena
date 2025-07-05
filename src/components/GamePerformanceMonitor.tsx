@@ -66,7 +66,6 @@ export function GamePerformanceMonitor({
   const frameCount = useRef(0);
   const lastFrameTime = useRef(performance.now());
 
-
   // Calculate FPS
   useEffect(() => {
     let animationFrameId: number;
@@ -223,8 +222,6 @@ export function GamePerformanceMonitor({
         return <AlertTriangle className="w-4 h-4 text-red-500" />;
     }
   };
-
-
 
   return (
     <Card className={cn('overflow-hidden', className)}>

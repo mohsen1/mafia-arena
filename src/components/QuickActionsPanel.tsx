@@ -37,7 +37,6 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
   const { submitHumanAction } = useGameContext();
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
-
   const humanPlayerId = gameState.humanPlayerId;
   const humanPlayer = humanPlayerId ? gameState.players[humanPlayerId] : null;
   const isAlive = humanPlayer?.status === 'Alive';
