@@ -15,12 +15,11 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { LanguageCode } from '@/lib/i18n/settings';
 import { Menu, User, LogOut, Gamepad2, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GameHeader } from '@/components/GameHeader';
 import { GameNotificationCenter } from '@/components/GameNotificationCenter';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -57,7 +56,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
     error,
     clearError,
     runNextTurn,
-    isAudioGloballyEnabled,
   } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -109,7 +107,10 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
               {/* Left side: Logo and control panel */}
               <div className="flex items-center gap-3">
                 {/* Logo - Navigate to home */}
-                <Link href={`/${lang}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Link
+                  href={`/${lang}`}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
                   <Image
                     src="/images/logo.png"
                     alt="Werewolf AI Logo"
@@ -119,7 +120,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                   />
                   <span className="text-lg font-bold">Werewolf AI</span>
                 </Link>
-                
+
                 {/* Sidebar toggle button */}
                 <Button
                   variant="ghost"
@@ -140,17 +141,23 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                     </h1>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>
-                        {t('RoundLabel')}: <span className="font-medium">{gameState.round}</span>
+                        {t('RoundLabel')}:{' '}
+                        <span className="font-medium">{gameState.round}</span>
                       </span>
                       <span>•</span>
-                      <span className="font-medium capitalize">{t(gameState.phase, { defaultValue: gameState.phase })}</span>
+                      <span className="font-medium capitalize">
+                        {t(gameState.phase, { defaultValue: gameState.phase })}
+                      </span>
                       {gameState.winCondition && (
                         <>
                           <span>•</span>
                           <span className="text-success font-medium">
-                            {t(`Outcome${gameState.winCondition.replace(/\s/g, '')}`, {
-                              defaultValue: gameState.winCondition,
-                            })}
+                            {t(
+                              `Outcome${gameState.winCondition.replace(/\s/g, '')}`,
+                              {
+                                defaultValue: gameState.winCondition,
+                              }
+                            )}
                           </span>
                         </>
                       )}

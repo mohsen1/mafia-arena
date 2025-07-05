@@ -59,9 +59,9 @@ function PlayMultipleSpeak() {
         messages.map((text, index) => (
           <div key={`message-${index}-${text.slice(0, 20)}`}>
             <SpokenTextProvider>
-              <SpeakText 
+              <SpeakText
                 text={text}
-                autoPlay={true} 
+                autoPlay={true}
                 className="text-card-foreground"
               />
             </SpokenTextProvider>

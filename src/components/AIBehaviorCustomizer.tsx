@@ -249,7 +249,7 @@ const PRESET_BEHAVIORS: Array<{ name: string; profile: AIBehaviorProfile }> = [
 ];
 
 export function AIBehaviorCustomizer({
-  playerId,
+  // playerId, // unused - intentionally omitted
   playerName,
   onBehaviorChange,
   className,

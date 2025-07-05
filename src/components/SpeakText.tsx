@@ -56,15 +56,7 @@ export function SpeakText({
   } = useSpokenText();
 
   // Make GameContext optional for voice testing
-  let gameContext;
-  try {
-    gameContext = useGameContext();
-  } catch (error) {
-    console.log(
-      '[SpeakText] GameContext not available, running in standalone mode'
-    );
-    gameContext = null;
-  }
+  const gameContext = useGameContext();
 
   const reportAudioFinished = gameContext?.reportAudioFinished || (() => {});
   const registerStopAudio = gameContext?.registerStopAudio || (() => {});

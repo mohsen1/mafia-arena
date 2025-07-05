@@ -36,7 +36,7 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
   const { t } = useTranslation();
   const { submitHumanAction } = useGameContext();
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
-  const [draftMessage, setDraftMessage] = useState<string>('');
+
 
   const humanPlayerId = gameState.humanPlayerId;
   const humanPlayer = humanPlayerId ? gameState.players[humanPlayerId] : null;
@@ -217,8 +217,7 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
                       console.error('Failed to send quick message:', error);
                     }
                   } else {
-                    // Store as draft if not ready to send
-                    setDraftMessage(template);
+                    // Not ready to send message yet
                     setSelectedAction(null);
                   }
                 }}

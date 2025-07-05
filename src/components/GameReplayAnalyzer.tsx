@@ -76,9 +76,7 @@ export function GameReplayAnalyzer({
 }: GameReplayAnalyzerProps) {
   const { t } = useTranslation();
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['overview'])
-  );
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
 
@@ -146,7 +144,7 @@ export function GameReplayAnalyzer({
   const timelineEvents = useMemo((): TimelineEvent[] => {
     const events: TimelineEvent[] = [];
 
-    gameState.log.forEach((msg, index) => {
+    gameState.log.forEach((msg) => {
       let event: TimelineEvent | null = null;
 
       if (msg.type === 'chat' || !msg.type) {
@@ -183,17 +181,7 @@ export function GameReplayAnalyzer({
     return events.sort((a, b) => a.round - b.round);
   }, [gameState]);
 
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(section)) {
-        newSet.delete(section);
-      } else {
-        newSet.add(section);
-      }
-      return newSet;
-    });
-  };
+
 
   const getPlayerInfluenceRank = (playerId: string) => {
     const sorted = Object.values(playerAnalytics).sort(
