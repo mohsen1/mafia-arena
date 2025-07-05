@@ -16,8 +16,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useSpokenText } from '@/context/SpokenTextContext';
-import { useGameContext } from '@/context/GameContext';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface SpeakTextProps {
@@ -51,18 +50,9 @@ export function SpeakText({
   const { isAudioGloballyEnabled, currentlySpeakingId, requestToSpeak, doneSpeaking } =
     useSpokenText();
   
-  // Make GameContext optional for voice testing
-  let gameContext;
-  try {
-    gameContext = useGameContext();
-  } catch (error) {
-    console.log('[SpeakText] GameContext not available, running in standalone mode');
-    gameContext = null;
-  }
-  
-  const reportAudioFinished = gameContext?.reportAudioFinished || (() => {});
-  const registerStopAudio = gameContext?.registerStopAudio || (() => {});
-  const unregisterStopAudio = gameContext?.unregisterStopAudio || (() => {});
+  type AudioStatus = 'idle' | 'fetching' | 'playing' | 'error';
+
+  const [status, setStatus] = useState<AudioStatus>('idle');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +123,6 @@ export function SpeakText({
         if (currentlySpeakingId === audioIdRef.current) {
           console.log(`[SpeakText] ${timestamp()} 🗑️ CLEARING speaking ID on unmount:`, audioIdRef.current);
           doneSpeaking(audioIdRef.current);
-          unregisterStopAudio();
         }
       }
     };
@@ -175,6 +164,7 @@ export function SpeakText({
     if (!isAudioGloballyEnabled) {
       console.log(`[SpeakText] ${timestamp()} ❌ Audio globally disabled`);
       setError('Audio is globally disabled');
+      setStatus('error');
       return;
     }
 
@@ -186,11 +176,13 @@ export function SpeakText({
         blockingId: currentlySpeakingId,
       });
       setError('Another audio is playing');
+      setStatus('error');
       return;
     }
 
     console.log(`[SpeakText] ${timestamp()} ✅ PERMISSION GRANTED, proceeding with speak`);
     setError(null);
+    setStatus('fetching');
 
     try {
       console.log('[SpeakText] Fetching audio from API...');
@@ -204,6 +196,7 @@ export function SpeakText({
       if (!isMountedRef.current) {
         console.log('[SpeakText] Component unmounted during fetch, aborting');
         doneSpeaking(audioIdRef.current);
+        setStatus('error');
         return;
       }
 
@@ -215,10 +208,12 @@ export function SpeakText({
 
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
+      setStatus('playing');
 
       if (!isMountedRef.current) {
         URL.revokeObjectURL(audioUrl);
         doneSpeaking(audioIdRef.current);
+        setStatus('error');
         return;
       }
 
@@ -239,16 +234,7 @@ export function SpeakText({
           duration: audio.duration,
         });
         setIsPlaying(true);
-        // Register this audio with GameContext for auto-run coordination
-        registerStopAudio(audioIdRef.current, () => {
-          console.log(`[SpeakText] ${timestamp()} ⏹️ Stop callback called from GameContext for:`, audioIdRef.current);
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-          }
-          setIsPlaying(false);
-          doneSpeaking(audioIdRef.current);
-        });
+        // No external registration needed; context handles exclusivity
       });
 
       audio.addEventListener('pause', () => {
@@ -257,6 +243,7 @@ export function SpeakText({
           currentTime: audio.currentTime,
         });
         setIsPlaying(false);
+        setStatus('idle');
       });
 
       audio.addEventListener('ended', () => {
@@ -265,11 +252,9 @@ export function SpeakText({
           duration: audio.duration,
         });
         setIsPlaying(false);
-        // Clear from both contexts
+        setStatus('idle');
+        // Clear context on error
         doneSpeaking(audioIdRef.current);
-        unregisterStopAudio();
-        // Report to GameContext for auto-run coordination
-        reportAudioFinished(audioIdRef.current);
         onComplete?.();
       });
 
@@ -299,11 +284,9 @@ export function SpeakText({
         
         setError(errorMessage);
         setIsPlaying(false);
-        // Clear from both contexts on error
+        setStatus('error');
+        // Clear context on error
         doneSpeaking(audioIdRef.current);
-        unregisterStopAudio();
-        // Report error completion to GameContext
-        reportAudioFinished(audioIdRef.current);
       });
 
       // Play the audio
@@ -315,7 +298,6 @@ export function SpeakText({
       
       // Immediately clear the speaking ID on any error
       doneSpeaking(audioIdRef.current);
-      unregisterStopAudio();
       
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
@@ -327,6 +309,7 @@ export function SpeakText({
         setError('Failed to generate speech');
       }
       setIsPlaying(false);
+      setStatus('error');
     }
   };
 
@@ -339,7 +322,7 @@ export function SpeakText({
     setIsPlaying(false);
     setCurrentWordIndex(-1);
     doneSpeaking(audioIdRef.current);
-    unregisterStopAudio();
+    setStatus('idle');
   };
 
   if (!isAudioGloballyEnabled) {
@@ -349,6 +332,13 @@ export function SpeakText({
 
   return (
     <div className={`speak-text-container ${className}`}>
+      {/* Status indicator */}
+      {status === 'fetching' && (
+        <Loader2 className="animate-spin inline-block mr-1 h-4 w-4 text-muted-foreground" />
+      )}
+      {status === 'error' && (
+        <AlertCircle className="inline-block mr-1 h-4 w-4 text-destructive" />
+      )}
       <div className="text-content">
         {words.map((word, index) => (
           <span

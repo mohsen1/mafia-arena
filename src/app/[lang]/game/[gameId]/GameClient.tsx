@@ -95,14 +95,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
 
   return (
     <>
-      {/* Phase transition notification */}
-      {gameState && (
-        <PhaseTransitionNotification
-          phase={gameState.phase}
-          round={gameState.round}
-          show={showPhaseNotification}
-        />
-      )}
 
       {/* Keyboard shortcuts dialog */}
       <KeyboardShortcutsDialog />
@@ -212,22 +204,14 @@ export default function GameClient({
   boundSubmitHumanAction,
 }: GameClientProps) {
   return (
-    <GameProvider
-      initialGameState={initialGameState}
-      boundRunGameTurnAction={boundAdvanceGameStateAction}
-      boundSubmitHumanAction={boundSubmitHumanAction}
-    >
-      <GameClientInner gameId={gameId} lang={lang} />
-    </GameProvider>
-  );
-}
-
-function GameClientInner({ gameId, lang }: { gameId: string; lang: string }) {
-  const { isAudioGloballyEnabled } = useGameContext();
-  
-  return (
-    <SpokenTextProvider isAudioGloballyEnabled={isAudioGloballyEnabled}>
-      <GameLayout gameId={gameId} lang={lang as LanguageCode} />
+    <SpokenTextProvider isAudioGloballyEnabled={initialGameState?.voiceModeEnabled}>
+      <GameProvider
+        initialGameState={initialGameState}
+        boundRunGameTurnAction={boundAdvanceGameStateAction}
+        boundSubmitHumanAction={boundSubmitHumanAction}
+      >
+        <GameLayout gameId={gameId} lang={lang as LanguageCode} />
+      </GameProvider>
     </SpokenTextProvider>
   );
 }
