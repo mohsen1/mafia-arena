@@ -96,7 +96,7 @@ describe('createAgentInstance', () => {
     );
   });
 
-  it('should create an OpenAIAgent for agentType "Ollama" without API key', async () => {
+  it('should create an OllamaAgent for agentType "Ollama" without API key', async () => {
     // No API key needed for default local Ollama
     const config: AgentConfig = {
       agentType: 'Ollama',
@@ -109,11 +109,11 @@ describe('createAgentInstance', () => {
       testPlayerId,
       'llama3:latest',
       'http://localhost:11434/v1',
-      undefined
+      'ollama-no-key-needed'
     );
   });
 
-  it('should create an OpenAIAgent for agentType "Ollama" with custom endpoint', async () => {
+  it('should create an OllamaAgent for agentType "Ollama" with custom endpoint', async () => {
     // Test custom Ollama endpoint configuration
     const config: AgentConfig = {
       agentType: 'Ollama',
@@ -130,7 +130,7 @@ describe('createAgentInstance', () => {
       testPlayerId,
       'llama3:latest',
       'https://custom-ollama-server.com:8080/v1',
-      undefined
+      'ollama-no-key-needed'
     );
   });
 
