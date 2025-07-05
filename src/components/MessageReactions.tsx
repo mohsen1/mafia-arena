@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ThumbsUp, 
-  ThumbsDown, 
-  Heart, 
+import {
+  ThumbsUp,
+  ThumbsDown,
+  Heart,
   Lightbulb,
   AlertTriangle,
   HelpCircle,
-  Plus
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,18 +37,48 @@ interface Reaction {
 }
 
 const AVAILABLE_REACTIONS = [
-  { id: 'agree', icon: <ThumbsUp className="w-4 h-4" />, label: 'Agree', color: 'text-green-500' },
-  { id: 'disagree', icon: <ThumbsDown className="w-4 h-4" />, label: 'Disagree', color: 'text-red-500' },
-  { id: 'love', icon: <Heart className="w-4 h-4" />, label: 'Love', color: 'text-pink-500' },
-  { id: 'insightful', icon: <Lightbulb className="w-4 h-4" />, label: 'Insightful', color: 'text-yellow-500' },
-  { id: 'suspicious', icon: <AlertTriangle className="w-4 h-4" />, label: 'Suspicious', color: 'text-orange-500' },
-  { id: 'confused', icon: <HelpCircle className="w-4 h-4" />, label: 'Confused', color: 'text-purple-500' },
+  {
+    id: 'agree',
+    icon: <ThumbsUp className="w-4 h-4" />,
+    label: 'Agree',
+    color: 'text-green-500',
+  },
+  {
+    id: 'disagree',
+    icon: <ThumbsDown className="w-4 h-4" />,
+    label: 'Disagree',
+    color: 'text-red-500',
+  },
+  {
+    id: 'love',
+    icon: <Heart className="w-4 h-4" />,
+    label: 'Love',
+    color: 'text-pink-500',
+  },
+  {
+    id: 'insightful',
+    icon: <Lightbulb className="w-4 h-4" />,
+    label: 'Insightful',
+    color: 'text-yellow-500',
+  },
+  {
+    id: 'suspicious',
+    icon: <AlertTriangle className="w-4 h-4" />,
+    label: 'Suspicious',
+    color: 'text-orange-500',
+  },
+  {
+    id: 'confused',
+    icon: <HelpCircle className="w-4 h-4" />,
+    label: 'Confused',
+    color: 'text-purple-500',
+  },
 ];
 
-export function MessageReactions({ 
-  message, 
+export function MessageReactions({
+  message,
   humanPlayerId,
-  className 
+  className,
 }: MessageReactionsProps) {
   const { t } = useTranslation();
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
@@ -57,7 +87,7 @@ export function MessageReactions({
   const handleReaction = (reactionId: string) => {
     if (!humanPlayerId) return;
 
-    setReactions(prev => {
+    setReactions((prev) => {
       const newReactions = { ...prev };
       if (!newReactions[reactionId]) {
         newReactions[reactionId] = [];
@@ -82,23 +112,28 @@ export function MessageReactions({
   };
 
   const getReactionData = (): Reaction[] => {
-    return Object.entries(reactions).map(([reactionId, users]) => {
-      const reactionDef = AVAILABLE_REACTIONS.find(r => r.id === reactionId);
-      if (!reactionDef) return null;
+    return Object.entries(reactions)
+      .map(([reactionId, users]) => {
+        const reactionDef = AVAILABLE_REACTIONS.find(
+          (r) => r.id === reactionId
+        );
+        if (!reactionDef) return null;
 
-      return {
-        id: reactionId,
-        icon: reactionDef.icon,
-        label: reactionDef.label,
-        color: reactionDef.color,
-        count: users.length,
-        users,
-      };
-    }).filter(Boolean) as Reaction[];
+        return {
+          id: reactionId,
+          icon: reactionDef.icon,
+          label: reactionDef.label,
+          color: reactionDef.color,
+          count: users.length,
+          users,
+        };
+      })
+      .filter(Boolean) as Reaction[];
   };
 
   const reactionData = getReactionData();
-  const hasReacted = humanPlayerId && reactionData.some(r => r.users.includes(humanPlayerId));
+  const hasReacted =
+    humanPlayerId && reactionData.some((r) => r.users.includes(humanPlayerId));
 
   // Don't show reactions for system messages
   if (message.type === 'system' || !message.senderId) {
@@ -106,7 +141,7 @@ export function MessageReactions({
   }
 
   return (
-    <div className={cn("flex items-center gap-1 mt-1", className)}>
+    <div className={cn('flex items-center gap-1 mt-1', className)}>
       <AnimatePresence>
         {reactionData.map((reaction) => (
           <motion.button
@@ -118,10 +153,11 @@ export function MessageReactions({
             whileTap={{ scale: 0.95 }}
             onClick={() => handleReaction(reaction.id)}
             className={cn(
-              "flex items-center gap-1 px-2 py-0.5 rounded-full",
-              "bg-background border transition-all",
-              "hover:bg-accent",
-              reaction.users.includes(humanPlayerId || '') && "border-primary bg-primary/10"
+              'flex items-center gap-1 px-2 py-0.5 rounded-full',
+              'bg-background border transition-all',
+              'hover:bg-accent',
+              reaction.users.includes(humanPlayerId || '') &&
+                'border-primary bg-primary/10'
             )}
           >
             <span className={reaction.color}>{reaction.icon}</span>
@@ -137,9 +173,9 @@ export function MessageReactions({
               variant="ghost"
               size="sm"
               className={cn(
-                "h-6 w-6 p-0 rounded-full",
-                "hover:bg-accent",
-                hasReacted && "opacity-50"
+                'h-6 w-6 p-0 rounded-full',
+                'hover:bg-accent',
+                hasReacted && 'opacity-50'
               )}
             >
               <Plus className="w-3 h-3" />
@@ -154,9 +190,10 @@ export function MessageReactions({
                   whileTap={{ scale: 0.9 }}
                   onClick={() => handleReaction(reaction.id)}
                   className={cn(
-                    "p-2 rounded-lg transition-colors",
-                    "hover:bg-accent",
-                    reactions[reaction.id]?.includes(humanPlayerId) && "bg-primary/10"
+                    'p-2 rounded-lg transition-colors',
+                    'hover:bg-accent',
+                    reactions[reaction.id]?.includes(humanPlayerId) &&
+                      'bg-primary/10'
                   )}
                   title={t(`Reaction.${reaction.label}`, reaction.label)}
                 >
@@ -169,4 +206,4 @@ export function MessageReactions({
       )}
     </div>
   );
-} 
+}

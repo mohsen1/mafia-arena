@@ -15,10 +15,11 @@ import {
   Moon,
   Sun,
   Skull,
-  Shield,
   Brain,
+  Trophy,
+  Users,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
@@ -263,16 +264,29 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
   }, [currentState.messages]);
 
   return (
-    <div className={cn('space-y-4', className)}>
-      {/* Replay Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            {t('replay.title', 'Game Replay')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <div className={cn('h-full flex flex-col bg-background', className)}>
+      {/* Replay Header */}
+      <div className="bg-card border-b">
+        <div className="max-w-7xl mx-auto p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Clock className="w-6 h-6 text-primary" />
+                {t('replay.title', 'Game Replay')}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('replay.subtitle', 'Review and analyze your game')}
+              </p>
+            </div>
+            <Badge variant="outline" className="text-lg px-3 py-1">
+              {currentState.phase === 'GameOver' ? (
+                <Trophy className="w-4 h-4 mr-1" />
+              ) : (
+                <Clock className="w-4 h-4 mr-1" />
+              )}
+              {currentState.phase}
+            </Badge>
+          </div>
           {/* Timeline Progress */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm text-muted-foreground">
@@ -293,94 +307,114 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
             />
           </div>
 
-          {/* Current Event Info */}
-          <div className="p-4 bg-muted rounded-lg">
-            <div className="flex items-start gap-3">
-              <div
+          {/* Current Event Card */}
+          <motion.div
+            key={currentEvent?.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card rounded-lg border p-4 shadow-sm"
+          >
+            <div className="flex items-start gap-4">
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
                 className={cn(
-                  'p-2 rounded-full',
+                  'p-3 rounded-full',
                   currentEvent?.type === 'message' &&
-                    'bg-blue-500/20 text-blue-500',
+                    'bg-blue-500/10 text-blue-500',
                   currentEvent?.type === 'vote' &&
-                    'bg-yellow-500/20 text-yellow-500',
+                    'bg-orange-500/10 text-orange-500',
                   currentEvent?.type === 'elimination' &&
-                    'bg-red-500/20 text-red-500',
+                    'bg-red-500/10 text-red-500',
                   currentEvent?.type === 'phase_change' &&
-                    'bg-purple-500/20 text-purple-500',
+                    'bg-purple-500/10 text-purple-500',
                   currentEvent?.type === 'game_end' &&
-                    'bg-green-500/20 text-green-500'
+                    'bg-green-500/10 text-green-500'
                 )}
               >
                 {currentEvent?.type === 'message' && (
-                  <MessageSquare className="w-4 h-4" />
+                  <MessageSquare className="w-5 h-5" />
                 )}
-                {currentEvent?.type === 'vote' && <Vote className="w-4 h-4" />}
+                {currentEvent?.type === 'vote' && <Vote className="w-5 h-5" />}
                 {currentEvent?.type === 'elimination' && (
-                  <Skull className="w-4 h-4" />
+                  <Skull className="w-5 h-5" />
                 )}
                 {currentEvent?.type === 'phase_change' &&
                   (currentEvent.data.phase === 'Day' ? (
-                    <Sun className="w-4 h-4" />
+                    <Sun className="w-5 h-5" />
                   ) : (
-                    <Moon className="w-4 h-4" />
+                    <Moon className="w-5 h-5" />
                   ))}
                 {currentEvent?.type === 'game_end' && (
-                  <Shield className="w-4 h-4" />
+                  <Trophy className="w-5 h-5" />
                 )}
-              </div>
+              </motion.div>
               <div className="flex-1">
-                <p className="font-medium">{currentEvent?.description}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="font-semibold text-lg">
+                  {currentEvent?.description}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
                   {currentEvent &&
                     new Date(currentEvent.timestamp).toLocaleTimeString()}
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Playback Controls */}
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-1 bg-muted/50 rounded-lg p-2">
             <Button
-              variant="outline"
-              size="icon"
+              variant="ghost"
+              size="sm"
               onClick={handleReset}
               disabled={currentEventIndex === 0}
+              className="h-8 w-8"
             >
               <ChevronFirst className="w-4 h-4" />
             </Button>
             <Button
-              variant="outline"
-              size="icon"
+              variant="ghost"
+              size="sm"
               onClick={() => handleSkipToEvent(currentEventIndex - 1)}
               disabled={currentEventIndex === 0}
+              className="h-8 w-8"
             >
               <SkipBack className="w-4 h-4" />
             </Button>
             <Button
-              variant="default"
-              size="icon"
+              variant={isPlaying ? 'secondary' : 'default'}
+              size="sm"
               onClick={() => setIsPlaying(!isPlaying)}
               disabled={currentEventIndex >= gameEvents.length - 1}
+              className="h-8 px-4"
             >
               {isPlaying ? (
-                <Pause className="w-4 h-4" />
+                <>
+                  <Pause className="w-4 h-4 mr-1" />
+                  {t('replay.pause', 'Pause')}
+                </>
               ) : (
-                <Play className="w-4 h-4" />
+                <>
+                  <Play className="w-4 h-4 mr-1" />
+                  {t('replay.play', 'Play')}
+                </>
               )}
             </Button>
             <Button
-              variant="outline"
-              size="icon"
+              variant="ghost"
+              size="sm"
               onClick={() => handleSkipToEvent(currentEventIndex + 1)}
               disabled={currentEventIndex >= gameEvents.length - 1}
+              className="h-8 w-8"
             >
               <SkipForward className="w-4 h-4" />
             </Button>
             <Button
-              variant="outline"
-              size="icon"
+              variant="ghost"
+              size="sm"
               onClick={() => handleSkipToEvent(gameEvents.length - 1)}
               disabled={currentEventIndex >= gameEvents.length - 1}
+              className="h-8 w-8"
             >
               <ChevronLast className="w-4 h-4" />
             </Button>
@@ -404,19 +438,20 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
               ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Game State Display */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Players */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-sm">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-hidden">
+        {/* Players Panel */}
+        <div className="lg:col-span-1 bg-card rounded-lg border shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b bg-muted/30">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Users className="w-4 h-4" />
               {t('replay.players', 'Players')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </h3>
+          </div>
+          <ScrollArea className="flex-1 p-4">
             <div className="space-y-2">
               {Object.values(gameState.players).map((player) => {
                 const isAlive = currentState.alivePlayers.has(player.id);
@@ -484,45 +519,43 @@ export function GameReplay({ gameState, className }: GameReplayProps) {
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+          </ScrollArea>
+        </div>
 
-        {/* Messages */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center justify-between">
-              <span>{t('replay.conversation', 'Conversation')}</span>
-              <Badge variant="outline">
-                {currentState.phase === 'Day' ? (
-                  <Sun className="w-3 h-3 me-1" />
-                ) : (
-                  <Moon className="w-3 h-3 me-1" />
-                )}
-                {currentState.phase}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className="space-y-2 max-h-[400px] overflow-y-auto"
-              ref={messagesContainerRef}
+        {/* Messages Panel */}
+        <div className="lg:col-span-2 bg-card rounded-lg border shadow-sm flex flex-col overflow-hidden">
+          <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
+            <h3 className="font-semibold flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              {t('replay.conversation', 'Conversation')}
+            </h3>
+            <Badge
+              variant={currentState.phase === 'Day' ? 'default' : 'secondary'}
             >
-              {currentState.messages.slice(-10).map((message) => (
-                <div key={message.id}>
-                  <MessageBubble
-                    message={message}
-                    players={gameState.players}
-                  />
-                </div>
-              ))}
-              {currentState.messages.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  {t('replay.noMessages', 'No messages yet')}
-                </p>
+              {currentState.phase === 'Day' ? (
+                <Sun className="w-3 h-3 mr-1" />
+              ) : (
+                <Moon className="w-3 h-3 mr-1" />
               )}
-            </div>
-          </CardContent>
-        </Card>
+              {currentState.phase}
+            </Badge>
+          </div>
+          <div
+            className="flex-1 p-4 space-y-2 overflow-y-auto"
+            ref={messagesContainerRef}
+          >
+            {currentState.messages.slice(-10).map((message) => (
+              <div key={message.id}>
+                <MessageBubble message={message} players={gameState.players} />
+              </div>
+            ))}
+            {currentState.messages.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">
+                {t('replay.noMessages', 'No messages yet')}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* AI Thoughts Dialog */}

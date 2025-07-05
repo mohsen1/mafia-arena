@@ -78,11 +78,11 @@ export function ConversationLog() {
   return (
     <div
       ref={containerRef}
-      className="flex-grow bg-background px-4 py-2 overflow-y-auto"
+      className="flex-1 bg-muted/5 px-4 py-4 overflow-y-auto scroll-smooth"
       onScroll={handleScroll}
     >
       {displayLogMemo.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {displayLogMemo.map((message) => (
             <MessageBubble
               key={message.id}
@@ -93,8 +93,8 @@ export function ConversationLog() {
           ))}
         </div>
       ) : (
-        <p className="text-muted-foreground italic text-center py-4">
-          {t('EmptyConversationLog')}
+        <p className="text-muted-foreground italic text-center py-8">
+          {t('EmptyConversationLog', 'The conversation will appear here...')}
         </p>
       )}
     </div>

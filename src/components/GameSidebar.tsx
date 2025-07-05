@@ -8,16 +8,27 @@ import type { PlayerId } from '@/lib/engine/interfaces/IPlayer'; // Import Playe
 
 // Import from react-i18next
 import { useTranslation } from 'react-i18next';
-import { GameHeader } from './GameHeader';
 import { GameTimer } from './GameTimer';
 import { QuickActionsPanel } from './QuickActionsPanel';
 import { RoleTipsPanel } from './RoleTipsPanel';
-import { GameNotificationCenter } from './GameNotificationCenter';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { ChevronDown, Users, Lightbulb, Zap } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 export function GameSidebar() {
   const { gameState } = useGameContext();
   // Use standard hook
   const { t } = useTranslation('translation'); // Keep namespace for now
+
+  // Collapsible states
+  const [quickActionsOpen, setQuickActionsOpen] = useState(true);
+  const [roleTipsOpen, setRoleTipsOpen] = useState(false);
+  const [playersOpen, setPlayersOpen] = useState(true);
 
   // Handle null gameState
   if (!gameState) {
@@ -69,112 +80,161 @@ export function GameSidebar() {
     groupPlayersByAlignment(livingPlayers);
 
   return (
-    <aside className="flex flex-col h-full bg-card border-e">
-      <div className="flex items-center justify-between pe-3">
-        <GameHeader />
-        {gameState && <GameNotificationCenter gameState={gameState} />}
-      </div>
-
-      <div className="flex-grow p-3 overflow-y-auto">
-        {/* Game Timer */}
+    <aside className="flex flex-col h-full bg-background/50 border-e border-border/50 overflow-hidden">
+      <div className="flex-1 overflow-y-auto">
+        {/* Game Timer - Always visible when game is active */}
         {gameState && gameState.phase !== 'GameOver' && (
-          <div className="mb-4">
+          <div className="p-3 border-b border-border/50">
             <GameTimer />
           </div>
         )}
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Collapsible */}
         {gameState && (
-          <div className="mb-4">
-            <QuickActionsPanel gameState={gameState} />
-          </div>
+          <Collapsible
+            open={quickActionsOpen}
+            onOpenChange={setQuickActionsOpen}
+          >
+            <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-accent/50 transition-colors border-b border-border/50">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Zap className="h-4 w-4" />
+                {t('QuickActions', 'Quick Actions')}
+              </div>
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 transition-transform',
+                  quickActionsOpen && 'rotate-180'
+                )}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 pt-0 bg-background/50">
+                <QuickActionsPanel gameState={gameState} />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
-        {/* Role Tips */}
+        {/* Role Tips - Collapsible */}
         {gameState && (
-          <div className="mb-4">
-            <RoleTipsPanel gameState={gameState} />
-          </div>
+          <Collapsible open={roleTipsOpen} onOpenChange={setRoleTipsOpen}>
+            <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-accent/50 transition-colors border-b border-border/50">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Lightbulb className="h-4 w-4" />
+                {t('RoleTips', 'Role Tips')}
+              </div>
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 transition-transform',
+                  roleTipsOpen && 'rotate-180'
+                )}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 pt-0">
+                <RoleTipsPanel gameState={gameState} />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )}
-        <div className="space-y-4">
-          {/* Town Players Section */}
-          {townPlayers.length > 0 && (
-            <div>
-              <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-2">
-                {t('RoleGroupTown', 'Town Players')} ({townPlayers.length})
-              </h3>
-              <div className="space-y-1.5">
-                {townPlayers.map((player: FilteredPlayer) => (
-                  <PlayerCard key={player.id} player={player} />
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Mafia Players Section */}
-          {mafiaPlayers.length > 0 && (
-            <div>
-              <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-2">
-                {t('RoleGroupMafia', 'Mafia Players')} ({mafiaPlayers.length})
-              </h3>
-              <div className="space-y-1.5">
-                {mafiaPlayers.map((player: FilteredPlayer) => (
-                  <PlayerCard key={player.id} player={player} />
-                ))}
-              </div>
+        {/* Players List - Collapsible */}
+        <Collapsible open={playersOpen} onOpenChange={setPlayersOpen}>
+          <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-accent/50 transition-colors">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Users className="h-4 w-4" />
+              {t('Players', 'Players')} ({livingPlayers.length})
             </div>
-          )}
-
-          {/* Other Players Section (for any custom roles) */}
-          {otherPlayers.length > 0 && (
-            <div>
-              <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-2">
-                {t('LivingPlayersTitle', 'Living Players')} (
-                {otherPlayers.length})
-              </h3>
-              <div className="space-y-1.5">
-                {otherPlayers.map((player: FilteredPlayer) => (
-                  <PlayerCard key={player.id} player={player} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Fallback: Show all living players if no role grouping */}
-          {townPlayers.length === 0 &&
-            mafiaPlayers.length === 0 &&
-            otherPlayers.length === 0 &&
-            livingPlayers.length > 0 && (
-              <div>
-                <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-2">
-                  {t('LivingPlayersTitle', 'Living Players')} (
-                  {livingPlayers.length})
-                </h3>
-                <div className="space-y-1.5">
-                  {livingPlayers.map((player: FilteredPlayer) => (
-                    <PlayerCard key={player.id} player={player} />
-                  ))}
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 transition-transform',
+                playersOpen && 'rotate-180'
+              )}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-3 pb-3 space-y-3">
+              {/* Town Players Section */}
+              {townPlayers.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                    {t('RoleGroupTown', 'Town Players')} ({townPlayers.length})
+                  </h3>
+                  <div className="space-y-1">
+                    {townPlayers.map((player: FilteredPlayer) => (
+                      <PlayerCard key={player.id} player={player} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-          {/* Dead Players Section */}
-          {deadPlayers.length > 0 && (
-            <>
-              <hr className="my-3 border-muted" /> {/* Add a divider */}
-              <div>
-                <h3 className="text-xs font-medium text-muted-foreground px-1 py-0.5 mb-2">
-                  {t('DeadPlayersTitle', 'Dead Players')} ({deadPlayers.length})
-                </h3>
-                <div className="space-y-1.5 opacity-75">
-                  {deadPlayers.map((player: FilteredPlayer) => (
-                    <PlayerCard key={player.id} player={player} />
-                  ))}
+              {/* Mafia Players Section */}
+              {mafiaPlayers.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                    {t('RoleGroupMafia', 'Mafia Players')} (
+                    {mafiaPlayers.length})
+                  </h3>
+                  <div className="space-y-1">
+                    {mafiaPlayers.map((player: FilteredPlayer) => (
+                      <PlayerCard key={player.id} player={player} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
-        </div>
+              )}
+
+              {/* Other Players Section (for any custom roles) */}
+              {otherPlayers.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                    {t('LivingPlayersTitle', 'Living Players')} (
+                    {otherPlayers.length})
+                  </h3>
+                  <div className="space-y-1">
+                    {otherPlayers.map((player: FilteredPlayer) => (
+                      <PlayerCard key={player.id} player={player} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback: Show all living players if no role grouping */}
+              {townPlayers.length === 0 &&
+                mafiaPlayers.length === 0 &&
+                otherPlayers.length === 0 &&
+                livingPlayers.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                      {t('LivingPlayersTitle', 'Living Players')} (
+                      {livingPlayers.length})
+                    </h3>
+                    <div className="space-y-1">
+                      {livingPlayers.map((player: FilteredPlayer) => (
+                        <PlayerCard key={player.id} player={player} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* Dead Players Section */}
+              {deadPlayers.length > 0 && (
+                <>
+                  <div className="border-t border-border/50 pt-3">
+                    <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                      {t('DeadPlayersTitle', 'Dead Players')} (
+                      {deadPlayers.length})
+                    </h3>
+                    <div className="space-y-1 opacity-60">
+                      {deadPlayers.map((player: FilteredPlayer) => (
+                        <PlayerCard key={player.id} player={player} />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </aside>
   );

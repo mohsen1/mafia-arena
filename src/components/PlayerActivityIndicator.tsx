@@ -2,13 +2,13 @@
 
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { 
-  Zap, 
-  MessageSquare, 
-  Vote, 
+import {
+  Zap,
+  MessageSquare,
+  Vote,
   Clock,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { FilteredGameState, FilteredPlayer } from '@/lib/interfaces/gameState.types';
+import type {
+  FilteredGameState,
+  FilteredPlayer,
+} from '@/lib/interfaces/gameState.types';
 
 interface PlayerActivityIndicatorProps {
   player: FilteredPlayer;
@@ -37,36 +40,38 @@ interface ActivityMetrics {
   isSuspicious: boolean;
 }
 
-export function PlayerActivityIndicator({ 
-  player, 
-  gameState, 
-  className 
+export function PlayerActivityIndicator({
+  player,
+  gameState,
+  className,
 }: PlayerActivityIndicatorProps) {
   const { t } = useTranslation();
 
   const metrics = useMemo((): ActivityMetrics => {
     // Count messages from this player
     const messageCount = gameState.log.filter(
-      msg => msg.senderId === player.id && msg.type === 'chat'
+      (msg) => msg.senderId === player.id && msg.type === 'chat'
     ).length;
 
     // Count votes from this player
     const voteCount = gameState.log.filter(
-      msg => msg.senderId === player.id && msg.content.includes('votes for')
+      (msg) => msg.senderId === player.id && msg.content.includes('votes for')
     ).length;
 
     // Find last active round
     const playerMessages = gameState.log.filter(
-      msg => msg.senderId === player.id
+      (msg) => msg.senderId === player.id
     );
-    const lastActiveRound = playerMessages.length > 0
-      ? Math.max(...playerMessages.map(m => m.round))
-      : 0;
+    const lastActiveRound =
+      playerMessages.length > 0
+        ? Math.max(...playerMessages.map((m) => m.round))
+        : 0;
 
     // Calculate activity level
-    const avgMessagesPerPlayer = gameState.log.filter(m => m.type === 'chat').length / 
+    const avgMessagesPerPlayer =
+      gameState.log.filter((m) => m.type === 'chat').length /
       Object.keys(gameState.players).length;
-    
+
     let activityLevel: ActivityLevel;
     if (messageCount === 0) {
       activityLevel = 'inactive';
@@ -80,7 +85,9 @@ export function PlayerActivityIndicator({
 
     // Detect suspicious patterns
     const isQuiet = messageCount < 3 && gameState.round > 2;
-    const isSuspicious = isQuiet && player.status === 'Alive' && 
+    const isSuspicious =
+      isQuiet &&
+      player.status === 'Alive' &&
       lastActiveRound < gameState.round - 1;
 
     return {
@@ -89,25 +96,33 @@ export function PlayerActivityIndicator({
       lastActiveRound,
       activityLevel,
       isQuiet,
-      isSuspicious
+      isSuspicious,
     };
   }, [player, gameState]);
 
   const getActivityColor = (level: ActivityLevel) => {
     switch (level) {
-      case 'high': return 'text-green-500';
-      case 'medium': return 'text-blue-500';
-      case 'low': return 'text-yellow-500';
-      case 'inactive': return 'text-red-500';
+      case 'high':
+        return 'text-green-500';
+      case 'medium':
+        return 'text-blue-500';
+      case 'low':
+        return 'text-yellow-500';
+      case 'inactive':
+        return 'text-red-500';
     }
   };
 
   const getActivityIcon = (level: ActivityLevel) => {
     switch (level) {
-      case 'high': return <Zap className="w-3 h-3" />;
-      case 'medium': return <MessageSquare className="w-3 h-3" />;
-      case 'low': return <Clock className="w-3 h-3" />;
-      case 'inactive': return <AlertCircle className="w-3 h-3" />;
+      case 'high':
+        return <Zap className="w-3 h-3" />;
+      case 'medium':
+        return <MessageSquare className="w-3 h-3" />;
+      case 'low':
+        return <Clock className="w-3 h-3" />;
+      case 'inactive':
+        return <AlertCircle className="w-3 h-3" />;
     }
   };
 
@@ -117,15 +132,17 @@ export function PlayerActivityIndicator({
 
   return (
     <TooltipProvider>
-      <div className={cn("flex items-center gap-1", className)}>
+      <div className={cn('flex items-center gap-1', className)}>
         {/* Activity Level Indicator */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className={cn(
-              "flex items-center gap-1 px-1.5 py-0.5 rounded-full",
-              "bg-background border",
-              getActivityColor(metrics.activityLevel)
-            )}>
+            <div
+              className={cn(
+                'flex items-center gap-1 px-1.5 py-0.5 rounded-full',
+                'bg-background border',
+                getActivityColor(metrics.activityLevel)
+              )}
+            >
               {getActivityIcon(metrics.activityLevel)}
               <span className="text-xs font-medium">
                 {metrics.messageCount}
@@ -135,17 +152,24 @@ export function PlayerActivityIndicator({
           <TooltipContent>
             <div className="space-y-1">
               <p className="font-semibold">
-                {t('ActivityLevel', 'Activity Level')}: {t(`Activity.${metrics.activityLevel}`, metrics.activityLevel)}
+                {t('ActivityLevel', 'Activity Level')}:{' '}
+                {t(`Activity.${metrics.activityLevel}`, metrics.activityLevel)}
               </p>
               <p className="text-xs">
-                {t('MessagesCount', '{{count}} messages', { count: metrics.messageCount })}
+                {t('MessagesCount', '{{count}} messages', {
+                  count: metrics.messageCount,
+                })}
               </p>
               <p className="text-xs">
-                {t('VotesCount', '{{count}} votes', { count: metrics.voteCount })}
+                {t('VotesCount', '{{count}} votes', {
+                  count: metrics.voteCount,
+                })}
               </p>
               {metrics.lastActiveRound > 0 && (
                 <p className="text-xs">
-                  {t('LastActive', 'Last active: Round {{round}}', { round: metrics.lastActiveRound })}
+                  {t('LastActive', 'Last active: Round {{round}}', {
+                    round: metrics.lastActiveRound,
+                  })}
                 </p>
               )}
             </div>
@@ -196,10 +220,14 @@ export function PlayerActivityIndicator({
             </TooltipTrigger>
             <TooltipContent>
               <p className="text-xs">
-                {t('VoteParticipation', 'Voted in {{count}} of {{total}} rounds', {
-                  count: metrics.voteCount,
-                  total: gameState.round
-                })}
+                {t(
+                  'VoteParticipation',
+                  'Voted in {{count}} of {{total}} rounds',
+                  {
+                    count: metrics.voteCount,
+                    total: gameState.round,
+                  }
+                )}
               </p>
             </TooltipContent>
           </Tooltip>
@@ -207,4 +235,4 @@ export function PlayerActivityIndicator({
       </div>
     </TooltipProvider>
   );
-} 
+}

@@ -7,24 +7,24 @@ import CharacterGenerationUI from '@/components/CharacterGenerationUI';
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
 import { PhaseTransitionNotification } from '@/components/PhaseTransitionNotification';
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
-import { GameHistory } from '@/components/GameHistory';
-import { VotingPanel } from '@/components/VotingPanel';
-import { RoleRevealToast } from '@/components/RoleRevealToast';
+
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
-import { GameStatsTracker } from '@/components/GameStatsTracker';
-import { VotingVisualization } from '@/components/VotingVisualization';
-import { GameInsights } from '@/components/GameInsights';
+import { GameAnalyticsTabs } from '@/components/GameAnalyticsTabs';
 import { Header } from '@/components/Header';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
-import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import type { LanguageCode } from '@/lib/i18n/settings';
+import { Menu, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { GameHeader } from '@/components/GameHeader';
+import { GameNotificationCenter } from '@/components/GameNotificationCenter';
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
@@ -45,16 +45,11 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const { gameState, setGameState, error, clearError, runNextTurn } =
     useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Track phase changes for notifications
   const [previousPhase, setPreviousPhase] = useState(gameState?.phase);
   const [showPhaseNotification, setShowPhaseNotification] = useState(false);
-  const [roleReveal, setRoleReveal] = useState<{
-    playerName: string;
-    role: string;
-    isEvil: boolean;
-    reason: 'voted' | 'killed';
-  } | null>(null);
 
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
@@ -67,38 +62,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
       setTimeout(() => setShowPhaseNotification(false), 100);
     }
   }, [gameState?.phase, previousPhase]);
-
-  // Track eliminated players to show role reveals
-  const [revealedPlayers, setRevealedPlayers] = useState<Set<string>>(
-    new Set()
-  );
-
-  useEffect(() => {
-    if (!gameState) return;
-
-    // Check for newly eliminated players
-    Object.values(gameState.players).forEach((player) => {
-      if (player.status === 'Dead' && !revealedPlayers.has(player.id)) {
-        // Find elimination reason from recent messages
-        const recentMessages = gameState.log.slice(-10);
-        const isVoted = recentMessages.some((msg) =>
-          msg.content.includes(`${player.name} was executed`)
-        );
-
-        if (player.role) {
-          setRoleReveal({
-            playerName: player.name,
-            role: player.role,
-            isEvil: player.role === 'Mafia',
-            reason: isVoted ? 'voted' : 'killed',
-          });
-          setRevealedPlayers((prev) => new Set([...prev, player.id]));
-          // Clear the role reveal after a short delay
-          setTimeout(() => setRoleReveal(null), 100);
-        }
-      }
-    });
-  }, [gameState, revealedPlayers]);
 
   // Show character generation UI if game is in CharacterGeneration phase
   if (gameState?.phase === 'CharacterGeneration') {
@@ -129,16 +92,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
           />
         )}
 
-        {/* Role reveal toast */}
-        {roleReveal && (
-          <RoleRevealToast
-            playerName={roleReveal.playerName}
-            role={roleReveal.role}
-            isEvil={roleReveal.isEvil}
-            reason={roleReveal.reason}
-          />
-        )}
-
         <div className="min-h-screen bg-background" dir={direction}>
           <Header currentLang={lang} />
           <div className="container mx-auto p-4">
@@ -160,68 +113,77 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
         />
       )}
 
-      {/* Role reveal toast */}
-      {roleReveal && (
-        <RoleRevealToast
-          playerName={roleReveal.playerName}
-          role={roleReveal.role}
-          isEvil={roleReveal.isEvil}
-          reason={roleReveal.reason}
-        />
-      )}
-
       {/* Keyboard shortcuts dialog */}
       <KeyboardShortcutsDialog />
 
       {humanPlayerId ? (
         // Human player view
-        <div className="min-h-screen bg-background" dir={direction}>
-          <Header currentLang={lang} />
-          <div className="grid grid-cols-[280px_1fr] h-[calc(100vh-4rem)]">
-            <GameSidebar />
-            <main className="grid grid-rows-[1fr_auto] h-full overflow-hidden">
-              <div className="overflow-y-auto">
-                {error && (
-                  <div className="p-4">
-                    <GameErrorDisplay
-                      error={error}
-                      onRetry={() => {
-                        clearError();
-                        runNextTurn();
-                      }}
-                    />
-                  </div>
-                )}
+        <div className="h-screen bg-background flex flex-col" dir={direction}>
+          <div className="flex-shrink-0 z-50 border-b">
+            <Header currentLang={lang} />
+          </div>
+          {/* Game Header - Full Width */}
+          {gameState && (
+            <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur">
+              <div className="flex items-center px-3 py-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                >
+                  {sidebarOpen ? (
+                    <X className="h-4 w-4" />
+                  ) : (
+                    <Menu className="h-4 w-4" />
+                  )}
+                </Button>
+                <div className="flex-1">
+                  <GameHeader />
+                </div>
+                <GameNotificationCenter
+                  gameState={gameState}
+                  className="h-8 w-8"
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex-1 flex min-h-0">
+            <div
+              className={cn(
+                'transition-all duration-300 overflow-hidden',
+                sidebarOpen ? 'w-[280px]' : 'w-0'
+              )}
+            >
+              {sidebarOpen && <GameSidebar />}
+            </div>
+            <main className="flex-1 flex flex-col h-full min-h-0">
+              {error && (
+                <div className="p-4 bg-destructive/10 border-b border-destructive/20">
+                  <GameErrorDisplay
+                    error={error}
+                    onRetry={() => {
+                      clearError();
+                      runNextTurn();
+                    }}
+                  />
+                </div>
+              )}
+              <div className="flex-1 flex flex-col min-h-0">
                 <ConversationLog />
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
-                  {/* Voting Panel */}
-                  {gameState && humanPlayerId && (
-                    <VotingPanel gameState={gameState} />
-                  )}
-                  {/* Game Statistics */}
+                <div className="p-3 border-t bg-background/50 backdrop-blur flex-shrink-0">
+                  {/* Game Analytics in Tabs */}
                   {gameState && (
-                    <GameStatsTracker gameState={gameState} />
-                  )}
-                  {/* Voting Visualization */}
-                  {gameState && (
-                    <VotingVisualization gameState={gameState} />
-                  )}
-                  {/* Game Insights */}
-                  {gameState && (
-                    <GameInsights gameState={gameState} />
-                  )}
-                  {/* Game History */}
-                  {gameState && 'memory' in gameState && (
-                    <GameHistory
-                      gameState={
-                        gameState as FilteredGameState & { memory: AgentMemory }
-                      }
-                      className="lg:col-span-2"
+                    <GameAnalyticsTabs
+                      gameState={gameState}
+                      humanPlayerId={humanPlayerId}
                     />
                   )}
                 </div>
               </div>
-              <HumanChatInput />
+              <div className="border-t bg-foreground/5 dark:bg-background/50 backdrop-blur">
+                <HumanChatInput />
+              </div>
             </main>
           </div>
         </div>

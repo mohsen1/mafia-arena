@@ -242,7 +242,7 @@ export default function HumanChatInput() {
         ? t('WerewolfChatMessageInputLabel', 'Werewolf chat message input')
         : t('ChatMessageInputLabel', 'Chat message input');
       return (
-        <div className="flex flex-col gap-2 p-4">
+        <div className="p-3">
           <Label htmlFor="chat-input" className="sr-only">
             {t('ChatMessageInput', 'Enter your message')}
           </Label>
@@ -261,13 +261,14 @@ export default function HumanChatInput() {
               }}
               placeholder={placeholder}
               disabled={disabled}
-              className="flex-1"
+              className="flex-1 h-9"
               aria-label={ariaLabel}
               aria-describedby="chat-help"
               autoComplete="off"
             />
             <Button
               type="submit"
+              size="sm"
               onClick={handleSubmit}
               disabled={disabled || !inputValue.trim()}
               aria-label={t('SendMessage', 'Send message')}
@@ -275,7 +276,7 @@ export default function HumanChatInput() {
               {t('SendButton', 'Send')}
             </Button>
           </div>
-          <p id="chat-help" className="text-xs text-muted-foreground">
+          <p id="chat-help" className="text-xs text-muted-foreground mt-1">
             {t('ChatKeyboardHint', 'Press / to focus input, Enter to send')}
           </p>
         </div>

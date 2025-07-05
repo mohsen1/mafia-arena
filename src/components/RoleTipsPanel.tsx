@@ -3,15 +3,15 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { 
-  Lightbulb, 
-  Shield, 
-  Eye, 
+import {
+  Lightbulb,
+  Shield,
+  Eye,
   Heart,
   Sword,
   Info,
   Target,
-  Users
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,9 +40,9 @@ const ROLE_ICONS: Record<RoleName, React.ReactNode> = {
 
 export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
   const { t } = useTranslation();
-  
-  const humanPlayer = gameState.humanPlayerId 
-    ? gameState.players[gameState.humanPlayerId] 
+
+  const humanPlayer = gameState.humanPlayerId
+    ? gameState.players[gameState.humanPlayerId]
     : null;
 
   const tips = useMemo((): RoleTip[] => {
@@ -59,25 +59,34 @@ export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
           roleTips.push({
             icon: <Target className="w-4 h-4" />,
             title: t('Tips.ObserveQuietPlayers', 'Watch for quiet players'),
-            description: t('Tips.QuietMafia', 'Mafia members often stay quiet to avoid suspicion'),
-            priority: 'high'
+            description: t(
+              'Tips.QuietMafia',
+              'Mafia members often stay quiet to avoid suspicion'
+            ),
+            priority: 'high',
           });
-          
+
           if (round > 1) {
             roleTips.push({
               icon: <Users className="w-4 h-4" />,
               title: t('Tips.AnalyzeVoting', 'Analyze voting patterns'),
-              description: t('Tips.VotingPatterns', 'Look for players who vote together consistently'),
-              priority: 'medium'
+              description: t(
+                'Tips.VotingPatterns',
+                'Look for players who vote together consistently'
+              ),
+              priority: 'medium',
             });
           }
         }
-        
+
         roleTips.push({
           icon: <Shield className="w-4 h-4" />,
           title: t('Tips.ShareSuspicions', 'Share your suspicions'),
-          description: t('Tips.BuildConsensus', 'Help build consensus by voicing your thoughts'),
-          priority: 'medium'
+          description: t(
+            'Tips.BuildConsensus',
+            'Help build consensus by voicing your thoughts'
+          ),
+          priority: 'medium',
         });
         break;
 
@@ -85,23 +94,35 @@ export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
         if (phase === 'Night') {
           roleTips.push({
             icon: <Sword className="w-4 h-4" />,
-            title: t('Tips.ChooseTargetWisely', 'Choose elimination target wisely'),
-            description: t('Tips.TargetActive', 'Target active players who might expose you'),
-            priority: 'high'
+            title: t(
+              'Tips.ChooseTargetWisely',
+              'Choose elimination target wisely'
+            ),
+            description: t(
+              'Tips.TargetActive',
+              'Target active players who might expose you'
+            ),
+            priority: 'high',
           });
         } else {
           roleTips.push({
             icon: <Shield className="w-4 h-4" />,
             title: t('Tips.ActLikeVillager', 'Act like a concerned villager'),
-            description: t('Tips.BlendIn', 'Participate in discussions without being too aggressive'),
-            priority: 'high'
+            description: t(
+              'Tips.BlendIn',
+              'Participate in discussions without being too aggressive'
+            ),
+            priority: 'high',
           });
-          
+
           roleTips.push({
             icon: <Users className="w-4 h-4" />,
             title: t('Tips.ProtectTeammates', 'Subtly protect teammates'),
-            description: t('Tips.AvoidDefending', 'Avoid directly defending other Mafia members'),
-            priority: 'medium'
+            description: t(
+              'Tips.AvoidDefending',
+              'Avoid directly defending other Mafia members'
+            ),
+            priority: 'medium',
           });
         }
         break;
@@ -110,24 +131,36 @@ export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
         if (phase === 'Night') {
           roleTips.push({
             icon: <Eye className="w-4 h-4" />,
-            title: t('Tips.InvestigateSuspicious', 'Investigate suspicious players'),
-            description: t('Tips.PrioritizeQuiet', 'Prioritize quiet or defensive players'),
-            priority: 'high'
+            title: t(
+              'Tips.InvestigateSuspicious',
+              'Investigate suspicious players'
+            ),
+            description: t(
+              'Tips.PrioritizeQuiet',
+              'Prioritize quiet or defensive players'
+            ),
+            priority: 'high',
           });
         } else {
           roleTips.push({
             icon: <Info className="w-4 h-4" />,
             title: t('Tips.ShareCarefully', 'Share information carefully'),
-            description: t('Tips.AvoidRevealing', 'Avoid revealing your role too early'),
-            priority: 'high'
+            description: t(
+              'Tips.AvoidRevealing',
+              'Avoid revealing your role too early'
+            ),
+            priority: 'high',
           });
-          
+
           if (round > 2) {
             roleTips.push({
               icon: <Target className="w-4 h-4" />,
               title: t('Tips.GuideVoting', 'Guide voting subtly'),
-              description: t('Tips.UseKnowledge', 'Use your investigation results to influence votes'),
-              priority: 'medium'
+              description: t(
+                'Tips.UseKnowledge',
+                'Use your investigation results to influence votes'
+              ),
+              priority: 'medium',
             });
           }
         }
@@ -138,22 +171,31 @@ export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
           roleTips.push({
             icon: <Heart className="w-4 h-4" />,
             title: t('Tips.ProtectKeyPlayers', 'Protect key players'),
-            description: t('Tips.SaveActive', 'Save active villagers or suspected Seer'),
-            priority: 'high'
+            description: t(
+              'Tips.SaveActive',
+              'Save active villagers or suspected Seer'
+            ),
+            priority: 'high',
           });
-          
+
           roleTips.push({
             icon: <Shield className="w-4 h-4" />,
             title: t('Tips.VaryTargets', 'Vary your protection targets'),
-            description: t('Tips.UnpredictablePattern', 'Don\'t follow a predictable pattern'),
-            priority: 'medium'
+            description: t(
+              'Tips.UnpredictablePattern',
+              "Don't follow a predictable pattern"
+            ),
+            priority: 'medium',
           });
         } else {
           roleTips.push({
             icon: <Info className="w-4 h-4" />,
             title: t('Tips.StayHidden', 'Keep your role secret'),
-            description: t('Tips.AvoidHints', 'Avoid giving hints about who you protected'),
-            priority: 'high'
+            description: t(
+              'Tips.AvoidHints',
+              'Avoid giving hints about who you protected'
+            ),
+            priority: 'high',
           });
         }
         break;
@@ -164,8 +206,11 @@ export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
       roleTips.push({
         icon: <Lightbulb className="w-4 h-4" />,
         title: t('Tips.EndgameStrategy', 'Endgame approaching'),
-        description: t('Tips.EveryVoteCounts', 'Every vote and decision is critical now'),
-        priority: 'high'
+        description: t(
+          'Tips.EveryVoteCounts',
+          'Every vote and decision is critical now'
+        ),
+        priority: 'high',
       });
     }
 
@@ -180,7 +225,7 @@ export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
   }
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn('overflow-hidden', className)}>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           {ROLE_ICONS[humanPlayer.role]}
@@ -195,24 +240,30 @@ export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Alert className={cn(
-              "border-l-4",
-              tip.priority === 'high' && "border-l-orange-500",
-              tip.priority === 'medium' && "border-l-blue-500",
-              tip.priority === 'low' && "border-l-gray-500"
-            )}>
+            <Alert
+              className={cn(
+                'border-l-4',
+                tip.priority === 'high' && 'border-l-orange-500',
+                tip.priority === 'medium' && 'border-l-blue-500',
+                tip.priority === 'low' && 'border-l-gray-500'
+              )}
+            >
               <div className="flex items-start gap-2">
-                <div className={cn(
-                  "mt-0.5",
-                  tip.priority === 'high' && "text-orange-500",
-                  tip.priority === 'medium' && "text-blue-500",
-                  tip.priority === 'low' && "text-gray-500"
-                )}>
+                <div
+                  className={cn(
+                    'mt-0.5',
+                    tip.priority === 'high' && 'text-orange-500',
+                    tip.priority === 'medium' && 'text-blue-500',
+                    tip.priority === 'low' && 'text-gray-500'
+                  )}
+                >
                   {tip.icon}
                 </div>
                 <AlertDescription className="space-y-1">
                   <p className="font-medium">{tip.title}</p>
-                  <p className="text-xs text-muted-foreground">{tip.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {tip.description}
+                  </p>
                 </AlertDescription>
               </div>
             </Alert>
@@ -227,4 +278,4 @@ export function RoleTipsPanel({ gameState, className }: RoleTipsProps) {
       </CardContent>
     </Card>
   );
-} 
+}
