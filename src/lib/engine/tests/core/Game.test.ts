@@ -12,6 +12,7 @@ import { PlayerStatus, type PlayerId } from '@/lib/engine/interfaces/IPlayer';
 import { RoleName } from '@/lib/engine/interfaces/IRole';
 import type { IAgent, PlayerAction } from '@/lib/engine/interfaces/IAgent';
 import type { IRole } from '@/lib/engine/interfaces/IRole';
+import type { IGamePhase, GamePhaseType } from '@/lib/engine/interfaces/IGamePhase';
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import { NightPhase } from '@/lib/engine/phases/NightPhase';
 import { DoctorRole } from '@/lib/engine/roles/DoctorRole';
@@ -961,7 +962,217 @@ describe('Game', () => {
     });
   });
 
-  // TODO: Add tests for runGameLoop (more complex, requires mocking phases)
+  describe('runGameLoop', () => {
+    let mockPhase: IGamePhase;
+    let transitionSpy: MockedFunction<(game: Game) => GamePhaseType>;
+
+    beforeEach(() => {
+      // Create a mock phase that can be controlled
+      transitionSpy = vi.fn().mockReturnValue('GameOver');
+      mockPhase = {
+        type: 'Day' as GamePhaseType,
+        runStep: vi.fn().mockResolvedValue(undefined),
+        transition: transitionSpy,
+      };
+
+      // Replace the current phase with our mock
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (game as any)['#currentState'] = mockPhase;
+    });
+
+    it('should run basic game loop until GameOver', async () => {
+      // Setup: Mock checkWinCondition to return a winner after 2 iterations
+      const checkWinSpy = vi.spyOn(game, 'checkWinCondition');
+      checkWinSpy
+        .mockReturnValueOnce(null) // First check: no winner
+        .mockReturnValueOnce('Town'); // Second check: Town wins
+
+      const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
+      const notifyRenderersSpy = vi.spyOn(game, 'notifyRenderers');
+
+      await game.runGameLoop();
+
+      // Verify the loop ran and ended correctly
+      expect(mockPhase.runStep).toHaveBeenCalledTimes(2);
+      expect(checkWinSpy).toHaveBeenCalledTimes(2);
+      expect(advancePhaseSpy).toHaveBeenCalledWith('GameOver', 'Town');
+      expect(notifyRenderersSpy).toHaveBeenCalledWith('renderGameStart', expect.any(Map), game.id);
+      expect(notifyRenderersSpy).toHaveBeenCalledWith('renderGameOver', 'Town', expect.any(Object));
+    });
+
+    it('should pause game loop when human action is required', async () => {
+      // Setup: Mock pending human action
+      const pendingAction = {
+        playerId: villager1Id,
+        allowedActions: ['vote'] as PlayerAction['type'][],
+        prompt: 'Cast your vote',
+      };
+      const getPendingActionSpy = vi.spyOn(game, 'getPendingHumanAction');
+      getPendingActionSpy.mockReturnValue(pendingAction);
+
+      const checkWinSpy = vi.spyOn(game, 'checkWinCondition').mockReturnValue(null);
+
+      await game.runGameLoop();
+
+      // Verify the loop paused for human action
+      expect(mockPhase.runStep).toHaveBeenCalledTimes(1);
+      expect(checkWinSpy).toHaveBeenCalledTimes(1);
+      expect(game.getCurrentPhaseType()).not.toBe('GameOver');
+    });
+
+    it('should handle infinite loop protection', async () => {
+      // Setup: Mock a stuck phase that never progresses
+      const stuckPhase = {
+        type: 'Day' as GamePhaseType,
+        runStep: vi.fn().mockResolvedValue(undefined),
+        transition: vi.fn().mockReturnValue('Day'), // Always return same phase
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (game as any)['#currentState'] = stuckPhase;
+
+      // Mock getPhaseStep to always return the same step
+      const getPhaseStepSpy = vi.spyOn(game, 'getPhaseStep').mockReturnValue('Start');
+      const getNextPlayerIndexSpy = vi.spyOn(game, 'getNextPlayerIndexToAction').mockReturnValue(0);
+      const checkWinSpy = vi.spyOn(game, 'checkWinCondition').mockReturnValue(null);
+      const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
+      const logEventSpy = vi.spyOn(game, 'logEvent');
+
+      await game.runGameLoop();
+
+      // Verify infinite loop protection activated
+      expect(logEventSpy).toHaveBeenCalledWith('Game ended due to infinite loop detection.');
+      expect(advancePhaseSpy).toHaveBeenCalledWith('GameOver', undefined);
+    });
+
+    it('should handle phase execution errors gracefully', async () => {
+      // Setup: Mock phase that throws an error
+      const errorPhase = {
+        type: 'Day' as GamePhaseType,
+        runStep: vi.fn().mockRejectedValue(new Error('Phase execution failed')),
+        transition: vi.fn().mockReturnValue('GameOver'),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (game as any)['#currentState'] = errorPhase;
+
+      const logEventSpy = vi.spyOn(game, 'logEvent');
+      const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
+
+      await game.runGameLoop();
+
+      // Verify error was handled gracefully
+      expect(logEventSpy).toHaveBeenCalledWith(
+        'Critical error during Day phase step. Game cannot safely continue.'
+      );
+      expect(advancePhaseSpy).toHaveBeenCalledWith('GameOver', undefined);
+    });
+
+    it('should handle CharacterGeneration phase specially', async () => {
+      // Setup: Mock CharacterGeneration phase
+      const charGenPhase = {
+        type: 'CharacterGeneration' as GamePhaseType,
+        runStep: vi.fn().mockResolvedValue(undefined),
+        transition: vi.fn().mockReturnValue('Day'),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (game as any)['#currentState'] = charGenPhase;
+
+      const checkWinSpy = vi.spyOn(game, 'checkWinCondition');
+
+      await game.runGameLoop();
+
+      // Verify CharacterGeneration phase was handled specially
+      expect(charGenPhase.runStep).toHaveBeenCalledTimes(1);
+      expect(checkWinSpy).not.toHaveBeenCalled(); // Should exit before win condition check
+    });
+
+    it('should enforce maximum iteration limit', async () => {
+      // Setup: Mock a phase that never ends but makes small progress
+      let iterationCount = 0;
+      const endlessPhase = {
+        type: 'Day' as GamePhaseType,
+        runStep: vi.fn().mockImplementation(async () => {
+          iterationCount++;
+          // Simulate small progress to avoid infinite loop detection
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (game as any).setNextPlayerIndexToAction(iterationCount % 10);
+        }),
+        transition: vi.fn().mockReturnValue('Night'),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (game as any)['#currentState'] = endlessPhase;
+
+      const checkWinSpy = vi.spyOn(game, 'checkWinCondition').mockReturnValue(null);
+      const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
+      const logEventSpy = vi.spyOn(game, 'logEvent');
+
+      // Mock the phase step to be 'Finished' to trigger transitions
+      vi.spyOn(game, 'getPhaseStep').mockReturnValue('Finished');
+
+      await game.runGameLoop();
+
+      // Verify maximum iteration limit was enforced
+      expect(logEventSpy).toHaveBeenCalledWith('Game ended due to maximum iteration limit.');
+      expect(advancePhaseSpy).toHaveBeenCalledWith('GameOver', undefined);
+    });
+
+    it('should handle phase transitions correctly', async () => {
+      // Setup: Mock a sequence of phase transitions
+      const dayPhase = {
+        type: 'Day' as GamePhaseType,
+        runStep: vi.fn().mockResolvedValue(undefined),
+        transition: vi.fn().mockReturnValue('Night'),
+      };
+      const nightPhase = {
+        type: 'Night' as GamePhaseType,
+        runStep: vi.fn().mockResolvedValue(undefined),
+        transition: vi.fn().mockReturnValue('GameOver'),
+      };
+
+      // Start with Day phase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (game as any)['#currentState'] = dayPhase;
+
+      const checkWinSpy = vi.spyOn(game, 'checkWinCondition').mockReturnValue(null);
+      const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
+
+      // Mock getPhaseStep to return 'Finished' for transitions
+      vi.spyOn(game, 'getPhaseStep')
+        .mockReturnValueOnce('Start')
+        .mockReturnValueOnce('Finished') // Day phase finished
+        .mockReturnValueOnce('Start')
+        .mockReturnValueOnce('Finished'); // Night phase finished
+
+      // Mock advanceToPhase to actually change the phase
+      advancePhaseSpy.mockImplementation((phaseType) => {
+        if (phaseType === 'Night') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (game as any)['#currentState'] = nightPhase;
+        } else if (phaseType === 'GameOver') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (game as any)['#currentState'] = { type: 'GameOver' };
+        }
+      });
+
+      await game.runGameLoop();
+
+      // Verify both phases ran and transitions occurred
+      expect(dayPhase.runStep).toHaveBeenCalled();
+      expect(nightPhase.runStep).toHaveBeenCalled();
+      expect(advancePhaseSpy).toHaveBeenCalledWith('Night', undefined);
+      expect(advancePhaseSpy).toHaveBeenCalledWith('GameOver', undefined);
+    });
+
+    it('should notify renderers of game start and end', async () => {
+      const checkWinSpy = vi.spyOn(game, 'checkWinCondition').mockReturnValue('Mafia');
+      const notifyRenderersSpy = vi.spyOn(game, 'notifyRenderers');
+
+      await game.runGameLoop();
+
+      // Verify renderer notifications
+      expect(notifyRenderersSpy).toHaveBeenCalledWith('renderGameStart', expect.any(Map), game.id);
+      expect(notifyRenderersSpy).toHaveBeenCalledWith('renderGameOver', 'Mafia', expect.any(Object));
+    });
+  });
 });
 
 // Define nightTestGame at the describe block scope
