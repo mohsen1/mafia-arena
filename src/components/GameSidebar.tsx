@@ -25,8 +25,8 @@ export function GameSidebar() {
   // Use standard hook
   const { t } = useTranslation('translation'); // Keep namespace for now
 
-  // Collapsible states
-  const [quickActionsOpen, setQuickActionsOpen] = useState(true);
+  // Collapsible states - Quick actions collapsed by default
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [roleTipsOpen, setRoleTipsOpen] = useState(false);
   const [playersOpen, setPlayersOpen] = useState(true);
 
