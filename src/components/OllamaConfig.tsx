@@ -181,10 +181,14 @@ export function OllamaConfig({
             <AlertDescription>
               <div className="space-y-2 text-sm">
                 <p>
-                  <strong>Development Only:</strong> Ollama is designed for local development. In production, you cannot connect to localhost from a deployed web application due to CORS policies.
+                  <strong>Development Only:</strong> Ollama is designed for
+                  local development. In production, you cannot connect to
+                  localhost from a deployed web application due to CORS
+                  policies.
                 </p>
                 <p>
-                  For production AI functionality, please use cloud-based providers like OpenAI, Groq, or other hosted AI services.
+                  For production AI functionality, please use cloud-based
+                  providers like OpenAI, Groq, or other hosted AI services.
                 </p>
               </div>
             </AlertDescription>
