@@ -48,7 +48,7 @@ The repository separates the front-end UI from the core game engine. The engine 
 
 - Node.js 18+
 - pnpm 9+
-- PostgreSQL
+- PostgreSQL (see Database Setup below)
 - API keys for at least one AI provider (or [Ollama](docs/OLLAMA_INTEGRATION.md) for local AI, or use [your own keys](docs/USER_API_KEYS.md))
 - OAuth credentials for Google and GitHub
 
@@ -60,12 +60,43 @@ The repository separates the front-end UI from the core game engine. The engine 
    cd werewolf-ai
    pnpm install
    ```
-2. Copy `env.example` to `.env.local` and fill in the required values
-3. Set up the database and start the dev server
+
+2. Set up the database (choose one option):
+
+   **Option A: Docker (Recommended - Cross-platform)**
    ```bash
-   pnpm run dev:db
+   # Start PostgreSQL in Docker
+   docker compose up -d
+   
+   # The database will be available at:
+   # postgresql://werewolf:werewolf_dev_password@localhost:5432/werewolf_db
    ```
-4. Visit `http://localhost:3099`
+
+   **Option B: Native PostgreSQL**
+   ```bash
+   # macOS with Homebrew
+   brew install postgresql@16
+   brew services start postgresql@16
+   
+   # Create database and user
+   createdb werewolf_db
+   createuser werewolf -P  # Enter password when prompted
+   ```
+
+3. Copy `env.example` to `.env.local` and update the DATABASE_URL:
+   ```bash
+   cp env.example .env.local
+   # If using Docker, update DATABASE_URL to:
+   # DATABASE_URL="postgresql://werewolf:werewolf_dev_password@localhost:5432/werewolf_db"
+   ```
+
+4. Run database migrations and start the dev server:
+   ```bash
+   pnpm run db:migrate
+   pnpm run dev
+   ```
+
+5. Visit `http://localhost:3099`
 
 ## Testing
 
@@ -96,7 +127,6 @@ is configured. The build process will:
 1. Validate required environment variables
 2. Check database connectivity
 3. Run any pending migrations with `pnpm run db:migrate`
-4. Apply schema changes with `pnpm run db:push`
 
 Ensure all required environment variables are set in your Vercel project settings before deploying. See [docs/VERCEL_ENV_CHECKLIST.md](docs/VERCEL_ENV_CHECKLIST.md) for a complete checklist.
 
