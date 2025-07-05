@@ -130,12 +130,6 @@ export function Header({ currentLang }: HeaderProps) {
               // Authenticated User Menu
               <div className="flex items-center space-x-2">
                 <ThemeToggle />
-                <Button asChild className="hidden sm:flex">
-                  <Link href={`/${currentLang}/new`}>
-                    <Gamepad2 className="w-4 h-4 me-2" />
-                    {t('landingNavPlayNow')}
-                  </Link>
-                </Button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -214,16 +208,6 @@ export function Header({ currentLang }: HeaderProps) {
               // Guest User Buttons - Show when not loading AND no session
               <div className="flex items-center space-x-2">
                 <ThemeToggle />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="hidden sm:inline-flex"
-                >
-                  <Link href={`/${currentLang}/help`}>
-                    <HelpCircle className="w-4 h-4" />
-                  </Link>
-                </Button>
                 <Button
                   variant="outline"
                   onClick={handleSignIn}
