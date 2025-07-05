@@ -211,6 +211,9 @@ export default function GameClient({
   boundAdvanceGameStateAction,
   boundSubmitHumanAction,
 }: GameClientProps) {
+  const [currentGameState, setCurrentGameState] = useState(initialGameState);
+  const [isConnected, setIsConnected] = useState(false);
+
   return (
     <SpokenTextProvider>
       <GameProvider

@@ -133,10 +133,14 @@ Unit tests under `src/lib/**/tests` cover engine logic. Vitest runs these via `p
 ## Development Workflow
 
 1. Clone the repo and install dependencies with `pnpm install`.
-2. Run `pnpm run db:setup` to install PostgreSQL (macOS) and create the development database.
-3. Start the dev server with `pnpm run dev:db` – this sets up the database, applies migrations and seeds a development user.
-4. Modify engine or UI code. The app reloads automatically via Next.js hot reloading.
-5. Run `pnpm test` and `pnpm test:e2e` to ensure changes do not break existing functionality.
+2. Set up PostgreSQL database:
+   - **Docker (Recommended):** Run `docker compose up -d` to start PostgreSQL in a container
+   - **Native:** Run `pnpm run db:setup` to install PostgreSQL (macOS only) and create the development database
+3. Configure environment variables by copying `env.example` to `.env.local` and updating DATABASE_URL if using Docker
+4. Run database migrations with `pnpm run db:migrate`
+5. Start the dev server with `pnpm run dev`
+6. Modify engine or UI code. The app reloads automatically via Next.js hot reloading.
+7. Run `pnpm test` and `pnpm test:e2e` to ensure changes do not break existing functionality.
 
 ## Summary
 

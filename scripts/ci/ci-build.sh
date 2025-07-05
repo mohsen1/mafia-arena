@@ -39,15 +39,6 @@ if [ "$VERCEL" = "1" ]; then
         echo "⚠️  Migration command returned non-zero exit code"
         echo "ℹ️  This is expected if there are no new migrations to apply"
       fi
-      
-      # Push schema changes
-      echo "📤 Applying database schema..."
-      if pnpm run db:push; then
-        echo "✅ Database schema applied successfully"
-      else
-        echo "⚠️  Schema push returned non-zero exit code"
-        echo "ℹ️  This might be expected if schema is already up to date"
-      fi
     else
       echo "⚠️  Database connection check failed"
       echo "ℹ️  Proceeding with build - database might not be configured yet"
@@ -67,13 +58,6 @@ else
   pnpm run db:migrate || {
     echo "⚠️  Migration failed, but this might be expected if no new migrations"
     # Don't fail the build for migration issues in CI
-  }
-
-  # Push schema changes
-  echo "📤 Pushing database schema..."
-  pnpm run db:push || {
-    echo "⚠️  Schema push failed, but continuing with build"
-    # Don't fail the build for schema push issues in CI
   }
 fi
 

@@ -6,7 +6,7 @@ import { SessionProvider } from 'next-auth/react';
 import '../globals.css';
 
 import { type LanguageCode, defaultNS } from '@/lib/i18n/settings';
-import i18nInstance from '@/lib/i18n/i18n.client';
+import i18nInstance, { ensureLanguageLoaded } from '@/lib/i18n/client';
 import { I18nextProvider } from 'react-i18next';
 import { use } from 'react';
 import { Toaster } from '@/components/ui/toaster';
@@ -29,14 +29,13 @@ export default function RootLayout({
   ) as { lang: LanguageCode };
   const { lang } = params;
 
-  if (i18nInstance.language !== lang) {
-    i18nInstance.changeLanguage(lang);
-  }
+  // Ensure the language is loaded
+  use(ensureLanguageLoaded(lang));
 
   const direction = i18nInstance.dir(lang);
 
   return (
-    <html lang={i18nInstance.language} dir={direction} suppressHydrationWarning>
+    <html lang={lang} dir={direction} suppressHydrationWarning>
       <head>
         <meta
           name="keywords"
