@@ -9,14 +9,11 @@ import {
   Shield,
   Eye,
   Sword,
-  Zap,
   ChevronRight,
   Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import { useGameContext } from '@/context/GameContext';
 
@@ -49,7 +46,7 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
   // Quick message templates based on phase
   const messageTemplates = {
     Day: [
-      t('QuickMessage.Suspicious', "I find their behavior suspicious"),
+      t('QuickMessage.Suspicious', 'I find their behavior suspicious'),
       t('QuickMessage.Trust', 'I trust them, they seem genuine'),
       t('QuickMessage.NeedInfo', 'We need more information before voting'),
       t('QuickMessage.Agree', 'I agree with the previous statement'),
@@ -58,7 +55,7 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
     Night: [
       t('QuickMessage.Quiet', "It's awfully quiet tonight..."),
       t('QuickMessage.Worried', "I'm worried about tomorrow"),
-      t('QuickMessage.Planning', "We should discuss our strategy"),
+      t('QuickMessage.Planning', 'We should discuss our strategy'),
     ],
   };
 
@@ -195,13 +192,20 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
             <h4 className="text-xs font-medium text-muted-foreground mb-2">
               {t('QuickMessage.Templates', 'Message Templates')}
             </h4>
-            {((currentPhase === 'Day' || currentPhase === 'Night') ? messageTemplates[currentPhase] || [] : []).map((template, index) => (
+            {(currentPhase === 'Day' || currentPhase === 'Night'
+              ? messageTemplates[currentPhase] || []
+              : []
+            ).map((template, index) => (
               <Button
                 key={index}
                 variant="ghost"
                 size="sm"
                 onClick={async () => {
-                  if (gameState.pendingHumanAction?.allowedActions?.includes('message')) {
+                  if (
+                    gameState.pendingHumanAction?.allowedActions?.includes(
+                      'message'
+                    )
+                  ) {
                     try {
                       await submitHumanAction({
                         playerId: humanPlayerId!,

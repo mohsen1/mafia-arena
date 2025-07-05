@@ -1,8 +1,6 @@
 'use client';
 
-import { ConversationLog } from '@/components/ConversationLog';
 import { GameSidebar } from '@/components/GameSidebar';
-import HumanChatInput from '@/components/HumanChatInput';
 import { GameTabsLayout } from '@/components/GameTabsLayout';
 import CharacterGenerationUI from '@/components/CharacterGenerationUI';
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
@@ -11,7 +9,6 @@ import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
 
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
-import { GameAnalyticsTabs } from '@/components/GameAnalyticsTabs';
 import { Header } from '@/components/Header';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
