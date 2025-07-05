@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { text, voiceId, stability, similarity, with_timestamps } = validation.data;
+    const { text, voiceId, stability, similarity, with_timestamps } =
+      validation.data;
 
     const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
 
       // The with-timestamps endpoint returns JSON with audio_base64 and alignment
       const responseData = await response.json();
-      
+
       // Return the response as-is, it should already have the correct format
       return NextResponse.json(responseData);
     } else {
@@ -165,14 +166,11 @@ function validateInput(body: unknown): {
   ) {
     return { success: false, error: 'Invalid input: text is required.' };
   }
-  
+
   // Support both voice_id and voiceId
   const voiceId = potentialBody.voice_id || potentialBody.voiceId;
-  
-  if (
-    typeof voiceId !== 'string' ||
-    voiceId.trim() === ''
-  ) {
+
+  if (typeof voiceId !== 'string' || voiceId.trim() === '') {
     return { success: false, error: 'Invalid input: voiceId is required.' };
   }
 
@@ -185,7 +183,7 @@ function validateInput(body: unknown): {
 
   const clampedStability = Math.max(0, Math.min(1, stability));
   const clampedSimilarity = Math.max(0, Math.min(1, similarity));
-  
+
   const with_timestamps = potentialBody.with_timestamps === true;
 
   return {

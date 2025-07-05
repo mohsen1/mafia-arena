@@ -45,7 +45,7 @@ export const SpokenTextProvider: React.FC<SpokenTextProviderProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
-  
+
   console.log(`[SpokenTextContext] ${timestamp()} Provider render:`, {
     currentlySpeakingId,
     queueLength: playbackQueueRef.current.length,
@@ -56,31 +56,40 @@ export const SpokenTextProvider: React.FC<SpokenTextProviderProps> = ({
   // Clear any stuck audio after a timeout
   useEffect(() => {
     if (currentlySpeakingId) {
-      console.log(`[SpokenTextContext] ${timestamp()} Setting timeout for stuck audio:`, {
-        currentlySpeakingId,
-        queue: playbackQueueRef.current,
-      });
-      
+      console.log(
+        `[SpokenTextContext] ${timestamp()} Setting timeout for stuck audio:`,
+        {
+          currentlySpeakingId,
+          queue: playbackQueueRef.current,
+        }
+      );
+
       // Clear any existing timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      
+
       // Set a new timeout to clear stuck audio IDs after 10 seconds (reduced from 15)
       timeoutRef.current = setTimeout(() => {
-        console.warn(`[SpokenTextContext] ${timestamp()} Clearing stuck audio ID after timeout:`, {
-          stuckId: currentlySpeakingId,
-          currentQueue: playbackQueueRef.current,
-        });
+        console.warn(
+          `[SpokenTextContext] ${timestamp()} Clearing stuck audio ID after timeout:`,
+          {
+            stuckId: currentlySpeakingId,
+            currentQueue: playbackQueueRef.current,
+          }
+        );
         setCurrentlySpeakingId(null);
-        
+
         // Process any queued audio
         if (playbackQueueRef.current.length > 0) {
           const nextId = playbackQueueRef.current.shift()!;
-          console.log(`[SpokenTextContext] ${timestamp()} Processing queued audio after timeout:`, {
-            nextId,
-            remainingQueue: playbackQueueRef.current,
-          });
+          console.log(
+            `[SpokenTextContext] ${timestamp()} Processing queued audio after timeout:`,
+            {
+              nextId,
+              remainingQueue: playbackQueueRef.current,
+            }
+          );
           setCurrentlySpeakingId(nextId);
         }
       }, 10000); // 10 seconds timeout
@@ -101,85 +110,114 @@ export const SpokenTextProvider: React.FC<SpokenTextProviderProps> = ({
     };
   }, [currentlySpeakingId]);
 
-  const requestToSpeak = useCallback((id: string): boolean => {
-    const canSpeak = !currentlySpeakingId || currentlySpeakingId === id;
-    console.log(`[SpokenTextContext] ${timestamp()} requestToSpeak:`, {
-      requestingId: id,
-      currentlySpeakingId,
-      canSpeak,
-      queue: playbackQueueRef.current,
-      timeoutActive: !!timeoutRef.current,
-    });
-
-    if (canSpeak) {
-      console.log(`[SpokenTextContext] ${timestamp()} ✅ GRANTED - Setting speaking ID:`, {
-        newSpeakingId: id,
-        previousId: currentlySpeakingId,
-      });
-      setCurrentlySpeakingId(id);
-      return true;
-    } else {
-      console.log(`[SpokenTextContext] ${timestamp()} ❌ DENIED - Another audio playing:`, {
+  const requestToSpeak = useCallback(
+    (id: string): boolean => {
+      const canSpeak = !currentlySpeakingId || currentlySpeakingId === id;
+      console.log(`[SpokenTextContext] ${timestamp()} requestToSpeak:`, {
         requestingId: id,
-        blockingId: currentlySpeakingId,
+        currentlySpeakingId,
+        canSpeak,
         queue: playbackQueueRef.current,
-      });
-      return false;
-    }
-  }, [currentlySpeakingId]);
-
-  const doneSpeaking = useCallback((id: string) => {
-    const isCurrentSpeaker = currentlySpeakingId === id;
-    console.log(`[SpokenTextContext] ${timestamp()} doneSpeaking called:`, {
-      finishedId: id,
-      currentlySpeakingId,
-      isCurrentSpeaker,
-      queue: playbackQueueRef.current,
-      timeoutActive: !!timeoutRef.current,
-    });
-
-    if (isCurrentSpeaker) {
-      console.log(`[SpokenTextContext] ${timestamp()} ✅ CLEARING current speaking ID:`, {
-        clearingId: id,
-        queue: playbackQueueRef.current,
-      });
-      setCurrentlySpeakingId(null);
-
-      // Clear the timeout since audio finished normally
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-        console.log(`[SpokenTextContext] ${timestamp()} Cleared timeout for:`, id);
-      }
-
-      // Notify all subscribers
-      subscribersRef.current.forEach((callback) => {
-        try {
-          callback(id);
-        } catch (error) {
-          console.error(`[SpokenTextContext] ${timestamp()} Error in subscriber callback:`, error);
-        }
+        timeoutActive: !!timeoutRef.current,
       });
 
-      // Process next in queue if any
-      if (playbackQueueRef.current.length > 0) {
-        const nextId = playbackQueueRef.current.shift()!;
-        console.log(`[SpokenTextContext] ${timestamp()} 🎯 Processing next in queue:`, {
-          nextId,
-          remainingQueue: playbackQueueRef.current,
-        });
-        setCurrentlySpeakingId(nextId);
+      if (canSpeak) {
+        console.log(
+          `[SpokenTextContext] ${timestamp()} ✅ GRANTED - Setting speaking ID:`,
+          {
+            newSpeakingId: id,
+            previousId: currentlySpeakingId,
+          }
+        );
+        setCurrentlySpeakingId(id);
+        return true;
       } else {
-        console.log(`[SpokenTextContext] ${timestamp()} Queue empty, no more audio to process`);
+        console.log(
+          `[SpokenTextContext] ${timestamp()} ❌ DENIED - Another audio playing:`,
+          {
+            requestingId: id,
+            blockingId: currentlySpeakingId,
+            queue: playbackQueueRef.current,
+          }
+        );
+        return false;
       }
-    } else {
-      console.warn(`[SpokenTextContext] ${timestamp()} ❌ IGNORED doneSpeaking for non-current ID:`, {
-        calledId: id,
-        currentId: currentlySpeakingId,
+    },
+    [currentlySpeakingId]
+  );
+
+  const doneSpeaking = useCallback(
+    (id: string) => {
+      const isCurrentSpeaker = currentlySpeakingId === id;
+      console.log(`[SpokenTextContext] ${timestamp()} doneSpeaking called:`, {
+        finishedId: id,
+        currentlySpeakingId,
+        isCurrentSpeaker,
         queue: playbackQueueRef.current,
+        timeoutActive: !!timeoutRef.current,
       });
-    }
-  }, [currentlySpeakingId]);
+
+      if (isCurrentSpeaker) {
+        console.log(
+          `[SpokenTextContext] ${timestamp()} ✅ CLEARING current speaking ID:`,
+          {
+            clearingId: id,
+            queue: playbackQueueRef.current,
+          }
+        );
+        setCurrentlySpeakingId(null);
+
+        // Clear the timeout since audio finished normally
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+          console.log(
+            `[SpokenTextContext] ${timestamp()} Cleared timeout for:`,
+            id
+          );
+        }
+
+        // Notify all subscribers
+        subscribersRef.current.forEach((callback) => {
+          try {
+            callback(id);
+          } catch (error) {
+            console.error(
+              `[SpokenTextContext] ${timestamp()} Error in subscriber callback:`,
+              error
+            );
+          }
+        });
+
+        // Process next in queue if any
+        if (playbackQueueRef.current.length > 0) {
+          const nextId = playbackQueueRef.current.shift()!;
+          console.log(
+            `[SpokenTextContext] ${timestamp()} 🎯 Processing next in queue:`,
+            {
+              nextId,
+              remainingQueue: playbackQueueRef.current,
+            }
+          );
+          setCurrentlySpeakingId(nextId);
+        } else {
+          console.log(
+            `[SpokenTextContext] ${timestamp()} Queue empty, no more audio to process`
+          );
+        }
+      } else {
+        console.warn(
+          `[SpokenTextContext] ${timestamp()} ❌ IGNORED doneSpeaking for non-current ID:`,
+          {
+            calledId: id,
+            currentId: currentlySpeakingId,
+            queue: playbackQueueRef.current,
+          }
+        );
+      }
+    },
+    [currentlySpeakingId]
+  );
 
   const registerForAutoPlay = useCallback((id: string) => {
     console.log(`[SpokenTextContext] ${timestamp()} registerForAutoPlay:`, {

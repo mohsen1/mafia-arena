@@ -22,7 +22,9 @@ export namespace GameService {
     console.log('[GameService.createGame] Input gameState voiceModeEnabled:', {
       voiceModeEnabled: gameState.voiceModeEnabled,
       hasVoiceMode: 'voiceModeEnabled' in gameState,
-      gameStateKeys: Object.keys(gameState).filter(key => key.toLowerCase().includes('voice')),
+      gameStateKeys: Object.keys(gameState).filter((key) =>
+        key.toLowerCase().includes('voice')
+      ),
     });
 
     const newGame: NewGame = {
@@ -41,10 +43,13 @@ export namespace GameService {
       gameState: gameState as unknown as Record<string, unknown>,
     };
 
-    console.log('[GameService.createGame] About to save newGame with gameState:', {
-      voiceModeEnabled: (newGame.gameState as any).voiceModeEnabled,
-      gameStateType: typeof newGame.gameState,
-    });
+    console.log(
+      '[GameService.createGame] About to save newGame with gameState:',
+      {
+        voiceModeEnabled: (newGame.gameState as any).voiceModeEnabled,
+        gameStateType: typeof newGame.gameState,
+      }
+    );
 
     const [game] = await db.insert(games).values(newGame).returning();
 
@@ -85,12 +90,14 @@ export namespace GameService {
     }
 
     const gameState = game.gameState as SerializableGameState;
-    
+
     console.log('[loadGameData] Loaded game state voiceModeEnabled:', {
       gameId,
       voiceModeEnabled: gameState.voiceModeEnabled,
       hasVoiceMode: 'voiceModeEnabled' in gameState,
-      gameStateKeys: Object.keys(gameState).filter(key => key.includes('voice')),
+      gameStateKeys: Object.keys(gameState).filter((key) =>
+        key.includes('voice')
+      ),
     });
 
     return gameState;

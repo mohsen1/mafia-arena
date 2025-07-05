@@ -153,22 +153,22 @@ export async function loadThemesFromExternal(
 ): Promise<Record<string, GameTheme>> {
   try {
     console.log(`Loading themes from external source: ${source}`);
-    
+
     let response: Response;
-    
+
     // Check if source is a URL or file path
     const isUrl = source.startsWith('http://') || source.startsWith('https://');
-    
+
     if (isUrl) {
       // Load from URL with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
+
       try {
         response = await fetch(source, {
           signal: controller.signal,
           headers: {
-            'Accept': 'application/json',
+            Accept: 'application/json',
             'Content-Type': 'application/json',
           },
         });
@@ -180,7 +180,7 @@ export async function loadThemesFromExternal(
         }
         throw error;
       }
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -189,32 +189,34 @@ export async function loadThemesFromExternal(
       // In Next.js, we should place theme files in the public directory
       const publicPath = source.startsWith('/') ? source : `/${source}`;
       response = await fetch(publicPath);
-      
+
       if (!response.ok) {
-        throw new Error(`Failed to load theme file ${publicPath}: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to load theme file ${publicPath}: ${response.status} ${response.statusText}`
+        );
       }
     }
-    
+
     // Parse JSON response
     const data = await response.json();
-    
+
     // Validate the loaded data structure
     if (!data || typeof data !== 'object') {
       throw new Error('Invalid theme data: Expected an object');
     }
-    
+
     // Validate and filter valid themes
     const validatedThemes: Record<string, GameTheme> = {};
     let validCount = 0;
     let invalidCount = 0;
-    
+
     for (const [key, theme] of Object.entries(data)) {
       if (typeof key !== 'string' || key.trim() === '') {
         console.warn(`Skipping theme with invalid key: ${key}`);
         invalidCount++;
         continue;
       }
-      
+
       if (isValidTheme(theme)) {
         validatedThemes[key] = theme;
         validCount++;
@@ -223,18 +225,19 @@ export async function loadThemesFromExternal(
         invalidCount++;
       }
     }
-    
-    console.log(`Successfully loaded ${validCount} themes from ${source}${invalidCount > 0 ? ` (${invalidCount} invalid themes skipped)` : ''}`);
-    
+
+    console.log(
+      `Successfully loaded ${validCount} themes from ${source}${invalidCount > 0 ? ` (${invalidCount} invalid themes skipped)` : ''}`
+    );
+
     // Add loaded themes to registry
     loadThemesFromJson(validatedThemes);
-    
+
     return validatedThemes;
-    
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`Failed to load themes from ${source}:`, errorMessage);
-    
+
     // Re-throw with more context
     throw new Error(`External theme loading failed: ${errorMessage}`);
   }
@@ -252,25 +255,26 @@ export async function loadMultipleExternalThemes(
 ): Promise<Record<string, GameTheme>> {
   const allLoadedThemes: Record<string, GameTheme> = {};
   const errors: string[] = [];
-  
+
   for (const source of sources) {
     try {
       const loadedThemes = await loadThemesFromExternal(source);
       Object.assign(allLoadedThemes, loadedThemes);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       errors.push(`${source}: ${errorMessage}`);
-      
+
       if (!continueOnError) {
         throw new Error(`Failed to load themes: ${errors.join(', ')}`);
       }
     }
   }
-  
+
   if (errors.length > 0) {
     console.warn(`Some theme sources failed to load: ${errors.join(', ')}`);
   }
-  
+
   return allLoadedThemes;
 }
 
@@ -286,7 +290,8 @@ export function createSampleThemeFile(): Record<string, GameTheme> {
     },
     CUSTOM_PIRATE_THEME: {
       name: 'Pirate Cove Mystery',
-      description: 'A mysterious pirate cove where treasure hunters seek fortune and betrayal.',
+      description:
+        'A mysterious pirate cove where treasure hunters seek fortune and betrayal.',
     },
   };
 }
