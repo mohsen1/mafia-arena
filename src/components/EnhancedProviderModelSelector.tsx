@@ -138,7 +138,7 @@ export const EnhancedProviderModelSelector = React.memo(
           if (provider === 'ollama_local') {
             // Check if we're in development environment
             const isDevelopment = process.env.NODE_ENV === 'development';
-            
+
             if (!isDevelopment) {
               // In production, Ollama connection is not supported due to CORS restrictions
               setProviderStatuses((prev) => ({

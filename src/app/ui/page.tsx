@@ -26,13 +26,17 @@ const mockGameState = {
   themeKey: 'UK_VILLAGE_1900S' as const,
 };
 
-const mockAdvanceAction = async (): Promise<FilteredGameState | { error: string }> => 
-  mockGameState as FilteredGameState;
+const mockAdvanceAction = async (): Promise<
+  FilteredGameState | { error: string }
+> => mockGameState as FilteredGameState;
 
 const mockSubmitAction = async (
-  _payload: HumanActionPayload
-): Promise<FilteredGameState | { error: string }> => 
-  mockGameState as FilteredGameState;
+  payload: HumanActionPayload
+): Promise<FilteredGameState | { error: string }> => {
+  // Ignore payload for UI playground
+  void payload;
+  return mockGameState as FilteredGameState;
+};
 
 export default function UI() {
   return (
@@ -49,13 +53,16 @@ export default function UI() {
             <h2 className="text-2xl font-semibold mb-6">SpeakText</h2>
             <div className="rounded-lg border bg-card p-6">
               <SpokenTextProvider isAudioGloballyEnabled={true}>
-                <SpeakText text="Hello world!" className="text-card-foreground" />
+                <SpeakText
+                  text="Hello world!"
+                  className="text-card-foreground"
+                />
               </SpokenTextProvider>
             </div>
             <div>
               <p>
-                Example of automatically playing multiple SpeakText automatically
-                one after another
+                Example of automatically playing multiple SpeakText
+                automatically one after another
               </p>
               <SpokenTextProvider isAudioGloballyEnabled={true}>
                 <PlayMultipleSpeak />
@@ -90,7 +97,7 @@ function PlayMultipleSpeak() {
       <Button onClick={addMessagesToQueue} disabled={showMessages}>
         {showMessages ? 'Messages Added/Queued' : 'Add Messages & Auto-Queue'}
       </Button>
-              {showMessages &&
+      {showMessages &&
         messages.map((text, index) => (
           <div key={`message-${index}-${text.slice(0, 20)}`}>
             <SpokenTextProvider isAudioGloballyEnabled={true}>
