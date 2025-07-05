@@ -156,7 +156,7 @@ export function GameSoundtrackManager({
   const [dynamicMode, setDynamicMode] = useState(true);
   const [crossfade, setCrossfade] = useState(true);
   const [adaptiveVolume, setAdaptiveVolume] = useState(true);
-  const intervalRef = useRef<NodeJS.Timeout>();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle track end logic
   const handleTrackEnd = useCallback(() => {

@@ -406,12 +406,14 @@
   "forgotPassword": {
     "title": "Forgot Password",
     "submit": "Send Reset Email",
-    "checkEmail": "If an account with that email exists, a reset link has been sent."
+    "checkEmail": "If an account with that email exists, a reset link has been sent.",
+    "failedToSend": "Failed to send reset email"
   },
   "resetPassword": {
     "title": "Reset Password",
     "submit": "Reset Password",
-    "success": "Your password has been reset. You may now sign in."
+    "success": "Your password has been reset. You may now sign in.",
+    "failedToReset": "Failed to reset password"
   },
   "auth": {
     "signInTitle": "Sign In",

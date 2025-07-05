@@ -15,7 +15,7 @@ i18next
   .use(initReactI18next)
   .use(
     resourcesToBackend(
-      (language: string, namespace: string) =>
+      (language: string) =>
         import(`@/dictionaries/${language}.json`)
     )
   )
