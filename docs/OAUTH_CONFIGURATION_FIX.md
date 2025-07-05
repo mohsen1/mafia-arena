@@ -13,7 +13,8 @@ The OAuth applications are configured with incorrect redirect URIs that don't ma
 
 ## Current Production URL
 
-**Deployment URL**: `https://werewolf-66qf8soyv-mohsen-azimis-projects.vercel.app`
+**Current URL**: `https://werewolf-ai.vercel.app`
+**Old URL**: `https://werewolf-66qf8soyv-mohsen-azimis-projects.vercel.app` (no longer in use)
 
 ## Required Fixes
 
@@ -25,10 +26,11 @@ The OAuth applications are configured with incorrect redirect URIs that don't ma
 2. Navigate to **APIs & Services > Credentials**
 3. Find your OAuth 2.0 Client ID for Werewolf AI
 4. Click **Edit** 
-5. Under **Authorized redirect URIs**, add:
+5. Under **Authorized redirect URIs**, update to:
    ```
-   https://werewolf-66qf8soyv-mohsen-azimis-projects.vercel.app/api/auth/callback/google
+   https://werewolf-ai.vercel.app/api/auth/callback/google
    ```
+   (Remove the old URL: `https://werewolf-66qf8soyv-mohsen-azimis-projects.vercel.app/api/auth/callback/google`)
 6. **Save** the changes
 
 ### 2. GitHub OAuth Configuration
@@ -41,8 +43,9 @@ The OAuth applications are configured with incorrect redirect URIs that don't ma
 4. Click **Edit**
 5. Update the **Authorization callback URL** to:
    ```
-   https://werewolf-66qf8soyv-mohsen-azimis-projects.vercel.app/api/auth/callback/github
+   https://werewolf-ai.vercel.app/api/auth/callback/github
    ```
+   (Replace the old URL: `https://werewolf-66qf8soyv-mohsen-azimis-projects.vercel.app/api/auth/callback/github`)
 6. Click **Update application**
 
 ### 3. Vercel Environment Variables
@@ -50,7 +53,7 @@ The OAuth applications are configured with incorrect redirect URIs that don't ma
 Ensure these environment variables are set in Vercel:
 
 ```bash
-NEXTAUTH_URL=https://werewolf-66qf8soyv-mohsen-azimis-projects.vercel.app
+NEXTAUTH_URL=https://werewolf-ai.vercel.app
 NEXTAUTH_SECRET=your-secret-key-here
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
@@ -70,7 +73,7 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 After making these changes:
 
 1. **Wait 5-10 minutes** for DNS propagation
-2. Go to `https://werewolf-66qf8soyv-mohsen-azimis-projects.vercel.app/en/auth/signin`
+2. Go to `https://werewolf-ai.vercel.app/en/auth/signin`
 3. Try signing in with Google
 4. Try signing in with GitHub
 5. Both should now work without redirect errors
