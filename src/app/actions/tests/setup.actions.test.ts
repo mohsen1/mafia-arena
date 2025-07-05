@@ -28,6 +28,27 @@ vi.mock('next/navigation', () => ({
   redirect: vi.fn(),
 }));
 
+// Mock database modules
+vi.mock('@/lib/db/config', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(() => [{ id: 'test-user-id' }]), // Return user exists
+        })),
+      })),
+    })),
+  },
+}));
+
+vi.mock('@/lib/db/schema', () => ({
+  users: {},
+}));
+
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn(),
+}));
+
 // Mock Themes BEFORE Game mock
 vi.mock('@/lib/engine/interfaces/Theme', () => ({
   Themes: {
