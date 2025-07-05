@@ -181,8 +181,6 @@ export function GameReplayAnalyzer({
     return events.sort((a, b) => a.round - b.round);
   }, [gameState]);
 
-
-
   const getPlayerInfluenceRank = (playerId: string) => {
     const sorted = Object.values(playerAnalytics).sort(
       (a, b) => b.influenceScore - a.influenceScore

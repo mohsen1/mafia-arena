@@ -50,13 +50,8 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const direction = i18n.dir(lang);
   const { data: session } = useSession();
 
-  const {
-    gameState,
-    setGameState,
-    error,
-    clearError,
-    runNextTurn,
-  } = useGameContext();
+  const { gameState, setGameState, error, clearError, runNextTurn } =
+    useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
