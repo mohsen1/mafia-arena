@@ -663,26 +663,28 @@ export const CharacterSlotItem: React.FC<CharacterSlotItemProps> = React.memo(
 
         {/* Action Cell */}
         <TableCell className="text-right">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleRemove}
-            disabled={isSubmitting}
-            className="p-1 text-muted-foreground hover:text-destructive h-9 w-auto"
-            aria-label={`${t('RemovePlayerSlotAriaLabel', 'Remove player slot')} ${index + 1}`}
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <X className="h-5 w-5" />
-                <span className="ms-1 text-xs">
-                  {t('DeleteButtonLabel', 'Delete')}
-                </span>
-              </>
-            )}
-          </Button>
+          {canRemove && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleRemove}
+              disabled={isSubmitting}
+              className="p-1 text-muted-foreground hover:text-destructive h-9 w-auto"
+              aria-label={`${t('RemovePlayerSlotAriaLabel', 'Remove player slot')} ${index + 1}`}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <X className="h-5 w-5" />
+                  <span className="ms-1 text-xs">
+                    {t('DeleteButtonLabel', 'Delete')}
+                  </span>
+                </>
+              )}
+            </Button>
+          )}
         </TableCell>
       </TableRow>
     );
