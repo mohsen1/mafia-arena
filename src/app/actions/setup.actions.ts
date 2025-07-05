@@ -119,6 +119,7 @@ export async function startGameAction(
     themeKey: setupData.themeKey,
     language: setupData.language,
     hasHumanPlayer: setupData.players.some((p) => p.isHuman),
+    voiceModeEnabled: setupData.voiceModeEnabled,
   });
 
   const gameId = crypto.randomUUID();
@@ -346,6 +347,7 @@ async function createGame(
     updatedAt: createdAt,
     themeKey: setupData.themeKey,
     language: setupData.language,
+    voiceModeEnabled: setupData.voiceModeEnabled ?? false,
     round: 0,
     phase: 'CharacterGeneration', // New phase for character generation
     players: playersForPersistence,
@@ -360,6 +362,8 @@ async function createGame(
     phaseStep: 'Start',
     nextPlayerIndexToAction: 0,
   };
+
+
 
   console.log('[createGame] Saving game state to database');
 

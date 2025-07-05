@@ -199,6 +199,8 @@ export async function generateGameCharactersAction(
 
     // Get the updated state after persona generation
     const updatedState = game.getCurrentSerializableState();
+    // Preserve voiceModeEnabled from original state
+    updatedState.voiceModeEnabled = gameState.voiceModeEnabled;
 
     // Check if any AI player failed to generate a proper persona
     const failedPersonas = aiPlayers.filter((player) => {
@@ -472,6 +474,8 @@ export async function generateGameCharactersAction(
     const finalState = game.getCurrentSerializableState(
       game.getPendingHumanAction()
     );
+    // Preserve voiceModeEnabled from original state
+    finalState.voiceModeEnabled = gameState.voiceModeEnabled;
     await saveGameData(gameId, finalState);
 
     const filteredState = filterGameStateForClient(

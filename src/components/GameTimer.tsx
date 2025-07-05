@@ -40,7 +40,8 @@ export function GameTimer() {
     if (!gameState?.phase) return;
 
     // Reset timer when phase changes
-    setPhaseStartTime(Date.now());
+    const startTime = Date.now();
+    setPhaseStartTime(startTime);
     const timeLimit =
       PHASE_TIME_LIMITS[gameState.phase as keyof PhaseTimeConfig] || 0;
     setTimeRemaining(timeLimit);
@@ -48,7 +49,7 @@ export function GameTimer() {
     if (timeLimit === 0) return; // No timer for this phase
 
     const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - phaseStartTime) / 1000);
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const remaining = Math.max(0, timeLimit - elapsed);
       setTimeRemaining(remaining);
 
@@ -63,7 +64,7 @@ export function GameTimer() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameState?.phase, phaseStartTime]);
+  }, [gameState?.phase]);
 
   if (
     !gameState ||

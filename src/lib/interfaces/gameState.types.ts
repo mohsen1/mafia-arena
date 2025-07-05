@@ -78,6 +78,8 @@ interface BaseGameState {
   language: LanguageName;
   /** Theme identifier (e.g., 'classic', 'sci-fi'). */
   themeKey: string;
+  /** Voice mode enabled for text-to-speech */
+  voiceModeEnabled?: boolean;
 }
 
 /**

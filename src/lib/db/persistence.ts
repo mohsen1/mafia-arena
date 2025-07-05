@@ -87,6 +87,8 @@ export async function createGameData(
     ownerId,
     phase: gameState.phase,
     playerCount: Object.keys(gameState.players).length,
+    voiceModeEnabled: gameState.voiceModeEnabled,
+    hasVoiceMode: 'voiceModeEnabled' in gameState,
   });
 
   try {

@@ -119,6 +119,7 @@ export function useGameConfig(
   );
 
   const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(false);
+  const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [initialSlotsSet, setInitialSlotsSet] = useState(false);
@@ -460,6 +461,10 @@ export function useGameConfig(
     setIsAudioEnabled((prev) => !prev);
   }, []);
 
+  const toggleVoiceModeEnabled = useCallback(() => {
+    setIsVoiceModeEnabled((prev) => !prev);
+  }, []);
+
   const toggleHumanJoining = useCallback(() => {
     setIsHumanJoining((prev) => {
       const becomingHuman = !prev;
@@ -515,6 +520,7 @@ export function useGameConfig(
       })),
       themeKey: selectedGameThemeKey,
       language: lang,
+      voiceModeEnabled: isVoiceModeEnabled,
     };
 
     try {
@@ -543,6 +549,7 @@ export function useGameConfig(
     mafiaModelSelection,
     t,
     selectedGameThemeKey,
+    isVoiceModeEnabled,
   ]);
 
   useEffect(() => {
@@ -581,6 +588,7 @@ export function useGameConfig(
     availableProviders,
     availableModelsByProvider,
     isAudioEnabled,
+    isVoiceModeEnabled,
     isLoadingNextTurn,
     addPlayerSlot,
     removePlayerSlot,
@@ -590,6 +598,7 @@ export function useGameConfig(
     updateSlotName: updateSlotNameDebounced,
     updateSlotImageUrl,
     toggleAudioEnabled,
+    toggleVoiceModeEnabled,
     handleGenerateAndStartGame,
     isHumanJoining,
     humanRoleSelection,

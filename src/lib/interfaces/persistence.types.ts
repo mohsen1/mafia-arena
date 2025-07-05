@@ -50,6 +50,7 @@ export interface SerializableGameState {
   updatedAt: number; // Store as ISO string or timestamp number
   themeKey: string;
   language: LanguageName;
+  voiceModeEnabled?: boolean;
   round: number;
   phase: GamePhaseType;
   players: Record<PlayerId, SerializablePlayer>;

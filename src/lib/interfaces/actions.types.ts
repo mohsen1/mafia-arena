@@ -20,6 +20,7 @@ export interface PendingHumanAction {
 export interface StartGameSetupData {
   themeKey: string;
   language: LanguageCode;
+  voiceModeEnabled?: boolean;
 
   players: Array<{
     name: string;

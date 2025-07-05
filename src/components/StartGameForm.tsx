@@ -170,6 +170,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     globalProviderSelection,
     globalModelSelection,
     availableProviders,
+    isVoiceModeEnabled,
     addPlayerSlot,
     removePlayerSlot,
     updateSlotProviderAndModel,
@@ -180,6 +181,7 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
     handleGenerateAndStartGame,
     isHumanJoining,
     toggleHumanJoining,
+    toggleVoiceModeEnabled,
     selectedGameThemeKey,
     setSelectedGameThemeKey,
     setCharacterSlots,
@@ -357,6 +359,26 @@ export default function StartGameForm({ lang }: StartGameFormProps) {
             className="text-sm font-medium text-muted-foreground whitespace-nowrap cursor-pointer"
           >
             {t('JoinAsHumanLabel', 'Join the game yourself?')}
+          </Label>
+        </div>
+
+        {/* Voice Mode Option */}
+        <div className="mb-6 flex items-center justify-center gap-3">
+          <Checkbox
+            id="voice-mode"
+            checked={isVoiceModeEnabled}
+            onCheckedChange={toggleVoiceModeEnabled}
+            disabled={isLoading}
+            aria-label={t(
+              'ToggleVoiceModeLabel',
+              'Enable voice mode for the game'
+            )}
+          />
+          <Label
+            htmlFor="voice-mode"
+            className="text-sm font-medium text-muted-foreground whitespace-nowrap cursor-pointer"
+          >
+            {t('EnableVoiceModeLabel', 'Enable voice mode (text-to-speech)?')}
           </Label>
         </div>
 

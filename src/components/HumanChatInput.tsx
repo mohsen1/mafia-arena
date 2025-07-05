@@ -16,15 +16,18 @@ import { useTranslation } from 'react-i18next';
 import { ScrollArea } from './ui/scroll-area';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { SpeechInput } from './SpeechInput';
+import { Mic, Loader2 } from 'lucide-react';
 
 export default function HumanChatInput() {
   const { t } = useTranslation();
   const { gameState, submitHumanAction, isLoadingNextTurn } = useGameContext();
 
-  const [inputValue, setInputValue] = useState('');
-  const [selectedTarget, setSelectedTarget] = useState<PlayerId | null>(null);
+  const [message, setMessage] = useState('');
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showSpeechInput, setShowSpeechInput] = useState(false);
 
   const gameId = gameState?.id;
   const humanPlayerId = gameState?.humanPlayerId;
@@ -40,25 +43,6 @@ export default function HumanChatInput() {
   );
 
   const isPlayerTurn = pendingAction?.playerId === humanPlayerId;
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Focus input on '/' key
-      if (e.key === '/' && document.activeElement !== inputRef.current) {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-
-      // Submit on Ctrl/Cmd + Enter
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && inputValue.trim()) {
-        handleSubmit(e as any);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [inputValue]);
 
   const handleSubmit = useCallback(
     async (
@@ -84,16 +68,16 @@ export default function HumanChatInput() {
 
       try {
         if (pendingAction.allowedActions.includes('message')) {
-          if (!inputValue.trim()) {
+          if (!message.trim()) {
             setIsSubmitting(false);
             return;
           }
           payload = {
             playerId: humanPlayerId,
             type: 'message',
-            content: inputValue,
+            content: message,
           };
-          setInputValue('');
+          setMessage('');
         } else if (pendingAction.allowedActions.includes('vote')) {
           if (selectedTarget === undefined || selectedTarget === null) {
             setIsSubmitting(false);
@@ -129,7 +113,7 @@ export default function HumanChatInput() {
 
         if (payload) {
           await submitHumanAction(payload);
-          setInputValue('');
+          setMessage('');
           setSelectedTarget(null);
         } else {
           console.error(
@@ -146,7 +130,7 @@ export default function HumanChatInput() {
     [
       pendingAction,
       isPlayerTurn,
-      inputValue,
+      message,
       selectedTarget,
       isSubmitting,
       gameId,
@@ -154,6 +138,34 @@ export default function HumanChatInput() {
       submitHumanAction,
     ]
   );
+
+  // Define handleKeyDown after handleSubmit
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Submit on Enter (without shift)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e as any);
+    }
+  }, [handleSubmit]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Focus input on '/' key
+      if (e.key === '/' && document.activeElement !== inputRef.current) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+
+      // Submit on Ctrl/Cmd + Enter
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && message.trim()) {
+        handleSubmit(e as any);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [message, handleSubmit]);
 
   const livingPlayers = useMemo(
     () =>
@@ -241,45 +253,63 @@ export default function HumanChatInput() {
       const ariaLabel = isWWChat
         ? t('WerewolfChatMessageInputLabel', 'Werewolf chat message input')
         : t('ChatMessageInputLabel', 'Chat message input');
+
       return (
-        <div className="p-3">
-          <Label htmlFor="chat-input" className="sr-only">
-            {t('ChatMessageInput', 'Enter your message')}
-          </Label>
+        <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          {showSpeechInput && gameState.voiceModeEnabled && (
+            <SpeechInput
+              onTranscript={(text) => {
+                setMessage(text);
+                setShowSpeechInput(false);
+              }}
+              onInterimTranscript={(text) => setMessage(text)}
+              placeholder={placeholder}
+              className="mb-3"
+            />
+          )}
+          
           <div className="flex gap-2">
             <Input
-              id="chat-input"
               ref={inputRef}
               type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
               placeholder={placeholder}
               disabled={disabled}
-              className="flex-1 h-9"
+              className="flex-1"
               aria-label={ariaLabel}
-              aria-describedby="chat-help"
-              autoComplete="off"
+              onKeyDown={handleKeyDown}
             />
+            
+            {gameState.voiceModeEnabled && (
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={() => setShowSpeechInput(!showSpeechInput)}
+                disabled={disabled}
+                title={t('UseMicrophone', 'Use microphone')}
+              >
+                <Mic className="w-4 h-4" />
+              </Button>
+            )}
+            
             <Button
               type="submit"
-              size="sm"
-              onClick={handleSubmit}
-              disabled={disabled || !inputValue.trim()}
-              aria-label={t('SendMessage', 'Send message')}
+              disabled={disabled || !message.trim()}
+              className="px-6"
             >
-              {t('SendButton', 'Send')}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('SendingLabel', 'Sending...')}
+                </>
+              ) : (
+                t('SendLabel', 'Send')
+              )}
             </Button>
           </div>
-          <p id="chat-help" className="text-xs text-muted-foreground mt-1">
-            {t('ChatKeyboardHint', 'Press / to focus input, Enter to send')}
-          </p>
-        </div>
+        </form>
       );
     }
 
