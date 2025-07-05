@@ -142,19 +142,172 @@ export function isValidTheme(theme: unknown): theme is GameTheme {
 }
 
 /**
- * Load themes from an external source (placeholder for future implementation)
+ * Load themes from an external source (file path or URL)
  * @param source - URL or file path to load themes from
+ * @param timeout - Request timeout in milliseconds (default: 5000)
  * @returns Promise resolving to loaded themes
  */
 export async function loadThemesFromExternal(
-  source: string
+  source: string,
+  timeout: number = 5000
 ): Promise<Record<string, GameTheme>> {
-  // TODO: Implement loading from external files/URLs
-  // For now, just return empty object
-  console.warn(
-    `Loading themes from external source ${source} not yet implemented`
-  );
-  return {};
+  try {
+    console.log(`Loading themes from external source: ${source}`);
+    
+    let response: Response;
+    
+    // Check if source is a URL or file path
+    const isUrl = source.startsWith('http://') || source.startsWith('https://');
+    
+    if (isUrl) {
+      // Load from URL with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      try {
+        response = await fetch(source, {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+        clearTimeout(timeoutId);
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new Error(`Request timeout after ${timeout}ms`);
+        }
+        throw error;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } else {
+      // For file paths, we need to use dynamic import or fetch from public directory
+      // In Next.js, we should place theme files in the public directory
+      const publicPath = source.startsWith('/') ? source : `/${source}`;
+      response = await fetch(publicPath);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load theme file ${publicPath}: ${response.status} ${response.statusText}`);
+      }
+    }
+    
+    // Parse JSON response
+    const data = await response.json();
+    
+    // Validate the loaded data structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid theme data: Expected an object');
+    }
+    
+    // Validate and filter valid themes
+    const validatedThemes: Record<string, GameTheme> = {};
+    let validCount = 0;
+    let invalidCount = 0;
+    
+    for (const [key, theme] of Object.entries(data)) {
+      if (typeof key !== 'string' || key.trim() === '') {
+        console.warn(`Skipping theme with invalid key: ${key}`);
+        invalidCount++;
+        continue;
+      }
+      
+      if (isValidTheme(theme)) {
+        validatedThemes[key] = theme;
+        validCount++;
+      } else {
+        console.warn(`Skipping invalid theme "${key}":`, theme);
+        invalidCount++;
+      }
+    }
+    
+    console.log(`Successfully loaded ${validCount} themes from ${source}${invalidCount > 0 ? ` (${invalidCount} invalid themes skipped)` : ''}`);
+    
+    // Add loaded themes to registry
+    loadThemesFromJson(validatedThemes);
+    
+    return validatedThemes;
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Failed to load themes from ${source}:`, errorMessage);
+    
+    // Re-throw with more context
+    throw new Error(`External theme loading failed: ${errorMessage}`);
+  }
+}
+
+/**
+ * Load multiple external theme sources
+ * @param sources - Array of URLs or file paths to load themes from
+ * @param continueOnError - Whether to continue loading other sources if one fails
+ * @returns Promise resolving to combined loaded themes
+ */
+export async function loadMultipleExternalThemes(
+  sources: string[],
+  continueOnError: boolean = true
+): Promise<Record<string, GameTheme>> {
+  const allLoadedThemes: Record<string, GameTheme> = {};
+  const errors: string[] = [];
+  
+  for (const source of sources) {
+    try {
+      const loadedThemes = await loadThemesFromExternal(source);
+      Object.assign(allLoadedThemes, loadedThemes);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      errors.push(`${source}: ${errorMessage}`);
+      
+      if (!continueOnError) {
+        throw new Error(`Failed to load themes: ${errors.join(', ')}`);
+      }
+    }
+  }
+  
+  if (errors.length > 0) {
+    console.warn(`Some theme sources failed to load: ${errors.join(', ')}`);
+  }
+  
+  return allLoadedThemes;
+}
+
+/**
+ * Create a sample theme file for reference
+ * @returns Sample theme data structure
+ */
+export function createSampleThemeFile(): Record<string, GameTheme> {
+  return {
+    CUSTOM_SPACE_THEME: {
+      name: 'Custom Space Adventure',
+      description: 'A custom space-themed game setting for advanced players.',
+    },
+    CUSTOM_PIRATE_THEME: {
+      name: 'Pirate Cove Mystery',
+      description: 'A mysterious pirate cove where treasure hunters seek fortune and betrayal.',
+    },
+  };
+}
+
+/**
+ * Export current themes to JSON format
+ * @param includeHardcoded - Whether to include hardcoded themes (default: true)
+ * @returns JSON string of themes
+ */
+export function exportThemesToJson(includeHardcoded: boolean = true): string {
+  const themes = includeHardcoded ? getThemes() : {};
+  return JSON.stringify(themes, null, 2);
+}
+
+/**
+ * Reset theme registry to hardcoded themes only
+ */
+export function resetToHardcodedThemes(): void {
+  themeRegistry = {};
+  initializeThemes();
+  console.log('Theme registry reset to hardcoded themes only');
 }
 
 // Initialize themes on module load

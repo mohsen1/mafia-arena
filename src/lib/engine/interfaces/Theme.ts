@@ -15,7 +15,7 @@ export interface GameTheme {
 }
 
 // Hardcoded themes and their descriptions.
-// TODO: Consider loading these from external files (e.g., JSON)
+// External theme loading is now supported via themeLoader.ts utilities
 export const Themes: Record<string, GameTheme> = {
   UK_VILLAGE_1900S: {
     name: 'UK Village 1900s',
