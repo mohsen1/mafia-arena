@@ -136,6 +136,22 @@ export const EnhancedProviderModelSelector = React.memo(
         try {
           // Special handling for Ollama
           if (provider === 'ollama_local') {
+            // Check if we're in development environment
+            const isDevelopment = process.env.NODE_ENV === 'development';
+            
+            if (!isDevelopment) {
+              // In production, Ollama connection is not supported due to CORS restrictions
+              setProviderStatuses((prev) => ({
+                ...prev,
+                [provider]: {
+                  available: false,
+                  checking: false,
+                  message: 'Not supported in production',
+                },
+              }));
+              return;
+            }
+
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
 
