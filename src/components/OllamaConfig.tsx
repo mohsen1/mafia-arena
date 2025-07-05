@@ -77,13 +77,26 @@ export function OllamaConfig({
   // Construct the full endpoint URL
   const endpointUrl = `${config.protocol}://${config.host}:${config.port}${config.apiPath}`;
 
+  // Check if we're in development environment
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   // Test connection to Ollama instance
   const testConnection = useCallback(async () => {
     setIsTestingConnection(true);
     setConnectionResult(null);
 
+    // In production, Ollama testing is not supported (CORS issues)
+    if (!isDevelopment) {
+      setConnectionResult({
+        success: false,
+        message: t('ollama.productionNotSupported'),
+      });
+      setIsTestingConnection(false);
+      return;
+    }
+
     try {
-      // Test basic connectivity
+      // Test basic connectivity (only in development)
       const healthUrl = `${config.protocol}://${config.host}:${config.port}/api/tags`;
 
       const response = await fetch(healthUrl, {
@@ -117,7 +130,7 @@ export function OllamaConfig({
     } finally {
       setIsTestingConnection(false);
     }
-  }, [config, t]);
+  }, [config, t, isDevelopment]);
 
   // Update configuration
   const updateConfig = useCallback(
@@ -131,15 +144,15 @@ export function OllamaConfig({
     [config, onConfigChange]
   );
 
-  // Auto-test connection when component mounts if enabled
+  // Auto-test connection when component mounts if enabled (only in development)
   useEffect(() => {
-    if (config.enabled) {
+    if (config.enabled && isDevelopment) {
       const timer = setTimeout(() => {
         testConnection();
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [config.enabled, testConnection]);
+  }, [config.enabled, testConnection, isDevelopment]);
 
   return (
     <Card className={className}>
@@ -161,6 +174,23 @@ export function OllamaConfig({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Production Warning */}
+        {!isDevelopment && (
+          <Alert className="border-yellow-200 bg-yellow-50">
+            <AlertTriangle className="w-4 h-4 text-yellow-600" />
+            <AlertDescription>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>Development Only:</strong> Ollama is designed for local development. In production, you cannot connect to localhost from a deployed web application due to CORS policies.
+                </p>
+                <p>
+                  For production AI functionality, please use cloud-based providers like OpenAI, Groq, or other hosted AI services.
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Basic Configuration */}
         <div className="grid grid-cols-2 gap-4">
           <div>
