@@ -118,6 +118,3 @@ export function filterGameStateForClient(
 
   return filteredState;
 }
-
-// TODO: Implement or move generateVisibleGameState if needed elsewhere.
-// It seems more related to the Game engine core for agent views.
