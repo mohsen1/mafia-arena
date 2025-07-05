@@ -7,23 +7,20 @@ const BASE_IMAGE_PATH = path.join(
   'characters'
 );
 
-// Predefined list of character images that we know exist
+// Predefined list of character images that we know exist based on the actual files
 const KNOWN_IMAGES = {
   'male-young': [
+    'unnamed.png',
+    'unnamed-0.png',
     'unnamed-1.png',
     'unnamed-2.png',
     'unnamed-3.png',
     'unnamed-4.png',
-    'unnamed-5.png',
     'unnamed-6.png',
-    'unnamed-7.png',
-    'unnamed-8.png',
-    'unnamed-9.png',
-    'unnamed-10.png',
   ],
   'female-young': [
+    'unnamed.png',
     'unnamed-1.png',
-    'unnamed-2.png',
     'unnamed-3.png',
     'unnamed-4.png',
     'unnamed-5.png',
@@ -31,36 +28,34 @@ const KNOWN_IMAGES = {
     'unnamed-7.png',
     'unnamed-8.png',
     'unnamed-9.png',
-    'unnamed-10.png',
   ],
   'male-old': [
-    'unnamed-1.png',
     'unnamed-2.png',
     'unnamed-3.png',
-    'unnamed-4.png',
-    'unnamed-5.png',
-    'unnamed-6.png',
     'unnamed-7.png',
-    'unnamed-8.png',
     'unnamed-9.png',
     'unnamed-10.png',
+    'unnamed-11.png',
   ],
   'female-old': [
+    'unnamed.png',
     'unnamed-1.png',
-    'unnamed-2.png',
-    'unnamed-3.png',
-    'unnamed-4.png',
-    'unnamed-5.png',
-    'unnamed-6.png',
-    'unnamed-7.png',
     'unnamed-8.png',
-    'unnamed-9.png',
-    'unnamed-10.png',
+    'unnamed-12.png',
+    'unnamed-13.png',
+    'unnamed-14.png',
   ],
+};
+
+// Special character images (like moderator)
+const SPECIAL_IMAGES = {
+  moderator: '/images/characters/mod.png',
 };
 
 let imageCache: Record<string, string[]> = {};
 let cacheInitialized = false;
+// Track used images to avoid duplicates within a game
+const usedImages: Set<string> = new Set();
 
 /**
  * Pre-loads the list of available character images for each category.
@@ -85,7 +80,16 @@ async function initializeImageCache(): Promise<void> {
 }
 
 /**
- * Selects a random character image path based on gender and age category.
+ * Reset the used images tracker. Should be called when starting a new game.
+ */
+export function resetUsedImages(): void {
+  usedImages.clear();
+  console.log('[ImageUtils] Reset used images tracker');
+}
+
+/**
+ * Selects a character image path based on gender and age category.
+ * Tries to avoid duplicates by tracking used images.
  *
  * @param gender - 'male' or 'female'
  * @param ageCategory - 'young' or 'old'
@@ -109,10 +113,29 @@ export async function selectCharacterImage(
 
   console.log(`[ImageUtils] Found ${availableImages.length} images for ${key}`);
 
-  const randomIndex = Math.floor(Math.random() * availableImages.length);
-  const imageName = availableImages[randomIndex];
+  // Filter out already used images
+  const unusedImages = availableImages.filter((imageName) => {
+    const fullPath = `/images/characters/${gender}/${ageCategory}/${imageName}`;
+    return !usedImages.has(fullPath);
+  });
+
+  // If all images are used, reset and use all available images
+  const imagesToChooseFrom =
+    unusedImages.length > 0 ? unusedImages : availableImages;
+
+  if (unusedImages.length === 0) {
+    console.log(
+      `[ImageUtils] All images in ${key} category have been used, recycling images`
+    );
+  }
+
+  const randomIndex = Math.floor(Math.random() * imagesToChooseFrom.length);
+  const imageName = imagesToChooseFrom[randomIndex];
 
   const imageUrl = `/images/characters/${gender}/${ageCategory}/${imageName}`;
+
+  // Mark this image as used
+  usedImages.add(imageUrl);
 
   console.log(`[ImageUtils] Selected image: ${imageUrl}`);
 
@@ -188,11 +211,14 @@ export function analyzePersonaForImage(persona: {
 export function getDefaultCharacterImage(index: number): string {
   // We know these images exist based on the file listing
   const defaultImages = [
-    '/images/characters/male/young/unnamed-10.png',
+    '/images/characters/male/young/unnamed.png',
     '/images/characters/female/young/unnamed-1.png',
     '/images/characters/male/old/unnamed-10.png',
     '/images/characters/female/old/unnamed-1.png',
     '/images/characters/male/young/unnamed-2.png',
+    '/images/characters/female/young/unnamed-5.png',
+    '/images/characters/male/old/unnamed-7.png',
+    '/images/characters/female/old/unnamed-8.png',
   ];
 
   return defaultImages[index % defaultImages.length];

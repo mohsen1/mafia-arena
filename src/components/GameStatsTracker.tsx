@@ -39,15 +39,16 @@ export function GameStatsTracker({
   const { t } = useTranslation();
 
   // Count messages per phase
-  const messagesThisRound = gameState.log.filter(
-    (msg) => msg.round === gameState.round && msg.type === 'chat'
-  ).length;
+  const messagesThisRound = useMemo(() => {
+    return gameState.log.filter(
+      (msg) => msg.round === gameState.round && msg.type === 'chat'
+    ).length;
+  }, [gameState.log, gameState.round]);
 
   // Calculate various game statistics
   const stats = useMemo(() => {
     const totalPlayers = Object.keys(gameState.players).length;
     const alivePlayers = gameState.livingPlayerIds?.length || 0;
-    const deadPlayers = gameState.deadPlayerIds?.length || 0;
     const survivalRate =
       totalPlayers > 0 ? (alivePlayers / totalPlayers) * 100 : 0;
 
@@ -139,7 +140,7 @@ export function GameStatsTracker({
     ];
 
     return gameStats;
-  }, [gameState, t]);
+  }, [gameState, t, messagesThisRound]);
 
   // Calculate game progress
   const gameProgress = useMemo(() => {

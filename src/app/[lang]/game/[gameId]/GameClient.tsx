@@ -20,7 +20,7 @@ import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import type { LanguageCode } from '@/lib/i18n/settings';
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { GameHeader } from '@/components/GameHeader';
@@ -83,15 +83,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   if (gameState?.phase === 'GameOver') {
     return (
       <>
-        {/* Phase transition notification */}
-        {gameState && (
-          <PhaseTransitionNotification
-            phase={gameState.phase}
-            round={gameState.round}
-            show={showPhaseNotification}
-          />
-        )}
-
         <div className="min-h-screen bg-background" dir={direction}>
           <Header currentLang={lang} />
           <div className="container mx-auto p-4">
@@ -132,11 +123,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                   className="h-8 w-8 p-0"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                 >
-                  {sidebarOpen ? (
-                    <X className="h-4 w-4" />
-                  ) : (
-                    <Menu className="h-4 w-4" />
-                  )}
+                  <Menu className="h-4 w-4" />
                 </Button>
                 <div className="flex-1">
                   <GameHeader />

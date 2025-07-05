@@ -53,13 +53,15 @@ export function GameInsights({ gameState, className }: GameInsightsProps) {
 
   // Calculate game metrics
   const metrics = useMemo((): GameMetrics => {
-    const totalPlayers = Object.keys(gameState.players).length;
-    const alivePlayers = gameState.livingPlayerIds?.length || 0;
-    const deadPlayers = gameState.deadPlayerIds?.length || 0;
+    const players = Object.values(gameState.players);
+    const mafiaPlayers = players.filter((p) => p.role === 'Mafia');
+    const alivePlayers = players.filter((p) => p.status === 'Alive').length;
+    const mafiaAlive = mafiaPlayers.filter((p) => p.status === 'Alive').length;
+    const villagersAlive = alivePlayers - mafiaAlive;
 
     // Elimination rate (players eliminated per round)
     const eliminationRate =
-      gameState.round > 0 ? deadPlayers / gameState.round : 0;
+      gameState.round > 0 ? mafiaAlive / gameState.round : 0;
 
     // Discussion intensity (messages per round)
     const totalMessages = gameState.log.filter((m) => m.type === 'chat').length;
@@ -88,10 +90,8 @@ export function GameInsights({ gameState, className }: GameInsightsProps) {
     let winProbability = 50;
 
     if (canSeeMafiaInfo) {
-      const mafiaCount = Object.values(gameState.players).filter(
-        (p) => p.isMafia && p.status === 'Alive'
-      ).length;
-      const townCount = alivePlayers - mafiaCount;
+      const mafiaCount = mafiaAlive;
+      const townCount = villagersAlive;
 
       if (mafiaCount === 0) {
         predictedWinner = 'town';

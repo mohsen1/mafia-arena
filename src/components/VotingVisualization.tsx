@@ -62,14 +62,17 @@ export function VotingVisualization({
         const targetName = voteMatch[2];
 
         // Find player IDs by name
-        const voterId = Object.entries(gameState.players).find(
-          ([_, p]) => p.name === voterName
-        )?.[0];
-        const targetId = Object.entries(gameState.players).find(
-          ([_, p]) => p.name === targetName
-        )?.[0];
+        const voterEntry = Object.entries(gameState.players).find(
+          ([playerId, p]) => p.name === voterName
+        );
+        const targetEntry = Object.entries(gameState.players).find(
+          ([playerId, p]) => p.name === targetName
+        );
 
-        if (voterId && targetId) {
+        if (voterEntry && targetEntry) {
+          const voterId = voterEntry[0];
+          const targetId = targetEntry[0];
+
           votes.push({
             voterId,
             voterName,
@@ -158,7 +161,7 @@ export function VotingVisualization({
     const totalVotes = currentRoundVotes.length;
     const maxVotes = Math.max(...voteTargets.values());
     const leadingTarget = Array.from(voteTargets.entries()).find(
-      ([_, votes]) => votes === maxVotes
+      ([playerId, votes]) => votes === maxVotes
     );
 
     return leadingTarget

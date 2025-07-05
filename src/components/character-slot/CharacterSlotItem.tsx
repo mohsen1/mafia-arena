@@ -37,7 +37,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 
-// Hardcoded image paths (consider fetching dynamically later)
+// Character image paths based on actual files in public directory
 const characterImagePaths = [
   // Special
   '/images/characters/mod.png',

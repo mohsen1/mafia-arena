@@ -512,7 +512,12 @@
       "gemini": "Google Gemini",
       "groq": "Groq",
       "fireworks": "Fireworks AI"
-    }
+    },
+    "active": "Active",
+    "inactive": "Inactive",
+    "addFirstKey": "Add your first API key",
+    "edit": "Edit",
+    "delete": "Delete"
   },
   
   "games": {
