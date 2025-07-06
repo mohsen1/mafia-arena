@@ -175,7 +175,10 @@ export async function loadThemesFromExternal(
         clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);
-        if (error instanceof Error && (error.name === 'AbortError' || error.message === 'AbortError')) {
+        if (
+          error instanceof Error &&
+          (error.name === 'AbortError' || error.message === 'AbortError')
+        ) {
           throw new Error(`Request timeout after ${timeout}ms`);
         }
         throw error;
