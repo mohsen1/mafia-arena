@@ -73,7 +73,9 @@ export function selectCharacterVoiceId(
   ageCategory: 'young' | 'old',
   isWiseCharacter: boolean = false
 ): string {
-  console.log(`[VoiceUtils] Selecting voice for ${gender} ${ageCategory}${isWiseCharacter ? ' (wise character)' : ''}`);
+  console.log(
+    `[VoiceUtils] Selecting voice for ${gender} ${ageCategory}${isWiseCharacter ? ' (wise character)' : ''}`
+  );
 
   // Special case for wise characters (moderator, etc.)
   if (isWiseCharacter) {
@@ -93,13 +95,18 @@ export function selectCharacterVoiceId(
   console.log(`[VoiceUtils] Found ${availableVoices.length} voices for ${key}`);
 
   // Filter out already used voice IDs
-  const unusedVoices = availableVoices.filter((voiceId) => !usedVoiceIds.has(voiceId));
+  const unusedVoices = availableVoices.filter(
+    (voiceId) => !usedVoiceIds.has(voiceId)
+  );
 
   // If all voices are used, reset and use all available voices
-  const voicesToChooseFrom = unusedVoices.length > 0 ? unusedVoices : availableVoices;
+  const voicesToChooseFrom =
+    unusedVoices.length > 0 ? unusedVoices : availableVoices;
 
   if (unusedVoices.length === 0) {
-    console.log(`[VoiceUtils] All voices in ${key} category have been used, recycling voices`);
+    console.log(
+      `[VoiceUtils] All voices in ${key} category have been used, recycling voices`
+    );
   }
 
   const randomIndex = Math.floor(Math.random() * voicesToChooseFrom.length);
@@ -214,7 +221,7 @@ export function isWiseCharacter(
   if (persona) {
     const personaText =
       `${persona.name} ${persona.backstory} ${persona.personalityTraits.join(' ')}`.toLowerCase();
-    
+
     if (
       personaText.match(
         /\b(wise|sage|elder|mentor|teacher|philosopher|oracle|mystic|learned|scholarly)\b/
@@ -225,4 +232,4 @@ export function isWiseCharacter(
   }
 
   return false;
-} 
+}

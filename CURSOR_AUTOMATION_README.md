@@ -4,21 +4,21 @@ This Node.js script automatically monitors your Cursor AI editor for stuck situa
 
 ## Features
 
-- 📸 **Automatic Screenshots**: Captures screenshots every 3 minutes (10 seconds in test mode)
-- 🔍 **Smart Duplicate Detection**: Compares screenshots with similarity thresholds, handles clocks/dynamic content
+- 📸 **Automatic Screenshots**: Captures Cursor window only every 3 minutes (10 seconds in test mode)
+- 🔍 **Exact Duplicate Detection**: Compares Cursor window screenshots with pixel-perfect accuracy
 - 🤖 **AI Analysis**: Uses Gemini AI to analyze screenshots and suggest actions
 - 🎯 **Auto-focusing**: Automatically focuses the Cursor AI editor
 - ⌨️ **Keyboard-First Actions**: Prioritizes keyboard shortcuts over mouse clicks for reliability
 - 🖱️ **Automated Actions**: Uses `cliclick` to perform keyboard actions and fallback mouse actions
 - 🧹 **Cleanup**: Automatically manages screenshot storage
 - 🧪 **Test Mode**: Fast testing with 10-second intervals and manual triggers
-- 📊 **Configurable Sensitivity**: Adjustable similarity thresholds for different scenarios
+- 🎯 **Window-Only Capture**: Eliminates false positives from system clocks, menus, and dynamic elements
 
 ## Prerequisites
 
 ### System Requirements
 - **macOS only** (uses macOS-specific utilities)
-- **Node.js** 16.0.0 or higher
+- **Node.js** 18.0.0 or higher (required for built-in fetch)
 - **cliclick** (for mouse/keyboard automation)
 
 ### Installation
@@ -33,21 +33,14 @@ This Node.js script automatically monitors your Cursor AI editor for stuck situa
    pnpm install
    ```
    
-   The project already includes all necessary dependencies including `node-fetch`.
+   The project includes all necessary dependencies. The script uses Node.js built-in `fetch` (requires Node.js 18+).
 
-3. **Install ImageMagick (optional, for better image comparison)**:
-   ```bash
-   brew install imagemagick
-   ```
-   
-   This enables more accurate image similarity detection using SSIM (Structural Similarity Index).
-
-4. **Get a Gemini API Key**:
+3. **Get a Gemini API Key**:
    - Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
    - Create a new API key
    - Copy the API key
 
-5. **Set up environment variables**:
+4. **Set up environment variables**:
    
    **Option A: Using .env file (recommended)**:
    ```bash
@@ -138,11 +131,8 @@ pnpm automation:test-suite quick
 # Manual trigger test
 pnpm automation:test-suite manual
 
-# Test image comparison logic
+# Test window capture and hash comparison
 pnpm automation:test-suite compare
-
-# Test different similarity thresholds
-pnpm automation:test-suite threshold
 
 # Show all available test scenarios
 pnpm automation:test-suite scenarios
@@ -159,8 +149,8 @@ TEST_MODE=true
 # Manual trigger (analyze next screenshot immediately)
 MANUAL_TRIGGER=true
 
-# Similarity threshold (0.0 to 1.0, default 0.95)
-SIMILARITY_THRESHOLD=0.90
+# Cursor app name if different from "Cursor"
+CURSOR_APP_NAME=Cursor
 
 # Your Gemini API key
 GEMINI_API_KEY=your-key-here
@@ -213,27 +203,27 @@ const CONFIG = {
 
 ## How It Works
 
-### Smart Screenshot Comparison
+### Window-Only Screenshot Comparison
 
-The script uses intelligent image comparison instead of simple hash matching to handle dynamic content:
+The script captures only the Cursor AI editor window, eliminating all external dynamic content:
 
-**Multi-layered Comparison:**
-1. **Size Check**: Quick comparison of file sizes (fails if >5% different)
-2. **Hash Check**: MD5 hash comparison for identical images
-3. **ImageMagick SSIM**: Structural similarity analysis (if available)
-4. **Fallback**: Size-based similarity calculation
+**Window Capture Benefits:**
+1. **Eliminates System Noise**: No clocks, system menus, or background apps
+2. **Exact Pixel Comparison**: Simple MD5 hash matching for identical detection
+3. **Zero False Positives**: Dynamic content from other apps won't interfere
+4. **Faster Processing**: No complex similarity calculations needed
 
-**Handles Dynamic Content:**
-- **Clocks and timers**: Won't trigger false positives from changing time displays
-- **Cursors**: Ignores small cursor movements 
-- **Minor UI changes**: Uses similarity thresholds instead of exact matching
-- **Configurable sensitivity**: Adjust `SIMILARITY_THRESHOLD` (0.90-0.99 recommended)
+**How It Works:**
+- **Window Detection**: Uses AppleScript to get Cursor window ID
+- **Targeted Capture**: `screencapture -l <window_id>` captures only Cursor
+- **Exact Matching**: MD5 hash comparison for pixel-perfect detection
+- **Fallback Safety**: Falls back to full screen if window ID unavailable
 
 **Benefits:**
-- More reliable detection of actual stuck states
-- Fewer false positives from dynamic elements
-- Configurable sensitivity for different use cases
-- Better handling of screen resolution changes
+- Eliminates false positives from system clocks and dynamic elements
+- Much faster and more reliable than similarity detection
+- Simple and robust - no configuration needed
+- Only captures what matters: the Cursor editor content
 
 ### AI Analysis
 Gemini AI analyzes screenshots and provides:
@@ -298,20 +288,17 @@ When a stuck state is detected:
 4. **Permission issues with screenshots**
    - Grant Terminal/iTerm screen recording permissions in System Preferences
 
-5. **"Too many false positives" (screenshots seem the same but aren't)**
-   - Lower similarity threshold: `SIMILARITY_THRESHOLD=0.90`
-   - Use test mode to see detailed comparison logs
-
-6. **"Not detecting stuck states" (missing real stuck situations)**
-   - Raise similarity threshold: `SIMILARITY_THRESHOLD=0.98`
-   - Check if ImageMagick is installed for better comparison
+5. **"Not detecting stuck states" (missing real stuck situations)**
+   - Ensure Cursor window is visible and not minimized
+   - Check that the correct app name is being used (`CURSOR_APP_NAME`)
+   - Use test mode to see if window ID detection is working
 
 ### Debugging
 
 - **Use test mode**: `pnpm automation:test`
 - **Check the `screenshots` directory** to see what's being captured
-- **Look at detailed logs** in test mode for comparison results
-- **Test image comparison**: `pnpm automation:test-suite compare`
+- **Look at detailed logs** in test mode for window detection and hash comparison
+- **Test window capture**: `pnpm automation:test-suite compare`
 - **Test manual trigger**: `pnpm automation:test-suite manual`
 - **Verify Gemini API key** is working with a simple test
 
