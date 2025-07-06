@@ -601,6 +601,10 @@
       "completed": "Completed"
     }
   },
+
+  "ConfirmDeleteGame": "Are you sure you want to delete this game?",
+  "DeleteGameError": "Failed to delete game",
+  "DeletingButtonLabel": "Deleting...",
   "gamePresets": {
     "title": "Choose Your Game Mode",
     "subtitle": "Select a preset to quickly start playing",

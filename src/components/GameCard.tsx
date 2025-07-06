@@ -22,14 +22,7 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
   const handleDeleteClick = async () => {
     if (isDeleting) return;
     // Confirm deletion
-    if (
-      !confirm(
-        t(
-          'ConfirmDeleteGame',
-          `Are you sure you want to delete game ${game.gameId}?`
-        )
-      )
-    ) {
+    if (!confirm(t('ConfirmDeleteGame'))) {
       return;
     }
     setIsDeleting(true);
@@ -41,11 +34,11 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
       } else {
         // Handle deletion failure (e.g., show error message)
         console.error('Failed to delete game:', result.error);
-        alert(t('DeleteGameError', `Failed to delete game: ${result.error}`));
+        alert(`${t('DeleteGameError')}: ${result.error}`);
       }
     } catch (error) {
       console.error('Error calling deleteGameAction:', error);
-      alert(t('DeleteGameError', 'An error occurred while deleting the game.'));
+      alert(t('DeleteGameError'));
     } finally {
       setIsDeleting(false);
     }
@@ -59,7 +52,7 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
             href={`/${game.language}/game/${game.gameId}`}
             className="hover:underline text-primary"
           >
-            {game.themeTitle || t('DefaultGameTitle', 'Untitled Game')}
+            {game.themeTitle || t('DefaultGameTitle')}
           </Link>
         </h3>
         {game.themeDescription && (
@@ -68,17 +61,17 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          {t('GamePhaseLabel', 'Phase')}:{' '}
+          {t('GamePhaseLabel')}:{' '}
           <span className="font-medium capitalize">
             {t(`GamePhase_${game.phase}`, game.phase)}
           </span>{' '}
-          | {t('RoundLabel', 'Round')}:{' '}
+          | {t('RoundLabel')}:{' '}
           <span className="font-medium">{game.round}</span> |
-          {t('PlayersLabel', 'Players')}:{' '}
+          {t('PlayersLabel')}:{' '}
           <span className="font-medium">
             {Object.keys(game.players).length}
           </span>{' '}
-          | {t('CreatedLabel', 'Created')}:{' '}
+          | {t('CreatedLabel')}:{' '}
           <span className="font-medium">
             {format(new Date(game.createdAt), 'PPpp')}
           </span>
@@ -92,9 +85,7 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
           onClick={handleDeleteClick}
           disabled={isDeleting}
         >
-          {isDeleting
-            ? t('DeletingButtonLabel', 'Deleting...')
-            : t('DeleteButton', 'Delete')}
+          {isDeleting ? t('DeletingButtonLabel') : t('DeleteButton')}
         </Button>
       </div>
     </li>
