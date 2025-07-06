@@ -47,7 +47,6 @@ export default function LanguageSelector({
   return (
     <Select value={currentLang} onValueChange={handleLanguageChange}>
       <SelectTrigger className={cn('w-[180px]', className)} id={id}>
-        <Globe className="mr-2 h-4 w-4" />
         <SelectValue placeholder={t('languageSelector.selectLanguage')} />
       </SelectTrigger>
       <SelectContent>
