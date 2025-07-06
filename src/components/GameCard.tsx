@@ -65,9 +65,8 @@ export default function GameCard({ game, onDelete }: GameCardProps) {
           <span className="font-medium capitalize">
             {t(`GamePhase_${game.phase}`, game.phase)}
           </span>{' '}
-          | {t('RoundLabel')}:{' '}
-          <span className="font-medium">{game.round}</span> |
-          {t('PlayersLabel')}:{' '}
+          | {t('RoundLabel')}: <span className="font-medium">{game.round}</span>{' '}
+          |{t('PlayersLabel')}:{' '}
           <span className="font-medium">
             {Object.keys(game.players).length}
           </span>{' '}
