@@ -31,8 +31,32 @@ export function GameTabsLayout({ humanPlayerId }: GameTabsLayoutProps) {
     );
   }
 
-  const showVotingTab = gameState.phase === 'Day' && humanPlayerId;
   const isGameActive = gameState.phase !== 'GameOver';
+  const isHumanPlayer = Boolean(humanPlayerId);
+
+  // Tab visibility logic
+  const showVotingTab = gameState.phase === 'Day' && humanPlayerId;
+  const showAnalyticsTab =
+    !isHumanPlayer || gameState.phase === 'GameOver' || gameState.round > 1; // Hide for human players in early game
+  const showHistoryTab =
+    !isHumanPlayer ||
+    gameState.phase === 'GameOver' ||
+    (gameState.log && gameState.log.length > 5); // Hide if minimal content
+
+  // Calculate visible tabs for grid layout
+  const visibleTabs = [
+    'conversation', // Always visible
+    showAnalyticsTab ? 'analytics' : null,
+    showVotingTab ? 'voting' : null,
+    showHistoryTab ? 'history' : null,
+  ].filter(Boolean);
+
+  const gridCols =
+    visibleTabs.length === 2
+      ? 'grid-cols-2'
+      : visibleTabs.length === 3
+        ? 'grid-cols-3'
+        : 'grid-cols-4';
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -41,7 +65,7 @@ export function GameTabsLayout({ humanPlayerId }: GameTabsLayoutProps) {
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col min-h-0"
       >
-        <TabsList className="grid w-full grid-cols-4 shrink-0">
+        <TabsList className={`grid w-full ${gridCols} shrink-0`}>
           <TabsTrigger value="conversation" className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
             <span className="hidden sm:inline">
@@ -49,10 +73,14 @@ export function GameTabsLayout({ humanPlayerId }: GameTabsLayoutProps) {
             </span>
           </TabsTrigger>
 
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            <span className="hidden sm:inline">{t('Analytics', 'Stats')}</span>
-          </TabsTrigger>
+          {showAnalyticsTab && (
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {t('Analytics', 'Stats')}
+              </span>
+            </TabsTrigger>
+          )}
 
           {showVotingTab && (
             <TabsTrigger value="voting" className="flex items-center gap-2">
@@ -61,10 +89,14 @@ export function GameTabsLayout({ humanPlayerId }: GameTabsLayoutProps) {
             </TabsTrigger>
           )}
 
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="w-4 h-4" />
-            <span className="hidden sm:inline">{t('History', 'History')}</span>
-          </TabsTrigger>
+          {showHistoryTab && (
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {t('History', 'History')}
+              </span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Conversation Tab - Main game chat */}
@@ -81,21 +113,23 @@ export function GameTabsLayout({ humanPlayerId }: GameTabsLayoutProps) {
         </TabsContent>
 
         {/* Analytics Tab */}
-        <TabsContent
-          value="analytics"
-          className="flex-1 flex flex-col min-h-0 mt-0"
-        >
-          <div className="flex-1 overflow-hidden p-4">
-            {isGameActive ? (
-              <GameStatsTracker gameState={gameState} />
-            ) : (
-              <GameAnalyticsTabs
-                gameState={gameState}
-                humanPlayerId={humanPlayerId || undefined}
-              />
-            )}
-          </div>
-        </TabsContent>
+        {showAnalyticsTab && (
+          <TabsContent
+            value="analytics"
+            className="flex-1 flex flex-col min-h-0 mt-0"
+          >
+            <div className="flex-1 overflow-hidden p-4">
+              {isGameActive ? (
+                <GameStatsTracker gameState={gameState} />
+              ) : (
+                <GameAnalyticsTabs
+                  gameState={gameState}
+                  humanPlayerId={humanPlayerId || undefined}
+                />
+              )}
+            </div>
+          </TabsContent>
+        )}
 
         {/* Voting Tab - Only show during Day phase for human players */}
         {showVotingTab && (
@@ -121,24 +155,26 @@ export function GameTabsLayout({ humanPlayerId }: GameTabsLayoutProps) {
         )}
 
         {/* History Tab */}
-        <TabsContent
-          value="history"
-          className="flex-1 flex flex-col min-h-0 mt-0"
-        >
-          <div className="flex-1 overflow-hidden p-4">
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">
-                {t('GameHistory', 'Game History')}
-              </h3>
-              <p className="text-muted-foreground">
-                {t(
-                  'HistoryPlaceholder',
-                  'Game history and previous actions will appear here.'
-                )}
-              </p>
+        {showHistoryTab && (
+          <TabsContent
+            value="history"
+            className="flex-1 flex flex-col min-h-0 mt-0"
+          >
+            <div className="flex-1 overflow-hidden p-4">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">
+                  {t('GameHistory', 'Game History')}
+                </h3>
+                <p className="text-muted-foreground">
+                  {t(
+                    'HistoryPlaceholder',
+                    'Game history and previous actions will appear here.'
+                  )}
+                </p>
+              </div>
             </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
