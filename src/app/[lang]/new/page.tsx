@@ -206,6 +206,8 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
 }
 
 function LoadingView({ lang }: { lang: LanguageCode }) {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-background">
       <Header currentLang={lang} />
@@ -213,7 +215,7 @@ function LoadingView({ lang }: { lang: LanguageCode }) {
       <main className="mx-auto p-4 flex flex-col items-center justify-center min-h-[80vh]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-lg text-muted-foreground">Loading...</p>
+          <p className="text-lg text-muted-foreground">{t('common.loading')}</p>
         </div>
       </main>
       <Footer currentLang={lang} />
