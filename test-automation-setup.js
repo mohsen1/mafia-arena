@@ -16,10 +16,10 @@ async function testSetup() {
   try {
     const nodeVersion = process.version;
     const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
-    if (majorVersion >= 16) {
-      console.log(`   ✅ Node.js ${nodeVersion} (requirement: >= 16.0.0)`);
+    if (majorVersion >= 18) {
+      console.log(`   ✅ Node.js ${nodeVersion} (requirement: >= 18.0.0)`);
     } else {
-      console.log(`   ❌ Node.js ${nodeVersion} is too old (requirement: >= 16.0.0)`);
+      console.log(`   ❌ Node.js ${nodeVersion} is too old (requirement: >= 18.0.0 for built-in fetch)`);
       allTestsPassed = false;
     }
   } catch (error) {
@@ -86,14 +86,18 @@ async function testSetup() {
     allTestsPassed = false;
   }
   
-  // Test 5: Check if node-fetch is available
-  console.log('\n5. Testing node-fetch dependency...');
+  // Test 5: Check if built-in fetch is available
+  console.log('\n5. Testing built-in fetch availability...');
   try {
-    require('node-fetch');
-    console.log('   ✅ node-fetch is installed');
+    if (typeof fetch !== 'undefined') {
+      console.log('   ✅ Built-in fetch is available');
+    } else {
+      console.log('   ❌ Built-in fetch not available');
+      console.log('   💡 Requires Node.js 18+ for built-in fetch support');
+      allTestsPassed = false;
+    }
   } catch (error) {
-    console.log('   ❌ node-fetch is not installed');
-    console.log('   💡 Install with: npm install node-fetch@3.3.2');
+    console.log('   ❌ Error checking fetch availability');
     allTestsPassed = false;
   }
   

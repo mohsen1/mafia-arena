@@ -5,9 +5,10 @@ const fs = require('fs').promises;
 const path = require('path');
 const { promisify } = require('util');
 const crypto = require('crypto');
-const fetch = require('node-fetch');
 
 const execAsync = promisify(exec);
+
+// Note: Using built-in fetch (available in Node.js 18+)
 
 // Load environment variables from .env file
 try {
@@ -167,21 +168,84 @@ class CursorUnblockAutomation {
 
   async getCursorWindowId() {
     try {
-      // Get window ID for Cursor app
-      const { stdout } = await execAsync(`osascript -e 'tell application "System Events" to get id of first window of process "${CONFIG.CURSOR_APP_NAME}" whose visible is true'`);
-      const windowId = stdout.trim();
-      
-      if (windowId && windowId !== '') {
-        if (CONFIG.TEST_MODE) {
-          console.log(`   🎯 Found Cursor window ID: ${windowId}`);
+      if (CONFIG.TEST_MODE) {
+        console.log('   🔍 Debugging window detection...');
+        
+        // Debug: List all running processes
+        try {
+          const { stdout: allProcesses } = await execAsync(`osascript -e 'tell application "System Events" to return name of every process'`);
+          const processes = allProcesses.split(', ').map(p => p.trim());
+          const cursorProcesses = processes.filter(p => p.toLowerCase().includes('cursor'));
+          console.log(`   📋 Found Cursor-related processes: ${cursorProcesses.join(', ') || 'none'}`);
+          
+          if (cursorProcesses.length > 0) {
+            // Try the actual process name found
+            for (const processName of cursorProcesses) {
+              if (CONFIG.TEST_MODE) {
+                console.log(`   🎯 Trying process name: "${processName}"`);
+              }
+              
+              try {
+                const { stdout } = await execAsync(`osascript -e 'tell application "System Events" to tell process "${processName}" to get id of window 1'`);
+                const windowId = stdout.trim();
+                
+                if (windowId && windowId !== '' && !isNaN(parseInt(windowId))) {
+                  if (CONFIG.TEST_MODE) {
+                    console.log(`   ✅ Found window ID ${windowId} for process "${processName}"`);
+                  }
+                  return windowId;
+                }
+              } catch (procError) {
+                if (CONFIG.TEST_MODE) {
+                  console.log(`   ⚠️  Process "${processName}" failed: ${procError.message.split('\n')[0]}`);
+                }
+              }
+            }
+          }
+        } catch (debugError) {
+          console.log(`   ⚠️  Debug process listing failed: ${debugError.message.split('\n')[0]}`);
         }
-        return windowId;
+      }
+
+      // Try alternative approach using window list
+      try {
+        if (CONFIG.TEST_MODE) {
+          console.log('   🔍 Trying alternative window detection...');
+        }
+        
+        // Use a different approach - get all window info and filter
+        const { stdout: windowInfo } = await execAsync(`osascript -e 'tell application "System Events" to get {name, id} of every window of every process'`);
+        
+        if (CONFIG.TEST_MODE) {
+          console.log(`   📋 Raw window info: ${windowInfo.substring(0, 200)}...`);
+        }
+        
+        // This is a fallback - if we can't get the exact window, let's just use a simpler approach
+        // Try to get any frontmost window ID as a last resort
+        const { stdout: frontmostApp } = await execAsync(`osascript -e 'tell application "System Events" to return name of first application process whose frontmost is true'`);
+        
+        if (frontmostApp.trim().toLowerCase().includes('cursor')) {
+          const { stdout: frontmostWindowId } = await execAsync(`osascript -e 'tell application "System Events" to tell first application process whose frontmost is true to return id of window 1'`);
+          const windowId = frontmostWindowId.trim();
+          
+          if (windowId && !isNaN(parseInt(windowId))) {
+            if (CONFIG.TEST_MODE) {
+              console.log(`   ✅ Using frontmost window ID: ${windowId}`);
+            }
+            return windowId;
+          }
+        }
+        
+      } catch (altError) {
+        if (CONFIG.TEST_MODE) {
+          console.log(`   ⚠️  Alternative approach failed: ${altError.message.split('\n')[0]}`);
+        }
       }
       
       return null;
     } catch (error) {
       if (CONFIG.TEST_MODE) {
-        console.warn('   ⚠️  Failed to get Cursor window ID:', error.message);
+        console.warn('   ⚠️  All window detection methods failed:', error.message.split('\n')[0]);
       }
       return null;
     }
