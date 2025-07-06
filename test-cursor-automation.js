@@ -66,57 +66,52 @@ async function testManualTrigger() {
 }
 
 async function testImageComparison() {
-  console.log('Testing image comparison logic...');
+  console.log('Testing window capture and hash comparison...');
   
   // Create test screenshots directory
   await fs.mkdir('./test-screenshots', { recursive: true });
   
-  // Take two screenshots with a small delay
-  console.log('📸 Taking first screenshot...');
-  await execAsync('screencapture -x "./test-screenshots/test1.png"');
-  
-  console.log('⏱️  Waiting 2 seconds...');
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  console.log('📸 Taking second screenshot...');
-  await execAsync('screencapture -x "./test-screenshots/test2.png"');
-  
-  // Import the automation class to test comparison
+  // Import the automation class to test window capture
   const CursorUnblockAutomation = require('./cursor-unblock-automation.js');
   const automation = new CursorUnblockAutomation();
   
-  const similarity = await automation.getImageSimilarity('./test-screenshots/test1.png', './test-screenshots/test2.png');
-  console.log(`🔍 Similarity: ${(similarity * 100).toFixed(1)}%`);
+  // Test window ID detection
+  console.log('🎯 Testing Cursor window detection...');
+  const windowId = await automation.getCursorWindowId();
+  if (windowId) {
+    console.log(`   ✅ Found Cursor window ID: ${windowId}`);
+    
+    // Take screenshot of Cursor window
+    console.log('📸 Taking Cursor window screenshot...');
+    await execAsync(`screencapture -l ${windowId} -x "./test-screenshots/cursor-test.png"`);
+    
+    // Test hash generation
+    const hash = await automation.getImageHash('./test-screenshots/cursor-test.png');
+    console.log(`🔍 Screenshot hash: ${hash}`);
+    
+    // Take another screenshot and compare
+    console.log('⏱️  Waiting 2 seconds...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    console.log('📸 Taking second Cursor window screenshot...');
+    await execAsync(`screencapture -l ${windowId} -x "./test-screenshots/cursor-test2.png"`);
+    
+    const hash2 = await automation.getImageHash('./test-screenshots/cursor-test2.png');
+    console.log(`🔍 Second screenshot hash: ${hash2}`);
+    
+    console.log(`📊 Are hashes identical? ${hash === hash2 ? 'Yes (stuck state!)' : 'No (different content)'}`);
+    
+    // Cleanup
+    await fs.unlink('./test-screenshots/cursor-test.png');
+    await fs.unlink('./test-screenshots/cursor-test2.png');
+  } else {
+    console.log('   ⚠️  Cursor window not found - make sure Cursor is running and visible');
+  }
   
-  const areSimilar = await automation.compareImages('./test-screenshots/test1.png', './test-screenshots/test2.png');
-  console.log(`📊 Are images similar? ${areSimilar ? 'Yes' : 'No'}`);
-  
-  // Cleanup
-  await fs.unlink('./test-screenshots/test1.png');
-  await fs.unlink('./test-screenshots/test2.png');
   await fs.rmdir('./test-screenshots');
 }
 
-async function testSimilarityThreshold() {
-  console.log('Testing with different similarity thresholds...');
-  
-  const thresholds = [0.90, 0.95, 0.98, 0.99];
-  
-  for (const threshold of thresholds) {
-    console.log(`\n🎯 Testing with ${(threshold * 100).toFixed(0)}% similarity threshold`);
-    
-    const testEnv = { 
-      ...process.env, 
-      TEST_MODE: 'true',
-      SIMILARITY_THRESHOLD: threshold.toString()
-    };
-    
-    console.log(`   📊 This would require ${(threshold * 100).toFixed(0)}% similarity to trigger`);
-    
-    // You would run the automation here with this threshold
-    // For now, just log what would happen
-  }
-}
+
 
 async function createTestScenarios() {
   console.log('Creating test scenarios...');
@@ -138,14 +133,14 @@ async function createTestScenarios() {
       description: 'Triggers analysis on next screenshot immediately'
     },
     {
-      name: 'High Sensitivity Test',
-      command: 'SIMILARITY_THRESHOLD=0.90 pnpm automation:test',
-      description: 'More sensitive to small changes (90% similarity threshold)'
+      name: 'Window Detection Test',
+      command: 'TEST_MODE=true pnpm automation:test',
+      description: 'Test mode with detailed window detection logging'
     },
     {
-      name: 'Low Sensitivity Test',
-      command: 'SIMILARITY_THRESHOLD=0.99 pnpm automation:test',
-      description: 'Less sensitive to small changes (99% similarity threshold)'
+      name: 'Custom App Name Test',
+      command: 'CURSOR_APP_NAME="YourAppName" pnpm automation:test',
+      description: 'Test with different Cursor app name'
     }
   ];
   
@@ -169,8 +164,7 @@ async function main() {
     console.log('\nAvailable commands:');
     console.log('  quick      - Run in quick test mode (10-second intervals)');
     console.log('  manual     - Run with manual trigger');
-    console.log('  compare    - Test image comparison logic');
-    console.log('  threshold  - Test different similarity thresholds');
+    console.log('  compare    - Test window capture and hash comparison');
     console.log('  scenarios  - Show all available test scenarios');
     console.log('\nExample: pnpm automation:test-suite quick');
     return;
@@ -186,10 +180,7 @@ async function main() {
       await testManualTrigger();
       break;
     case 'compare':
-      await runTest('Image Comparison', testImageComparison);
-      break;
-    case 'threshold':
-      await runTest('Similarity Threshold', testSimilarityThreshold);
+      await runTest('Window Capture & Hash Comparison', testImageComparison);
       break;
     case 'scenarios':
       await createTestScenarios();
