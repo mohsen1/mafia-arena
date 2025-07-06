@@ -99,7 +99,7 @@ export default function GameController({
                 className="h-7 w-7 p-0"
                 onClick={handleClearAudio}
                 aria-label={t('SkipAudio')}
-                title="Skip current audio"
+                title={t('SkipAudio')}
               >
                 <SkipForward className="h-4 w-4" />
               </Button>
@@ -168,13 +168,9 @@ export default function GameController({
         {/* Main Controls */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              {t('PlaybackControl', 'Playback')}
-            </span>
+            <span className="text-sm font-medium">{t('PlaybackControl')}</span>
             <Badge variant={isAutoRunning ? 'default' : 'secondary'}>
-              {isAutoRunning
-                ? t('AutoMode', 'Auto')
-                : t('ManualMode', 'Manual')}
+              {isAutoRunning ? t('AutoMode') : t('ManualMode')}
             </Badge>
           </div>
 
@@ -189,12 +185,12 @@ export default function GameController({
               {isAutoRunning ? (
                 <>
                   <Pause className="h-4 w-4 mr-2" />
-                  {t('PauseButton', 'Pause')}
+                  {t('PauseButton')}
                 </>
               ) : (
                 <>
                   <Play className="h-4 w-4 mr-2" />
-                  {t('PlayButton', 'Play')}
+                  {t('PlayButton')}
                 </>
               )}
             </Button>
@@ -209,12 +205,12 @@ export default function GameController({
               {isLoadingNextTurn ? (
                 <>
                   <Loader className="h-4 w-4 mr-2 animate-spin" />
-                  {t('Loading', 'Loading')}
+                  {t('loading')}
                 </>
               ) : (
                 <>
                   <SkipForward className="h-4 w-4 mr-2" />
-                  {t('NextTurn', 'Next Turn')}
+                  {t('NextTurn')}
                 </>
               )}
             </Button>
@@ -223,11 +219,11 @@ export default function GameController({
           {isLoadingNextTurn && (
             <div className="text-xs text-muted-foreground text-center">
               {gameState.phase === 'Day'
-                ? t('LoadingNextTurnDay', 'Processing day phase...')
+                ? t('LoadingNextTurnDay')
                 : gameState.phase === 'Night' ||
                     gameState.phase === 'FirstNight'
-                  ? t('LoadingNextTurnNight', 'Processing night phase...')
-                  : t('LoadingNextTurnGeneral', 'Processing turn...')}
+                  ? t('LoadingNextTurnNight')
+                  : t('LoadingNextTurnGeneral')}
             </div>
           )}
         </div>
@@ -238,13 +234,11 @@ export default function GameController({
             <Separator />
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {t('AudioControl', 'Audio')}
-                </span>
+                <span className="text-sm font-medium">{t('AudioControl')}</span>
                 <Badge
                   variant={isAudioGloballyEnabled ? 'default' : 'secondary'}
                 >
-                  {isAudioGloballyEnabled ? t('On', 'On') : t('Off', 'Off')}
+                  {isAudioGloballyEnabled ? t('On') : t('Off')}
                 </Badge>
               </div>
 
@@ -258,12 +252,12 @@ export default function GameController({
                   {isAudioGloballyEnabled ? (
                     <>
                       <Volume2 className="h-4 w-4 mr-2" />
-                      {t('MuteAudio', 'Mute')}
+                      {t('MuteAudio')}
                     </>
                   ) : (
                     <>
                       <VolumeX className="h-4 w-4 mr-2" />
-                      {t('UnmuteAudio', 'Unmute')}
+                      {t('UnmuteAudio')}
                     </>
                   )}
                 </Button>
@@ -276,7 +270,7 @@ export default function GameController({
                     className="flex-1"
                   >
                     <SkipForward className="h-4 w-4 mr-2" />
-                    {t('SkipAudio', 'Skip')}
+                    {t('SkipAudio')}
                   </Button>
                 )}
               </div>
@@ -287,22 +281,20 @@ export default function GameController({
         {/* Current Status */}
         <Separator />
         <div className="space-y-2">
-          <div className="text-sm font-medium">
-            {t('CurrentStatus', 'Current Status')}
-          </div>
+          <div className="text-sm font-medium">{t('CurrentStatus')}</div>
           <div className="text-xs text-muted-foreground space-y-1">
             <div className="flex justify-between">
-              <span>{t('Phase', 'Phase')}:</span>
+              <span>{t('GamePhaseLabel')}:</span>
               <span className="font-medium">
                 {t(`gamePhases.${gameState.phase}`, gameState.phase)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span>{t('Round', 'Round')}:</span>
+              <span>{t('RoundLabel')}:</span>
               <span className="font-medium">{gameState.round}</span>
             </div>
             <div className="flex justify-between">
-              <span>{t('Players', 'Players')}:</span>
+              <span>{t('PlayersLabel')}:</span>
               <span className="font-medium">
                 {gameState.livingPlayerIds?.length || 0} alive
               </span>
