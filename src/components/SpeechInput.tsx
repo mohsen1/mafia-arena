@@ -16,9 +16,29 @@ interface SpeechInputProps {
 // Extend the Window interface to include webkitSpeechRecognition
 declare global {
   interface Window {
-    webkitSpeechRecognition: any;
-    SpeechRecognition: any;
+    webkitSpeechRecognition: new () => SpeechRecognitionInstance;
+    SpeechRecognition: new () => SpeechRecognitionInstance;
   }
+}
+
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
 }
 
 export function SpeechInput({
@@ -31,7 +51,7 @@ export function SpeechInput({
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -44,7 +64,7 @@ export function SpeechInput({
         recognitionRef.current.interimResults = true;
         recognitionRef.current.lang = 'en-US'; // Can be made configurable
 
-        recognitionRef.current.onresult = (event: any) => {
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
           let finalTranscript = '';
           let interimTranscript = '';
 
