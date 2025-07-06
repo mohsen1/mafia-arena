@@ -71,6 +71,7 @@ class CursorUnblockAutomation {
     console.log(`⏱️  Screenshot interval: ${CONFIG.SCREENSHOT_INTERVAL / 1000} seconds`);
     console.log(`📊 Analysis after: ${CONFIG.ANALYSIS_SCREENSHOT_COUNT} screenshots (${CONFIG.ANALYSIS_SCREENSHOT_COUNT * CONFIG.SCREENSHOT_INTERVAL / 1000 / 60} minutes)`);
     console.log(`📸 Screenshot mode: Cursor window only`);
+    console.log(`🤖 AI Features: Multi-command sequences + Automated dev workflow prompts`);
   }
 
   async checkDependencies() {
@@ -328,6 +329,7 @@ These screenshots show the progression of the Cursor interface over time. Please
 3. Check for loading indicators that have been stuck
 4. Identify any modal windows or overlays that might be blocking work
 5. Determine if any action is needed to help the user continue their work
+6. **Detect if Cursor appears idle/waiting** - if the user seems to have completed tasks and Cursor is waiting for the next action
 
 IMPORTANT: STRONGLY PREFER KEYBOARD ACTIONS over mouse clicks. Keyboard shortcuts are more reliable and universal.
 
@@ -355,6 +357,54 @@ You have complete freedom to suggest multiple actions and complex sequences to u
 - Open command palette and execute commands
 - Switch between different Cursor panels and try various approaches
 
+**SPECIAL CASE: If Cursor appears idle/waiting for next task**, suggest the automated dev workflow by typing this message:
+
+---
+
+**Automated Dev Workflow Prompt**
+
+Use \`agentshell\` to orchestrate the following loop:
+
+### 1. **Issue Management (GitHub CLI)**
+
+* Use \`gh\` CLI to list open issues from the repository.
+* If no issues exist:
+
+  * Identify areas of code quality or architectural improvements.
+  * Open a new GitHub issue describing the improvement and assign it to yourself.
+
+### 2. **Deployment Status (Vercel CLI)**
+
+* Use \`vercel\` CLI to check the latest deployment status.
+* Only begin working if deployments are stable or unaffected.
+
+### 3. **Work on Issues**
+
+* Pick the highest-priority open issue.
+* Investigate, implement a fix or feature with **clean, well-structured code**.
+* Test the fix locally in the browser.
+* Use **MCP tools** and **browser** to research and validate the solution.
+
+### 4. **Quality Checks**
+
+Before committing:
+
+* Ensure \`lint\`, \`tsc\`, and \`tests\` all pass with no errors.
+* Use \`npm run lint\`, \`tsc --noEmit\`, and \`npm test\` or project equivalents.
+
+### 5. **Commit and Close**
+
+* Commit with a meaningful message referencing the issue (e.g. \`fix: close #123 - correct null check on config load\`).
+* Push to main or a PR branch.
+* Close the issue after successful deployment and verification via Vercel.
+
+### 6. **Repeat**
+
+* Loop back to the issue list.
+* If backlog is empty again, refactor or improve documentation, test coverage, or modularity.
+
+---
+
 Provide your response in this JSON format:
 {
   "analysis": "Your analysis of what you see across the screenshots and any issues identified",
@@ -372,6 +422,7 @@ Examples of command sequences:
 - Clear and retry: [{"description": "Select all", "command": "cliclick kd:cmd t:a ku:cmd", "wait_ms": 300}, {"description": "Delete", "command": "cliclick kp:delete", "wait_ms": 300}, {"description": "Type new message", "command": "cliclick t:hello", "wait_ms": 300}, {"description": "Send", "command": "osascript -e 'tell application \"System Events\" to key code 36'", "wait_ms": 500}]
 - Navigate dialog: [{"description": "Press escape", "command": "cliclick kp:esc", "wait_ms": 500}, {"description": "Try again", "command": "cliclick kd:cmd t:l ku:cmd", "wait_ms": 500}]
 - Open command palette: [{"description": "Open palette", "command": "cliclick kd:cmd,shift t:p ku:shift,cmd", "wait_ms": 1000}, {"description": "Type command", "command": "cliclick t:reload", "wait_ms": 300}, {"description": "Execute", "command": "osascript -e 'tell application \"System Events\" to key code 36'", "wait_ms": 500}]
+- Automated dev workflow (when idle): Use the workflow text provided above - type the complete automated dev workflow prompt into chat and send it
 
 If everything appears to be working normally and no intervention is needed, set action to "none" and commands to an empty array.`
           }, 
@@ -621,6 +672,7 @@ If everything appears to be working normally and no intervention is needed, set 
     }, CONFIG.SCREENSHOT_INTERVAL);
 
     console.log('✅ Automation started. Press Ctrl+C to stop.');
+    console.log('🎯 FEATURE: Automated dev workflow prompt when Cursor is idle');
     if (CONFIG.TEST_MODE) {
       console.log('🧪 TEST MODE: Press "t" + Enter to trigger manual analysis');
       console.log('🧪 TEST MODE: Press "k" + Enter to test key press commands');
