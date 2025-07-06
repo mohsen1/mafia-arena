@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 import { SpeechInput } from './SpeechInput';
 import { Mic, Loader2 } from 'lucide-react';
 import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
+import { useAISuggestions } from '@/hooks/useAISuggestions';
+import { AISuggestionPills } from './AISuggestionPills';
 
 export default function HumanChatInput() {
   const { t } = useTranslation();
@@ -26,6 +28,14 @@ export default function HumanChatInput() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showSpeechInput, setShowSpeechInput] = useState(false);
+
+  // AI suggestions hook
+  const {
+    suggestions,
+    isLoading: suggestionsLoading,
+    error: suggestionsError,
+    refresh: refreshSuggestions,
+  } = useAISuggestions();
 
   const gameId = gameState?.id;
   const humanPlayerId = gameState?.humanPlayerId;
@@ -163,6 +173,7 @@ export default function HumanChatInput() {
       gameId,
       humanPlayerId,
       submitHumanAction,
+      gameState?.phase,
     ]
   );
 
@@ -286,6 +297,19 @@ export default function HumanChatInput() {
 
       return (
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          {/* AI Suggestions */}
+          <AISuggestionPills
+            suggestions={suggestions}
+            isLoading={suggestionsLoading}
+            error={suggestionsError}
+            onSuggestionClick={(suggestion) => {
+              setMessage(suggestion);
+              inputRef.current?.focus();
+            }}
+            onRefresh={refreshSuggestions}
+            className="mb-2"
+          />
+
           {showSpeechInput && gameState.voiceModeEnabled && (
             <SpeechInput
               onTranscript={(text) => {
