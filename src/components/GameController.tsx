@@ -9,16 +9,14 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
-  Settings,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSpokenText } from '@/context/SpokenTextContext';
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
 
 interface GameControllerProps {
   compact?: boolean;
@@ -38,8 +36,6 @@ export default function GameController({
     gameState,
     isAudioGloballyEnabled,
     toggleGlobalAudio,
-    gameSpeed,
-    setGameSpeed,
   } = useGameContext();
 
   const { currentlySpeakingId, resetAudio } = useSpokenText();
@@ -155,15 +151,9 @@ export default function GameController({
   // Full control panel version
   return (
     <Card className={cn('w-full', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Settings className="h-4 w-4" />
-          {t('GameControls', 'Game Controls')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-3 space-y-3">
         {/* Main Controls */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">
               {t('PlaybackControl', 'Playback')}
@@ -233,7 +223,7 @@ export default function GameController({
         {gameState?.voiceModeEnabled && (
           <>
             <Separator />
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">
                   {t('AudioControl', 'Audio')}
@@ -280,34 +270,6 @@ export default function GameController({
             </div>
           </>
         )}
-
-        {/* Speed Control */}
-        <Separator />
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              {t('GameSpeed', 'Game Speed')}
-            </span>
-            <Badge variant="outline">{gameSpeed}x</Badge>
-          </div>
-
-          <div className="space-y-2">
-            <Slider
-              value={[gameSpeed]}
-              onValueChange={([value]) => setGameSpeed(value)}
-              min={0.5}
-              max={3}
-              step={0.5}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>0.5x</span>
-              <span>1x</span>
-              <span>2x</span>
-              <span>3x</span>
-            </div>
-          </div>
-        </div>
 
         {/* Current Status */}
         <Separator />
