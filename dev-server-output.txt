@@ -1,7 +1,7 @@
 {
   "status": "INTERACTIVE",
   "exit_code": null,
-  "stdout": "\n> werewolf-ai@0.1.0 dev /Users/mohsen/code/werewolf-ai\n> next dev -p 3099\n\n   ▲ Next.js 15.2.4\n   - Local:        http://localhost:3099\n   - Network:      http://192.168.2.130:3099\n   - Environments: .env\n\n ✓ Starting...\n ✓ Compiled /instrumentation in 123ms (21 modules)\n ✓ Ready in 1162ms\n",
+  "stdout": "\n> werewolf-ai@0.1.0 dev /Users/mohsen/code/werewolf-ai\n> next dev -p 3099\n\n   ▲ Next.js 15.2.4\n   - Local:        http://localhost:3099\n   - Network:      http://192.168.2.130:3099\n   - Environments: .env\n\n ✓ Starting...\n ✓ Compiled /instrumentation in 106ms (21 modules)\n ✓ Ready in 1267ms\n",
   "stderr": "",
   "message": "Command did not exit within 5s. Assumed to be interactive or long-running. Process terminated."
 }
