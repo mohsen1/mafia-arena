@@ -64,16 +64,9 @@ async function runMigrations() {
         console.log('   Schema changes should be applied manually in production');
       }
     } else {
-      // In development, attempt interactive schema push
-      console.log('📤 Applying database schema...');
-      try {
-        execSync('drizzle-kit push', { stdio: 'inherit' });
-        console.log('✅ Database schema applied successfully');
-      } catch (error) {
-        console.log('⚠️  Schema push encountered conflicts');
-        console.log('   This is normal if the schema is already up to date');
-        console.log('   or if there are conflicts requiring manual resolution');
-      }
+      // Skip schema push entirely to avoid interactive prompts
+      console.log('📤 Skipping database schema push in development');
+      console.log('ℹ️  Schema changes should be applied manually via: drizzle-kit push');
     }
 
     console.log('');
