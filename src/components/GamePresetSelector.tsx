@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
+import { getThemeKeys } from '@/lib/utils/themeLoader';
 
 export interface GamePreset {
   id: string;
@@ -36,6 +37,13 @@ interface GamePresetSelectorProps {
   className?: string;
 }
 
+// Helper function to get a random theme
+function getRandomTheme(): string {
+  const themeKeys = getThemeKeys();
+  const randomIndex = Math.floor(Math.random() * themeKeys.length);
+  return themeKeys[randomIndex];
+}
+
 export function GamePresetSelector({
   onSelect,
   className,
@@ -53,7 +61,7 @@ export function GamePresetSelector({
       icon: <Zap className="w-5 h-5" />,
       playerCount: 5,
       humanPlayer: true,
-      theme: 'UK_VILLAGE_1900S',
+      theme: getRandomTheme(),
       difficulty: 'easy',
       estimatedTime: '10-15 min',
       features: [
@@ -70,7 +78,7 @@ export function GamePresetSelector({
       icon: <Trophy className="w-5 h-5" />,
       playerCount: 7,
       humanPlayer: true,
-      theme: 'UK_VILLAGE_1900S',
+      theme: getRandomTheme(),
       difficulty: 'normal',
       estimatedTime: '20-30 min',
       features: [
@@ -87,7 +95,7 @@ export function GamePresetSelector({
       icon: <Users className="w-5 h-5" />,
       playerCount: 8,
       humanPlayer: false,
-      theme: 'PROHIBITION_CHICAGO',
+      theme: getRandomTheme(),
       difficulty: 'normal',
       estimatedTime: '25-35 min',
       features: [
