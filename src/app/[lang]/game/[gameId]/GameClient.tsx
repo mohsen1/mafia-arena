@@ -305,20 +305,14 @@ export default function GameClient({
   boundSubmitHumanAction,
 }: GameClientProps) {
   return (
-    <GameProvider
-      initialGameState={initialGameState}
-      boundRunGameTurnAction={boundAdvanceGameStateAction}
-      boundSubmitHumanAction={boundSubmitHumanAction}
-    >
-      <GameClientInner gameId={gameId} lang={lang} />
-    </GameProvider>
-  );
-}
-
-function GameClientInner({ gameId, lang }: { gameId: string; lang: string }) {
-  return (
     <SpokenTextProvider>
-      <GameLayout gameId={gameId} lang={lang as LanguageCode} />
+      <GameProvider
+        initialGameState={initialGameState}
+        boundRunGameTurnAction={boundAdvanceGameStateAction}
+        boundSubmitHumanAction={boundSubmitHumanAction}
+      >
+        <GameLayout gameId={gameId} lang={lang as LanguageCode} />
+      </GameProvider>
     </SpokenTextProvider>
   );
 }
