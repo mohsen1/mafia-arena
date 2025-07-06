@@ -45,7 +45,7 @@ export function GameHeader() {
           </div>
         </div>
         {/* Action Buttons - Now appears below game info */}
-        {phase !== 'GameOver' && <GameController />}
+        {phase !== 'GameOver' && <GameController compact />}
       </div>
     </div>
   );

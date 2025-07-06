@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -43,13 +44,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: TypeScript check
-        run: pnpm tsc
+        run: pnpm run check:tsc
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm run check:lint
 
       - name: Detect unused files with knip
-        run: pnpm knip
+        run: pnpm run check:knip
 
   database-validation:
     name: Database Connectivity & Migrations
@@ -112,7 +113,7 @@ jobs:
           done
 
       - name: Run database connectivity check
-        run: pnpm check-db
+        run: pnpm run db:check
 
       - name: Generate and run migrations
         run: |
@@ -123,7 +124,7 @@ jobs:
         run: pnpm db:push
 
       - name: Verify database setup
-        run: pnpm check-db
+        run: pnpm run db:check
 
   build:
     name: Build Application
@@ -196,7 +197,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm run test:unit
 
   playwright:
     name: Playwright Tests

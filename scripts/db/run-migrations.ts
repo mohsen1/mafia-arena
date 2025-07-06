@@ -33,7 +33,7 @@ async function runMigrations() {
   try {
     // Test database connection first
     console.log('📊 Testing database connection...');
-    execSync('pnpm run check-db', { stdio: 'inherit' });
+    execSync('pnpm run db:check', { stdio: 'inherit' });
     console.log('✅ Database connection successful');
     console.log('');
 

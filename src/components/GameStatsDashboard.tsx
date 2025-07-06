@@ -61,6 +61,86 @@ interface GameStats {
   recentPerformance: number[];
 }
 
+function calculateAverageGameDuration(completedGames: GameListItem[]): number {
+  if (completedGames.length === 0) return 0;
+
+  const totalDuration = completedGames.reduce((sum, game) => {
+    // Calculate duration from createdAt to updatedAt if available
+    if (game.createdAt && game.updatedAt) {
+      const startTime = new Date(game.createdAt).getTime();
+      const endTime = new Date(game.updatedAt).getTime();
+      const durationMs = endTime - startTime;
+      const durationMinutes = Math.round(durationMs / (1000 * 60));
+      return sum + Math.max(0, durationMinutes); // Ensure positive duration
+    }
+    // Fallback to estimated duration if timestamps are not available
+    return sum + 25; // Default estimate
+  }, 0);
+
+  return Math.round(totalDuration / completedGames.length);
+}
+
+function calculateStreaks(completedGames: GameListItem[]): {
+  longestStreak: number;
+  currentStreak: number;
+} {
+  if (completedGames.length === 0) {
+    return { longestStreak: 0, currentStreak: 0 };
+  }
+
+  // Sort games by creation date (most recent last)
+  const sortedGames = completedGames
+    .filter((game) => game.createdAt) // Only include games with timestamps
+    .sort(
+      (a, b) =>
+        new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
+    );
+
+  if (sortedGames.length === 0) {
+    return { longestStreak: 0, currentStreak: 0 };
+  }
+
+  let longestStreak = 0;
+  let currentStreak = 0;
+  let currentStreakLength = 0;
+
+  // Track win/loss patterns
+  let lastResult: boolean | null = null;
+
+  for (const game of sortedGames) {
+    const winCondition = game.winCondition as { outcome?: string } | null;
+    const playerWon = winCondition?.outcome?.includes('Town') ?? false;
+
+    if (lastResult === null) {
+      // First game
+      currentStreakLength = 1;
+      lastResult = playerWon;
+    } else if (lastResult === playerWon) {
+      // Streak continues
+      currentStreakLength++;
+    } else {
+      // Streak broken
+      if (lastResult) {
+        // Previous streak was wins
+        longestStreak = Math.max(longestStreak, currentStreakLength);
+      }
+      currentStreakLength = 1;
+      lastResult = playerWon;
+    }
+  }
+
+  // Check final streak
+  if (lastResult) {
+    longestStreak = Math.max(longestStreak, currentStreakLength);
+    currentStreak = currentStreakLength;
+  } else {
+    // Current streak is losses, so current win streak is 0
+    currentStreak = 0;
+  }
+
+  return { longestStreak, currentStreak };
+}
+
 function calculateGameStats(games: GameListItem[]): GameStats {
   const completedGames = games.filter((g) => g.status === 'completed');
   const activeGames = games.filter((g) => g.status === 'active');
@@ -109,12 +189,11 @@ function calculateGameStats(games: GameListItem[]): GameStats {
       null as RoleStats | null
     )?.role || null;
 
-  // Calculate average game duration (placeholder)
-  const averageGameDuration = 25; // minutes
+  // Calculate actual average game duration from completed games
+  const averageGameDuration = calculateAverageGameDuration(completedGames);
 
-  // Calculate streaks (placeholder)
-  const longestStreak = 5;
-  const currentStreak = 2;
+  // Calculate actual win/loss streaks from game history
+  const { longestStreak, currentStreak } = calculateStreaks(completedGames);
 
   // Recent performance (last 10 games)
   const recentPerformance = completedGames.slice(-10).map((game) => {

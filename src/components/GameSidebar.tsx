@@ -8,7 +8,7 @@ import type { PlayerId } from '@/lib/engine/interfaces/IPlayer'; // Import Playe
 
 // Import from react-i18next
 import { useTranslation } from 'react-i18next';
-import { GameTimer } from './GameTimer';
+import GameController from './GameController';
 import { QuickActionsPanel } from './QuickActionsPanel';
 import { RoleTipsPanel } from './RoleTipsPanel';
 import {
@@ -16,7 +16,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, Users, Lightbulb, Zap } from 'lucide-react';
+import { ChevronDown, Users, Lightbulb, Zap, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -25,8 +25,9 @@ export function GameSidebar() {
   // Use standard hook
   const { t } = useTranslation('translation'); // Keep namespace for now
 
-  // Collapsible states
-  const [quickActionsOpen, setQuickActionsOpen] = useState(true);
+  // Collapsible states - Quick actions collapsed by default
+  const [gameControlsOpen, setGameControlsOpen] = useState(true);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [roleTipsOpen, setRoleTipsOpen] = useState(false);
   const [playersOpen, setPlayersOpen] = useState(true);
 
@@ -82,11 +83,30 @@ export function GameSidebar() {
   return (
     <aside className="flex flex-col h-full bg-background/50 border-e border-border/50 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
-        {/* Game Timer - Always visible when game is active */}
+        {/* Game Controls - Always visible when game is active */}
         {gameState && gameState.phase !== 'GameOver' && (
-          <div className="p-3 border-b border-border/50">
-            <GameTimer />
-          </div>
+          <Collapsible
+            open={gameControlsOpen}
+            onOpenChange={setGameControlsOpen}
+          >
+            <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-accent/50 transition-colors border-b border-border/50">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Settings className="h-4 w-4" />
+                {t('GameControls', 'Game Controls')}
+              </div>
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 transition-transform',
+                  gameControlsOpen && 'rotate-180'
+                )}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 pt-0">
+                <GameController />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
         {/* Quick Actions - Collapsible */}

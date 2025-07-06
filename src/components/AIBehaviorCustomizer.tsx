@@ -136,7 +136,7 @@ const DEFAULT_BEHAVIOR: AIBehaviorProfile = {
     alliance: 50,
     adaptability: 50,
     information: 50,
-    targeting: 'analytical',
+    targeting: 'threats',
     votingPattern: 'analytical',
   },
   roleSpecific: {
@@ -249,7 +249,7 @@ const PRESET_BEHAVIORS: Array<{ name: string; profile: AIBehaviorProfile }> = [
 ];
 
 export function AIBehaviorCustomizer({
-  playerId,
+  // playerId, // unused - intentionally omitted
   playerName,
   onBehaviorChange,
   className,
@@ -346,7 +346,7 @@ export function AIBehaviorCustomizer({
       id: `${preset.profile.id}-${Date.now()}`,
     });
     setHasChanges(true);
-    toast.success(`Applied ${preset.name} behavior profile`);
+    toast(`Applied ${preset.name} behavior profile`);
   };
 
   const randomizeBehavior = () => {
@@ -381,13 +381,13 @@ export function AIBehaviorCustomizer({
     };
     setBehavior(randomBehavior);
     setHasChanges(true);
-    toast.success('Generated random behavior profile');
+    toast('Generated random behavior profile');
   };
 
   const saveBehavior = () => {
     onBehaviorChange?.(behavior);
     setHasChanges(false);
-    toast.success('Behavior profile saved');
+    toast('Behavior profile saved');
   };
 
   const exportBehavior = () => {

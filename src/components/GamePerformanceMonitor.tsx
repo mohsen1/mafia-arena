@@ -65,7 +65,6 @@ export function GamePerformanceMonitor({
   const [history, setHistory] = useState<HistoricalData[]>([]);
   const frameCount = useRef(0);
   const lastFrameTime = useRef(performance.now());
-  const messageTimestamps = useRef<Map<string, number>>(new Map());
 
   // Calculate FPS
   useEffect(() => {
@@ -96,7 +95,6 @@ export function GamePerformanceMonitor({
 
   // Monitor message processing
   useEffect(() => {
-    const lastMessageCount = gameState.log.length;
     const processingStart = performance.now();
 
     // Simulate processing time measurement
@@ -222,17 +220,6 @@ export function GamePerformanceMonitor({
         return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
       case 'critical':
         return <AlertTriangle className="w-4 h-4 text-red-500" />;
-    }
-  };
-
-  const getHealthColor = () => {
-    switch (metrics.overallHealth) {
-      case 'healthy':
-        return 'text-green-500';
-      case 'warning':
-        return 'text-yellow-500';
-      case 'critical':
-        return 'text-red-500';
     }
   };
 

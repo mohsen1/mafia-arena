@@ -1,7 +1,23 @@
+#!/usr/bin/env tsx
+
+/**
+ * Enhanced Translation Generation Script
+ * 
+ * This script generates translations for all supported languages using the Google Translate API.
+ * It intelligently handles context-aware translations and maintains consistent terminology.
+ */
+
 import dotenv from 'dotenv';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import chalk from 'chalk';
+import ora from 'ora';
+import prompts from 'prompts';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import dedent from 'dedent';
+import { languages, supportedLanguagesInfo, type LanguageCode } from '../../src/lib/i18n/settings';
+import { getAIResponse, getStructuredAIResponse } from '../../src/lib/services/googleService';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -12,13 +28,6 @@ if (!process.env.GEMINI_API_KEY) {
   console.error('Please set it in your .env file or environment variables.');
   process.exit(1);
 }
-
-// Update import paths for TS
-import { languages, supportedLanguagesInfo, type LanguageCode } from '../src/lib/i18n/settings';
-import { getAIResponse, getStructuredAIResponse } from '../src/lib/ai/googleService';
-
-import { cleanAIResponse, extractJSONFromText, escapeJSONControlCharacters } from '../src/lib/utils/stringUtils'; 
-import dedent from 'dedent';
 
 /**
  * Generates the system prompt for translating a dictionary JSON.

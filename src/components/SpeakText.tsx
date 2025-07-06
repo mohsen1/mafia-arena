@@ -22,6 +22,7 @@ import React, {
   useCallback,
 } from 'react';
 import { useSpokenText } from '@/context/SpokenTextContext';
+import { useGameContext } from '@/context/GameContext';
 import { Volume2, VolumeX, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
@@ -109,7 +110,7 @@ const log = (emoji: string, message: string, data?: any) => {
 };
 
 // Helper function to convert Base64 to Blob
-function base64ToBlob(base64: string, contentType = 'audio/mpeg'): Blob {
+function _base64ToBlob(base64: string, contentType = 'audio/mpeg'): Blob {
   const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);
   for (let i = 0; i < byteCharacters.length; i++) {
@@ -271,6 +272,14 @@ export function SpeakText({
     markAsPlaying,
   } = useSpokenText();
 
+  // GameContext is required - page should wrap with GameProvider
+  const _gameContext = useGameContext();
+
+  // TODO: Add these methods to GameContext if needed for audio coordination
+  const reportAudioFinished = () => {};
+  const registerStopAudio = () => {};
+  const unregisterStopAudio = () => {};
+
   type AudioStatus = 'idle' | 'fetching' | 'playing' | 'error';
 
   const [status, setStatus] = useState<AudioStatus>('idle');
@@ -281,7 +290,7 @@ export function SpeakText({
   const audioIdRef = useRef<string>(
     `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   );
-  const wordTimingsRef = useRef<
+  const _wordTimingsRef = useRef<
     Array<{ word: string; start: number; end: number }>
   >([]);
   const hasStartedRef = useRef(false);
@@ -361,12 +370,11 @@ export function SpeakText({
 
   // Track global audio element count for memory leak detection
   useEffect(() => {
-    // @ts-ignore - Adding to window for debugging
-    if (!(window as any).__audioElementCount)
-      (window as any).__audioElementCount = 0;
-    (window as any).__audioElementCount++;
+    const win = window as any;
+    if (!win.__audioElementCount) win.__audioElementCount = 0;
+    win.__audioElementCount++;
     console.log(
-      `[SpeakText] ${timestamp()} 📊 AUDIO ELEMENT COUNT: ${(window as any).__audioElementCount}`
+      `[SpeakText] ${timestamp()} 📊 AUDIO ELEMENT COUNT: ${win.__audioElementCount}`
     );
 
     // Detect React StrictMode double rendering
@@ -378,12 +386,9 @@ export function SpeakText({
     }
 
     return () => {
-      (window as any).__audioElementCount = Math.max(
-        0,
-        ((window as any).__audioElementCount || 0) - 1
-      );
+      win.__audioElementCount = Math.max(0, (win.__audioElementCount || 0) - 1);
       console.log(
-        `[SpeakText] ${timestamp()} 📊 AUDIO ELEMENT COUNT (after cleanup): ${(window as any).__audioElementCount}`
+        `[SpeakText] ${timestamp()} 📊 AUDIO ELEMENT COUNT (after cleanup): ${win.__audioElementCount}`
       );
     };
   }, []);
@@ -392,7 +397,6 @@ export function SpeakText({
   useEffect(() => {
     currentlySpeakingIdRef.current = currentlySpeakingId;
   }, [currentlySpeakingId]);
-
   console.log(`[SpeakText] ${timestamp()} Component render:`, {
     audioId: audioIdRef.current,
     text: text.substring(0, 50) + '...',
@@ -418,6 +422,7 @@ export function SpeakText({
       isAudioGloballyEnabled,
       hasStartedPreviously: hasStartedRef.current,
     });
+
     isMountedRef.current = true;
 
     // Reset hasStarted when component mounts to handle remounting scenarios
@@ -429,29 +434,45 @@ export function SpeakText({
         isPlaying: audioRef.current && !audioRef.current.paused,
         hasStarted: hasStartedRef.current,
       });
+
       isMountedRef.current = false;
       isHandlingSpeakRef.current = false;
 
-      // Clean up audio element properly
-      if (audioRef.current) {
-        const audio = audioRef.current;
-        audio.pause();
+      if (!cleanupCalledRef.current) {
+        cleanupCalledRef.current = true;
+        console.log(
+          `[SpeakText] ${timestamp()} 🧽 CLEANUP starting for:`,
+          audioIdRef.current
+        );
 
-        // Remove all event listeners using stored handlers
-        const eventHandlers = (audio as any).__eventHandlers;
-        if (eventHandlers) {
-          Object.entries(eventHandlers).forEach(([event, handler]) => {
-            audio.removeEventListener(event, handler as EventListener);
-          });
+        if (audioRef.current) {
+          console.log(
+            `[SpeakText] ${timestamp()} ⏹️ Pausing and removing audio element`
+          );
+          const audio = audioRef.current;
+          audio.pause();
+
+          // Remove all event listeners using stored handlers
+          const eventHandlers = (audio as any).__eventHandlers;
+          if (eventHandlers) {
+            Object.entries(eventHandlers).forEach(([event, handler]) => {
+              audio.removeEventListener(event, handler as EventListener);
+            });
+          }
+
+          audio.src = '';
+          audioRef.current = null;
         }
 
-        audio.src = '';
-        audioRef.current = null;
-      }
-
-      // Report done speaking on unmount if we were the current speaker
-      if (currentlySpeakingIdRef.current === audioIdRef.current) {
-        doneSpeaking(audioIdRef.current);
+        // Always clear the speaking ID on unmount
+        if (currentlySpeakingId === audioIdRef.current) {
+          console.log(
+            `[SpeakText] ${timestamp()} 🗑️ CLEARING speaking ID on unmount:`,
+            audioIdRef.current
+          );
+          doneSpeaking(audioIdRef.current);
+          unregisterStopAudio();
+        }
       }
     };
   }, []); // Empty dependencies - only run on mount/unmount
@@ -504,6 +525,23 @@ export function SpeakText({
 
     return fetchPromise;
   };
+
+  // Auto-play effect
+  useEffect(() => {
+    if (
+      autoPlay &&
+      !hasStartedRef.current &&
+      isAudioGloballyEnabled &&
+      isMountedRef.current
+    ) {
+      console.log(
+        `[SpeakText] ${timestamp()} 🎯 AUTO-PLAYING audio on mount for:`,
+        audioIdRef.current
+      );
+      hasStartedRef.current = true;
+      handleSpeak();
+    }
+  }, [autoPlay, isAudioGloballyEnabled]);
 
   const handleSpeak = useCallback(
     async (retryCount = 0) => {
@@ -802,6 +840,8 @@ export function SpeakText({
             audioId: audioIdRef.current,
             duration: audio.duration.toFixed(2) + 's',
           });
+          // Register this audio with GameContext for auto-run coordination
+          registerStopAudio();
         };
         audio.addEventListener('playing', eventHandlers.playing);
 
@@ -845,6 +885,9 @@ export function SpeakText({
             setCurrentWordIndex(-1);
             doneSpeaking(audioIdRef.current);
             setStatus('idle');
+            // Report to GameContext for auto-run coordination
+            reportAudioFinished();
+            onComplete?.();
           }
           hasStartedRef.current = false;
           isHandlingSpeakRef.current = false;
@@ -862,6 +905,7 @@ export function SpeakText({
           audio.src = '';
           audioRef.current = null;
           URL.revokeObjectURL(audioUrl);
+          unregisterStopAudio();
         };
         audio.addEventListener('ended', eventHandlers.ended);
 

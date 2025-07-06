@@ -28,7 +28,7 @@ if [ "$VERCEL" = "1" ]; then
     
     # Check database connection
     echo "📊 Checking database connection..."
-    if pnpm run check-db; then
+    if pnpm run db:check; then
       echo "✅ Database connection successful"
       
       # Run migrations
@@ -51,7 +51,7 @@ else
   # Non-Vercel environment (CI, local builds)
   # Check database connection
   echo "📊 Checking database connection..."
-  pnpm run check-db || handle_error "Database connection check" $?
+  pnpm run db:check || handle_error "Database connection check" $?
 
   # Run migrations
   echo "🔄 Running database migrations..."

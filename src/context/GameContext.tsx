@@ -6,9 +6,14 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  type Dispatch,
+  type SetStateAction,
+  type ReactNode,
 } from 'react';
 
 import { useSpokenText } from '@/context/SpokenTextContext';
+import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
+import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 
 // Add comprehensive logging helper
 const PHASE_LOG_PREFIX = '[GameContext Phase]';
@@ -102,6 +107,15 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     // Proper implementation: Initialize from game state
     return initialGameState?.voiceModeEnabled ?? false;
   });
+  const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [gameSpeed, setGameSpeed] = useState<number>(1);
+
+  // Consume audio status from SpokenTextContext - must be before using currentlySpeakingId
+  const { currentlySpeakingId, resetAudio } = useSpokenText();
+  const isAudioPlaying = currentlySpeakingId !== null;
 
   // Initialize audio state from game state
   useEffect(() => {
@@ -113,17 +127,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       setIsAudioGloballyEnabled(gameState.voiceModeEnabled);
     }
   }, [gameState?.voiceModeEnabled]);
-
-  const updateGameState = useCallback((newState: FilteredGameState) => {
-    console.log('[GameContext] updateGameState called:', {
-      gameId: newState.id,
-      phase: newState.phase,
-      round: newState.round,
-      messageCount: newState.log?.length || 0,
-      voiceModeEnabled: newState.voiceModeEnabled,
-    });
-    setGameState(newState);
-  }, []);
 
   const toggleGlobalAudio = useCallback(() => {
     const timestamp = new Date().toLocaleTimeString();
@@ -162,7 +165,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
       return newState;
     });
-  }, [isAudioGloballyEnabled, gameState?.phase, gameState?.voiceModeEnabled]);
+  }, [
+    isAudioGloballyEnabled,
+    gameState?.phase,
+    gameState?.voiceModeEnabled,
+    currentlySpeakingId,
+    resetAudio,
+  ]);
 
   const toggleAutoRun = useCallback(() => {
     console.log(
@@ -171,16 +180,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     );
     setIsAutoRunning((prev) => !prev);
   }, [isAutoRunning]);
-
-  const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [gameSpeed, setGameSpeed] = useState<number>(1);
-
-  // Consume audio status from SpokenTextContext
-  const { currentlySpeakingId, resetAudio } = useSpokenText();
-  const isAudioPlaying = currentlySpeakingId !== null;
 
   const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
 

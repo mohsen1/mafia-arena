@@ -241,7 +241,7 @@ export function GameThemeCustomizer({
         setTheme(importedTheme);
         setHasChanges(true);
         toast.success('Theme imported successfully');
-      } catch (error) {
+      } catch {
         toast.error('Invalid theme file');
       }
     };

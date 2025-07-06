@@ -1,15 +1,13 @@
 'use client';
 
-import { ConversationLog } from '@/components/ConversationLog';
 import { GameSidebar } from '@/components/GameSidebar';
-import HumanChatInput from '@/components/HumanChatInput';
+import { GameTabsLayout } from '@/components/GameTabsLayout';
 import CharacterGenerationUI from '@/components/CharacterGenerationUI';
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
 
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
-import { GameAnalyticsTabs } from '@/components/GameAnalyticsTabs';
 import { Header } from '@/components/Header';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
@@ -17,14 +15,24 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { LanguageCode } from '@/lib/i18n/settings';
-import { Menu } from 'lucide-react';
+import { Menu, User, LogOut, Gamepad2, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GameHeader } from '@/components/GameHeader';
 import { GameNotificationCenter } from '@/components/GameNotificationCenter';
 import { AudioDebugOverlay } from '@/components/AudioDebugOverlay';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useSession, signOut } from 'next-auth/react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
@@ -39,35 +47,17 @@ interface GameClientProps {
 }
 
 function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const direction = i18n.dir(lang);
+  const { data: session } = useSession();
 
-  const {
-    gameState,
-    setGameState,
-    error,
-    clearError,
-    runNextTurn,
-    isAudioGloballyEnabled,
-  } = useGameContext();
+  const { gameState, setGameState, error, clearError, runNextTurn } =
+    useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Track phase changes for notifications
-  const [previousPhase, setPreviousPhase] = useState(gameState?.phase);
-  const [showPhaseNotification, setShowPhaseNotification] = useState(false);
-
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
-
-  useEffect(() => {
-    if (gameState?.phase && gameState.phase !== previousPhase) {
-      setPreviousPhase(gameState.phase);
-      setShowPhaseNotification(true);
-      // Reset the notification trigger after a brief delay
-      setTimeout(() => setShowPhaseNotification(false), 100);
-    }
-  }, [gameState?.phase, previousPhase]);
 
   // Show character generation UI if game is in CharacterGeneration phase
   if (gameState?.phase === 'CharacterGeneration') {
@@ -107,13 +97,27 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
       {humanPlayerId ? (
         // Human player view
         <div className="h-screen bg-background flex flex-col" dir={direction}>
-          <div className="flex-shrink-0 z-50 border-b">
-            <Header currentLang={lang} />
-          </div>
-          {/* Game Header - Full Width */}
-          {gameState && (
-            <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur">
-              <div className="flex items-center px-3 py-1">
+          {/* Unified Header */}
+          <div className="flex-shrink-0 z-50 border-b bg-background/95 backdrop-blur">
+            <div className="flex items-center h-16 px-4">
+              {/* Left side: Logo and control panel */}
+              <div className="flex items-center gap-3">
+                {/* Logo - Navigate to home */}
+                <Link
+                  href={`/${lang}`}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                  <Image
+                    src="/images/logo.png"
+                    alt="Werewolf AI Logo"
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 object-contain"
+                  />
+                  <span className="text-lg font-bold">Werewolf AI</span>
+                </Link>
+
+                {/* Sidebar toggle button */}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -122,16 +126,119 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                 >
                   <Menu className="h-4 w-4" />
                 </Button>
-                <div className="flex-1">
-                  <GameHeader />
+              </div>
+
+              {/* Center: Game info */}
+              {gameState && (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <h1 className="text-sm font-semibold">
+                      {gameState.title || t('WerewolfAITitle')}
+                    </h1>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>
+                        {t('RoundLabel')}:{' '}
+                        <span className="font-medium">{gameState.round}</span>
+                      </span>
+                      <span>•</span>
+                      <span className="font-medium capitalize">
+                        {t(gameState.phase, { defaultValue: gameState.phase })}
+                      </span>
+                      {gameState.winCondition && (
+                        <>
+                          <span>•</span>
+                          <span className="text-success font-medium">
+                            {t(
+                              `Outcome${gameState.winCondition.replace(/\s/g, '')}`,
+                              {
+                                defaultValue: gameState.winCondition,
+                              }
+                            )}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <GameNotificationCenter
-                  gameState={gameState}
-                  className="h-8 w-8"
-                />
+              )}
+
+              {/* Right side: User menu and notifications */}
+              <div className="flex items-center gap-2">
+                {gameState && (
+                  <GameNotificationCenter
+                    gameState={gameState}
+                    className="h-8 w-8"
+                  />
+                )}
+                <ThemeToggle />
+                {session && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center space-x-2"
+                      >
+                        {session.user?.image ? (
+                          <Image
+                            src={session.user.image}
+                            alt={session.user.name || 'User'}
+                            width={24}
+                            height={24}
+                            className="w-6 h-6 rounded-full"
+                            unoptimized
+                          />
+                        ) : (
+                          <User className="w-4 h-4" />
+                        )}
+                        <span className="hidden sm:inline">
+                          {session.user?.name || session.user?.email || 'User'}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={`/${lang}/profile`}
+                          className="flex items-center"
+                        >
+                          <User className="w-4 h-4 me-2" />
+                          {t('common.profile')}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={`/${lang}/games`}
+                          className="flex items-center"
+                        >
+                          <Gamepad2 className="w-4 h-4 me-2" />
+                          {t('common.myGames')}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={`/${lang}/help`}
+                          className="flex items-center"
+                        >
+                          <HelpCircle className="w-4 h-4 me-2" />
+                          {t('common.help')}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => signOut({ callbackUrl: `/${lang}` })}
+                        className="flex items-center"
+                      >
+                        <LogOut className="w-4 h-4 me-2" />
+                        {t('common.signOut')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
-          )}
+          </div>
+
           <div className="flex-1 flex min-h-0">
             <div
               className={cn(
@@ -153,21 +260,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                   />
                 </div>
               )}
-              <div className="flex-1 flex flex-col min-h-0">
-                <ConversationLog />
-                <div className="p-3 border-t bg-background/50 backdrop-blur flex-shrink-0">
-                  {/* Game Analytics in Tabs */}
-                  {gameState && (
-                    <GameAnalyticsTabs
-                      gameState={gameState}
-                      humanPlayerId={humanPlayerId}
-                    />
-                  )}
-                </div>
-              </div>
-              <div className="border-t bg-foreground/5 dark:bg-background/50 backdrop-blur">
-                <HumanChatInput />
-              </div>
+              <GameTabsLayout humanPlayerId={humanPlayerId} />
             </main>
           </div>
         </div>
@@ -212,14 +305,20 @@ export default function GameClient({
   boundSubmitHumanAction,
 }: GameClientProps) {
   return (
+    <GameProvider
+      initialGameState={initialGameState}
+      boundRunGameTurnAction={boundAdvanceGameStateAction}
+      boundSubmitHumanAction={boundSubmitHumanAction}
+    >
+      <GameClientInner gameId={gameId} lang={lang} />
+    </GameProvider>
+  );
+}
+
+function GameClientInner({ gameId, lang }: { gameId: string; lang: string }) {
+  return (
     <SpokenTextProvider>
-      <GameProvider
-        initialGameState={initialGameState}
-        boundRunGameTurnAction={boundAdvanceGameStateAction}
-        boundSubmitHumanAction={boundSubmitHumanAction}
-      >
-        <GameLayout gameId={gameId} lang={lang as LanguageCode} />
-      </GameProvider>
+      <GameLayout gameId={gameId} lang={lang as LanguageCode} />
     </SpokenTextProvider>
   );
 }
