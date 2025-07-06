@@ -77,6 +77,7 @@ export const EnhancedProviderModelSelector = React.memo(
     const [providerStatuses, setProviderStatuses] = useState<
       Record<string, ProviderStatus>
     >({});
+    const [showErrorStatuses, setShowErrorStatuses] = useState(false);
 
     const selectedProvider = useMemo(() => {
       return availableProviders.find((p) => p.value === selectedProviderValue);
@@ -127,10 +128,20 @@ export const EnhancedProviderModelSelector = React.memo(
 
     // Check provider availability when component mounts or providers change
     useEffect(() => {
+      // Add delay before showing error statuses to prevent brief flashes
+      const errorStatusTimer = setTimeout(() => {
+        setShowErrorStatuses(true);
+      }, 500); // 500ms delay before showing error messages
+
       const checkProviderStatus = async (provider: string, retryCount = 0) => {
+        // Initialize with checking state (don't show as unavailable immediately)
         setProviderStatuses((prev) => ({
           ...prev,
-          [provider]: { available: false, checking: true },
+          [provider]: {
+            available: true,
+            checking: true,
+            message: 'Checking...',
+          },
         }));
 
         try {
@@ -153,7 +164,7 @@ export const EnhancedProviderModelSelector = React.memo(
             }
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
 
             try {
               const response = await fetch('http://localhost:11434/api/tags', {
@@ -167,7 +178,7 @@ export const EnhancedProviderModelSelector = React.memo(
                 [provider]: {
                   available,
                   checking: false,
-                  message: available ? 'Connected' : 'Not running',
+                  message: available ? 'Ready' : 'Not running',
                 },
               }));
             } catch {
@@ -220,6 +231,10 @@ export const EnhancedProviderModelSelector = React.memo(
       availableProviders.forEach((provider) => {
         checkProviderStatus(provider.value);
       });
+
+      return () => {
+        clearTimeout(errorStatusTimer);
+      };
     }, [availableProviders]);
 
     const getProviderIcon = (provider: string) => {
@@ -247,6 +262,15 @@ export const EnhancedProviderModelSelector = React.memo(
       if (status.available)
         return <CheckCircle2 className="h-3 w-3 text-green-500" />;
       return <AlertCircle className="h-3 w-3 text-yellow-500" />;
+    };
+
+    const getProviderStatusMessage = (status: ProviderStatus | undefined) => {
+      if (!status) return null;
+      if (status.checking) return 'Checking...';
+      if (status.available) return status.message || 'Ready';
+      // Only show error messages after delay
+      if (!showErrorStatuses) return 'Checking...';
+      return status.message || 'Unavailable';
     };
 
     const getSourceBadgeVariant = (source: string) => {
@@ -348,7 +372,7 @@ export const EnhancedProviderModelSelector = React.memo(
                           </span>
                           {status && (
                             <span className="text-xs text-muted-foreground">
-                              ({status.message})
+                              ({getProviderStatusMessage(status)})
                             </span>
                           )}
                         </div>
