@@ -22,6 +22,7 @@ import React, {
   useCallback,
 } from 'react';
 import { useSpokenText } from '@/context/SpokenTextContext';
+import { useGameContext } from '@/context/GameContext';
 import { Volume2, VolumeX, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
@@ -35,6 +36,7 @@ interface SpeakTextProps {
   className?: string;
   showControls?: boolean;
   isAudioGloballyEnabled?: boolean;
+  messageId?: string; // Add messageId to uniquely identify playback
 }
 
 // Deduplication cache for in-flight requests
@@ -254,6 +256,7 @@ const SpeakText = React.memo<SpeakTextProps>(
     className = '',
     showControls = false,
     isAudioGloballyEnabled = true,
+    messageId,
   }) => {
     const { t: _t } = useTranslation();
     const log = console.log.bind(console, '[SpeakText]');
@@ -292,6 +295,11 @@ const SpeakText = React.memo<SpeakTextProps>(
       doneSpeaking,
       markAsPlaying,
     } = useSpokenText();
+
+    const gameContext = useGameContext();
+    const { registerAudioPlayback, reportAudioFinished: reportAudioToGame } =
+      gameContext;
+    const hasRegisteredRef = useRef(false);
 
     // Log initial mount
     React.useEffect(() => {
@@ -397,6 +405,8 @@ const SpeakText = React.memo<SpeakTextProps>(
       isMountedRef.current = true;
       return () => {
         isMountedRef.current = false;
+
+        // Clean up audio
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current.src = '';
@@ -405,8 +415,18 @@ const SpeakText = React.memo<SpeakTextProps>(
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
         }
+
+        // Report to GameContext if we were playing
+        if (messageId && autoPlay && hasRegisteredRef.current) {
+          reportAudioToGame(messageId);
+          hasRegisteredRef.current = false;
+          logAudioEvent('REPORTED_ON_UNMOUNT', {
+            messageId,
+            audioId: audioIdRef.current,
+          });
+        }
       };
-    }, []); // Empty dependencies - only run on mount/unmount
+    }, [messageId, autoPlay, reportAudioToGame]); // Add dependencies
 
     // Enhanced audio logging with performance metrics
     const logAudioEvent = (
@@ -646,6 +666,16 @@ const SpeakText = React.memo<SpeakTextProps>(
             isPlayingRef.current = true;
             setIsPlaying(true);
             logAudioEvent('PLAY', { audioId: audioIdRef.current });
+
+            // Register with GameContext if messageId is provided
+            if (messageId && autoPlay && !hasRegisteredRef.current) {
+              hasRegisteredRef.current = true;
+              registerAudioPlayback(messageId);
+              logAudioEvent('REGISTERED_WITH_GAME', {
+                messageId,
+                audioId: audioIdRef.current,
+              });
+            }
           });
 
           audioElement.addEventListener('playing', () => {
@@ -680,6 +710,16 @@ const SpeakText = React.memo<SpeakTextProps>(
             }
 
             doneSpeaking(audioIdRef.current);
+
+            // Report to GameContext if messageId is provided
+            if (messageId && autoPlay && hasRegisteredRef.current) {
+              reportAudioToGame(messageId);
+              hasRegisteredRef.current = false;
+              logAudioEvent('REPORTED_TO_GAME', {
+                messageId,
+                audioId: audioIdRef.current,
+              });
+            }
           });
 
           audioElement.addEventListener('timeupdate', () => {
@@ -719,6 +759,16 @@ const SpeakText = React.memo<SpeakTextProps>(
 
             if (onComplete) {
               onComplete();
+            }
+
+            // Report to GameContext on error if registered
+            if (messageId && autoPlay && hasRegisteredRef.current) {
+              reportAudioToGame(messageId);
+              hasRegisteredRef.current = false;
+              logAudioEvent('REPORTED_ON_ERROR', {
+                messageId,
+                audioId: audioIdRef.current,
+              });
             }
           });
 
@@ -761,6 +811,16 @@ const SpeakText = React.memo<SpeakTextProps>(
           if (onComplete) {
             onComplete();
           }
+
+          // Report to GameContext on play failure if registered
+          if (messageId && autoPlay && hasRegisteredRef.current) {
+            reportAudioToGame(messageId);
+            hasRegisteredRef.current = false;
+            logAudioEvent('REPORTED_ON_PLAY_FAILURE', {
+              messageId,
+              audioId: audioIdRef.current,
+            });
+          }
         }
       } catch (error: any) {
         logError('HANDLE_SPEAK_ERROR', {
@@ -786,6 +846,10 @@ const SpeakText = React.memo<SpeakTextProps>(
       currentlySpeakingId,
       fetchAudioWithDeduplication,
       doneSpeaking,
+      messageId,
+      autoPlay,
+      registerAudioPlayback,
+      reportAudioToGame,
     ]);
 
     // Monitor audio state changes
@@ -906,7 +970,17 @@ const SpeakText = React.memo<SpeakTextProps>(
       setCurrentWordIndex(-1);
       setStatus('idle');
       doneSpeaking(audioIdRef.current);
-    }, [doneSpeaking]);
+
+      // Report to GameContext on manual stop if registered
+      if (messageId && autoPlay && hasRegisteredRef.current) {
+        reportAudioToGame(messageId);
+        hasRegisteredRef.current = false;
+        logAudioEvent('REPORTED_ON_STOP', {
+          messageId,
+          audioId: audioIdRef.current,
+        });
+      }
+    }, [doneSpeaking, messageId, autoPlay, reportAudioToGame]);
 
     // Memoize words for performance
     const words = useMemo(() => text.split(' '), [text]);
