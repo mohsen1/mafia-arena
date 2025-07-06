@@ -4,7 +4,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { DynamicAvatar } from './ui/dynamic-avatar';
 import { MemoizedReactMarkdown } from './MemoizedReactMarkdown';
-import { SpeakText } from './SpeakText';
+import SpeakText from './SpeakText';
 import type {
   ClientMessage,
   FilteredPlayer,
@@ -13,6 +13,8 @@ import type {
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import Image from 'next/image';
 import { useGameContext } from '@/context/GameContext';
+import { useTranslation } from 'react-i18next';
+import { useSpokenText } from '@/context/SpokenTextContext';
 
 interface MessageBubbleProps {
   message: ClientMessage;
@@ -39,6 +41,7 @@ const MessageBubbleComponent = ({
   shouldAutoPlay = true,
 }: MessageBubbleProps) => {
   const { gameState, isAudioGloballyEnabled } = useGameContext();
+  const { t: _t } = useTranslation();
   const sender = message.senderId ? players[message.senderId] : null;
   const isModeratorMessage =
     message.senderId === 'moderator' || !message.senderId;

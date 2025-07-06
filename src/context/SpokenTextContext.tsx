@@ -261,7 +261,7 @@ export function SpokenTextProvider({ children }: Props) {
       });
     };
 
-    const handleBeforeUnload = (_e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = () => {
       if (currentlySpeakingId) {
         log('⚠️', 'PAGE UNLOAD WITH ACTIVE AUDIO', {
           currentlySpeakingId,
