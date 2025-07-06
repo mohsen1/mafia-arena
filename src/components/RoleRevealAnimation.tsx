@@ -45,7 +45,7 @@ export function RoleRevealAnimation({
       reason,
       timestamp: new Date().toISOString(),
     });
-    
+
     addAudioBreadcrumb('Role reveal animation started', {
       playerName,
       role,
@@ -54,18 +54,18 @@ export function RoleRevealAnimation({
 
     const timer = setTimeout(() => {
       setShowReveal(false);
-      
+
       console.log('[RoleRevealAnimation] 🎭 ROLE REVEAL COMPLETED', {
         playerName,
         role,
         timestamp: new Date().toISOString(),
       });
-      
+
       addAudioBreadcrumb('Role reveal animation completed', {
         playerName,
         role,
       });
-      
+
       onComplete?.();
     }, 5000); // Show for 5 seconds
 

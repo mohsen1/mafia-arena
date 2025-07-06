@@ -13,7 +13,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useSpokenText } from '@/context/SpokenTextContext';
 import { useEffect } from 'react';
-import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 export default function GameController() {
   const { t } = useTranslation();

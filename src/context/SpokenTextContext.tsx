@@ -10,9 +10,10 @@ import React, {
 } from 'react';
 
 interface SpokenTextContextType {
-  requestPermissionToSpeak: (
-    audioId: string,
-  ) => { granted: boolean; reason?: string };
+  requestPermissionToSpeak: (audioId: string) => {
+    granted: boolean;
+    reason?: string;
+  };
   doneSpeaking: (audioId: string) => void;
   resetAudio: () => void;
   currentlySpeakingId: string | null;
@@ -22,7 +23,7 @@ interface SpokenTextContextType {
 }
 
 const SpokenTextContext = createContext<SpokenTextContextType | undefined>(
-  undefined,
+  undefined
 );
 
 // Enhanced logging with colors and emojis
@@ -43,7 +44,7 @@ interface Props {
 
 export function SpokenTextProvider({ children }: Props) {
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState<string | null>(
-    null,
+    null
   );
   const [isProcessingRequest, setIsProcessingRequest] = useState(false);
   const isProcessingRequestRef = useRef(false);
@@ -55,55 +56,58 @@ export function SpokenTextProvider({ children }: Props) {
         audioId,
         currentlySpeakingId,
         isProcessingRequest: isProcessingRequestRef.current,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       // Check if we're already processing a request
       if (isProcessingRequestRef.current) {
-        const result = { 
-          granted: false, 
-          reason: 'Another permission request is being processed' 
+        const result = {
+          granted: false,
+          reason: 'Another permission request is being processed',
         };
         log('🚫', 'PERMISSION DENIED (Processing Lock)', {
           audioId,
-          ...result
+          ...result,
         });
         return result;
       }
 
       // Check if another audio is currently speaking
       if (currentlySpeakingId && currentlySpeakingId !== audioId) {
-        const result = { 
-          granted: false, 
-          reason: `Audio ${currentlySpeakingId} is currently speaking` 
+        const result = {
+          granted: false,
+          reason: `Audio ${currentlySpeakingId} is currently speaking`,
         };
         log('🚫', 'PERMISSION DENIED (Busy)', {
           audioId,
           currentlySpeakingId,
-          ...result
+          ...result,
         });
-        
+
         // Add to queue if not already queued
-        setQueuedRequests(prev => {
+        setQueuedRequests((prev) => {
           if (!prev.includes(audioId)) {
-            log('📋', 'ADDED TO QUEUE', { audioId, queueLength: prev.length + 1 });
+            log('📋', 'ADDED TO QUEUE', {
+              audioId,
+              queueLength: prev.length + 1,
+            });
             return [...prev, audioId];
           }
           return prev;
         });
-        
+
         return result;
       }
 
       // Check if this audio is already speaking
       if (currentlySpeakingId === audioId) {
-        const result = { 
-          granted: true, 
-          reason: 'Already has permission' 
+        const result = {
+          granted: true,
+          reason: 'Already has permission',
         };
         log('✅', 'PERMISSION REDUNDANT', {
           audioId,
-          ...result
+          ...result,
         });
         return result;
       }
@@ -111,10 +115,10 @@ export function SpokenTextProvider({ children }: Props) {
       // Set the processing lock
       isProcessingRequestRef.current = true;
       setIsProcessingRequest(true);
-      
+
       // Grant permission
       setCurrentlySpeakingId(audioId);
-      
+
       // Release the lock
       setTimeout(() => {
         isProcessingRequestRef.current = false;
@@ -125,70 +129,73 @@ export function SpokenTextProvider({ children }: Props) {
       log('✅', 'PERMISSION GRANTED', {
         audioId,
         previousSpeakingId: currentlySpeakingId,
-        ...result
+        ...result,
       });
       return result;
     },
-    [currentlySpeakingId],
+    [currentlySpeakingId]
   );
 
-  const markAsPlaying = useCallback((audioId: string) => {
-    log('🎵', 'MARK AS PLAYING', {
-      audioId,
-      currentlySpeakingId,
-      matches: audioId === currentlySpeakingId
-    });
-    
-    if (audioId === currentlySpeakingId) {
-      log('✅', 'AUDIO CONFIRMED PLAYING', { audioId });
-    } else {
-      log('⚠️', 'UNEXPECTED PLAYING STATE', {
+  const markAsPlaying = useCallback(
+    (audioId: string) => {
+      log('🎵', 'MARK AS PLAYING', {
         audioId,
-        expectedId: currentlySpeakingId,
-        mismatch: true
+        currentlySpeakingId,
+        matches: audioId === currentlySpeakingId,
       });
-    }
-  }, [currentlySpeakingId]);
+
+      if (audioId === currentlySpeakingId) {
+        log('✅', 'AUDIO CONFIRMED PLAYING', { audioId });
+      } else {
+        log('⚠️', 'UNEXPECTED PLAYING STATE', {
+          audioId,
+          expectedId: currentlySpeakingId,
+          mismatch: true,
+        });
+      }
+    },
+    [currentlySpeakingId]
+  );
 
   const doneSpeaking = useCallback(
     (audioId: string) => {
       log('🏁', 'DONE SPEAKING', {
         audioId,
         currentlySpeakingId,
-        wasCurrentlySpeaking: audioId === currentlySpeakingId
+        wasCurrentlySpeaking: audioId === currentlySpeakingId,
       });
 
       if (currentlySpeakingId === audioId) {
         log('🔄', 'CLEARING CURRENT SPEAKER', {
           audioId,
           previousState: currentlySpeakingId,
-          newState: null
+          newState: null,
         });
         setCurrentlySpeakingId(null);
       } else {
         log('⚠️', 'DONE SPEAKING MISMATCH', {
           reportedId: audioId,
           currentId: currentlySpeakingId,
-          action: 'Ignoring - not the current speaker'
+          action: 'Ignoring - not the current speaker',
         });
       }
     },
-    [currentlySpeakingId],
+    [currentlySpeakingId]
   );
 
   const resetAudio = useCallback(() => {
     log('🔄', 'RESET AUDIO', {
       previousSpeakingId: currentlySpeakingId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
-    
+
     if (currentlySpeakingId) {
       log('🛑', 'FORCE STOPPING AUDIO', {
         audioId: currentlySpeakingId,
-        action: 'Clearing current speaker'
+        action: 'Clearing current speaker',
       });
     }
-    
+
     setCurrentlySpeakingId(null);
     isProcessingRequestRef.current = false;
     setIsProcessingRequest(false);
@@ -199,20 +206,20 @@ export function SpokenTextProvider({ children }: Props) {
     log('📊', 'CONTEXT STATE UPDATE', {
       currentlySpeakingId,
       isProcessingRequest,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }, [currentlySpeakingId, isProcessingRequest]);
 
   // Log provider mount/unmount
   React.useEffect(() => {
     log('🚀', 'PROVIDER MOUNTED', {
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     return () => {
       log('💥', 'PROVIDER UNMOUNTING', {
         currentlySpeakingId,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     };
   }, []);
@@ -273,9 +280,13 @@ export function SpokenTextProvider({ children }: Props) {
           currentlySpeakingId,
           timestamp: Date.now(),
         });
-        
+
         // If another tab is playing audio, we should stop ours
-        if (e.newValue && e.newValue !== currentlySpeakingId && currentlySpeakingId) {
+        if (
+          e.newValue &&
+          e.newValue !== currentlySpeakingId &&
+          currentlySpeakingId
+        ) {
           log('🛑', 'STOPPING AUDIO FOR MULTI-TAB SYNC', {
             ourAudioId: currentlySpeakingId,
             otherTabAudioId: e.newValue,
@@ -323,7 +334,10 @@ export function SpokenTextProvider({ children }: Props) {
           timestamp: Date.now(),
         });
       } catch (e) {
-        console.error('[SpokenTextContext] Failed to remove from localStorage:', e);
+        console.error(
+          '[SpokenTextContext] Failed to remove from localStorage:',
+          e
+        );
       }
     }
   }, [currentlySpeakingId]);
@@ -341,7 +355,7 @@ export function SpokenTextProvider({ children }: Props) {
   log('🔄', 'PROVIDER RENDER', {
     currentlySpeakingId,
     isProcessingRequest,
-    hasChildren: !!children
+    hasChildren: !!children,
   });
 
   return (

@@ -95,7 +95,9 @@ export function useKeyboardShortcuts() {
 
         if (keyMatch && ctrlMatch && shiftMatch && altMatch) {
           event.preventDefault();
-          addAudioBreadcrumb(`Keyboard: ${shortcut.description}`, { key: shortcut.key });
+          addAudioBreadcrumb(`Keyboard: ${shortcut.description}`, {
+            key: shortcut.key,
+          });
           shortcut.action();
           break;
         }

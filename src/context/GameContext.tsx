@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, {
   createContext,
@@ -6,35 +6,22 @@ import React, {
   useState,
   useCallback,
   useEffect,
-} from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  loadGameState,
-  handleNextTurn,
-  updateGamePlayer,
-  sendGameMessage,
-  endGame,
-  handleVoteSubmission,
-  handleNightAction,
-  restartGame,
-} from "@/app/actions/gameplay.actions";
-import { GameState } from "@/lib/engine/interfaces/GameState";
-import { HumanMessage } from "@/lib/interfaces/actions.types";
-import { createOrJoinGameSession } from "@/app/actions/management.actions";
-import { getUserData } from "@/app/actions/user.actions";
-import { User } from "@/lib/db/schema";
-import { useSpokenText } from "@/context/SpokenTextContext";
+} from 'react';
+
+import { useSpokenText } from '@/context/SpokenTextContext';
 
 // Add comprehensive logging helper
-const PHASE_LOG_PREFIX = "[GameContext Phase]";
+const PHASE_LOG_PREFIX = '[GameContext Phase]';
 const log = (phase: string, details: any) => {
-  const timestamp = new Date().toLocaleTimeString("en-US", {
+  const timestamp = new Date().toLocaleTimeString('en-US', {
     hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
-  console.log(`${PHASE_LOG_PREFIX} ${timestamp} ${phase}: ${JSON.stringify(details)}`);
+  console.log(
+    `${PHASE_LOG_PREFIX} ${timestamp} ${phase}: ${JSON.stringify(details)}`
+  );
 };
 
 export interface GameContextType {
@@ -150,7 +137,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         voiceModeEnabled: gameState?.voiceModeEnabled,
       }
     );
-    
+
     setIsAudioGloballyEnabled((prev) => {
       const newState = !prev;
       console.log(
@@ -159,15 +146,20 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         {
           previousState: prev,
           newState,
-          action: newState ? 'Audio enabled - new messages will have voice' : 'Audio muted - stopping current playback',
+          action: newState
+            ? 'Audio enabled - new messages will have voice'
+            : 'Audio muted - stopping current playback',
         }
       );
-      
+
       if (!newState && currentlySpeakingId) {
-        console.log(`[GameContext] ${timestamp} 🔇 Stopping audio due to mute:`, currentlySpeakingId);
+        console.log(
+          `[GameContext] ${timestamp} 🔇 Stopping audio due to mute:`,
+          currentlySpeakingId
+        );
         resetAudio();
       }
-      
+
       return newState;
     });
   }, [isAudioGloballyEnabled, gameState?.phase, gameState?.voiceModeEnabled]);
@@ -219,34 +211,36 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const runNextTurnAction = useCallback(async () => {
     const oldPhase = gameState?.phase;
     const oldRound = gameState?.round;
-    
-    log("🚀 PHASE TRANSITION START", {
+
+    log('🚀 PHASE TRANSITION START', {
       currentPhase: oldPhase,
       round: oldRound,
       currentlySpeakingId,
       isAutoRunning,
       isAudioPlaying: !!currentlySpeakingId,
     });
-    
+
     setIsLoadingNextTurn(true);
     setIsSaving(true);
     setError(null);
     try {
       const result = await boundRunGameTurnAction();
-      
+
       // Enhanced error logging to diagnose structure issues
       if (result && typeof result === 'object') {
-        log("📦 PHASE TRANSITION RESULT STRUCTURE", {
+        log('📦 PHASE TRANSITION RESULT STRUCTURE', {
           hasError: 'error' in result,
           keys: Object.keys(result),
-          playersType: Array.isArray(result.players) ? 'array' : typeof result.players,
+          playersType: Array.isArray(result.players)
+            ? 'array'
+            : typeof result.players,
           playersValue: result.players,
           resultSample: JSON.stringify(result).substring(0, 200) + '...',
         });
       }
-      
+
       if (result && 'error' in result) {
-        log("❌ PHASE TRANSITION ERROR", {
+        log('❌ PHASE TRANSITION ERROR', {
           error: result.error,
           phase: oldPhase,
           resultType: typeof result,
@@ -256,26 +250,29 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       } else if (result) {
         const phaseChanged = result.phase !== oldPhase;
         const roundChanged = result.round !== oldRound;
-        
-        log("✅ PHASE TRANSITION SUCCESS", {
+
+        log('✅ PHASE TRANSITION SUCCESS', {
           oldPhase,
           newPhase: result.phase,
           phaseChanged,
           oldRound,
           newRound: result.round,
           roundChanged,
-                      livingPlayersCount: Object.values(result.players).filter((p: any) => p.status === 'Alive').length,
+          livingPlayersCount: Object.values(result.players).filter(
+            (p: any) => p.status === 'Alive'
+          ).length,
           winner: result.winner,
           gameOver: result.gameOver,
-          messagesAdded: (result.log?.length || 0) - (gameState?.log?.length || 0),
+          messagesAdded:
+            (result.log?.length || 0) - (gameState?.log?.length || 0),
         });
-        
+
         setGameState(result);
         setLastSaved(new Date());
-        
+
         if (result.gameOver) {
           setIsAutoRunning(false);
-          log("🏁 GAME ENDED", {
+          log('🏁 GAME ENDED', {
             winner: result.winner,
             phase: result.phase,
           });
@@ -285,7 +282,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      log("❌ PHASE TRANSITION EXCEPTION", {
+      log('❌ PHASE TRANSITION EXCEPTION', {
         error: errorMessage,
         phase: oldPhase,
       });
@@ -304,7 +301,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   // Enhanced auto-run effect with phase logging
   useEffect(() => {
     if (!isAutoRunning || !gameState || isLoadingNextTurn) {
-      log("⏸️ AUTO-RUN BLOCKED", {
+      log('⏸️ AUTO-RUN BLOCKED', {
         isAutoRunning,
         hasGameState: !!gameState,
         isLoadingNextTurn,
@@ -323,22 +320,29 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         currentlySpeakingId,
       };
 
-      const canProgress = !gameState?.pendingHumanAction && 
-                          gameState?.phase !== 'GameOver' && 
-                          !currentlySpeakingId;
-      
+      const canProgress =
+        !gameState?.pendingHumanAction &&
+        gameState?.phase !== 'GameOver' &&
+        !currentlySpeakingId;
+
       if (canProgress) {
-        console.log("[GameContext] 16:31:26 Auto-run check PASSED - advancing turn", conditions);
-        log("▶️ AUTO-ADVANCING", conditions);
+        console.log(
+          '[GameContext] 16:31:26 Auto-run check PASSED - advancing turn',
+          conditions
+        );
+        log('▶️ AUTO-ADVANCING', conditions);
         runNextTurnAction();
       } else {
-        console.log("[GameContext] 16:31:26 Auto-run check FAILED:", conditions);
-        log("⏳ AUTO-RUN WAITING", conditions);
+        console.log(
+          '[GameContext] 16:31:26 Auto-run check FAILED:',
+          conditions
+        );
+        log('⏳ AUTO-RUN WAITING', conditions);
       }
     };
 
     const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-    
+
     const shouldRun =
       isAutoRunning &&
       !isLoadingNextTurn &&
@@ -362,7 +366,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
     // Delay depends on whether voice mode is enabled (shorter delay when voice just finished)
     const delay = isAudioGloballyEnabled ? 500 : 1500;
-    
+
     console.log(`[GameContext] ${timestamp} Auto-run scheduling next turn:`, {
       delay,
       isAudioGloballyEnabled,
@@ -371,7 +375,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     });
 
     const timerId = setTimeout(() => {
-      const checkTimestamp = new Date().toISOString().split('T')[1].split('.')[0];
+      const checkTimestamp = new Date()
+        .toISOString()
+        .split('T')[1]
+        .split('.')[0];
       const stillValid =
         isAutoRunning &&
         !isLoadingNextTurn &&
@@ -381,17 +388,22 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         !currentlySpeakingId; // ensure no new audio started
 
       if (stillValid) {
-        console.log(`[GameContext] ${checkTimestamp} ✅ AUTO-RUN executing next turn (after ${delay}ms delay)`);
+        console.log(
+          `[GameContext] ${checkTimestamp} ✅ AUTO-RUN executing next turn (after ${delay}ms delay)`
+        );
         checkAutoRun();
       } else {
-        console.log(`[GameContext] ${checkTimestamp} ❌ AUTO-RUN cancelled, conditions changed:`, {
-          isAutoRunning,
-          isLoadingNextTurn,
-          hasGameState: !!gameState,
-          pendingHumanAction: gameState?.pendingHumanAction,
-          phase: gameState?.phase,
-          currentlySpeakingId,
-        });
+        console.log(
+          `[GameContext] ${checkTimestamp} ❌ AUTO-RUN cancelled, conditions changed:`,
+          {
+            isAutoRunning,
+            isLoadingNextTurn,
+            hasGameState: !!gameState,
+            pendingHumanAction: gameState?.pendingHumanAction,
+            phase: gameState?.phase,
+            currentlySpeakingId,
+          }
+        );
       }
     }, delay / gameSpeed);
 

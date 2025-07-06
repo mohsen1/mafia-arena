@@ -72,7 +72,9 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
           isAlive,
           timestamp: new Date().toISOString(),
         });
-        addAudioBreadcrumb('Quick message action triggered', { phase: currentPhase });
+        addAudioBreadcrumb('Quick message action triggered', {
+          phase: currentPhase,
+        });
         // Show message templates
         setSelectedAction('message');
       },
@@ -91,7 +93,9 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
           humanPlayerId,
           timestamp: new Date().toISOString(),
         });
-        addAudioBreadcrumb('Quick vote action triggered', { phase: currentPhase });
+        addAudioBreadcrumb('Quick vote action triggered', {
+          phase: currentPhase,
+        });
         // Show voting UI
         setSelectedAction('vote');
       },
@@ -113,7 +117,9 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
           phase: currentPhase,
           timestamp: new Date().toISOString(),
         });
-        addAudioBreadcrumb('Doctor protect action triggered', { phase: currentPhase });
+        addAudioBreadcrumb('Doctor protect action triggered', {
+          phase: currentPhase,
+        });
         setSelectedAction('protect');
       },
       available:
@@ -138,7 +144,9 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
           phase: currentPhase,
           timestamp: new Date().toISOString(),
         });
-        addAudioBreadcrumb('Seer investigate action triggered', { phase: currentPhase });
+        addAudioBreadcrumb('Seer investigate action triggered', {
+          phase: currentPhase,
+        });
         setSelectedAction('investigate');
       },
       available:
@@ -166,7 +174,9 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
           isMafia: humanPlayer?.isMafia,
           timestamp: new Date().toISOString(),
         });
-        addAudioBreadcrumb('Mafia eliminate action triggered', { phase: currentPhase });
+        addAudioBreadcrumb('Mafia eliminate action triggered', {
+          phase: currentPhase,
+        });
         setSelectedAction('eliminate');
       },
       available:

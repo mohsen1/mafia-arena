@@ -146,13 +146,17 @@ export function VotingPanel({
     console.log('[VotingPanel] 🗳️ VOTE SUBMITTED:', {
       voter: humanPlayerId,
       target: selectedTarget,
-      targetName: selectedTarget ? gameState.players[selectedTarget]?.name : 'Abstain',
+      targetName: selectedTarget
+        ? gameState.players[selectedTarget]?.name
+        : 'Abstain',
       timestamp: new Date().toISOString(),
     });
-    
-    addAudioBreadcrumb('Vote submitted', { 
+
+    addAudioBreadcrumb('Vote submitted', {
       target: selectedTarget,
-      targetName: selectedTarget ? gameState.players[selectedTarget]?.name : 'Abstain' 
+      targetName: selectedTarget
+        ? gameState.players[selectedTarget]?.name
+        : 'Abstain',
     });
 
     try {
@@ -169,7 +173,14 @@ export function VotingPanel({
       console.error('Failed to submit vote:', error);
       setHasVoted(false);
     }
-  }, [canVote, submitHumanAction, humanPlayerId, selectedTarget, onVote, gameState.players]);
+  }, [
+    canVote,
+    submitHumanAction,
+    humanPlayerId,
+    selectedTarget,
+    onVote,
+    gameState.players,
+  ]);
 
   const getPlayerVoteStatus = useCallback(
     (playerId: string) => {

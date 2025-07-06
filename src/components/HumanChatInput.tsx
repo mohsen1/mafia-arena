@@ -70,7 +70,7 @@ export default function HumanChatInput() {
             setIsSubmitting(false);
             return;
           }
-          
+
           // Log user message submission
           console.log('[HumanChatInput] 💬 USER MESSAGE SUBMITTED:', {
             messageContent: message,
@@ -79,12 +79,12 @@ export default function HumanChatInput() {
             playerId: humanPlayerId,
             gamePhase: gameState?.phase,
           });
-          
-          addAudioBreadcrumb('User message sent', { 
+
+          addAudioBreadcrumb('User message sent', {
             length: message.length,
-            phase: gameState?.phase 
+            phase: gameState?.phase,
           });
-          
+
           payload = {
             playerId: humanPlayerId,
             type: 'message',
@@ -96,7 +96,7 @@ export default function HumanChatInput() {
             setIsSubmitting(false);
             return;
           }
-          
+
           // Log vote submission
           console.log('[HumanChatInput] 🗳️ VOTE SUBMITTED:', {
             voter: humanPlayerId,
@@ -104,12 +104,12 @@ export default function HumanChatInput() {
             timestamp: new Date().toISOString(),
             gamePhase: gameState?.phase,
           });
-          
-          addAudioBreadcrumb('Vote submitted', { 
+
+          addAudioBreadcrumb('Vote submitted', {
             target: selectedTarget,
-            phase: gameState?.phase 
+            phase: gameState?.phase,
           });
-          
+
           payload = {
             playerId: humanPlayerId,
             type: 'vote',
