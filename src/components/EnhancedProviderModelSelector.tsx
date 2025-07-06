@@ -444,7 +444,9 @@ export const EnhancedProviderModelSelector = React.memo(
                         className="py-3 px-3"
                       >
                         <div className="flex flex-col gap-1">
-                          <span className="font-medium leading-tight">{model.title}</span>
+                          <span className="font-medium leading-tight">
+                            {model.title}
+                          </span>
                           {model.value.includes('gpt-4') && (
                             <span className="text-xs text-muted-foreground leading-relaxed">
                               Advanced reasoning

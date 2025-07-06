@@ -76,7 +76,7 @@ const nextConfig = {
               style-src 'self' 'unsafe-inline';
               img-src 'self' data: https: blob: http://localhost:*;
               font-src 'self' data:;
-              connect-src 'self' https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.groq.com https://api.fireworks.ai https://api.elevenlabs.io https://vitals.vercel-insights.com https://vercel.live wss://vercel.live ${process.env.NODE_ENV === 'development' ? 'http://localhost:*' : ''};
+              connect-src 'self' https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.groq.com https://api.fireworks.ai https://api.elevenlabs.io https://vitals.vercel-insights.com https://vercel.live wss://vercel.live https://*.ingest.sentry.io ${process.env.NODE_ENV === 'development' ? 'http://localhost:*' : ''};
               media-src 'self' blob:;
               object-src 'none';
               frame-src 'none';

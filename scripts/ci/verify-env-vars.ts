@@ -189,6 +189,31 @@ const envVarChecks: EnvVarCheck[] = [
     category: 'Rate Limiting',
     description: 'Upstash KV REST API token',
     environments: ['production']
+  },
+  
+  // Error Tracking
+  {
+    name: 'SENTRY_DSN',
+    required: false,
+    category: 'Error Tracking',
+    description: 'Sentry DSN for error tracking',
+    format: /^https:\/\/.+@.+\.ingest\.sentry\.io\/.+$/,
+    environments: ['production', 'preview']
+  },
+  {
+    name: 'SENTRY_TOKEN',
+    required: false,
+    category: 'Error Tracking',
+    description: 'Sentry auth token for releases',
+    environments: ['production', 'preview']
+  },
+  {
+    name: 'NEXT_PUBLIC_SENTRY_DSN',
+    required: false,
+    category: 'Error Tracking',
+    description: 'Sentry DSN for client-side error tracking',
+    format: /^https:\/\/.+@.+\.ingest\.sentry\.io\/.+$/,
+    environments: ['production', 'preview']
   }
 ];
 

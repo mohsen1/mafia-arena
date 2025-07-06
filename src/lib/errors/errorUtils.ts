@@ -19,11 +19,11 @@ export function getErrorMessage(error: unknown): string {
 /**
  * Log error with context information
  */
-export function logError(
+export async function logError(
   context: string,
   error: unknown,
   additionalInfo?: Record<string, unknown>
-): void {
+): Promise<void> {
   const timestamp = new Date().toISOString();
   const errorInfo = {
     timestamp,
@@ -53,6 +53,29 @@ export function logError(
   } else {
     // In production, send to error tracking service
     console.error(`[${context}] ${getErrorMessage(error)}`);
+
+    // Send to Sentry if available
+    try {
+      if (typeof window !== 'undefined' && window.Sentry) {
+        // Client-side Sentry
+        window.Sentry.captureException(error, {
+          tags: { context },
+          extra: additionalInfo,
+        });
+      } else {
+        // Server-side Sentry - only load if DSN is configured
+        if (process.env.SENTRY_DSN) {
+          const { captureException } = await import('@sentry/nextjs');
+          captureException(error, {
+            tags: { context },
+            extra: additionalInfo,
+          });
+        }
+      }
+    } catch (sentryError) {
+      // Don't let Sentry errors break the application
+      console.warn('Failed to send error to Sentry:', sentryError);
+    }
   }
 }
 

@@ -97,6 +97,19 @@ You must provide at least one of the following API keys:
   - Required for Upstash rate limiting
   - ✅ Should be set for: Production
 
+#### Error Tracking (Optional)
+- [ ] `SENTRY_DSN`
+  - Required for server-side error tracking with Sentry
+  - ✅ Should be set for: Production, Preview
+
+- [ ] `SENTRY_TOKEN`
+  - Required for Sentry releases and sourcemaps
+  - ✅ Should be set for: Production, Preview
+
+- [ ] `NEXT_PUBLIC_SENTRY_DSN`
+  - Required for client-side error tracking with Sentry
+  - ✅ Should be set for: Production, Preview
+
 ## How to Set Environment Variables in Vercel
 
 1. Go to your project in Vercel Dashboard
