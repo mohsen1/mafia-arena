@@ -30,9 +30,20 @@ export function ConversationLog() {
   const autoScrollRef = useRef<boolean>(true);
   const { t } = useTranslation(); // Use the hook
 
+  // Create a storage key based on gameId to isolate counts per game
+  const storageKey = useMemo(
+    () => `werewolf-initial-message-count-${gameState?.id || 'unknown'}`,
+    [gameState?.id]
+  );
+
   // Track the initial message count to determine which messages are "new"
+  // Use sessionStorage to persist across hot reloads but reset on page refresh
   const [initialMessageCount, setInitialMessageCount] = useState<number | null>(
-    null
+    () => {
+      if (typeof window === 'undefined') return null;
+      const stored = sessionStorage.getItem(storageKey);
+      return stored ? parseInt(stored, 10) : null;
+    }
   );
 
   // Memoize the visibility check function
@@ -72,13 +83,18 @@ export function ConversationLog() {
   // Set initial message count on first render with messages
   useEffect(() => {
     if (initialMessageCount === null && displayLogMemo.length > 0) {
+      const count = displayLogMemo.length;
       console.log(
         '[ConversationLog] Setting initial message count:',
-        displayLogMemo.length
+        count
       );
-      setInitialMessageCount(displayLogMemo.length);
+      setInitialMessageCount(count);
+      // Store in sessionStorage to persist across hot reloads
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(storageKey, count.toString());
+      }
     }
-  }, [initialMessageCount, displayLogMemo.length]);
+  }, [initialMessageCount, displayLogMemo.length, storageKey]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -96,6 +112,21 @@ export function ConversationLog() {
     autoScrollRef.current = isAtBottom;
   }, []);
 
+  // Clear stored count when game ID changes (switching games)
+  useEffect(() => {
+    // When game ID changes, clear any previous stored count
+    const currentGameId = gameState?.id;
+    if (currentGameId && typeof window !== 'undefined') {
+      // Clear any other game's stored counts
+      const keys = Object.keys(sessionStorage);
+      keys.forEach(key => {
+        if (key.startsWith('werewolf-initial-message-count-') && !key.endsWith(currentGameId)) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    }
+  }, [gameState?.id]);
+
   if (!gameState) {
     return <div>{t('LoadingLog', 'Loading conversation...')}</div>;
   }
@@ -105,7 +136,7 @@ export function ConversationLog() {
 
   // Log render details
   log('🔄', 'RENDER', {
-    totalMessages: gameState.conversationLog?.length || 0,
+    totalMessages: gameState.log?.length || 0,
     initialMessageCount,
     groupedMessagesCount: displayLogMemo?.length || 0,
     voiceModeEnabled: gameState.voiceModeEnabled,
