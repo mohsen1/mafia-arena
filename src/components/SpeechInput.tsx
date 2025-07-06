@@ -21,32 +21,33 @@ declare global {
   }
 }
 
-export function SpeechInput({ 
-  onTranscript, 
+export function SpeechInput({
+  onTranscript,
   onInterimTranscript,
   className,
   mode = 'push-to-talk',
-  placeholder = 'Click microphone to speak...'
+  placeholder = 'Click microphone to speak...',
 }: SpeechInputProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
-  
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
         setIsSupported(true);
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = mode === 'continuous';
         recognitionRef.current.interimResults = true;
         recognitionRef.current.lang = 'en-US'; // Can be made configurable
-        
+
         recognitionRef.current.onresult = (event: any) => {
           let finalTranscript = '';
           let interimTranscript = '';
-          
+
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
@@ -55,7 +56,7 @@ export function SpeechInput({
               interimTranscript += transcript;
             }
           }
-          
+
           if (finalTranscript) {
             setTranscript(finalTranscript);
             onTranscript(finalTranscript);
@@ -64,21 +65,23 @@ export function SpeechInput({
             onInterimTranscript(interimTranscript);
           }
         };
-        
+
         recognitionRef.current.onerror = (event: any) => {
           console.error('Speech recognition error:', event.error);
           setIsListening(false);
-          
+
           // Handle specific errors
           if (event.error === 'no-speech') {
             setTranscript('No speech detected. Please try again.');
           } else if (event.error === 'not-allowed') {
-            setTranscript('Microphone access denied. Please enable microphone permissions.');
+            setTranscript(
+              'Microphone access denied. Please enable microphone permissions.'
+            );
           } else {
             setTranscript(`Error: ${event.error}`);
           }
         };
-        
+
         recognitionRef.current.onend = () => {
           setIsListening(false);
           if (mode === 'continuous' && isListening) {
@@ -88,17 +91,17 @@ export function SpeechInput({
         };
       }
     }
-    
+
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
     };
   }, [mode, onTranscript, onInterimTranscript, isListening]);
-  
+
   const toggleListening = () => {
     if (!recognitionRef.current) return;
-    
+
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -108,24 +111,25 @@ export function SpeechInput({
       setIsListening(true);
     }
   };
-  
+
   if (!isSupported) {
     return (
-      <div className={cn("text-sm text-muted-foreground", className)}>
-        Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.
+      <div className={cn('text-sm text-muted-foreground', className)}>
+        Speech recognition is not supported in your browser. Please use Chrome,
+        Edge, or Safari.
       </div>
     );
   }
-  
+
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn('flex items-center gap-2', className)}>
       <Button
         type="button"
-        variant={isListening ? "destructive" : "outline"}
+        variant={isListening ? 'destructive' : 'outline'}
         size="icon"
         onClick={toggleListening}
         className="relative"
-        title={isListening ? "Stop recording" : "Start recording"}
+        title={isListening ? 'Stop recording' : 'Start recording'}
       >
         {isListening ? (
           <>
@@ -136,7 +140,7 @@ export function SpeechInput({
           <Mic className="w-4 h-4" />
         )}
       </Button>
-      
+
       <div className="flex-1">
         {transcript ? (
           <p className="text-sm">{transcript}</p>
@@ -144,10 +148,10 @@ export function SpeechInput({
           <p className="text-sm text-muted-foreground italic">{placeholder}</p>
         )}
       </div>
-      
+
       {isListening && (
         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
       )}
     </div>
   );
-} 
+}

@@ -1,116 +1,135 @@
-# Manual Voice Game Testing Guide
+# 🎮 MANUAL AUDIO TESTING INSTRUCTIONS
 
-This guide will help you manually test the voice functionality in Werewolf AI.
+## Status: Enhanced Logging Added ✅
 
-## Prerequisites
+I've added extensive timestamped logging with emojis to all audio components. Now you can manually test the audio coordination to see exactly what's happening.
 
-1. Ensure the development server is running:
-   ```bash
-   pnpm dev
-   ```
+## 🚀 Quick Test Steps
 
-2. Ensure you have set up your ElevenLabs API key in `.env.local`:
-   ```
-   NEXT_PUBLIC_ELEVENLABS_API_KEY=your_api_key_here
-   ```
+### 1. Open the App
+- **URL:** http://localhost:3099
+- **Dev Server:** Already running on port 3099
 
-## Testing Steps
+### 2. Open Browser Dev Tools
+- Press `F12` or `Cmd+Option+I`
+- Go to **Console** tab
+- **Filter logs:** Type `[SpokenTextContext]` OR `[SpeakText]` OR `[GameContext]` OR `[MessageBubble]`
+- Or just watch for emoji logs: 🔊 🎤 🗣️ ✅ ❌ 🎵 etc.
 
-### 1. Start a New Game with Voice
+### 3. Start a Voice Game
+- Click **"Try AI-Powered Werewolf Now"** button
+- On the game setup page:
+  - **Enable Voice Mode** ✅ (crucial!)
+  - Set player count to **3-4** for faster testing
+  - Choose any AI provider (Groq is fastest)
+- Click **"Start Game"**
 
-1. Open your browser to http://localhost:3099
-2. Click "Play Now" or navigate to http://localhost:3099/en/new
-3. Click "Skip to custom settings →" at the bottom of the page
-
-### 2. Configure Voice Settings
-
-1. In the custom game settings:
-   - Set player count to 5 (for a quick game)
-   - Make sure "Join as Human Player" is checked
-   - **Important**: Check the "Enable Voice Mode" checkbox
-   - Select "groq" as the AI Provider (it's fast and reliable)
-   - Click "Start Game"
-
-### 3. Monitor Voice Functionality
-
-1. Open the browser's Developer Console (F12 or Cmd+Option+I)
-2. Look for logs with these prefixes:
-   - `[MessageBubble]` - Shows when messages are being rendered
-   - `[SpeakText]` - Shows when voice synthesis is attempted
-   - `[SpokenTextContext]` - Shows audio queue management
-   - `[GameContext]` - Shows game state and audio settings
-
-### 4. Expected Voice Behavior
-
-When the game starts:
-- AI characters should speak their messages automatically
-- You should hear voices for:
-  - Character introductions
-  - Day/night phase announcements
-  - Voting discussions
-  - Game events
-
-### 5. Voice Controls
-
-- **Mute/Unmute Button**: Toggle global audio on/off (speaker icon in game controls)
-- **Skip Audio Button**: Skip currently playing audio (appears when audio is playing)
-- **Microphone Button**: Click to speak your messages (if enabled)
-
-### 6. Troubleshooting
-
-If voices aren't working:
-
-1. **Check Console Logs**:
-   - Look for `[MessageBubble] Rendering with voice` - indicates voice is enabled
-   - Look for `[SpeakText] Fetching audio` - indicates API call is being made
-   - Look for any error messages in red
-
-2. **Common Issues**:
-   - **No API Key**: Check if `NEXT_PUBLIC_ELEVENLABS_API_KEY` is set
-   - **API Limit**: ElevenLabs free tier has limits, check your usage
-   - **Browser Permissions**: Allow audio playback if prompted
-   - **Stuck Audio**: Click the skip button to clear stuck audio
-
-3. **Debug Information**:
-   - Voice should show `isAudioGloballyEnabled: true` in logs
-   - Each message should have a unique audio ID
-   - Audio queue should clear after playback
-
-### 7. Testing Voice Input (Optional)
-
-If you want to test speech-to-text:
-1. Click the microphone button in the chat input
-2. Speak your message
-3. The text should appear in the input field
-4. Click send or press Enter
-
-## What We've Fixed
-
-Recent improvements to voice functionality:
-1. ✅ Fixed audio queue blocking issues
-2. ✅ Added skip button for stuck audio
-3. ✅ Improved error handling and recovery
-4. ✅ Added extensive logging for debugging
-5. ✅ Fixed component re-rendering issues
-6. ✅ Added automatic audio cleanup on errors
-
-## Logs to Look For
-
-Success logs:
+### 4. Watch the Logs During Character Generation
+Look for this sequence in console:
 ```
-[GameContext] Provider render: {isAudioGloballyEnabled: true}
-[MessageBubble] Rendering with voice
-[SpeakText] Component mounted with ID: audio-xxx
-[SpeakText] Fetching audio from API...
-[SpeakText] Audio loaded successfully
-[SpokenTextContext] Audio started: audio-xxx
-[SpeakText] Audio ended successfully
-[SpokenTextContext] Clearing speaking ID: audio-xxx
+[MessageBubble] 13:05:45 🔊 Voice check: { willUseSpeakText: true }
+[MessageBubble] 13:05:45 🎤 RENDERING with SpeakText
+[SpeakText] 13:05:45 🗣️ handleSpeak CALLED
+[SpeakText] 13:05:45 🔓 REQUESTING permission to speak...
+[SpokenTextContext] 13:05:45 ✅ GRANTED - Setting speaking ID
+[SpeakText] 13:05:46 ▶️ Audio STARTED playing
+[GameContext] 13:05:46 🎵 REGISTER audio
+[SpeakText] 13:05:50 🏁 Audio ENDED naturally
+[GameContext] 13:05:50 🎵 AUDIO FINISHED
 ```
 
-Error logs to watch for:
+### 5. Enable Auto-Run and Monitor
+- Once character generation is complete
+- Click **"Auto Run"** button to enable automatic turn advancement
+- **Watch carefully:** Audio should play completely before next turn starts
+
+## 🔍 What to Look For
+
+### ✅ **SUCCESS PATTERN** (Fixed)
 ```
-[SpeakText] Audio error event
-[SpeakText] Error fetching audio
-[SpokenTextContext] Clearing stuck audio ID after timeout
-``` 
+[SpeakText] 13:05:45 🗣️ handleSpeak CALLED: { audioId: "audio-123" }
+[SpokenTextContext] 13:05:45 ✅ GRANTED - Setting speaking ID: { newSpeakingId: "audio-123" }
+[SpeakText] 13:05:46 ▶️ Audio STARTED playing: { audioId: "audio-123" }
+[SpeakText] 13:05:50 🏁 Audio ENDED naturally: { audioId: "audio-123" }
+[GameContext] 13:05:50 🎵 AUDIO FINISHED: { messageId: "audio-123" }
+[GameContext] 13:05:50 ▶️ TRIGGERING next turn after audio
+```
+
+### ❌ **PROBLEM PATTERN** (Should be fixed now)
+```
+[SpeakText] 13:05:47 🗣️ handleSpeak CALLED: { audioId: "audio-456" }
+[SpokenTextContext] 13:05:47 ❌ DENIED - Another audio playing: { blockingId: "audio-123" }
+[SpeakText] 13:05:47 🚫 DENIED - Cannot speak, another audio is playing
+```
+
+### 🚨 **CRITICAL ISSUES TO CHECK**
+
+1. **Stuck Audio IDs**
+   ```
+   [SpokenTextContext] 13:05:50 ❌ DENIED - Another audio playing: { blockingId: "audio-123" }
+   [SpokenTextContext] 13:05:55 ❌ DENIED - Another audio playing: { blockingId: "audio-123" }
+   [SpokenTextContext] 13:06:00 ❌ DENIED - Another audio playing: { blockingId: "audio-123" }
+   ```
+
+2. **Turn Advancement Timing**
+   - Turns should only advance **AFTER** `🏁 Audio ENDED naturally`
+   - Should **NOT** see `▶️ TRIGGERING next turn` while audio is still playing
+
+3. **Component Lifecycle Issues**
+   ```
+   [SpeakText] 13:05:46 🏗️ Component MOUNTED: { audioId: "audio-123" }
+   [SpeakText] 13:05:47 🧹 Component UNMOUNTING: { isPlaying: true }  // ⚠️ BAD
+   ```
+
+## 🎯 Expected Behavior
+
+**BEFORE (Broken):**
+- Audio gets cut off mid-sentence
+- "Another audio playing" errors constantly
+- Auto-run advances too quickly
+
+**AFTER (Fixed):**
+- Each message plays completely
+- No audio queue blocking
+- Auto-run waits for audio completion
+- Smooth turn transitions
+
+## 📊 Test Results
+
+**Test 1: Character Generation**
+- [ ] All character messages play completely
+- [ ] No "another audio playing" errors
+- [ ] Smooth sequence of character introductions
+
+**Test 2: Auto-Run with Voice**
+- [ ] Enable auto-run after character generation
+- [ ] Each turn waits for audio to finish
+- [ ] No audio cutoff during turn transitions
+
+**Test 3: Edge Cases**
+- [ ] Disable/enable voice mode during game
+- [ ] Skip audio using ⏭️ button (should advance immediately)
+- [ ] Page refresh during audio (should cleanup properly)
+
+## 🐛 If Issues Persist
+
+Share the console logs showing:
+1. The exact sequence where "Another audio playing" occurs
+2. Timestamps showing turn advancement vs audio timing
+3. Any stuck audio IDs that never get cleared
+
+The enhanced logging will reveal whether it's:
+- Stuck audio ID in SpokenTextContext
+- Component lifecycle issues (unmounting during playback)
+- Race conditions between multiple SpeakText components
+- Timing issues between GameContext and SpokenTextContext
+
+## 🎉 Success Indicators
+
+- ✅ Smooth character generation with complete audio
+- ✅ Auto-run respects audio playback timing
+- ✅ No blocked audio queue messages
+- ✅ Clean console logs with proper emoji sequence
+- ✅ Turn advancement only after `🏁 Audio ENDED naturally`
+
+**The fix ensures audio sequencing works correctly - test it and let me know what you see in the logs!** 🎵 

@@ -37,11 +37,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { text, voiceId, stability, similarity, with_timestamps } = validation.data;
+    const { text, voiceId, stability, similarity, with_timestamps } =
+      validation.data;
 
     const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
       console.error('Missing ELEVENLABS_API_KEY environment variable.');
+      
+      // In development, return a mock audio response for testing
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[/api/speak] 🎭 MOCK MODE: Returning silent audio for testing');
+        
+        // Create a 1-second silent audio file as base64
+        // This is a tiny valid MP3 file with silence
+        const silentMp3Base64 = 'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAFAADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD////////////////////////////////AAAAATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAvL25j';
+        
+        // Convert base64 to buffer
+        const audioBuffer = Buffer.from(silentMp3Base64, 'base64');
+        
+        return new Response(audioBuffer, {
+          headers: {
+            'Content-Type': 'audio/mpeg',
+            'X-Mock-Audio': 'true',
+            'X-Mock-Reason': 'ELEVENLABS_API_KEY not configured',
+          },
+        });
+      }
+      
       return NextResponse.json(
         { error: 'TTS service is not configured.' },
         { status: 503 }
@@ -82,7 +104,7 @@ export async function POST(req: NextRequest) {
 
       // The with-timestamps endpoint returns JSON with audio_base64 and alignment
       const responseData = await response.json();
-      
+
       // Return the response as-is, it should already have the correct format
       return NextResponse.json(responseData);
     } else {
@@ -165,14 +187,11 @@ function validateInput(body: unknown): {
   ) {
     return { success: false, error: 'Invalid input: text is required.' };
   }
-  
+
   // Support both voice_id and voiceId
   const voiceId = potentialBody.voice_id || potentialBody.voiceId;
-  
-  if (
-    typeof voiceId !== 'string' ||
-    voiceId.trim() === ''
-  ) {
+
+  if (typeof voiceId !== 'string' || voiceId.trim() === '') {
     return { success: false, error: 'Invalid input: voiceId is required.' };
   }
 
@@ -185,7 +204,7 @@ function validateInput(body: unknown): {
 
   const clampedStability = Math.max(0, Math.min(1, stability));
   const clampedSimilarity = Math.max(0, Math.min(1, similarity));
-  
+
   const with_timestamps = potentialBody.with_timestamps === true;
 
   return {

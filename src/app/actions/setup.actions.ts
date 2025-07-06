@@ -363,8 +363,6 @@ async function createGame(
     nextPlayerIndexToAction: 0,
   };
 
-
-
   console.log('[createGame] Saving game state to database');
 
   // Save the basic game state

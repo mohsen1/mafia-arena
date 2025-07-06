@@ -5,7 +5,6 @@ import { GameSidebar } from '@/components/GameSidebar';
 import HumanChatInput from '@/components/HumanChatInput';
 import CharacterGenerationUI from '@/components/CharacterGenerationUI';
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
-import { PhaseTransitionNotification } from '@/components/PhaseTransitionNotification';
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
 
 import { GameReplay } from '@/components/GameReplay';
@@ -25,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { GameHeader } from '@/components/GameHeader';
 import { GameNotificationCenter } from '@/components/GameNotificationCenter';
+import { AudioDebugOverlay } from '@/components/AudioDebugOverlay';
 
 interface GameClientProps {
   initialGameState: FilteredGameState;
@@ -42,8 +42,14 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const { i18n } = useTranslation();
   const direction = i18n.dir(lang);
 
-  const { gameState, setGameState, error, clearError, runNextTurn, isAudioGloballyEnabled } =
-    useGameContext();
+  const {
+    gameState,
+    setGameState,
+    error,
+    clearError,
+    runNextTurn,
+    isAudioGloballyEnabled,
+  } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -95,7 +101,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
 
   return (
     <>
-
       {/* Keyboard shortcuts dialog */}
       <KeyboardShortcutsDialog />
 
@@ -192,6 +197,9 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
           </div>
         </div>
       )}
+      
+      {/* Audio Debug Overlay - visible in both human and spectator views */}
+      <AudioDebugOverlay />
     </>
   );
 }
@@ -204,7 +212,7 @@ export default function GameClient({
   boundSubmitHumanAction,
 }: GameClientProps) {
   return (
-    <SpokenTextProvider isAudioGloballyEnabled={initialGameState?.voiceModeEnabled}>
+    <SpokenTextProvider>
       <GameProvider
         initialGameState={initialGameState}
         boundRunGameTurnAction={boundAdvanceGameStateAction}

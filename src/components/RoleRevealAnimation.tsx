@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
+import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 interface RoleRevealAnimationProps {
   playerName: string;
@@ -36,13 +37,40 @@ export function RoleRevealAnimation({
   const [showReveal, setShowReveal] = useState(true);
 
   useEffect(() => {
+    // Log role reveal start
+    console.log('[RoleRevealAnimation] 🎭 ROLE REVEAL STARTED', {
+      playerName,
+      role,
+      isEvil,
+      reason,
+      timestamp: new Date().toISOString(),
+    });
+    
+    addAudioBreadcrumb('Role reveal animation started', {
+      playerName,
+      role,
+      reason,
+    });
+
     const timer = setTimeout(() => {
       setShowReveal(false);
+      
+      console.log('[RoleRevealAnimation] 🎭 ROLE REVEAL COMPLETED', {
+        playerName,
+        role,
+        timestamp: new Date().toISOString(),
+      });
+      
+      addAudioBreadcrumb('Role reveal animation completed', {
+        playerName,
+        role,
+      });
+      
       onComplete?.();
     }, 5000); // Show for 5 seconds
 
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [onComplete, playerName, role, isEvil, reason]);
 
   const getRoleIcon = (roleName: string) => {
     switch (roleName.toLowerCase()) {

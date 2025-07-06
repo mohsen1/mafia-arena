@@ -94,9 +94,9 @@ describe('themeLoader', () => {
         name: 'Test Theme',
         description: 'A theme for testing',
       };
-      
+
       addTheme('TEST_THEME', newTheme);
-      
+
       expect(hasTheme('TEST_THEME')).toBe(true);
       expect(getTheme('TEST_THEME')).toEqual(newTheme);
     });
@@ -135,11 +135,16 @@ describe('themeLoader', () => {
         json: () => Promise.resolve(mockThemes),
       });
 
-      const result = await loadThemesFromExternal('https://example.com/themes.json');
+      const result = await loadThemesFromExternal(
+        'https://example.com/themes.json'
+      );
 
       expect(result).toEqual(mockThemes);
       expect(hasTheme('EXTERNAL_THEME')).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith('https://example.com/themes.json', expect.any(Object));
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/themes.json',
+        expect.any(Object)
+      );
     });
 
     it('should load themes from file path successfully', async () => {
@@ -169,19 +174,22 @@ describe('themeLoader', () => {
         statusText: 'Not Found',
       });
 
-      await expect(loadThemesFromExternal('https://example.com/notfound.json'))
-        .rejects.toThrow('HTTP 404: Not Found');
+      await expect(
+        loadThemesFromExternal('https://example.com/notfound.json')
+      ).rejects.toThrow('HTTP 404: Not Found');
     });
 
     it('should handle timeout', async () => {
-      mockFetch.mockImplementationOnce(() => 
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('AbortError')), 100)
-        )
+      mockFetch.mockImplementationOnce(
+        () =>
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('AbortError')), 100)
+          )
       );
 
-      await expect(loadThemesFromExternal('https://example.com/slow.json', 50))
-        .rejects.toThrow('Request timeout');
+      await expect(
+        loadThemesFromExternal('https://example.com/slow.json', 50)
+      ).rejects.toThrow('Request timeout');
     });
 
     it('should validate loaded theme data', async () => {
@@ -204,7 +212,9 @@ describe('themeLoader', () => {
         json: () => Promise.resolve(invalidThemes),
       });
 
-      const result = await loadThemesFromExternal('https://example.com/mixed.json');
+      const result = await loadThemesFromExternal(
+        'https://example.com/mixed.json'
+      );
 
       expect(result).toHaveProperty('VALID_THEME');
       expect(result).not.toHaveProperty('INVALID_THEME');
@@ -219,8 +229,9 @@ describe('themeLoader', () => {
         json: () => Promise.reject(new Error('Invalid JSON')),
       });
 
-      await expect(loadThemesFromExternal('https://example.com/invalid.json'))
-        .rejects.toThrow('External theme loading failed');
+      await expect(
+        loadThemesFromExternal('https://example.com/invalid.json')
+      ).rejects.toThrow('External theme loading failed');
     });
   });
 
@@ -270,10 +281,13 @@ describe('themeLoader', () => {
           json: () => Promise.resolve(themes2),
         });
 
-      const result = await loadMultipleExternalThemes([
-        'https://example.com/notfound.json',
-        'https://example.com/themes2.json',
-      ], true);
+      const result = await loadMultipleExternalThemes(
+        [
+          'https://example.com/notfound.json',
+          'https://example.com/themes2.json',
+        ],
+        true
+      );
 
       expect(result).toHaveProperty('THEME_2');
       expect(hasTheme('THEME_2')).toBe(true);
@@ -286,10 +300,15 @@ describe('themeLoader', () => {
         statusText: 'Not Found',
       });
 
-      await expect(loadMultipleExternalThemes([
-        'https://example.com/notfound.json',
-        'https://example.com/themes2.json',
-      ], false)).rejects.toThrow('Failed to load themes');
+      await expect(
+        loadMultipleExternalThemes(
+          [
+            'https://example.com/notfound.json',
+            'https://example.com/themes2.json',
+          ],
+          false
+        )
+      ).rejects.toThrow('Failed to load themes');
     });
   });
 
@@ -304,7 +323,7 @@ describe('themeLoader', () => {
     it('should export themes to JSON', () => {
       const json = exportThemesToJson();
       expect(json).toBeTypeOf('string');
-      
+
       const parsed = JSON.parse(json);
       expect(parsed).toHaveProperty('UK_VILLAGE_1900S');
     });
@@ -320,4 +339,4 @@ describe('themeLoader', () => {
       expect(hasTheme('UK_VILLAGE_1900S')).toBe(true); // Hardcoded theme should still exist
     });
   });
-}); 
+});
