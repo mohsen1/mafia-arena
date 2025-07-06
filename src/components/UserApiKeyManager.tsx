@@ -57,14 +57,6 @@ interface UserApiKeyManagerProps {
   onKeysChanged?: () => void;
 }
 
-const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic (Claude)',
-  gemini: 'Google Gemini',
-  groq: 'Groq',
-  fireworks: 'Fireworks AI',
-};
-
 const PROVIDER_ICONS: Record<string, React.ReactNode> = {
   openai: <Bot className="w-5 h-5" />,
   anthropic: <Brain className="w-5 h-5" />,
@@ -295,10 +287,7 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
   const getAvailableProvidersForDropdown = () => {
     return availableProviders.map((provider) => ({
       value: provider.value,
-      label:
-        t(`apiKeys.providers.${provider.value}`) ||
-        PROVIDER_DISPLAY_NAMES[provider.value] ||
-        provider.title,
+      label: t(`apiKeys.providers.${provider.value}`) || provider.title,
     }));
   };
 
@@ -568,7 +557,6 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                         id="editProvider"
                         value={
                           t(`apiKeys.providers.${formData.provider}`) ||
-                          PROVIDER_DISPLAY_NAMES[formData.provider] ||
                           formData.provider
                         }
                         disabled
@@ -682,7 +670,6 @@ export function UserApiKeyManager({ onKeysChanged }: UserApiKeyManagerProps) {
                               className={`${PROVIDER_COLORS[key.provider] || 'border-gray-300'}`}
                             >
                               {t(`apiKeys.providers.${key.provider}`) ||
-                                PROVIDER_DISPLAY_NAMES[key.provider] ||
                                 key.provider}
                             </Badge>
                           </div>
