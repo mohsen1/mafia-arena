@@ -176,7 +176,7 @@ export default function CharacterGenerationUI({
 }: CharacterGenerationUIProps) {
   const { t } = useTranslation();
   const [progress, setProgress] = useState<CharacterGenerationProgress>({
-    currentStep: 'Initializing...',
+    currentStep: t('character-generation.initializing', 'Initializing...'),
     progress: 0,
     totalSteps: 0,
     completedCharacters: 0,
@@ -449,19 +449,19 @@ export default function CharacterGenerationUI({
                   error.includes('OLLAMA_NOT_RUNNING')) && (
                   <>
                     <li>
-                      • Ensure Ollama is running:{' '}
+                      {t('character-generation.suggestions-ollama-running', '• Ensure Ollama is running:')}{' '}
                       <code className="text-xs bg-secondary px-1 py-0.5 rounded">
                         ollama serve
                       </code>
                     </li>
                     <li>
-                      • Check if the model is installed:{' '}
+                      {t('character-generation.suggestions-check-model', '• Check if the model is installed:')}{' '}
                       <code className="text-xs bg-secondary px-1 py-0.5 rounded">
                         ollama list
                       </code>
                     </li>
                     <li>
-                      • Pull the required model:{' '}
+                      {t('character-generation.suggestions-pull-model', '• Pull the required model:')}{' '}
                       <code className="text-xs bg-secondary px-1 py-0.5 rounded">
                         ollama pull {progress.currentCharacterModel || 'llama2'}
                       </code>
@@ -472,15 +472,16 @@ export default function CharacterGenerationUI({
                   error.includes('AUTH_ERROR') ||
                   error.includes('401')) && (
                   <>
-                    <li>• Check your API key in the profile settings</li>
+                    <li>{t('character-generation.suggestions-check-api-key', '• Check your API key in the profile settings')}</li>
                     {progress.currentCharacterProvider && (
                       <li>
-                        • Verify your {progress.currentCharacterProvider} API
-                        key is valid and has credits
+                        {t('character-generation.suggestions-verify-api-key', '• Verify your {{provider}} API key is valid and has credits', {
+                          provider: progress.currentCharacterProvider
+                        })}
                       </li>
                     )}
                     <li>
-                      • Consider using a different AI provider temporarily
+                      {t('character-generation.suggestions-different-provider', '• Consider using a different AI provider temporarily')}
                     </li>
                   </>
                 )}
@@ -489,73 +490,72 @@ export default function CharacterGenerationUI({
                   error.includes('429')) && (
                   <>
                     <li>
-                      • Wait a moment before trying again (rate limit exceeded)
+                      {t('character-generation.suggestions-wait-rate-limit', '• Wait a moment before trying again (rate limit exceeded)')}
                     </li>
                     {progress.currentCharacterProvider === 'groq' && (
                       <li>
-                        • Groq has strict rate limits - try spacing out requests
+                        {t('character-generation.suggestions-groq-limits', '• Groq has strict rate limits - try spacing out requests')}
                       </li>
                     )}
                     <li>
-                      • Consider using a different AI provider with higher
-                      limits
+                      {t('character-generation.suggestions-higher-limits', '• Consider using a different AI provider with higher limits')}
                     </li>
                   </>
                 )}
                 {(error.includes('timeout') || error.includes('TIMEOUT')) && (
                   <>
                     <li>
-                      • The AI service is busy, please try again in a moment
+                      {t('character-generation.suggestions-ai-busy', '• The AI service is busy, please try again in a moment')}
                     </li>
-                    <li>• Check your internet connection</li>
-                    <li>• Try a different model or provider</li>
+                    <li>{t('character-generation.suggestions-check-connection', '• Check your internet connection')}</li>
+                    <li>{t('character-generation.suggestions-try-different', '• Try a different model or provider')}</li>
                   </>
                 )}
                 {(error.includes('model') ||
                   error.includes('MODEL_NOT_FOUND')) && (
                   <>
                     <li>
-                      • The model &quot;{progress.currentCharacterModel}&quot;
-                      is not available
+                      {t('character-generation.suggestions-model-unavailable', '• The model "{{model}}" is not available', {
+                        model: progress.currentCharacterModel
+                      })}
                     </li>
-                    <li>• Select a different model in the game setup</li>
+                    <li>{t('character-generation.suggestions-select-different', '• Select a different model in the game setup')}</li>
                     {progress.currentCharacterProvider === 'ollama' && (
-                      <li>• For Ollama, ensure the model is pulled locally</li>
+                      <li>{t('character-generation.suggestions-ollama-pull', '• For Ollama, ensure the model is pulled locally')}</li>
                     )}
                   </>
                 )}
                 {(error.includes('quota') ||
                   error.includes('QUOTA_EXCEEDED')) && (
                   <>
-                    <li>• Your API quota has been exceeded</li>
+                    <li>{t('character-generation.suggestions-quota-exceeded', '• Your API quota has been exceeded')}</li>
                     <li>
-                      • Check your {progress.currentCharacterProvider} account
-                      for usage limits
+                      {t('character-generation.suggestions-check-usage', '• Check your {{provider}} account for usage limits', {
+                        provider: progress.currentCharacterProvider
+                      })}
                     </li>
                     <li>
-                      • Consider upgrading your plan or using a different
-                      provider
+                      {t('character-generation.suggestions-upgrade-plan', '• Consider upgrading your plan or using a different provider')}
                     </li>
                   </>
                 )}
                 {(error.includes('network') ||
                   error.includes('ECONNREFUSED')) && (
                   <>
-                    <li>• Check your internet connection</li>
-                    <li>• Verify the AI service is accessible</li>
+                    <li>{t('character-generation.suggestions-check-internet', '• Check your internet connection')}</li>
+                    <li>{t('character-generation.suggestions-verify-service', '• Verify the AI service is accessible')}</li>
                     {progress.currentCharacterProvider === 'ollama' && (
                       <li>
-                        • Ensure Ollama is running on the correct port (default:
-                        11434)
+                        {t('character-generation.suggestions-ollama-port', '• Ensure Ollama is running on the correct port (default: 11434)')}
                       </li>
                     )}
                   </>
                 )}
                 {/* Generic suggestions */}
-                <li>• Try using a different AI model or provider</li>
-                <li>• Return to the game setup to adjust settings</li>
+                <li>{t('character-generation.suggestions-try-provider', '• Try using a different AI model or provider')}</li>
+                <li>{t('character-generation.suggestions-return-setup', '• Return to the game setup to adjust settings')}</li>
                 {isMultiCharacterError && (
-                  <li>• Consider reducing the number of AI players</li>
+                  <li>{t('character-generation.suggestions-reduce-players', '• Consider reducing the number of AI players')}</li>
                 )}
               </ul>
             </div>
@@ -642,47 +642,58 @@ export default function CharacterGenerationUI({
                     {t(
                       'character-generation.current-character',
                       'Creating: {{name}} ({{role}})',
-                      { 
+                      {
                         name: progress.currentCharacterName,
-                        role: progress.currentCharacterModel || 'Character'
+                        role: progress.currentCharacterModel || 'Character',
                       }
                     )}
                   </span>
                 </div>
-                
+
                 {/* Detailed backend process information */}
                 <div className="space-y-1 text-xs">
-                  {progress.currentCharacterProvider && progress.currentCharacterModel && (
-                    <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
-                      <span className="text-muted-foreground">AI Provider:</span>
-                      <span className="font-medium">
-                        {progress.currentCharacterProvider} - {progress.currentCharacterModel}
-                      </span>
-                    </div>
-                  )}
-                  
+                  {progress.currentCharacterProvider &&
+                    progress.currentCharacterModel && (
+                      <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
+                        <span className="text-muted-foreground">
+                          {t('character-generation.ai-provider', 'AI Provider:')}
+                        </span>
+                        <span className="font-medium">
+                          {progress.currentCharacterProvider} -{' '}
+                          {progress.currentCharacterModel}
+                        </span>
+                      </div>
+                    )}
+
                   <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
-                    <span className="text-muted-foreground">Backend Status:</span>
+                    <span className="text-muted-foreground">
+                      {t('character-generation.backend-status', 'Backend Status:')}
+                    </span>
                     <span className="font-medium text-green-600">
-                      {isGenerating ? 'Generating persona...' : 'Processing...'}
+                      {isGenerating ? t('character-generation.generating-persona', 'Generating persona...') : t('character-generation.processing', 'Processing...')}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
-                    <span className="text-muted-foreground">Current Step:</span>
+                    <span className="text-muted-foreground">{t('character-generation.current-step', 'Current Step:')}</span>
                     <span className="font-medium">
-                      {progress.currentStep || 'Initializing...'}
+                      {progress.currentStep || t('character-generation.initializing', 'Initializing...')}
                     </span>
                   </div>
-                  
-                  {progress.totalCharacters > 0 && progress.completedCharacters < progress.totalCharacters && (
-                    <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
-                      <span className="text-muted-foreground">Remaining:</span>
-                      <span className="font-medium text-blue-600">
-                        {progress.totalCharacters - progress.completedCharacters} characters
-                      </span>
-                    </div>
-                  )}
+
+                  {progress.totalCharacters > 0 &&
+                    progress.completedCharacters < progress.totalCharacters && (
+                      <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
+                        <span className="text-muted-foreground">
+                          {t('character-generation.remaining', 'Remaining:')}
+                        </span>
+                        <span className="font-medium text-blue-600">
+                          {progress.totalCharacters -
+                            progress.completedCharacters}{' '}
+                          characters
+                        </span>
+                      </div>
+                    )}
                 </div>
               </div>
             )}
@@ -714,23 +725,43 @@ export default function CharacterGenerationUI({
               <span>{progress.progress}%</span>
             </div>
             <Progress value={progress.progress} className="w-full h-3" />
-            
+
             {/* Progress milestone indicators */}
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span className={progress.progress >= 0 ? 'text-primary font-medium' : ''}>
-                Start
+              <span
+                className={
+                  progress.progress >= 0 ? 'text-primary font-medium' : ''
+                }
+              >
+                {t('character-generation.milestone-start', 'Start')}
               </span>
-              <span className={progress.progress >= 25 ? 'text-primary font-medium' : ''}>
-                25%
+              <span
+                className={
+                  progress.progress >= 25 ? 'text-primary font-medium' : ''
+                }
+              >
+                {t('character-generation.milestone-25', '25%')}
               </span>
-              <span className={progress.progress >= 50 ? 'text-primary font-medium' : ''}>
-                50%
+              <span
+                className={
+                  progress.progress >= 50 ? 'text-primary font-medium' : ''
+                }
+              >
+                {t('character-generation.milestone-50', '50%')}
               </span>
-              <span className={progress.progress >= 75 ? 'text-primary font-medium' : ''}>
-                75%
+              <span
+                className={
+                  progress.progress >= 75 ? 'text-primary font-medium' : ''
+                }
+              >
+                {t('character-generation.milestone-75', '75%')}
               </span>
-              <span className={progress.progress >= 100 ? 'text-green-600 font-medium' : ''}>
-                Complete
+              <span
+                className={
+                  progress.progress >= 100 ? 'text-green-600 font-medium' : ''
+                }
+              >
+                {t('character-generation.milestone-complete', 'Complete')}
               </span>
             </div>
           </div>
@@ -741,35 +772,42 @@ export default function CharacterGenerationUI({
               <CardHeader className="py-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Code className="w-4 h-4" />
-                  Backend Status
+                  {t('character-generation.backend-status-title', 'Backend Status')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="py-3">
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Generation Phase:</span>
+                    <span className="text-muted-foreground">
+                      {t('character-generation.generation-phase', 'Generation Phase:')}
+                    </span>
                     <span className="font-medium text-primary">
-                      {progress.currentStep === 'Complete' ? 'Finished' : 'Active'}
+                      {progress.currentStep === 'Complete'
+                        ? t('character-generation.finished', 'Finished')
+                        : t('character-generation.active', 'Active')}
                     </span>
                   </div>
                   {progress.currentCharacterProvider && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">AI Service:</span>
+                      <span className="text-muted-foreground">{t('character-generation.ai-service', 'AI Service:')}</span>
                       <span className="font-medium">
-                        {progress.currentCharacterProvider} API
+                        {progress.currentCharacterProvider}{t('character-generation.api-suffix', ' API')}
                       </span>
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Progress:</span>
+                    <span className="text-muted-foreground">{t('character-generation.progress', 'Progress:')}</span>
                     <span className="font-medium text-green-600">
-                      {progress.completedCharacters}/{progress.totalCharacters} characters generated
+                      {t('character-generation.characters-generated', '{{completed}}/{{total}} characters generated', {
+                        completed: progress.completedCharacters,
+                        total: progress.totalCharacters
+                      })}
                     </span>
                   </div>
                   {isGenerating && (
                     <div className="flex items-center gap-2 text-primary">
                       <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Processing character personas...</span>
+                      <span>{t('character-generation.processing-personas', 'Processing character personas...')}</span>
                     </div>
                   )}
                 </div>
@@ -891,7 +929,7 @@ export default function CharacterGenerationUI({
             )}
             <br />
             <span className="text-primary font-medium">
-              Backend processes are running to create AI personas with detailed characteristics.
+              {t('character-generation.backend-processes', 'Backend processes are running to create AI personas with detailed characteristics.')}
             </span>
           </div>
         </CardContent>

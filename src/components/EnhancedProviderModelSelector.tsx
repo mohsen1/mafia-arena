@@ -137,7 +137,11 @@ export const EnhancedProviderModelSelector = React.memo(
         // Initialize with checking state (don't show as unavailable immediately)
         setProviderStatuses((prev) => ({
           ...prev,
-          [provider]: { available: true, checking: true, message: 'Checking...' },
+          [provider]: {
+            available: true,
+            checking: true,
+            message: 'Checking...',
+          },
         }));
 
         try {

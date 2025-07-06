@@ -56,11 +56,7 @@ interface AIProviderCardProps {
   icon: React.ReactNode;
 }
 
-function AIProviderCard({
-  name,
-  description,
-  icon,
-}: AIProviderCardProps) {
+function AIProviderCard({ name, description, icon }: AIProviderCardProps) {
   return (
     <div className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 transition-colors duration-200 hover:border-primary/50">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -126,9 +122,7 @@ interface StatCardProps {
 function StatCard({ number, label, icon }: StatCardProps) {
   return (
     <div className="text-center bg-card/50 backdrop-blur-sm rounded-lg p-6 border border-border/50 hover:border-primary/50 transition-colors duration-200">
-      <div className="mb-4 text-muted-foreground">
-        {icon}
-      </div>
+      <div className="mb-4 text-muted-foreground">{icon}</div>
       <div className="text-3xl font-bold text-foreground mb-2">{number}</div>
       <div className="text-sm text-muted-foreground">{label}</div>
     </div>

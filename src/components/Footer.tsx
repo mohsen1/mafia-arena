@@ -2,7 +2,20 @@
 
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { Globe, Github, FileText, HelpCircle, Gamepad2, Brain, Users, Sparkles, Volume2, Star, Cpu, Languages } from 'lucide-react';
+import {
+  Globe,
+  Github,
+  FileText,
+  HelpCircle,
+  Gamepad2,
+  Brain,
+  Users,
+  Sparkles,
+  Volume2,
+  Star,
+  Cpu,
+  Languages,
+} from 'lucide-react';
 import LanguageSelector from '@/components/LanguageSelector';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
@@ -33,7 +46,9 @@ export function Footer({ currentLang }: FooterProps) {
               </div>
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4" />
-                <span>Multiple AI providers (OpenAI, Claude, Gemini, Groq)</span>
+                <span>
+                  Multiple AI providers (OpenAI, Claude, Gemini, Groq)
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Languages className="w-4 h-4" />
@@ -156,7 +171,7 @@ export function Footer({ currentLang }: FooterProps) {
               currentLang={currentLang}
               id="footer-language-selector"
             />
-            
+
             <div className="mt-6">
               <h4 className="font-semibold text-foreground mb-2 text-sm">
                 Open Source
