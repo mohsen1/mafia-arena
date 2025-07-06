@@ -228,7 +228,7 @@ export default function HumanChatInput() {
     if (!pendingAction) {
       return (
         <div className="p-4 text-center text-muted-foreground italic">
-          {t('WaitingLabel', 'Waiting...')}
+          {t('WaitingLabel')}
         </div>
       );
     }
@@ -248,11 +248,11 @@ export default function HumanChatInput() {
       const isWWChat =
         humanPlayer?.role === RoleName.Mafia && gameState.phase === 'Night';
       const placeholder = isWWChat
-        ? t('TypeWerewolfChatMessagePlaceholder', 'Werewolf chat...')
-        : t('TypeYourMessagePlaceholder', 'Type your message...');
+        ? t('TypeWerewolfChatMessagePlaceholder')
+        : t('TypeYourMessagePlaceholder');
       const ariaLabel = isWWChat
-        ? t('WerewolfChatMessageInputLabel', 'Werewolf chat message input')
-        : t('ChatMessageInputLabel', 'Chat message input');
+        ? t('WerewolfChatMessageInputLabel')
+        : t('ChatMessageInputLabel');
 
       return (
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
@@ -288,7 +288,7 @@ export default function HumanChatInput() {
                 variant="outline"
                 onClick={() => setShowSpeechInput(!showSpeechInput)}
                 disabled={disabled}
-                title={t('UseMicrophone', 'Use microphone')}
+                title={t('UseMicrophone')}
                 className="bg-background text-foreground dark:bg-foreground dark:text-background border-border hover:bg-secondary"
               >
                 <Mic className="w-4 h-4" />
@@ -303,10 +303,10 @@ export default function HumanChatInput() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('SendingLabel', 'Sending...')}
+                  {t('SendingLabel')}
                 </>
               ) : (
-                t('SendLabel', 'Send')
+                t('SendLabel')
               )}
             </Button>
           </div>
@@ -324,20 +324,20 @@ export default function HumanChatInput() {
       );
       const playerRoleDisplay = humanPlayer?.role
         ? t(humanPlayer.role, humanPlayer.role)
-        : t('UnknownRole', 'Unknown Role');
+        : t('UnknownRole');
       const title =
         actionType === 'vote'
-          ? t('VoteTitle', 'Vote for Elimination')
-          : t('NightActionTitle', `Night Action (${playerRoleDisplay})`);
+          ? t('VoteTitle')
+          : t('NightActionTitle', { role: playerRoleDisplay });
       const buttonLabel =
         actionType === 'vote'
-          ? t('ConfirmVoteButtonLabel', 'Confirm Vote')
-          : t('ConfirmActionButtonLabel', 'Confirm Action');
+          ? t('ConfirmVoteButtonLabel')
+          : t('ConfirmActionButtonLabel');
 
       if (targetOptions.length === 0 && !canSkipNightAction) {
         return (
           <div className="p-4 text-center text-muted-foreground italic">
-            {t('NoValidTargets', 'No valid targets available.')}
+            {t('NoValidTargets')}
           </div>
         );
       }
@@ -371,7 +371,7 @@ export default function HumanChatInput() {
                     disabled={disabled}
                     role="radio"
                     aria-checked={selectedTarget === player.id}
-                    aria-label={t('SelectPlayer', 'Select {{name}}', {
+                    aria-label={t('SelectPlayer', {
                       name: player.name,
                     })}
                   >
@@ -408,10 +408,7 @@ export default function HumanChatInput() {
               </div>
             </ScrollArea>
             <p className="text-xs text-muted-foreground mt-2">
-              {t(
-                'TargetKeyboardHint',
-                'Use arrow keys to navigate, Enter to select'
-              )}
+              {t('TargetKeyboardHint')}
             </p>
           </div>
 
@@ -420,11 +417,11 @@ export default function HumanChatInput() {
               onClick={handleSubmit}
               disabled={disabled || !selectedTarget}
               className="flex-1"
-              aria-label={t('ConfirmAction', 'Confirm {{action}}', {
+              aria-label={t('ConfirmAction', {
                 action: buttonLabel,
               })}
             >
-              {t('ConfirmButton', 'Confirm')}
+              {t('ConfirmButton')}
             </Button>
             {canSkipNightAction && (
               <Button
@@ -434,9 +431,9 @@ export default function HumanChatInput() {
                 }}
                 variant="outline"
                 disabled={disabled}
-                aria-label={t('SkipAction', 'Skip action')}
+                aria-label={t('SkipAction')}
               >
-                {t('SkipButton', 'Skip')}
+                {t('SkipButton')}
               </Button>
             )}
           </div>
@@ -446,7 +443,7 @@ export default function HumanChatInput() {
 
     return (
       <div className="p-4 text-center text-muted-foreground italic">
-        {pendingAction?.prompt || t('WaitingLabel', 'Waiting...')}
+        {pendingAction?.prompt || t('WaitingLabel')}
       </div>
     );
   };
