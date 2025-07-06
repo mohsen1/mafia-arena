@@ -18,13 +18,11 @@ import { Separator } from '@/components/ui/separator';
 interface GameThemeInfoDialogProps {
   themeKey: string;
   description?: string;
-  className?: string;
 }
 
 export function GameThemeInfoDialog({
   themeKey,
   description,
-  className,
 }: GameThemeInfoDialogProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);

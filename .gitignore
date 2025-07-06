@@ -62,3 +62,28 @@ test-results/
 # Log files
 dev-server.log
 *.log
+
+# Build and output files
+build-output.txt
+ci-build-test.txt
+dev-server-output.txt
+*-output.txt
+
+# Error and diagnostic files
+lint-errors.txt
+tsc-errors.txt
+*-errors.txt
+
+# Test results and automation
+test-results*.txt
+test-results*.json
+cursor-unblock-automation.js
+test-automation-setup.js
+test-cursor-automation.js
+
+# Temporary files
+commit_msg.txt
+
+# Database files
+*.db
+!schema.sql
