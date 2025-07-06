@@ -155,9 +155,7 @@ export default function GameController({
         {/* Main Controls */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              {t('PlaybackControl')}
-            </span>
+            <span className="text-sm font-medium">{t('PlaybackControl')}</span>
             <Badge variant={isAutoRunning ? 'default' : 'secondary'}>
               {isAutoRunning ? t('AutoMode') : t('ManualMode')}
             </Badge>
@@ -223,9 +221,7 @@ export default function GameController({
             <Separator />
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {t('AudioControl')}
-                </span>
+                <span className="text-sm font-medium">{t('AudioControl')}</span>
                 <Badge
                   variant={isAudioGloballyEnabled ? 'default' : 'secondary'}
                 >
@@ -272,9 +268,7 @@ export default function GameController({
         {/* Current Status */}
         <Separator />
         <div className="space-y-2">
-          <div className="text-sm font-medium">
-            {t('CurrentStatus')}
-          </div>
+          <div className="text-sm font-medium">{t('CurrentStatus')}</div>
           <div className="text-xs text-muted-foreground space-y-1">
             <div className="flex justify-between">
               <span>{t('GamePhaseLabel')}:</span>
