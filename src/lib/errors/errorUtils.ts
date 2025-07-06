@@ -115,11 +115,11 @@ export async function retryWithBackoff<T>(
 /**
  * Wrap an async function with error handling
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
+export function withErrorHandling<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   context: string,
   options: {
-    fallbackValue?: any;
+    fallbackValue?: unknown;
     transformError?: (error: unknown) => unknown;
     onError?: (error: unknown) => void;
   } = {}
