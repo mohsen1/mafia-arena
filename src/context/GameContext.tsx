@@ -6,8 +6,6 @@ import React, {
   useState,
   useCallback,
   useEffect,
-  type Dispatch,
-  type SetStateAction,
   type ReactNode,
   useRef,
 } from 'react';
