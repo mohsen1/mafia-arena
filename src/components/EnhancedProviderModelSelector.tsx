@@ -357,7 +357,7 @@ export const EnhancedProviderModelSelector = React.memo(
                     key={provider.value}
                     value={provider.value}
                     className={cn(
-                      'cursor-pointer py-3 px-3',
+                      'cursor-pointer py-3 px-3 min-h-[3rem]',
                       'hover:bg-accent/50 focus:bg-accent/50',
                       'transition-colors duration-150',
                       status && !status.available && 'opacity-75'
@@ -441,37 +441,37 @@ export const EnhancedProviderModelSelector = React.memo(
                       <SelectItem
                         key={model.value}
                         value={model.value}
-                        className="py-2"
+                        className="py-3 px-3"
                       >
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium">{model.title}</span>
+                        <div className="flex flex-col gap-1">
+                          <span className="font-medium leading-tight">{model.title}</span>
                           {model.value.includes('gpt-4') && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground leading-relaxed">
                               Advanced reasoning
                             </span>
                           )}
                           {model.value.includes('gpt-3.5') && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground leading-relaxed">
                               Fast & efficient
                             </span>
                           )}
                           {model.value.includes('claude-3-opus') && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground leading-relaxed">
                               Most capable
                             </span>
                           )}
                           {model.value.includes('claude-3-sonnet') && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground leading-relaxed">
                               Balanced performance
                             </span>
                           )}
                           {model.value.includes('gemini-2') && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground leading-relaxed">
                               Latest multimodal
                             </span>
                           )}
                           {model.value.includes('llama') && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground leading-relaxed">
                               Open source
                             </span>
                           )}
