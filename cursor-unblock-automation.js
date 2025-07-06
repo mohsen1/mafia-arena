@@ -29,7 +29,7 @@ try {
 
 // Configuration
 const CONFIG = {
-  SCREENSHOT_INTERVAL: process.env.TEST_MODE ? 30 * 1000 : 3 * 60 * 1000, // 30 seconds in test mode, 3 minutes normally
+  SCREENSHOT_INTERVAL: process.env.TEST_MODE ? 30 * 1000 : 3 * 60 * 1000, // 30 seconds in test mode, 1 minute normally
   ANALYSIS_SCREENSHOT_COUNT: 3, // Analyze after collecting 3 screenshots (9 minutes total)
   SCREENSHOTS_DIR: './screenshots',
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
@@ -70,8 +70,9 @@ class CursorUnblockAutomation {
     console.log(`🎯 Target app: ${CONFIG.CURSOR_APP_NAME}`);
     console.log(`⏱️  Screenshot interval: ${CONFIG.SCREENSHOT_INTERVAL / 1000} seconds`);
     console.log(`📊 Analysis after: ${CONFIG.ANALYSIS_SCREENSHOT_COUNT} screenshots (${CONFIG.ANALYSIS_SCREENSHOT_COUNT * CONFIG.SCREENSHOT_INTERVAL / 1000 / 60} minutes)`);
-    console.log(`📸 Screenshot mode: Cursor window only`);
-    console.log(`🤖 AI Features: Multi-command sequences + Automated dev workflow prompts`);
+    console.log(`📸 Screenshot mode: Full screen (chat-focused analysis)`);
+    console.log(`🤖 AI Features: Chat-only commands + Automated dev workflow prompts`);
+    console.log(`🔒 Security: Commands restricted to chat panel only`);
   }
 
   async checkDependencies() {
@@ -127,20 +128,14 @@ class CursorUnblockAutomation {
       // Wait a moment for the app to focus
       await this.sleep(1000);
       
-      // Get Cursor window ID and capture only that window
-      const windowId = await this.getCursorWindowId();
-      if (windowId) {
-        await execAsync(`screencapture -l ${windowId} -x "${filepath}"`);
-        if (CONFIG.TEST_MODE) {
-          console.log(`📸 Captured Cursor window (ID: ${windowId}): ${filename} (${this.screenshots.length + 1}/${CONFIG.ANALYSIS_SCREENSHOT_COUNT})`);
-        } else {
-          console.log(`📸 Screenshot captured: ${filename} (${this.screenshots.length + 1}/${CONFIG.ANALYSIS_SCREENSHOT_COUNT})`);
-        }
+      // Use simpler full screen capture since we're focusing on chat only
+      // Window ID detection is unreliable and not necessary for chat analysis
+      await execAsync(`screencapture -x "${filepath}"`);
+      
+      if (CONFIG.TEST_MODE) {
+        console.log(`📸 Screenshot captured (chat focus): ${filename} (${this.screenshots.length + 1}/${CONFIG.ANALYSIS_SCREENSHOT_COUNT})`);
       } else {
-        // Fallback to full screen if window ID not found
-        console.warn('⚠️  Could not get Cursor window ID, using full screen capture');
-        await execAsync(`screencapture -x "${filepath}"`);
-        console.log(`📸 Screenshot captured (full screen): ${filename} (${this.screenshots.length + 1}/${CONFIG.ANALYSIS_SCREENSHOT_COUNT})`);
+        console.log(`📸 Screenshot captured: ${filename} (${this.screenshots.length + 1}/${CONFIG.ANALYSIS_SCREENSHOT_COUNT})`);
       }
       
       // Add to screenshots array
@@ -324,40 +319,42 @@ class CursorUnblockAutomation {
 
 These screenshots show the progression of the Cursor interface over time. Please analyze them to:
 
-1. Identify any issues, errors, or stuck states in the interface
-2. Look for dialog boxes, error messages, or prompts that need attention
-3. Check for loading indicators that have been stuck
-4. Identify any modal windows or overlays that might be blocking work
-5. Determine if any action is needed to help the user continue their work
-6. **Detect if Cursor appears idle/waiting** - if the user seems to have completed tasks and Cursor is waiting for the next action
+1. Identify any issues, errors, or stuck states in the CHAT PANEL ONLY
+2. Look for chat-related errors, blocked inputs, or stuck conversations
+3. Check if the chat input is ready for new messages
+4. Determine if any action is needed to help the user continue chatting
+5. **Detect if Cursor appears idle/waiting** - if the user seems to have completed tasks and Cursor is waiting for the next action
 
-IMPORTANT: STRONGLY PREFER KEYBOARD ACTIONS over mouse clicks. Keyboard shortcuts are more reliable and universal.
+CRITICAL RESTRICTIONS: 
+- ONLY suggest actions within the Cursor CHAT PANEL
+- DO NOT suggest opening command palette, terminal, or switching panels
+- DO NOT suggest file operations, reloading, or app-level commands
+- FOCUS EXCLUSIVELY on chat input and chat conversation management
 
 NOTE: Before executing any action, the automation will automatically focus the Cursor chat panel using cmd+1 (focus chat panel) and cmd+l (focus chat input). Your commands will be executed in the context of the focused chat panel.
 
-Common keyboard solutions for Cursor AI:
-- Escape key: Close dialogs, cancel operations
-- Enter/Return: Confirm actions, submit forms, send chat messages (handled via AppleScript)
-- Cmd+Shift+P: Open command palette
-- Cmd+grave: Open terminal
-- Cmd+P: Quick file open
-- Cmd+W: Close current tab
-- Cmd+Z: Undo
-- Cmd+Shift+Z: Redo
-- Tab: Navigate between fields
-- Space: Activate buttons/checkboxes
-- Backspace: Delete characters in chat input
-- Arrow keys: Navigate within text input
+ALLOWED chat-focused keyboard actions ONLY:
+- Escape key: Clear current chat input or cancel chat operations
+- Enter/Return: Send chat messages (handled via AppleScript)
+- Backspace/Delete: Delete characters in chat input
+- Arrow keys: Navigate within chat input text
+- Cmd+A: Select all text in chat input
+- Text typing: Type messages or prompts
 
-You have complete freedom to suggest multiple actions and complex sequences to unblock any situation. Don't hesitate to:
-- Clear text and retype messages
-- Navigate through menus and dialogs
-- Use multiple keyboard shortcuts in sequence
-- Type text, delete it, and try different approaches
-- Open command palette and execute commands
-- Switch between different Cursor panels and try various approaches
+FORBIDDEN actions (DO NOT SUGGEST):
+- Cmd+Shift+P (command palette)
+- Cmd+grave (terminal)
+- Cmd+P (file open)
+- Cmd+W (close tab)
+- Any panel switching or app-level commands
 
-**SPECIAL CASE: If Cursor appears idle/waiting for next task**, suggest the automated dev workflow by typing this message:
+You can suggest these chat-focused sequences:
+- Clear and retype chat messages
+- Delete partial text and start over
+- Select all and replace with new text
+- Type specific prompts or questions
+
+**SPECIAL CASE: If Cursor appears idle/waiting for next task**, suggest the automated dev workflow by typing this message and ALWAYS follow it with an Apple Script enter key press:
 
 ---
 
@@ -405,6 +402,8 @@ Before committing:
 
 ---
 
+**IMPORTANT: When typing the above automated dev workflow prompt, ALWAYS end the command sequence with an Apple Script enter key press to send the message using this exact command: osascript -e 'tell application "System Events" to key code 36'**
+
 Provide your response in this JSON format:
 {
   "analysis": "Your analysis of what you see across the screenshots and any issues identified",
@@ -422,7 +421,7 @@ Examples of command sequences:
 - Clear and retry: [{"description": "Select all", "command": "cliclick kd:cmd t:a ku:cmd", "wait_ms": 300}, {"description": "Delete", "command": "cliclick kp:delete", "wait_ms": 300}, {"description": "Type new message", "command": "cliclick t:hello", "wait_ms": 300}, {"description": "Send", "command": "osascript -e 'tell application \"System Events\" to key code 36'", "wait_ms": 500}]
 - Navigate dialog: [{"description": "Press escape", "command": "cliclick kp:esc", "wait_ms": 500}, {"description": "Try again", "command": "cliclick kd:cmd t:l ku:cmd", "wait_ms": 500}]
 - Open command palette: [{"description": "Open palette", "command": "cliclick kd:cmd,shift t:p ku:shift,cmd", "wait_ms": 1000}, {"description": "Type command", "command": "cliclick t:reload", "wait_ms": 300}, {"description": "Execute", "command": "osascript -e 'tell application \"System Events\" to key code 36'", "wait_ms": 500}]
-- Automated dev workflow (when idle): Use the workflow text provided above - type the complete automated dev workflow prompt into chat and send it
+- Automated dev workflow (when idle): When idle, provide a command sequence that types the automated dev workflow prompt (from the text above) and then sends it with Apple Script enter key
 
 If everything appears to be working normally and no intervention is needed, set action to "none" and commands to an empty array.`
           }, 
@@ -448,18 +447,43 @@ If everything appears to be working normally and no intervention is needed, set 
       
       console.log('🤖 Gemini analysis:', content);
       
-      // Try to parse JSON response
+      // Try to parse JSON response with multiple strategies
       try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        // Strategy 1: Look for JSON in code blocks
+        let jsonMatch = content.match(/```json\s*(\{[\s\S]*?\})\s*```/);
         if (jsonMatch) {
-          const analysis = JSON.parse(jsonMatch[0]);
+          const analysis = JSON.parse(jsonMatch[1]);
+          console.log('✅ Parsed JSON from code block');
           return analysis;
         }
+        
+        // Strategy 2: Look for any JSON object
+        jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const analysis = JSON.parse(jsonMatch[0]);
+          console.log('✅ Parsed JSON from content');
+          return analysis;
+        }
+        
+        // Strategy 3: Try to extract just the JSON part if wrapped in backticks
+        jsonMatch = content.match(/```[\s\S]*?(\{[\s\S]*?\})[\s\S]*?```/);
+        if (jsonMatch) {
+          const analysis = JSON.parse(jsonMatch[1]);
+          console.log('✅ Parsed JSON from wrapped content');
+          return analysis;
+        }
+        
       } catch (parseError) {
-        console.warn('⚠️  Failed to parse JSON response, using raw text');
+        console.warn('⚠️  Failed to parse JSON response:', parseError.message);
+        console.log('📋 Raw response for debugging:', content.substring(0, 500) + '...');
       }
       
-      return { analysis: content, action: 'manual', target: null, command: null };
+      // Fallback: create a safe response for chat-only automation
+      return { 
+        analysis: 'Could not parse Gemini response, no action taken', 
+        action: 'none', 
+        commands: [] 
+      };
     } catch (error) {
       console.error('❌ Failed to analyze with Gemini:', error);
       return null;
@@ -493,20 +517,30 @@ If everything appears to be working normally and no intervention is needed, set 
     }
 
     try {
-      console.log(`🎯 Executing multi-step action: ${analysis.action}`);
+      console.log(`🎯 Executing chat-focused action: ${analysis.action}`);
       console.log(`📋 ${analysis.commands.length} commands to execute`);
       
       // Focus Cursor app and chat panel once at the start
       await this.focusChatPanel();
       
-      // Execute each command in sequence
+      // Execute each command in sequence with validation
       for (let i = 0; i < analysis.commands.length; i++) {
         const step = analysis.commands[i];
         console.log(`   Step ${i + 1}/${analysis.commands.length}: ${step.description}`);
-        console.log(`   Command: ${step.command}`);
+        console.log(`   Raw command: ${step.command}`);
+        
+        // Convert and validate the command for chat-only operations
+        const cliclickCommand = this.convertToChatCommand(step.command);
+        
+        if (!cliclickCommand) {
+          console.warn(`   ⚠️  Step ${i + 1} skipped: Command not allowed for chat-only mode`);
+          continue;
+        }
+        
+        console.log(`   Executing: ${cliclickCommand}`);
         
         try {
-          await execAsync(step.command);
+          await execAsync(cliclickCommand);
           console.log(`   ✅ Step ${i + 1} completed`);
           
           // Wait before next command
@@ -519,12 +553,96 @@ If everything appears to be working normally and no intervention is needed, set 
         }
       }
       
-      console.log('✅ Multi-step action sequence completed');
+      console.log('✅ Chat-focused action sequence completed');
       return true;
     } catch (error) {
       console.error('❌ Failed to execute action sequence:', error);
       return false;
     }
+  }
+
+  convertToChatCommand(rawCommand) {
+    // Handle different command formats and convert to cliclick
+    const trimmedCommand = rawCommand.trim();
+
+    // First check if this is a text typing command - if so, allow it regardless of content
+    if (trimmedCommand.startsWith('cliclick t:') || trimmedCommand.match(/^cliclick t:".*"$/) || trimmedCommand.match(/^cliclick t:'.*'$/)) {
+      return trimmedCommand; // Allow all text typing commands
+    }
+
+    // Forbidden commands that should not be executed (only for non-typing commands)
+    const forbiddenPatterns = [
+      /cmd\+shift\+p/i,  // Command palette
+      /cmd\+grave/i,     // Terminal
+      /cmd\+p/i,         // File open (unless it's just 'p')
+      /cmd\+w/i,         // Close tab
+      /reload/i,         // Reload commands
+      /restart/i,        // Restart commands
+      /pause/i,          // Invalid pause commands
+    ];
+
+    // Check if command contains forbidden patterns (skip for typing commands)
+    for (const pattern of forbiddenPatterns) {
+      if (pattern.test(rawCommand)) {
+        console.warn(`   🚫 Blocked forbidden command: ${rawCommand}`);
+        return null;
+      }
+    }
+
+    // Handle AppleScript commands (allow these for Enter key)
+    if (trimmedCommand.includes('osascript')) {
+      return trimmedCommand;
+    }
+
+    // Handle cliclick commands (pass through if already formatted)
+    if (trimmedCommand.startsWith('cliclick')) {
+      return trimmedCommand;
+    }
+
+    // Convert common patterns to cliclick format
+    if (trimmedCommand === 'escape' || trimmedCommand === 'esc') {
+      return 'cliclick kp:esc';
+    }
+    
+    if (trimmedCommand === 'enter' || trimmedCommand === 'return') {
+      return 'osascript -e \'tell application "System Events" to key code 36\'';
+    }
+    
+    if (trimmedCommand === 'backspace' || trimmedCommand === 'delete') {
+      return 'cliclick kp:delete';
+    }
+    
+    if (trimmedCommand === 'cmd+a') {
+      return 'cliclick kd:cmd t:a ku:cmd';
+    }
+    
+    // Handle typing commands
+    if (trimmedCommand.startsWith('type ')) {
+      const text = trimmedCommand.substring(5).replace(/"/g, '\\"');
+      return `cliclick t:"${text}"`;
+    }
+    
+    // Handle basic key combinations (only allowed ones)
+    if (trimmedCommand.includes('+') && !forbiddenPatterns.some(p => p.test(trimmedCommand))) {
+      const parts = trimmedCommand.split('+');
+      const modifiers = parts.slice(0, -1);
+      const finalKey = parts[parts.length - 1];
+      
+      const keyDown = modifiers.map(mod => `kd:${mod}`).join(' ');
+      const keyUp = modifiers.map(mod => `ku:${mod}`).join(' ');
+      
+      if (finalKey === 'a' && modifiers.includes('cmd')) {
+        return `cliclick ${keyDown} t:${finalKey} ${keyUp}`;
+      }
+    }
+    
+    // Handle simple text typing (single words without special commands)
+    if (/^[a-zA-Z0-9\s.,!?-]+$/.test(trimmedCommand) && trimmedCommand.length < 100) {
+      return `cliclick t:"${trimmedCommand}"`;
+    }
+    
+    console.warn(`   ⚠️  Unknown command format, blocking: ${trimmedCommand}`);
+    return null;
   }
 
   async testKeyPress(keyCommand) {
@@ -671,8 +789,9 @@ If everything appears to be working normally and no intervention is needed, set 
       }
     }, CONFIG.SCREENSHOT_INTERVAL);
 
-    console.log('✅ Automation started. Press Ctrl+C to stop.');
-    console.log('🎯 FEATURE: Automated dev workflow prompt when Cursor is idle');
+    console.log('✅ Chat-focused automation started. Press Ctrl+C to stop.');
+    console.log('🎯 FEATURE: Automated dev workflow prompt when Cursor chat is idle');
+    console.log('🔒 SECURITY: Only chat panel commands allowed (no system/file operations)');
     if (CONFIG.TEST_MODE) {
       console.log('🧪 TEST MODE: Press "t" + Enter to trigger manual analysis');
       console.log('🧪 TEST MODE: Press "k" + Enter to test key press commands');
