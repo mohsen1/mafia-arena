@@ -104,7 +104,7 @@ export function SpeechInput({
 
         recognitionRef.current.onend = () => {
           setIsListening(false);
-          if (mode === 'continuous' && isListening) {
+          if (mode === 'continuous' && isListening && recognitionRef.current) {
             // Restart if in continuous mode
             recognitionRef.current.start();
           }

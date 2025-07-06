@@ -83,7 +83,7 @@ export function selectCharacterVoiceId(
     return WISE_OLD_MAN_VOICE;
   }
 
-  const key = `${gender}-${ageCategory}`;
+  const key = `${gender}-${ageCategory}` as keyof typeof ELEVENLABS_VOICES;
   const availableVoices = ELEVENLABS_VOICES[key];
 
   if (!availableVoices || availableVoices.length === 0) {
@@ -96,7 +96,7 @@ export function selectCharacterVoiceId(
 
   // Filter out already used voice IDs
   const unusedVoices = availableVoices.filter(
-    (voiceId) => !usedVoiceIds.has(voiceId)
+    (voiceId: string) => !usedVoiceIds.has(voiceId)
   );
 
   // If all voices are used, reset and use all available voices
