@@ -16,7 +16,7 @@ export async function requestPasswordReset(
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
-    
+
     // Always return success for security reasons (prevent email enumeration)
     // but only send email if user exists
     if (!user) {
@@ -26,21 +26,21 @@ export async function requestPasswordReset(
 
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    
+
     // Delete any existing tokens for this email
     await db
       .delete(verificationTokens)
       .where(eq(verificationTokens.identifier, email));
-    
+
     // Create new verification token
     await db
       .insert(verificationTokens)
       .values({ identifier: email, token, expires });
 
     const resetUrl = `${process.env.NEXTAUTH_URL}/en/auth/reset/${token}`;
-    
+
     console.log('🔐 Sending password reset email to:', email);
-    
+
     const emailResult = await sendEmail({
       to: email,
       subject: 'Reset your Werewolf AI password',
@@ -59,7 +59,10 @@ export async function requestPasswordReset(
     });
 
     if (!emailResult.success) {
-      console.error('❌ Failed to send password reset email:', emailResult.error);
+      console.error(
+        '❌ Failed to send password reset email:',
+        emailResult.error
+      );
       // Log the error but still return success for security
       // In production, you might want to alert admins about email failures
       return { success: true }; // Don't expose email service errors to users
@@ -67,12 +70,12 @@ export async function requestPasswordReset(
 
     console.log('✅ Password reset email sent successfully');
     return { success: true };
-    
   } catch (error) {
     console.error('❌ Error in password reset request:', error);
-    return { 
-      success: false, 
-      error: 'An error occurred while processing your request. Please try again.' 
+    return {
+      success: false,
+      error:
+        'An error occurred while processing your request. Please try again.',
     };
   }
 }
