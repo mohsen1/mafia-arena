@@ -5,9 +5,10 @@ const fs = require('fs').promises;
 const path = require('path');
 const { promisify } = require('util');
 const crypto = require('crypto');
-const fetch = require('node-fetch');
 
 const execAsync = promisify(exec);
+
+// Note: Using built-in fetch (available in Node.js 18+)
 
 // Load environment variables from .env file
 try {
@@ -28,9 +29,9 @@ try {
 
 // Configuration
 const CONFIG = {
-  SCREENSHOT_INTERVAL: process.env.TEST_MODE ? 10 * 1000 : 3 * 60 * 1000, // 10 seconds in test mode, 3 minutes normally
+  SCREENSHOT_INTERVAL: process.env.TEST_MODE ? 30 * 1000 : 3 * 60 * 1000, // 30 seconds in test mode, 3 minutes normally
+  ANALYSIS_SCREENSHOT_COUNT: 3, // Analyze after collecting 3 screenshots (9 minutes total)
   SCREENSHOTS_DIR: './screenshots',
-  MAX_SCREENSHOTS: 10, // Keep only last 10 screenshots
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
   CURSOR_APP_NAME: process.env.CURSOR_APP_NAME || 'Cursor',
@@ -49,11 +50,11 @@ class CursorUnblockAutomation {
     console.log('🚀 Initializing Cursor Unblock Automation...');
     
     if (CONFIG.TEST_MODE) {
-      console.log('🧪 TEST MODE ENABLED - Using 10-second intervals');
+      console.log('🧪 TEST MODE ENABLED - Using 30-second intervals');
     }
     
     if (CONFIG.MANUAL_TRIGGER) {
-      console.log('🎯 MANUAL TRIGGER ENABLED - Will analyze on next screenshot');
+      console.log('🎯 MANUAL TRIGGER ENABLED - Will analyze on next cycle');
     }
     
     // Check dependencies
@@ -68,7 +69,9 @@ class CursorUnblockAutomation {
     console.log(`✅ Initialization complete`);
     console.log(`🎯 Target app: ${CONFIG.CURSOR_APP_NAME}`);
     console.log(`⏱️  Screenshot interval: ${CONFIG.SCREENSHOT_INTERVAL / 1000} seconds`);
-    console.log(`📸 Screenshot mode: Cursor window only (exact pixel comparison)`);
+    console.log(`📊 Analysis after: ${CONFIG.ANALYSIS_SCREENSHOT_COUNT} screenshots (${CONFIG.ANALYSIS_SCREENSHOT_COUNT * CONFIG.SCREENSHOT_INTERVAL / 1000 / 60} minutes)`);
+    console.log(`📸 Screenshot mode: Cursor window only`);
+    console.log(`🤖 AI Features: Multi-command sequences + Automated dev workflow prompts`);
   }
 
   async checkDependencies() {
@@ -129,15 +132,15 @@ class CursorUnblockAutomation {
       if (windowId) {
         await execAsync(`screencapture -l ${windowId} -x "${filepath}"`);
         if (CONFIG.TEST_MODE) {
-          console.log(`📸 Captured Cursor window (ID: ${windowId}): ${filename}`);
+          console.log(`📸 Captured Cursor window (ID: ${windowId}): ${filename} (${this.screenshots.length + 1}/${CONFIG.ANALYSIS_SCREENSHOT_COUNT})`);
         } else {
-          console.log(`📸 Screenshot captured: ${filename}`);
+          console.log(`📸 Screenshot captured: ${filename} (${this.screenshots.length + 1}/${CONFIG.ANALYSIS_SCREENSHOT_COUNT})`);
         }
       } else {
         // Fallback to full screen if window ID not found
         console.warn('⚠️  Could not get Cursor window ID, using full screen capture');
         await execAsync(`screencapture -x "${filepath}"`);
-        console.log(`📸 Screenshot captured (full screen): ${filename}`);
+        console.log(`📸 Screenshot captured (full screen): ${filename} (${this.screenshots.length + 1}/${CONFIG.ANALYSIS_SCREENSHOT_COUNT})`);
       }
       
       // Add to screenshots array
@@ -148,16 +151,6 @@ class CursorUnblockAutomation {
         hash: await this.getImageHash(filepath)
       });
 
-      // Keep only the last few screenshots
-      if (this.screenshots.length > CONFIG.MAX_SCREENSHOTS) {
-        const oldScreenshot = this.screenshots.shift();
-        try {
-          await fs.unlink(oldScreenshot.filepath);
-        } catch (error) {
-          console.warn('⚠️  Failed to delete old screenshot:', error.message);
-        }
-      }
-
       return filepath;
     } catch (error) {
       console.error('❌ Failed to capture screenshot:', error);
@@ -167,21 +160,84 @@ class CursorUnblockAutomation {
 
   async getCursorWindowId() {
     try {
-      // Get window ID for Cursor app
-      const { stdout } = await execAsync(`osascript -e 'tell application "System Events" to get id of first window of process "${CONFIG.CURSOR_APP_NAME}" whose visible is true'`);
-      const windowId = stdout.trim();
-      
-      if (windowId && windowId !== '') {
-        if (CONFIG.TEST_MODE) {
-          console.log(`   🎯 Found Cursor window ID: ${windowId}`);
+      if (CONFIG.TEST_MODE) {
+        console.log('   🔍 Debugging window detection...');
+        
+        // Debug: List all running processes
+        try {
+          const { stdout: allProcesses } = await execAsync(`osascript -e 'tell application "System Events" to return name of every process'`);
+          const processes = allProcesses.split(', ').map(p => p.trim());
+          const cursorProcesses = processes.filter(p => p.toLowerCase().includes('cursor'));
+          console.log(`   📋 Found Cursor-related processes: ${cursorProcesses.join(', ') || 'none'}`);
+          
+          if (cursorProcesses.length > 0) {
+            // Try the actual process name found
+            for (const processName of cursorProcesses) {
+              if (CONFIG.TEST_MODE) {
+                console.log(`   🎯 Trying process name: "${processName}"`);
+              }
+              
+              try {
+                const { stdout } = await execAsync(`osascript -e 'tell application "System Events" to tell process "${processName}" to get id of window 1'`);
+                const windowId = stdout.trim();
+                
+                if (windowId && windowId !== '' && !isNaN(parseInt(windowId))) {
+                  if (CONFIG.TEST_MODE) {
+                    console.log(`   ✅ Found window ID ${windowId} for process "${processName}"`);
+                  }
+                  return windowId;
+                }
+              } catch (procError) {
+                if (CONFIG.TEST_MODE) {
+                  console.log(`   ⚠️  Process "${processName}" failed: ${procError.message.split('\n')[0]}`);
+                }
+              }
+            }
+          }
+        } catch (debugError) {
+          console.log(`   ⚠️  Debug process listing failed: ${debugError.message.split('\n')[0]}`);
         }
-        return windowId;
+      }
+
+      // Try alternative approach using window list
+      try {
+        if (CONFIG.TEST_MODE) {
+          console.log('   🔍 Trying alternative window detection...');
+        }
+        
+        // Use a different approach - get all window info and filter
+        const { stdout: windowInfo } = await execAsync(`osascript -e 'tell application "System Events" to get {name, id} of every window of every process'`);
+        
+        if (CONFIG.TEST_MODE) {
+          console.log(`   📋 Raw window info: ${windowInfo.substring(0, 200)}...`);
+        }
+        
+        // This is a fallback - if we can't get the exact window, let's just use a simpler approach
+        // Try to get any frontmost window ID as a last resort
+        const { stdout: frontmostApp } = await execAsync(`osascript -e 'tell application "System Events" to return name of first application process whose frontmost is true'`);
+        
+        if (frontmostApp.trim().toLowerCase().includes('cursor')) {
+          const { stdout: frontmostWindowId } = await execAsync(`osascript -e 'tell application "System Events" to tell first application process whose frontmost is true to return id of window 1'`);
+          const windowId = frontmostWindowId.trim();
+          
+          if (windowId && !isNaN(parseInt(windowId))) {
+            if (CONFIG.TEST_MODE) {
+              console.log(`   ✅ Using frontmost window ID: ${windowId}`);
+            }
+            return windowId;
+          }
+        }
+        
+      } catch (altError) {
+        if (CONFIG.TEST_MODE) {
+          console.log(`   ⚠️  Alternative approach failed: ${altError.message.split('\n')[0]}`);
+        }
       }
       
       return null;
     } catch (error) {
       if (CONFIG.TEST_MODE) {
-        console.warn('   ⚠️  Failed to get Cursor window ID:', error.message);
+        console.warn('   ⚠️  All window detection methods failed:', error.message.split('\n')[0]);
       }
       return null;
     }
@@ -196,8 +252,6 @@ class CursorUnblockAutomation {
       return null;
     }
   }
-
-
 
   async focusCursorApp() {
     try {
@@ -216,67 +270,74 @@ class CursorUnblockAutomation {
     }
   }
 
-  areScreenshotsSame() {
-    if (this.screenshots.length < 3) {
-      if (CONFIG.TEST_MODE) {
-        console.log(`   📸 Only ${this.screenshots.length} screenshots, need 3 for comparison`);
-      }
-      return false;
+  async focusChatPanel() {
+    try {
+      // First focus the Cursor app
+      await this.focusCursorApp();
+      await this.sleep(1000);
+      
+      // Focus the chat panel with cmd+1
+      console.log('🎯 Focusing chat panel with cmd+1');
+      await execAsync('cliclick kd:cmd t:1 ku:cmd');
+      await this.sleep(500);
+      
+      // Focus the chat input with cmd+l
+      console.log('🎯 Focusing chat input with cmd+l');
+      await execAsync('cliclick kd:cmd t:l ku:cmd');
+      await this.sleep(500);
+      
+      console.log('✅ Chat panel focused and ready');
+    } catch (error) {
+      console.error('❌ Failed to focus chat panel:', error);
+      // Fallback to just focusing the app
+      await this.focusCursorApp();
+      await this.sleep(1000);
     }
-
-    // Get the last 3 screenshots
-    const lastThree = this.screenshots.slice(-3);
-    
-    if (CONFIG.TEST_MODE) {
-      console.log('   🔍 Comparing last 3 Cursor window screenshots...');
-      lastThree.forEach((screenshot, index) => {
-        console.log(`   📸 Screenshot ${index + 1}: ${screenshot.hash?.substring(0, 8)}...`);
-      });
-    }
-    
-    // Check if all hashes are exactly the same (since we're only capturing Cursor window)
-    const firstHash = lastThree[0].hash;
-    const allSame = lastThree.every(screenshot => screenshot.hash === firstHash);
-    
-    if (allSame) {
-      console.log('🔍 Last 3 Cursor window screenshots are identical - stuck state detected');
-      return true;
-    }
-    
-    if (CONFIG.TEST_MODE) {
-      console.log('   ✅ Cursor window screenshots are different - no stuck state detected');
-    }
-    
-    return false;
   }
 
-  async analyzeWithGemini(screenshotPath) {
+  shouldAnalyzeScreenshots() {
+    // Analyze when we have collected the required number of screenshots or manual trigger is enabled
+    return this.screenshots.length >= CONFIG.ANALYSIS_SCREENSHOT_COUNT || CONFIG.MANUAL_TRIGGER;
+  }
+
+  async analyzeWithGemini(screenshotPaths) {
     try {
-      console.log('🤖 Analyzing screenshot with Gemini...');
+      console.log(`🤖 Analyzing ${screenshotPaths.length} screenshots with Gemini...`);
       
-      // Read and encode the screenshot
-      const imageData = await fs.readFile(screenshotPath);
-      const base64Image = imageData.toString('base64');
+      // Read and encode all screenshots
+      const imageData = [];
+      for (const screenshotPath of screenshotPaths) {
+        const data = await fs.readFile(screenshotPath);
+        const base64Image = data.toString('base64');
+        imageData.push({
+          inline_data: {
+            mime_type: "image/png",
+            data: base64Image
+          }
+        });
+      }
 
       const requestBody = {
         contents: [{
           parts: [{
-            text: `You are analyzing a screenshot of the Cursor AI editor window to help unblock a stuck situation. 
+            text: `You are analyzing ${screenshotPaths.length} sequential screenshots of the Cursor AI editor window taken over ${CONFIG.ANALYSIS_SCREENSHOT_COUNT * CONFIG.SCREENSHOT_INTERVAL / 1000 / 60} minutes. 
 
-The user's automation detected that the last 3 screenshots of the Cursor window are exactly identical (pixel-perfect match), indicating the application is definitely stuck or waiting for user input.
+These screenshots show the progression of the Cursor interface over time. Please analyze them to:
 
-Please analyze this screenshot and provide specific instructions on what to do to unblock the situation. Consider:
-1. Look for any dialog boxes, error messages, or prompts that need attention
-2. Check if there are any buttons that need to be clicked
-3. Look for loading indicators or progress bars
-4. Identify any modal windows or overlays
-5. Check if the application is waiting for user input
+1. Identify any issues, errors, or stuck states in the interface
+2. Look for dialog boxes, error messages, or prompts that need attention
+3. Check for loading indicators that have been stuck
+4. Identify any modal windows or overlays that might be blocking work
+5. Determine if any action is needed to help the user continue their work
+6. **Detect if Cursor appears idle/waiting** - if the user seems to have completed tasks and Cursor is waiting for the next action
 
 IMPORTANT: STRONGLY PREFER KEYBOARD ACTIONS over mouse clicks. Keyboard shortcuts are more reliable and universal.
 
+NOTE: Before executing any action, the automation will automatically focus the Cursor chat panel using cmd+1 (focus chat panel) and cmd+l (focus chat input). Your commands will be executed in the context of the focused chat panel.
+
 Common keyboard solutions for Cursor AI:
 - Escape key: Close dialogs, cancel operations
-- Enter/Return: Confirm actions, submit forms
+- Enter/Return: Confirm actions, submit forms, send chat messages (handled via AppleScript)
 - Cmd+Shift+P: Open command palette
 - Cmd+grave: Open terminal
 - Cmd+P: Quick file open
@@ -285,22 +346,88 @@ Common keyboard solutions for Cursor AI:
 - Cmd+Shift+Z: Redo
 - Tab: Navigate between fields
 - Space: Activate buttons/checkboxes
+- Backspace: Delete characters in chat input
+- Arrow keys: Navigate within text input
+
+You have complete freedom to suggest multiple actions and complex sequences to unblock any situation. Don't hesitate to:
+- Clear text and retype messages
+- Navigate through menus and dialogs
+- Use multiple keyboard shortcuts in sequence
+- Type text, delete it, and try different approaches
+- Open command palette and execute commands
+- Switch between different Cursor panels and try various approaches
+
+**SPECIAL CASE: If Cursor appears idle/waiting for next task**, suggest the automated dev workflow by typing this message:
+
+---
+
+**Automated Dev Workflow Prompt**
+
+Use \`agentshell\` to orchestrate the following loop:
+
+### 1. **Issue Management (GitHub CLI)**
+
+* Use \`gh\` CLI to list open issues from the repository.
+* If no issues exist:
+
+  * Identify areas of code quality or architectural improvements.
+  * Open a new GitHub issue describing the improvement and assign it to yourself.
+
+### 2. **Deployment Status (Vercel CLI)**
+
+* Use \`vercel\` CLI to check the latest deployment status.
+* Only begin working if deployments are stable or unaffected.
+
+### 3. **Work on Issues**
+
+* Pick the highest-priority open issue.
+* Investigate, implement a fix or feature with **clean, well-structured code**.
+* Test the fix locally in the browser.
+* Use **MCP tools** and **browser** to research and validate the solution.
+
+### 4. **Quality Checks**
+
+Before committing:
+
+* Ensure \`lint\`, \`tsc\`, and \`tests\` all pass with no errors.
+* Use \`npm run lint\`, \`tsc --noEmit\`, and \`npm test\` or project equivalents.
+
+### 5. **Commit and Close**
+
+* Commit with a meaningful message referencing the issue (e.g. \`fix: close #123 - correct null check on config load\`).
+* Push to main or a PR branch.
+* Close the issue after successful deployment and verification via Vercel.
+
+### 6. **Repeat**
+
+* Loop back to the issue list.
+* If backlog is empty again, refactor or improve documentation, test coverage, or modularity.
+
+---
 
 Provide your response in this JSON format:
 {
-  "analysis": "Your analysis of what you see in the screenshot",
-  "action": "specific action to take (prefer 'key' over 'click')",
-  "target": "specific element or key combination",
-  "command": "exact cliclick command to run (e.g., 'cliclick kp:escape' or 'cliclick kp:cmd+shift+p')"
+  "analysis": "Your analysis of what you see across the screenshots and any issues identified",
+  "action": "describe the overall strategy (e.g., 'clear_and_retry', 'navigate_dialog', 'multi_step_recovery', or 'none')",
+  "commands": [
+    {
+      "description": "What this step does",
+      "command": "exact command to run",
+      "wait_ms": 500
+    }
+  ]
 }
 
-Focus on keyboard-based solutions first, only use mouse clicks if absolutely necessary.`
-          }, {
-            inline_data: {
-              mime_type: "image/png",
-              data: base64Image
-            }
-          }]
+Examples of command sequences:
+- Clear and retry: [{"description": "Select all", "command": "cliclick kd:cmd t:a ku:cmd", "wait_ms": 300}, {"description": "Delete", "command": "cliclick kp:delete", "wait_ms": 300}, {"description": "Type new message", "command": "cliclick t:hello", "wait_ms": 300}, {"description": "Send", "command": "osascript -e 'tell application \"System Events\" to key code 36'", "wait_ms": 500}]
+- Navigate dialog: [{"description": "Press escape", "command": "cliclick kp:esc", "wait_ms": 500}, {"description": "Try again", "command": "cliclick kd:cmd t:l ku:cmd", "wait_ms": 500}]
+- Open command palette: [{"description": "Open palette", "command": "cliclick kd:cmd,shift t:p ku:shift,cmd", "wait_ms": 1000}, {"description": "Type command", "command": "cliclick t:reload", "wait_ms": 300}, {"description": "Execute", "command": "osascript -e 'tell application \"System Events\" to key code 36'", "wait_ms": 500}]
+- Automated dev workflow (when idle): Use the workflow text provided above - type the complete automated dev workflow prompt into chat and send it
+
+If everything appears to be working normally and no intervention is needed, set action to "none" and commands to an empty array.`
+          }, 
+          ...imageData
+          ]
         }]
       };
 
@@ -340,63 +467,133 @@ Focus on keyboard-based solutions first, only use mouse clicks if absolutely nec
   }
 
   async executeUnblockAction(analysis) {
-    if (!analysis || !analysis.command) {
-      console.log('ℹ️  No specific action provided, trying default unblock actions');
-      return await this.executeDefaultUnblockActions();
+    if (!analysis) {
+      console.log('ℹ️  No analysis provided');
+      return false;
+    }
+
+    // Handle both new format (commands array) and old format (single command) for backward compatibility
+    if (analysis.action === 'none') {
+      console.log('ℹ️  No action needed');
+      return true;
+    }
+
+    // Backward compatibility: convert old format to new format
+    if (analysis.command && !analysis.commands) {
+      analysis.commands = [{
+        description: `Execute: ${analysis.command}`,
+        command: analysis.command,
+        wait_ms: 500
+      }];
+    }
+
+    if (!analysis.commands || analysis.commands.length === 0) {
+      console.log('ℹ️  No commands provided');
+      return true;
     }
 
     try {
-      console.log(`🎯 Executing action: ${analysis.command}`);
+      console.log(`🎯 Executing multi-step action: ${analysis.action}`);
+      console.log(`📋 ${analysis.commands.length} commands to execute`);
       
-      // Focus Cursor app first
-      await this.focusCursorApp();
-      await this.sleep(1000);
+      // Focus Cursor app and chat panel once at the start
+      await this.focusChatPanel();
       
-      // Execute the command
-      await execAsync(analysis.command);
+      // Execute each command in sequence
+      for (let i = 0; i < analysis.commands.length; i++) {
+        const step = analysis.commands[i];
+        console.log(`   Step ${i + 1}/${analysis.commands.length}: ${step.description}`);
+        console.log(`   Command: ${step.command}`);
+        
+        try {
+          await execAsync(step.command);
+          console.log(`   ✅ Step ${i + 1} completed`);
+          
+          // Wait before next command
+          const waitTime = step.wait_ms || 500;
+          await this.sleep(waitTime);
+          
+        } catch (stepError) {
+          console.error(`   ❌ Step ${i + 1} failed: ${stepError.message.split('\n')[0]}`);
+          // Continue with next step instead of failing completely
+        }
+      }
       
-      console.log('✅ Action executed successfully');
+      console.log('✅ Multi-step action sequence completed');
       return true;
     } catch (error) {
-      console.error('❌ Failed to execute action:', error);
+      console.error('❌ Failed to execute action sequence:', error);
       return false;
     }
   }
 
-  async executeDefaultUnblockActions() {
-    console.log('🔧 Executing default keyboard-based unblock actions...');
-    
+  async testKeyPress(keyCommand) {
     try {
-      // Focus Cursor app
-      await this.focusCursorApp();
-      await this.sleep(1000);
+      console.log(`🧪 Testing key press: ${keyCommand}`);
       
-      // Try common keyboard-based unblock actions (prioritize keyboard over mouse)
-      const actions = [
-        'cliclick kp:escape',           // Press Escape to close dialogs
-        'cliclick kp:return',           // Press Enter to confirm
-        'cliclick kp:tab',              // Navigate to next field
-        'cliclick kp:space',            // Activate buttons/checkboxes
-        'cliclick kp:cmd+shift+p',      // Open command palette
-        'cliclick kp:escape',           // Close command palette
-        'cliclick kp:cmd+w',            // Close current tab
-        'cliclick kp:cmd+z',            // Undo last action
-        'cliclick kp:cmd+p',            // Quick file open
-        'cliclick kp:escape',           // Close any open dialogs
-      ];
+      // Focus Cursor app and chat panel
+      await this.focusChatPanel();
       
-      for (const action of actions) {
-        console.log(`🎯 Trying: ${action}`);
-        await execAsync(action);
-        await this.sleep(1000);
+      // Execute the key command - handle different formats
+      let cliclickCommand;
+      if (keyCommand.startsWith('cliclick')) {
+        cliclickCommand = keyCommand;
+      } else if (keyCommand.includes('+')) {
+        // Handle modifier combinations like "cmd+shift+p"
+        const parts = keyCommand.split('+');
+        const modifiers = parts.slice(0, -1);
+        const finalKey = parts[parts.length - 1];
+        
+        const keyDown = modifiers.map(mod => `kd:${mod}`).join(' ');
+        const keyUp = modifiers.map(mod => `ku:${mod}`).join(' ');
+        
+        // Use t: for typing letters/numbers, kp: for special keys, AppleScript for enter
+        if (finalKey.toLowerCase() === 'return' || finalKey.toLowerCase() === 'enter') {
+          // Use AppleScript for enter key with modifiers
+          cliclickCommand = `cliclick ${keyDown} && osascript -e 'tell application "System Events" to key code 36' && cliclick ${keyUp}`;
+        } else if (['esc', 'escape', 'space', 'tab', 'delete', 'backspace'].includes(finalKey.toLowerCase())) {
+          const keyPress = `kp:${finalKey === 'escape' ? 'esc' : finalKey === 'backspace' ? 'delete' : finalKey}`;
+          cliclickCommand = `cliclick ${keyDown} ${keyPress} ${keyUp}`;
+        } else {
+          const keyPress = `t:${finalKey}`;
+          cliclickCommand = `cliclick ${keyDown} ${keyPress} ${keyUp}`;
+        }
+      } else {
+        // Single key press
+        if (keyCommand.toLowerCase() === 'return' || keyCommand.toLowerCase() === 'enter') {
+          // Use AppleScript for enter key
+          cliclickCommand = `osascript -e 'tell application "System Events" to key code 36'`;
+        } else if (['esc', 'escape', 'space', 'tab', 'delete', 'backspace'].includes(keyCommand.toLowerCase())) {
+          const keyName = keyCommand === 'escape' ? 'esc' : keyCommand === 'backspace' ? 'delete' : keyCommand;
+          cliclickCommand = `cliclick kp:${keyName}`;
+        } else {
+          cliclickCommand = `cliclick t:${keyCommand}`;
+        }
       }
       
-      console.log('✅ Default unblock actions completed');
+      await execAsync(cliclickCommand);
+      
+      console.log('✅ Key press executed successfully');
       return true;
     } catch (error) {
-      console.error('❌ Failed to execute default actions:', error);
+      console.error('❌ Failed to execute key press:', error);
       return false;
     }
+  }
+
+  async clearScreenshots() {
+    console.log('🧹 Clearing screenshots...');
+    
+    for (const screenshot of this.screenshots) {
+      try {
+        await fs.unlink(screenshot.filepath);
+      } catch (error) {
+        console.warn(`⚠️  Failed to delete screenshot ${screenshot.filename}:`, error.message);
+      }
+    }
+    
+    this.screenshots = [];
+    console.log('✅ Screenshots cleared, starting fresh cycle');
   }
 
   async sleep(ms) {
@@ -416,35 +613,33 @@ Focus on keyboard-based solutions first, only use mouse clicks if absolutely nec
       return;
     }
 
-    // Check if we have enough screenshots and if they're the same
-    const areSame = this.areScreenshotsSame();
-    
-    if (areSame || CONFIG.MANUAL_TRIGGER) {
+    // Check if we should analyze
+    if (this.shouldAnalyzeScreenshots()) {
       if (CONFIG.MANUAL_TRIGGER) {
-        console.log('🚨 Manual trigger activated! Analyzing with Gemini...');
+        console.log('🚨 Manual trigger activated! Analyzing screenshots with Gemini...');
       } else {
-        console.log('🚨 Stuck state detected! Analyzing with Gemini...');
+        console.log(`🚨 Collected ${this.screenshots.length} screenshots! Analyzing with Gemini...`);
       }
       
       // Analyze with Gemini
-      const analysis = await this.analyzeWithGemini(screenshotPath);
+      const screenshotPaths = this.screenshots.map(s => s.filepath);
+      const analysis = await this.analyzeWithGemini(screenshotPaths);
       
       if (analysis) {
         console.log('📝 Analysis result:', JSON.stringify(analysis, null, 2));
         
         // Execute the recommended action
         await this.executeUnblockAction(analysis);
-        
-        // Clear screenshots to avoid repeated actions
-        this.screenshots = [];
-        console.log('🧹 Cleared screenshot history to avoid repeated actions');
-        
-        // If manual trigger, turn it off
-        if (CONFIG.MANUAL_TRIGGER) {
-          process.env.MANUAL_TRIGGER = 'false';
-          CONFIG.MANUAL_TRIGGER = false;
-          console.log('🔄 Manual trigger disabled');
-        }
+      }
+      
+      // Clear screenshots and start fresh
+      await this.clearScreenshots();
+      
+      // If manual trigger, turn it off
+      if (CONFIG.MANUAL_TRIGGER) {
+        process.env.MANUAL_TRIGGER = 'false';
+        CONFIG.MANUAL_TRIGGER = false;
+        console.log('🔄 Manual trigger disabled');
       }
     }
   }
@@ -460,6 +655,7 @@ Focus on keyboard-based solutions first, only use mouse clicks if absolutely nec
       `${CONFIG.SCREENSHOT_INTERVAL / 1000 / 60} minute intervals`;
     
     console.log(`🚀 Starting Cursor Unblock Automation (${intervalText})`);
+    console.log(`📊 Will analyze every ${CONFIG.ANALYSIS_SCREENSHOT_COUNT} screenshots (${CONFIG.ANALYSIS_SCREENSHOT_COUNT * CONFIG.SCREENSHOT_INTERVAL / 1000 / 60} minutes)`);
     this.isRunning = true;
 
     // Set up keyboard shortcuts for manual control
@@ -476,8 +672,10 @@ Focus on keyboard-based solutions first, only use mouse clicks if absolutely nec
     }, CONFIG.SCREENSHOT_INTERVAL);
 
     console.log('✅ Automation started. Press Ctrl+C to stop.');
+    console.log('🎯 FEATURE: Automated dev workflow prompt when Cursor is idle');
     if (CONFIG.TEST_MODE) {
       console.log('🧪 TEST MODE: Press "t" + Enter to trigger manual analysis');
+      console.log('🧪 TEST MODE: Press "k" + Enter to test key press commands');
     }
   }
 
@@ -487,13 +685,139 @@ Focus on keyboard-based solutions first, only use mouse clicks if absolutely nec
       process.stdin.resume();
       process.stdin.setEncoding('utf8');
       
-      process.stdin.on('data', (key) => {
+      console.log('\n🎮 Key Testing Commands Available:');
+      console.log('  t + Enter: Trigger manual analysis');
+      console.log('  k + Enter: Enter key testing mode');
+      console.log('  Ctrl+C: Stop automation');
+      console.log('');
+      
+      process.stdin.on('data', async (key) => {
         if (key === 't\n' || key === 't\r\n') {
           console.log('🎯 Manual trigger activated!');
           process.env.MANUAL_TRIGGER = 'true';
           CONFIG.MANUAL_TRIGGER = true;
+        } else if (key === 'k\n' || key === 'k\r\n') {
+          await this.enterKeyTestingMode();
         }
       });
+    }
+  }
+
+  async enterKeyTestingMode() {
+    console.log('\n🧪 ENTERING KEY TESTING MODE');
+    console.log('NOTE: Chat panel will be focused automatically before key presses');
+    console.log('Type commands to test (or "exit" to return):');
+    console.log('');
+    console.log('Single key examples:');
+    console.log('  escape           - Press Escape key');
+    console.log('  cmd+shift+p      - Open command palette');
+    console.log('  return           - Press Enter (send chat message) - uses AppleScript');
+    console.log('  hello            - Type "hello"');
+    console.log('  cmd+a            - Select all');
+    console.log('');
+    console.log('Multi-command sequences (separate with " ; "):');
+    console.log('  cmd+a ; delete ; hello ; return    - Select all, delete, type hello, send');
+    console.log('  escape ; cmd+shift+p ; reload      - Escape, command palette, reload');
+    console.log('  cmd+z ; cmd+z ; hello              - Undo twice, type hello');
+    console.log('');
+    
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    
+    const askForCommand = () => {
+      rl.question('Command(s) > ', async (command) => {
+        const trimmedCommand = command.trim();
+        
+        if (trimmedCommand === 'exit' || trimmedCommand === 'quit') {
+          rl.close();
+          console.log('🔄 Exited key testing mode\n');
+          return;
+        }
+        
+        if (trimmedCommand === '') {
+          askForCommand();
+          return;
+        }
+        
+        // Check if it's a multi-command sequence
+        if (trimmedCommand.includes(' ; ')) {
+          await this.testMultiCommandSequence(trimmedCommand.split(' ; '));
+        } else {
+          await this.testKeyPress(trimmedCommand);
+        }
+        
+        askForCommand();
+      });
+    };
+    
+    askForCommand();
+  }
+
+  async testMultiCommandSequence(commands) {
+    try {
+      console.log(`🧪 Testing multi-command sequence: ${commands.length} commands`);
+      
+      // Focus chat panel once at the start
+      await this.focusChatPanel();
+      
+      for (let i = 0; i < commands.length; i++) {
+        const command = commands[i].trim();
+        console.log(`   Step ${i + 1}/${commands.length}: ${command}`);
+        
+        // Execute the key command (reuse the logic from testKeyPress but without re-focusing)
+        let cliclickCommand;
+        if (command.startsWith('cliclick')) {
+          cliclickCommand = command;
+        } else if (command.includes('+')) {
+          // Handle modifier combinations
+          const parts = command.split('+');
+          const modifiers = parts.slice(0, -1);
+          const finalKey = parts[parts.length - 1];
+          
+          const keyDown = modifiers.map(mod => `kd:${mod}`).join(' ');
+          const keyUp = modifiers.map(mod => `ku:${mod}`).join(' ');
+          
+          if (finalKey.toLowerCase() === 'return' || finalKey.toLowerCase() === 'enter') {
+            cliclickCommand = `cliclick ${keyDown} && osascript -e 'tell application "System Events" to key code 36' && cliclick ${keyUp}`;
+          } else if (['esc', 'escape', 'space', 'tab', 'delete', 'backspace'].includes(finalKey.toLowerCase())) {
+            const keyPress = `kp:${finalKey === 'escape' ? 'esc' : finalKey === 'backspace' ? 'delete' : finalKey}`;
+            cliclickCommand = `cliclick ${keyDown} ${keyPress} ${keyUp}`;
+          } else {
+            const keyPress = `t:${finalKey}`;
+            cliclickCommand = `cliclick ${keyDown} ${keyPress} ${keyUp}`;
+          }
+        } else {
+          // Single key press
+          if (command.toLowerCase() === 'return' || command.toLowerCase() === 'enter') {
+            cliclickCommand = `osascript -e 'tell application "System Events" to key code 36'`;
+          } else if (['esc', 'escape', 'space', 'tab', 'delete', 'backspace'].includes(command.toLowerCase())) {
+            const keyName = command === 'escape' ? 'esc' : command === 'backspace' ? 'delete' : command;
+            cliclickCommand = `cliclick kp:${keyName}`;
+          } else {
+            cliclickCommand = `cliclick t:${command}`;
+          }
+        }
+        
+        try {
+          await execAsync(cliclickCommand);
+          console.log(`   ✅ Step ${i + 1} completed`);
+          
+          // Wait between commands
+          await this.sleep(400);
+          
+        } catch (stepError) {
+          console.error(`   ❌ Step ${i + 1} failed: ${stepError.message.split('\n')[0]}`);
+        }
+      }
+      
+      console.log('✅ Multi-command sequence completed');
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to execute multi-command sequence:', error);
+      return false;
     }
   }
 

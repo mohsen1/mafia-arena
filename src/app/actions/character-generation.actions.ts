@@ -352,7 +352,7 @@ export async function generateGameCharactersAction(
 
     // Reset used images tracker for this new game
     resetUsedImages();
-    
+
     // Reset used voice IDs tracker for this new game
     resetUsedVoiceIds();
 
@@ -374,7 +374,7 @@ export async function generateGameCharactersAction(
             console.log(
               `[CharacterGen] Using auth provider image for human player ${player.name}: ${session.user.image}`
             );
-            
+
             // Human players don't need voice IDs in most cases, but we can still assign one if they have a persona
             let voiceId: string | undefined;
             const updatedPlayer = updatedState.players[player.id];
@@ -391,8 +391,12 @@ export async function generateGameCharactersAction(
                 `[CharacterGen] Assigned voice ID for human player ${player.name}: ${voiceId} (${voiceAnalysis.gender} ${voiceAnalysis.ageCategory}${isWise ? ' wise' : ''})`
               );
             }
-            
-            return { playerId: player.id, imageUrl: session.user.image, voiceId };
+
+            return {
+              playerId: player.id,
+              imageUrl: session.user.image,
+              voiceId,
+            };
           }
 
           // Get the updated player with persona
@@ -455,7 +459,7 @@ export async function generateGameCharactersAction(
           );
           // Even on error, provide a default image
           const defaultImage = getDefaultCharacterImage(index);
-          
+
           // Still try to assign voice ID even if image generation failed
           let voiceId: string | undefined;
           const updatedPlayer = updatedState.players[player.id];
@@ -472,14 +476,14 @@ export async function generateGameCharactersAction(
               `[CharacterGen] Assigned voice ID for ${player.name} (despite image error): ${voiceId} (${voiceAnalysis.gender} ${voiceAnalysis.ageCategory}${isWise ? ' wise' : ''})`
             );
           }
-          
+
           return { playerId: player.id, imageUrl: defaultImage, voiceId };
         }
       }
       console.log(
         `[CharacterGen] Player ${player.name} already has image: ${player.imageUrl}`
       );
-      
+
       // Still assign voice ID for players who already have images
       let voiceId: string | undefined;
       const updatedPlayer = updatedState.players[player.id];
@@ -496,7 +500,7 @@ export async function generateGameCharactersAction(
           `[CharacterGen] Assigned voice ID for ${player.name} (with existing image): ${voiceId} (${voiceAnalysis.gender} ${voiceAnalysis.ageCategory}${isWise ? ' wise' : ''})`
         );
       }
-      
+
       return { playerId: player.id, imageUrl: player.imageUrl, voiceId };
     });
 
@@ -511,10 +515,11 @@ export async function generateGameCharactersAction(
         console.log(
           `[CharacterGen] Set imageUrl for player ${result.playerId}: ${result.imageUrl}`
         );
-        
+
         // Apply voice ID to persona if available
         if (result.voiceId && updatedState.players[result.playerId].persona) {
-          updatedState.players[result.playerId].persona!.voiceId = result.voiceId;
+          updatedState.players[result.playerId].persona!.voiceId =
+            result.voiceId;
           console.log(
             `[CharacterGen] Set voiceId for player ${result.playerId}: ${result.voiceId}`
           );
