@@ -60,6 +60,7 @@ jobs:
   database-validation:
     name: Database Connectivity & Migrations
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     
     services:
       postgres:
