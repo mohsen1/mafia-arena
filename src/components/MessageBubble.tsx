@@ -13,7 +13,6 @@ import type {
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import Image from 'next/image';
 import { useGameContext } from '@/context/GameContext';
-import { useTranslation } from 'react-i18next';
 
 interface MessageBubbleProps {
   message: ClientMessage;
@@ -26,13 +25,14 @@ interface MessageBubbleProps {
 const LOG_PREFIX = '[MessageBubble]';
 const timestamp = () => new Date().toLocaleTimeString();
 
-const _log = (emoji: string, action: string, details: any) => {
-  console.log(
-    `%c${LOG_PREFIX} ${timestamp()} ${emoji} ${action}:`,
-    'color: #e74c3c; font-weight: bold',
-    details
-  );
-};
+// Commented out for now - can be re-enabled for debugging
+// const _log = (emoji: string, action: string, details: any) => {
+//   console.log(
+//     `%c${LOG_PREFIX} ${timestamp()} ${emoji} ${action}:`,
+//     'color: #e74c3c; font-weight: bold',
+//     details
+//   );
+// };
 
 const MessageBubbleComponent = ({
   message,
@@ -40,7 +40,6 @@ const MessageBubbleComponent = ({
   shouldAutoPlay = true,
 }: MessageBubbleProps) => {
   const { gameState, isAudioGloballyEnabled } = useGameContext();
-  const { t: _t } = useTranslation();
   const sender = message.senderId ? players[message.senderId] : null;
   const isModeratorMessage =
     message.senderId === 'moderator' || !message.senderId;
@@ -105,6 +104,7 @@ const MessageBubbleComponent = ({
           autoPlay={shouldAutoPlay}
           showControls={false}
           isAudioGloballyEnabled={isAudioGloballyEnabled}
+          messageId={message.id}
         />
       );
     }
