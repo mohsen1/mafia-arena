@@ -139,6 +139,10 @@ export default function SimpleStartGameForm({
     enabled: true,
   });
   const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
+  
+  // Loading states to prevent showing error messages during initial load
+  const [envProvidersLoaded, setEnvProvidersLoaded] = useState(false);
+  const [userApiKeysLoaded, setUserApiKeysLoaded] = useState(false);
 
   // Apply preset settings when preset changes
   useEffect(() => {
@@ -205,9 +209,11 @@ export default function SimpleStartGameForm({
       try {
         const providers = await getAvailableProvidersFromEnv();
         setEnvProviders(providers);
+        setEnvProvidersLoaded(true);
       } catch (error) {
         console.error('Failed to load environment providers:', error);
         // Continue without env providers - user can still use user-provided keys
+        setEnvProvidersLoaded(true);
       }
     };
 
@@ -217,13 +223,18 @@ export default function SimpleStartGameForm({
   // Load user API keys on mount
   useEffect(() => {
     const loadUserKeys = async () => {
-      if (!user?.email) return;
+      if (!user?.email) {
+        setUserApiKeysLoaded(true);
+        return;
+      }
 
       try {
         const keys = await getUserApiKeys();
         setUserApiKeys(keys);
+        setUserApiKeysLoaded(true);
       } catch (error) {
         console.error('Failed to load user API keys:', error);
+        setUserApiKeysLoaded(true);
       }
     };
 
@@ -579,7 +590,7 @@ export default function SimpleStartGameForm({
       </div>
 
       {/* API Key Management */}
-      {allAvailableProviders.length === 0 && (
+      {envProvidersLoaded && userApiKeysLoaded && allAvailableProviders.length === 0 && (
         <Alert className="border-destructive/50 bg-destructive/10">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
