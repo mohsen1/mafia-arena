@@ -31,9 +31,29 @@ class MockAgent implements IAgent {
     // Always return no action to avoid complications
     return { type: 'noAction' };
   }
+
+  async generatePersona(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _themeDescription: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _language?: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _existingNames?: string[]
+  ): Promise<void> {
+    // Mock agent creates a unique persona based on the agent ID
+    this.persona = {
+      name: `Mock-${this.id}`,
+      backstory: 'A test character for automated testing.',
+      personalityTraits: ['Predictable', 'Logical', 'Test-oriented'],
+      occupation: 'Test Subject',
+      quirk: 'Always follows predefined patterns',
+      secretOrFear: 'Fears being replaced by a real character',
+      voiceId: 'ErXwobaYiN019PkySvjV', // Antoni - default voice
+    };
+  }
 }
 
-describe.skip('Basic Game Flow E2E', () => {
+describe('Basic Game Flow E2E', () => {
   let game: Game;
 
   beforeEach(() => {
