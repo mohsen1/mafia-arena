@@ -42,7 +42,11 @@
     "dev:test:groq:basic": "tsx scripts/dev/test-groq-basic.ts",
     "dev:test:groq:e2e": "playwright test groq-full-gameplay",
     "dev:test:groq:all": "tsx scripts/dev/check-groq.ts && playwright test groq-full-gameplay",
-    "dev:test:openai": "tsx scripts/dev/check-openai.ts"
+    "dev:test:openai": "tsx scripts/dev/check-openai.ts",
+    "automation": "node cursor-unblock-automation.js",
+    "automation:test": "TEST_MODE=true node cursor-unblock-automation.js",
+    "automation:manual": "MANUAL_TRIGGER=true node cursor-unblock-automation.js",
+    "automation:test-suite": "node test-cursor-automation.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",
@@ -96,6 +100,7 @@
     "negotiator": "^1.0.0",
     "next": "15.2.4",
     "next-auth": "^4.24.11",
+    "node-fetch": "^3.3.2",
     "next-i18next": "^15.4.2",
     "next-themes": "^0.4.6",
     "openai": "^4.93.0",
