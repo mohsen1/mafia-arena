@@ -6,7 +6,10 @@ import DOMPurify from 'isomorphic-dompurify';
  * @param options DOMPurify options
  * @returns Sanitized HTML string
  */
-export function sanitizeHtml(dirty: string, options?: any): string {
+export function sanitizeHtml(
+  dirty: string,
+  options?: Record<string, unknown>
+): string {
   const result = DOMPurify.sanitize(dirty, {
     ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br'],
     ALLOWED_ATTR: [],

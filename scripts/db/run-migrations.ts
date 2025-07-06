@@ -49,10 +49,11 @@ async function runMigrations() {
     }
     console.log('');
 
-    // Apply schema
+    // Apply schema (non-interactive for CI/production environments)
     console.log('📤 Applying database schema...');
     try {
-      execSync('drizzle-kit push', { stdio: 'inherit' });
+      const pushCommand = isVercel || process.env.CI ? 'drizzle-kit push --force' : 'drizzle-kit push';
+      execSync(pushCommand, { stdio: 'inherit' });
       console.log('✅ Database schema applied successfully');
     } catch (error) {
       // Schema push errors might be expected if schema is already up to date

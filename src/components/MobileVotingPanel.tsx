@@ -45,7 +45,7 @@ export function MobileVotingPanel({
 
   const currentPlayer = alivePlayersExceptSelf[currentIndex];
 
-  const handleSwipe = (event: any, info: PanInfo) => {
+  const handleSwipe = (_event: Event, info: PanInfo) => {
     const swipeThreshold = 50;
 
     if (info.offset.x > swipeThreshold) {

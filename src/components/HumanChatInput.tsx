@@ -172,7 +172,7 @@ export default function HumanChatInput() {
       // Submit on Enter (without shift)
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        handleSubmit(e as any);
+        handleSubmit(e);
       }
     },
     [handleSubmit]
@@ -189,7 +189,7 @@ export default function HumanChatInput() {
 
       // Submit on Ctrl/Cmd + Enter
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && message.trim()) {
-        handleSubmit(e as any);
+        handleSubmit();
       }
     };
 

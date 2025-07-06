@@ -30,12 +30,12 @@ const KNOWN_IMAGES = {
     'unnamed-9.png',
   ],
   'male-old': [
+    'unnamed-1.png',
     'unnamed-2.png',
     'unnamed-3.png',
+    'unnamed-6.png',
     'unnamed-7.png',
-    'unnamed-9.png',
-    'unnamed-10.png',
-    'unnamed-11.png',
+    'unnamed-8.png',
   ],
   'female-old': [
     'unnamed.png',
@@ -208,7 +208,7 @@ export function getDefaultCharacterImage(index: number): string {
   const defaultImages = [
     '/images/characters/male/young/unnamed.png',
     '/images/characters/female/young/unnamed-1.png',
-    '/images/characters/male/old/unnamed-10.png',
+    '/images/characters/male/old/unnamed-1.png',
     '/images/characters/female/old/unnamed-1.png',
     '/images/characters/male/young/unnamed-2.png',
     '/images/characters/female/young/unnamed-5.png',

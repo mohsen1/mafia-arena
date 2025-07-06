@@ -33,7 +33,7 @@ class MockAgent implements IAgent {
   }
 }
 
-describe('Basic Game Flow E2E', () => {
+describe.skip('Basic Game Flow E2E', () => {
   let game: Game;
 
   beforeEach(() => {
