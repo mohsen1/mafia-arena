@@ -5,6 +5,7 @@ import { GameTabsLayout } from '@/components/GameTabsLayout';
 import CharacterGenerationUI from '@/components/CharacterGenerationUI';
 import { GameErrorDisplay } from '@/components/GameErrorDisplay';
 import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
+import { GameThemeInfoDialog } from '@/components/GameThemeInfoDialog';
 
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
@@ -104,8 +105,18 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
           {/* Unified Header */}
           <div className="flex-shrink-0 z-50 border-b bg-background/95 backdrop-blur">
             <div className="flex items-center h-16 px-4">
-              {/* Left side: Logo and control panel */}
+              {/* Left side: Menu button first, then Logo */}
               <div className="flex items-center gap-3">
+                {/* Sidebar toggle button - moved to left of logo */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
+
                 {/* Logo - Navigate to home */}
                 <Link
                   href={`/${lang}`}
@@ -120,25 +131,29 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                   />
                   <span className="text-lg font-bold">Werewolf AI</span>
                 </Link>
-
-                {/* Sidebar toggle button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                >
-                  <Menu className="h-4 w-4" />
-                </Button>
               </div>
 
-              {/* Center: Game info */}
+              {/* Center: Game info with theme */}
               {gameState && (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <h1 className="text-sm font-semibold">
-                      {gameState.title || t('WerewolfAITitle')}
-                    </h1>
+                    <div className="flex items-center justify-center gap-2">
+                      <h1 className="text-sm font-semibold">
+                        {gameState.title || t('WerewolfAITitle')}
+                      </h1>
+                      {/* Theme info with clickable icon */}
+                      {gameState.themeKey && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            {gameState.themeKey}
+                          </span>
+                          <GameThemeInfoDialog
+                            themeKey={gameState.themeKey}
+                            description={gameState.description}
+                          />
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>
                         {t('RoundLabel')}:{' '}
