@@ -4,7 +4,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { DynamicAvatar } from './ui/dynamic-avatar';
 import { MemoizedReactMarkdown } from './MemoizedReactMarkdown';
-import { SpeakText } from './SpeakText';
+import SpeakText from './SpeakText';
 import type {
   ClientMessage,
   FilteredPlayer,
@@ -18,9 +18,27 @@ interface MessageBubbleProps {
   message: ClientMessage;
   players: Record<PlayerId, FilteredPlayer>;
   isWerewolfChat?: boolean;
+  shouldAutoPlay?: boolean;
 }
 
-const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
+// Enhanced logging helper
+const LOG_PREFIX = '[MessageBubble]';
+const timestamp = () => new Date().toLocaleTimeString();
+
+// Commented out for now - can be re-enabled for debugging
+// const _log = (emoji: string, action: string, details: any) => {
+//   console.log(
+//     `%c${LOG_PREFIX} ${timestamp()} ${emoji} ${action}:`,
+//     'color: #e74c3c; font-weight: bold',
+//     details
+//   );
+// };
+
+const MessageBubbleComponent = ({
+  message,
+  players,
+  shouldAutoPlay = true,
+}: MessageBubbleProps) => {
   const { gameState, isAudioGloballyEnabled } = useGameContext();
   const sender = message.senderId ? players[message.senderId] : null;
   const isModeratorMessage =
@@ -40,6 +58,8 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
     contentLength: message.content.length,
     contentPreview: message.content.substring(0, 30) + '...',
     isAudioGloballyEnabled,
+    shouldAutoPlay,
+    voiceModeEnabled: gameState?.voiceModeEnabled,
   });
 
   // Default voice IDs - you should replace these with actual voice IDs from ElevenLabs
@@ -81,8 +101,10 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
         <SpeakText
           text={content}
           voiceId={getVoiceId()}
-          autoPlay={true}
+          autoPlay={shouldAutoPlay}
           showControls={false}
+          isAudioGloballyEnabled={isAudioGloballyEnabled}
+          messageId={message.id}
         />
       );
     }
@@ -91,6 +113,7 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
       messageId: message.id,
       reason: voiceEnabled ? 'isHumanMessage' : 'voiceDisabled',
     });
+
     return <MemoizedReactMarkdown>{content}</MemoizedReactMarkdown>;
   };
 
