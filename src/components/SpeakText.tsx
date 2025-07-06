@@ -14,11 +14,19 @@
  */
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+} from 'react';
 import { useSpokenText } from '@/context/SpokenTextContext';
 import { useGameContext } from '@/context/GameContext';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
+import { useTranslation } from 'react-i18next';
 
 interface SpeakTextProps {
   text: string;
@@ -27,404 +35,1021 @@ interface SpeakTextProps {
   onComplete?: () => void;
   className?: string;
   showControls?: boolean;
+  isAudioGloballyEnabled?: boolean;
+  messageId?: string; // Add messageId to uniquely identify playback
 }
 
-// Helper function to convert Base64 to Blob (currently unused but kept for future use)
-// function base64ToBlob(base64: string, contentType = 'audio/mpeg'): Blob {
-//   const byteCharacters = atob(base64);
-//   const byteNumbers = new Array(byteCharacters.length);
-//   for (let i = 0; i < byteCharacters.length; i++) {
-//     byteNumbers[i] = byteCharacters.charCodeAt(i);
-//   }
-//   const byteArray = new Uint8Array(byteNumbers);
-//   return new Blob([byteArray], { type: contentType });
-// }
+// Deduplication cache for in-flight requests
+const fetchCache = new Map<string, Promise<Response>>();
 
-export function SpeakText({
-  text,
-  voiceId = '21m00Tcm4TlvDq8ikWAM', // Default ElevenLabs voice
-  autoPlay = true,
-  onComplete,
-  className = '',
-  showControls = false,
-}: SpeakTextProps) {
-  const {
-    isAudioGloballyEnabled,
-    currentlySpeakingId,
-    requestToSpeak,
-    doneSpeaking,
-  } = useSpokenText();
+// Metrics collection
+const audioMetrics = {
+  fetchCount: 0,
+  duplicateFetches: 0,
+  successfulPlays: 0,
+  failedPlays: 0,
+  permissionDenials: 0,
+  fetchTimes: [] as number[],
+  audioElementPeakCount: 0,
+  visibilityPauses: 0,
+  visibilityResumes: 0,
+  networkEvents: 0,
+  unhandledErrors: 0,
+  // User behavior metrics
+  skipCount: 0,
+  muteCount: 0,
+  unmuteCount: 0,
+  completionCount: 0,
+  interruptCount: 0,
+  totalAudioDuration: 0,
+  totalPlayedDuration: 0,
+  manualPlayCount: 0,
+  autoPlayCount: 0,
+  longMessages: 0,
+};
 
-  // GameContext is required - page should wrap with GameProvider
-  const gameContext = useGameContext();
+// Performance monitoring helper - generic to support any return type
+const measurePerformance = async <T,>(
+  name: string,
+  fn: () => T | Promise<T>
+): Promise<T> => {
+  const startMark = `audio-${name}-start-${Date.now()}`;
+  const endMark = `audio-${name}-end-${Date.now()}`;
 
-  const reportAudioFinished = gameContext?.reportAudioFinished || (() => {});
-  const registerStopAudio = gameContext?.registerStopAudio || (() => {});
-  const unregisterStopAudio = gameContext?.unregisterStopAudio || (() => {});
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
-  const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioIdRef = useRef<string>(
-    `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  );
-  // const wordTimingsRef = useRef<Array<{ word: string; start: number; end: number }>>([]);
-  const hasStartedRef = useRef(false);
-  const isMountedRef = useRef(true);
-  const cleanupCalledRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  performance.mark(startMark);
 
-  const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
+  try {
+    const result = await fn();
+    performance.mark(endMark);
+    performance.measure(`audio-${name}`, startMark, endMark);
+    return result;
+  } catch (error) {
+    performance.mark(endMark);
+    performance.measure(`audio-${name}`, startMark, endMark);
+    throw error;
+  }
+};
 
-  console.log(`[SpeakText] ${timestamp()} Component render:`, {
-    audioId: audioIdRef.current,
-    text: text.substring(0, 50) + '...',
-    voiceId,
-    autoPlay,
-    isAudioGloballyEnabled,
-    currentlySpeakingId,
-    hasStarted: hasStartedRef.current,
-    isMounted: isMountedRef.current,
-    isPlaying,
+const LOG_PREFIX = '[SpeakText]';
+const DEBUG_MODE = true; // Toggle for verbose logging
+
+const log = (emoji: string, message: string, data?: any) => {
+  const timestamp = new Date().toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
   });
 
-  // Memoize words to prevent recalculation
-  const words = useMemo(() => text.split(' '), [text]);
+  if (DEBUG_MODE) {
+    console.log(
+      `%c${LOG_PREFIX} ${timestamp} ${emoji} ${message}`,
+      'color: #7c7c7c; font-size: 11px;',
+      data || ''
+    );
+  }
+};
 
-  // Track mount/unmount
-  useEffect(() => {
-    console.log(`[SpeakText] ${timestamp()} 🏗️ Component MOUNTED:`, {
-      audioId: audioIdRef.current,
-      text: text.substring(0, 50) + '...',
-      voiceId,
-      autoPlay,
-      isAudioGloballyEnabled,
-      currentlySpeakingId,
+// Active audio elements tracking
+const activeAudioElements = 0;
+
+// Browser audio diagnostics
+const logAudioDiagnostics = () => {
+  const diagnostics = {
+    timestamp: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+    audioContextSupport:
+      'AudioContext' in window || 'webkitAudioContext' in window,
+    webAudioApiSupport: !!window.AudioContext,
+    autoplayPolicy: 'unknown',
+    audioCodecs: {
+      mp3: canPlayType('audio/mpeg'),
+      ogg: canPlayType('audio/ogg'),
+      wav: canPlayType('audio/wav'),
+      webm: canPlayType('audio/webm'),
+    },
+    speechSynthesisSupport: 'speechSynthesis' in window,
+    mediaDevicesSupport: !!(
+      navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+    ),
+    onlineStatus: navigator.onLine,
+    connectionType: (navigator as any).connection?.effectiveType || 'unknown',
+    memory: (performance as any).memory
+      ? {
+          usedJSHeapSize:
+            ((performance as any).memory.usedJSHeapSize / 1048576).toFixed(2) +
+            'MB',
+          totalJSHeapSize:
+            ((performance as any).memory.totalJSHeapSize / 1048576).toFixed(2) +
+            'MB',
+          jsHeapSizeLimit:
+            ((performance as any).memory.jsHeapSizeLimit / 1048576).toFixed(2) +
+            'MB',
+        }
+      : 'not available',
+  };
+
+  console.log(
+    '%c[SpeakText] 🔍 AUDIO DIAGNOSTICS:',
+    'color: #f39c12; font-weight: bold',
+    diagnostics
+  );
+  return diagnostics;
+};
+
+function canPlayType(type: string): string {
+  const audio = document.createElement('audio');
+  const canPlay = audio.canPlayType(type);
+  return canPlay || 'no';
+}
+
+// Run diagnostics once on first render
+if (
+  typeof window !== 'undefined' &&
+  !(window as any).__audioDiagnosticsLogged
+) {
+  (window as any).__audioDiagnosticsLogged = true;
+  logAudioDiagnostics();
+}
+
+// Expose metrics globally for debug overlay
+if (typeof window !== 'undefined') {
+  (window as any).__audioMetrics = audioMetrics;
+}
+
+// Network connectivity monitoring
+if (typeof window !== 'undefined' && !(window as any).__audioNetworkMonitor) {
+  (window as any).__audioNetworkMonitor = true;
+
+  // Monitor online/offline status
+  window.addEventListener('online', () => {
+    console.log(
+      '%c[SpeakText] 🌐 NETWORK ONLINE',
+      'color: #27ae60; font-weight: bold'
+    );
+    audioMetrics.networkEvents = (audioMetrics.networkEvents || 0) + 1;
+  });
+
+  window.addEventListener('offline', () => {
+    console.log(
+      '%c[SpeakText] 🚫 NETWORK OFFLINE',
+      'color: #e74c3c; font-weight: bold'
+    );
+    audioMetrics.networkEvents = (audioMetrics.networkEvents || 0) + 1;
+  });
+
+  // Monitor connection changes
+  if ('connection' in navigator) {
+    const connection = (navigator as any).connection;
+    connection.addEventListener('change', () => {
+      console.log(
+        '%c[SpeakText] 📶 CONNECTION CHANGED:',
+        'color: #f39c12; font-weight: bold',
+        {
+          effectiveType: connection.effectiveType,
+          downlink: connection.downlink,
+          rtt: connection.rtt,
+          saveData: connection.saveData,
+        }
+      );
     });
+  }
 
-    isMountedRef.current = true;
-    cleanupCalledRef.current = false;
+  // Global error handler for unhandled audio errors
+  const originalError = window.onerror;
+  window.onerror = function (message, source, lineno, colno, error) {
+    if (
+      String(message).toLowerCase().includes('audio') ||
+      String(source).includes('SpeakText') ||
+      (error && error.stack && error.stack.includes('audio'))
+    ) {
+      console.error(
+        '%c[SpeakText] 🚨 UNHANDLED AUDIO ERROR:',
+        'color: #e74c3c; font-weight: bold',
+        {
+          message,
+          source,
+          lineno,
+          colno,
+          error: error?.stack,
+          timestamp: new Date().toISOString(),
+        }
+      );
+      audioMetrics.unhandledErrors = (audioMetrics.unhandledErrors || 0) + 1;
+    }
 
-    return () => {
-      console.log(`[SpeakText] ${timestamp()} 🧹 Component UNMOUNTING:`, {
-        audioId: audioIdRef.current,
-        isPlaying,
-        hasStarted: hasStartedRef.current,
-        cleanupCalled: cleanupCalledRef.current,
-        currentlySpeakingId,
+    // Call original handler if it exists
+    if (originalError) {
+      return originalError.call(window, message, source, lineno, colno, error);
+    }
+    return false;
+  };
+}
+
+const SpeakText = React.memo<SpeakTextProps>(
+  ({
+    text,
+    voiceId = '21m00Tcm4TlvDq8ikWAM', // Default ElevenLabs voice
+    autoPlay = true,
+    onComplete,
+    className = '',
+    showControls = false,
+    isAudioGloballyEnabled = true,
+    messageId,
+  }) => {
+    const { t: _t } = useTranslation();
+    const log = console.log.bind(console, '[SpeakText]');
+
+    // Enhanced logging with emojis and colors
+    const logAudio = (action: string, details: any) => {
+      const timestamp = new Date().toLocaleTimeString();
+      console.log(
+        `%c🎵 [SpeakText] ${timestamp} ${action}`,
+        'color: #9b59b6; font-weight: bold',
+        details
+      );
+    };
+
+    const logError = (action: string, error: any) => {
+      const timestamp = new Date().toLocaleTimeString();
+      console.error(
+        `%c❌ [SpeakText] ${timestamp} ERROR in ${action}:`,
+        'color: #e74c3c; font-weight: bold',
+        error
+      );
+    };
+
+    const logState = (state: string, details: any) => {
+      const timestamp = new Date().toLocaleTimeString();
+      console.log(
+        `%c📊 [SpeakText] ${timestamp} STATE: ${state}`,
+        'color: #3498db; font-weight: bold',
+        details
+      );
+    };
+
+    const {
+      currentlySpeakingId,
+      requestPermissionToSpeak,
+      doneSpeaking,
+      markAsPlaying,
+    } = useSpokenText();
+
+    const gameContext = useGameContext();
+    const { registerAudioPlayback, reportAudioFinished: reportAudioToGame } =
+      gameContext;
+    const hasRegisteredRef = useRef(false);
+
+    // Log initial mount
+    React.useEffect(() => {
+      logAudio('COMPONENT MOUNTED', {
+        text: text.substring(0, 100) + '...',
+        voiceId,
+        autoPlay,
+        isAudioGloballyEnabled,
       });
 
-      isMountedRef.current = false;
+      return () => {
+        logAudio('COMPONENT UNMOUNTING', {
+          audioId: audioIdRef.current,
+          isPlaying: isPlayingRef.current,
+        });
+      };
+    }, []);
 
-      if (!cleanupCalledRef.current) {
-        cleanupCalledRef.current = true;
-        console.log(
-          `[SpeakText] ${timestamp()} 🧽 CLEANUP starting for:`,
-          audioIdRef.current
-        );
+    // Voice selection and mapping
+    const _selectedModel = useRef<string>('');
 
+    // Visual feedback for speech generation
+    const _synthProgress = useRef(0);
+
+    // TODO: Add these methods to GameContext if needed for audio coordination
+    const registerStopAudio = () => {
+      // Placeholder for future implementation
+    };
+
+    const unregisterStopAudio = () => {
+      // Placeholder for future implementation
+    };
+
+    const reportAudioFinished = () => {
+      // Placeholder for future implementation
+    };
+
+    // Deduplication caches
+    const pendingFetches = useRef(new Map<string, Promise<string | null>>());
+    const audioCache = useRef(new Map<string, string>());
+
+    // Audio element and state management
+    const audioIdRef = useRef(
+      `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    );
+    const hasStartedRef = useRef(false);
+    const isMountedRef = useRef(true);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const audioElementRef = useRef<HTMLAudioElement | null>(null);
+    const isHandlingSpeakRef = useRef(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const hasPlayedRef = useRef(false);
+
+    // Playback state refs
+    const isPlayingRef = useRef(false);
+    const currentTimeRef = useRef(0);
+    const bufferHealthRef = useRef(1);
+    const loggedProgressRef = useRef(new Set<number>());
+
+    // Performance tracking
+    const fetchStartTimeRef = useRef<number | null>(null);
+    const startTimeRef = useRef<number | null>(null);
+    const wasPlayingBeforeHiddenRef = useRef(false);
+
+    // Audio processing refs
+    const _segmentDurationsRef = useRef<Map<string, number>>(new Map());
+    const _audioBufferRef = useRef<Map<string, AudioBuffer>>(new Map());
+    const _crossfadeTimeRef = useRef(150); // ms overlap for smooth transitions
+
+    const timestamp = () =>
+      new Date().toISOString().split('T')[1].split('.')[0];
+
+    // States
+    const [status, setStatus] = useState<
+      'idle' | 'fetching' | 'playing' | 'error'
+    >('idle');
+    const [error, setError] = useState<string | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentWordIndex, setCurrentWordIndex] = useState(-1);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasError, setHasError] = useState(false);
+
+    // Audio metrics object
+    const audioMetrics = useRef({
+      fetchCount: 0,
+      successfulPlays: 0,
+      failedPlays: 0,
+      interruptCount: 0,
+      skipCount: 0,
+      duplicateFetches: 0,
+      permissionDenials: 0,
+      completionCount: 0,
+      fetchTimes: [] as number[],
+      totalAudioDuration: 0,
+      totalPlayedDuration: 0,
+      autoPlayCount: 0,
+      manualPlayCount: 0,
+      longMessages: 0,
+    });
+
+    // Mount/unmount tracking
+    useEffect(() => {
+      isMountedRef.current = true;
+      return () => {
+        isMountedRef.current = false;
+
+        // Clean up audio
         if (audioRef.current) {
-          console.log(
-            `[SpeakText] ${timestamp()} ⏹️ Pausing and removing audio element`
-          );
           audioRef.current.pause();
           audioRef.current.src = '';
           audioRef.current = null;
         }
-
-        // Always clear the speaking ID on unmount
-        if (currentlySpeakingId === audioIdRef.current) {
-          console.log(
-            `[SpeakText] ${timestamp()} 🗑️ CLEARING speaking ID on unmount:`,
-            audioIdRef.current
-          );
-          doneSpeaking(audioIdRef.current);
-          unregisterStopAudio();
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
         }
+
+        // Report to GameContext if we were playing
+        if (messageId && autoPlay && hasRegisteredRef.current) {
+          reportAudioToGame(messageId);
+          hasRegisteredRef.current = false;
+          logAudioEvent('REPORTED_ON_UNMOUNT', {
+            messageId,
+            audioId: audioIdRef.current,
+          });
+        }
+      };
+    }, [messageId, autoPlay, reportAudioToGame]); // Add dependencies
+
+    // Enhanced audio logging with performance metrics
+    const logAudioEvent = (
+      eventType: string,
+      details: Record<string, any> = {}
+    ) => {
+      const now = Date.now();
+      const timeSinceStart = startTimeRef.current
+        ? now - startTimeRef.current
+        : 0;
+
+      const logEntry = {
+        timestamp: timestamp(),
+        eventType,
+        audioId: audioIdRef.current,
+        text: text.substring(0, 50) + '...',
+        voiceId,
+        timeSinceStart,
+        isPlaying: isPlayingRef.current,
+        playbackTime: currentTimeRef.current,
+        bufferHealth: bufferHealthRef.current,
+        ...details,
+      };
+
+      logAudio(eventType, logEntry);
+
+      // Also add to AudioDebugOverlay
+      if (typeof addAudioBreadcrumb === 'function') {
+        const breadcrumbMessage = `${eventType}: ${audioIdRef.current || 'unknown'}`;
+        addAudioBreadcrumb(breadcrumbMessage, details || {});
+      }
+
+      // Track performance metrics
+      if (eventType === 'FETCH_START') {
+        fetchStartTimeRef.current = now;
+      } else if (eventType === 'FETCH_COMPLETE' && fetchStartTimeRef.current) {
+        const fetchDuration = now - fetchStartTimeRef.current;
+        logState('FETCH_PERFORMANCE', {
+          duration: fetchDuration,
+          textLength: text.length,
+          throughput: text.length / (fetchDuration / 1000),
+        });
       }
     };
-  }, []);
 
-  // Update logging for effect dependencies
-  useEffect(() => {
-    console.log(`[SpeakText] ${timestamp()} 📡 Main effect triggered:`, {
-      audioId: audioIdRef.current,
-      autoPlay,
-      hasStarted: hasStartedRef.current,
-      isAudioGloballyEnabled,
-      isMounted: isMountedRef.current,
-      currentlySpeakingId,
-    });
+    // Memoize the text and voiceId combination
+    const audioConfig = useMemo(() => {
+      const config = { text, voiceId };
+      logState('AUDIO_CONFIG_MEMO', config);
+      return config;
+    }, [text, voiceId]);
 
-    if (
-      autoPlay &&
-      !hasStartedRef.current &&
-      isAudioGloballyEnabled &&
-      isMountedRef.current
-    ) {
-      console.log(
-        `[SpeakText] ${timestamp()} 🎯 AUTO-PLAYING audio on mount for:`,
-        audioIdRef.current
-      );
-      hasStartedRef.current = true;
-      handleSpeak();
-    }
-  }, [autoPlay, isAudioGloballyEnabled]);
+    const fetchAudioWithDeduplication = useCallback(
+      async (
+        text: string,
+        voiceId: string,
+        audioId: string
+      ): Promise<string | null> => {
+        const cacheKey = `${text}-${voiceId}`;
 
-  const handleSpeak = async () => {
-    console.log(`[SpeakText] ${timestamp()} 🗣️ handleSpeak CALLED:`, {
-      audioId: audioIdRef.current,
-      text: text.substring(0, 50) + '...',
-      voiceId,
-      currentlySpeakingId,
-      isMounted: isMountedRef.current,
-      isAudioGloballyEnabled,
-    });
+        logAudio('FETCH_AUDIO_REQUEST', {
+          audioId,
+          cacheKey,
+          textLength: text.length,
+          voiceId,
+          isAudioGloballyEnabled,
+        });
 
-    if (!isMountedRef.current) {
-      console.log(
-        `[SpeakText] ${timestamp()} ❌ Component unmounted, aborting speak`
-      );
-      return;
-    }
-
-    if (!isAudioGloballyEnabled) {
-      console.log(`[SpeakText] ${timestamp()} ❌ Audio globally disabled`);
-      setError('Audio is globally disabled');
-      return;
-    }
-
-    console.log(
-      `[SpeakText] ${timestamp()} 🔓 REQUESTING permission to speak...`
-    );
-    const canSpeak = requestToSpeak(audioIdRef.current);
-    if (!canSpeak) {
-      console.log(
-        `[SpeakText] ${timestamp()} 🚫 DENIED - Cannot speak, another audio is playing:`,
-        {
-          requestingId: audioIdRef.current,
-          blockingId: currentlySpeakingId,
+        // Check if already fetching
+        if (pendingFetches.current.has(cacheKey)) {
+          logState('FETCH_DEDUPLICATION', {
+            cacheKey,
+            status: 'Using existing fetch',
+          });
+          return pendingFetches.current.get(cacheKey)!;
         }
-      );
-      setError('Another audio is playing');
-      return;
-    }
 
-    console.log(
-      `[SpeakText] ${timestamp()} ✅ PERMISSION GRANTED, proceeding with speak`
+        // Check cache first
+        const cached = audioCache.current.get(cacheKey);
+        if (cached) {
+          logState('CACHE_HIT', {
+            cacheKey,
+            cacheSize: audioCache.current.size,
+          });
+          return cached;
+        }
+
+        // Create new fetch promise
+        const fetchPromise = (async () => {
+          try {
+            logAudioEvent('FETCH_START', { cacheKey });
+
+            // For streaming, create audio URL directly with query parameters
+            const params = new URLSearchParams({
+              text,
+              voiceId,
+            });
+            const audioUrl = `/api/speak?${params.toString()}`;
+
+            logAudioEvent('FETCH_COMPLETE', {
+              cacheKey,
+              audioUrl: audioUrl.substring(0, 50) + '...',
+              responseTime:
+                Date.now() - (fetchStartTimeRef.current || Date.now()),
+            });
+
+            // Cache the result
+            audioCache.current.set(cacheKey, audioUrl);
+
+            // Limit cache size
+            if (audioCache.current.size > 50) {
+              const firstKey = audioCache.current.keys().next().value;
+              if (firstKey !== undefined) {
+                audioCache.current.delete(firstKey);
+                logState('CACHE_EVICTION', {
+                  evictedKey: firstKey,
+                  newSize: audioCache.current.size,
+                });
+              }
+            }
+
+            return audioUrl;
+          } catch (error) {
+            logError('FETCH_ERROR', error);
+            throw error;
+          } finally {
+            pendingFetches.current.delete(cacheKey);
+          }
+        })();
+
+        pendingFetches.current.set(cacheKey, fetchPromise);
+        return fetchPromise;
+      },
+      [isAudioGloballyEnabled]
     );
-    setError(null);
 
-    try {
-      console.log('[SpeakText] Fetching audio from API...');
-      const response = await fetch('/api/speak', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voiceId }),
-        signal: abortControllerRef.current?.signal,
+    const handleSpeak = useCallback(async () => {
+      logAudio('HANDLE_SPEAK_CALLED', {
+        audioId: audioIdRef.current,
+        isPlaying: isPlayingRef.current,
+        isLoading,
+        hasError,
+        isAudioGloballyEnabled,
+        currentlySpeakingId,
       });
 
       if (!isMountedRef.current) {
-        console.log('[SpeakText] Component unmounted during fetch, aborting');
-        doneSpeaking(audioIdRef.current);
+        logState('SPEAK_CANCELLED', { reason: 'Component unmounted' });
         return;
       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[SpeakText] API error:', response.status, errorText);
-        throw new Error(`API error: ${response.status} - ${errorText}`);
-      }
-
-      const blob = await response.blob();
-      const audioUrl = URL.createObjectURL(blob);
-
-      if (!isMountedRef.current) {
-        URL.revokeObjectURL(audioUrl);
-        doneSpeaking(audioIdRef.current);
+      if (!isAudioGloballyEnabled) {
+        logState('SPEAK_CANCELLED', {
+          reason: 'Audio disabled',
+          isAudioGloballyEnabled,
+        });
         return;
       }
 
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      // Set up audio event handlers
-      audio.addEventListener('loadedmetadata', () => {
-        console.log(`[SpeakText] ${timestamp()} 📂 Audio loaded:`, {
-          audioId: audioIdRef.current,
-          duration: audio.duration,
+      if (isLoading || isPlayingRef.current) {
+        logState('SPEAK_CANCELLED', {
+          reason: 'Already loading or playing',
+          isLoading,
+          isPlaying: isPlayingRef.current,
         });
-      });
+        return;
+      }
 
-      audio.addEventListener('play', () => {
-        console.log(`[SpeakText] ${timestamp()} ▶️ Audio STARTED playing:`, {
-          audioId: audioIdRef.current,
-          duration: audio.duration,
+      try {
+        setIsLoading(true);
+        setHasError(false);
+        hasStartedRef.current = true;
+        startTimeRef.current = Date.now();
+
+        logAudioEvent('SPEAK_START', {
+          text: text.substring(0, 100) + '...',
+          voiceId,
         });
-        setIsPlaying(true);
-        // Register this audio with GameContext for auto-run coordination
-        registerStopAudio(audioIdRef.current, () => {
-          console.log(
-            `[SpeakText] ${timestamp()} ⏹️ Stop callback called from GameContext for:`,
-            audioIdRef.current
-          );
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-          }
-          setIsPlaying(false);
-          doneSpeaking(audioIdRef.current);
-        });
-      });
 
-      audio.addEventListener('pause', () => {
-        console.log(`[SpeakText] ${timestamp()} ⏸️ Audio PAUSED:`, {
-          audioId: audioIdRef.current,
-          currentTime: audio.currentTime,
-        });
-        setIsPlaying(false);
-      });
+        const audioUrl = await fetchAudioWithDeduplication(
+          text,
+          voiceId,
+          audioIdRef.current
+        );
 
-      audio.addEventListener('ended', () => {
-        console.log(`[SpeakText] ${timestamp()} 🏁 Audio ENDED naturally:`, {
-          audioId: audioIdRef.current,
-          duration: audio.duration,
-        });
-        setIsPlaying(false);
-        // Clear from both contexts
-        doneSpeaking(audioIdRef.current);
-        unregisterStopAudio();
-        // Report to GameContext for auto-run coordination
-        reportAudioFinished(audioIdRef.current);
-        onComplete?.();
-      });
-
-      audio.addEventListener('error', (e) => {
-        console.error('[SpeakText] Audio error event:', e);
-        const audioError = audioRef.current?.error;
-        let errorMessage = 'Audio playback error';
-
-        if (audioError) {
-          // MediaError codes: 1=ABORTED, 2=NETWORK, 3=DECODE, 4=SRC_NOT_SUPPORTED
-          switch (audioError.code) {
-            case 1:
-              errorMessage = 'Audio playback aborted';
-              break;
-            case 2:
-              errorMessage = 'Network error while loading audio';
-              break;
-            case 3:
-              errorMessage = 'Audio decoding error';
-              break;
-            case 4:
-              errorMessage = 'Audio format not supported';
-              break;
-          }
-          console.error(
-            '[SpeakText] MediaError:',
-            audioError.code,
-            audioError.message
-          );
-        }
-
-        setError(errorMessage);
-        setIsPlaying(false);
-        // Clear from both contexts on error
-        doneSpeaking(audioIdRef.current);
-        unregisterStopAudio();
-        // Report error completion to GameContext
-        reportAudioFinished(audioIdRef.current);
-      });
-
-      // Play the audio
-      console.log('[SpeakText] Attempting to play audio...');
-      await audio.play();
-      console.log('[SpeakText] Audio playback started successfully');
-    } catch (error) {
-      console.error('[SpeakText] Error in handleSpeak:', error);
-
-      // Immediately clear the speaking ID on any error
-      doneSpeaking(audioIdRef.current);
-      unregisterStopAudio();
-
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          console.log('[SpeakText] Fetch aborted');
+        if (!audioUrl || !isMountedRef.current) {
+          logState('SPEAK_ABORTED', {
+            hasAudioUrl: !!audioUrl,
+            isMounted: isMountedRef.current,
+          });
           return;
         }
-        setError(error.message);
-      } else {
-        setError('Failed to generate speech');
+
+        // Create audio element with streaming optimizations
+        const audioElement = new Audio(audioUrl);
+        audioElement.preload = 'none'; // Start loading only when play() is called
+        audioElement.crossOrigin = 'anonymous';
+        // Enable low-latency streaming
+        if ('setSinkId' in audioElement) {
+          // @ts-ignore - experimental API
+          audioElement.disableRemotePlayback = true;
+        }
+        audioElementRef.current = audioElement;
+
+        // Set up comprehensive event listeners
+        const setupAudioListeners = () => {
+          audioElement.addEventListener('loadstart', () => {
+            logAudioEvent('LOADSTART', { audioId: audioIdRef.current });
+          });
+
+          audioElement.addEventListener('loadedmetadata', () => {
+            logAudioEvent('LOADED_METADATA', {
+              duration: audioElement.duration,
+              audioId: audioIdRef.current,
+            });
+          });
+
+          audioElement.addEventListener('loadeddata', () => {
+            logAudioEvent('LOADED_DATA', { audioId: audioIdRef.current });
+          });
+
+          audioElement.addEventListener('canplay', () => {
+            logAudioEvent('CAN_PLAY', { audioId: audioIdRef.current });
+          });
+
+          audioElement.addEventListener('canplaythrough', () => {
+            logAudioEvent('CAN_PLAY_THROUGH', {
+              audioId: audioIdRef.current,
+              buffered:
+                audioElement.buffered.length > 0
+                  ? audioElement.buffered.end(0)
+                  : 0,
+            });
+          });
+
+          audioElement.addEventListener('play', () => {
+            isPlayingRef.current = true;
+            setIsPlaying(true);
+            logAudioEvent('PLAY', { audioId: audioIdRef.current });
+
+            // Register with GameContext if messageId is provided
+            if (messageId && autoPlay && !hasRegisteredRef.current) {
+              hasRegisteredRef.current = true;
+              registerAudioPlayback(messageId);
+              logAudioEvent('REGISTERED_WITH_GAME', {
+                messageId,
+                audioId: audioIdRef.current,
+              });
+            }
+          });
+
+          audioElement.addEventListener('playing', () => {
+            logAudioEvent('PLAYING', {
+              audioId: audioIdRef.current,
+              currentTime: audioElement.currentTime,
+            });
+          });
+
+          audioElement.addEventListener('pause', () => {
+            logAudioEvent('PAUSE', {
+              audioId: audioIdRef.current,
+              currentTime: audioElement.currentTime,
+              duration: audioElement.duration,
+            });
+          });
+
+          audioElement.addEventListener('ended', () => {
+            const duration = Date.now() - (startTimeRef.current || Date.now());
+            logAudioEvent('ENDED', {
+              audioId: audioIdRef.current,
+              totalDuration: duration,
+              audioDuration: audioElement.duration,
+            });
+
+            isPlayingRef.current = false;
+            setIsPlaying(false);
+
+            if (onComplete) {
+              logState('CALLING_ON_COMPLETE', { audioId: audioIdRef.current });
+              onComplete();
+            }
+
+            doneSpeaking(audioIdRef.current);
+
+            // Report to GameContext if messageId is provided
+            if (messageId && autoPlay && hasRegisteredRef.current) {
+              reportAudioToGame(messageId);
+              hasRegisteredRef.current = false;
+              logAudioEvent('REPORTED_TO_GAME', {
+                messageId,
+                audioId: audioIdRef.current,
+              });
+            }
+          });
+
+          audioElement.addEventListener('timeupdate', () => {
+            currentTimeRef.current = audioElement.currentTime;
+            const progress =
+              (audioElement.currentTime / audioElement.duration) * 100;
+
+            // Log progress every 10%
+            const progressBucket = Math.floor(progress / 10) * 10;
+            if (
+              !loggedProgressRef.current.has(progressBucket) &&
+              progressBucket > 0
+            ) {
+              loggedProgressRef.current.add(progressBucket);
+              logAudioEvent('PROGRESS', {
+                audioId: audioIdRef.current,
+                progress: `${progressBucket}%`,
+                currentTime: audioElement.currentTime,
+                duration: audioElement.duration,
+              });
+            }
+          });
+
+          audioElement.addEventListener('error', (e) => {
+            const error = audioElement.error;
+            logError('AUDIO_ERROR', {
+              audioId: audioIdRef.current,
+              error: error?.message || 'Unknown error',
+              code: error?.code,
+              mediaError: e,
+            });
+
+            setHasError(true);
+            setIsLoading(false);
+            isPlayingRef.current = false;
+            setIsPlaying(false);
+
+            if (onComplete) {
+              onComplete();
+            }
+
+            // Report to GameContext on error if registered
+            if (messageId && autoPlay && hasRegisteredRef.current) {
+              reportAudioToGame(messageId);
+              hasRegisteredRef.current = false;
+              logAudioEvent('REPORTED_ON_ERROR', {
+                messageId,
+                audioId: audioIdRef.current,
+              });
+            }
+          });
+
+          audioElement.addEventListener('stalled', () => {
+            logAudioEvent('STALLED', {
+              audioId: audioIdRef.current,
+              currentTime: audioElement.currentTime,
+            });
+          });
+
+          audioElement.addEventListener('waiting', () => {
+            logAudioEvent('WAITING', {
+              audioId: audioIdRef.current,
+              currentTime: audioElement.currentTime,
+            });
+          });
+        };
+
+        setupAudioListeners();
+
+        // Start playback
+        logAudioEvent('ATTEMPTING_PLAY', { audioId: audioIdRef.current });
+
+        try {
+          await audioElement.play();
+          setIsLoading(false);
+          logAudioEvent('PLAY_SUCCESS', { audioId: audioIdRef.current });
+        } catch (playError: any) {
+          logError('PLAY_FAILED', {
+            audioId: audioIdRef.current,
+            error: playError.message,
+            name: playError.name,
+          });
+
+          setHasError(true);
+          setIsLoading(false);
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+
+          if (onComplete) {
+            onComplete();
+          }
+
+          // Report to GameContext on play failure if registered
+          if (messageId && autoPlay && hasRegisteredRef.current) {
+            reportAudioToGame(messageId);
+            hasRegisteredRef.current = false;
+            logAudioEvent('REPORTED_ON_PLAY_FAILURE', {
+              messageId,
+              audioId: audioIdRef.current,
+            });
+          }
+        }
+      } catch (error: any) {
+        logError('HANDLE_SPEAK_ERROR', {
+          audioId: audioIdRef.current,
+          error: error.message,
+          stack: error.stack,
+        });
+
+        setHasError(true);
+        setIsLoading(false);
+
+        if (onComplete) {
+          onComplete();
+        }
       }
+    }, [
+      text,
+      voiceId,
+      onComplete,
+      isLoading,
+      hasError,
+      isAudioGloballyEnabled,
+      currentlySpeakingId,
+      fetchAudioWithDeduplication,
+      doneSpeaking,
+      messageId,
+      autoPlay,
+      registerAudioPlayback,
+      reportAudioToGame,
+    ]);
+
+    // Monitor audio state changes
+    React.useEffect(() => {
+      logState('AUDIO_STATE_CHANGE', {
+        isPlaying,
+        isLoading,
+        hasError,
+        currentlySpeakingId,
+        audioId: audioIdRef.current,
+        isAudioGloballyEnabled,
+      });
+    }, [
+      isPlaying,
+      isLoading,
+      hasError,
+      currentlySpeakingId,
+      isAudioGloballyEnabled,
+    ]);
+
+    // Enhanced auto-play effect
+    React.useEffect(() => {
+      logAudio('AUTOPLAY_EFFECT', {
+        autoPlay,
+        isAudioGloballyEnabled,
+        currentlySpeakingId,
+        audioId: audioIdRef.current,
+        hasStarted: hasStartedRef.current,
+      });
+
+      if (autoPlay && isAudioGloballyEnabled && !hasStartedRef.current) {
+        logState('AUTOPLAY_TRIGGERED', { audioId: audioIdRef.current });
+        const timer = setTimeout(() => {
+          handleSpeak();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }, [autoPlay, isAudioGloballyEnabled, handleSpeak]);
+
+    // Log metrics periodically
+    useEffect(() => {
+      if (!DEBUG_MODE) return;
+
+      const metricsInterval = setInterval(() => {
+        const totalPlays =
+          audioMetrics.current.manualPlayCount +
+          audioMetrics.current.autoPlayCount;
+        const totalEnded =
+          audioMetrics.current.completionCount +
+          audioMetrics.current.interruptCount;
+
+        log('📊', 'AUDIO METRICS SUMMARY', {
+          // Performance metrics
+          fetchCount: audioMetrics.current.fetchCount,
+          avgFetchTime:
+            audioMetrics.current.fetchTimes.length > 0
+              ? `${(audioMetrics.current.fetchTimes.reduce((a, b) => a + b, 0) / audioMetrics.current.fetchTimes.length).toFixed(2)}ms`
+              : 'N/A',
+          duplicateFetchRate:
+            audioMetrics.current.fetchCount > 0
+              ? `${((audioMetrics.current.duplicateFetches / audioMetrics.current.fetchCount) * 100).toFixed(1)}%`
+              : 'N/A',
+          playSuccessRate:
+            audioMetrics.current.successfulPlays +
+              audioMetrics.current.failedPlays >
+            0
+              ? `${((audioMetrics.current.successfulPlays / (audioMetrics.current.successfulPlays + audioMetrics.current.failedPlays)) * 100).toFixed(1)}%`
+              : 'N/A',
+
+          // User behavior metrics
+          totalPlays,
+          manualPlayRate:
+            totalPlays > 0
+              ? `${((audioMetrics.current.manualPlayCount / totalPlays) * 100).toFixed(1)}%`
+              : 'N/A',
+          autoPlayRate:
+            totalPlays > 0
+              ? `${((audioMetrics.current.autoPlayCount / totalPlays) * 100).toFixed(1)}%`
+              : 'N/A',
+          completionRate:
+            totalEnded > 0
+              ? `${((audioMetrics.current.completionCount / totalEnded) * 100).toFixed(1)}%`
+              : 'N/A',
+          skipRate:
+            totalEnded > 0
+              ? `${((audioMetrics.current.interruptCount / totalEnded) * 100).toFixed(1)}%`
+              : 'N/A',
+          avgListenTime:
+            audioMetrics.current.completionCount > 0
+              ? `${(audioMetrics.current.totalPlayedDuration / totalEnded).toFixed(1)}s`
+              : 'N/A',
+        });
+      }, 30000); // Every 30 seconds
+
+      return () => clearInterval(metricsInterval);
+    }, []);
+
+    const handleStop = useCallback(() => {
+      logAudio('HANDLE_STOP_CALLED', {
+        audioId: audioIdRef.current,
+        isPlaying: isPlayingRef.current,
+      });
+
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current.currentTime = 0;
+        audioElementRef.current = null;
+      }
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
+
+      isPlayingRef.current = false;
       setIsPlaying(false);
+      setCurrentWordIndex(-1);
+      setStatus('idle');
+      doneSpeaking(audioIdRef.current);
+
+      // Report to GameContext on manual stop if registered
+      if (messageId && autoPlay && hasRegisteredRef.current) {
+        reportAudioToGame(messageId);
+        hasRegisteredRef.current = false;
+        logAudioEvent('REPORTED_ON_STOP', {
+          messageId,
+          audioId: audioIdRef.current,
+        });
+      }
+    }, [doneSpeaking, messageId, autoPlay, reportAudioToGame]);
+
+    // Memoize words for performance
+    const words = useMemo(() => text.split(' '), [text]);
+
+    if (!isAudioGloballyEnabled) {
+      console.log('[SpeakText] Audio globally disabled, rendering text only');
+      return <span className={className}>{text}</span>;
     }
-  };
 
-  const handleStop = () => {
-    console.log('[SpeakText] handleStop called');
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    setIsPlaying(false);
-    setCurrentWordIndex(-1);
-    doneSpeaking(audioIdRef.current);
-    unregisterStopAudio();
-  };
-
-  if (!isAudioGloballyEnabled) {
-    console.log('[SpeakText] Audio globally disabled, rendering text only');
-    return <span className={className}>{text}</span>;
-  }
-
-  return (
-    <div className={`speak-text-container ${className}`}>
-      <div className="text-content">
-        {words.map((word, index) => (
-          <span
-            key={index}
-            className={`word ${
-              index === currentWordIndex
-                ? 'highlighted font-bold text-primary'
-                : ''
-            }`}
-          >
-            {word}{' '}
-          </span>
-        ))}
-      </div>
-
-      {showControls && (
-        <div className="controls mt-2">
-          {!isPlaying ? (
-            <Button
-              onClick={handleSpeak}
-              size="sm"
-              variant="ghost"
-              className="gap-2"
-              disabled={
-                currentlySpeakingId !== null &&
-                currentlySpeakingId !== audioIdRef.current
-              }
+    return (
+      <div className={`speak-text-container ${className}`}>
+        {/* Status indicator */}
+        {status === 'fetching' && (
+          <Loader2 className="animate-spin inline-block mr-1 h-4 w-4 text-muted-foreground" />
+        )}
+        {status === 'error' && (
+          <AlertCircle className="inline-block mr-1 h-4 w-4 text-destructive" />
+        )}
+        <div className="text-content">
+          {words.map((word: string, index: number) => (
+            <span
+              key={index}
+              className={`word ${
+                index === currentWordIndex
+                  ? 'highlighted font-bold text-primary'
+                  : ''
+              }`}
             >
-              <Volume2 className="h-4 w-4" />
-              Speak
-            </Button>
-          ) : (
-            <Button
-              onClick={handleStop}
-              size="sm"
-              variant="ghost"
-              className="gap-2"
-            >
-              <VolumeX className="h-4 w-4" />
-              Stop
-            </Button>
-          )}
+              {word}{' '}
+            </span>
+          ))}
         </div>
-      )}
 
-      {error && <div className="text-sm text-destructive mt-1">{error}</div>}
-    </div>
-  );
-}
+        {showControls && (
+          <div className="controls mt-2">
+            {!isPlaying ? (
+              <Button
+                onClick={() => handleSpeak()}
+                size="sm"
+                variant="ghost"
+                className="gap-2"
+                disabled={
+                  currentlySpeakingId !== null &&
+                  currentlySpeakingId !== audioIdRef.current
+                }
+              >
+                <Volume2 className="h-4 w-4" />
+                Speak
+              </Button>
+            ) : (
+              <Button
+                onClick={handleStop}
+                size="sm"
+                variant="ghost"
+                className="gap-2"
+              >
+                <VolumeX className="h-4 w-4" />
+                Stop
+              </Button>
+            )}
+          </div>
+        )}
+
+        {error && <div className="text-sm text-destructive mt-1">{error}</div>}
+      </div>
+    );
+  }
+);
+
+SpeakText.displayName = 'SpeakText';
+
+export default SpeakText;

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import { useGameContext } from '@/context/GameContext';
+import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 interface QuickActionsProps {
   gameState: FilteredGameState;
@@ -65,6 +66,15 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       icon: <MessageSquare className="w-4 h-4" />,
       color: 'text-blue-500',
       action: () => {
+        console.log('[QuickActionsPanel] 💬 QUICK MESSAGE ACTION', {
+          phase: currentPhase,
+          isAlive,
+          timestamp: new Date().toISOString(),
+        });
+        addAudioBreadcrumb('Quick message action triggered', {
+          phase: currentPhase,
+        });
+        // Toggle message templates
         setSelectedAction(selectedAction === 'message' ? null : 'message');
       },
       available:
@@ -77,6 +87,15 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       icon: <Vote className="w-4 h-4" />,
       color: 'text-orange-500',
       action: () => {
+        console.log('[QuickActionsPanel] 🗳️ QUICK VOTE ACTION', {
+          phase: currentPhase,
+          humanPlayerId,
+          timestamp: new Date().toISOString(),
+        });
+        addAudioBreadcrumb('Quick vote action triggered', {
+          phase: currentPhase,
+        });
+        // Toggle voting UI
         setSelectedAction(selectedAction === 'vote' ? null : 'vote');
       },
       available:
@@ -92,6 +111,14 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       icon: <Shield className="w-4 h-4" />,
       color: 'text-green-500',
       action: () => {
+        console.log('[QuickActionsPanel] 🛡️ DOCTOR PROTECT ACTION', {
+          role: humanPlayer?.role,
+          phase: currentPhase,
+          timestamp: new Date().toISOString(),
+        });
+        addAudioBreadcrumb('Doctor protect action triggered', {
+          phase: currentPhase,
+        });
         setSelectedAction('protect');
       },
       available:
@@ -111,6 +138,14 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       icon: <Eye className="w-4 h-4" />,
       color: 'text-purple-500',
       action: () => {
+        console.log('[QuickActionsPanel] 👁️ SEER INVESTIGATE ACTION', {
+          role: humanPlayer?.role,
+          phase: currentPhase,
+          timestamp: new Date().toISOString(),
+        });
+        addAudioBreadcrumb('Seer investigate action triggered', {
+          phase: currentPhase,
+        });
         setSelectedAction('investigate');
       },
       available:
@@ -132,6 +167,15 @@ export function QuickActionsPanel({ gameState, className }: QuickActionsProps) {
       icon: <Sword className="w-4 h-4" />,
       color: 'text-red-500',
       action: () => {
+        console.log('[QuickActionsPanel] ⚔️ MAFIA ELIMINATE ACTION', {
+          role: humanPlayer?.role,
+          phase: currentPhase,
+          isMafia: humanPlayer?.isMafia,
+          timestamp: new Date().toISOString(),
+        });
+        addAudioBreadcrumb('Mafia eliminate action triggered', {
+          phase: currentPhase,
+        });
         setSelectedAction('eliminate');
       },
       available:

@@ -7,6 +7,7 @@ import { Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 interface PhaseTimeConfig {
   CharacterGeneration: number;
@@ -53,11 +54,44 @@ export function GameTimer() {
       setTimeRemaining(remaining);
 
       // Set warning states
+      const wasWarning = isWarning;
+      const wasCritical = isCritical;
+
       setIsWarning(remaining <= 60 && remaining > 30);
       setIsCritical(remaining <= 30);
 
+      // Log timer warnings for audio cues
+      if (!wasWarning && remaining <= 60 && remaining > 30) {
+        console.log('[GameTimer] ⚠️ PHASE TIMER WARNING', {
+          phase: gameState.phase,
+          timeRemaining: remaining,
+          timestamp: new Date().toISOString(),
+        });
+        addAudioBreadcrumb('Phase timer warning - 1 minute left', {
+          phase: gameState.phase,
+          timeRemaining: remaining,
+        });
+      }
+
+      if (!wasCritical && remaining <= 30) {
+        console.log('[GameTimer] 🚨 PHASE TIMER CRITICAL', {
+          phase: gameState.phase,
+          timeRemaining: remaining,
+          timestamp: new Date().toISOString(),
+        });
+        addAudioBreadcrumb('Phase timer critical - 30 seconds left', {
+          phase: gameState.phase,
+          timeRemaining: remaining,
+        });
+      }
+
       if (remaining === 0) {
         clearInterval(interval);
+        console.log('[GameTimer] ⏰ PHASE TIMER EXPIRED', {
+          phase: gameState.phase,
+          timestamp: new Date().toISOString(),
+        });
+        addAudioBreadcrumb('Phase timer expired', { phase: gameState.phase });
         // Could trigger phase advancement here if needed
       }
     }, 1000);
