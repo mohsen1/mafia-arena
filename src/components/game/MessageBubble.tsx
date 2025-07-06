@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { DynamicAvatar } from './ui/dynamic-avatar';
-import { MemoizedReactMarkdown } from './MemoizedReactMarkdown';
-import { SpeakText } from './SpeakText';
+import { DynamicAvatar } from '@/components/ui/dynamic-avatar';
+import { MemoizedReactMarkdown } from '@/components/common/MemoizedReactMarkdown';
+import { SpeakText } from '@/components/common/SpeakText';
 import type {
   ClientMessage,
   FilteredPlayer,

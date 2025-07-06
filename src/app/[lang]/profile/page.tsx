@@ -2,8 +2,8 @@
 
 import { use } from 'react';
 import { useSession } from 'next-auth/react';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+import { Header } from '@/components/common/Header';
+import { Footer } from '@/components/common/Footer';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -25,8 +25,8 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { UserApiKeyManager } from '@/components/UserApiKeyManager';
-import { UserStatsDisplay } from '@/components/UserStatsDisplay';
+import { UserApiKeyManager } from '@/components/ai/UserApiKeyManager';
+import { UserStatsDisplay } from '@/components/game/analytics/UserStatsDisplay';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface PageProps {

@@ -6,9 +6,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MagicalAIButton } from '@/components/ui/magical-ai-button';
-import { EnhancedProviderModelSelector } from '@/components/EnhancedProviderModelSelector';
-import { GameThemeSelector } from '@/components/GameThemeSelector';
-import LanguageSelector from '@/components/LanguageSelector';
+import { EnhancedProviderModelSelector } from '@/components/ai/EnhancedProviderModelSelector';
+import { GameThemeSelector } from '@/components/features/GameThemeSelector';
+import LanguageSelector from '@/components/common/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { type LanguageCode } from '@/lib/i18n/settings';
 import {
@@ -38,9 +38,9 @@ import {
 import {
   OllamaConfig,
   type OllamaConfiguration,
-} from '@/components/OllamaConfig';
+} from '@/components/ai/OllamaConfig';
 import { getAvailableProvidersFromEnv } from '@/app/actions/setup.actions';
-import type { GamePreset } from '@/components/GamePresetSelector';
+import type { GamePreset } from '@/components/game/setup/GamePresetSelector';
 import { getThemeKeys } from '@/lib/utils/themeLoader';
 
 export interface SimpleStartGameFormProps {

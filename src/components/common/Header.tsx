@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useEffect, useState } from 'react';
-import { MobileMenu } from '@/components/MobileMenu';
+import { MobileMenu } from '@/components/mobile/MobileMenu';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface HeaderProps {

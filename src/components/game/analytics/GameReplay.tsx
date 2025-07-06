@@ -30,8 +30,8 @@ import type {
   FilteredGameState,
 } from '@/lib/interfaces/gameState.types';
 
-import { MessageBubble } from './MessageBubble';
-import { DynamicAvatar } from './ui/dynamic-avatar';
+import { MessageBubble } from '@/components/game/MessageBubble';
+import { DynamicAvatar } from '@/components/ui/dynamic-avatar';
 import {
   Dialog,
   DialogContent,

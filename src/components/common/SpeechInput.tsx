@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface SpeechInputProps {

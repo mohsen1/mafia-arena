@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from './ui/progress';
+import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import {
   Loader2,

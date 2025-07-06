@@ -17,16 +17,16 @@ import {
   HelpCircle,
 } from 'lucide-react';
 // import { format } from "date-fns"; // Removed unused format import
-import SimpleStartGameForm from '@/components/SimpleStartGameForm';
-import GameCard from '@/components/GameCard';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+import SimpleStartGameForm from '@/components/game/setup/SimpleStartGameForm';
+import GameCard from '@/components/game/GameCard';
+import { Header } from '@/components/common/Header';
+import { Footer } from '@/components/common/Footer';
 import {
   GamePresetSelector,
   type GamePreset,
-} from '@/components/GamePresetSelector';
+} from '@/components/game/setup/GamePresetSelector';
 import { motion, AnimatePresence } from 'framer-motion';
-import { InteractiveTutorial } from '@/components/InteractiveTutorial';
+import { InteractiveTutorial } from '@/components/features/InteractiveTutorial';
 
 // Import i18n hook
 import { useTranslation } from 'react-i18next';

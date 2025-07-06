@@ -1,4 +1,4 @@
-import { HelpPageContent } from '@/components/HelpPageContent';
+import { HelpPageContent } from '@/components/common/HelpPageContent';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface HelpPageProps {

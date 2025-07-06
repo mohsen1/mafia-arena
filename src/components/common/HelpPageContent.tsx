@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+import { Header } from '@/components/common/Header';
+import { Footer } from '@/components/common/Footer';
 import { useParams } from 'next/navigation';
 import type { LanguageCode } from '@/lib/i18n/settings';
 

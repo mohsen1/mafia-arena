@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GameStatsTracker } from '@/components/GameStatsTracker';
-import { VotingVisualization } from '@/components/VotingVisualization';
-import { GameInsights } from '@/components/GameInsights';
-import { GameHistory } from '@/components/GameHistory';
-import { VotingPanel } from '@/components/VotingPanel';
+import { GameStatsTracker } from '@/components/game/analytics/GameStatsTracker';
+import { VotingVisualization } from '@/components/game/VotingVisualization';
+import { GameInsights } from '@/components/game/analytics/GameInsights';
+import { GameHistory } from '@/components/game/analytics/GameHistory';
+import { VotingPanel } from '@/components/game/VotingPanel';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { AgentMemory } from '@/lib/engine/interfaces/AgentMemory';
 import { BarChart3, Users, Brain, History, Vote } from 'lucide-react';

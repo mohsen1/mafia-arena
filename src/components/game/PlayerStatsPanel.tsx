@@ -1,8 +1,8 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 
 interface PlayerStatsProps {

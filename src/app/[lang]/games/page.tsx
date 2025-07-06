@@ -2,8 +2,8 @@
 
 import { use, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+import { Header } from '@/components/common/Header';
+import { Footer } from '@/components/common/Footer';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -33,7 +33,7 @@ import {
 } from '@/app/actions/games';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-import { GameStatsDashboard } from '@/components/GameStatsDashboard';
+import { GameStatsDashboard } from '@/components/game/analytics/GameStatsDashboard';
 
 interface PageProps {
   params: Promise<{ lang: LanguageCode }>;

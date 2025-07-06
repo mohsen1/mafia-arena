@@ -1,6 +1,6 @@
 'use client';
 
-import GameController from '@/components/GameController';
+import GameController from '@/components/game/GameController';
 import { useGameContext } from '@/context/GameContext';
 import { useTranslation } from 'react-i18next';
 

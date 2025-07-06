@@ -20,8 +20,8 @@ import {
   Star,
   LogIn,
 } from 'lucide-react';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+import { Header } from '@/components/common/Header';
+import { Footer } from '@/components/common/Footer';
 import { usePathname } from 'next/navigation';
 import type { LanguageCode } from '@/lib/i18n/settings';
 import { supportedLanguagesInfo } from '@/lib/i18n/settings';

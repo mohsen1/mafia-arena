@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { SpeakText } from '@/components/SpeakText';
+import { SpeakText } from '@/components/common/SpeakText';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

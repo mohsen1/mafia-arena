@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
-import { ScrollArea } from './ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { SpeechInput } from './SpeechInput';
+import { SpeechInput } from '@/components/common/SpeechInput';
 import { Mic, Loader2 } from 'lucide-react';
 
 export default function HumanChatInput() {

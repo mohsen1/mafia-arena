@@ -34,9 +34,9 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import LanguageSelector from './LanguageSelector';
-import { ProviderModelSelector } from './ProviderModelSelector';
-import { GameThemeSelector } from './GameThemeSelector';
+import LanguageSelector from '@/components/common/LanguageSelector';
+import { ProviderModelSelector } from '@/components/ai/ProviderModelSelector';
+import { GameThemeSelector } from '@/components/features/GameThemeSelector';
 import {
   Table,
   TableBody,

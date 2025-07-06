@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import type { GameListItem } from '@/app/actions/games';
-import { AchievementsDisplay } from '@/components/AchievementsDisplay';
+import { AchievementsDisplay } from '@/components/features/AchievementsDisplay';
 import type { UserAchievements } from '@/lib/achievements';
 
 interface GameStatsDashboardProps {

@@ -1,15 +1,15 @@
 'use client';
 
-import { GameSidebar } from '@/components/GameSidebar';
-import { GameTabsLayout } from '@/components/GameTabsLayout';
-import CharacterGenerationUI from '@/components/CharacterGenerationUI';
-import { GameErrorDisplay } from '@/components/GameErrorDisplay';
-import { KeyboardShortcutsDialog } from '@/components/KeyboardShortcutsDialog';
-import { GameThemeInfoDialog } from '@/components/GameThemeInfoDialog';
+import { GameSidebar } from '@/components/game/GameSidebar';
+import { GameTabsLayout } from '@/components/game/GameTabsLayout';
+import CharacterGenerationUI from '@/components/game/setup/CharacterGenerationUI';
+import { GameErrorDisplay } from '@/components/game/GameErrorDisplay';
+import { KeyboardShortcutsDialog } from '@/components/features/KeyboardShortcutsDialog';
+import { GameThemeInfoDialog } from '@/components/features/GameThemeInfoDialog';
 
-import { GameReplay } from '@/components/GameReplay';
-import SpectatorMode from '@/components/SpectatorMode';
-import { Header } from '@/components/Header';
+import { GameReplay } from '@/components/game/analytics/GameReplay';
+import SpectatorMode from '@/components/game/SpectatorMode';
+import { Header } from '@/components/common/Header';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -21,7 +21,7 @@ import type { LanguageCode } from '@/lib/i18n/settings';
 import { Menu, User, LogOut, Gamepad2, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GameNotificationCenter } from '@/components/GameNotificationCenter';
+import { GameNotificationCenter } from '@/components/features/GameNotificationCenter';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';

@@ -1,7 +1,7 @@
 'use client'; // Ensure this is a client component
 
 import { useGameContext } from '@/context/GameContext';
-import { MessageBubble } from './MessageBubble';
+import { MessageBubble } from '@/components/game/MessageBubble';
 import { useTranslation } from 'react-i18next';
 import { useRef, useEffect, useCallback, useMemo } from 'react';
 import type {

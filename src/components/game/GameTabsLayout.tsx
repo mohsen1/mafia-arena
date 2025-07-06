@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ConversationLog } from '@/components/ConversationLog';
-import HumanChatInput from '@/components/HumanChatInput';
-import { GameAnalyticsTabs } from '@/components/GameAnalyticsTabs';
-import { VotingPanel } from '@/components/VotingPanel';
+import { ConversationLog } from '@/components/game/ConversationLog';
+import HumanChatInput from '@/components/game/HumanChatInput';
+import { GameAnalyticsTabs } from '@/components/game/analytics/GameAnalyticsTabs';
+import { VotingPanel } from '@/components/game/VotingPanel';
 
-import { GameStatsTracker } from '@/components/GameStatsTracker';
+import { GameStatsTracker } from '@/components/game/analytics/GameStatsTracker';
 import { useGameContext } from '@/context/GameContext';
 import { MessageSquare, BarChart3, Vote, History } from 'lucide-react';
 

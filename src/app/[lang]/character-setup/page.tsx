@@ -4,8 +4,8 @@ import { useState, use } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+import { Header } from '@/components/common/Header';
+import { Footer } from '@/components/common/Footer';
 import { useTranslation } from 'react-i18next';
 import type { LanguageCode } from '@/lib/i18n/settings';
 import {
@@ -43,7 +43,7 @@ import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 import { Themes } from '@/lib/engine/interfaces/Theme';
 import type { CharacterPreferences } from '@/components/ui/character-preview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ProviderModelSelector } from '@/components/ProviderModelSelector';
+import { ProviderModelSelector } from '@/components/ai/ProviderModelSelector';
 import { Wand2 } from 'lucide-react';
 import {
   DndContext,

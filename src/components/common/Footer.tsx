@@ -16,7 +16,7 @@ import {
   Cpu,
   Languages,
 } from 'lucide-react';
-import LanguageSelector from '@/components/LanguageSelector';
+import LanguageSelector from '@/components/common/LanguageSelector';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface FooterProps {

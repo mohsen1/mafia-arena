@@ -18,7 +18,7 @@ import type {
   FilteredGameState,
   ClientMessage,
 } from '@/lib/interfaces/gameState.types';
-import { MessageBubble } from './MessageBubble';
+import { MessageBubble } from '@/components/game/MessageBubble';
 
 interface SpectatorModeProps {
   gameState: FilteredGameState;

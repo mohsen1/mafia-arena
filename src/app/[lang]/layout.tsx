@@ -1,7 +1,7 @@
 'use client';
 
 import { Geist, Geist_Mono } from 'next/font/google';
-import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeProvider } from '@/components/common/ThemeProvider';
 import { SessionProvider } from 'next-auth/react';
 import '../globals.css';
 
