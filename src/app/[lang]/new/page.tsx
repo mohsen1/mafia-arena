@@ -68,8 +68,8 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
         <InteractiveTutorial onComplete={() => setShowTutorial(false)} />
       )}
       {/* Hero Section */}
-      <div className="text-center space-y-3 max-w-3xl">
-        <div className="flex items-center justify-center gap-3 mb-4">
+      <div className="text-center space-y-4 max-w-2xl">
+        <div className="flex items-center justify-center mb-6">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
             <Gamepad2 className="w-12 h-12 text-primary relative z-10" />
@@ -80,17 +80,10 @@ function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
           {werewolfAITitle}
         </h1>
 
-        <p className="text-lg text-muted-foreground">
-          {t(
-            'NewGameDescription',
-            'Create an immersive AI-powered social deduction game experience'
-          )}
-        </p>
-
         <Button
           variant="outline"
           onClick={() => setShowTutorial(true)}
-          className="mt-2"
+          className="mt-4"
           size="sm"
         >
           <HelpCircle className="w-4 h-4 mr-2" />
