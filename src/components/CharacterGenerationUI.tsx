@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
   Code,
+  Clock,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -632,31 +633,65 @@ export default function CharacterGenerationUI({
               </span>
             </div>
 
-            {/* Detailed progress information */}
+            {/* Enhanced backend activity display */}
             {progress.currentCharacterName && (
-              <div className="flex items-center justify-center gap-2 text-sm">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span className="text-primary">
-                  {t(
-                    'character-generation.current-character',
-                    'Creating: {{name}}',
-                    { name: progress.currentCharacterName }
+              <div className="bg-secondary/10 rounded-lg p-3 space-y-2 border border-secondary/20">
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="font-medium text-primary">
+                    {t(
+                      'character-generation.current-character',
+                      'Creating: {{name}} ({{role}})',
+                      { 
+                        name: progress.currentCharacterName,
+                        role: progress.currentCharacterModel || 'Character'
+                      }
+                    )}
+                  </span>
+                </div>
+                
+                {/* Detailed backend process information */}
+                <div className="space-y-1 text-xs">
+                  {progress.currentCharacterProvider && progress.currentCharacterModel && (
+                    <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
+                      <span className="text-muted-foreground">AI Provider:</span>
+                      <span className="font-medium">
+                        {progress.currentCharacterProvider} - {progress.currentCharacterModel}
+                      </span>
+                    </div>
                   )}
-                </span>
-                {progress.currentCharacterProvider &&
-                  progress.currentCharacterModel && (
-                    <span className="text-xs text-muted-foreground">
-                      ({progress.currentCharacterProvider} -{' '}
-                      {progress.currentCharacterModel})
+                  
+                  <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
+                    <span className="text-muted-foreground">Backend Status:</span>
+                    <span className="font-medium text-green-600">
+                      {isGenerating ? 'Generating persona...' : 'Processing...'}
                     </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
+                    <span className="text-muted-foreground">Current Step:</span>
+                    <span className="font-medium">
+                      {progress.currentStep || 'Initializing...'}
+                    </span>
+                  </div>
+                  
+                  {progress.totalCharacters > 0 && progress.completedCharacters < progress.totalCharacters && (
+                    <div className="flex items-center justify-between bg-background/50 rounded px-2 py-1">
+                      <span className="text-muted-foreground">Remaining:</span>
+                      <span className="font-medium text-blue-600">
+                        {progress.totalCharacters - progress.completedCharacters} characters
+                      </span>
+                    </div>
                   )}
+                </div>
               </div>
             )}
 
-            {/* Estimated time remaining */}
+            {/* Unified estimated time display */}
             {progress.totalCharacters > 0 &&
               progress.completedCharacters < progress.totalCharacters && (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                  <Clock className="w-3 h-3" />
                   {t(
                     'character-generation.estimated-time',
                     'Estimated time: {{minutes}} minutes',
@@ -672,13 +707,75 @@ export default function CharacterGenerationUI({
               )}
           </div>
 
-          <div className="space-y-2">
+          {/* Enhanced progress bar with more details */}
+          <div className="space-y-3">
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>{progress.currentStep}</span>
               <span>{progress.progress}%</span>
             </div>
-            <Progress value={progress.progress} className="w-full h-2" />
+            <Progress value={progress.progress} className="w-full h-3" />
+            
+            {/* Progress milestone indicators */}
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span className={progress.progress >= 0 ? 'text-primary font-medium' : ''}>
+                Start
+              </span>
+              <span className={progress.progress >= 25 ? 'text-primary font-medium' : ''}>
+                25%
+              </span>
+              <span className={progress.progress >= 50 ? 'text-primary font-medium' : ''}>
+                50%
+              </span>
+              <span className={progress.progress >= 75 ? 'text-primary font-medium' : ''}>
+                75%
+              </span>
+              <span className={progress.progress >= 100 ? 'text-green-600 font-medium' : ''}>
+                Complete
+              </span>
+            </div>
           </div>
+
+          {/* Backend API activity log */}
+          {(isGenerating || progress.progress > 0) && (
+            <Card className="bg-secondary/5 border-secondary/20">
+              <CardHeader className="py-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Code className="w-4 h-4" />
+                  Backend Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-3">
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Generation Phase:</span>
+                    <span className="font-medium text-primary">
+                      {progress.currentStep === 'Complete' ? 'Finished' : 'Active'}
+                    </span>
+                  </div>
+                  {progress.currentCharacterProvider && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">AI Service:</span>
+                      <span className="font-medium">
+                        {progress.currentCharacterProvider} API
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Progress:</span>
+                    <span className="font-medium text-green-600">
+                      {progress.completedCharacters}/{progress.totalCharacters} characters generated
+                    </span>
+                  </div>
+                  {isGenerating && (
+                    <div className="flex items-center gap-2 text-primary">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Processing character personas...</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Prompt Display Toggle */}
           {progress.currentCharacterName &&
@@ -734,8 +831,12 @@ export default function CharacterGenerationUI({
             )}
 
           <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">
+            <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+              <Users className="w-4 h-4" />
               {t('character-generation.characters-list', 'Characters')}
+              <span className="text-xs bg-secondary/20 px-2 py-1 rounded">
+                {progress.completedCharacters}/{progress.totalCharacters}
+              </span>
             </h3>
 
             <div className="grid gap-2 max-h-60 overflow-y-auto pr-2">
@@ -783,11 +884,15 @@ export default function CharacterGenerationUI({
             </div>
           </div>
 
-          <div className="text-center text-xs text-muted-foreground">
+          <div className="text-center text-xs text-muted-foreground bg-secondary/10 rounded-lg p-3">
             {t(
               'character-generation.description',
               'Each character is being given a unique personality, backstory, and appearance to make your game immersive and engaging.'
             )}
+            <br />
+            <span className="text-primary font-medium">
+              Backend processes are running to create AI personas with detailed characteristics.
+            </span>
           </div>
         </CardContent>
       </Card>
