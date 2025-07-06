@@ -14,7 +14,6 @@ import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
 import Image from 'next/image';
 import { useGameContext } from '@/context/GameContext';
 import { useTranslation } from 'react-i18next';
-import { useSpokenText } from '@/context/SpokenTextContext';
 
 interface MessageBubbleProps {
   message: ClientMessage;
