@@ -3,20 +3,36 @@
 import { useGameContext } from '@/context/GameContext';
 import { MessageBubble } from './MessageBubble';
 import { useTranslation } from 'react-i18next';
-import { useRef, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type {
   ClientMessage,
   FilteredPlayer,
-  PlayerId,
+  PlayerId, // Already typed in gameState.types
 } from '@/lib/interfaces/gameState.types';
 import { RoleName } from '@/lib/engine/interfaces/IRole'; // Fix RoleName import path
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Enhanced logging helper
+const LOG_PREFIX = '[ConversationLog]';
+const timestamp = () => new Date().toLocaleTimeString();
+
+const log = (emoji: string, action: string, details: any) => {
+  console.log(
+    `%c${LOG_PREFIX} ${timestamp()} ${emoji} ${action}:`,
+    'color: #2ecc71; font-weight: bold',
+    details
+  );
+};
 
 export function ConversationLog() {
   const { gameState } = useGameContext();
   const containerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef<boolean>(true);
-  const { t } = useTranslation('translation'); // Keep namespace for now
+  const { t } = useTranslation(); // Use the hook
+
+  // Track the initial message count to determine which messages are "new"
+  const [initialMessageCount, setInitialMessageCount] = useState<number | null>(null);
 
   // Memoize the visibility check function
   const isMessageVisible = useCallback(
@@ -47,10 +63,18 @@ export function ConversationLog() {
     const humanPlayer = humanPlayerId ? playersRecord[humanPlayerId] : null;
     const isObserver = !humanPlayerId;
 
-    return log.filter((msg) =>
+    return log.filter((msg: ClientMessage) =>
       isMessageVisible(msg, humanPlayerId ?? null, humanPlayer, isObserver)
     );
   }, [gameState, isMessageVisible]);
+
+  // Set initial message count on first render with messages
+  useEffect(() => {
+    if (initialMessageCount === null && displayLogMemo.length > 0) {
+      console.log('[ConversationLog] Setting initial message count:', displayLogMemo.length);
+      setInitialMessageCount(displayLogMemo.length);
+    }
+  }, [initialMessageCount, displayLogMemo.length]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -75,6 +99,14 @@ export function ConversationLog() {
   // Get players record after the gameState check
   const playersRecord: Record<PlayerId, FilteredPlayer> = gameState.players;
 
+  // Log render details
+  log('🔄', 'RENDER', {
+    totalMessages: gameState.conversationLog?.length || 0,
+    initialMessageCount,
+    groupedMessagesCount: displayLogMemo?.length || 0,
+    voiceModeEnabled: gameState.voiceModeEnabled
+  });
+
   return (
     <div
       ref={containerRef}
@@ -83,14 +115,31 @@ export function ConversationLog() {
     >
       {displayLogMemo.length > 0 ? (
         <div className="space-y-3">
-          {displayLogMemo.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              players={playersRecord}
-              isWerewolfChat={message.visibility === MessageVisibility.Mafia}
-            />
-          ))}
+          {displayLogMemo.map((message: ClientMessage, index: number) => {
+            // Only autoPlay messages that were added after the initial load
+            const shouldAutoPlay = initialMessageCount !== null && index >= initialMessageCount;
+            
+            // Log each message's auto-play decision
+            log('🎤', 'MESSAGE RENDER', {
+              messageId: message.id,
+              sender: message.senderId,
+              position: index,
+              initialCount: initialMessageCount,
+              isNewMessage: shouldAutoPlay,
+              shouldAutoPlay,
+              contentPreview: message.content.substring(0, 30) + '...'
+            });
+            
+            return (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                players={playersRecord}
+                isWerewolfChat={message.visibility === MessageVisibility.Mafia}
+                shouldAutoPlay={shouldAutoPlay}
+              />
+            );
+          })}
         </div>
       ) : (
         <p className="text-muted-foreground italic text-center py-8">

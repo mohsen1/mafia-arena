@@ -2,10 +2,18 @@
 
 import { Button } from '@/components/ui/button';
 import { useGameContext } from '@/context/GameContext';
-import { Loader, Pause, Play, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import {
+  Loader,
+  Pause,
+  Play,
+  SkipForward,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSpokenText } from '@/context/SpokenTextContext';
 import { useEffect } from 'react';
+import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 export default function GameController() {
   const { t } = useTranslation();
@@ -18,13 +26,16 @@ export default function GameController() {
     isAudioGloballyEnabled,
     toggleGlobalAudio,
   } = useGameContext();
-  
+
   const { currentlySpeakingId, resetAudio } = useSpokenText();
 
   // Clear any stuck audio on mount
   useEffect(() => {
     if (currentlySpeakingId) {
-      console.log('[GameController] Clearing stuck audio on mount:', currentlySpeakingId);
+      console.log(
+        '[GameController] Clearing stuck audio on mount:',
+        currentlySpeakingId
+      );
       resetAudio();
     }
   }, []); // Run only on mount
@@ -57,7 +68,9 @@ export default function GameController() {
             size="sm"
             className="h-7 w-7 p-0"
             onClick={toggleGlobalAudio}
-            aria-label={isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')}
+            aria-label={
+              isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')
+            }
             title={isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')}
           >
             {isAudioGloballyEnabled ? (
@@ -82,7 +95,15 @@ export default function GameController() {
       )}
 
       <Button
-        onClick={toggleAutoRun}
+        onClick={() => {
+          console.log('[GameController] Toggling auto-run mode:', {
+            currentMode: isAutoRunning ? 'auto' : 'manual',
+            newMode: isAutoRunning ? 'manual' : 'auto',
+            currentlySpeakingId,
+            isAudioGloballyEnabled,
+          });
+          toggleAutoRun();
+        }}
         variant="ghost"
         size="sm"
         className="h-7 w-7 p-0"

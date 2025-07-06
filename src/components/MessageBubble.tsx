@@ -18,9 +18,22 @@ interface MessageBubbleProps {
   message: ClientMessage;
   players: Record<PlayerId, FilteredPlayer>;
   isWerewolfChat?: boolean;
+  shouldAutoPlay?: boolean;
 }
 
-const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
+// Enhanced logging helper
+const LOG_PREFIX = '[MessageBubble]';
+const timestamp = () => new Date().toLocaleTimeString();
+
+const log = (emoji: string, action: string, details: any) => {
+  console.log(
+    `%c${LOG_PREFIX} ${timestamp()} ${emoji} ${action}:`,
+    'color: #e74c3c; font-weight: bold',
+    details
+  );
+};
+
+const MessageBubbleComponent = ({ message, players, shouldAutoPlay = true }: MessageBubbleProps) => {
   const { gameState, isAudioGloballyEnabled } = useGameContext();
   const sender = message.senderId ? players[message.senderId] : null;
   const isModeratorMessage =
@@ -28,9 +41,8 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
   const isMafiaMessage = message.visibility === MessageVisibility.Mafia;
   const isHumanMessage = message.senderId === gameState?.humanPlayerId;
 
-  const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
-  
-  console.log(`[MessageBubble] ${timestamp()} Component render:`, {
+  // Log component render
+  log('🔄', 'RENDER', {
     messageId: message.id,
     senderId: message.senderId,
     senderName: sender?.name || 'Unknown',
@@ -40,6 +52,8 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
     contentLength: message.content.length,
     contentPreview: message.content.substring(0, 30) + '...',
     isAudioGloballyEnabled,
+    shouldAutoPlay,
+    voiceModeEnabled: gameState?.voiceModeEnabled,
   });
 
   // Default voice IDs - you should replace these with actual voice IDs from ElevenLabs
@@ -55,9 +69,9 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
   const renderContent = (content: string) => {
     // Use isAudioGloballyEnabled which is properly initialized from voiceModeEnabled
     const voiceEnabled = isAudioGloballyEnabled;
-    
-    // Debug logging
-    console.log(`[MessageBubble] ${timestamp()} 🔊 Voice check:`, {
+
+    // Comprehensive decision logging
+    const decision = {
       messageId: message.id,
       voiceModeEnabled: gameState?.voiceModeEnabled,
       isAudioGloballyEnabled,
@@ -65,29 +79,39 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
       isHumanMessage,
       messageContent: content.substring(0, 50) + '...',
       willUseSpeakText: voiceEnabled && !isHumanMessage,
-    });
-    
+      shouldAutoPlay,
+      reason: !voiceEnabled ? 'voice_disabled' : 
+              isHumanMessage ? 'human_message' : 
+              'will_use_speaktext'
+    };
+
+    log('🎯', 'VOICE DECISION', decision);
+
     // Only use voice for AI messages, not human messages
     if (voiceEnabled && !isHumanMessage) {
-      console.log(`[MessageBubble] ${timestamp()} 🎤 RENDERING with SpeakText:`, {
+      log('🎤', 'USING SPEAKTEXT', {
         messageId: message.id,
         voiceId: getVoiceId(),
-        autoPlay: true,
+        autoPlay: shouldAutoPlay,
+        textLength: content.length,
       });
+      
       return (
         <SpeakText
           text={content}
           voiceId={getVoiceId()}
-          autoPlay={true}
+          autoPlay={shouldAutoPlay}
           showControls={false}
+          isAudioGloballyEnabled={isAudioGloballyEnabled}
         />
       );
     }
-    
-    console.log(`[MessageBubble] ${timestamp()} 📝 RENDERING without voice:`, {
+
+    log('📝', 'USING MARKDOWN', {
       messageId: message.id,
-      reason: voiceEnabled ? 'isHumanMessage' : 'voiceDisabled',
+      reason: decision.reason,
     });
+    
     return <MemoizedReactMarkdown>{content}</MemoizedReactMarkdown>;
   };
 
@@ -184,13 +208,18 @@ const MessageBubbleComponent = ({ message, players }: MessageBubbleProps) => {
 };
 
 // Memoize the component to prevent re-renders unless props actually change
-export const MessageBubble = React.memo(MessageBubbleComponent, (prevProps, nextProps) => {
-  // Custom comparison function
-  return (
-    prevProps.message.id === nextProps.message.id &&
-    prevProps.message.content === nextProps.message.content &&
-    prevProps.isWerewolfChat === nextProps.isWerewolfChat &&
-    // Don't re-render just because of players object reference change
-    Object.keys(prevProps.players).length === Object.keys(nextProps.players).length
-  );
-});
+export const MessageBubble = React.memo(
+  MessageBubbleComponent,
+  (prevProps, nextProps) => {
+    // Custom comparison function
+    return (
+      prevProps.message.id === nextProps.message.id &&
+      prevProps.message.content === nextProps.message.content &&
+      prevProps.isWerewolfChat === nextProps.isWerewolfChat &&
+      prevProps.shouldAutoPlay === nextProps.shouldAutoPlay &&
+      // Don't re-render just because of players object reference change
+      Object.keys(prevProps.players).length ===
+        Object.keys(nextProps.players).length
+    );
+  }
+);
