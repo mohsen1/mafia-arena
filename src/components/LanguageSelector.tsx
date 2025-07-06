@@ -3,7 +3,6 @@
 import type { LanguageCode as Locale } from '@/lib/i18n/settings';
 import { supportedLanguagesInfo } from '@/lib/i18n/settings';
 import { usePathname, useRouter } from 'next/navigation';
-import { Globe } from 'lucide-react';
 import {
   Select,
   SelectContent,
