@@ -12,7 +12,6 @@ import React, {
   useRef,
 } from 'react';
 
-import { useSpokenText } from '@/context/SpokenTextContext';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 
@@ -114,10 +113,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [gameSpeed, setGameSpeed] = useState<number>(1);
 
-  // Consume audio status from SpokenTextContext - must be before using currentlySpeakingId
-  const { currentlySpeakingId, resetAudio } = useSpokenText();
-  const isAudioPlaying = currentlySpeakingId !== null;
-
   // Initialize audio state from game state
   useEffect(() => {
     if (gameState?.voiceModeEnabled !== undefined) {
@@ -127,7 +122,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       });
       setIsAudioGloballyEnabled(gameState.voiceModeEnabled);
     }
-  }, [gameState?.voiceModeEnabled]);
+  }, [gameState?.voiceModeEnabled, isAudioGloballyEnabled]);
 
   const toggleGlobalAudio = useCallback(() => {
     const timestamp = new Date().toLocaleTimeString();
@@ -137,7 +132,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       {
         currentState: isAudioGloballyEnabled,
         gamePhase: gameState?.phase,
-        currentlySpeakingId: currentlySpeakingId,
         voiceModeEnabled: gameState?.voiceModeEnabled,
       }
     );
@@ -152,17 +146,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({
           newState,
           action: newState
             ? 'Audio enabled - new messages will have voice'
-            : 'Audio muted - stopping current playback',
+            : 'Audio muted - audio will be stopped by components',
         }
       );
-
-      if (!newState && currentlySpeakingId) {
-        console.log(
-          `[GameContext] ${timestamp} 🔇 Stopping audio due to mute:`,
-          currentlySpeakingId
-        );
-        resetAudio();
-      }
 
       return newState;
     });
@@ -170,8 +156,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     isAudioGloballyEnabled,
     gameState?.phase,
     gameState?.voiceModeEnabled,
-    currentlySpeakingId,
-    resetAudio,
   ]);
 
   const toggleAutoRun = useCallback(() => {
@@ -190,19 +174,14 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     voiceModeEnabled: gameState?.voiceModeEnabled,
     isAudioGloballyEnabled,
     isAutoRunning,
-    isAudioPlaying,
   });
 
   const toggleAudioGloballyEnabled = useCallback(() => {
     setIsAudioGloballyEnabled((prev) => {
       const newState = !prev;
-      if (!newState) {
-        // If disabling audio globally, ensure any current audio stops via SpokenTextContext
-        resetAudio();
-      }
       return newState;
     });
-  }, [resetAudio]);
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -215,9 +194,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     log('🚀 PHASE TRANSITION START', {
       currentPhase: oldPhase,
       round: oldRound,
-      currentlySpeakingId,
       isAutoRunning,
-      isAudioPlaying: !!currentlySpeakingId,
     });
 
     setIsLoadingNextTurn(true);
@@ -231,10 +208,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         log('📦 PHASE TRANSITION RESULT STRUCTURE', {
           hasError: 'error' in result,
           keys: Object.keys(result),
-          playersType: Array.isArray(result.players)
+          playersType: 'error' in result ? 'N/A' : Array.isArray((result as FilteredGameState).players)
             ? 'array'
-            : typeof result.players,
-          playersValue: result.players,
+            : typeof (result as FilteredGameState).players,
+          playersValue: 'error' in result ? 'N/A' : (result as FilteredGameState).players,
           resultSample: JSON.stringify(result).substring(0, 200) + '...',
         });
       }
@@ -247,7 +224,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
           resultKeys: Object.keys(result),
         });
         setError(result.error);
-      } else if (result) {
+      } else if (result && !('error' in result)) {
         const phaseChanged = result.phase !== oldPhase;
         const roundChanged = result.round !== oldRound;
 
@@ -262,7 +239,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
             (p: any) => p.status === 'Alive'
           ).length,
           winner: result.winner,
-          gameOver: result.gameOver,
+          winCondition: result.winCondition,
+          gamePhase: result.phase,
           messagesAdded:
             (result.log?.length || 0) - (gameState?.log?.length || 0),
         });
@@ -270,7 +248,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
         setGameState(result);
         setLastSaved(new Date());
 
-        if (result.gameOver) {
+        if (result.phase === 'GameOver') {
           setIsAutoRunning(false);
           log('🏁 GAME ENDED', {
             winner: result.winner,
@@ -292,14 +270,41 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       setIsLoadingNextTurn(false);
       setIsSaving(false);
     }
-  }, [boundRunGameTurnAction, gameState, currentlySpeakingId, isAutoRunning]);
+  }, [boundRunGameTurnAction, gameState, isAutoRunning]);
 
   useEffect(() => {
     setGameState(initialGameState);
   }, [initialGameState]);
 
+  // Submit human action
+  const submitHumanActionInternal = useCallback(
+    async (payload: HumanActionPayload) => {
+      setIsLoadingNextTurn(true);
+      setIsSaving(true);
+      setError(null);
+      try {
+        const result = await boundSubmitHumanAction(payload);
+        if (result && 'error' in result) {
+          setError(result.error);
+        } else if (result) {
+          setGameState(result);
+          setLastSaved(new Date());
+        }
+        return result;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        setError(errorMessage);
+        return { error: errorMessage };
+      } finally {
+        setIsLoadingNextTurn(false);
+        setIsSaving(false);
+      }
+    },
+    [boundSubmitHumanAction]
+  );
+
   // Audio state
-  const [autoRun, setAutoRun] = useState<boolean>(false);
   const [autoRunSpeed, setAutoRunSpeed] = useState<number>(5000);
   const audioStopCallbacksRef = useRef<Set<() => void>>(new Set());
 
@@ -324,8 +329,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
   // Enhanced auto-run effect with comprehensive logging
   useEffect(() => {
-    if (!autoRun || !gameState || 'error' in gameState) {
-      if (!autoRun) {
+    if (!isAutoRunning || !gameState || 'error' in gameState) {
+      if (!isAutoRunning) {
         logAudio('AUTO_RUN_DISABLED', {
           reason: 'autoRun is false',
           gamePhase:
@@ -341,8 +346,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       return;
     }
 
+    // Check game state validity and log appropriately
+    if (!gameState || gameState === null) {
+      logAudio('AUTO_RUN_SKIP', {
+        reason: 'No game state',
+      });
+      return;
+    }
+
     logAudio('AUTO_RUN_CHECK', {
-      autoRun,
+      autoRun: isAutoRunning,
       autoRunSpeed,
       currentPhase: gameState.phase,
       hasHumanPlayer: !!gameState.humanPlayerId,
@@ -381,7 +394,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       delayMs: autoRunSpeed,
       phase: gameState.phase,
       round: gameState.round,
-      alivePlayers: gameState.players.filter((p: any) => p.status === 'Alive')
+      alivePlayers: Object.values(gameState.players).filter((p: any) => p.status === 'Alive')
         .length,
       activeAudioCount: audioStopCallbacksRef.current.size,
     });
@@ -418,7 +431,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       });
       clearTimeout(timer);
     };
-  }, [autoRun, autoRunSpeed, gameState, runNextTurnAction]);
+  }, [isAutoRunning, autoRunSpeed, gameState, runNextTurnAction]);
 
   const registerAudioStopCallback = useCallback((callback: () => void) => {
     logAudio('REGISTER_AUDIO_CALLBACK', {

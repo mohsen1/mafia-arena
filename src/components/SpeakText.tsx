@@ -499,26 +499,12 @@ const SpeakText = React.memo<SpeakTextProps>(
           try {
             logAudioEvent('FETCH_START', { cacheKey });
 
-            const response = await fetch('/api/speak', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text, voiceId }),
+            // For streaming, create audio URL directly with query parameters
+            const params = new URLSearchParams({
+              text,
+              voiceId,
             });
-
-            if (!response.ok) {
-              const errorText = await response.text();
-              logError('FETCH_FAILED', {
-                status: response.status,
-                statusText: response.statusText,
-                error: errorText,
-              });
-              throw new Error(
-                `Failed to generate speech: ${response.status} ${response.statusText}`
-              );
-            }
-
-            const data = await response.json();
-            const audioUrl = data.audioUrl;
+            const audioUrl = `/api/speak?${params.toString()}`;
 
             logAudioEvent('FETCH_COMPLETE', {
               cacheKey,
@@ -533,11 +519,13 @@ const SpeakText = React.memo<SpeakTextProps>(
             // Limit cache size
             if (audioCache.current.size > 50) {
               const firstKey = audioCache.current.keys().next().value;
-              audioCache.current.delete(firstKey);
-              logState('CACHE_EVICTION', {
-                evictedKey: firstKey,
-                newSize: audioCache.current.size,
-              });
+              if (firstKey !== undefined) {
+                audioCache.current.delete(firstKey);
+                logState('CACHE_EVICTION', {
+                  evictedKey: firstKey,
+                  newSize: audioCache.current.size,
+                });
+              }
             }
 
             return audioUrl;
@@ -612,9 +600,15 @@ const SpeakText = React.memo<SpeakTextProps>(
           return;
         }
 
-        // Create audio element
+        // Create audio element with streaming optimizations
         const audioElement = new Audio(audioUrl);
-        audioElement.preload = 'auto';
+        audioElement.preload = 'none'; // Start loading only when play() is called
+        audioElement.crossOrigin = 'anonymous';
+        // Enable low-latency streaming
+        if ('setSinkId' in audioElement) {
+          // @ts-ignore - experimental API
+          audioElement.disableRemotePlayback = true;
+        }
         audioElementRef.current = audioElement;
 
         // Set up comprehensive event listeners
