@@ -9,31 +9,72 @@ import { sendEmail } from '@/lib/email';
 
 export async function requestPasswordReset(
   email: string
-): Promise<{ success: boolean }> {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-  if (!user) {
-    return { success: true };
-  }
-  const token = crypto.randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-  await db
-    .delete(verificationTokens)
-    .where(eq(verificationTokens.identifier, email));
-  await db
-    .insert(verificationTokens)
-    .values({ identifier: email, token, expires });
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    
+    // Always return success for security reasons (prevent email enumeration)
+    // but only send email if user exists
+    if (!user) {
+      console.log('🔍 Password reset requested for non-existent email:', email);
+      return { success: true };
+    }
 
-  const resetUrl = `${process.env.NEXTAUTH_URL}/auth/reset/${token}`;
-  await sendEmail({
-    to: email,
-    subject: 'Reset your Werewolf AI password',
-    html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`,
-  });
-  return { success: true };
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    
+    // Delete any existing tokens for this email
+    await db
+      .delete(verificationTokens)
+      .where(eq(verificationTokens.identifier, email));
+    
+    // Create new verification token
+    await db
+      .insert(verificationTokens)
+      .values({ identifier: email, token, expires });
+
+    const resetUrl = `${process.env.NEXTAUTH_URL}/en/auth/reset/${token}`;
+    
+    console.log('🔐 Sending password reset email to:', email);
+    
+    const emailResult = await sendEmail({
+      to: email,
+      subject: 'Reset your Werewolf AI password',
+      html: `
+        <h2>Reset Your Password</h2>
+        <p>You requested a password reset for your Werewolf AI account.</p>
+        <p>Click the link below to reset your password:</p>
+        <p><a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+        <p>Or copy and paste this URL into your browser:</p>
+        <p>${resetUrl}</p>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this password reset, you can safely ignore this email.</p>
+        <hr>
+        <p style="color: #666; font-size: 14px;">Werewolf AI Team</p>
+      `,
+    });
+
+    if (!emailResult.success) {
+      console.error('❌ Failed to send password reset email:', emailResult.error);
+      // Log the error but still return success for security
+      // In production, you might want to alert admins about email failures
+      return { success: true }; // Don't expose email service errors to users
+    }
+
+    console.log('✅ Password reset email sent successfully');
+    return { success: true };
+    
+  } catch (error) {
+    console.error('❌ Error in password reset request:', error);
+    return { 
+      success: false, 
+      error: 'An error occurred while processing your request. Please try again.' 
+    };
+  }
 }
 
 export async function resetPassword(
