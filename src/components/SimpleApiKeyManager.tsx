@@ -49,14 +49,6 @@ interface SimpleApiKeyManagerProps {
   onKeysChanged?: () => void;
 }
 
-const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic (Claude)',
-  gemini: 'Google Gemini',
-  groq: 'Groq',
-  fireworks: 'Fireworks AI',
-};
-
 export function SimpleApiKeyManager({
   onKeysChanged,
 }: SimpleApiKeyManagerProps) {
@@ -235,7 +227,7 @@ export function SimpleApiKeyManager({
   const getAvailableProvidersForDropdown = () => {
     return availableProviders.map((provider) => ({
       value: provider.value,
-      label: PROVIDER_DISPLAY_NAMES[provider.value] || provider.title,
+      label: t(`apiKeys.providers.${provider.value}`) || provider.title,
     }));
   };
 
@@ -462,7 +454,7 @@ export function SimpleApiKeyManager({
                         <Input
                           id="editProvider"
                           value={
-                            PROVIDER_DISPLAY_NAMES[formData.provider] ||
+                            t(`apiKeys.providers.${formData.provider}`) ||
                             formData.provider
                           }
                           disabled
@@ -559,7 +551,7 @@ export function SimpleApiKeyManager({
                           <Badge
                             variant={key.isActive ? 'default' : 'secondary'}
                           >
-                            {PROVIDER_DISPLAY_NAMES[key.provider] ||
+                            {t(`apiKeys.providers.${key.provider}`) ||
                               key.provider}
                           </Badge>
                           {key.isActive ? (
