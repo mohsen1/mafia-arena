@@ -139,7 +139,7 @@ export default function SimpleStartGameForm({
     enabled: true,
   });
   const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
-  
+
   // Loading states to prevent showing error messages during initial load
   const [envProvidersLoaded, setEnvProvidersLoaded] = useState(false);
   const [userApiKeysLoaded, setUserApiKeysLoaded] = useState(false);
@@ -590,21 +590,23 @@ export default function SimpleStartGameForm({
       </div>
 
       {/* API Key Management */}
-      {envProvidersLoaded && userApiKeysLoaded && allAvailableProviders.length === 0 && (
-        <Alert className="border-destructive/50 bg-destructive/10">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            {t('NoProvidersConfigured')}{' '}
-            <Link
-              href={`/${lang}/profile`}
-              className="underline underline-offset-4 hover:text-primary font-medium"
-            >
-              {t('AddApiKeysInProfile')}
-            </Link>{' '}
-            {t('ToStartGame')}
-          </AlertDescription>
-        </Alert>
-      )}
+      {envProvidersLoaded &&
+        userApiKeysLoaded &&
+        allAvailableProviders.length === 0 && (
+          <Alert className="border-destructive/50 bg-destructive/10">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {t('NoProvidersConfigured')}{' '}
+              <Link
+                href={`/${lang}/profile`}
+                className="underline underline-offset-4 hover:text-primary font-medium"
+              >
+                {t('AddApiKeysInProfile')}
+              </Link>{' '}
+              {t('ToStartGame')}
+            </AlertDescription>
+          </Alert>
+        )}
 
       {/* Ollama Configuration */}
       {(globalProviderSelection === 'ollama_local' ||
