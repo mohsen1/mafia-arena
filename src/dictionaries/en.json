@@ -49,6 +49,8 @@
   "character-generation.milestone-50": "50%",
   "character-generation.milestone-75": "75%",
   "character-generation.milestone-complete": "Complete",
+  "character-generation.failedToGenerate": "Failed to generate characters",
+  "character-generation.failedToGetProgress": "Failed to get generation progress",
   "character-generation.backend-status-title": "Backend Status",
   "character-generation.suggestions-ollama-running": "• Ensure Ollama is running:",
   "character-generation.suggestions-check-model": "• Check if the model is installed:",
@@ -1597,6 +1599,38 @@
   "Randomize": "Randomize",
   "CopyCode": "Copy Code",
   "SaveBehavior": "Save Behavior",
+  "aiBehaviorPresets": {
+    "theDetective": "The Detective",
+    "theManipulator": "The Manipulator",
+    "theJester": "The Jester",
+    "theSilentObserver": "The Silent Observer"
+  },
+  "gameThemePresets": {
+    "darkMode": "Dark Mode",
+    "vampire": "Vampire",
+    "forest": "Forest"
+  },
+  "speechInput": {
+    "defaultPlaceholder": "Click microphone to speak...",
+    "noSpeechDetected": "No speech detected. Please try again.",
+    "microphoneAccessDenied": "Microphone access denied. Please enable microphone permissions.",
+    "errorOccurred": "Error: {{error}}"
+  },
+  "messageReactions": {
+    "agree": "Agree",
+    "disagree": "Disagree",
+    "love": "Love",
+    "insightful": "Insightful",
+    "suspicious": "Suspicious",
+    "confused": "Confused"
+  },
+  "keyboardShortcuts": {
+    "toggleAutoPlay": "Toggle auto-play mode",
+    "nextTurn": "Advance to next turn",
+    "pauseResume": "Pause/Resume game",
+    "showHelp": "Show this help dialog",
+    "closeDialogs": "Close dialogs"
+  },
   "GameReplayAnalyzer": "Game Replay Analyzer",
   "Rounds": "Rounds",
   "Overview": "Overview",

@@ -162,8 +162,13 @@ const DEFAULT_BEHAVIOR: AIBehaviorProfile = {
   },
 };
 
-const PRESET_BEHAVIORS: Array<{ name: string; profile: AIBehaviorProfile }> = [
+const PRESET_BEHAVIORS: Array<{
+  nameKey: string;
+  name: string;
+  profile: AIBehaviorProfile;
+}> = [
   {
+    nameKey: 'aiBehaviorPresets.theDetective',
     name: 'The Detective',
     profile: {
       ...DEFAULT_BEHAVIOR,
@@ -188,6 +193,7 @@ const PRESET_BEHAVIORS: Array<{ name: string; profile: AIBehaviorProfile }> = [
     },
   },
   {
+    nameKey: 'aiBehaviorPresets.theManipulator',
     name: 'The Manipulator',
     profile: {
       ...DEFAULT_BEHAVIOR,
@@ -208,6 +214,7 @@ const PRESET_BEHAVIORS: Array<{ name: string; profile: AIBehaviorProfile }> = [
     },
   },
   {
+    nameKey: 'aiBehaviorPresets.theJester',
     name: 'The Jester',
     profile: {
       ...DEFAULT_BEHAVIOR,
@@ -228,6 +235,7 @@ const PRESET_BEHAVIORS: Array<{ name: string; profile: AIBehaviorProfile }> = [
     },
   },
   {
+    nameKey: 'aiBehaviorPresets.theSilentObserver',
     name: 'The Silent Observer',
     profile: {
       ...DEFAULT_BEHAVIOR,
@@ -346,7 +354,7 @@ export function AIBehaviorCustomizer({
       id: `${preset.profile.id}-${Date.now()}`,
     });
     setHasChanges(true);
-    toast(`Applied ${preset.name} behavior profile`);
+    toast(`Applied ${t(preset.nameKey, preset.name)} behavior profile`);
   };
 
   const randomizeBehavior = () => {
@@ -466,7 +474,7 @@ export function AIBehaviorCustomizer({
                 className="text-xs justify-start"
               >
                 <Sparkles className="w-3 h-3 me-1" />
-                {preset.name}
+                {t(preset.nameKey, preset.name)}
               </Button>
             ))}
           </div>
