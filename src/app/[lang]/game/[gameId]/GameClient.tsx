@@ -197,7 +197,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
           </div>
         </div>
       )}
-      
+
       {/* Audio Debug Overlay - visible in both human and spectator views */}
       <AudioDebugOverlay />
     </>

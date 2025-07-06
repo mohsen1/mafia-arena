@@ -57,10 +57,10 @@ export function GameTimer() {
       // Set warning states
       const wasWarning = isWarning;
       const wasCritical = isCritical;
-      
+
       setIsWarning(remaining <= 60 && remaining > 30);
       setIsCritical(remaining <= 30);
-      
+
       // Log timer warnings for audio cues
       if (!wasWarning && remaining <= 60 && remaining > 30) {
         console.log('[GameTimer] ⚠️ PHASE TIMER WARNING', {
@@ -68,21 +68,21 @@ export function GameTimer() {
           timeRemaining: remaining,
           timestamp: new Date().toISOString(),
         });
-        addAudioBreadcrumb('Phase timer warning - 1 minute left', { 
+        addAudioBreadcrumb('Phase timer warning - 1 minute left', {
           phase: gameState.phase,
-          timeRemaining: remaining 
+          timeRemaining: remaining,
         });
       }
-      
+
       if (!wasCritical && remaining <= 30) {
         console.log('[GameTimer] 🚨 PHASE TIMER CRITICAL', {
           phase: gameState.phase,
           timeRemaining: remaining,
           timestamp: new Date().toISOString(),
         });
-        addAudioBreadcrumb('Phase timer critical - 30 seconds left', { 
+        addAudioBreadcrumb('Phase timer critical - 30 seconds left', {
           phase: gameState.phase,
-          timeRemaining: remaining 
+          timeRemaining: remaining,
         });
       }
 

@@ -11,7 +11,6 @@ import type {
 } from '@/lib/interfaces/gameState.types';
 import { RoleName } from '@/lib/engine/interfaces/IRole'; // Fix RoleName import path
 import { MessageVisibility } from '@/lib/engine/interfaces/IMessage';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Enhanced logging helper
 const LOG_PREFIX = '[ConversationLog]';
@@ -32,7 +31,9 @@ export function ConversationLog() {
   const { t } = useTranslation(); // Use the hook
 
   // Track the initial message count to determine which messages are "new"
-  const [initialMessageCount, setInitialMessageCount] = useState<number | null>(null);
+  const [initialMessageCount, setInitialMessageCount] = useState<number | null>(
+    null
+  );
 
   // Memoize the visibility check function
   const isMessageVisible = useCallback(
@@ -71,7 +72,10 @@ export function ConversationLog() {
   // Set initial message count on first render with messages
   useEffect(() => {
     if (initialMessageCount === null && displayLogMemo.length > 0) {
-      console.log('[ConversationLog] Setting initial message count:', displayLogMemo.length);
+      console.log(
+        '[ConversationLog] Setting initial message count:',
+        displayLogMemo.length
+      );
       setInitialMessageCount(displayLogMemo.length);
     }
   }, [initialMessageCount, displayLogMemo.length]);
@@ -104,7 +108,7 @@ export function ConversationLog() {
     totalMessages: gameState.conversationLog?.length || 0,
     initialMessageCount,
     groupedMessagesCount: displayLogMemo?.length || 0,
-    voiceModeEnabled: gameState.voiceModeEnabled
+    voiceModeEnabled: gameState.voiceModeEnabled,
   });
 
   return (
@@ -117,8 +121,9 @@ export function ConversationLog() {
         <div className="space-y-3">
           {displayLogMemo.map((message: ClientMessage, index: number) => {
             // Only autoPlay messages that were added after the initial load
-            const shouldAutoPlay = initialMessageCount !== null && index >= initialMessageCount;
-            
+            const shouldAutoPlay =
+              initialMessageCount !== null && index >= initialMessageCount;
+
             // Log each message's auto-play decision
             log('🎤', 'MESSAGE RENDER', {
               messageId: message.id,
@@ -127,9 +132,9 @@ export function ConversationLog() {
               initialCount: initialMessageCount,
               isNewMessage: shouldAutoPlay,
               shouldAutoPlay,
-              contentPreview: message.content.substring(0, 30) + '...'
+              contentPreview: message.content.substring(0, 30) + '...',
             });
-            
+
             return (
               <MessageBubble
                 key={message.id}

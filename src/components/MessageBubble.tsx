@@ -33,7 +33,11 @@ const log = (emoji: string, action: string, details: any) => {
   );
 };
 
-const MessageBubbleComponent = ({ message, players, shouldAutoPlay = true }: MessageBubbleProps) => {
+const MessageBubbleComponent = ({
+  message,
+  players,
+  shouldAutoPlay = true,
+}: MessageBubbleProps) => {
   const { gameState, isAudioGloballyEnabled } = useGameContext();
   const sender = message.senderId ? players[message.senderId] : null;
   const isModeratorMessage =
@@ -80,9 +84,11 @@ const MessageBubbleComponent = ({ message, players, shouldAutoPlay = true }: Mes
       messageContent: content.substring(0, 50) + '...',
       willUseSpeakText: voiceEnabled && !isHumanMessage,
       shouldAutoPlay,
-      reason: !voiceEnabled ? 'voice_disabled' : 
-              isHumanMessage ? 'human_message' : 
-              'will_use_speaktext'
+      reason: !voiceEnabled
+        ? 'voice_disabled'
+        : isHumanMessage
+          ? 'human_message'
+          : 'will_use_speaktext',
     };
 
     log('🎯', 'VOICE DECISION', decision);
@@ -95,7 +101,7 @@ const MessageBubbleComponent = ({ message, players, shouldAutoPlay = true }: Mes
         autoPlay: shouldAutoPlay,
         textLength: content.length,
       });
-      
+
       return (
         <SpeakText
           text={content}
@@ -111,7 +117,7 @@ const MessageBubbleComponent = ({ message, players, shouldAutoPlay = true }: Mes
       messageId: message.id,
       reason: decision.reason,
     });
-    
+
     return <MemoizedReactMarkdown>{content}</MemoizedReactMarkdown>;
   };
 
