@@ -53,26 +53,13 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
 interface AIProviderCardProps {
   name: string;
   description: string;
-  gradient: string;
   icon: React.ReactNode;
-  delay?: number;
 }
 
-function AIProviderCard({
-  name,
-  description,
-  gradient,
-  icon,
-  delay = 0,
-}: AIProviderCardProps) {
+function AIProviderCard({ name, description, icon }: AIProviderCardProps) {
   return (
-    <div
-      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 transition-all duration-300 hover:scale-105 hover:border-primary/50 animate-scale-in"
-      style={{ animationDelay: `${delay}s` }}
-    >
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-10 group-hover:opacity-20 transition-opacity duration-300`}
-      />
+    <div className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 transition-colors duration-200 hover:border-primary/50">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       <div className="relative z-10">
         <div className="mb-4 text-4xl">{icon}</div>
         <h3 className="text-lg font-semibold text-foreground mb-2">{name}</h3>
@@ -80,16 +67,6 @@ function AIProviderCard({
           {description}
         </p>
       </div>
-      <div
-        className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={
-          {
-            backgroundImage: `linear-gradient(to right, var(--tw-gradient-stops))`,
-            '--tw-gradient-from': gradient.split(' ')[1],
-            '--tw-gradient-to': gradient.split(' ')[3],
-          } as React.CSSProperties
-        }
-      />
     </div>
   );
 }
@@ -122,7 +99,7 @@ interface RoleCardProps {
 
 function RoleCard({ name, description, icon }: RoleCardProps) {
   return (
-    <div className="bg-card/30 backdrop-blur-sm p-6 rounded-lg hover:bg-card/60 transition-all duration-300 hover:scale-105">
+    <div className="bg-card/30 backdrop-blur-sm p-6 rounded-lg hover:bg-card/60 transition-colors duration-200">
       <div className="text-lg font-semibold mb-4 text-center text-primary">
         {icon}
       </div>
@@ -140,21 +117,12 @@ interface StatCardProps {
   number: string;
   label: string;
   icon: React.ReactNode;
-  delay: string;
 }
 
-function StatCard({ number, label, icon, delay }: StatCardProps) {
+function StatCard({ number, label, icon }: StatCardProps) {
   return (
-    <div
-      className="text-center stat-card bg-card/50 backdrop-blur-sm rounded-lg p-6 border border-border/50 hover:border-primary/50 transition-all duration-300 animate-scale-in"
-      style={{ animationDelay: `${delay}s` }}
-    >
-      <div
-        className="mb-4 text-muted-foreground animate-float"
-        style={{ animationDelay: `${parseFloat(delay) + 0.2}s` }}
-      >
-        {icon}
-      </div>
+    <div className="text-center bg-card/50 backdrop-blur-sm rounded-lg p-6 border border-border/50 hover:border-primary/50 transition-colors duration-200">
+      <div className="mb-4 text-muted-foreground">{icon}</div>
       <div className="text-3xl font-bold text-foreground mb-2">{number}</div>
       <div className="text-sm text-muted-foreground">{label}</div>
     </div>
@@ -375,25 +343,21 @@ export default function LandingPage() {
               number="25+"
               label={t('landingStatsLanguages')}
               icon={<Languages className="w-8 h-8 mx-auto text-primary" />}
-              delay="0"
             />
             <StatCard
               number="4+"
               label={t('landingStatsProviders')}
-              icon={<Cpu className="w-8 h-8 mx-auto text-accent" />}
-              delay="0.1"
+              icon={<Cpu className="w-8 h-8 mx-auto text-primary" />}
             />
             <StatCard
               number="∞"
               label={t('landingStatsPlayers')}
-              icon={<Users className="w-8 h-8 mx-auto text-secondary" />}
-              delay="0.2"
+              icon={<Users className="w-8 h-8 mx-auto text-primary" />}
             />
             <StatCard
               number="4"
               label={t('landingStatsRoles')}
               icon={<Star className="w-8 h-8 mx-auto text-primary" />}
-              delay="0.3"
             />
           </div>
         </div>
@@ -480,30 +444,22 @@ export default function LandingPage() {
             <AIProviderCard
               name={t('landingAIOpenAI')}
               description={t('landingAIOpenAIDesc')}
-              gradient="from-emerald-500 to-teal-600"
               icon={<Brain className="w-8 h-8" />}
-              delay={0}
             />
             <AIProviderCard
               name={t('landingAIClaude')}
               description={t('landingAIClaudeDesc')}
-              gradient="from-purple-500 to-indigo-600"
               icon={<Sparkles className="w-8 h-8" />}
-              delay={0.1}
             />
             <AIProviderCard
               name={t('landingAIGemini')}
               description={t('landingAIGeminiDesc')}
-              gradient="from-blue-500 to-cyan-600"
               icon="✨"
-              delay={0.2}
             />
             <AIProviderCard
               name={t('landingAIGroq')}
               description={t('landingAIGroqDesc')}
-              gradient="from-orange-500 to-red-600"
               icon={<Cpu className="w-8 h-8" />}
-              delay={0.3}
             />
           </div>
 
