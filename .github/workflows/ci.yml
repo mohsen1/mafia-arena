@@ -43,6 +43,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Setup minimal environment for tools
+        run: |
+          echo "DATABASE_URL=postgresql://lint_user:lint_pass@localhost:5432/lint_db" >> $GITHUB_ENV
+          echo "NEXTAUTH_SECRET=lint-typecheck-secret" >> $GITHUB_ENV
+
       - name: TypeScript check
         run: pnpm run check:tsc
 
@@ -195,6 +200,12 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Setup test environment
+        run: |
+          echo "DATABASE_URL=postgresql://test_user:test_pass@localhost:5432/test_db" >> $GITHUB_ENV
+          echo "NEXTAUTH_SECRET=test-secret-key" >> $GITHUB_ENV
+          echo "NODE_ENV=test" >> $GITHUB_ENV
 
       - name: Run tests
         run: pnpm run test:unit

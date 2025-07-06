@@ -35,9 +35,15 @@ export default function ForgotPasswordPage({
     setSuccess(false);
 
     try {
-      await requestPasswordReset(email);
-      setSuccess(true);
-    } catch {
+      const result = await requestPasswordReset(email);
+      
+      if (!result.success && result.error) {
+        setError(result.error);
+      } else {
+        setSuccess(true);
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
       setError(t('forgotPassword.failedToSend'));
     } finally {
       setIsLoading(false);
