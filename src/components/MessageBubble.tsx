@@ -25,7 +25,7 @@ interface MessageBubbleProps {
 const LOG_PREFIX = '[MessageBubble]';
 const timestamp = () => new Date().toLocaleTimeString();
 
-const log = (emoji: string, action: string, details: any) => {
+const _log = (emoji: string, action: string, details: any) => {
   console.log(
     `%c${LOG_PREFIX} ${timestamp()} ${emoji} ${action}:`,
     'color: #e74c3c; font-weight: bold',
@@ -45,8 +45,9 @@ const MessageBubbleComponent = ({
   const isMafiaMessage = message.visibility === MessageVisibility.Mafia;
   const isHumanMessage = message.senderId === gameState?.humanPlayerId;
 
-  // Log component render
-  log('🔄', 'RENDER', {
+  const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
+
+  console.log(`[MessageBubble] ${timestamp()} Component render:`, {
     messageId: message.id,
     senderId: message.senderId,
     senderName: sender?.name || 'Unknown',
@@ -74,8 +75,8 @@ const MessageBubbleComponent = ({
     // Use isAudioGloballyEnabled which is properly initialized from voiceModeEnabled
     const voiceEnabled = isAudioGloballyEnabled;
 
-    // Comprehensive decision logging
-    const decision = {
+    // Debug logging
+    console.log(`[MessageBubble] ${timestamp()} 🔊 Voice check:`, {
       messageId: message.id,
       voiceModeEnabled: gameState?.voiceModeEnabled,
       isAudioGloballyEnabled,
@@ -83,25 +84,18 @@ const MessageBubbleComponent = ({
       isHumanMessage,
       messageContent: content.substring(0, 50) + '...',
       willUseSpeakText: voiceEnabled && !isHumanMessage,
-      shouldAutoPlay,
-      reason: !voiceEnabled
-        ? 'voice_disabled'
-        : isHumanMessage
-          ? 'human_message'
-          : 'will_use_speaktext',
-    };
-
-    log('🎯', 'VOICE DECISION', decision);
+    });
 
     // Only use voice for AI messages, not human messages
     if (voiceEnabled && !isHumanMessage) {
-      log('🎤', 'USING SPEAKTEXT', {
-        messageId: message.id,
-        voiceId: getVoiceId(),
-        autoPlay: shouldAutoPlay,
-        textLength: content.length,
-      });
-
+      console.log(
+        `[MessageBubble] ${timestamp()} 🎤 RENDERING with SpeakText:`,
+        {
+          messageId: message.id,
+          voiceId: getVoiceId(),
+          autoPlay: true,
+        }
+      );
       return (
         <SpeakText
           text={content}
@@ -113,9 +107,9 @@ const MessageBubbleComponent = ({
       );
     }
 
-    log('📝', 'USING MARKDOWN', {
+    console.log(`[MessageBubble] ${timestamp()} 📝 RENDERING without voice:`, {
       messageId: message.id,
-      reason: decision.reason,
+      reason: voiceEnabled ? 'isHumanMessage' : 'voiceDisabled',
     });
 
     return <MemoizedReactMarkdown>{content}</MemoizedReactMarkdown>;
@@ -222,7 +216,6 @@ export const MessageBubble = React.memo(
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content === nextProps.message.content &&
       prevProps.isWerewolfChat === nextProps.isWerewolfChat &&
-      prevProps.shouldAutoPlay === nextProps.shouldAutoPlay &&
       // Don't re-render just because of players object reference change
       Object.keys(prevProps.players).length ===
         Object.keys(nextProps.players).length

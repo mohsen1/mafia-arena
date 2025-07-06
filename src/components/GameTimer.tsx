@@ -33,7 +33,7 @@ export function GameTimer() {
   const { t } = useTranslation();
   const { gameState } = useGameContext();
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [phaseStartTime, setPhaseStartTime] = useState(Date.now());
+
   const [isWarning, setIsWarning] = useState(false);
   const [isCritical, setIsCritical] = useState(false);
 
@@ -42,7 +42,6 @@ export function GameTimer() {
 
     // Reset timer when phase changes
     const startTime = Date.now();
-    setPhaseStartTime(startTime);
     const timeLimit =
       PHASE_TIME_LIMITS[gameState.phase as keyof PhaseTimeConfig] || 0;
     setTimeRemaining(timeLimit);

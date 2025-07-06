@@ -156,7 +156,30 @@ export function GameSoundtrackManager({
   const [dynamicMode, setDynamicMode] = useState(true);
   const [crossfade, setCrossfade] = useState(true);
   const [adaptiveVolume, setAdaptiveVolume] = useState(true);
-  const intervalRef = useRef<NodeJS.Timeout>();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle track end logic
+  const handleTrackEnd = useCallback(() => {
+    switch (repeatMode) {
+      case 'one':
+        setCurrentTime(0);
+        break;
+      case 'all':
+        if (currentTrackIndex < selectedPlaylist.tracks.length - 1) {
+          setCurrentTrackIndex((prev) => prev + 1);
+        } else {
+          setCurrentTrackIndex(0);
+        }
+        break;
+      case 'none':
+        if (currentTrackIndex < selectedPlaylist.tracks.length - 1) {
+          setCurrentTrackIndex((prev) => prev + 1);
+        } else {
+          setIsPlaying(false);
+        }
+        break;
+    }
+  }, [repeatMode, currentTrackIndex, selectedPlaylist.tracks.length]);
 
   // Get appropriate tracks for current game phase
   const getPhaseAppropriateTrack = useCallback(() => {
@@ -210,7 +233,7 @@ export function GameSoundtrackManager({
       if (newIndex !== -1) {
         if (crossfade) {
           // Simulate crossfade
-          toast.info(`Crossfading to: ${appropriateTrack.name}`);
+          toast(`Crossfading to: ${appropriateTrack.name}`);
         }
         setCurrentTrackIndex(newIndex);
         setCurrentTime(0);
@@ -269,34 +292,10 @@ export function GameSoundtrackManager({
     onVolumeChange?.(targetVolume);
   }, [gameState.phase, adaptiveVolume, volume, isMuted, onVolumeChange]);
 
-  const handleTrackEnd = () => {
-    switch (repeatMode) {
-      case 'one':
-        setCurrentTime(0);
-        break;
-      case 'all':
-        if (currentTrackIndex < selectedPlaylist.tracks.length - 1) {
-          setCurrentTrackIndex((prev) => prev + 1);
-        } else {
-          setCurrentTrackIndex(0);
-        }
-        break;
-      case 'none':
-        if (currentTrackIndex < selectedPlaylist.tracks.length - 1) {
-          setCurrentTrackIndex((prev) => prev + 1);
-        } else {
-          setIsPlaying(false);
-        }
-        break;
-    }
-  };
-
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
     if (!isPlaying) {
-      toast.success(
-        `Now playing: ${selectedPlaylist.tracks[currentTrackIndex].name}`
-      );
+      toast(`Now playing: ${selectedPlaylist.tracks[currentTrackIndex].name}`);
     }
   };
 

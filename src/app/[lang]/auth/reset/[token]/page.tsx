@@ -43,7 +43,7 @@ export default function ResetPasswordPage({
 
     const result = await resetPassword(token, password);
     if (!result.success) {
-      setError(result.error || 'Failed to reset password');
+      setError(result.error || t('resetPassword.failedToReset'));
     } else {
       setSuccess(true);
     }

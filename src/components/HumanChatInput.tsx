@@ -306,7 +306,7 @@ export default function HumanChatInput() {
               onChange={(e) => setMessage(e.target.value)}
               placeholder={placeholder}
               disabled={disabled}
-              className="flex-1"
+              className="flex-1 bg-background text-foreground dark:bg-foreground dark:text-background border-border"
               aria-label={ariaLabel}
               onKeyDown={handleKeyDown}
             />
@@ -319,6 +319,7 @@ export default function HumanChatInput() {
                 onClick={() => setShowSpeechInput(!showSpeechInput)}
                 disabled={disabled}
                 title={t('UseMicrophone', 'Use microphone')}
+                className="bg-background text-foreground dark:bg-foreground dark:text-background border-border hover:bg-secondary"
               >
                 <Mic className="w-4 h-4" />
               </Button>
@@ -327,7 +328,7 @@ export default function HumanChatInput() {
             <Button
               type="submit"
               disabled={disabled || !message.trim()}
-              className="px-6"
+              className="px-6 bg-background text-foreground dark:bg-foreground dark:text-background hover:bg-secondary border border-border"
             >
               {isSubmitting ? (
                 <>
@@ -480,5 +481,9 @@ export default function HumanChatInput() {
     );
   };
 
-  return <div>{renderInput()}</div>;
+  return (
+    <div className="bg-foreground text-background dark:bg-background dark:text-foreground border-t">
+      {renderInput()}
+    </div>
+  );
 }

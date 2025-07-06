@@ -4,17 +4,17 @@
  * MCP Demo: Testing Ollama integration with Werewolf AI
  */
 
-import { OllamaAgent } from '../src/lib/engine/agents/OllamaAgent';
-import { Game } from '../src/lib/engine/core/Game';
-import { ConsoleRenderer } from '../src/lib/engine/rendering/ConsoleRenderer';
-import type { IAgent } from '../src/lib/engine/interfaces/IAgent';
-import { RoleName } from '../src/lib/engine/interfaces/IRole';
-import { Themes } from '../src/lib/engine/interfaces/Theme';
-import { MafiaRole } from '../src/lib/engine/roles/MafiaRole';
-import { VillagerRole } from '../src/lib/engine/roles/VillagerRole';
-import { DoctorRole } from '../src/lib/engine/roles/DoctorRole';
-import { SeerRole } from '../src/lib/engine/roles/SeerRole';
-import type { IRole } from '../src/lib/engine/interfaces/IRole';
+import { OllamaAgent } from '../../src/lib/engine/agents/OllamaAgent';
+import { Game } from '../../src/lib/engine/core/Game';
+import { ConsoleRenderer } from '../../src/lib/engine/rendering/ConsoleRenderer';
+import type { IAgent } from '../../src/lib/engine/interfaces/IAgent';
+import { RoleName } from '../../src/lib/engine/interfaces/IRole';
+import { Themes } from '../../src/lib/engine/interfaces/Theme';
+import { MafiaRole } from '../../src/lib/engine/roles/MafiaRole';
+import { VillagerRole } from '../../src/lib/engine/roles/VillagerRole';
+import { DoctorRole } from '../../src/lib/engine/roles/DoctorRole';
+import { SeerRole } from '../../src/lib/engine/roles/SeerRole';
+import type { IRole } from '../../src/lib/engine/interfaces/IRole';
 import chalk from 'chalk';
 
 // Configuration

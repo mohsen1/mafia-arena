@@ -1044,13 +1044,13 @@ describe('Game', () => {
       (game as any)['#currentState'] = stuckPhase;
 
       // Mock getPhaseStep to always return the same step
-      const getPhaseStepSpy = vi
+      const _getPhaseStepSpy = vi
         .spyOn(game, 'getPhaseStep')
         .mockReturnValue('Start');
-      const getNextPlayerIndexSpy = vi
+      const _getNextPlayerIndexSpy = vi
         .spyOn(game, 'getNextPlayerIndexToAction')
         .mockReturnValue(0);
-      const checkWinSpy = vi
+      const _checkWinSpy = vi
         .spyOn(game, 'checkWinCondition')
         .mockReturnValue(null);
       const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
@@ -1122,7 +1122,7 @@ describe('Game', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (game as any)['#currentState'] = endlessPhase;
 
-      const checkWinSpy = vi
+      const _checkWinSpy = vi
         .spyOn(game, 'checkWinCondition')
         .mockReturnValue(null);
       const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
@@ -1157,7 +1157,7 @@ describe('Game', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (game as any)['#currentState'] = dayPhase;
 
-      const checkWinSpy = vi
+      const _checkWinSpy = vi
         .spyOn(game, 'checkWinCondition')
         .mockReturnValue(null);
       const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
@@ -1190,7 +1190,7 @@ describe('Game', () => {
     });
 
     it('should notify renderers of game start and end', async () => {
-      const checkWinSpy = vi
+      const _checkWinSpy = vi
         .spyOn(game, 'checkWinCondition')
         .mockReturnValue('Mafia');
       const notifyRenderersSpy = vi.spyOn(game, 'notifyRenderers');

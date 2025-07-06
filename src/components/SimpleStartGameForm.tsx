@@ -506,27 +506,19 @@ export default function SimpleStartGameForm({
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 relative">
-      <h2 className="text-2xl font-bold text-center">
+    <div className="max-w-2xl mx-auto space-y-4 relative">
+      <h2 className="text-xl font-semibold text-center mb-4">
         {t('ConfigureNewGameTitle', 'Configure New Game')}
       </h2>
 
       {/* AI Configuration Section */}
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Bot className="w-5 h-5 text-primary" />
-            {t('AIConfiguration', 'AI Configuration')}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              'AIConfigDescription',
-              'Choose the AI models that will power your game characters'
-            )}
-          </p>
-        </div>
+      <div className="space-y-3">
+        <h3 className="text-base font-medium flex items-center gap-2">
+          <Bot className="w-4 h-4 text-primary" />
+          {t('AIConfiguration', 'AI Configuration')}
+        </h3>
 
-        <div className="space-y-4 bg-secondary/10 rounded-lg p-6">
+        <div className="space-y-3 bg-secondary/10 rounded-lg p-4">
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium mb-2 block">
@@ -544,8 +536,8 @@ export default function SimpleStartGameForm({
           </div>
 
           {/* Separate Mafia AI Option */}
-          <div className="pt-4 border-t border-border/50">
-            <div className="flex items-center space-x-2 mb-4">
+          <div className="pt-3 border-t border-border/50">
+            <div className="flex items-center space-x-2 mb-3">
               <Checkbox
                 id="mafia-engine-checkbox"
                 checked={useSeparateAIModelForMafia}
@@ -566,7 +558,7 @@ export default function SimpleStartGameForm({
             </div>
 
             {useSeparateAIModelForMafia && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <Label className="text-sm font-medium mb-2 block">
                     {t('MafiaAIEngine', 'Mafia AI Engine')}
@@ -606,7 +598,7 @@ export default function SimpleStartGameForm({
       {/* Ollama Configuration */}
       {(globalProviderSelection === 'ollama_local' ||
         mafiaProviderSelection === 'ollama_local') && (
-        <div className="bg-secondary/10 rounded-lg p-6 space-y-4">
+        <div className="bg-secondary/10 rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">
               {t('OllamaConfiguration')}
@@ -634,21 +626,13 @@ export default function SimpleStartGameForm({
       )}
 
       {/* Game Settings Section */}
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Settings2 className="w-5 h-5 text-primary" />
-            {t('GameSettings', 'Game Settings')}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              'GameSettingsDescription',
-              'Configure your game preferences and player options'
-            )}
-          </p>
-        </div>
+      <div className="space-y-3">
+        <h3 className="text-base font-medium flex items-center gap-2">
+          <Settings2 className="w-4 h-4 text-primary" />
+          {t('GameSettings', 'Game Settings')}
+        </h3>
 
-        <div className="space-y-6 bg-secondary/10 rounded-lg p-6">
+        <div className="space-y-4 bg-secondary/10 rounded-lg p-4">
           {/* Human Player Option */}
           <div className="space-y-3">
             <div className="flex items-center space-x-2">
@@ -695,7 +679,7 @@ export default function SimpleStartGameForm({
           </div>
 
           {/* Voice Mode Option */}
-          <div className="pt-4 border-t border-border/50">
+          <div className="pt-3 border-t border-border/50">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="voice-mode"
@@ -719,7 +703,7 @@ export default function SimpleStartGameForm({
           </div>
 
           {/* Player Count */}
-          <div className="pt-4 border-t border-border/50">
+          <div className="pt-3 border-t border-border/50">
             <Label className="text-sm font-medium mb-3 block">
               {t('NumberOfPlayers', 'Number of Players')}
             </Label>
@@ -754,7 +738,7 @@ export default function SimpleStartGameForm({
           </div>
 
           {/* Language and Theme */}
-          <div className="pt-4 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="pt-3 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium flex items-center gap-2 mb-3">
                 <Languages className="w-4 h-4" />
@@ -775,7 +759,7 @@ export default function SimpleStartGameForm({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-col gap-3 pt-6">
+      <div className="flex flex-col gap-3 pt-4">
         <MagicalAIButton
           onClick={handleStartGame}
           disabled={!canStartGame}

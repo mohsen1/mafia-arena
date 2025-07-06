@@ -4,8 +4,8 @@
  * Test script to debug Ollama persona generation
  */
 
-import { OllamaAgent } from '../src/lib/engine/agents/OllamaAgent';
-import { getPersonaGenerationPrompt } from '../src/lib/engine/prompts';
+import { OllamaAgent } from '../../src/lib/engine/agents/OllamaAgent';
+import { getPersonaGenerationPrompt } from '../../src/lib/engine/prompts';
 import chalk from 'chalk';
 
 const MODEL = 'llama3.2:latest';

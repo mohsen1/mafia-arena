@@ -1,0 +1,7 @@
+{
+  "status": "INTERACTIVE",
+  "exit_code": null,
+  "stdout": "\n> werewolf-ai@0.1.0 prebuild /Users/mohsen/code/werewolf-ai\n> pnpm run verify:env\n\n\n> werewolf-ai@0.1.0 verify:env /Users/mohsen/code/werewolf-ai\n> tsx scripts/ci/verify-required-env.ts\n\n🔍 Validating required environment variables...\n\nEnvironment: Local Development\nBuild context: local\nℹ️  Note: Running in local development build.\n   Environment validation will be relaxed for local development.\n\n📋 Core Requirements:\n  ⏭️  DATABASE_URL - Skipped (local development)\n  ⏭️  NEXTAUTH_URL - Skipped (local development)\n  ⏭️  NEXTAUTH_SECRET - Skipped (local development)\n\n🤖 AI Provider Requirements:\n\nAt least one of Google/Gemini/Groq API keys is required:\n  ⭕ GOOGLE_API_KEY - Not set (optional for local dev)\n  ✅ GEMINI_API_KEY - Set\n  ⭕ GROQ_API_KEY - Not set (optional for local dev)\n\n  ✅ Group satisfied with: GEMINI_API_KEY\n\n✅ All required environment variables are set!\n\n\n> werewolf-ai@0.1.0 build /Users/mohsen/code/werewolf-ai\n> next build\n\n   ▲ Next.js 15.2.4\n   - Environments: .env\n\n   Creating an optimized production build ...\n",
+  "stderr": "",
+  "message": "Command did not exit within 5s. Assumed to be interactive or long-running. Process terminated."
+}

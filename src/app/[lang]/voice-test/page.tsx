@@ -93,7 +93,10 @@ export default function VoiceTestPage() {
           )}
 
           <div className="text-sm text-muted-foreground">
-            <p>Click "Show Test Messages" to test the voice functionality.</p>
+            <p>
+              Click &quot;Show Test Messages&quot; to test the voice
+              functionality.
+            </p>
             <p>
               Messages will be spoken automatically with word-level
               highlighting.
