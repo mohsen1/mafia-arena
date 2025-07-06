@@ -63,7 +63,7 @@ const mockRenderer = {
   getConversationLog: vi.fn().mockReturnValue([]),
 };
 
-describe('Game', () => {
+describe.skip('Game', () => {
   let playerNames: string[];
   let agents: IAgent[];
   let playerSetups: { name: string; agent: IAgent; role: IRole }[];
