@@ -123,7 +123,7 @@ export function SpeechInput({
 
         recognitionRef.current.onend = () => {
           setIsListening(false);
-          if (mode === 'continuous' && isListening) {
+          if (mode === 'continuous' && isListening && recognitionRef.current) {
             // Restart if in continuous mode
             recognitionRef.current.start();
           }
@@ -136,7 +136,7 @@ export function SpeechInput({
         recognitionRef.current.stop();
       }
     };
-  }, [mode, onTranscript, onInterimTranscript, isListening]);
+  }, [mode, onTranscript, onInterimTranscript, isListening, t]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) return;
