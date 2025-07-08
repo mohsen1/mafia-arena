@@ -38,6 +38,7 @@ export interface GameContextType {
   error: string | null;
   clearError: () => void;
   runNextTurn: () => void;
+  runNextTurnAction: () => void;
   toggleAutoRun: () => void;
   submitHumanAction: (
     payload: HumanActionPayload
@@ -467,7 +468,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   // Stub for announceText - can be implemented later if needed
   const announceText = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (messageId: string, text: string, onFinished?: () => void) => {
+    (_messageId: string, _text: string, _onFinished?: () => void) => {
       // Placeholder implementation
     },
     []
@@ -485,6 +486,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     error,
     clearError,
     runNextTurn: runNextTurnAction,
+    runNextTurnAction,
     toggleGlobalAudio,
     gameSpeed,
     setGameSpeed,

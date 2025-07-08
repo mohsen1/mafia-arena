@@ -21,9 +21,9 @@ interface MessageBubbleProps {
   shouldAutoPlay?: boolean;
 }
 
-// Enhanced logging helper
-const LOG_PREFIX = '[MessageBubble]';
-const timestamp = () => new Date().toLocaleTimeString();
+// Enhanced logging helper (disabled for performance)
+// const LOG_PREFIX = '[MessageBubble]';
+// const timestamp = () => new Date().toLocaleTimeString();
 
 // Commented out for now - can be re-enabled for debugging
 // const _log = (emoji: string, action: string, details: any) => {

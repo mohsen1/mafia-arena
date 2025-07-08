@@ -1,6 +1,6 @@
 'use client';
 
-import { Geist, Geist_Mono } from 'next/font/google';
+// Use local fonts instead of Google Fonts to avoid CI issues
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { SessionProvider } from 'next-auth/react';
 import '../globals.css';
@@ -11,11 +11,23 @@ import { I18nextProvider } from 'react-i18next';
 import { use, useEffect } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
-const geistMono = Geist_Mono({
+// Use system fonts as fallback for CI environments
+const geistSans = {
+  variable: '--font-geist-sans',
+  className: '',
+  style: {
+    fontFamily:
+      'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+  },
+};
+const geistMono = {
   variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+  className: '',
+  style: {
+    fontFamily:
+      'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+  },
+};
 
 export default function RootLayout({
   children,
