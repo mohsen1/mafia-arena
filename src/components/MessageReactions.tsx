@@ -36,45 +36,6 @@ interface Reaction {
   users: string[];
 }
 
-const AVAILABLE_REACTIONS = [
-  {
-    id: 'agree',
-    icon: <ThumbsUp className="w-4 h-4" />,
-    label: 'Agree',
-    color: 'text-green-500',
-  },
-  {
-    id: 'disagree',
-    icon: <ThumbsDown className="w-4 h-4" />,
-    label: 'Disagree',
-    color: 'text-red-500',
-  },
-  {
-    id: 'love',
-    icon: <Heart className="w-4 h-4" />,
-    label: 'Love',
-    color: 'text-pink-500',
-  },
-  {
-    id: 'insightful',
-    icon: <Lightbulb className="w-4 h-4" />,
-    label: 'Insightful',
-    color: 'text-yellow-500',
-  },
-  {
-    id: 'suspicious',
-    icon: <AlertTriangle className="w-4 h-4" />,
-    label: 'Suspicious',
-    color: 'text-orange-500',
-  },
-  {
-    id: 'confused',
-    icon: <HelpCircle className="w-4 h-4" />,
-    label: 'Confused',
-    color: 'text-purple-500',
-  },
-];
-
 export function MessageReactions({
   message,
   humanPlayerId,
@@ -83,6 +44,45 @@ export function MessageReactions({
   const { t } = useTranslation();
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+
+  const AVAILABLE_REACTIONS = [
+    {
+      id: 'agree',
+      icon: <ThumbsUp className="w-4 h-4" />,
+      label: t('messageReactions.agree', 'Agree'),
+      color: 'text-green-500',
+    },
+    {
+      id: 'disagree',
+      icon: <ThumbsDown className="w-4 h-4" />,
+      label: t('messageReactions.disagree', 'Disagree'),
+      color: 'text-red-500',
+    },
+    {
+      id: 'love',
+      icon: <Heart className="w-4 h-4" />,
+      label: t('messageReactions.love', 'Love'),
+      color: 'text-pink-500',
+    },
+    {
+      id: 'insightful',
+      icon: <Lightbulb className="w-4 h-4" />,
+      label: t('messageReactions.insightful', 'Insightful'),
+      color: 'text-yellow-500',
+    },
+    {
+      id: 'suspicious',
+      icon: <AlertTriangle className="w-4 h-4" />,
+      label: t('messageReactions.suspicious', 'Suspicious'),
+      color: 'text-orange-500',
+    },
+    {
+      id: 'confused',
+      icon: <HelpCircle className="w-4 h-4" />,
+      label: t('messageReactions.confused', 'Confused'),
+      color: 'text-purple-500',
+    },
+  ];
 
   const handleReaction = (reactionId: string) => {
     if (!humanPlayerId) return;

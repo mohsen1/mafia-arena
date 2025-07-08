@@ -32,7 +32,7 @@ export default function GameController({
     isLoadingNextTurn,
     isAutoRunning,
     toggleAutoRun,
-    runNextTurnAction,
+    runNextTurn,
     gameState,
     isAudioGloballyEnabled,
     toggleGlobalAudio,
@@ -58,7 +58,7 @@ export default function GameController({
         console.log('[GameController] Stopping audio before manual next turn');
         resetAudio();
       }
-      runNextTurnAction();
+      runNextTurn();
     }
   };
 
