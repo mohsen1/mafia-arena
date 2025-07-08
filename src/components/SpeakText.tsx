@@ -357,8 +357,6 @@ const SpeakText = React.memo<SpeakTextProps>(
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
     // const isHandlingSpeakRef = useRef(false); // disabled for now
     const abortControllerRef = useRef<AbortController | null>(null);
-    const hasPlayedRef = useRef(false);
-
     // Playback state refs
     const isPlayingRef = useRef(false);
     const currentTimeRef = useRef(0);
@@ -368,12 +366,9 @@ const SpeakText = React.memo<SpeakTextProps>(
     // Performance tracking
     const fetchStartTimeRef = useRef<number | null>(null);
     const startTimeRef = useRef<number | null>(null);
-    const wasPlayingBeforeHiddenRef = useRef(false);
 
     // Audio processing refs (disabled for now)
     // const segmentDurationsRef = useRef<Map<string, number>>(new Map());
-    const _audioBufferRef = useRef<Map<string, AudioBuffer>>(new Map());
-    const _crossfadeTimeRef = useRef(150); // ms overlap for smooth transitions
 
     const timestamp = () =>
       new Date().toISOString().split('T')[1].split('.')[0];
@@ -382,29 +377,10 @@ const SpeakText = React.memo<SpeakTextProps>(
     const [status, setStatus] = useState<
       'idle' | 'fetching' | 'playing' | 'error'
     >('idle');
-    const [error, setError] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentWordIndex, setCurrentWordIndex] = useState(-1);
     const [isLoading, setIsLoading] = useState(false);
     const [hasError, setHasError] = useState(false);
-
-    // Audio metrics object
-    const audioMetrics = useRef({
-      fetchCount: 0,
-      successfulPlays: 0,
-      failedPlays: 0,
-      interruptCount: 0,
-      skipCount: 0,
-      duplicateFetches: 0,
-      permissionDenials: 0,
-      completionCount: 0,
-      fetchTimes: [] as number[],
-      totalAudioDuration: 0,
-      totalPlayedDuration: 0,
-      autoPlayCount: 0,
-      manualPlayCount: 0,
-      longMessages: 0,
-    });
 
     // Mount/unmount tracking
     useEffect(() => {
@@ -477,13 +453,6 @@ const SpeakText = React.memo<SpeakTextProps>(
         });
       }
     };
-
-    // Memoize the text and voiceId combination
-    const audioConfig = useMemo(() => {
-      const config = { text, voiceId };
-      logState('AUDIO_CONFIG_MEMO', config);
-      return config;
-    }, [text, voiceId]);
 
     const fetchAudioWithDeduplication = useCallback(
       async (
@@ -632,7 +601,6 @@ const SpeakText = React.memo<SpeakTextProps>(
         audioElement.crossOrigin = 'anonymous';
         // Enable low-latency streaming
         if ('setSinkId' in audioElement) {
-          // @ts-ignore - experimental API
           audioElement.disableRemotePlayback = true;
         }
         audioElementRef.current = audioElement;
@@ -1051,7 +1019,7 @@ const SpeakText = React.memo<SpeakTextProps>(
           </div>
         )}
 
-        {error && <div className="text-sm text-destructive mt-1">{error}</div>}
+        {hasError && <div className="text-sm text-destructive mt-1">Audio playback error occurred</div>}
       </div>
     );
   }
