@@ -1019,7 +1019,11 @@ const SpeakText = React.memo<SpeakTextProps>(
           </div>
         )}
 
-        {hasError && <div className="text-sm text-destructive mt-1">Audio playback error occurred</div>}
+        {hasError && (
+          <div className="text-sm text-destructive mt-1">
+            Audio playback error occurred
+          </div>
+        )}
       </div>
     );
   }
