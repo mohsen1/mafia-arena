@@ -84,10 +84,7 @@ export function ConversationLog() {
   useEffect(() => {
     if (initialMessageCount === null && displayLogMemo.length > 0) {
       const count = displayLogMemo.length;
-      console.log(
-        '[ConversationLog] Setting initial message count:',
-        count
-      );
+      console.log('[ConversationLog] Setting initial message count:', count);
       setInitialMessageCount(count);
       // Store in sessionStorage to persist across hot reloads
       if (typeof window !== 'undefined') {
@@ -119,8 +116,11 @@ export function ConversationLog() {
     if (currentGameId && typeof window !== 'undefined') {
       // Clear any other game's stored counts
       const keys = Object.keys(sessionStorage);
-      keys.forEach(key => {
-        if (key.startsWith('werewolf-initial-message-count-') && !key.endsWith(currentGameId)) {
+      keys.forEach((key) => {
+        if (
+          key.startsWith('werewolf-initial-message-count-') &&
+          !key.endsWith(currentGameId)
+        ) {
           sessionStorage.removeItem(key);
         }
       });

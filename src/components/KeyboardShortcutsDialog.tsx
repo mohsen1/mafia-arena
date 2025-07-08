@@ -17,37 +17,40 @@ interface Shortcut {
   context?: string;
 }
 
-const shortcuts: Shortcut[] = [
-  {
-    keys: ['Space'],
-    description: 'Toggle auto-play mode',
-    context: 'game',
-  },
-  {
-    keys: ['→', 'N'],
-    description: 'Advance to next turn',
-    context: 'game',
-  },
-  {
-    keys: ['P'],
-    description: 'Pause/Resume game',
-    context: 'game',
-  },
-  {
-    keys: ['?'],
-    description: 'Show this help dialog',
-    context: 'global',
-  },
-  {
-    keys: ['Esc'],
-    description: 'Close dialogs',
-    context: 'global',
-  },
-];
-
 export function KeyboardShortcutsDialog() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+
+  const shortcuts: Shortcut[] = [
+    {
+      keys: ['Space'],
+      description: t(
+        'keyboardShortcuts.toggleAutoPlay',
+        'Toggle auto-play mode'
+      ),
+      context: 'game',
+    },
+    {
+      keys: ['→', 'N'],
+      description: t('keyboardShortcuts.nextTurn', 'Advance to next turn'),
+      context: 'game',
+    },
+    {
+      keys: ['P'],
+      description: t('keyboardShortcuts.pauseResume', 'Pause/Resume game'),
+      context: 'game',
+    },
+    {
+      keys: ['?'],
+      description: t('keyboardShortcuts.showHelp', 'Show this help dialog'),
+      context: 'global',
+    },
+    {
+      keys: ['Esc'],
+      description: t('keyboardShortcuts.closeDialogs', 'Close dialogs'),
+      context: 'global',
+    },
+  ];
 
   useEffect(() => {
     const handleShowShortcuts = () => setOpen(true);

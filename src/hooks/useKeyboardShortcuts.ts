@@ -16,7 +16,7 @@ export function useKeyboardShortcuts() {
   const {
     isAutoRunning,
     toggleAutoRun,
-    runNextTurnAction,
+    runNextTurn,
     isLoadingNextTurn,
     gameState,
   } = useGameContext();
@@ -31,7 +31,7 @@ export function useKeyboardShortcuts() {
       },
       {
         key: 'ArrowRight',
-        action: runNextTurnAction,
+        action: runNextTurn,
         description: 'Next turn',
         enabled:
           !isAutoRunning &&
@@ -40,7 +40,7 @@ export function useKeyboardShortcuts() {
       },
       {
         key: 'n',
-        action: runNextTurnAction,
+        action: runNextTurn,
         description: 'Next turn',
         enabled:
           !isAutoRunning &&
@@ -67,7 +67,7 @@ export function useKeyboardShortcuts() {
     ],
     [
       toggleAutoRun,
-      runNextTurnAction,
+      runNextTurn,
       isAutoRunning,
       isLoadingNextTurn,
       gameState?.phase,
