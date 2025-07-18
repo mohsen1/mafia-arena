@@ -1,6 +1,5 @@
 'use client';
 
-import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { SessionProvider } from 'next-auth/react';
 import '../globals.css';
@@ -10,12 +9,6 @@ import i18nInstance from '@/lib/i18n/client';
 import { I18nextProvider } from 'react-i18next';
 import { use, useEffect } from 'react';
 import { Toaster } from '@/components/ui/toaster';
-
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
 
 export default function RootLayout({
   children,
@@ -45,9 +38,7 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <SessionProvider>
           <I18nextProvider i18n={i18nInstance} defaultNS={defaultNS}>
             <ThemeProvider
