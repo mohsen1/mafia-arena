@@ -23,7 +23,7 @@ const createMockGameForDayPhase = () => {
   let currentPlayerIndex = 0;
   let currentRound = 1;
   const humanVotes = new Map<PlayerId, PlayerId | null>();
-  let phaseState: Record<string, any> = {};
+  let phaseState: Record<string, unknown> = {};
 
   return {
     logMessage: vi.fn(),
@@ -62,7 +62,7 @@ const createMockGameForDayPhase = () => {
     clearPendingHumanAction: vi.fn(),
     getPendingHumanAction: vi.fn().mockReturnValue(null),
     getPhaseState: vi.fn(() => phaseState),
-    setPhaseState: vi.fn((state: Record<string, any>) => {
+    setPhaseState: vi.fn((state: Record<string, unknown>) => {
       phaseState = { ...phaseState, ...state };
     }),
   };
