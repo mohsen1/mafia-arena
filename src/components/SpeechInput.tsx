@@ -106,7 +106,7 @@ export function SpeechInput({
           setIsListening(false);
           if (mode === 'continuous' && isListening) {
             // Restart if in continuous mode
-            recognitionRef.current.start();
+            recognitionRef.current?.start();
           }
         };
       }
