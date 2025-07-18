@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface SpeechInputProps {
   onTranscript: (text: string) => void;
@@ -46,8 +47,14 @@ export function SpeechInput({
   onInterimTranscript,
   className,
   mode = 'push-to-talk',
-  placeholder = 'Click microphone to speak...',
+  placeholder,
 }: SpeechInputProps) {
+  const { t } = useTranslation();
+  const defaultPlaceholder = t(
+    'speechInput.defaultPlaceholder',
+    'Click microphone to speak...'
+  );
+  const actualPlaceholder = placeholder || defaultPlaceholder;
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -86,27 +93,41 @@ export function SpeechInput({
           }
         };
 
-        recognitionRef.current.onerror = (event: any) => {
+        recognitionRef.current.onerror = (
+          event: SpeechRecognitionErrorEvent
+        ) => {
           console.error('Speech recognition error:', event.error);
           setIsListening(false);
 
           // Handle specific errors
           if (event.error === 'no-speech') {
-            setTranscript('No speech detected. Please try again.');
+            setTranscript(
+              t(
+                'speechInput.noSpeechDetected',
+                'No speech detected. Please try again.'
+              )
+            );
           } else if (event.error === 'not-allowed') {
             setTranscript(
-              'Microphone access denied. Please enable microphone permissions.'
+              t(
+                'speechInput.microphoneAccessDenied',
+                'Microphone access denied. Please enable microphone permissions.'
+              )
             );
           } else {
-            setTranscript(`Error: ${event.error}`);
+            setTranscript(
+              t('speechInput.errorOccurred', 'Error: {{error}}', {
+                error: event.error,
+              })
+            );
           }
         };
 
         recognitionRef.current.onend = () => {
           setIsListening(false);
-          if (mode === 'continuous' && isListening) {
+          if (mode === 'continuous' && isListening && recognitionRef.current) {
             // Restart if in continuous mode
-            recognitionRef.current?.start();
+            recognitionRef.current.start();
           }
         };
       }
@@ -117,7 +138,7 @@ export function SpeechInput({
         recognitionRef.current.stop();
       }
     };
-  }, [mode, onTranscript, onInterimTranscript, isListening]);
+  }, [mode, onTranscript, onInterimTranscript, isListening, t]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) return;
@@ -165,7 +186,9 @@ export function SpeechInput({
         {transcript ? (
           <p className="text-sm">{transcript}</p>
         ) : (
-          <p className="text-sm text-muted-foreground italic">{placeholder}</p>
+          <p className="text-sm text-muted-foreground italic">
+            {actualPlaceholder}
+          </p>
         )}
       </div>
 
