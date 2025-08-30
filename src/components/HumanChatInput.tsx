@@ -163,6 +163,7 @@ export default function HumanChatInput() {
       gameId,
       humanPlayerId,
       submitHumanAction,
+      gameState?.phase,
     ]
   );
 

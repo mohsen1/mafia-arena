@@ -261,32 +261,32 @@ const SpeakText = React.memo<SpeakTextProps>(
     const log = console.log.bind(console, '[SpeakText]');
 
     // Enhanced logging with emojis and colors
-    const logAudio = (action: string, details: any) => {
+    const logAudio = useCallback((action: string, details: any) => {
       const timestamp = new Date().toLocaleTimeString();
       console.log(
         `%c🎵 [SpeakText] ${timestamp} ${action}`,
         'color: #9b59b6; font-weight: bold',
         details
       );
-    };
+    }, []);
 
-    const logError = (action: string, error: any) => {
+    const logError = useCallback((action: string, error: any) => {
       const timestamp = new Date().toLocaleTimeString();
       console.error(
         `%c❌ [SpeakText] ${timestamp} ERROR in ${action}:`,
         'color: #e74c3c; font-weight: bold',
         error
       );
-    };
+    }, []);
 
-    const logState = (state: string, details: any) => {
+    const logState = useCallback((state: string, details: any) => {
       const timestamp = new Date().toLocaleTimeString();
       console.log(
         `%c📊 [SpeakText] ${timestamp} STATE: ${state}`,
         'color: #3498db; font-weight: bold',
         details
       );
-    };
+    }, []);
 
     const {
       currentlySpeakingId,
@@ -309,11 +309,13 @@ const SpeakText = React.memo<SpeakTextProps>(
 
       return () => {
         logAudio('COMPONENT UNMOUNTING', {
+          // eslint-disable-next-line react-hooks/exhaustive-deps
           audioId: audioIdRef.current,
+          // eslint-disable-next-line react-hooks/exhaustive-deps
           isPlaying: isPlayingRef.current,
         });
       };
-    }, []);
+    }, [logAudio, text, voiceId, autoPlay, isAudioGloballyEnabled]);
 
     // Voice selection and mapping - commented out for production
     // const _selectedModel = useRef<string>('');
@@ -399,23 +401,27 @@ const SpeakText = React.memo<SpeakTextProps>(
           audioRef.current = null;
         }
         if (abortControllerRef.current) {
+          // eslint-disable-next-line react-hooks/exhaustive-deps
           abortControllerRef.current.abort();
         }
 
         // Report to GameContext if we were playing
         if (messageId && autoPlay && hasRegisteredRef.current) {
           reportAudioToGame(messageId);
+          // eslint-disable-next-line react-hooks/exhaustive-deps
           hasRegisteredRef.current = false;
           logAudioEvent('REPORTED_ON_UNMOUNT', {
             messageId,
+            // eslint-disable-next-line react-hooks/exhaustive-deps
             audioId: audioIdRef.current,
           });
         }
       };
-    }, [messageId, autoPlay, reportAudioToGame]); // Add dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [messageId, autoPlay, reportAudioToGame]); // logAudioEvent is stable and doesn't need to be in deps
 
     // Enhanced audio logging with performance metrics
-    const logAudioEvent = (
+    const logAudioEvent = useCallback((
       eventType: string,
       details: Record<string, any> = {}
     ) => {
@@ -456,7 +462,7 @@ const SpeakText = React.memo<SpeakTextProps>(
           throughput: text.length / (fetchDuration / 1000),
         });
       }
-    };
+    }, [text, voiceId, logAudio, logState]);
 
     // Memoize the text and voiceId combination - commented out for production
     // const _audioConfig = useMemo(() => {
@@ -546,7 +552,7 @@ const SpeakText = React.memo<SpeakTextProps>(
         pendingFetches.current.set(cacheKey, fetchPromise);
         return fetchPromise;
       },
-      [isAudioGloballyEnabled]
+      [isAudioGloballyEnabled, logAudioEvent, logState, logError, logAudio]
     );
 
     const handleSpeak = useCallback(async () => {
@@ -835,6 +841,10 @@ const SpeakText = React.memo<SpeakTextProps>(
       autoPlay,
       registerAudioPlayback,
       reportAudioToGame,
+      logAudioEvent,
+      logError,
+      logState,
+      logAudio,
     ]);
 
     // Monitor audio state changes
@@ -853,6 +863,7 @@ const SpeakText = React.memo<SpeakTextProps>(
       hasError,
       currentlySpeakingId,
       isAudioGloballyEnabled,
+      logState,
     ]);
 
     // Enhanced auto-play effect
@@ -878,7 +889,7 @@ const SpeakText = React.memo<SpeakTextProps>(
         }, 100);
         return () => clearTimeout(timer);
       }
-    }, [autoPlay, isAudioGloballyEnabled, handleSpeak]);
+    }, [autoPlay, isAudioGloballyEnabled, handleSpeak, logState, currentlySpeakingId, logAudio]);
 
     // Log metrics periodically
     useEffect(() => {
@@ -936,7 +947,7 @@ const SpeakText = React.memo<SpeakTextProps>(
       }, 30000); // Every 30 seconds
 
       return () => clearInterval(metricsInterval);
-    }, []);
+    }, [logState, log]);
 
     const handleStop = useCallback(() => {
       logAudio('HANDLE_STOP_CALLED', {
@@ -971,7 +982,7 @@ const SpeakText = React.memo<SpeakTextProps>(
           audioId: audioIdRef.current,
         });
       }
-    }, [doneSpeaking, messageId, autoPlay, reportAudioToGame]);
+    }, [doneSpeaking, messageId, autoPlay, reportAudioToGame, logAudioEvent, logAudio]);
 
     // Memoize words for performance
     const words = useMemo(() => text.split(' '), [text]);

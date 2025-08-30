@@ -222,7 +222,7 @@ export function SpokenTextProvider({ children }: Props) {
         timestamp: Date.now(),
       });
     };
-  }, []);
+  }, [currentlySpeakingId]);
 
   // Add browser event logging
   React.useEffect(() => {

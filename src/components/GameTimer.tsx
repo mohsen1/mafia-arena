@@ -83,7 +83,7 @@ export function GameTimer() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameState?.phase]);
+  }, [gameState?.phase, isWarning, isCritical]);
 
   if (
     !gameState ||
