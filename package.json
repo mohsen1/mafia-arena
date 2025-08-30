@@ -28,6 +28,7 @@
     "check:tsc": "tsc --noEmit",
     "check:lint": "next lint",
     "check:lint:fix": "next lint --fix",
+    "check:lint:errors-only": "next lint --max-warnings 0",
     "check:knip": "knip --no-exit-code",
     "verify:env": "tsx scripts/ci/verify-required-env.ts",
     "deploy:check": "./scripts/ci/deployment-recovery.sh",

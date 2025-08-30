@@ -7,11 +7,9 @@ import {
   type GameStatistics,
   type NewGameStatistics,
   type UserStatsSummary,
-  type GameParticipant,
 } from './schema';
 import { eq, desc } from 'drizzle-orm';
 import type { RoleName } from '../engine/interfaces/IRole';
-import type { VisibleGameState } from '../engine/interfaces/GameState';
 import { users } from './schema';
 
 export class StatisticsService {

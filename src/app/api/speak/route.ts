@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-// import { Ratelimit } from "@upstash/ratelimit"; // Removed
-// import { kv } from "@vercel/kv"; // Removed
 import type { NextRequest } from 'next/server';
+import { rateLimit, rateLimitPresets } from '@/lib/security/rateLimit';
 
 // const elevenlabs = new ElevenLabsClient({ // Bypassing SDK
 //   apiKey: process.env.ELEVENLABS_API_KEY,
@@ -155,6 +154,12 @@ async function handleSpeakRequest(params: {
 }
 
 export async function GET(req: NextRequest) {
+  // Apply rate limiting for TTS requests
+  const rateLimitResult = await rateLimit(rateLimitPresets.ai);
+  if (rateLimitResult instanceof Response) {
+    return rateLimitResult;
+  }
+
   // Support GET requests for streaming audio
   const searchParams = req.nextUrl.searchParams;
   const text = searchParams.get('text');
@@ -177,6 +182,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Apply rate limiting for TTS requests
+  const rateLimitResult = await rateLimit(rateLimitPresets.ai);
+  if (rateLimitResult instanceof Response) {
+    return rateLimitResult;
+  }
+
   let body: SpeakRequestBody;
   try {
     body = await req.json();

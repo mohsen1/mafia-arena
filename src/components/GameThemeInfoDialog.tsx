@@ -25,7 +25,8 @@ interface GameThemeInfoDialogProps {
 export function GameThemeInfoDialog({
   themeKey,
   description,
-}: Omit<GameThemeInfoDialogProps, 'className'>) {
+  className,
+}: GameThemeInfoDialogProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 

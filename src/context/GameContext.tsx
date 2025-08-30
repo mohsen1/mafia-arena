@@ -467,7 +467,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   // Stub for announceText - can be implemented later if needed
   const announceText = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (messageId: string, text: string, onFinished?: () => void) => {
+    (_messageId: string, _text: string, _onFinished?: () => void) => {
       // Placeholder implementation
     },
     []
