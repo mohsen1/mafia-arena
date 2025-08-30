@@ -145,7 +145,7 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}) {
 
     onComplete?.();
     addAudioBreadcrumb('Audio ended naturally', { messageId });
-  }, [messageId, autoPlay, reportAudioToGame, doneSpeaking, onComplete]);
+  }, [messageId, autoPlay, reportAudioToGame, doneSpeaking, onComplete, updateState]);
 
   const handleError = useCallback(
     (e: Event) => {
@@ -159,7 +159,7 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}) {
         messageId,
       });
     },
-    [messageId]
+    [messageId, updateState]
   );
 
   // Setup audio element
