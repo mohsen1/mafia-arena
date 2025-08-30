@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev -p 3099",
     "build": "next build",
+    "build:no-lint": "next build --no-lint",
     "build:ci": "./scripts/ci/ci-build.sh",
     "start": "next start -p 3099",
     "prebuild": "echo 'Skipping env validation to fix deployment'",
