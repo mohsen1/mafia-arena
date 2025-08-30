@@ -1485,7 +1485,7 @@ export default function CharacterSetupPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <Header currentLang={lang} />
+      <ServerHeader currentLang={lang} />
       <CharacterSetupContent lang={lang} />
       <Footer currentLang={lang} />
     </div>

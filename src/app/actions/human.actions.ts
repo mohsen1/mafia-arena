@@ -143,8 +143,8 @@ export async function submitHumanAction(
     }
 
     // Advance to the next player
-    const currentIndex = game.getNextPlayerIndexToAction();
-    game.setNextPlayerIndexToAction(currentIndex + 1);
+    const nextPlayerIndex = game.getNextPlayerIndexToAction();
+    game.setNextPlayerIndexToAction(nextPlayerIndex + 1);
 
     // Clear the pending human action
     game.clearPendingHumanAction();
