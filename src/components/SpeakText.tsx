@@ -26,7 +26,6 @@ import { useGameContext } from '@/context/GameContext';
 import { Volume2, VolumeX, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
-import { useTranslation } from 'react-i18next';
 
 interface SpeakTextProps {
   text: string;
@@ -39,8 +38,8 @@ interface SpeakTextProps {
   messageId?: string; // Add messageId to uniquely identify playback
 }
 
-// Deduplication cache for in-flight requests
-const fetchCache = new Map<string, Promise<Response>>();
+// Deduplication cache for in-flight requests - commented out for production
+// const _fetchCache = new Map<string, Promise<Response>>();
 
 // Metrics collection
 const audioMetrics = {
@@ -68,51 +67,51 @@ const audioMetrics = {
   longMessages: 0,
 };
 
-// Performance monitoring helper - generic to support any return type
-const measurePerformance = async <T,>(
-  name: string,
-  fn: () => T | Promise<T>
-): Promise<T> => {
-  const startMark = `audio-${name}-start-${Date.now()}`;
-  const endMark = `audio-${name}-end-${Date.now()}`;
+// Performance monitoring helper - generic to support any return type - commented out for production
+// const _measurePerformance = async <T,>(
+//   name: string,
+//   fn: () => T | Promise<T>
+// ): Promise<T> => {
+//   const startMark = `audio-${name}-start-${Date.now()}`;
+//   const endMark = `audio-${name}-end-${Date.now()}`;
+//
+//   performance.mark(startMark);
+//
+//   try {
+//     const result = await fn();
+//     performance.mark(endMark);
+//     performance.measure(`audio-${name}`, startMark, endMark);
+//     return result;
+//   } catch (error) {
+//     performance.mark(endMark);
+//     performance.measure(`audio-${name}`, startMark, endMark);
+//     throw error;
+//   }
+// };
 
-  performance.mark(startMark);
+const _LOG_PREFIX = '[SpeakText]';
+const DEBUG_MODE = process.env.NODE_ENV === 'development'; // Toggle for verbose logging
 
-  try {
-    const result = await fn();
-    performance.mark(endMark);
-    performance.measure(`audio-${name}`, startMark, endMark);
-    return result;
-  } catch (error) {
-    performance.mark(endMark);
-    performance.measure(`audio-${name}`, startMark, endMark);
-    throw error;
-  }
-};
+// const _log = (emoji: string, message: string, data?: any) => {
+//   const timestamp = new Date().toLocaleTimeString('en-US', {
+//     hour12: false,
+//     hour: '2-digit',
+//     minute: '2-digit',
+//     second: '2-digit',
+//     fractionalSecondDigits: 3,
+//   });
+//
+//   if (DEBUG_MODE) {
+//     console.log(
+//       `%c${LOG_PREFIX} ${timestamp} ${emoji} ${message}`,
+//       'color: #7c7c7c; font-size: 11px;',
+//       data || ''
+//     );
+//   }
+// };
 
-const LOG_PREFIX = '[SpeakText]';
-const DEBUG_MODE = true; // Toggle for verbose logging
-
-const log = (emoji: string, message: string, data?: any) => {
-  const timestamp = new Date().toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    fractionalSecondDigits: 3,
-  });
-
-  if (DEBUG_MODE) {
-    console.log(
-      `%c${LOG_PREFIX} ${timestamp} ${emoji} ${message}`,
-      'color: #7c7c7c; font-size: 11px;',
-      data || ''
-    );
-  }
-};
-
-// Active audio elements tracking
-const activeAudioElements = 0;
+// Active audio elements tracking - commented out for production
+// const _activeAudioElements = 0;
 
 // Browser audio diagnostics
 const logAudioDiagnostics = () => {
@@ -258,7 +257,7 @@ const SpeakText = React.memo<SpeakTextProps>(
     isAudioGloballyEnabled = true,
     messageId,
   }) => {
-    const { t: _t } = useTranslation();
+    // const { t: _t } = useTranslation();
     const log = console.log.bind(console, '[SpeakText]');
 
     // Enhanced logging with emojis and colors
@@ -291,9 +290,7 @@ const SpeakText = React.memo<SpeakTextProps>(
 
     const {
       currentlySpeakingId,
-      requestPermissionToSpeak,
       doneSpeaking,
-      markAsPlaying,
     } = useSpokenText();
 
     const gameContext = useGameContext();
@@ -318,24 +315,13 @@ const SpeakText = React.memo<SpeakTextProps>(
       };
     }, []);
 
-    // Voice selection and mapping
-    const _selectedModel = useRef<string>('');
+    // Voice selection and mapping - commented out for production
+    // const _selectedModel = useRef<string>('');
 
-    // Visual feedback for speech generation
-    const _synthProgress = useRef(0);
+    // Visual feedback for speech generation - commented out for production
+    // const _synthProgress = useRef(0);
 
-    // TODO: Add these methods to GameContext if needed for audio coordination
-    const registerStopAudio = () => {
-      // Placeholder for future implementation
-    };
-
-    const unregisterStopAudio = () => {
-      // Placeholder for future implementation
-    };
-
-    const reportAudioFinished = () => {
-      // Placeholder for future implementation
-    };
+    // Audio coordination methods are handled by GameContext
 
     // Deduplication caches
     const pendingFetches = useRef(new Map<string, Promise<string | null>>());
@@ -349,7 +335,7 @@ const SpeakText = React.memo<SpeakTextProps>(
     const isMountedRef = useRef(true);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
-    const isHandlingSpeakRef = useRef(false);
+    // const _isHandlingSpeakRef = useRef(false);
     const abortControllerRef = useRef<AbortController | null>(null);
     const hasPlayedRef = useRef(false);
 
@@ -362,12 +348,12 @@ const SpeakText = React.memo<SpeakTextProps>(
     // Performance tracking
     const fetchStartTimeRef = useRef<number | null>(null);
     const startTimeRef = useRef<number | null>(null);
-    const wasPlayingBeforeHiddenRef = useRef(false);
+    // const _wasPlayingBeforeHiddenRef = useRef(false);
 
     // Audio processing refs
-    const _segmentDurationsRef = useRef<Map<string, number>>(new Map());
-    const _audioBufferRef = useRef<Map<string, AudioBuffer>>(new Map());
-    const _crossfadeTimeRef = useRef(150); // ms overlap for smooth transitions
+    // const _segmentDurationsRef = useRef<Map<string, number>>(new Map());
+    // const _audioBufferRef = useRef<Map<string, AudioBuffer>>(new Map());
+    // const _crossfadeTimeRef = useRef(150); // ms overlap for smooth transitions
 
     const timestamp = () =>
       new Date().toISOString().split('T')[1].split('.')[0];
@@ -376,7 +362,7 @@ const SpeakText = React.memo<SpeakTextProps>(
     const [status, setStatus] = useState<
       'idle' | 'fetching' | 'playing' | 'error'
     >('idle');
-    const [error, setError] = useState<string | null>(null);
+    const [error] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentWordIndex, setCurrentWordIndex] = useState(-1);
     const [isLoading, setIsLoading] = useState(false);
@@ -472,12 +458,12 @@ const SpeakText = React.memo<SpeakTextProps>(
       }
     };
 
-    // Memoize the text and voiceId combination
-    const audioConfig = useMemo(() => {
-      const config = { text, voiceId };
-      logState('AUDIO_CONFIG_MEMO', config);
-      return config;
-    }, [text, voiceId]);
+    // Memoize the text and voiceId combination - commented out for production
+    // const _audioConfig = useMemo(() => {
+    //   const _config = { text, voiceId };
+    //   logState('AUDIO_CONFIG_MEMO', _config);
+    //   return _config;
+    // }, [text, voiceId]);
 
     const fetchAudioWithDeduplication = useCallback(
       async (
@@ -626,8 +612,7 @@ const SpeakText = React.memo<SpeakTextProps>(
         audioElement.crossOrigin = 'anonymous';
         // Enable low-latency streaming
         if ('setSinkId' in audioElement) {
-          // @ts-ignore - experimental API
-          audioElement.disableRemotePlayback = true;
+          (audioElement as any).disableRemotePlayback = true;
         }
         audioElementRef.current = audioElement;
 
@@ -880,7 +865,13 @@ const SpeakText = React.memo<SpeakTextProps>(
         hasStarted: hasStartedRef.current,
       });
 
-      if (autoPlay && isAudioGloballyEnabled && !hasStartedRef.current) {
+      // Only trigger autoplay for new messages, not when unmuting old ones
+      if (
+        autoPlay &&
+        isAudioGloballyEnabled &&
+        !hasStartedRef.current &&
+        !hasPlayedRef.current
+      ) {
         logState('AUTOPLAY_TRIGGERED', { audioId: audioIdRef.current });
         const timer = setTimeout(() => {
           handleSpeak();

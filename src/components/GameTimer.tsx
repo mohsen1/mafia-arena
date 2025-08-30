@@ -62,11 +62,6 @@ export function GameTimer() {
 
       // Log timer warnings for audio cues
       if (!wasWarning && remaining <= 60 && remaining > 30) {
-        console.log('[GameTimer] ⚠️ PHASE TIMER WARNING', {
-          phase: gameState.phase,
-          timeRemaining: remaining,
-          timestamp: new Date().toISOString(),
-        });
         addAudioBreadcrumb('Phase timer warning - 1 minute left', {
           phase: gameState.phase,
           timeRemaining: remaining,
@@ -74,11 +69,6 @@ export function GameTimer() {
       }
 
       if (!wasCritical && remaining <= 30) {
-        console.log('[GameTimer] 🚨 PHASE TIMER CRITICAL', {
-          phase: gameState.phase,
-          timeRemaining: remaining,
-          timestamp: new Date().toISOString(),
-        });
         addAudioBreadcrumb('Phase timer critical - 30 seconds left', {
           phase: gameState.phase,
           timeRemaining: remaining,
@@ -87,10 +77,6 @@ export function GameTimer() {
 
       if (remaining === 0) {
         clearInterval(interval);
-        console.log('[GameTimer] ⏰ PHASE TIMER EXPIRED', {
-          phase: gameState.phase,
-          timestamp: new Date().toISOString(),
-        });
         addAudioBreadcrumb('Phase timer expired', { phase: gameState.phase });
         // Could trigger phase advancement here if needed
       }
