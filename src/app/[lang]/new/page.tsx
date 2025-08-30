@@ -19,7 +19,7 @@ import {
 // import { format } from "date-fns"; // Removed unused format import
 import SimpleStartGameForm from '@/components/SimpleStartGameForm';
 import GameCard from '@/components/GameCard';
-import { Header } from '@/components/Header';
+import { ServerHeader } from '@/components/ServerHeader';
 import { Footer } from '@/components/Footer';
 import {
   GamePresetSelector,
@@ -159,7 +159,7 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header currentLang={lang} />
+      <ServerHeader currentLang={lang} />
 
       <main className="mx-auto p-4 flex flex-col items-center justify-center min-h-[80vh] space-y-8">
         <div className="text-center max-w-2xl">
@@ -210,7 +210,7 @@ function LoadingView({ lang }: { lang: LanguageCode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header currentLang={lang} />
+      <ServerHeader currentLang={lang} />
 
       <main className="mx-auto p-4 flex flex-col items-center justify-center min-h-[80vh]">
         <div className="text-center">
@@ -245,7 +245,7 @@ export default function NewGamePage({ params: paramsPromise }: PageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header currentLang={lang} />
+      <ServerHeader currentLang={lang} />
       <AuthProtectedContent lang={lang} />
       <Footer currentLang={lang} />
     </div>

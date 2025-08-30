@@ -4,7 +4,7 @@ import { useState, use } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Header } from '@/components/Header';
+import { ServerHeader } from '@/components/ServerHeader';
 import { Footer } from '@/components/Footer';
 import { useTranslation } from 'react-i18next';
 import type { LanguageCode } from '@/lib/i18n/settings';
@@ -1466,7 +1466,7 @@ export default function CharacterSetupPage({
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-background">
-        <Header currentLang={lang} />
+        <ServerHeader currentLang={lang} />
         <LoadingView />
         <Footer currentLang={lang} />
       </div>
@@ -1476,7 +1476,7 @@ export default function CharacterSetupPage({
   if (status === 'unauthenticated' || !session) {
     return (
       <div className="min-h-screen bg-background">
-        <Header currentLang={lang} />
+        <ServerHeader currentLang={lang} />
         <UnauthenticatedView lang={lang} />
         <Footer currentLang={lang} />
       </div>

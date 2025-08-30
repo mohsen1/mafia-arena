@@ -41,7 +41,11 @@ export namespace GameService {
         : null,
       isPublic: false,
       gameState: gameState as unknown as Record<string, unknown>,
+      version: 1, // Initial version for optimistic locking
     };
+
+    // Set version in gameState for consistency
+    gameState.version = 1;
 
     console.log(
       '[GameService.createGame] About to save newGame with gameState:',
@@ -51,26 +55,33 @@ export namespace GameService {
       }
     );
 
-    const [game] = await db.insert(games).values(newGame).returning();
+    // Use transaction to ensure atomicity
+    const result = await db.transaction(async (tx) => {
+      // Insert the game
+      const [game] = await tx.insert(games).values(newGame).returning();
 
-    // Create game participants
-    const participantInserts: NewGameParticipant[] = Object.entries(
-      gameState.players
-    ).map(([playerId, player]) => ({
-      gameId: gameState.gameId,
-      userId: player.isHuman ? ownerId : null,
-      playerId,
-      playerName: player.name,
-      roleName: player.roleName,
-      allegiance: player.allegiance,
-      isHuman: player.isHuman,
-      isAlive: gameState.livingPlayerIds.includes(playerId),
-      imageUrl: player.imageUrl,
-    }));
+      // Create game participants
+      const participantInserts: NewGameParticipant[] = Object.entries(
+        gameState.players
+      ).map(([playerId, player]) => ({
+        gameId: gameState.gameId,
+        userId: player.isHuman ? ownerId : null,
+        playerId,
+        playerName: player.name,
+        roleName: player.roleName,
+        allegiance: player.allegiance,
+        isHuman: player.isHuman,
+        isAlive: gameState.livingPlayerIds.includes(playerId),
+        imageUrl: player.imageUrl,
+      }));
 
-    await db.insert(gameParticipants).values(participantInserts);
+      // Insert all participants in a single batch operation
+      await tx.insert(gameParticipants).values(participantInserts);
 
-    return game;
+      return game;
+    });
+
+    return result;
   }
 
   /**
@@ -90,6 +101,8 @@ export namespace GameService {
     }
 
     const gameState = game.gameState as SerializableGameState;
+    // Include version in the game state for optimistic locking
+    gameState.version = game.version;
 
     console.log('[loadGameData] Loaded game state voiceModeEnabled:', {
       gameId,
@@ -110,6 +123,8 @@ export namespace GameService {
     gameId: string,
     gameState: SerializableGameState
   ): Promise<void> {
+    const currentVersion = gameState.version || 1;
+
     const updateData = {
       round: gameState.round,
       phase: gameState.phase,
@@ -121,24 +136,47 @@ export namespace GameService {
       status: gameState.winCondition
         ? ('completed' as const)
         : ('active' as const),
+      version: currentVersion + 1, // Increment version for optimistic locking
     };
 
-    await db.update(games).set(updateData).where(eq(games.id, gameId));
+    // Use optimistic locking: only update if version matches
+    const result = await db
+      .update(games)
+      .set(updateData)
+      .where(and(eq(games.id, gameId), eq(games.version, currentVersion)))
+      .returning({ updatedVersion: games.version });
 
-    // Update participant statuses
-    for (const [playerId] of Object.entries(gameState.players)) {
-      await db
-        .update(gameParticipants)
-        .set({
-          isAlive: gameState.livingPlayerIds.includes(playerId),
-        })
-        .where(
-          and(
-            eq(gameParticipants.gameId, gameId),
-            eq(gameParticipants.playerId, playerId)
-          )
-        );
+    if (result.length === 0) {
+      throw new Error(
+        `Concurrent modification detected for game ${gameId}. Please refresh and try again.`
+      );
     }
+
+    // Update the version in the gameState for consistency
+    gameState.version = currentVersion + 1;
+
+    // Update participant statuses in a transaction to ensure consistency
+    await db.transaction(async (tx) => {
+      // Prepare participant updates
+      const participantUpdates = Object.entries(gameState.players).map(([playerId]) => ({
+        gameId,
+        playerId,
+        isAlive: gameState.livingPlayerIds.includes(playerId),
+      }));
+
+      // Update all participants in batch operations
+      for (const update of participantUpdates) {
+        await tx
+          .update(gameParticipants)
+          .set({ isAlive: update.isAlive })
+          .where(
+            and(
+              eq(gameParticipants.gameId, update.gameId),
+              eq(gameParticipants.playerId, update.playerId)
+            )
+          );
+      }
+    });
   }
 
   /**
