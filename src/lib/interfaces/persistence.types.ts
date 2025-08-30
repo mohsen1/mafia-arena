@@ -53,6 +53,11 @@ export interface SerializableGameState {
   voiceModeEnabled?: boolean;
   round: number;
   phase: GamePhaseType;
+  version?: number; // Optimistic locking version
+  // Explicit state flags for robust deserialization
+  rolesAssigned?: boolean;
+  personasGenerated?: boolean;
+  initialMemoriesCreated?: boolean;
   players: Record<PlayerId, SerializablePlayer>;
   livingPlayerIds: PlayerId[];
   deadPlayerIds: PlayerId[];

@@ -246,12 +246,10 @@ export class Game {
     game.#winningTeam =
       outcome === 'Mafia' || outcome === 'Town' ? outcome : null;
 
-    game.#rolesAssigned =
-      state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
-    game.#personasGenerated =
-      state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
-    game.#initialMemoriesCreated =
-      state.phase !== 'Init' && state.phase !== 'CharacterGeneration';
+    // Use explicit state flags for robust deserialization
+    game.#rolesAssigned = state.rolesAssigned ?? false;
+    game.#personasGenerated = state.personasGenerated ?? false;
+    game.#initialMemoriesCreated = state.initialMemoriesCreated ?? false;
 
     for (const pState of Object.values(state.players)) {
       const agentConfig = pState.agentConfig;
@@ -368,6 +366,10 @@ export class Game {
       language: this.language,
       round: this.#round,
       phase: this.getCurrentPhaseType(),
+      // Explicit state flags for robust deserialization
+      rolesAssigned: this.#rolesAssigned,
+      personasGenerated: this.#personasGenerated,
+      initialMemoriesCreated: this.#initialMemoriesCreated,
       players: playersState,
       livingPlayerIds: this.getAlivePlayers().map((p) => p.id),
       deadPlayerIds: Array.from(this.#players.values())

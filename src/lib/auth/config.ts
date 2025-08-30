@@ -71,7 +71,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
       },
-    }),
+    })
   ],
   session: {
     strategy: 'jwt',

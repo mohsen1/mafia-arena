@@ -9,7 +9,7 @@ import { GameThemeInfoDialog } from '@/components/GameThemeInfoDialog';
 
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
-import { Header } from '@/components/Header';
+import { ServerHeader } from '@/components/ServerHeader';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -85,7 +85,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
     return (
       <>
         <div className="min-h-screen bg-background" dir={direction}>
-          <Header currentLang={lang} />
+          <ServerHeader currentLang={lang} />
           <div className="container mx-auto p-4">
             <GameReplay gameState={gameState} />
           </div>
@@ -286,7 +286,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
       ) : (
         // AI-only spectator view
         <div className="min-h-screen bg-background" dir={direction}>
-          <Header currentLang={lang} />
+          <ServerHeader currentLang={lang} />
           <div className="h-[calc(100vh-4rem)] overflow-hidden p-2">
             {error && (
               <div className="mb-2">
