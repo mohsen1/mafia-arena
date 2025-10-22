@@ -6,7 +6,6 @@ export CI=true
 
 echo "🚀 Starting CI build process..."
 echo "Environment: ${NODE_ENV:-development}"
-echo "Vercel: ${VERCEL:-not set}"
 echo "CI: ${CI:-not set}"
 
 # Function to handle errors
@@ -21,19 +20,19 @@ echo ""
 echo "🔐 Skipping environment validation (temporarily disabled)"
 echo "ℹ️  Environment variables will be validated at runtime"
 
-# Handle database operations differently for Vercel
-if [ "$VERCEL" = "1" ]; then
-  echo "📦 Running in Vercel build environment"
-  
+# Handle database operations for CI
+if [ "$CI" = "true" ]; then
+  echo "📦 Running in CI build environment"
+
   # Check if DATABASE_URL is available
   if [ -n "$DATABASE_URL" ]; then
     echo "🔍 DATABASE_URL is configured"
-    
+
     # Check database connection
     echo "📊 Checking database connection..."
     if pnpm run db:check; then
       echo "✅ Database connection successful"
-      
+
       # Run migrations
       echo "🔄 Running database migrations..."
       if pnpm run db:migrate; then
@@ -48,25 +47,20 @@ if [ "$VERCEL" = "1" ]; then
     fi
   else
     echo "⚠️  DATABASE_URL not configured"
-    echo "ℹ️  Skipping database operations - ensure DATABASE_URL is set in Vercel environment variables"
+    echo "ℹ️  Skipping database operations - ensure DATABASE_URL is set in CI environment variables"
   fi
 else
-  # Non-Vercel environment (CI, local builds)
-  # Skip database operations in CI mode to avoid interactive prompts
-  if [ "$CI" = "true" ]; then
-    echo "ℹ️  Skipping database operations in CI mode"
-  else
-    # Check database connection
-    echo "📊 Checking database connection..."
-    pnpm run db:check || handle_error "Database connection check" $?
+  # Local development build
+  # Check database connection
+  echo "📊 Checking database connection..."
+  pnpm run db:check || handle_error "Database connection check" $?
 
-    # Run migrations
-    echo "🔄 Running database migrations..."
-    pnpm run db:migrate || {
-      echo "⚠️  Migration failed, but this might be expected if no new migrations"
-      # Don't fail the build for migration issues in CI
-    }
-  fi
+  # Run migrations
+  echo "🔄 Running database migrations..."
+  pnpm run db:migrate || {
+    echo "⚠️  Migration failed, but this might be expected if no new migrations"
+    # Don't fail the build for migration issues in CI
+  }
 fi
 
 # Build the application (skip linting for faster builds)

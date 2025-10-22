@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# cloudflare
+.wrangler/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -100,3 +103,5 @@ commit_msg.txt
 
 # Temporary documentation
 project_docs/
+
+.open-next/
