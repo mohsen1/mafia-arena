@@ -45,7 +45,7 @@ jobs:
           ANTHROPIC_API_KEY: "build-time-placeholder"
 
       - name: Build with Cloudflare adapter
-        run: npx @cloudflare/next-on-pages
+        run: npx @cloudflare/next-on-pages --skip-build
         env:
           NODE_ENV: production
 
