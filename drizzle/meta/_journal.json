@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1748094889653,
-      "tag": "0000_superb_wither",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1751400823323,
-      "tag": "0001_magical_ted_forrester",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1735903519000,
-      "tag": "0002_update_default_theme",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1735956000000,
-      "tag": "0003_add_achievements",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1735957000000,
-      "tag": "0004_add_game_statistics",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1735958000000,
-      "tag": "0005_add_performance_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1735959000000,
-      "tag": "0006_optimize_indexes",
+      "when": 1761122962361,
+      "tag": "0000_safe_ultragirl",
       "breakpoints": true
     }
   ]

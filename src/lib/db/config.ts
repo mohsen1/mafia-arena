@@ -1,38 +1,30 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/d1';
 import * as schema from './schema';
 
-const isDev = process.env.NODE_ENV === 'development';
-const isBuildTime = process.env.CI === 'true';
-
-const connectionString =
-  process.env.DATABASE_URL ||
-  (isDev
-    ? 'postgresql://werewolf_ai:dev_password_2024@localhost:5432/werewolf_ai_dev'
-    : undefined);
-
-// During build time in CI/Vercel, we might not have DATABASE_URL yet
-if (!connectionString && !isBuildTime) {
-  console.error('[db/config] DATABASE_URL environment variable is not set');
-  throw new Error(
-    'DATABASE_URL environment variable is not set. Please check your .env.local file and ensure it contains a valid DATABASE_URL.'
-  );
+// Get the D1 database binding from the environment
+declare global {
+  interface Env {
+    DB: any; // D1Database type from @cloudflare/workers-types
+  }
 }
 
 // Create a lazy-initialized database connection
 let _db: ReturnType<typeof drizzle> | null = null;
 
-export function getDb() {
+export function getDb(env?: Env) {
   if (!_db) {
-    if (!connectionString) {
+    // In Cloudflare Workers, we get the database from the environment
+    const dbBinding = env?.DB || (globalThis as any).DB;
+
+    if (!dbBinding) {
       throw new Error(
-        'DATABASE_URL environment variable is not set. Please set it in your environment variables.'
+        'D1 database binding not found. Make sure DB is properly configured in your Cloudflare Workers environment.'
       );
     }
-    console.log('[db/config] Initializing database connection');
-    const client = postgres(connectionString, { prepare: false });
-    _db = drizzle(client, { schema });
-    console.log('[db/config] Database connection initialized');
+
+    console.log('[db/config] Initializing D1 database connection');
+    _db = drizzle(dbBinding, { schema });
+    console.log('[db/config] D1 database connection initialized');
   }
   return _db;
 }
