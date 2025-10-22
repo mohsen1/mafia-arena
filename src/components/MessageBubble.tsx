@@ -58,15 +58,6 @@ const MessageBubbleComponent = ({
     voiceModeEnabled: gameState?.voiceModeEnabled,
   });
 
-  // Default voice IDs - you should replace these with actual voice IDs from ElevenLabs
-  const getVoiceId = () => {
-    if (isModeratorMessage) {
-      return 'EXAVITQu4vr4xnSDxMaL'; // Narrator voice
-    }
-    // You can assign different voices based on player characteristics
-    // For now, using a default voice
-    return '21m00Tcm4TlvDq8ikWAM'; // Default voice
-  };
 
   const renderContent = (content: string) => {
     // Always render as markdown - voice functionality removed

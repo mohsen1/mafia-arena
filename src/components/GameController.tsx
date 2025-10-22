@@ -7,8 +7,6 @@ import {
   Pause,
   Play,
   SkipForward,
-  Volume2,
-  VolumeX,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';

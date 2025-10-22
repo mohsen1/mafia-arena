@@ -7,7 +7,6 @@ import React, {
   useCallback,
   useEffect,
   type ReactNode,
-  useRef,
 } from 'react';
 
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';

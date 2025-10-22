@@ -53,9 +53,6 @@ export function GameTimer() {
       setTimeRemaining(remaining);
 
       // Set warning states
-      const wasWarning = isWarning;
-      const wasCritical = isCritical;
-
       setIsWarning(remaining <= 60 && remaining > 30);
       setIsCritical(remaining <= 30);
 
@@ -66,7 +63,7 @@ export function GameTimer() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameState?.phase, isWarning, isCritical]);
+  }, [gameState?.phase]);
 
   if (
     !gameState ||
