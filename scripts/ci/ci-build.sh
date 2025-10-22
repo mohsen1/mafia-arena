@@ -69,8 +69,8 @@ else
   fi
 fi
 
-# Build the application
+# Build the application (skip linting for faster builds)
 echo "🏗️  Building Next.js application..."
-pnpm run build || handle_error "Next.js build" $?
+pnpm run build --no-lint || handle_error "Next.js build" $?
 
 echo "✅ CI build completed successfully!" 

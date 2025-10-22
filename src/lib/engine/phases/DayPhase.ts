@@ -146,11 +146,11 @@ export class DayPhase extends AbstractGamePhase {
     }
 
     const player = game.getPlayer(players[index].id);
-    if (!player) {
+    if (!player || !player.isAlive()) {
       console.error(
-        `DayPhase.handlePlayerAction: Player not found at index ${index}`
+        `DayPhase.handlePlayerAction: Player not found or dead at index ${index}`
       );
-      game.setNextPlayerIndexToAction(index + 1); // Skip invalid player
+      game.setNextPlayerIndexToAction(index + 1); // Skip invalid/dead player
       return;
     }
 

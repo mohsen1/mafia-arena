@@ -1,15 +1,32 @@
-import type React from 'react';
-import {
+'use client';
+
+import React, {
   createContext,
-  useState,
   useContext,
+  useState,
   useCallback,
-  useRef,
   useEffect,
+  type ReactNode,
+  useRef,
 } from 'react';
-import type { Dispatch, SetStateAction, ReactNode } from 'react';
+
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
+import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
+
+// Add comprehensive logging helper
+const PHASE_LOG_PREFIX = '[GameContext Phase]';
+const log = (phase: string, details: any) => {
+  const timestamp = new Date().toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  console.log(
+    `${PHASE_LOG_PREFIX} ${timestamp} ${phase}: ${JSON.stringify(details)}`
+  );
+};
 
 export interface GameContextType {
   gameState: FilteredGameState | null;
@@ -30,40 +47,18 @@ export interface GameContextType {
     text: string,
     onFinished?: () => void
   ) => void;
-  reportAudioFinished: (messageId: string) => void;
   toggleGlobalAudio: () => void;
   gameSpeed: number;
   setGameSpeed: (speed: number) => void;
-}
-
-interface GameContextState {
-  gameState: FilteredGameState | null;
-  setGameState: Dispatch<SetStateAction<FilteredGameState | null>>;
-  isAutoRunning: boolean;
-  toggleAutoRun: () => void;
-  isLoadingNextTurn: boolean;
-  setIsLoadingNextTurn: Dispatch<SetStateAction<boolean>>;
-  runNextTurnAction: () => Promise<FilteredGameState | { error: string }>;
-  stopCurrentAudio: () => void;
-  registerStopAudio: (messageId: string, stopFn: () => void) => void;
-  unregisterStopAudio: () => void;
-  isAudioGloballyEnabled: boolean;
-  toggleAudioGloballyEnabled: () => void;
+  // Add audio tracking methods
+  registerAudioPlayback: (messageId: string) => void;
   reportAudioFinished: (messageId: string) => void;
-  submitHumanAction: (
-    payload: HumanActionPayload
-  ) => Promise<FilteredGameState | { error: string }>;
-  isSaving: boolean;
-  lastSaved: Date | null;
-  error: string | null;
-  clearError: () => void;
-  runNextTurn: () => void;
-  toggleGlobalAudio: () => void;
-  gameSpeed: number;
-  setGameSpeed: (speed: number) => void;
+  activeAudioCount: number;
 }
 
-const GameContext = createContext<GameContextState | undefined>(undefined);
+// Removed - now using GameContextType directly
+
+const GameContext = createContext<GameContextType | undefined>(undefined);
 
 interface GameProviderProps {
   children: ReactNode;
@@ -94,6 +89,12 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     // Proper implementation: Initialize from game state
     return initialGameState?.voiceModeEnabled ?? false;
   });
+  const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [gameSpeed, setGameSpeed] = useState<number>(1);
+  const [activeAudioCount, setActiveAudioCount] = useState(0);
 
   // Initialize audio state from game state
   useEffect(() => {
@@ -104,30 +105,37 @@ export const GameProvider: React.FC<GameProviderProps> = ({
       });
       setIsAudioGloballyEnabled(gameState.voiceModeEnabled);
     }
-  }, [gameState?.voiceModeEnabled]);
+  }, [gameState?.voiceModeEnabled, isAudioGloballyEnabled]);
 
-  // const updateGameState = useCallback((newState: FilteredGameState) => {
-  //   console.log('[GameContext] updateGameState called:', {
-  //     gameId: newState.id,
-  //     phase: newState.phase,
-  //     round: newState.round,
-  //     messageCount: newState.log?.length || 0,
-  //     voiceModeEnabled: newState.voiceModeEnabled,
-  //   });
-  //   setGameState(newState);
-  // }, []);
+  const toggleGlobalAudio = useCallback(() => {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(
+      `%c[GameContext] ${timestamp} 🔊 TOGGLE GLOBAL AUDIO`,
+      'color: #e74c3c; font-weight: bold',
+      {
+        currentState: isAudioGloballyEnabled,
+        gamePhase: gameState?.phase,
+        voiceModeEnabled: gameState?.voiceModeEnabled,
+      }
+    );
 
-  // const toggleGlobalAudio = useCallback(() => {
-  //   console.log(
-  //     '[GameContext] toggleGlobalAudio called, current state:',
-  //     isAudioGloballyEnabled
-  //   );
-  //   setIsAudioGloballyEnabled((prev) => {
-  //     const newState = !prev;
-  //     console.log('[GameContext] Audio state changing to:', newState);
-  //     return newState;
-  //   });
-  // }, [isAudioGloballyEnabled]);
+    setIsAudioGloballyEnabled((prev) => {
+      const newState = !prev;
+      console.log(
+        `%c[GameContext] ${timestamp} ${newState ? '🔊 UNMUTED' : '🔇 MUTED'}`,
+        `color: ${newState ? '#27ae60' : '#e74c3c'}; font-weight: bold`,
+        {
+          previousState: prev,
+          newState,
+          action: newState
+            ? 'Audio enabled - new messages will have voice'
+            : 'Audio muted - audio will be stopped by components',
+        }
+      );
+
+      return newState;
+    });
+  }, [isAudioGloballyEnabled, gameState?.phase, gameState?.voiceModeEnabled]);
 
   const toggleAutoRun = useCallback(() => {
     console.log(
@@ -137,16 +145,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     setIsAutoRunning((prev) => !prev);
   }, [isAutoRunning]);
 
-  const [isLoadingNextTurn, setIsLoadingNextTurn] = useState<boolean>(false);
-  const stopAudioCallbackRef = useRef<(() => void) | null>(null);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [gameSpeed, setGameSpeed] = useState<number>(1);
-
-  // Track if audio is currently playing (we'll update this from reportAudioFinished)
-  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(false);
-
   const timestamp = () => new Date().toISOString().split('T')[1].split('.')[0];
 
   console.log(`[GameContext] ${timestamp()} Provider render:`, {
@@ -155,238 +153,139 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     voiceModeEnabled: gameState?.voiceModeEnabled,
     isAudioGloballyEnabled,
     isAutoRunning,
-    isAudioPlaying,
   });
 
-  const registerStopAudio = useCallback(
-    (messageId: string, stopFn: () => void) => {
-      console.log(`[GameContext] ${timestamp()} 🎵 REGISTER audio:`, {
-        messageId,
-        wasPlaying: isAudioPlaying,
-        previousCallback: !!stopAudioCallbackRef.current,
-      });
-      stopAudioCallbackRef.current = stopFn;
-      setIsAudioPlaying(true);
-    },
-    []
-  );
-
-  const unregisterStopAudio = useCallback(() => {
-    console.log(`[GameContext] ${timestamp()} 🎵 UNREGISTER audio:`, {
-      wasPlaying: isAudioPlaying,
-      hadCallback: !!stopAudioCallbackRef.current,
-    });
-    stopAudioCallbackRef.current = null;
-    setIsAudioPlaying(false);
-  }, []);
-
-  const stopCurrentAudio = useCallback(() => {
-    stopAudioCallbackRef.current?.();
-    stopAudioCallbackRef.current = null;
-    setIsAudioPlaying(false);
-  }, []);
-
-  const toggleAudioGloballyEnabled = useCallback(() => {
-    setIsAudioGloballyEnabled((prev) => {
-      const newState = !prev;
-      if (!newState) {
-        stopCurrentAudio();
-      }
-      return newState;
-    });
-  }, [stopCurrentAudio]);
+  // Removed - using toggleGlobalAudio instead
 
   const clearError = useCallback(() => {
     setError(null);
   }, []);
 
+  // Audio management methods
+  const registerAudioPlayback = useCallback((messageId: string) => {
+    setActiveAudioCount((prev) => {
+      const newCount = prev + 1;
+      addAudioBreadcrumb(`Registering audio for message: ${messageId}`, {
+        previousCount: prev,
+        newCount,
+      });
+      console.log('[GameContext] Audio registered:', {
+        messageId,
+        activeAudioCount: newCount,
+      });
+      return newCount;
+    });
+  }, []);
+
+  const reportAudioFinished = useCallback((messageId: string) => {
+    setActiveAudioCount((prev) => {
+      const newCount = Math.max(0, prev - 1);
+      addAudioBreadcrumb(`Audio finished for message: ${messageId}`, {
+        previousCount: prev,
+        newCount,
+      });
+      console.log('[GameContext] Audio finished:', {
+        messageId,
+        activeAudioCount: newCount,
+      });
+      return newCount;
+    });
+  }, []);
+
   const runNextTurnAction = useCallback(async () => {
+    const oldPhase = gameState?.phase;
+    const oldRound = gameState?.round;
+
+    log('🚀 PHASE TRANSITION START', {
+      currentPhase: oldPhase,
+      round: oldRound,
+      isAutoRunning,
+    });
+
     setIsLoadingNextTurn(true);
     setIsSaving(true);
     setError(null);
     try {
       const result = await boundRunGameTurnAction();
+
+      // Enhanced error logging to diagnose structure issues
+      if (result && typeof result === 'object') {
+        log('📦 PHASE TRANSITION RESULT STRUCTURE', {
+          hasError: 'error' in result,
+          keys: Object.keys(result),
+          playersType:
+            'error' in result
+              ? 'N/A'
+              : Array.isArray((result as FilteredGameState).players)
+                ? 'array'
+                : typeof (result as FilteredGameState).players,
+          playersValue:
+            'error' in result ? 'N/A' : (result as FilteredGameState).players,
+          resultSample: JSON.stringify(result).substring(0, 200) + '...',
+        });
+      }
+
       if (result && 'error' in result) {
+        log('❌ PHASE TRANSITION ERROR', {
+          error: result.error,
+          phase: oldPhase,
+          resultType: typeof result,
+          resultKeys: Object.keys(result),
+        });
         setError(result.error);
-      } else if (result) {
+      } else if (result && !('error' in result)) {
+        const phaseChanged = result.phase !== oldPhase;
+        const roundChanged = result.round !== oldRound;
+
+        log('✅ PHASE TRANSITION SUCCESS', {
+          oldPhase,
+          newPhase: result.phase,
+          phaseChanged,
+          oldRound,
+          newRound: result.round,
+          roundChanged,
+          livingPlayersCount: Object.values(result.players).filter(
+            (p: any) => p.status === 'Alive'
+          ).length,
+          winner: result.winner,
+          winCondition: result.winCondition,
+          gamePhase: result.phase,
+          messagesAdded:
+            (result.log?.length || 0) - (gameState?.log?.length || 0),
+        });
+
         setGameState(result);
         setLastSaved(new Date());
+
+        if (result.phase === 'GameOver') {
+          setIsAutoRunning(false);
+          log('🏁 GAME ENDED', {
+            winner: result.winner,
+            phase: result.phase,
+          });
+        }
       }
       return result;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
+      log('❌ PHASE TRANSITION EXCEPTION', {
+        error: errorMessage,
+        phase: oldPhase,
+      });
       setError(errorMessage);
       return { error: errorMessage };
     } finally {
       setIsLoadingNextTurn(false);
       setIsSaving(false);
     }
-  }, [boundRunGameTurnAction]);
+  }, [boundRunGameTurnAction, gameState, isAutoRunning]);
 
   useEffect(() => {
     setGameState(initialGameState);
   }, [initialGameState]);
 
-  // Auto-run logic when audio is enabled: wait for audio to finish before next turn
-  useEffect(() => {
-    if (
-      isAutoRunning &&
-      isAudioGloballyEnabled &&
-      !isAudioPlaying &&
-      !isLoadingNextTurn &&
-      gameState &&
-      !gameState.pendingHumanAction &&
-      gameState.phase !== 'GameOver'
-    ) {
-      const timerId = setTimeout(() => {
-        if (
-          isAutoRunning &&
-          isAudioGloballyEnabled &&
-          !isAudioPlaying &&
-          !isLoadingNextTurn &&
-          gameState &&
-          !gameState.pendingHumanAction &&
-          gameState.phase !== 'GameOver'
-        ) {
-          runNextTurnAction();
-        }
-      }, 500 / gameSpeed);
-      return () => clearTimeout(timerId);
-    }
-  }, [
-    isAutoRunning,
-    isAudioGloballyEnabled,
-    isAudioPlaying,
-    isLoadingNextTurn,
-    gameState,
-    runNextTurnAction,
-    gameSpeed,
-  ]);
-
-  // Auto-run logic when audio is disabled: run with simulated reading delay
-  useEffect(() => {
-    if (
-      isAutoRunning &&
-      !isAudioGloballyEnabled &&
-      !isLoadingNextTurn &&
-      gameState &&
-      !gameState.pendingHumanAction &&
-      gameState.phase !== 'GameOver'
-    ) {
-      const timerId = setTimeout(() => {
-        if (
-          isAutoRunning &&
-          !isAudioGloballyEnabled &&
-          !isLoadingNextTurn &&
-          gameState &&
-          !gameState.pendingHumanAction &&
-          gameState.phase !== 'GameOver'
-        ) {
-          runNextTurnAction();
-        }
-      }, 1500 / gameSpeed);
-      return () => clearTimeout(timerId);
-    }
-  }, [
-    isAutoRunning,
-    isAudioGloballyEnabled,
-    isLoadingNextTurn,
-    gameState,
-    runNextTurnAction,
-    gameSpeed,
-  ]);
-
-  const reportAudioFinished = useCallback(
-    (messageId: string) => {
-      const latestLogMessage = gameState?.log?.[0];
-      const isLatestMessage =
-        latestLogMessage && messageId === latestLogMessage.timestamp;
-
-      console.log(`[GameContext] ${timestamp()} 🎵 AUDIO FINISHED:`, {
-        messageId,
-        latestMessageId: latestLogMessage?.timestamp,
-        isLatestMessage,
-        isAutoRunning,
-        isAudioGloballyEnabled,
-        isLoadingNextTurn,
-        pendingHumanAction: gameState?.pendingHumanAction,
-        phase: gameState?.phase,
-        isAudioPlaying,
-      });
-
-      unregisterStopAudio();
-
-      if (
-        isAutoRunning &&
-        isAudioGloballyEnabled &&
-        isLatestMessage &&
-        !isLoadingNextTurn &&
-        !gameState?.pendingHumanAction
-      ) {
-        if (gameState?.phase !== 'GameOver') {
-          console.log(
-            `[GameContext] ${timestamp()} ⏰ SCHEDULING next turn in 500ms...`
-          );
-          setTimeout(() => {
-            // Re-check conditions
-            if (
-              isAutoRunning &&
-              isAudioGloballyEnabled &&
-              !isAudioPlaying &&
-              !isLoadingNextTurn &&
-              !gameState?.pendingHumanAction &&
-              gameState?.phase !== 'GameOver'
-            ) {
-              console.log(
-                `[GameContext] ${timestamp()} ▶️ TRIGGERING next turn after audio`
-              );
-              runNextTurnAction();
-            } else {
-              console.log(
-                `[GameContext] ${timestamp()} ❌ SKIPPED next turn - conditions changed:`,
-                {
-                  isAutoRunning,
-                  isAudioGloballyEnabled,
-                  isAudioPlaying,
-                  isLoadingNextTurn,
-                  pendingHumanAction: gameState?.pendingHumanAction,
-                  phase: gameState?.phase,
-                }
-              );
-            }
-          }, 500);
-        } else {
-          console.log(
-            `[GameContext] ${timestamp()} 🏁 Game over, no next turn`
-          );
-        }
-      } else {
-        console.log(
-          `[GameContext] ${timestamp()} ⏸️ NOT scheduling next turn:`,
-          {
-            autoRunning: isAutoRunning,
-            audioEnabled: isAudioGloballyEnabled,
-            isLatest: isLatestMessage,
-            loading: isLoadingNextTurn,
-            pendingAction: gameState?.pendingHumanAction,
-          }
-        );
-      }
-    },
-    [
-      isAutoRunning,
-      isLoadingNextTurn,
-      gameState?.log,
-      gameState?.phase,
-      gameState?.pendingHumanAction,
-      runNextTurnAction,
-      unregisterStopAudio,
-      isAudioGloballyEnabled,
-      isAudioPlaying,
-    ]
-  );
-
+  // Submit human action
   const submitHumanActionInternal = useCallback(
     async (payload: HumanActionPayload) => {
       setIsLoadingNextTurn(true);
@@ -414,36 +313,192 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     [boundSubmitHumanAction]
   );
 
-  const value: GameContextState = {
+  // Audio state
+  const autoRunSpeed = 5000; // Fixed speed for auto-run
+  const audioStopCallbacksRef = useRef<Set<() => void>>(new Set());
+
+  // Enhanced audio logging
+  const logAudio = (action: string, details: any) => {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(
+      `%c🎮 [GameContext/Audio] ${timestamp} ${action}`,
+      'color: #e74c3c; font-weight: bold',
+      details
+    );
+  };
+
+  // Log audio state changes
+  React.useEffect(() => {
+    logAudio('AUDIO_STATE_CHANGED', {
+      isAudioGloballyEnabled,
+      currentGameState: gameState?.phase,
+      humanPlayerId: gameState?.humanPlayerId,
+    });
+  }, [isAudioGloballyEnabled, gameState?.phase, gameState?.humanPlayerId]);
+
+  // Enhanced auto-run effect with audio awareness
+  useEffect(() => {
+    if (!isAutoRunning || !gameState || 'error' in gameState) {
+      if (!isAutoRunning) {
+        logAudio('AUTO_RUN_DISABLED', {
+          reason: 'autoRun is false',
+          gamePhase:
+            gameState && 'phase' in gameState ? gameState.phase : undefined,
+        });
+      }
+      if (gameState && 'error' in gameState) {
+        logAudio('AUTO_RUN_SKIP', {
+          reason: 'Game state has error',
+          error: gameState.error,
+        });
+      }
+      return;
+    }
+
+    // Check game state validity and log appropriately
+    if (!gameState || gameState === null) {
+      logAudio('AUTO_RUN_SKIP', {
+        reason: 'No game state',
+      });
+      return;
+    }
+
+    logAudio('AUTO_RUN_CHECK', {
+      autoRun: isAutoRunning,
+      autoRunSpeed,
+      currentPhase: gameState.phase,
+      hasHumanPlayer: !!gameState.humanPlayerId,
+      pendingHumanAction: !!gameState.pendingHumanAction,
+      isGameOver: gameState.phase === 'GameOver',
+      activeAudioCount, // Add audio count to logs
+    });
+
+    // Don't auto-run if:
+    // 1. Game is over
+    if (gameState.phase === 'GameOver') {
+      logAudio('AUTO_RUN_SKIP', {
+        reason: 'Game is over',
+        winCondition: gameState.winCondition,
+      });
+      return;
+    }
+
+    // 2. Human has pending action
+    if (gameState.pendingHumanAction) {
+      logAudio('AUTO_RUN_SKIP', {
+        reason: 'Human has pending action',
+        prompt: gameState.pendingHumanAction.prompt,
+      });
+      return;
+    }
+
+    // 3. Character generation phase
+    if (gameState.phase === 'CharacterGeneration') {
+      logAudio('AUTO_RUN_SKIP', {
+        reason: 'Character generation phase',
+      });
+      return;
+    }
+
+    // 4. Audio is still playing - NEW CHECK
+    if (activeAudioCount > 0) {
+      addAudioBreadcrumb('Auto-run paused, waiting for audio to finish', {
+        activeAudioCount,
+      });
+      logAudio('AUTO_RUN_PAUSED', {
+        reason: 'Waiting for audio to finish',
+        activeAudioCount,
+      });
+      return;
+    }
+
+    logAudio('AUTO_RUN_SCHEDULING', {
+      delayMs: 500, // Short delay after audio finishes
+      phase: gameState.phase,
+      round: gameState.round,
+      alivePlayers: Object.values(gameState.players).filter(
+        (p: any) => p.status === 'Alive'
+      ).length,
+      activeAudioCount,
+    });
+
+    const timer = setTimeout(() => {
+      // Stop all audio before running next turn
+      logAudio('AUTO_RUN_STOPPING_AUDIO', {
+        activeAudioCount: audioStopCallbacksRef.current.size,
+        callbacks: Array.from(audioStopCallbacksRef.current).length,
+      });
+
+      audioStopCallbacksRef.current.forEach((callback) => {
+        try {
+          callback();
+        } catch (error) {
+          console.error('[GameContext] Error stopping audio:', error);
+        }
+      });
+      audioStopCallbacksRef.current.clear();
+
+      logAudio('AUTO_RUN_EXECUTING', {
+        phase: gameState.phase,
+        round: gameState.round,
+        timestamp: Date.now(),
+      });
+
+      runNextTurnAction();
+    }, 500); // Short delay after audio finishes
+
+    return () => {
+      logAudio('AUTO_RUN_CLEANUP', {
+        reason: 'Effect cleanup',
+        hadTimer: true,
+      });
+      clearTimeout(timer);
+    };
+  }, [
+    isAutoRunning,
+    autoRunSpeed,
     gameState,
-    setGameState,
+    runNextTurnAction,
+    activeAudioCount,
+  ]); // Add activeAudioCount as dependency
+
+  // Removed unused audio callback functions
+
+  // Stub for announceText - can be implemented later if needed
+  const announceText = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_messageId: string, _text: string, _onFinished?: () => void) => {
+      // Placeholder implementation
+    },
+    []
+  );
+
+  const value: GameContextType = {
+    gameState,
     isAutoRunning,
     toggleAutoRun,
     isLoadingNextTurn,
-    setIsLoadingNextTurn,
-    runNextTurnAction,
-    stopCurrentAudio,
-    registerStopAudio,
-    unregisterStopAudio,
     isAudioGloballyEnabled,
-    toggleAudioGloballyEnabled,
-    reportAudioFinished,
     submitHumanAction: submitHumanActionInternal,
     isSaving,
     lastSaved,
     error,
     clearError,
     runNextTurn: runNextTurnAction,
-    toggleGlobalAudio: toggleAudioGloballyEnabled,
+    toggleGlobalAudio,
     gameSpeed,
     setGameSpeed,
+    registerAudioPlayback,
+    reportAudioFinished,
+    activeAudioCount,
+    announceText,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 };
 
 // Custom hook to use the context
-export const useGameContext = (): GameContextState => {
+export const useGameContext = (): GameContextType => {
   const context = useContext(GameContext);
   if (context === undefined) {
     throw new Error('useGameContext must be used within a GameProvider');

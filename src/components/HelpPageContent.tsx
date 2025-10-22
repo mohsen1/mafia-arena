@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { Header } from '@/components/Header';
+import { ServerHeader } from '@/components/ServerHeader';
 import { Footer } from '@/components/Footer';
 import { useParams } from 'next/navigation';
 import type { LanguageCode } from '@/lib/i18n/settings';
@@ -111,7 +111,7 @@ export function HelpPageContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header currentLang={lang} />
+      <ServerHeader currentLang={lang} />
 
       <main className="container mx-auto py-8 px-4 max-w-6xl">
         <div className="mb-8 text-center">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { SpeakText } from '@/components/SpeakText';
+import SpeakText from '@/components/SpeakText';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { GameProvider } from '@/context/GameContext';
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,7 @@ export default function UI() {
           <section>
             <h2 className="text-2xl font-semibold mb-6">SpeakText</h2>
             <div className="rounded-lg border bg-card p-6">
-              <SpokenTextProvider isAudioGloballyEnabled={true}>
+              <SpokenTextProvider>
                 <SpeakText
                   text="Hello world!"
                   className="text-card-foreground"
@@ -64,7 +64,7 @@ export default function UI() {
                 Example of automatically playing multiple SpeakText
                 automatically one after another
               </p>
-              <SpokenTextProvider isAudioGloballyEnabled={true}>
+              <SpokenTextProvider>
                 <PlayMultipleSpeak />
               </SpokenTextProvider>
             </div>
@@ -100,7 +100,7 @@ function PlayMultipleSpeak() {
       {showMessages &&
         messages.map((text, index) => (
           <div key={`message-${index}-${text.slice(0, 20)}`}>
-            <SpokenTextProvider isAudioGloballyEnabled={true}>
+            <SpokenTextProvider>
               <SpeakText
                 text={text}
                 autoPlay={true}

@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { useGameContext } from '@/context/GameContext';
+import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 interface KeyboardShortcut {
   key: string;
@@ -15,7 +16,7 @@ export function useKeyboardShortcuts() {
   const {
     isAutoRunning,
     toggleAutoRun,
-    runNextTurnAction,
+    runNextTurn,
     isLoadingNextTurn,
     gameState,
   } = useGameContext();
@@ -30,7 +31,7 @@ export function useKeyboardShortcuts() {
       },
       {
         key: 'ArrowRight',
-        action: runNextTurnAction,
+        action: runNextTurn,
         description: 'Next turn',
         enabled:
           !isAutoRunning &&
@@ -39,7 +40,7 @@ export function useKeyboardShortcuts() {
       },
       {
         key: 'n',
-        action: runNextTurnAction,
+        action: runNextTurn,
         description: 'Next turn',
         enabled:
           !isAutoRunning &&
@@ -66,7 +67,7 @@ export function useKeyboardShortcuts() {
     ],
     [
       toggleAutoRun,
-      runNextTurnAction,
+      runNextTurn,
       isAutoRunning,
       isLoadingNextTurn,
       gameState?.phase,
@@ -94,6 +95,9 @@ export function useKeyboardShortcuts() {
 
         if (keyMatch && ctrlMatch && shiftMatch && altMatch) {
           event.preventDefault();
+          addAudioBreadcrumb(`Keyboard: ${shortcut.description}`, {
+            key: shortcut.key,
+          });
           shortcut.action();
           break;
         }
