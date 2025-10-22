@@ -9,14 +9,13 @@ import type { PlayerId } from '@/lib/engine/interfaces/IPlayer'; // Import Playe
 // Import from react-i18next
 import { useTranslation } from 'react-i18next';
 import GameController from './GameController';
-import { QuickActionsPanel } from './QuickActionsPanel';
 import { RoleTipsPanel } from './RoleTipsPanel';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, Users, Lightbulb, Zap, Settings } from 'lucide-react';
+import { ChevronDown, Users, Lightbulb, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -25,9 +24,8 @@ export function GameSidebar() {
   // Use standard hook
   const { t } = useTranslation('translation'); // Keep namespace for now
 
-  // Collapsible states - Quick actions collapsed by default
+  // Collapsible states
   const [gameControlsOpen, setGameControlsOpen] = useState(true);
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [roleTipsOpen, setRoleTipsOpen] = useState(false);
   const [playersOpen, setPlayersOpen] = useState(true);
 
@@ -104,32 +102,6 @@ export function GameSidebar() {
             <CollapsibleContent>
               <div className="p-3 pt-0">
                 <GameController />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        {/* Quick Actions - Collapsible */}
-        {gameState && (
-          <Collapsible
-            open={quickActionsOpen}
-            onOpenChange={setQuickActionsOpen}
-          >
-            <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-accent/50 transition-colors border-b border-border/50">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Zap className="h-4 w-4" />
-                {t('QuickActions', 'Quick Actions')}
-              </div>
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 transition-transform',
-                  quickActionsOpen && 'rotate-180'
-                )}
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="p-3 pt-0 bg-background/50">
-                <QuickActionsPanel gameState={gameState} />
               </div>
             </CollapsibleContent>
           </Collapsible>

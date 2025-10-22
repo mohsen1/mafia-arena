@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import { useTranslation } from 'react-i18next';
 import { useGameContext } from '@/context/GameContext';
+import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 interface VotingPanelProps {
   gameState: FilteredGameState;
@@ -142,6 +143,22 @@ export function VotingPanel({
     setShowConfirmation(false);
     setHasVoted(true);
 
+    console.log('[VotingPanel] 🗳️ VOTE SUBMITTED:', {
+      voter: humanPlayerId,
+      target: selectedTarget,
+      targetName: selectedTarget
+        ? gameState.players[selectedTarget]?.name
+        : 'Abstain',
+      timestamp: new Date().toISOString(),
+    });
+
+    addAudioBreadcrumb('Vote submitted', {
+      target: selectedTarget,
+      targetName: selectedTarget
+        ? gameState.players[selectedTarget]?.name
+        : 'Abstain',
+    });
+
     try {
       await submitHumanAction({
         playerId: humanPlayerId!,
@@ -156,7 +173,14 @@ export function VotingPanel({
       console.error('Failed to submit vote:', error);
       setHasVoted(false);
     }
-  }, [canVote, submitHumanAction, humanPlayerId, selectedTarget, onVote]);
+  }, [
+    canVote,
+    submitHumanAction,
+    humanPlayerId,
+    selectedTarget,
+    onVote,
+    gameState.players,
+  ]);
 
   const getPlayerVoteStatus = useCallback(
     (playerId: string) => {

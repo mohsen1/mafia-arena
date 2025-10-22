@@ -32,7 +32,7 @@ export default function GameController({
     isLoadingNextTurn,
     isAutoRunning,
     toggleAutoRun,
-    runNextTurnAction,
+    runNextTurn,
     gameState,
     isAudioGloballyEnabled,
     toggleGlobalAudio,
@@ -53,7 +53,12 @@ export default function GameController({
 
   const handleNextClick = () => {
     if (!isAutoRunning) {
-      runNextTurnAction();
+      // In manual mode, stop any current audio before advancing
+      if (currentlySpeakingId) {
+        console.log('[GameController] Stopping audio before manual next turn');
+        resetAudio();
+      }
+      runNextTurn();
     }
   };
 
@@ -103,7 +108,15 @@ export default function GameController({
         )}
 
         <Button
-          onClick={toggleAutoRun}
+          onClick={() => {
+            console.log('[GameController] Toggling auto-run mode:', {
+              currentMode: isAutoRunning ? 'auto' : 'manual',
+              newMode: isAutoRunning ? 'manual' : 'auto',
+              currentlySpeakingId,
+              isAudioGloballyEnabled,
+            });
+            toggleAutoRun();
+          }}
           variant="ghost"
           size="sm"
           className="h-7 w-7 p-0"

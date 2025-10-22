@@ -5,9 +5,6 @@ This directory contains comprehensive documentation for the Werewolf AI project.
 ## Table of Contents
 
 ### 🚀 Deployment & Setup
-- [Vercel Deployment Guide](./VERCEL_DEPLOYMENT.md) - Step-by-step guide for deploying to Vercel
-- [Vercel Environment Checklist](./VERCEL_ENV_CHECKLIST.md) - Complete list of environment variables for Vercel
-- [Database Migrations on Vercel](./DATABASE_MIGRATIONS_VERCEL.md) - How database migrations work in production
 - [Database Migration Conventions](./DATABASE_MIGRATION_CONVENTIONS.md) - Best practices for creating migrations
 - [Database Index Strategy](./DATABASE_INDEXES.md) - Database performance optimization guide
 
@@ -30,7 +27,7 @@ This directory contains comprehensive documentation for the Werewolf AI project.
 
 - **Getting Started**: See the [main README](../README.md)
 - **Local Development**: Use Docker for database setup (see main README)
-- **Production Deployment**: Follow the [Vercel Deployment Guide](./VERCEL_DEPLOYMENT.md)
+- **Production Deployment**: Configure for your preferred hosting platform
 - **AI Providers**: Configure [Ollama](./OLLAMA_INTEGRATION.md) or [User API Keys](./USER_API_KEYS.md)
 
 ## Need Help?

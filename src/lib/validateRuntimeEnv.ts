@@ -12,7 +12,6 @@ export interface RuntimeEnvValidation {
 export function validateRuntimeEnvironment(): RuntimeEnvValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
-  const isVercel = process.env.VERCEL === '1';
 
   // Core requirements
   if (!process.env.DATABASE_URL) {
@@ -20,8 +19,7 @@ export function validateRuntimeEnvironment(): RuntimeEnvValidation {
   }
   // Don't check format - different providers use different formats
 
-  // NEXTAUTH_URL is automatically set by Vercel
-  if (!isVercel && !process.env.NEXTAUTH_URL) {
+  if (!process.env.NEXTAUTH_URL) {
     errors.push('NEXTAUTH_URL is not set');
   }
 

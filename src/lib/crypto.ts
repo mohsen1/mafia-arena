@@ -66,21 +66,45 @@ export function validateApiKeyFormat(
   provider: string,
   apiKey: string
 ): boolean {
-  if (!apiKey || apiKey.length < 10) return false;
+  // Basic validation - key must exist and be reasonable length
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 10 || apiKey.length > 200) {
+    return false;
+  }
+
+  // Check for potentially dangerous characters
+  if (/[<>'"&]/.test(apiKey)) {
+    return false;
+  }
 
   switch (provider.toLowerCase()) {
     case 'openai':
-      return apiKey.startsWith('sk-') && apiKey.length >= 20;
+      // OpenAI keys start with 'sk-' and are longer
+      return /^sk-[a-zA-Z0-9]{40,}[a-zA-Z0-9_-]*$/.test(apiKey) && apiKey.length >= 51;
+
     case 'anthropic':
-      return apiKey.startsWith('sk-ant-') && apiKey.length >= 20;
+    case 'claude':
+      // Anthropic keys start with 'sk-ant-api03-'
+      return /^sk-ant-api03-[a-zA-Z0-9_-]{60,}[a-zA-Z0-9_-]*$/.test(apiKey);
+
     case 'gemini':
     case 'google':
-      return /^[A-Za-z0-9_-]{35,45}$/.test(apiKey);
+      // Google AI keys are typically 39 characters of mixed case letters and numbers
+      return /^[A-Za-z0-9_-]{35,45}$/.test(apiKey) && !apiKey.includes(' ') && /[A-Z]/.test(apiKey) && /[a-z]/.test(apiKey);
+
     case 'groq':
-      return apiKey.startsWith('gsk_') && apiKey.length >= 20;
+      // Groq keys start with 'gsk_'
+      return /^gsk_[a-zA-Z0-9_-]{50,}[a-zA-Z0-9_-]*$/.test(apiKey) && apiKey.length >= 56;
+
     case 'fireworks':
-      return apiKey.length >= 20; // More flexible for Fireworks
+      // Fireworks keys - more flexible validation
+      return /^[a-zA-Z0-9_-]{20,}$/.test(apiKey) && !apiKey.includes(' ');
+
+    case 'ollama':
+      // Ollama typically doesn't require API keys, but if provided, basic validation
+      return apiKey.length >= 10 && /^[a-zA-Z0-9_-]+$/.test(apiKey);
+
     default:
-      return apiKey.length >= 10; // Basic length check for unknown providers
+      // For unknown providers, basic validation only
+      return /^[a-zA-Z0-9_-]{10,}$/.test(apiKey) && !apiKey.includes(' ');
   }
 }

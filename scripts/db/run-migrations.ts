@@ -1,8 +1,8 @@
 #!/usr/bin/env tsx
 
 /**
- * Database Migration Runner for Vercel Deployments
- * 
+ * Database Migration Runner for Deployments
+ *
  * This script runs database migrations with proper error handling
  * and logging suitable for production deployments.
  */
@@ -13,7 +13,6 @@ import * as dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-const isVercel = process.env.VERCEL === '1';
 const isCi = process.env.CI === 'true';
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -21,7 +20,7 @@ async function runMigrations() {
   console.log('🔄 Database Migration Runner');
   console.log('===========================');
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Vercel: ${isVercel ? 'Yes' : 'No'}`);
+  console.log(`CI: ${isCi ? 'Yes' : 'No'}`);
   console.log(`Database URL: ${databaseUrl ? 'Configured' : 'Not configured'}`);
   console.log('');
 
@@ -51,7 +50,7 @@ async function runMigrations() {
     console.log('');
 
     // Apply schema - but be very careful in CI/production environments
-    if (isVercel || isCi) {
+    if (isCi) {
       console.log('📤 Checking database schema compatibility...');
       try {
         // In production environments, only attempt schema validation
@@ -75,17 +74,17 @@ async function runMigrations() {
     console.error('❌ Fatal error during migration process:');
     console.error(error);
     
-    if (isVercel) {
+    if (isCi) {
       console.error('');
-      console.error('🔧 Troubleshooting tips for Vercel:');
-      console.error('   1. Ensure DATABASE_URL is set in Vercel environment variables');
-      console.error('   2. Check that the database allows connections from Vercel');
+      console.error('🔧 Troubleshooting tips for CI:');
+      console.error('   1. Ensure DATABASE_URL is set in CI environment variables');
+      console.error('   2. Check that the database allows connections from CI');
       console.error('   3. Verify DATABASE_URL includes ?sslmode=require');
-      console.error('   4. Check Vercel deployment logs for more details');
+      console.error('   4. Check CI deployment logs for more details');
     }
     
     // Don't fail the build for non-critical database schema issues
-    if (isVercel || isCi) {
+    if (isCi) {
       console.log('⚠️  Continuing with build despite database schema warnings');
       console.log('   Manual database schema review may be required');
       process.exit(0);
@@ -98,10 +97,10 @@ async function runMigrations() {
 // Run migrations
 runMigrations().catch((error) => {
   console.error('Unexpected error:', error);
-  if (isVercel || process.env.CI) {
+  if (isCi) {
     console.log('⚠️  Continuing with build despite migration errors in CI/production');
     process.exit(0);
   } else {
     process.exit(1);
   }
-}); 
+});

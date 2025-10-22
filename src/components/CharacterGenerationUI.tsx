@@ -252,7 +252,12 @@ export default function CharacterGenerationUI({
     } catch (err) {
       console.error('Error generating characters:', err);
       const errorMessage =
-        err instanceof Error ? err.message : 'Failed to generate characters';
+        err instanceof Error
+          ? err.message
+          : t(
+              'character-generation.failedToGenerate',
+              'Failed to generate characters'
+            );
       setError(errorMessage);
       onErrorRef.current(errorMessage);
       hasInitiatedGenerationRef.current = false; // Reset on error
@@ -260,7 +265,7 @@ export default function CharacterGenerationUI({
       setIsGenerating(false);
       isGeneratingRef.current = false;
     }
-  }, [gameId, isComplete, error]);
+  }, [gameId, isComplete, error, t]);
 
   // ✅ FIXED: Inline progress checking without unstable callback dependencies
   useEffect(() => {
@@ -283,12 +288,17 @@ export default function CharacterGenerationUI({
         }
       } catch (err) {
         console.error('Error getting progress:', err);
-        setError('Failed to get generation progress');
+        setError(
+          t(
+            'character-generation.failedToGetProgress',
+            'Failed to get generation progress'
+          )
+        );
       }
     };
 
     checkProgress();
-  }, [gameId, isComplete, error]); // Only stable dependencies
+  }, [gameId, isComplete, error, t]); // Only stable dependencies
 
   // ✅ FIXED: Progress polling with proper cleanup and state guards
   useEffect(() => {
@@ -324,7 +334,12 @@ export default function CharacterGenerationUI({
         timeoutId = setTimeout(pollProgress, nextDelay);
       } catch (err) {
         console.error('Error getting progress:', err);
-        setError('Failed to get generation progress');
+        setError(
+          t(
+            'character-generation.failedToGetProgress',
+            'Failed to get generation progress'
+          )
+        );
       }
     };
 
@@ -336,7 +351,7 @@ export default function CharacterGenerationUI({
         clearTimeout(timeoutId);
       }
     };
-  }, [isGenerating, isComplete, error, gameId]);
+  }, [isGenerating, isComplete, error, gameId, t]);
 
   // ✅ FIXED: Auto-start generation with proper state guards
   useEffect(() => {
