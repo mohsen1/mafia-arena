@@ -62,3 +62,21 @@ test-results/
 # Log files
 dev-server.log
 *.log
+
+# Build/test output files  
+build-output.txt
+dev-server-output.txt
+tsc-errors.txt
+lint-errors.txt
+test-results*.txt
+test-results*.json
+ci-build-test.txt
+commit_msg.txt
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary documentation
+project_docs/

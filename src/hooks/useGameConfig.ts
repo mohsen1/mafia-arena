@@ -240,6 +240,7 @@ export function useGameConfig(
     globalModelSelection,
     globalProviderSelection,
     user?.name,
+    user?.image,
     t,
   ]);
 
@@ -386,9 +387,12 @@ export function useGameConfig(
   // Clean up any pending debounce timers on unmount
   useEffect(() => {
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      // Refs are stable and don't need to be in dependencies for cleanup
       debounceTimersRef.current.forEach((timer) => {
         clearTimeout(timer);
       });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       debounceTimersRef.current.clear();
     };
   }, []);

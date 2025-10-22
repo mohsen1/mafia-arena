@@ -1,7 +1,7 @@
-'use client';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth/config';
+import { getTranslation } from '@/lib/i18n/server';
 
-import { useTranslation } from 'react-i18next';
-import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { MagicalAIButton } from '@/components/ui/magical-ai-button';
 import Link from 'next/link';
@@ -20,12 +20,10 @@ import {
   Star,
   LogIn,
 } from 'lucide-react';
-import { Header } from '@/components/Header';
+import { ServerHeader } from '@/components/ServerHeader';
 import { Footer } from '@/components/Footer';
-import { usePathname } from 'next/navigation';
 import type { LanguageCode } from '@/lib/i18n/settings';
 import { supportedLanguagesInfo } from '@/lib/i18n/settings';
-import { useEffect } from 'react';
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -136,6 +134,7 @@ interface AuthCTAButtonProps {
   variant?: 'default' | 'outline' | 'magical';
   size?: 'default' | 'sm' | 'lg';
   magical?: boolean;
+  session: any;
   t: (key: string) => string;
 }
 
@@ -146,9 +145,9 @@ function AuthCTAButton({
   variant = 'magical',
   size = 'lg',
   magical = true,
+  session,
   t,
 }: AuthCTAButtonProps) {
-  const { data: session } = useSession();
 
   if (session) {
     if (magical) {
@@ -207,71 +206,23 @@ function AuthCTAButton({
   );
 }
 
-export default function LandingPage() {
-  const { t } = useTranslation();
-  const pathname = usePathname();
+interface LandingPageProps {
+  params: Promise<{ lang: LanguageCode }>;
+}
 
-  // Extract current language from pathname
-  const getCurrentLanguage = (): LanguageCode => {
-    const segments = pathname.split('/').filter(Boolean);
-    return (segments[0] as LanguageCode) || 'en';
-  };
-
-  const currentLang = getCurrentLanguage();
+export default async function LandingPage({ params }: LandingPageProps) {
+  const { lang: currentLang } = await params;
+  const session = await getServerSession(authOptions);
+  const { t } = await getTranslation(currentLang);
   const isRTL = supportedLanguagesInfo[currentLang]?.dir === 'rtl';
   const ArrowIcon = isRTL ? ArrowLeft : ArrowRight;
 
-  // Add structured data to the page
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.textContent = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'WebApplication',
-      name: 'Werewolf AI',
-      description:
-        'AI-powered social deduction game based on the classic Werewolf/Mafia party game',
-      url: 'https://werewolf-ai.com',
-      applicationCategory: 'Game',
-      operatingSystem: 'Web Browser',
-      offers: {
-        '@type': 'Offer',
-        price: '0',
-        priceCurrency: 'USD',
-      },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.8',
-        ratingCount: '500',
-      },
-      features: [
-        'AI-powered characters with unique personas',
-        'Multilingual support (25+ languages)',
-        'Text-to-speech integration',
-        'Save and resume gameplay',
-        'Multiple AI model providers',
-        'Classic Werewolf/Mafia roles',
-      ],
-      author: {
-        '@type': 'Organization',
-        name: 'Werewolf AI Team',
-      },
-      publisher: {
-        '@type': 'Organization',
-        name: 'Werewolf AI',
-      },
-    });
-    document.head.appendChild(script);
 
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, []);
 
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation Bar */}
-      <Header currentLang={currentLang} />
+      <ServerHeader currentLang={currentLang} />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
@@ -318,7 +269,7 @@ export default function LandingPage() {
               className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slide-up"
               style={{ animationDelay: '0.6s' }}
             >
-              <AuthCTAButton currentLang={currentLang} magical={true} t={t}>
+              <AuthCTAButton currentLang={currentLang} magical={true} session={session} t={t}>
                 {t('landingHeroCTA')}
                 <ArrowIcon
                   className={`${isRTL ? 'me-2' : 'ms-2'} w-5 h-5 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform duration-200`}
@@ -566,6 +517,7 @@ export default function LandingPage() {
               currentLang={currentLang}
               magical={true}
               className="animate-pulse"
+              session={session}
               t={t}
             >
               🚀 {t('landingCtaButton')}

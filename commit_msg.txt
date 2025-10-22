@@ -1,7 +1,0 @@
-{
-  "status": "COMPLETED",
-  "exit_code": 0,
-  "stdout": "fix: resolve TypeScript build errors\n",
-  "stderr": "",
-  "message": "Command completed within the timeout."
-}

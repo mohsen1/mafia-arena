@@ -39,6 +39,20 @@ export async function submitHumanAction(
     const game = await Game.loadFromState(gameState);
     const currentPhase = game.getCurrentPhase();
 
+    // Validate that the player is alive and should be acting
+    const actingPlayer = game.getPlayer(humanActionPayload.playerId);
+    if (!actingPlayer || !actingPlayer.isAlive()) {
+      return { error: 'Player is not alive or does not exist' };
+    }
+
+    // Validate that this player is the one who should be acting
+    const alivePlayers = game.getAlivePlayers();
+    const currentIndex = game.getNextPlayerIndexToAction();
+    if (currentIndex >= alivePlayers.length ||
+        alivePlayers[currentIndex].id !== humanActionPayload.playerId) {
+      return { error: 'It is not this player\'s turn to act' };
+    }
+
     // Convert HumanActionPayload to PlayerAction
     let playerAction: PlayerAction;
 
@@ -129,18 +143,11 @@ export async function submitHumanAction(
     }
 
     // Advance to the next player
-    const currentIndex = game.getNextPlayerIndexToAction();
-    game.setNextPlayerIndexToAction(currentIndex + 1);
+    const nextPlayerIndex = game.getNextPlayerIndexToAction();
+    game.setNextPlayerIndexToAction(nextPlayerIndex + 1);
 
     // Clear the pending human action
     game.clearPendingHumanAction();
-
-    const intermediateState = game.getCurrentSerializableState(
-      game.getPendingHumanAction()
-    );
-    // Preserve voiceModeEnabled from original state
-    intermediateState.voiceModeEnabled = gameState.voiceModeEnabled;
-    await saveGameData(gameId, intermediateState);
 
     // Continue game loop after human action
     await game.runSingleStep();
@@ -148,9 +155,21 @@ export async function submitHumanAction(
     const finalState = game.getCurrentSerializableState(
       game.getPendingHumanAction()
     );
-    // Preserve voiceModeEnabled from original state
+    // Preserve voiceModeEnabled and version from original state
     finalState.voiceModeEnabled = gameState.voiceModeEnabled;
-    await saveGameData(gameId, finalState);
+    finalState.version = gameState.version;
+
+    // Use optimistic locking to prevent concurrent modifications
+    try {
+      await saveGameData(gameId, finalState);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Concurrent modification detected')) {
+        return {
+          error: 'Another player modified the game state simultaneously. Please refresh and try again.'
+        };
+      }
+      throw error; // Re-throw other errors
+    }
 
     const filteredState = filterGameStateForClient(
       finalState,

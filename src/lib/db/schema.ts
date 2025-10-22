@@ -85,6 +85,7 @@ export const games = pgTable('games', {
   winCondition: text('win_condition'), // null, 'Mafia', 'Town'
   isPublic: boolean('is_public').notNull().default(false),
   gameState: jsonb('game_state').notNull(), // Full serializable game state
+  version: integer('version').notNull().default(1), // Optimistic locking version
 });
 
 export const gameParticipants = pgTable('game_participants', {

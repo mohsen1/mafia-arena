@@ -58,15 +58,11 @@ export async function createAgentInstance(
       );
       if (userApiKey) {
         apiKey = userApiKey;
-        console.log(
-          `[agentFactory] Found user API key for ${agentConfig.providerValue}`
-        );
+        // Log API key found without provider name for security
+        console.log(`[agentFactory] Found user API key for provider`);
       }
     } catch (error) {
-      console.warn(
-        `[agentFactory] Failed to get user API key for ${agentConfig.providerValue}:`,
-        error
-      );
+      console.warn(`[agentFactory] Failed to get user API key:`, error);
       // Fall back to environment variables
     }
   }
@@ -88,12 +84,10 @@ export async function createAgentInstance(
         ? process.env[providerDef.apiKeyEnvVar]
         : undefined;
       if (apiKey) {
-        console.log(
-          `[agentFactory] Using environment API key for ${agentConfig.providerValue} from ${providerDef.apiKeyEnvVar}`
-        );
+        console.log(`[agentFactory] Using environment API key`);
       } else {
         console.warn(
-          `[agentFactory] No API key found for ${agentConfig.providerValue} - expected in ${providerDef.apiKeyEnvVar}`
+          `[agentFactory] No API key found for provider - check environment variables`
         );
       }
     }
@@ -109,18 +103,14 @@ export async function createAgentInstance(
     if (!apiKey) {
       apiKey = process.env.OPENAI_API_KEY;
       if (apiKey) {
-        console.log(
-          `[agentFactory] Using environment API key for OpenAI from OPENAI_API_KEY`
-        );
+        console.log(`[agentFactory] Using environment API key for OpenAI`);
       } else {
         console.warn(`[agentFactory] No API key found for OpenAI`);
       }
     }
   }
 
-  console.log(
-    `[agentFactory] Final config - apiBase: ${apiBase}, hasApiKey: ${!!apiKey}`
-  );
+  // Debug log removed for security - API key information should not be logged
 
   switch (agentConfig.agentType) {
     case 'OpenAI':
@@ -143,7 +133,7 @@ export async function createAgentInstance(
       if (userId) {
         const userClaudeKey = await getDecryptedApiKey(userId, 'anthropic');
         if (userClaudeKey) {
-          console.log(`[agentFactory] Using user API key for Claude`);
+          // Log removed for security
           // Temporarily set environment variable for Claude agent
           const originalKey = process.env.ANTHROPIC_API_KEY;
           process.env.ANTHROPIC_API_KEY = userClaudeKey;
@@ -168,7 +158,7 @@ export async function createAgentInstance(
       if (userId) {
         const userGeminiKey = await getDecryptedApiKey(userId, 'gemini');
         if (userGeminiKey) {
-          console.log(`[agentFactory] Using user API key for Gemini`);
+          // Log removed for security
           // Temporarily set environment variable for Gemini agent
           const originalKey = process.env.GEMINI_API_KEY;
           process.env.GEMINI_API_KEY = userGeminiKey;

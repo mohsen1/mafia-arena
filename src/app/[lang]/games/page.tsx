@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Header } from '@/components/Header';
+import { ServerHeader } from '@/components/ServerHeader';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,7 +44,7 @@ function LoadingView({ lang }: { lang: LanguageCode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header currentLang={lang} />
+      <ServerHeader currentLang={lang} />
 
       <main className="mx-auto p-4 flex flex-col items-center justify-center min-h-[80vh]">
         <div className="text-center">
@@ -62,7 +62,7 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header currentLang={lang} />
+      <ServerHeader currentLang={lang} />
 
       <main className="mx-auto p-4 flex flex-col items-center justify-center min-h-[80vh] space-y-8">
         <div className="text-center max-w-2xl">
@@ -347,7 +347,7 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header currentLang={lang} />
+      <ServerHeader currentLang={lang} />
 
       <main className="max-w-6xl mx-auto p-4 space-y-8">
         <div className="mt-8">
