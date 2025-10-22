@@ -165,5 +165,10 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.1.2",
     "wrangler": "^4.44.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild": "^0.19.0"
+    }
   }
 }
