@@ -38,6 +38,11 @@ jobs:
           NEXTAUTH_SECRET: "build-time-secret-will-be-replaced"
           NEXTAUTH_URL: "https://werewolf-ai.pages.dev"
           DATABASE_URL: "file:./placeholder.db"
+          GEMINI_API_KEY: "build-time-placeholder"
+          GOOGLE_API_KEY: "build-time-placeholder"
+          GROQ_API_KEY: "build-time-placeholder"
+          OPENAI_API_KEY: "build-time-placeholder"
+          ANTHROPIC_API_KEY: "build-time-placeholder"
 
       - name: Build with Cloudflare adapter
         run: npx @cloudflare/next-on-pages
