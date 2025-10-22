@@ -13,8 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollArea } from './ui/scroll-area';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { SpeechInput } from './SpeechInput';
-import { Mic, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function HumanChatInput() {
   const { t } = useTranslation();
@@ -24,7 +23,6 @@ export default function HumanChatInput() {
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [showSpeechInput, setShowSpeechInput] = useState(false);
 
   const gameId = gameState?.id;
   const humanPlayerId = gameState?.humanPlayerId;
@@ -276,18 +274,6 @@ export default function HumanChatInput() {
 
       return (
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
-          {showSpeechInput && gameState.voiceModeEnabled && (
-            <SpeechInput
-              onTranscript={(text) => {
-                setMessage(text);
-                setShowSpeechInput(false);
-              }}
-              onInterimTranscript={(text) => setMessage(text)}
-              placeholder={placeholder}
-              className="mb-3"
-            />
-          )}
-
           <div className="flex gap-2">
             <Input
               ref={inputRef}
@@ -300,20 +286,6 @@ export default function HumanChatInput() {
               aria-label={ariaLabel}
               onKeyDown={handleKeyDown}
             />
-
-            {gameState.voiceModeEnabled && (
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                onClick={() => setShowSpeechInput(!showSpeechInput)}
-                disabled={disabled}
-                title={t('UseMicrophone')}
-                className="bg-background text-foreground dark:bg-foreground dark:text-background border-border hover:bg-secondary"
-              >
-                <Mic className="w-4 h-4" />
-              </Button>
-            )}
 
             <Button
               type="submit"

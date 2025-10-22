@@ -33,8 +33,6 @@ export default function GameController({
     toggleAutoRun,
     runNextTurn,
     gameState,
-    isAudioGloballyEnabled,
-    toggleGlobalAudio,
   } = useGameContext();
 
   // Clear any stuck audio on mount
@@ -54,32 +52,11 @@ export default function GameController({
     // Compact version for header
     return (
       <div className={cn('flex items-center gap-2', className)}>
-        {/* Audio Toggle Button - only show if voice mode is enabled */}
-        {gameState?.voiceModeEnabled && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={toggleGlobalAudio}
-            aria-label={
-              isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')
-            }
-            title={isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')}
-          >
-            {isAudioGloballyEnabled ? (
-              <Volume2 className="h-4 w-4" />
-            ) : (
-              <VolumeX className="h-4 w-4" />
-            )}
-          </Button>
-        )}
-
         <Button
           onClick={() => {
             console.log('[GameController] Toggling auto-run mode:', {
               currentMode: isAutoRunning ? 'auto' : 'manual',
               newMode: isAutoRunning ? 'manual' : 'auto',
-              isAudioGloballyEnabled,
             });
             toggleAutoRun();
           }}
@@ -194,44 +171,6 @@ export default function GameController({
           )}
         </div>
 
-        {/* Audio Controls */}
-        {gameState?.voiceModeEnabled && (
-          <>
-            <Separator />
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{t('AudioControl')}</span>
-                <Badge
-                  variant={isAudioGloballyEnabled ? 'default' : 'secondary'}
-                >
-                  {isAudioGloballyEnabled ? t('On') : t('Off')}
-                </Badge>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={toggleGlobalAudio}
-                  variant={isAudioGloballyEnabled ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1"
-                >
-                  {isAudioGloballyEnabled ? (
-                    <>
-                      <Volume2 className="h-4 w-4 mr-2" />
-                      {t('MuteAudio')}
-                    </>
-                  ) : (
-                    <>
-                      <VolumeX className="h-4 w-4 mr-2" />
-                      {t('UnmuteAudio')}
-                    </>
-                  )}
-                </Button>
-
-              </div>
-            </div>
-          </>
-        )}
 
         {/* Current Status */}
         <Separator />

@@ -28,8 +28,6 @@ const serverEnvSchema = z.object({
   GOOGLE_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
 
-  // TTS (optional)
-  ELEVENLABS_API_KEY: z.string().optional(),
 
   // Rate Limiting (optional)
   KV_REST_API_URL: z.string().optional(),
@@ -129,7 +127,6 @@ export const {
   GEMINI_API_KEY,
   GOOGLE_API_KEY,
   GROQ_API_KEY,
-  ELEVENLABS_API_KEY,
   KV_REST_API_URL,
   KV_REST_API_TOKEN,
   RESEND_API_KEY,
