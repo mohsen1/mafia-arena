@@ -52,9 +52,9 @@ jobs:
           find . -name "*.worker.js" -o -name "_worker.js" | head -10
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: f9a5434fcf66ee00d67b61f2f67e0e22
-          command: pages deploy .worker-next --project-name=werewolf-ai --branch=${{ github.ref_name }}
+        run: pnpm exec opennextjs-cloudflare deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: f9a5434fcf66ee00d67b61f2f67e0e22
+
 
