@@ -44,16 +44,8 @@ jobs:
           OPENAI_API_KEY: "build-time-placeholder"
           ANTHROPIC_API_KEY: "build-time-placeholder"
 
-      - name: Create Vercel output structure
-        run: |
-          mkdir -p .vercel/output
-          echo '{"version":3}' > .vercel/output/config.json
-          # Remove cache directory to avoid file size limits (142 MiB cache > 25 MiB limit)
-          rm -rf .next/cache
-          cp -r .next .vercel/output/static
-
       - name: Convert to Cloudflare Pages format
-        run: npx @cloudflare/next-on-pages --skip-build
+        run: npx @cloudflare/next-on-pages
         continue-on-error: false
 
       - name: Deploy to Cloudflare Pages
@@ -61,4 +53,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: f9a5434fcf66ee00d67b61f2f67e0e22
-          command: pages deploy .vercel/output/static --project-name=werewolf-ai --branch=${{ github.ref_name }}
+          command: pages deploy .vercel/output/static --project-name=werewolf-ai --branch=${{ github.ref_name }} --compatibility-date=2024-01-01
