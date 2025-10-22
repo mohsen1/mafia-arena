@@ -1,0 +1,23 @@
+name = "werewolf-ai"
+main = ".next/server/app/api/[[...catchall]]/route.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "npm run build"
+
+# D1 Database binding for Cloudflare Workers
+[[d1_databases]]
+binding = "DB"
+database_name = "werewolf-ai-db"
+database_id = "9bb1334e-c75f-49b2-9e8c-a79771de46d4"
+
+[vars]
+NODE_ENV = "production"
+
+# Environment variables will be set via wrangler secret put
+# NEXTAUTH_URL
+# NEXTAUTH_SECRET
+# GOOGLE_API_KEY
+# GROQ_API_KEY
+# etc.

@@ -68,18 +68,16 @@ const REQUIRED_PROVIDER_GROUPS: RequiredProviderGroup[] = [
 function validateEnvironment(): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
-  const isVercel = process.env.VERCEL === '1';
-  const isVercelBuild = isVercel && process.env.VERCEL_ENV !== undefined;
-  // Improve local detection: if not in Vercel and NODE_ENV is not set, assume local development
-  const isLocalBuild = !isVercel && (!process.env.NODE_ENV || process.env.NODE_ENV === 'development');
-  const isDevelopment = process.env.NODE_ENV === 'development' && !isVercel;
+  const isCI = process.env.CI === 'true';
+  const isLocalBuild = !isCI && (!process.env.NODE_ENV || process.env.NODE_ENV === 'development');
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   console.log('🔍 Validating required environment variables...\n');
-  console.log(`Environment: ${isVercel ? 'Vercel' : isLocalBuild ? 'Local Development' : isDevelopment ? 'Development' : 'Production'}`);
-  console.log(`Build context: ${process.env.VERCEL_ENV || 'local'}`);
-  
-  if (isVercelBuild) {
-    console.log('ℹ️  Note: Running in Vercel build environment.');
+  console.log(`Environment: ${isCI ? 'CI' : isLocalBuild ? 'Local Development' : isDevelopment ? 'Development' : 'Production'}`);
+  console.log(`Build context: ${isCI ? 'CI' : 'local'}`);
+
+  if (isCI) {
+    console.log('ℹ️  Note: Running in CI build environment.');
     console.log('   Runtime secrets are not available during build phase.\n');
   } else if (isLocalBuild) {
     console.log('ℹ️  Note: Running in local development build.');
@@ -103,8 +101,8 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
 
     const value = process.env[envVar.name];
     
-    // In Vercel build environment, runtime-only vars are expected to be missing
-    if (isVercelBuild && envVar.runtimeOnly) {
+    // In CI build environment, runtime-only vars are expected to be missing
+    if (isCI && envVar.runtimeOnly) {
       if (!value) {
         warnings.push(`${envVar.name} - Will need to be set in Vercel dashboard`);
         console.log(`  ⚠️  ${envVar.name} - Not available during build (set in Vercel dashboard)`);
@@ -150,7 +148,7 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
     for (const provider of group.providers) {
       const value = process.env[provider.name];
       
-      if (isVercelBuild && provider.runtimeOnly) {
+      if (isCI && provider.runtimeOnly) {
         if (value) {
           if (provider.format && !provider.format.test(value)) {
             console.log(`  ⚠️  ${provider.name} - Set but INVALID FORMAT`);
@@ -191,7 +189,7 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
     }
 
     // Handle provider group validation
-    if (isVercelBuild && group.providers.every(p => p.runtimeOnly)) {
+    if (isCI && group.providers.every(p => p.runtimeOnly)) {
       warnings.push(`AI Provider Keys: Ensure at least one of [${group.providers.map(p => p.name).join(', ')}] is set in Vercel dashboard`);
       console.log(`\n  ⚠️  Cannot validate AI providers during build - ensure they're set in Vercel dashboard`);
     } else if (isLocalBuild) {
@@ -212,7 +210,7 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
   }
 
   // Additional warnings for production
-  if (isVercel && process.env.VERCEL_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production') {
     console.log('\n⚠️  Production Recommendations:');
     
     const recommendations = [
@@ -233,12 +231,13 @@ function validateEnvironment(): { valid: boolean; errors: string[]; warnings: st
 }
 
 // Main execution
+const isCI = process.env.CI === 'true';
 const { valid, errors, warnings } = validateEnvironment();
 
-if (warnings.length > 0 && process.env.VERCEL === '1') {
+if (warnings.length > 0 && isCI) {
   console.log('\n⚠️  Build Warnings:\n');
   warnings.forEach(warning => console.log(`  • ${warning}`));
-  console.log('\n📝 Make sure these environment variables are configured in your Vercel project settings.');
+  console.log('\n📝 Make sure these environment variables are configured in your deployment settings.');
 }
 
 if (!valid) {
@@ -246,15 +245,14 @@ if (!valid) {
   errors.forEach(error => console.log(`  • ${error}`));
   console.log('\n📚 Documentation:');
   console.log('  • See env.example for all available variables');
-  console.log('  • Check docs/VERCEL_ENV_CHECKLIST.md for Vercel setup');
   console.log('  • Visit https://github.com/your-repo/werewolf-ai#configuration\n');
   process.exit(1);
 } else {
-  if (process.env.VERCEL === '1') {
+  if (isCI) {
     console.log('\n✅ Build validation passed!');
     console.log('ℹ️  Runtime environment variables will be validated when the app starts.\n');
   } else {
     console.log('\n✅ All required environment variables are set!\n');
   }
   process.exit(0);
-} 
+}
