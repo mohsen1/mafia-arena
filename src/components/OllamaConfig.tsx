@@ -154,6 +154,11 @@ export function OllamaConfig({
     }
   }, [config.enabled, testConnection, isDevelopment]);
 
+  // Don't render Ollama config in production
+  if (!isDevelopment) {
+    return null;
+  }
+
   return (
     <Card className={className}>
       <CardHeader>
