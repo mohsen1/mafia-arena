@@ -35,6 +35,9 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: "true"
           NODE_ENV: production
+          NEXTAUTH_SECRET: "build-time-secret-will-be-replaced"
+          NEXTAUTH_URL: "https://werewolf-ai.pages.dev"
+          DATABASE_URL: "file:./placeholder.db"
 
       - name: Build with Cloudflare adapter
         run: npx @cloudflare/next-on-pages
