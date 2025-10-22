@@ -23,32 +23,8 @@ echo "ℹ️  Environment variables will be validated at runtime"
 # Handle database operations for CI
 if [ "$CI" = "true" ]; then
   echo "📦 Running in CI build environment"
-
-  # Check if DATABASE_URL is available
-  if [ -n "$DATABASE_URL" ]; then
-    echo "🔍 DATABASE_URL is configured"
-
-    # Check database connection
-    echo "📊 Checking database connection..."
-    if pnpm run db:check; then
-      echo "✅ Database connection successful"
-
-      # Run migrations
-      echo "🔄 Running database migrations..."
-      if pnpm run db:migrate; then
-        echo "✅ Migrations completed successfully"
-      else
-        echo "⚠️  Migration command returned non-zero exit code"
-        echo "ℹ️  This is expected if there are no new migrations to apply"
-      fi
-    else
-      echo "⚠️  Database connection check failed"
-      echo "ℹ️  Proceeding with build - database might not be configured yet"
-    fi
-  else
-    echo "⚠️  DATABASE_URL not configured"
-    echo "ℹ️  Skipping database operations - ensure DATABASE_URL is set in CI environment variables"
-  fi
+  echo "ℹ️  Skipping database operations - using Cloudflare D1 at runtime"
+  echo "ℹ️  Database migrations are handled via wrangler CLI for D1"
 else
   # Local development build
   # Check database connection
