@@ -48,6 +48,8 @@ jobs:
         run: |
           mkdir -p .vercel/output
           echo '{"version":3}' > .vercel/output/config.json
+          # Remove cache directory to avoid file size limits (142 MiB cache > 25 MiB limit)
+          rm -rf .next/cache
           cp -r .next .vercel/output/static
 
       - name: Convert to Cloudflare Pages format
