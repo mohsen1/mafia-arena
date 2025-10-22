@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev -p 3099",
     "build": "next build",
-    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:build": "npx @cloudflare/next-on-pages --experimental-minify",
     "pages:deploy": "pnpm run pages:build && wrangler pages deploy .vercel/output/static",
     "pages:dev": "npx @cloudflare/next-on-pages --watch",
     "build:worker": "next build && npx @cloudflare/next-on-pages --skip-build",
