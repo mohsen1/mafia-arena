@@ -30,8 +30,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Next.js
-        run: pnpm build
+      - name: Build for Cloudflare Pages
+        run: pnpm pages:build
         env:
           SKIP_ENV_VALIDATION: "true"
           NODE_ENV: production
@@ -43,18 +43,6 @@ jobs:
           GROQ_API_KEY: "build-time-placeholder"
           OPENAI_API_KEY: "build-time-placeholder"
           ANTHROPIC_API_KEY: "build-time-placeholder"
-
-      - name: Create Vercel output structure
-        run: |
-          mkdir -p .vercel/output
-          echo '{"version":3}' > .vercel/output/config.json
-          # Remove cache directory to avoid file size limits (142 MiB cache > 25 MiB limit)
-          rm -rf .next/cache
-          cp -r .next .vercel/output/static
-
-      - name: Convert to Cloudflare Pages format
-        run: npx @cloudflare/next-on-pages --skip-build
-        continue-on-error: false
         
       - name: Debug - Check generated files
         run: |
