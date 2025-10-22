@@ -35,14 +35,14 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: "true"
           NODE_ENV: production
-          NEXTAUTH_SECRET: "build-time-secret-will-be-replaced"
-          NEXTAUTH_URL: "https://werewolf-ai.pages.dev"
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: "https://werewolf-ai.me-f9a.workers.dev"
           DATABASE_URL: "file:./placeholder.db"
-          GEMINI_API_KEY: "build-time-placeholder"
-          GOOGLE_API_KEY: "build-time-placeholder"
-          GROQ_API_KEY: "build-time-placeholder"
-          OPENAI_API_KEY: "build-time-placeholder"
-          ANTHROPIC_API_KEY: "build-time-placeholder"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         
       - name: Debug - Check generated files
         run: |
