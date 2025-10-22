@@ -38,11 +38,15 @@ try {
 }
 
 export default defineConfig({
-  dialect: 'postgresql',
+  dialect: 'sqlite',
+  driver: 'd1-http',
   schema: './src/lib/db/schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: databaseUrl || 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
+    // D1-specific credentials - these are used for drizzle-kit push/generate
+    // In development, you can use a local SQLite file:
+    url: process.env.LOCAL_DB_PATH || 'file:./local.db',
+    // For production with D1, use wrangler's d1 commands instead
   },
   verbose: true,
   strict: true,
