@@ -1,6 +1,5 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { useGameContext } from '@/context/GameContext';
-import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 interface KeyboardShortcut {
   key: string;
@@ -95,9 +94,6 @@ export function useKeyboardShortcuts() {
 
         if (keyMatch && ctrlMatch && shiftMatch && altMatch) {
           event.preventDefault();
-          addAudioBreadcrumb(`Keyboard: ${shortcut.description}`, {
-            key: shortcut.key,
-          });
           shortcut.action();
           break;
         }

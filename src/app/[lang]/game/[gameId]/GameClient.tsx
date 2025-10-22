@@ -11,7 +11,6 @@ import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
 import { ServerHeader } from '@/components/ServerHeader';
 import { GameProvider, useGameContext } from '@/context/GameContext';
-import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
@@ -22,7 +21,6 @@ import { Menu, User, LogOut, Gamepad2, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { GameNotificationCenter } from '@/components/GameNotificationCenter';
-import { AudioDebugOverlay } from '@/components/AudioDebugOverlay';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
@@ -310,8 +308,6 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
         </div>
       )}
 
-      {/* Audio Debug Overlay - visible in both human and spectator views */}
-      <AudioDebugOverlay />
     </>
   );
 }
@@ -324,14 +320,12 @@ export default function GameClient({
   boundSubmitHumanAction,
 }: GameClientProps) {
   return (
-    <SpokenTextProvider>
-      <GameProvider
-        initialGameState={initialGameState}
-        boundRunGameTurnAction={boundAdvanceGameStateAction}
-        boundSubmitHumanAction={boundSubmitHumanAction}
-      >
-        <GameLayout gameId={gameId} lang={lang as LanguageCode} />
-      </GameProvider>
-    </SpokenTextProvider>
+    <GameProvider
+      initialGameState={initialGameState}
+      boundRunGameTurnAction={boundAdvanceGameStateAction}
+      boundSubmitHumanAction={boundSubmitHumanAction}
+    >
+      <GameLayout gameId={gameId} lang={lang as LanguageCode} />
+    </GameProvider>
   );
 }

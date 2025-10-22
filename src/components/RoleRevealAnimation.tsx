@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 interface RoleRevealAnimationProps {
   playerName: string;
@@ -46,12 +45,6 @@ export function RoleRevealAnimation({
       timestamp: new Date().toISOString(),
     });
 
-    addAudioBreadcrumb('Role reveal animation started', {
-      playerName,
-      role,
-      reason,
-    });
-
     const timer = setTimeout(() => {
       setShowReveal(false);
 
@@ -59,11 +52,6 @@ export function RoleRevealAnimation({
         playerName,
         role,
         timestamp: new Date().toISOString(),
-      });
-
-      addAudioBreadcrumb('Role reveal animation completed', {
-        playerName,
-        role,
       });
 
       onComplete?.();

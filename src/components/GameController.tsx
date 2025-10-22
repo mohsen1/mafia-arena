@@ -11,7 +11,6 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useSpokenText } from '@/context/SpokenTextContext';
 import { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -38,33 +37,15 @@ export default function GameController({
     toggleGlobalAudio,
   } = useGameContext();
 
-  const { currentlySpeakingId, resetAudio } = useSpokenText();
-
   // Clear any stuck audio on mount
   useEffect(() => {
-    if (currentlySpeakingId) {
-      console.log(
-        '[GameController] Clearing stuck audio on mount:',
-        currentlySpeakingId
-      );
-      resetAudio();
-    }
-  }, [currentlySpeakingId, resetAudio]); // Run when these dependencies change
+    // Audio cleanup logic removed
+  }, []); // Run when these dependencies change
 
   const handleNextClick = () => {
     if (!isAutoRunning) {
-      // In manual mode, stop any current audio before advancing
-      if (currentlySpeakingId) {
-        console.log('[GameController] Stopping audio before manual next turn');
-        resetAudio();
-      }
       runNextTurn();
     }
-  };
-
-  const handleClearAudio = () => {
-    console.log('[GameController] Manually clearing audio');
-    resetAudio();
   };
 
   if (!gameState) return null;
@@ -75,36 +56,22 @@ export default function GameController({
       <div className={cn('flex items-center gap-2', className)}>
         {/* Audio Toggle Button - only show if voice mode is enabled */}
         {gameState?.voiceModeEnabled && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              onClick={toggleGlobalAudio}
-              aria-label={
-                isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')
-              }
-              title={isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')}
-            >
-              {isAudioGloballyEnabled ? (
-                <Volume2 className="h-4 w-4" />
-              ) : (
-                <VolumeX className="h-4 w-4" />
-              )}
-            </Button>
-            {currentlySpeakingId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={handleClearAudio}
-                aria-label={t('SkipAudio')}
-                title={t('SkipAudio')}
-              >
-                <SkipForward className="h-4 w-4" />
-              </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={toggleGlobalAudio}
+            aria-label={
+              isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')
+            }
+            title={isAudioGloballyEnabled ? t('MuteAudio') : t('UnmuteAudio')}
+          >
+            {isAudioGloballyEnabled ? (
+              <Volume2 className="h-4 w-4" />
+            ) : (
+              <VolumeX className="h-4 w-4" />
             )}
-          </>
+          </Button>
         )}
 
         <Button
@@ -112,7 +79,6 @@ export default function GameController({
             console.log('[GameController] Toggling auto-run mode:', {
               currentMode: isAutoRunning ? 'auto' : 'manual',
               newMode: isAutoRunning ? 'manual' : 'auto',
-              currentlySpeakingId,
               isAudioGloballyEnabled,
             });
             toggleAutoRun();
@@ -262,17 +228,6 @@ export default function GameController({
                   )}
                 </Button>
 
-                {currentlySpeakingId && (
-                  <Button
-                    onClick={handleClearAudio}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                  >
-                    <SkipForward className="h-4 w-4 mr-2" />
-                    {t('SkipAudio')}
-                  </Button>
-                )}
               </div>
             </div>
           </>
