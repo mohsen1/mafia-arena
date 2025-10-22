@@ -32,6 +32,9 @@ jobs:
 
       - name: Build Next.js
         run: pnpm build
+        env:
+          SKIP_ENV_VALIDATION: "true"
+          NODE_ENV: production
 
       - name: Build with Cloudflare adapter
         run: npx @cloudflare/next-on-pages
