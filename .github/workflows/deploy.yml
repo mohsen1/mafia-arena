@@ -44,9 +44,26 @@ jobs:
           OPENAI_API_KEY: "build-time-placeholder"
           ANTHROPIC_API_KEY: "build-time-placeholder"
 
+      - name: Create Vercel output structure
+        run: |
+          mkdir -p .vercel/output
+          echo '{"version":3}' > .vercel/output/config.json
+          # Remove cache directory to avoid file size limits (142 MiB cache > 25 MiB limit)
+          rm -rf .next/cache
+          cp -r .next .vercel/output/static
+
       - name: Convert to Cloudflare Pages format
-        run: npx @cloudflare/next-on-pages
+        run: npx @cloudflare/next-on-pages --skip-build
         continue-on-error: false
+        
+      - name: Debug - Check generated files
+        run: |
+          echo "Contents of .vercel/output/static:"
+          ls -la .vercel/output/static/ || true
+          echo "Worker file exists:"
+          ls -la .vercel/output/static/_worker.js/ || true
+          echo "Routes file:"
+          cat .vercel/output/static/_routes.json || true
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
