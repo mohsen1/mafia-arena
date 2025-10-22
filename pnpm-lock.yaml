@@ -327,6 +327,9 @@ importers:
       vitest:
         specifier: ^3.1.2
         version: 3.1.2(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@20.17.30)(jiti@2.4.2)(jsdom@26.1.0)(lightningcss@1.29.2)(terser@5.16.9)(tsx@4.19.3)(yaml@2.8.1)
+      wrangler:
+        specifier: ^4.44.0
+        version: 4.44.0
 
 packages:
 
