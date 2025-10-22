@@ -5,7 +5,7 @@ describe('API Key Functionality', () => {
   describe('validateApiKeyFormat', () => {
     it('should validate OpenAI API key format', () => {
       expect(
-        validateApiKeyFormat('openai', 'sk-1234567890abcdef1234567890abcdef')
+        validateApiKeyFormat('openai', 'sk-1234567890abcdef1234567890abcdef1234567890abcdef')
       ).toBe(true);
       expect(validateApiKeyFormat('openai', 'invalid-key')).toBe(false);
       expect(validateApiKeyFormat('openai', 'sk-short')).toBe(false);
@@ -15,7 +15,7 @@ describe('API Key Functionality', () => {
       expect(
         validateApiKeyFormat(
           'anthropic',
-          'sk-ant-1234567890abcdef1234567890abcdef'
+          'sk-ant-api03-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
         )
       ).toBe(true);
       expect(validateApiKeyFormat('anthropic', 'sk-1234567890abcdef')).toBe(
@@ -25,7 +25,7 @@ describe('API Key Functionality', () => {
 
     it('should validate Groq API key format', () => {
       expect(
-        validateApiKeyFormat('groq', 'gsk_1234567890abcdef1234567890abcdef')
+        validateApiKeyFormat('groq', 'gsk_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef')
       ).toBe(true);
       expect(validateApiKeyFormat('groq', 'sk-1234567890abcdef')).toBe(false);
     });

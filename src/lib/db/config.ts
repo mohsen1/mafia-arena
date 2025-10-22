@@ -2,10 +2,8 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-const isVercel = Boolean(process.env.VERCEL);
-const isDev = process.env.NODE_ENV === 'development' && !isVercel;
-const isBuildTime =
-  process.env.VERCEL_ENV === 'production' || process.env.CI === 'true';
+const isDev = process.env.NODE_ENV === 'development';
+const isBuildTime = process.env.CI === 'true';
 
 const connectionString =
   process.env.DATABASE_URL ||

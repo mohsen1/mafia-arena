@@ -6,7 +6,7 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // Only run validation on server startup, not during build
-    if (process.env.NODE_ENV !== 'development' || process.env.VERCEL) {
+    if (process.env.NODE_ENV !== 'development') {
       const { ensureRuntimeEnvironment } = await import(
         './lib/validateRuntimeEnv'
       );

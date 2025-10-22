@@ -84,7 +84,7 @@ export function validateApiKeyFormat(
     case 'anthropic':
     case 'claude':
       // Anthropic keys start with 'sk-ant-api03-'
-      return /^sk-ant-api03-[a-zA-Z0-9_-]{95,}[a-zA-Z0-9_-]*$/.test(apiKey) && apiKey.length >= 108;
+      return /^sk-ant-api03-[a-zA-Z0-9_-]{60,}[a-zA-Z0-9_-]*$/.test(apiKey);
 
     case 'gemini':
     case 'google':

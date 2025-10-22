@@ -1,7 +1,7 @@
 import { defineConfig } from 'drizzle-kit';
 
 // During build time, we might not have all env vars available
-const isBuildTime = process.env.VERCEL === '1' || process.env.CI === 'true';
+const isBuildTime = process.env.CI === 'true';
 
 let databaseUrl: string;
 
