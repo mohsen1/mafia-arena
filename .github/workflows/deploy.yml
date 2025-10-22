@@ -44,10 +44,15 @@ jobs:
           OPENAI_API_KEY: "build-time-placeholder"
           ANTHROPIC_API_KEY: "build-time-placeholder"
 
-      - name: Build with Cloudflare adapter
+      - name: Create Vercel output structure
+        run: |
+          mkdir -p .vercel/output
+          echo '{"version":3}' > .vercel/output/config.json
+          cp -r .next .vercel/output/static
+
+      - name: Convert to Cloudflare Pages format
         run: npx @cloudflare/next-on-pages --skip-build
-        env:
-          NODE_ENV: production
+        continue-on-error: false
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
