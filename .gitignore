@@ -82,8 +82,21 @@ test-automation-setup.js
 test-cursor-automation.js
 
 # Temporary files
+# Build/test output files  
+build-output.txt
+dev-server-output.txt
+tsc-errors.txt
+lint-errors.txt
+test-results*.txt
+test-results*.json
+ci-build-test.txt
 commit_msg.txt
 
 # Database files
 *.db
 !schema.sql
+*.sqlite
+*.sqlite3
+
+# Temporary documentation
+project_docs/

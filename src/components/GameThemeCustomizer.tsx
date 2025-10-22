@@ -116,8 +116,13 @@ const DEFAULT_THEME: CustomTheme = {
   },
 };
 
-const PRESET_THEMES = [
+const PRESET_THEMES: Array<{
+  nameKey: string;
+  name: string;
+  theme: CustomTheme;
+}> = [
   {
+    nameKey: 'gameThemePresets.darkMode',
     name: 'Dark Mode',
     theme: {
       ...DEFAULT_THEME,
@@ -134,6 +139,7 @@ const PRESET_THEMES = [
     },
   },
   {
+    nameKey: 'gameThemePresets.vampire',
     name: 'Vampire',
     theme: {
       ...DEFAULT_THEME,
@@ -153,6 +159,7 @@ const PRESET_THEMES = [
     },
   },
   {
+    nameKey: 'gameThemePresets.forest',
     name: 'Forest',
     theme: {
       ...DEFAULT_THEME,
@@ -203,7 +210,7 @@ export function GameThemeCustomizer({
   const applyPreset = (preset: (typeof PRESET_THEMES)[0]) => {
     setTheme(preset.theme);
     setHasChanges(true);
-    toast.success(`Applied ${preset.name} theme`);
+    toast.success(`Applied ${t(preset.nameKey, preset.name)} theme`);
   };
 
   const saveTheme = () => {
@@ -355,7 +362,7 @@ export function GameThemeCustomizer({
                 className="text-xs"
               >
                 <Sparkles className="w-3 h-3 me-1" />
-                {preset.name}
+                {t(preset.nameKey, preset.name)}
               </Button>
             ))}
           </div>

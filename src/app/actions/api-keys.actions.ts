@@ -8,6 +8,28 @@ import { encrypt, decrypt, validateApiKeyFormat } from '@/lib/crypto';
 import { eq, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
+// Rate limiting for API key validation attempts
+const VALIDATION_ATTEMPTS = new Map<string, { count: number; resetTime: number }>();
+const MAX_ATTEMPTS_PER_HOUR = 10;
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+
+function checkRateLimit(userId: string): { allowed: boolean; remainingTime?: number } {
+  const now = Date.now();
+  const userAttempts = VALIDATION_ATTEMPTS.get(userId);
+
+  if (!userAttempts || now > userAttempts.resetTime) {
+    VALIDATION_ATTEMPTS.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return { allowed: true };
+  }
+
+  if (userAttempts.count >= MAX_ATTEMPTS_PER_HOUR) {
+    return { allowed: false, remainingTime: userAttempts.resetTime - now };
+  }
+
+  userAttempts.count++;
+  return { allowed: true };
+}
+
 export interface UserApiKeyInfo {
   id: string;
   provider: string;
@@ -73,11 +95,21 @@ export async function createApiKey(
     return { success: false, error: 'Authentication required' };
   }
 
-  // Validate API key format
+  // Check rate limiting
+  const rateLimitCheck = checkRateLimit(session.user.id);
+  if (!rateLimitCheck.allowed) {
+    const minutesLeft = Math.ceil((rateLimitCheck.remainingTime || 0) / (60 * 1000));
+    return {
+      success: false,
+      error: `Too many validation attempts. Please try again in ${minutesLeft} minutes.`,
+    };
+  }
+
+  // Validate API key format with improved error handling
   if (!validateApiKeyFormat(data.provider, data.apiKey)) {
     return {
       success: false,
-      error: 'Invalid API key format for the selected provider',
+      error: 'The provided API key format is not valid. Please check your key and try again.',
     };
   }
 
@@ -145,6 +177,16 @@ export async function updateApiKey(
     return { success: false, error: 'Authentication required' };
   }
 
+  // Check rate limiting for API key updates
+  const rateLimitCheck = checkRateLimit(session.user.id);
+  if (!rateLimitCheck.allowed) {
+    const minutesLeft = Math.ceil((rateLimitCheck.remainingTime || 0) / (60 * 1000));
+    return {
+      success: false,
+      error: `Too many validation attempts. Please try again in ${minutesLeft} minutes.`,
+    };
+  }
+
   try {
     // Verify the key belongs to the current user
     const existingKey = await db
@@ -186,7 +228,7 @@ export async function updateApiKey(
       if (!validateApiKeyFormat(existingKey[0].provider, data.apiKey)) {
         return {
           success: false,
-          error: 'Invalid API key format for this provider',
+          error: 'The provided API key format is not valid. Please check your key and try again.',
         };
       }
       updateData.encryptedApiKey = encrypt(data.apiKey);

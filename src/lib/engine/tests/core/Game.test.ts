@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   describe,
   it,
@@ -1044,9 +1045,15 @@ describe.skip('Game', () => {
       (game as any)['#currentState'] = stuckPhase;
 
       // Mock getPhaseStep to always return the same step
-      vi.spyOn(game, 'getPhaseStep').mockReturnValue('Start');
-      vi.spyOn(game, 'getNextPlayerIndexToAction').mockReturnValue(0);
-      vi.spyOn(game, 'checkWinCondition').mockReturnValue(null);
+      const _getPhaseStepSpy = vi
+        .spyOn(game, 'getPhaseStep')
+        .mockReturnValue('Start');
+      const _getNextPlayerIndexSpy = vi
+        .spyOn(game, 'getNextPlayerIndexToAction')
+        .mockReturnValue(0);
+      const _checkWinSpy = vi
+        .spyOn(game, 'checkWinCondition')
+        .mockReturnValue(null);
       const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
       const logEventSpy = vi.spyOn(game, 'logEvent');
 
@@ -1116,7 +1123,9 @@ describe.skip('Game', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (game as any)['#currentState'] = endlessPhase;
 
-      vi.spyOn(game, 'checkWinCondition').mockReturnValue(null);
+      const _checkWinSpy = vi
+        .spyOn(game, 'checkWinCondition')
+        .mockReturnValue(null);
       const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
       const logEventSpy = vi.spyOn(game, 'logEvent');
 
@@ -1149,7 +1158,9 @@ describe.skip('Game', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (game as any)['#currentState'] = dayPhase;
 
-      vi.spyOn(game, 'checkWinCondition').mockReturnValue(null);
+      const _checkWinSpy = vi
+        .spyOn(game, 'checkWinCondition')
+        .mockReturnValue(null);
       const advancePhaseSpy = vi.spyOn(game, 'advanceToPhase');
 
       // Mock getPhaseStep to return 'Finished' for transitions
@@ -1180,7 +1191,9 @@ describe.skip('Game', () => {
     });
 
     it('should notify renderers of game start and end', async () => {
-      vi.spyOn(game, 'checkWinCondition').mockReturnValue('Mafia');
+      const _checkWinSpy = vi
+        .spyOn(game, 'checkWinCondition')
+        .mockReturnValue('Mafia');
       const notifyRenderersSpy = vi.spyOn(game, 'notifyRenderers');
 
       await game.runGameLoop();

@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface GameThemeInfoDialogProps {
   themeKey: string;
@@ -107,7 +108,10 @@ export function GameThemeInfoDialog({
         <Button
           variant="ghost"
           size="sm"
-          className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
+          className={cn(
+            'h-4 w-4 p-0 text-muted-foreground hover:text-foreground',
+            className
+          )}
         >
           <HelpCircle className="h-3 w-3" />
         </Button>
