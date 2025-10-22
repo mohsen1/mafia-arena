@@ -15,7 +15,6 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { SpeechInput } from './SpeechInput';
 import { Mic, Loader2 } from 'lucide-react';
-import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 export default function HumanChatInput() {
   const { t } = useTranslation();
@@ -80,11 +79,6 @@ export default function HumanChatInput() {
             gamePhase: gameState?.phase,
           });
 
-          addAudioBreadcrumb('User message sent', {
-            length: message.length,
-            phase: gameState?.phase,
-          });
-
           payload = {
             playerId: humanPlayerId,
             type: 'message',
@@ -103,11 +97,6 @@ export default function HumanChatInput() {
             target: selectedTarget,
             timestamp: new Date().toISOString(),
             gamePhase: gameState?.phase,
-          });
-
-          addAudioBreadcrumb('Vote submitted', {
-            target: selectedTarget,
-            phase: gameState?.phase,
           });
 
           payload = {

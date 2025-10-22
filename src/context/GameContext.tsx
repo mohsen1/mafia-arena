@@ -12,7 +12,6 @@ import React, {
 
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
-import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 // Add comprehensive logging helper
 const PHASE_LOG_PREFIX = '[GameContext Phase]';
@@ -165,10 +164,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const registerAudioPlayback = useCallback((messageId: string) => {
     setActiveAudioCount((prev) => {
       const newCount = prev + 1;
-      addAudioBreadcrumb(`Registering audio for message: ${messageId}`, {
-        previousCount: prev,
-        newCount,
-      });
       console.log('[GameContext] Audio registered:', {
         messageId,
         activeAudioCount: newCount,
@@ -180,10 +175,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const reportAudioFinished = useCallback((messageId: string) => {
     setActiveAudioCount((prev) => {
       const newCount = Math.max(0, prev - 1);
-      addAudioBreadcrumb(`Audio finished for message: ${messageId}`, {
-        previousCount: prev,
-        newCount,
-      });
       console.log('[GameContext] Audio finished:', {
         messageId,
         activeAudioCount: newCount,
@@ -402,9 +393,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({
 
     // 4. Audio is still playing - NEW CHECK
     if (activeAudioCount > 0) {
-      addAudioBreadcrumb('Auto-run paused, waiting for audio to finish', {
-        activeAudioCount,
-      });
       logAudio('AUTO_RUN_PAUSED', {
         reason: 'Waiting for audio to finish',
         activeAudioCount,

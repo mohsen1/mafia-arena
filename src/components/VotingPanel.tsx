@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import { useTranslation } from 'react-i18next';
 import { useGameContext } from '@/context/GameContext';
-import { addAudioBreadcrumb } from '@/components/AudioDebugOverlay';
 
 interface VotingPanelProps {
   gameState: FilteredGameState;
@@ -150,13 +149,6 @@ export function VotingPanel({
         ? gameState.players[selectedTarget]?.name
         : 'Abstain',
       timestamp: new Date().toISOString(),
-    });
-
-    addAudioBreadcrumb('Vote submitted', {
-      target: selectedTarget,
-      targetName: selectedTarget
-        ? gameState.players[selectedTarget]?.name
-        : 'Abstain',
     });
 
     try {

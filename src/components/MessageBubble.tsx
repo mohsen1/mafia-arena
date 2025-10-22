@@ -4,7 +4,6 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { DynamicAvatar } from './ui/dynamic-avatar';
 import { MemoizedReactMarkdown } from './MemoizedReactMarkdown';
-import SpeakText from './SpeakText';
 import type {
   ClientMessage,
   FilteredPlayer,
@@ -95,16 +94,8 @@ const MessageBubbleComponent = ({
           autoPlay: true,
         }
       );
-      return (
-        <SpeakText
-          text={content}
-          voiceId={getVoiceId()}
-          autoPlay={shouldAutoPlay}
-          showControls={false}
-          isAudioGloballyEnabled={isAudioGloballyEnabled}
-          messageId={message.id}
-        />
-      );
+      // SpeakText component removed - render as markdown instead
+      return <MemoizedReactMarkdown>{content}</MemoizedReactMarkdown>;
     }
 
     console.log(`[MessageBubble] ${timestamp()} 📝 RENDERING without voice:`, {
