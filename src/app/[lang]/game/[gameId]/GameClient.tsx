@@ -9,7 +9,7 @@ import { GameThemeInfoDialog } from '@/components/GameThemeInfoDialog';
 
 import { GameReplay } from '@/components/GameReplay';
 import SpectatorMode from '@/components/SpectatorMode';
-import { Header } from '@/components/Header';
+import { ServerHeader } from '@/components/ServerHeader';
 import { GameProvider, useGameContext } from '@/context/GameContext';
 import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -22,6 +22,7 @@ import { Menu, User, LogOut, Gamepad2, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { GameNotificationCenter } from '@/components/GameNotificationCenter';
+import { AudioDebugOverlay } from '@/components/AudioDebugOverlay';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
@@ -51,8 +52,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const direction = i18n.dir(lang);
   const { data: session } = useSession();
 
-  const { gameState, setGameState, error, clearError, runNextTurn } =
-    useGameContext();
+  const { gameState, error, clearError, runNextTurn } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -65,7 +65,12 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
       <CharacterGenerationUI
         gameId={gameId}
         onComplete={(newGameState) => {
-          setGameState(newGameState);
+          // Character generation complete - the component should handle
+          // updating the game state through server actions and then
+          // refresh or redirect to reload the updated game state
+          console.log('Character generation complete', newGameState);
+          // Force a page refresh to reload the game with new state
+          window.location.reload();
         }}
         onError={(error) => {
           console.error('Character generation error:', error);
@@ -80,7 +85,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
     return (
       <>
         <div className="min-h-screen bg-background" dir={direction}>
-          <Header currentLang={lang} />
+          <ServerHeader currentLang={lang} />
           <div className="container mx-auto p-4">
             <GameReplay gameState={gameState} />
           </div>
@@ -281,7 +286,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
       ) : (
         // AI-only spectator view
         <div className="min-h-screen bg-background" dir={direction}>
-          <Header currentLang={lang} />
+          <ServerHeader currentLang={lang} />
           <div className="h-[calc(100vh-4rem)] overflow-hidden p-2">
             {error && (
               <div className="mb-2">
@@ -304,6 +309,9 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
           </div>
         </div>
       )}
+
+      {/* Audio Debug Overlay - visible in both human and spectator views */}
+      <AudioDebugOverlay />
     </>
   );
 }
@@ -316,22 +324,14 @@ export default function GameClient({
   boundSubmitHumanAction,
 }: GameClientProps) {
   return (
-    <GameProvider
-      initialGameState={initialGameState}
-      boundRunGameTurnAction={boundAdvanceGameStateAction}
-      boundSubmitHumanAction={boundSubmitHumanAction}
-    >
-      <GameClientInner gameId={gameId} lang={lang} />
-    </GameProvider>
-  );
-}
-
-function GameClientInner({ gameId, lang }: { gameId: string; lang: string }) {
-  const { isAudioGloballyEnabled } = useGameContext();
-
-  return (
-    <SpokenTextProvider isAudioGloballyEnabled={isAudioGloballyEnabled}>
-      <GameLayout gameId={gameId} lang={lang as LanguageCode} />
+    <SpokenTextProvider>
+      <GameProvider
+        initialGameState={initialGameState}
+        boundRunGameTurnAction={boundAdvanceGameStateAction}
+        boundSubmitHumanAction={boundSubmitHumanAction}
+      >
+        <GameLayout gameId={gameId} lang={lang as LanguageCode} />
+      </GameProvider>
     </SpokenTextProvider>
   );
 }

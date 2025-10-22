@@ -20,22 +20,19 @@ import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface HeaderProps {
   currentLang: LanguageCode;
+  session?: any; // Optional server-side session
 }
 
-export function Header({ currentLang }: HeaderProps) {
-  const { data: session, status } = useSession();
+export function Header({ currentLang, session: serverSession }: HeaderProps) {
+  const { data: clientSession, status } = useSession();
+  // Use server session if provided, otherwise use client session
+  const session = serverSession || clientSession;
   const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Debug session status in production
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'production') {
-      console.log('[Header] Session status:', status);
-      console.log('[Header] Session data:', session);
-    }
-  }, [status, session]);
+  // Removed debug logging for production
 
   // Handle scroll effect
   useEffect(() => {
@@ -80,16 +77,13 @@ export function Header({ currentLang }: HeaderProps) {
       );
 
       if (!isAllowedDomain && process.env.NODE_ENV === 'production') {
-        console.warn(
-          '[Header] Image URL from untrusted domain:',
-          parsedUrl.hostname
-        );
+        // Log removed for production security
         return null;
       }
 
       return url;
-    } catch (error) {
-      console.error('[Header] Invalid image URL:', url, error);
+    } catch {
+      // Log removed for production security
       return null;
     }
   };
@@ -145,12 +139,8 @@ export function Header({ currentLang }: HeaderProps) {
                           width={24}
                           height={24}
                           className="w-6 h-6 rounded-full"
-                          onError={(e) => {
-                            console.error(
-                              'Profile image failed to load:',
-                              validImageUrl
-                            );
-                            console.error('Image error event:', e);
+                          onError={() => {
+                            // Log removed for production security
                             setImageError(true);
                           }}
                           unoptimized={validImageUrl.includes(

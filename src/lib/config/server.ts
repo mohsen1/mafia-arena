@@ -43,7 +43,6 @@ const serverEnvSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
-  VERCEL: z.string().optional(),
   CI: z.string().optional(),
 });
 
@@ -83,7 +82,6 @@ export const serverConfig = validateEnv();
 export const isDevelopment = serverConfig.NODE_ENV === 'development';
 export const isProduction = serverConfig.NODE_ENV === 'production';
 export const isTest = serverConfig.NODE_ENV === 'test';
-export const isVercel = Boolean(serverConfig.VERCEL);
 export const isCI = Boolean(serverConfig.CI);
 
 // Check if at least one AI provider is configured

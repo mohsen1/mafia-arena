@@ -1,30 +1,27 @@
 import {
-  pgTable,
+  sqliteTable,
   text,
-  timestamp,
   integer,
-  jsonb,
-  boolean,
   primaryKey,
-} from 'drizzle-orm/pg-core';
+} from 'drizzle-orm/sqlite-core';
 import type { AdapterAccount } from 'next-auth/adapters';
 import { relations } from 'drizzle-orm';
 
 // NextAuth.js required tables
-export const users = pgTable('user', {
+export const users = sqliteTable('user', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text('name'),
   email: text('email').notNull(),
-  emailVerified: timestamp('emailVerified', { mode: 'date' }),
+  emailVerified: integer('emailVerified', { mode: 'timestamp' }),
   image: text('image'),
   password: text('password'), // For username/password authentication
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
 
-export const accounts = pgTable(
+export const accounts = sqliteTable(
   'account',
   {
     userId: text('userId')
@@ -48,20 +45,20 @@ export const accounts = pgTable(
   })
 );
 
-export const sessions = pgTable('session', {
+export const sessions = sqliteTable('session', {
   sessionToken: text('sessionToken').primaryKey(),
   userId: text('userId')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
-  expires: timestamp('expires', { mode: 'date' }).notNull(),
+  expires: integer('expires', { mode: 'timestamp' }).notNull(),
 });
 
-export const verificationTokens = pgTable(
+export const verificationTokens = sqliteTable(
   'verificationToken',
   {
     identifier: text('identifier').notNull(),
     token: text('token').notNull(),
-    expires: timestamp('expires', { mode: 'date' }).notNull(),
+    expires: integer('expires', { mode: 'timestamp' }).notNull(),
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
@@ -69,10 +66,10 @@ export const verificationTokens = pgTable(
 );
 
 // Application-specific tables
-export const games = pgTable('games', {
+export const games = sqliteTable('games', {
   id: text('id').primaryKey(),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
   ownerId: text('owner_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
@@ -83,11 +80,12 @@ export const games = pgTable('games', {
   phase: text('phase').notNull().default('Init'),
   status: text('status').notNull().default('active'), // active, completed, abandoned
   winCondition: text('win_condition'), // null, 'Mafia', 'Town'
-  isPublic: boolean('is_public').notNull().default(false),
-  gameState: jsonb('game_state').notNull(), // Full serializable game state
+  isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(false),
+  gameState: text('game_state', { mode: 'json' }).notNull(), // Full serializable game state
+  version: integer('version').notNull().default(1), // Optimistic locking version
 });
 
-export const gameParticipants = pgTable('game_participants', {
+export const gameParticipants = sqliteTable('game_participants', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -99,13 +97,13 @@ export const gameParticipants = pgTable('game_participants', {
   playerName: text('player_name').notNull(),
   roleName: text('role_name').notNull(),
   allegiance: text('allegiance').notNull(), // 'Mafia' | 'Town'
-  isHuman: boolean('is_human').notNull().default(false),
-  isAlive: boolean('is_alive').notNull().default(true),
+  isHuman: integer('is_human', { mode: 'boolean' }).notNull().default(false),
+  isAlive: integer('is_alive', { mode: 'boolean' }).notNull().default(true),
   imageUrl: text('image_url'),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
 
-export const userPreferences = pgTable('user_preferences', {
+export const userPreferences = sqliteTable('user_preferences', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -120,13 +118,13 @@ export const userPreferences = pgTable('user_preferences', {
   preferredAiModel: text('preferred_ai_model')
     .notNull()
     .default('gemma2-9b-it'),
-  enableSoundEffects: boolean('enable_sound_effects').notNull().default(true),
-  enableTTS: boolean('enable_tts').notNull().default(false),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+  enableSoundEffects: integer('enable_sound_effects', { mode: 'boolean' }).notNull().default(true),
+  enableTTS: integer('enable_tts', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
 
-export const userApiKeys = pgTable('user_api_keys', {
+export const userApiKeys = sqliteTable('user_api_keys', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -136,13 +134,13 @@ export const userApiKeys = pgTable('user_api_keys', {
   provider: text('provider').notNull(), // e.g., 'openai', 'anthropic', 'gemini', 'groq'
   keyName: text('key_name').notNull(), // User-friendly name like "My OpenAI Key"
   encryptedApiKey: text('encrypted_api_key').notNull(), // Encrypted API key
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
 
 // User Achievements table
-export const userAchievements = pgTable('user_achievements', {
+export const userAchievements = sqliteTable('user_achievements', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -152,13 +150,13 @@ export const userAchievements = pgTable('user_achievements', {
   achievementId: text('achievement_id').notNull(),
   progress: integer('progress').notNull().default(0),
   maxProgress: integer('max_progress').notNull().default(1),
-  unlockedAt: timestamp('unlocked_at', { mode: 'date' }),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+  unlockedAt: integer('unlocked_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
 
 // Game Statistics table
-export const gameStatistics = pgTable('game_statistics', {
+export const gameStatistics = sqliteTable('game_statistics', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -173,8 +171,8 @@ export const gameStatistics = pgTable('game_statistics', {
     .references(() => gameParticipants.id, { onDelete: 'cascade' }),
 
   // Game outcome
-  won: boolean('won').notNull(),
-  survived: boolean('survived').notNull(),
+  won: integer('won', { mode: 'boolean' }).notNull(),
+  survived: integer('survived', { mode: 'boolean' }).notNull(),
   roundsPlayed: integer('rounds_played').notNull(),
   gameDuration: integer('game_duration').notNull(), // in seconds
 
@@ -192,11 +190,11 @@ export const gameStatistics = pgTable('game_statistics', {
   trustScore: integer('trust_score'), // calculated based on voting patterns
   influenceScore: integer('influence_score'), // how often others followed their voting lead
 
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
 
 // Aggregated User Statistics table (for fast queries)
-export const userStatsSummary = pgTable('user_stats_summary', {
+export const userStatsSummary = sqliteTable('user_stats_summary', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -227,7 +225,7 @@ export const userStatsSummary = pgTable('user_stats_summary', {
   // Activity metrics
   totalPlayTime: integer('total_play_time').notNull().default(0), // in seconds
   averageGameDuration: integer('average_game_duration').notNull().default(0), // in seconds
-  lastPlayedAt: timestamp('last_played_at', { mode: 'date' }),
+  lastPlayedAt: integer('last_played_at', { mode: 'timestamp' }),
 
   // Social metrics
   averageTrustScore: integer('average_trust_score').notNull().default(0),
@@ -236,8 +234,8 @@ export const userStatsSummary = pgTable('user_stats_summary', {
     .default(0),
   favoriteRole: text('favorite_role'), // most played role
 
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
 
 // Relations
