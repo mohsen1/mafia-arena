@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "next dev -p 3099",
     "build": "next build",
-    "build:worker": "opennextjs-cloudflare build",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:deploy": "pnpm run pages:build && wrangler pages deploy .vercel/output/static",
+    "pages:dev": "npx @cloudflare/next-on-pages --watch",
+    "build:worker": "next build && npx @cloudflare/next-on-pages --skip-build",
     "build:no-lint": "next build --no-lint",
     "build:ci": "./scripts/ci/ci-build.sh",
     "start": "next start -p 3099",
@@ -120,8 +123,8 @@
   },
   "devDependencies": {
     "@agentdeskai/browser-tools-mcp": "1.2.0",
+    "@cloudflare/next-on-pages": "^1.13.16",
     "@modelcontextprotocol/sdk": "^1.13.2",
-    "@opennextjs/cloudflare": "^1.11.0",
     "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4.1.3",
     "@types/async-retry": "^1.4.9",
@@ -156,6 +159,7 @@
     "tailwindcss": "^4.1.3",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3",
+    "vercel": "^48.5.0",
     "vite": "^6.3.3",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.1.2"
