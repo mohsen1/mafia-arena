@@ -36,7 +36,7 @@ const MessageBubbleComponent = ({
   players,
   shouldAutoPlay = true,
 }: MessageBubbleProps) => {
-  const { gameState, isAudioGloballyEnabled } = useGameContext();
+  const { gameState } = useGameContext();
   const sender = message.senderId ? players[message.senderId] : null;
   const isModeratorMessage =
     message.senderId === 'moderator' || !message.senderId;
@@ -54,7 +54,6 @@ const MessageBubbleComponent = ({
     isMafiaMessage,
     contentLength: message.content.length,
     contentPreview: message.content.substring(0, 30) + '...',
-    isAudioGloballyEnabled,
     shouldAutoPlay,
     voiceModeEnabled: gameState?.voiceModeEnabled,
   });
@@ -70,39 +69,7 @@ const MessageBubbleComponent = ({
   };
 
   const renderContent = (content: string) => {
-    // Use isAudioGloballyEnabled which is properly initialized from voiceModeEnabled
-    const voiceEnabled = isAudioGloballyEnabled;
-
-    // Debug logging
-    console.log(`[MessageBubble] ${timestamp()} 🔊 Voice check:`, {
-      messageId: message.id,
-      voiceModeEnabled: gameState?.voiceModeEnabled,
-      isAudioGloballyEnabled,
-      voiceEnabled,
-      isHumanMessage,
-      messageContent: content.substring(0, 50) + '...',
-      willUseSpeakText: voiceEnabled && !isHumanMessage,
-    });
-
-    // Only use voice for AI messages, not human messages
-    if (voiceEnabled && !isHumanMessage) {
-      console.log(
-        `[MessageBubble] ${timestamp()} 🎤 RENDERING with SpeakText:`,
-        {
-          messageId: message.id,
-          voiceId: getVoiceId(),
-          autoPlay: true,
-        }
-      );
-      // SpeakText component removed - render as markdown instead
-      return <MemoizedReactMarkdown>{content}</MemoizedReactMarkdown>;
-    }
-
-    console.log(`[MessageBubble] ${timestamp()} 📝 RENDERING without voice:`, {
-      messageId: message.id,
-      reason: voiceEnabled ? 'isHumanMessage' : 'voiceDisabled',
-    });
-
+    // Always render as markdown - voice functionality removed
     return <MemoizedReactMarkdown>{content}</MemoizedReactMarkdown>;
   };
 

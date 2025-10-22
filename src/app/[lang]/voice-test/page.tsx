@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import SpeakText from '@/components/SpeakText';
-import { SpokenTextProvider } from '@/context/SpokenTextContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Volume2, VolumeX } from 'lucide-react';
@@ -69,27 +67,16 @@ export default function VoiceTestPage() {
           </div>
 
           {showMessages && (
-            <SpokenTextProvider>
-              <div className="space-y-4">
-                {testMessages.map((message) => (
-                  <Card key={message.id} className="p-4">
-                    <div className="font-semibold mb-2">{message.sender}:</div>
-                    <div className="text-sm">
-                      {isAudioEnabled ? (
-                        <SpeakText
-                          text={message.content}
-                          voiceId={message.voiceId}
-                          autoPlay={true}
-                          showControls={false}
-                        />
-                      ) : (
-                        <span>{message.content}</span>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </SpokenTextProvider>
+            <div className="space-y-4">
+              {testMessages.map((message) => (
+                <Card key={message.id} className="p-4">
+                  <div className="font-semibold mb-2">{message.sender}:</div>
+                  <div className="text-sm">
+                    <span>{message.content}</span>
+                  </div>
+                </Card>
+              ))}
+            </div>
           )}
 
           <div className="text-sm text-muted-foreground">
