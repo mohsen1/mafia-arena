@@ -46,16 +46,14 @@ jobs:
         
       - name: Debug - Check generated files
         run: |
-          echo "Contents of .vercel/output/static:"
-          ls -la .vercel/output/static/ || true
-          echo "Worker file exists:"
-          ls -la .vercel/output/static/_worker.js/ || true
-          echo "Routes file:"
-          cat .vercel/output/static/_routes.json || true
+          echo "Contents of .open-next or .worker-next:"
+          ls -la .open-next/ || ls -la .worker-next/ || echo "Output directory not found"
+          echo "Checking for worker files:"
+          find . -name "*.worker.js" -o -name "_worker.js" | head -10
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: f9a5434fcf66ee00d67b61f2f67e0e22
-          command: pages deploy .vercel/output/static --project-name=werewolf-ai --branch=${{ github.ref_name }}
+          command: pages deploy --project-name=werewolf-ai --branch=${{ github.ref_name }}
