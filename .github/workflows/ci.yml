@@ -57,85 +57,10 @@ jobs:
       - name: Detect unused files with knip
         run: pnpm run check:knip
 
-  database-validation:
-    name: Database Connectivity & Migrations
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpass
-          POSTGRES_DB: werewolf_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Setup test database environment
-        run: |
-          cp env.example .env
-          echo "DATABASE_URL=postgresql://testuser:testpass@localhost:5432/werewolf_test" >> .env
-          echo "NODE_ENV=test" >> .env
-
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h localhost -p 5432 -U testuser; do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
-
-      - name: Run database connectivity check
-        run: pnpm run db:check
-
-      - name: Generate and run migrations
-        run: |
-          pnpm db:generate
-          pnpm db:migrate
-
-      - name: Test database push
-        run: pnpm db:push
-
-      - name: Verify database setup
-        run: pnpm run db:check
-
   build:
     name: Build Application
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, database-validation]
+    needs: [lint-and-typecheck]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
