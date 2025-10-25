@@ -14,6 +14,9 @@ NODE_ENV = "production"
 NEXTAUTH_URL = "https://werewolf-ai.me-f9a.workers.dev"
 DATABASE_URL = "placeholder-for-d1-binding"
 
+[observability]
+enabled = true
+
 # Secrets should be set via: wrangler secret put <SECRET_NAME>
 # Required secrets:
 # - NEXTAUTH_SECRET
