@@ -12,12 +12,15 @@ database_id = "9bb1334e-c75f-49b2-9e8c-a79771de46d4"
 [vars]
 NODE_ENV = "production"
 NEXTAUTH_URL = "https://werewolf-ai.me-f9a.workers.dev"
-NEXTAUTH_SECRET = "dev-secret-key-change-in-production-12345"
 DATABASE_URL = "placeholder-for-d1-binding"
-GROQ_API_KEY = "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"
-OPENAI_API_KEY = "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"
-ANTHROPIC_API_KEY = "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"
-GEMINI_API_KEY = "AIzaSyC9k7gub4eD26_-eA1o_8uIIi5LBJvxzBc"
+
+# Secrets should be set via: wrangler secret put <SECRET_NAME>
+# Required secrets:
+# - NEXTAUTH_SECRET
+# - GROQ_API_KEY
+# - OPENAI_API_KEY
+# - ANTHROPIC_API_KEY
+# - GEMINI_API_KEY
 
 # Environment variables will be set via wrangler secret put
 # NEXTAUTH_URL
