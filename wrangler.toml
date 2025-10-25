@@ -12,6 +12,12 @@ database_id = "9bb1334e-c75f-49b2-9e8c-a79771de46d4"
 [vars]
 NODE_ENV = "production"
 NEXTAUTH_URL = "https://werewolf-ai.me-f9a.workers.dev"
+NEXTAUTH_SECRET = "***REMOVED***"
+DATABASE_URL = "placeholder-for-d1-binding"
+GROQ_API_KEY = "***REMOVED***"
+OPENAI_API_KEY = "***REMOVED***"
+ANTHROPIC_API_KEY = "***REMOVED***"
+GEMINI_API_KEY = "REDACTED_API_KEY"
 
 # Environment variables will be set via wrangler secret put
 # NEXTAUTH_URL
