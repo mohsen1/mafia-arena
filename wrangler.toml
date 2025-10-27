@@ -3,6 +3,11 @@ main = ".open-next/worker.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Static assets configuration
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
 # D1 Database binding for Cloudflare Pages
 [[d1_databases]]
 binding = "DB"
