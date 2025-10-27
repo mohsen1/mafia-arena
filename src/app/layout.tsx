@@ -16,6 +16,19 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Polyfill for esbuild's __name helper
+              if (typeof __name === 'undefined') {
+                window.__name = function(target, value) {
+                  Object.defineProperty(target, 'name', { value, configurable: true });
+                  return target;
+                };
+              }
+            `,
+          }}
+        />
       </head>
       <body className="antialiased">{children}</body>
     </html>
