@@ -18,36 +18,50 @@ declare module 'next-auth' {
   }
 }
 
-export const authOptions: NextAuthOptions = {
-  providers: [
+const providers = [];
+
+// Only add Google provider if credentials are configured
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+}
+
+// Only add GitHub provider if credentials are configured
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  providers.push(
     GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-    }),
-    CredentialsProvider({
-      id: 'credentials',
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    })
+  );
+}
 
-        try {
-          const [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, credentials.email))
-            .limit(1);
+// Always add credentials provider
+providers.push(
+  CredentialsProvider({
+    id: 'credentials',
+    name: 'credentials',
+    credentials: {
+      email: { label: 'Email', type: 'email' },
+      password: { label: 'Password', type: 'password' },
+    },
+    async authorize(credentials) {
+      if (!credentials?.email || !credentials?.password) {
+        return null;
+      }
 
-          if (!user || !user.password) {
+      try {
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, credentials.email))
+          .limit(1);
+
+        if (!user || !user.password) {
             return null;
           }
 
@@ -72,7 +86,10 @@ export const authOptions: NextAuthOptions = {
         }
       },
     })
-  ],
+);
+
+export const authOptions: NextAuthOptions = {
+  providers,
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
