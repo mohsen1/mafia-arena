@@ -56,4 +56,14 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
+      - name: Set Worker Secrets
+        run: |
+          echo "Setting Worker secrets..."
+          echo "${{ secrets.NEXTAUTH_SECRET }}" | pnpm wrangler secret put NEXTAUTH_SECRET
+          echo "${{ secrets.GROQ_API_KEY }}" | pnpm wrangler secret put GROQ_API_KEY
+          echo "${{ secrets.OPENAI_API_KEY }}" | pnpm wrangler secret put OPENAI_API_KEY
+          echo "${{ secrets.ANTHROPIC_API_KEY }}" | pnpm wrangler secret put ANTHROPIC_API_KEY
+          echo "${{ secrets.GEMINI_API_KEY }}" | pnpm wrangler secret put GEMINI_API_KEY
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
