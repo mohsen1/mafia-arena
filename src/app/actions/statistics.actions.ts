@@ -1,7 +1,6 @@
 'use server';
 
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
 import { StatisticsService } from '@/lib/db/statistics.service';
 import type { UserStatsSummary, GameStatistics } from '@/lib/db/schema';
 
@@ -11,7 +10,7 @@ export async function getUserStatistics(): Promise<{
   error?: string;
 }> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: 'Not authenticated' };
     }
@@ -34,7 +33,7 @@ export async function getRecentGameStatistics(limit: number = 10): Promise<{
   error?: string;
 }> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: 'Not authenticated' };
     }
@@ -84,7 +83,7 @@ export async function recordGameCompletion(
   error?: string;
 }> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: 'Not authenticated' };
     }

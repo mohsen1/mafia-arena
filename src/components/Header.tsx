@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useUnifiedSession } from '@/components/auth/UnifiedSessionProvider';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -24,15 +24,13 @@ interface HeaderProps {
 }
 
 export function Header({ currentLang, session: serverSession }: HeaderProps) {
-  const { data: clientSession, status } = useSession();
+  const { session: clientSession, status, signIn, signOut } = useUnifiedSession();
   // Use server session if provided, otherwise use client session
   const session = serverSession || clientSession;
   const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Removed debug logging for production
 
   // Handle scroll effect
   useEffect(() => {
@@ -49,12 +47,12 @@ export function Header({ currentLang, session: serverSession }: HeaderProps) {
     setImageError(false);
   }, [session?.user?.image]);
 
-  const handleSignIn = () => {
-    signIn(undefined, { callbackUrl: `/${currentLang}` });
+  const handleSignIn = async () => {
+    await signIn(undefined, { callbackUrl: `/${currentLang}` });
   };
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: `/${currentLang}` });
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: `/${currentLang}` });
   };
 
   // Validate and sanitize image URL

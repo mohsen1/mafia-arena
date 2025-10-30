@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { GameNotificationCenter } from '@/components/GameNotificationCenter';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession, signOut } from 'next-auth/react';
+import { useUnifiedSession } from '@/components/auth/UnifiedSessionProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   DropdownMenu,
@@ -48,7 +48,7 @@ interface GameClientProps {
 function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
   const { i18n, t } = useTranslation();
   const direction = i18n.dir(lang);
-  const { data: session } = useSession();
+  const { session, signOut } = useUnifiedSession();
 
   const { gameState, error, clearError, runNextTurn } = useGameContext();
   const humanPlayerId = gameState?.humanPlayerId;
@@ -243,7 +243,7 @@ function GameLayout({ gameId, lang }: { gameId: string; lang: LanguageCode }) {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => signOut({ callbackUrl: `/${lang}` })}
+                        onClick={async () => await signOut({ callbackUrl: `/${lang}` })}
                         className="flex items-center"
                       >
                         <LogOut className="w-4 h-4 me-2" />

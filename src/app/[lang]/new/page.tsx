@@ -1,7 +1,7 @@
 'use client'; // Make this a Client Component
 
 import { useState, use, useEffect } from 'react'; // Import hooks
-import { useSession } from 'next-auth/react';
+import { useUnifiedSession } from '@/components/auth/UnifiedSessionProvider';
 // import Link from "next/link"; // Removed unused Link import
 import type { FilteredGameState } from '@/lib/interfaces/client.types';
 // import { getGroqModels } from "@/lib/groq/api";
@@ -41,7 +41,7 @@ interface PageProps {
 
 function AuthProtectedContent({ lang }: { lang: LanguageCode }) {
   const { t } = useTranslation();
-  const { data: session } = useSession();
+  const { session } = useUnifiedSession();
   const [existingGames /* setExistingGames */] = useState<FilteredGameState[]>(
     []
   );
@@ -226,7 +226,7 @@ function LoadingView({ lang }: { lang: LanguageCode }) {
 export default function NewGamePage({ params: paramsPromise }: PageProps) {
   const params = use(paramsPromise) as { lang: LanguageCode };
   const { lang } = params;
-  const { data: session, status } = useSession();
+  const { session, status } = useUnifiedSession();
 
   useEffect(() => {
     if (status === 'unauthenticated') {

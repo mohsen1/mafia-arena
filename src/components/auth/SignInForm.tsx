@@ -1,6 +1,6 @@
 'use client';
 
-import { signIn, getProviders } from 'next-auth/react';
+import { useUnifiedSession } from '@/components/auth/UnifiedSessionProvider';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -11,15 +11,21 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Chrome, Github, Eye, EyeOff, LogIn } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 import Link from 'next/link';
-import type { ClientSafeProvider } from 'next-auth/react';
 import type { LanguageCode } from '@/lib/i18n/settings';
+import { isMelodyEnabled } from '@/lib/auth/config';
+
+type Provider = {
+  id: string;
+  name: string;
+  type: string;
+  signinUrl: string;
+  callbackUrl: string;
+};
 
 export function SignInForm() {
   const { t } = useTranslation();
-  const [providers, setProviders] = useState<Record<
-    string,
-    ClientSafeProvider
-  > | null>(null);
+  const { signIn } = useUnifiedSession();
+  const [providers, setProviders] = useState<Record<string, Provider> | null>(null);
   const [loading, setLoading] = useState(false);
   const [credentialsLoading, setCredentialsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -41,13 +47,41 @@ export function SignInForm() {
   };
 
   const currentLang = getCurrentLanguage();
+  const usingMelody = isMelodyEnabled;
 
   useEffect(() => {
-    const setupProviders = async () => {
-      const res = await getProviders();
-      setProviders(res);
+    // In NextAuth v5, getProviders is not available
+    // We'll hardcode the available providers based on environment
+    const availableProviders: Record<string, Provider> = {};
+    
+    // Add credentials provider (always available)
+    availableProviders.credentials = {
+      id: 'credentials',
+      name: 'Credentials',
+      type: 'credentials',
+      signinUrl: '/api/auth/signin/credentials',
+      callbackUrl: '/api/auth/callback/credentials',
     };
-    setupProviders();
+    
+    // Add Google if configured (check client-side)
+    availableProviders.google = {
+      id: 'google',
+      name: 'Google',
+      type: 'oauth',
+      signinUrl: '/api/auth/signin/google',
+      callbackUrl: '/api/auth/callback/google',
+    };
+    
+    // Add GitHub if configured
+    availableProviders.github = {
+      id: 'github',
+      name: 'GitHub',
+      type: 'oauth',
+      signinUrl: '/api/auth/signin/github',
+      callbackUrl: '/api/auth/callback/github',
+    };
+    
+    setProviders(availableProviders);
   }, []);
 
   useEffect(() => {
@@ -70,7 +104,13 @@ export function SignInForm() {
   const handleOAuthSignIn = async (providerId: string) => {
     setLoading(true);
     try {
-      await signIn(providerId, { callbackUrl: `/${currentLang}` });
+      if (usingMelody) {
+        // For Melody, redirect to provider
+        window.location.href = `/api/auth/melody?provider=${providerId}&redirect=${encodeURIComponent(`/${currentLang}`)}`;
+      } else {
+        // For NextAuth, use unified signIn
+        await signIn(providerId, { callbackUrl: `/${currentLang}` });
+      }
     } catch (error) {
       console.error('OAuth sign in error:', error);
       setError(t('signIn.oauthError'));
@@ -85,16 +125,44 @@ export function SignInForm() {
     setError('');
 
     try {
-      const result = await signIn('credentials', {
-        email: credentials.email,
-        password: credentials.password,
-        redirect: false,
-      });
+      if (usingMelody) {
+        // For Melody credentials, use our API endpoint
+        const response = await fetch('/api/auth/melody', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            provider: 'credentials',
+            email: credentials.email,
+            password: credentials.password,
+            redirect: `/${currentLang}`,
+          }),
+        });
 
-      if (result?.error) {
-        setError(t('signIn.invalidCredentials'));
-      } else if (result?.ok) {
-        router.push(`/${currentLang}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            router.push(`/${currentLang}`);
+          }
+        } else {
+          setError(t('signIn.invalidCredentials'));
+        }
+      } else {
+        // For NextAuth, use unified signIn
+        const result = await signIn('credentials', {
+          email: credentials.email,
+          password: credentials.password,
+          redirect: false,
+        }) as any;
+
+        if (result?.error) {
+          setError(t('signIn.invalidCredentials'));
+        } else if (result?.ok) {
+          router.push(`/${currentLang}`);
+        }
       }
     } catch (error) {
       console.error('Credentials sign in error:', error);
@@ -237,7 +305,7 @@ export function SignInForm() {
       {/* OAuth Providers */}
       {oauthProviders.length > 0 && (
         <div className="space-y-3">
-          {oauthProviders.map((provider: ClientSafeProvider) => (
+          {oauthProviders.map((provider: Provider) => (
             <Button
               key={provider.name}
               variant="outline"

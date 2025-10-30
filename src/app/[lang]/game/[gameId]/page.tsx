@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
 import {
   advanceGameStateAction,
   getGameStateAction,
@@ -20,7 +19,7 @@ export default async function GamePage({
   const { gameId, lang } = params;
 
   // Check authentication at the page level
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     notFound(); // Redirect to 404 if not authenticated
   }

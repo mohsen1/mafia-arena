@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth';
+import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
-import { authOptions } from '@/lib/auth/config';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { getTranslation } from '@/lib/i18n/server';
 import type { LanguageCode } from '@/lib/i18n/settings';
@@ -13,7 +12,7 @@ interface Props {
 
 export default async function SignInPage({ params }: Props) {
   const { lang } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (session) {
     redirect(`/${lang}`);

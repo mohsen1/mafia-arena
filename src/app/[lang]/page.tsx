@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
 import { getTranslation } from '@/lib/i18n/server';
 
 import { Button } from '@/components/ui/button';
@@ -212,7 +211,7 @@ interface LandingPageProps {
 
 export default async function LandingPage({ params }: LandingPageProps) {
   const { lang: currentLang } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   const { t } = await getTranslation(currentLang);
   const isRTL = supportedLanguagesInfo[currentLang]?.dir === 'rtl';
   const ArrowIcon = isRTL ? ArrowLeft : ArrowRight;

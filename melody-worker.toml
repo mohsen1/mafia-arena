@@ -1,0 +1,49 @@
+name = "werewolf-auth"
+main = "src/worker/index.ts"
+compatibility_date = "2023-10-30"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment configuration
+[vars]
+AUTH_SERVER_URL = "https://werewolf-auth.yourdomain.workers.dev"
+NODE_ENV = "production"
+
+# D1 Database binding for user data
+[[d1_databases]]
+binding = "DATABASE"
+database_name = "werewolf-auth-db"
+# database_id = "your-database-id"  # Uncomment when deploying
+
+# KV Storage binding for sessions
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-namespace-id"
+# preview_id = "your-preview-namespace-id"  # For preview deployments
+
+# Environment-specific configurations
+[env.production.vars]
+AUTH_SERVER_URL = "https://werewolf-auth.yourdomain.workers.dev"
+SECURE = "true"
+
+[env.preview.vars]
+AUTH_SERVER_URL = "https://werewolf-auth-prev.yourdomain.workers.dev"
+SECURE = "true"
+
+[env.development.vars]
+AUTH_SERVER_URL = "http://localhost:8787"
+SECURE = "false"
+
+# Routes configuration
+# Uncomment and customize for custom domains
+# [[env.production.routes]]
+# pattern = "auth.yourdomain.com/*"
+# zone_name = "yourdomain.com"
+
+# Cron triggers for maintenance tasks
+# [[triggers]]
+# crons = ["0 3 * * *"]  # Daily at 3 AM UTC
+
+# Limits
+[limits]
+cpu_ms = 50  # 50ms CPU time limit
+# memory = "128MB"  # Memory limit if needed

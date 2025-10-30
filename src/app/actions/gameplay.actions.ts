@@ -6,8 +6,8 @@ import { loadGameData, saveGameData } from '@/lib/db/persistence'; // Assuming p
 import { Game } from '@/lib/engine/core/Game'; // For loadFromState
 // import { GameOverPhase } from '@/lib/engine/phases/GameOverPhase'; // No longer needed here
 import { filterGameStateForClient } from '@/lib/visibilityHelper'; // Use the helper
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
+
 import { GameService } from '@/lib/db/game.service';
 
 export async function advanceGameStateAction(
@@ -15,7 +15,7 @@ export async function advanceGameStateAction(
 ): Promise<FilteredGameState | { error: string }> {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return { error: 'Authentication required' };
     }
@@ -60,7 +60,7 @@ export async function getGameStateAction(
 ): Promise<FilteredGameState | { error: string }> {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return { error: 'Authentication required' };
     }

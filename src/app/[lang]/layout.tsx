@@ -1,7 +1,7 @@
 'use client';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { SessionProvider } from 'next-auth/react';
+import { UnifiedSessionProvider } from '@/components/auth/UnifiedSessionProvider';
 import '../globals.css';
 
 import { type LanguageCode, defaultNS } from '@/lib/i18n/settings';
@@ -39,7 +39,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className="antialiased">
-        <SessionProvider>
+        <UnifiedSessionProvider>
           <I18nextProvider i18n={i18nInstance} defaultNS={defaultNS}>
             <ThemeProvider
               attribute="class"
@@ -51,7 +51,7 @@ export default function RootLayout({
               <Toaster />
             </ThemeProvider>
           </I18nextProvider>
-        </SessionProvider>
+        </UnifiedSessionProvider>
       </body>
     </html>
   );

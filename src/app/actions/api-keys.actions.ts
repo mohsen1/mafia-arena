@@ -1,7 +1,6 @@
 'use server';
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
 import { db } from '@/lib/db/config';
 import { userApiKeys } from '@/lib/db/schema';
 import { encrypt, decrypt, validateApiKeyFormat } from '@/lib/crypto';
@@ -58,7 +57,7 @@ export interface UpdateApiKeyData {
  * Get all API keys for the current user (without exposing the actual keys)
  */
 export async function getUserApiKeys(): Promise<UserApiKeyInfo[]> {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     throw new Error('Authentication required');
   }
@@ -90,7 +89,7 @@ export async function getUserApiKeys(): Promise<UserApiKeyInfo[]> {
 export async function createApiKey(
   data: CreateApiKeyData
 ): Promise<{ success: boolean; error?: string }> {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
@@ -172,7 +171,7 @@ export async function createApiKey(
 export async function updateApiKey(
   data: UpdateApiKeyData
 ): Promise<{ success: boolean; error?: string }> {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
@@ -263,7 +262,7 @@ export async function updateApiKey(
 export async function deleteApiKey(
   keyId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }

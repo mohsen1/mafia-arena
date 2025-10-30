@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useUnifiedSession } from '@/components/auth/UnifiedSessionProvider';
 import type { LanguageCode } from '@/lib/i18n/settings';
 
 interface MobileMenuProps {
@@ -26,15 +26,15 @@ interface MobileMenuProps {
 
 export function MobileMenu({ isOpen, onClose, currentLang }: MobileMenuProps) {
   const { t } = useTranslation();
-  const { data: session } = useSession();
+  const { session, signIn, signOut } = useUnifiedSession();
 
-  const handleSignIn = () => {
-    signIn(undefined, { callbackUrl: `/${currentLang}` });
+  const handleSignIn = async () => {
+    await signIn(undefined, { callbackUrl: `/${currentLang}` });
     onClose();
   };
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: `/${currentLang}` });
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: `/${currentLang}` });
     onClose();
   };
 
