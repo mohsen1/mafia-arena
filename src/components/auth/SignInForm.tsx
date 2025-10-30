@@ -47,7 +47,7 @@ export function SignInForm() {
   };
 
   const currentLang = getCurrentLanguage();
-  const usingMelody = isMelodyEnabled;
+  const usingMelody = true; // Always use Melody - NextAuth removed
 
   useEffect(() => {
     // In NextAuth v5, getProviders is not available
@@ -59,26 +59,26 @@ export function SignInForm() {
       id: 'credentials',
       name: 'Credentials',
       type: 'credentials',
-      signinUrl: '/api/auth/signin/credentials',
-      callbackUrl: '/api/auth/callback/credentials',
+      signinUrl: '/api/auth/melody',
+      callbackUrl: '/api/auth/melody/callback',
     };
-    
+
     // Add Google if configured (check client-side)
     availableProviders.google = {
       id: 'google',
       name: 'Google',
       type: 'oauth',
-      signinUrl: '/api/auth/signin/google',
-      callbackUrl: '/api/auth/callback/google',
+      signinUrl: '/api/auth/melody?provider=google',
+      callbackUrl: '/api/auth/melody/callback/google',
     };
-    
+
     // Add GitHub if configured
     availableProviders.github = {
       id: 'github',
       name: 'GitHub',
       type: 'oauth',
-      signinUrl: '/api/auth/signin/github',
-      callbackUrl: '/api/auth/callback/github',
+      signinUrl: '/api/auth/melody?provider=github',
+      callbackUrl: '/api/auth/melody/callback/github',
     };
     
     setProviders(availableProviders);
@@ -104,13 +104,8 @@ export function SignInForm() {
   const handleOAuthSignIn = async (providerId: string) => {
     setLoading(true);
     try {
-      if (usingMelody) {
-        // For Melody, redirect to provider
-        window.location.href = `/api/auth/melody?provider=${providerId}&redirect=${encodeURIComponent(`/${currentLang}`)}`;
-      } else {
-        // For NextAuth, use unified signIn
-        await signIn(providerId, { callbackUrl: `/${currentLang}` });
-      }
+      // Always use Melody - NextAuth removed
+      window.location.href = `/api/auth/melody?provider=${providerId}&redirect=${encodeURIComponent(`/${currentLang}`)}`;
     } catch (error) {
       console.error('OAuth sign in error:', error);
       setError(t('signIn.oauthError'));
@@ -125,43 +120,33 @@ export function SignInForm() {
     setError('');
 
     try {
-      if (usingMelody) {
-        // For Melody credentials, use our API endpoint
-        const response = await fetch('/api/auth/melody', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            provider: 'credentials',
-            email: credentials.email,
-            password: credentials.password,
-            redirect: `/${currentLang}`,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.url) {
-            window.location.href = data.url;
-          } else {
-            router.push(`/${currentLang}`);
-          }
-        } else {
-          setError(t('signIn.invalidCredentials'));
-        }
-      } else {
-        // For NextAuth, use unified signIn
-        const result = await signIn('credentials', {
+      // Always use Melody - NextAuth removed
+      const response = await fetch('/api/auth/melody', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          provider: 'credentials',
           email: credentials.email,
           password: credentials.password,
-          redirect: false,
-        }) as any;
+          redirect: `/${currentLang}`,
+        }),
+      });
 
-        if (result?.error) {
-          setError(t('signIn.invalidCredentials'));
-        } else if (result?.ok) {
+      if (response.ok) {
+        const data = await response.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
           router.push(`/${currentLang}`);
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.error === 'Invalid credentials') {
+          setError(t('signIn.invalidCredentials'));
+        } else {
+          setError(t('signIn.unexpectedError'));
         }
       }
     } catch (error) {
