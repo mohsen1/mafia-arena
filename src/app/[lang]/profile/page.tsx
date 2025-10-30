@@ -1,7 +1,7 @@
 'use client';
 
 import { use } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUnifiedSession } from '@/components/auth/UnifiedSessionProvider';
 import { ServerHeader } from '@/components/ServerHeader';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -90,7 +90,7 @@ function UnauthenticatedView({ lang }: { lang: LanguageCode }) {
 }
 
 function ProfileContent({ lang }: { lang: LanguageCode }) {
-  const { data: session } = useSession();
+  const { session } = useUnifiedSession();
   const { t } = useTranslation();
 
   if (!session?.user) {
@@ -98,7 +98,7 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
   }
 
   const user = session.user;
-  const joinDate = new Date(session.expires).toLocaleDateString();
+  const joinDate = session.expires ? new Date(session.expires).toLocaleDateString() : 'N/A';
 
   return (
     <div className="min-h-screen bg-background">
@@ -292,7 +292,7 @@ function ProfileContent({ lang }: { lang: LanguageCode }) {
 export default function ProfilePage({ params: paramsPromise }: PageProps) {
   const params = use(paramsPromise);
   const { lang } = params;
-  const { status } = useSession();
+  const { status } = useUnifiedSession();
 
   if (status === 'loading') {
     return <LoadingView lang={lang} />;

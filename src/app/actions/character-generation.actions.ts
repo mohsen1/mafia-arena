@@ -17,8 +17,8 @@ import {
 import { loadGameData, saveGameData } from '@/lib/db/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
 import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
+
 import { GameService } from '@/lib/db/game.service';
 import { createAgentInstance } from '@/lib/agentFactory';
 
@@ -54,7 +54,7 @@ export async function generateGameCharactersAction(
     );
 
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       console.error('[CharacterGen] No authenticated session');
       return { error: 'Authentication required' };
@@ -597,7 +597,7 @@ export async function getCharacterGenerationProgressAction(
 ): Promise<CharacterGenerationProgress | { error: string }> {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return { error: 'Authentication required' };
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, use } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUnifiedSession } from '@/components/auth/UnifiedSessionProvider';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ServerHeader } from '@/components/ServerHeader';
@@ -346,7 +346,7 @@ const CharacterSlotList = React.memo(function CharacterSlotList({
 
 function CharacterSetupContent({ lang }: { lang: LanguageCode }) {
   const { t } = useTranslation();
-  const { data: session } = useSession();
+  const { session } = useUnifiedSession();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
@@ -1461,7 +1461,7 @@ export default function CharacterSetupPage({
 }: PageProps) {
   const params = use(paramsPromise) as { lang: LanguageCode };
   const { lang } = params;
-  const { data: session, status } = useSession();
+  const { session, status } = useUnifiedSession();
 
   if (status === 'loading') {
     return (

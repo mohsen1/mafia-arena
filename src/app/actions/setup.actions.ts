@@ -20,8 +20,8 @@ import crypto from 'node:crypto';
 import type { StartGameSetupData } from '@/lib/interfaces/actions.types';
 import { DEFAULT_PERSONA, type Persona } from '@/lib/engine/interfaces/Persona';
 import { createAgentInstance } from '@/lib/agentFactory';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
+
 import { redirect } from 'next/navigation';
 import { getEnvAvailableProviders } from '@/lib/utils/providerUtils';
 import type { AvailableProvider } from '@/lib/utils/providerUtils';
@@ -127,7 +127,7 @@ export async function startGameAction(
 
   try {
     // Ensure user is authenticated
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     console.log('[startGameAction] Session check:', {
       hasSession: !!session,
       userId: session?.user?.id,

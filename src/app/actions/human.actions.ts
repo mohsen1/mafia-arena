@@ -5,8 +5,8 @@ import type { FilteredGameState } from '@/lib/interfaces/gameState.types';
 import type { HumanActionPayload } from '@/lib/interfaces/actions.types';
 import { loadGameData, saveGameData } from '@/lib/db/persistence';
 import { filterGameStateForClient } from '@/lib/visibilityHelper';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
+
 import { GameService } from '@/lib/db/game.service';
 import type { PlayerAction } from '@/lib/engine/interfaces/IAgent';
 
@@ -16,7 +16,7 @@ export async function submitHumanAction(
 ): Promise<FilteredGameState | { error: string }> {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return { error: 'Authentication required' };
     }

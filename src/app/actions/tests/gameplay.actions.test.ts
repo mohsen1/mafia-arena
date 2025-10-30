@@ -32,7 +32,7 @@ vi.mock('next-auth', () => ({
 }));
 
 vi.mock('@/lib/auth/config', () => ({
-  authOptions: {},
+  auth: {},
 }));
 
 vi.mock('@/lib/db/game.service', () => ({

@@ -18,6 +18,8 @@ database_id = "9bb1334e-c75f-49b2-9e8c-a79771de46d4"
 NODE_ENV = "production"
 NEXTAUTH_URL = "https://werewolf-ai.me-f9a.workers.dev"
 DATABASE_URL = "placeholder-for-d1-binding"
+# Required for NextAuth to work with Cloudflare Workers and proxies
+AUTH_TRUST_HOST = "true"
 
 [observability]
 enabled = true

@@ -1,7 +1,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUnifiedSession } from '@/components/auth/UnifiedSessionProvider';
 import { ServerHeader } from '@/components/ServerHeader';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -289,7 +289,7 @@ function GameCard({
 }
 
 function GamesContent({ lang }: { lang: LanguageCode }) {
-  const { data: session } = useSession();
+  const { session } = useUnifiedSession();
   const { t } = useTranslation();
   const [games, setGames] = useState<GameListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -456,7 +456,7 @@ function GamesContent({ lang }: { lang: LanguageCode }) {
 export default function GamesPage({ params: paramsPromise }: PageProps) {
   const params = use(paramsPromise);
   const { lang } = params;
-  const { status } = useSession();
+  const { status } = useUnifiedSession();
 
   if (status === 'loading') {
     return <LoadingView lang={lang} />;

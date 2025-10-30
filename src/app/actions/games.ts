@@ -1,7 +1,7 @@
 'use server';
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { auth } from '@/lib/auth/config';
+
 import { GameService } from '@/lib/db/game.service';
 import { revalidatePath } from 'next/cache';
 
@@ -23,7 +23,7 @@ export interface GameListItem {
  * Fetches all games for the current user
  */
 export async function getUserGamesAction(): Promise<GameListItem[]> {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user?.id) {
     throw new Error('Authentication required');
@@ -64,7 +64,7 @@ export async function getUserGamesAction(): Promise<GameListItem[]> {
  * Deletes a game (if owned by current user)
  */
 export async function deleteGameAction(gameId: string): Promise<void> {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user?.id) {
     throw new Error('Authentication required');
@@ -96,7 +96,7 @@ export async function getGameStatsAction(): Promise<{
   inProgress: number;
   completed: number;
 }> {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user?.id) {
     return { total: 0, waiting: 0, inProgress: 0, completed: 0 };
