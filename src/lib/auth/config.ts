@@ -31,9 +31,9 @@ export interface AuthUser {
 
 // Feature flag configuration
 const authFeatureFlagsSchema = z.object({
-  enableMelody: z.boolean().default(false),
+  enableMelody: z.boolean().default(true), // Default to Melody enabled
   melodyServerUrl: z.string().optional(),
-  nextAuthFallback: z.boolean().default(true),
+  nextAuthFallback: z.boolean().default(false), // NextAuth removed
   logAuthActivity: z.boolean().default(process.env.NODE_ENV === 'development'),
 });
 
@@ -164,151 +164,29 @@ export interface AuthProvider {
   getUser?: (token?: string) => Promise<any>;
 }
 
-// NextAuth provider (legacy system)
+// NextAuth provider (REMOVED - use Melody instead)
 export class NextAuthProvider implements AuthProvider {
   name = 'nextauth';
-  enabled = authConfig.featureFlags.nextAuthFallback && !authConfig.featureFlags.enableMelody;
-  
-  private nextAuthConfig: any;
-  private nextAuthHandlers: any;
-  
+  enabled = false; // Always disabled - NextAuth removed
+
   constructor() {
-    if (!this.enabled) return;
-    
-    try {
-      // Create NextAuth configuration matching the original setup
-      const NextAuth = require('next-auth');
-      const Google = require('next-auth/providers/google');
-      const GitHub = require('next-auth/providers/github');
-      const Credentials = require('next-auth/providers/credentials');
-      
-      this.nextAuthConfig = {
-        trustHost: true,
-        providers: [
-          // Google provider
-          ...(authConfig.providers.google.enabled ? [
-            Google({
-              clientId: authConfig.providers.google.clientId,
-              clientSecret: authConfig.providers.google.clientSecret,
-              authorization: {
-                url: "https://accounts.google.com/o/oauth2/v2/auth",
-                params: {
-                  prompt: "consent",
-                  access_type: "offline",
-                  response_type: "code",
-                  scope: "openid email profile",
-                },
-              },
-              token: "https://oauth2.googleapis.com/token",
-              userinfo: "https://www.googleapis.com/oauth2/v3/userinfo",
-            }),
-          ] : []),
-          
-          // GitHub provider
-          ...(authConfig.providers.github.enabled ? [
-            GitHub({
-              clientId: authConfig.providers.github.clientId,
-              clientSecret: authConfig.providers.github.clientSecret,
-            }),
-          ] : []),
-          
-          // Credentials provider
-          ...(authConfig.providers.credentials.enabled ? [
-            Credentials({
-              credentials: {
-                email: { label: 'Email', type: 'email' },
-                password: { label: 'Password', type: 'password' },
-              },
-              async authorize(credentials: { email: string; password: string }) {
-                if (!credentials?.email || !credentials?.password) {
-                  return null;
-                }
-                
-                // Use the credentials provider logic from unified auth
-                return await credentialsProvider.signIn(credentials);
-              },
-            }),
-          ] : []),
-        ],
-        
-        session: {
-          strategy: authConfig.nextAuth.sessionStrategy,
-          maxAge: authConfig.nextAuth.sessionMaxAge,
-          updateAge: authConfig.nextAuth.sessionUpdateAge,
-        },
-        
-        callbacks: {
-          async jwt({ token, user, account }: any) {
-            if (account && user) {
-              token.id = user.id;
-              token.email = user.email;
-              token.name = user.name;
-              token.image = user.image;
-            }
-            return token;
-          },
-          
-          async session({ session, token }: any) {
-            if (token && session.user) {
-              session.user.id = token.id as string;
-              session.user.email = token.email as string;
-              session.user.name = token.name as string;
-              session.user.image = token.image as string;
-            }
-            return session;
-          },
-        },
-        
-        pages: {
-          signIn: authConfig.nextAuth.pages.signIn,
-          error: authConfig.nextAuth.pages.error,
-        },
-      };
-      
-      // Create NextAuth instance
-      const authInstance = NextAuth(this.nextAuthConfig);
-      this.nextAuthHandlers = authInstance;
-      
-      if (authConfig.featureFlags.logAuthActivity) {
-        console.log('✅ NextAuth provider initialized successfully');
-      }
-    } catch (error) {
-      console.error('❌ NextAuth initialization failed:', error);
-      this.enabled = false;
-    }
+    console.warn('⚠️  NextAuth provider is deprecated. Use Melody instead.');
   }
-  
-  async signIn(options?: any) {
-    if (!this.enabled || !this.nextAuthHandlers) {
-      throw new Error('NextAuth is not enabled');
-    }
-    
-    return this.nextAuthHandlers.signIn(options);
+
+  async signIn(_options?: any) {
+    throw new Error('NextAuth has been removed. Use Melody endpoints.');
   }
-  
-  async signOut(options?: any) {
-    if (!this.enabled || !this.nextAuthHandlers) {
-      throw new Error('NextAuth is not enabled');
-    }
-    
-    return this.nextAuthHandlers.signOut(options);
+
+  async signOut(_options?: any) {
+    throw new Error('NextAuth has been removed. Use Melody endpoints.');
   }
-  
-  async getSession(request?: Request) {
-    if (!this.enabled || !this.nextAuthHandlers) {
-      return null;
-    }
-    
-    return this.nextAuthHandlers.auth(request);
+
+  async getSession(_request?: Request) {
+    return null;
   }
-  
+
   get handlers() {
-    return {
-      GET: this.nextAuthHandlers.GET,
-      POST: this.nextAuthHandlers.POST,
-      PUT: this.nextAuthHandlers.PUT,
-      DELETE: this.nextAuthHandlers.DELETE,
-    };
+    throw new Error('NextAuth handlers not available. Use Melody endpoints.');
   }
 }
 
@@ -472,45 +350,35 @@ export const nextAuthProvider = new NextAuthProvider();
 export const melodyProvider = new MelodyProvider();
 export const credentialsProvider = new CredentialsProvider();
 
-// Unified authentication handlers
+// Unified authentication handlers (Melody-only)
 export class UnifiedAuth {
   private activeProvider: AuthProvider;
-  
+
   constructor() {
-    // Determine active provider based on feature flags
-    if (authConfig.featureFlags.enableMelody) {
-      this.activeProvider = melodyProvider;
-      if (authConfig.featureFlags.logAuthActivity) {
-        console.log('🎵 Using Melody as primary auth provider');
-      }
-    } else {
-      this.activeProvider = nextAuthProvider;
-      if (authConfig.featureFlags.logAuthActivity) {
-        console.log('🔐 Using NextAuth as primary auth provider');
-      }
-    }
-    
+    // Only use Melody - NextAuth removed
+    this.activeProvider = melodyProvider;
+
     if (authConfig.featureFlags.logAuthActivity) {
+      console.log('🎵 Using Melody as auth provider (NextAuth removed)');
       console.log('🔐 Auth Provider Status:', {
-        nextAuth: nextAuthProvider.enabled,
         melody: melodyProvider.enabled,
         credentials: credentialsProvider.enabled,
         active: this.activeProvider.name,
       });
     }
   }
-  
+
   // Get current active provider
   getProvider() {
     return this.activeProvider;
   }
-  
-  // Switch provider (for testing/development)
+
+  // Switch provider (for testing/development) - only Melody supported
   setProvider(providerName: 'nextauth' | 'melody') {
     if (providerName === 'melody' && melodyProvider.enabled) {
       this.activeProvider = melodyProvider;
-    } else if (providerName === 'nextauth' && nextAuthProvider.enabled) {
-      this.activeProvider = nextAuthProvider;
+    } else if (providerName === 'nextauth') {
+      throw new Error('NextAuth has been removed. Use Melody instead.');
     }
   }
   
@@ -537,13 +405,9 @@ export class UnifiedAuth {
     return this.activeProvider.getUser?.(token);
   }
   
-  // Get NextAuth handlers for compatibility
+  // Get handlers for Melody
   get handlers() {
-    if (this.activeProvider.name === 'nextauth' && nextAuthProvider.enabled) {
-      return nextAuthProvider.handlers;
-    }
-    
-    // Return dummy handlers for Melody
+    // Return Melody-compatible handlers
     return {
       GET: async (request: Request) => {
         const session = await this.getSession(request);
@@ -578,7 +442,7 @@ export const { handlers, signIn, signOut, auth } = unifiedAuth;
 // Export feature flags for components
 export const authFeatureFlags = authConfig.featureFlags;
 export const isMelodyEnabled = authConfig.featureFlags.enableMelody;
-export const isNextAuthEnabled = !authConfig.featureFlags.enableMelody;
+export const isNextAuthEnabled = false; // NextAuth removed
 
 // TypeScript interfaces for NextAuth compatibility
 export interface NextAuthSession {
@@ -604,10 +468,9 @@ export interface NextAuthUser {
 
 // Development utilities
 if (authConfig.featureFlags.logAuthActivity) {
-  console.log('🔐 Unified Auth Configuration:', {
+  console.log('🎵 Melody Auth Configuration:', {
     featureFlags: authConfig.featureFlags,
     activeProvider: unifiedAuth.getProvider().name,
-    nextAuthEnabled: nextAuthProvider.enabled,
     melodyEnabled: melodyProvider.enabled,
     credentialsEnabled: credentialsProvider.enabled,
   });

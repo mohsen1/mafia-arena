@@ -258,7 +258,7 @@ scenarios.forEach(calculateScenarioCost);
 **Duration:** 10 days  
 **Goal:** Database schema, ELO system, game queue, batch runner
 
-### Week 1: Database & ELO
+### Week 1: Database, ELO & Token Tracking
 
 #### 1.1 Database Migration (Days 1-2)
 
@@ -269,6 +269,8 @@ scenarios.forEach(calculateScenarioCost);
 2. Test migration on local database
 3. Verify indexes are created
 4. Test rollback script
+
+**⚠️ CRITICAL:** Review `COST_TRACKING_ENHANCEMENT.md` - we need to implement actual token usage capture!
 
 **Commands:**
 ```bash
@@ -295,6 +297,48 @@ SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'ai_%' OR name L
 -- rating_history
 -- batch_operations
 ```
+
+#### 1.1b Token Usage Interface (Day 2)
+
+**⚠️ CRITICAL ADDITION:** Before proceeding, implement token tracking!
+
+**File:** `src/lib/engine/interfaces/IAgent.ts`
+
+Add token usage tracking:
+
+```typescript
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  modelName?: string;
+  provider?: string;
+}
+
+export interface AgentResponse {
+  action: PlayerAction;
+  usage?: TokenUsage;
+}
+
+// Update interface method signature
+export interface IAgent {
+  // ... existing properties ...
+  
+  // UPDATED: Return usage metadata
+  getAction(
+    gameState: VisibleGameState,
+    allowedActions: PlayerAction['type'][]
+  ): Promise<AgentResponse>; // Changed from Promise<PlayerAction>
+  
+  generatePersona(
+    themeDescription: string,
+    language?: string,
+    existingNames?: string[]
+  ): Promise<TokenUsage | void>;
+}
+```
+
+**See:** `COST_TRACKING_ENHANCEMENT.md` for complete implementation details
 
 #### 1.2 Model Registry (Day 2)
 
@@ -479,7 +523,84 @@ seedModels();
 pnpm tsx scripts/arena/seed-models.ts
 ```
 
-#### 1.3 ELO Rating System (Days 3-4)
+#### 1.3 Update AI Agents for Token Capture (Day 3)
+
+**⚠️ BREAKING CHANGE:** Update all agent implementations
+
+**Files to Update:**
+- `src/lib/engine/agents/OpenAIAgent.ts`
+- `src/lib/engine/agents/ClaudeAgent.ts`
+- `src/lib/engine/agents/GeminiAgent.ts`
+- `src/lib/engine/agents/HumanAgent.ts` (return undefined usage)
+
+**Example (OpenAI):**
+```typescript
+async getAction(
+  gameState: VisibleGameState,
+  allowedActions: PlayerAction['type'][]
+): Promise<AgentResponse> {
+  const completion = await this.openai.chat.completions.create({...});
+  
+  // ✅ CAPTURE TOKEN USAGE
+  const usage: TokenUsage | undefined = completion.usage
+    ? {
+        inputTokens: completion.usage.prompt_tokens,
+        outputTokens: completion.usage.completion_tokens,
+        totalTokens: completion.usage.total_tokens,
+        modelName: this.model,
+        provider: this.getProvider(),
+      }
+    : undefined;
+
+  return {
+    action: parsedAction,
+    usage, // Return usage metadata
+  };
+}
+```
+
+**See:** `COST_TRACKING_ENHANCEMENT.md` Section "Phase 2" for all agents
+
+**Run Tests:**
+```bash
+pnpm test src/lib/engine/agents/*.test.ts
+```
+
+#### 1.4 Update Game Engine to Collect Usage (Day 3-4)
+
+**File:** `src/lib/engine/core/Game.ts`
+
+Add token tracking:
+
+```typescript
+export class Game {
+  private tokenUsageLog: Map<PlayerId, TokenUsage[]> = new Map();
+  
+  private recordTokenUsage(playerId: PlayerId, usage?: TokenUsage): void {
+    if (!usage) return;
+    const playerLog = this.tokenUsageLog.get(playerId) || [];
+    playerLog.push(usage);
+    this.tokenUsageLog.set(playerId, playerLog);
+  }
+  
+  private async getPlayerAction(
+    player: IPlayer,
+    allowedActions: PlayerAction['type'][]
+  ): Promise<PlayerAction> {
+    const response = await player.getAgent().getAction(gameState, allowedActions);
+    this.recordTokenUsage(player.getId(), response.usage);
+    return response.action;
+  }
+  
+  public getTokenUsageByPlayer(): Map<PlayerId, { total: number; details: TokenUsage[] }> {
+    // ... implementation ...
+  }
+}
+```
+
+**See:** `COST_TRACKING_ENHANCEMENT.md` Section "Phase 3"
+
+#### 1.5 ELO Rating System (Day 4)
 
 **File:** `src/lib/arena/elo.ts`
 
@@ -572,7 +693,7 @@ pnpm test src/lib/arena/tests/elo.test.ts
 
 ### Week 2: Game Queue & Runner
 
-#### 1.4 Game Queue System (Days 5-6)
+#### 1.6 Game Queue System (Days 5-6)
 
 **File:** `src/lib/arena/gameQueue.ts`
 
@@ -636,9 +757,11 @@ describe('GameQueue', () => {
 });
 ```
 
-#### 1.5 Game Runner (Days 7-8)
+#### 1.7 Game Runner with Cost Tracking (Days 7-8)
 
 **File:** `src/lib/arena/gameRunner.ts`
+
+**⚠️ UPDATED:** Must collect token usage and calculate actual costs!
 
 ```typescript
 /**
@@ -674,8 +797,10 @@ export interface ArenaGameResult {
     survived: boolean;
     isWinner: boolean;
   }>;
-  tokensUsed?: number;
-  estimatedCost?: number;
+  // ✅ ACTUAL USAGE DATA
+  tokensUsed: number; // Required, not optional!
+  estimatedCost: number; // Calculated from actual usage
+  playerTokenUsage?: Map<string, number>; // Per-model breakdown
 }
 
 export class ArenaGameRunner {
@@ -710,6 +835,21 @@ export class ArenaGameRunner {
     const players = game.getPlayers();
     const winner = game.getWinner();
 
+    // ✅ COLLECT TOKEN USAGE
+    const tokenUsageByPlayer = game.getTokenUsageByPlayer();
+    
+    let totalTokens = 0;
+    const playerUsage = new Map<string, number>();
+    
+    for (const [playerId, usage] of tokenUsageByPlayer) {
+      totalTokens += usage.total;
+      const modelId = this.getModelIdForPlayer(playerId, config.aiModels);
+      playerUsage.set(modelId, (playerUsage.get(modelId) || 0) + usage.total);
+    }
+    
+    // ✅ CALCULATE ACTUAL COST
+    const actualCost = await this.calculateActualCost(playerUsage, config.aiModels);
+
     const result: ArenaGameResult = {
       matchId: config.matchId,
       winner: winner === 'Mafia' ? 'Mafia' : winner === 'Town' ? 'Town' : null,
@@ -722,10 +862,14 @@ export class ArenaGameRunner {
         survived: p.isAlive(),
         isWinner: p.getAllegiance() === winner,
       })),
+      tokensUsed: totalTokens,
+      estimatedCost: actualCost,
+      playerTokenUsage: Object.fromEntries(playerUsage),
     };
 
-    // Update player records
+    // Update player records AND cost data
     await this.updatePlayerResults(result);
+    await this.updateMatchWithCost(result);
 
     return result;
   }
@@ -807,10 +951,54 @@ export class ArenaGameRunner {
         .where(eq(arenaPlayers.matchId, result.matchId));
     }
   }
+
+  // ✅ NEW: Calculate actual cost from token usage
+  private async calculateActualCost(
+    playerUsage: Map<string, number>,
+    aiModels: ArenaGameConfig['aiModels']
+  ): Promise<number> {
+    let totalCost = 0;
+    
+    for (const [modelId, tokens] of playerUsage) {
+      const model = await db
+        .select()
+        .from(aiModels)
+        .where(eq(aiModels.id, modelId))
+        .limit(1);
+      
+      if (model[0]?.costPerMillionTokens) {
+        const cost = (tokens / 1_000_000) * model[0].costPerMillionTokens;
+        totalCost += cost;
+      }
+    }
+    
+    return totalCost;
+  }
+  
+  // ✅ NEW: Update match with cost data
+  private async updateMatchWithCost(result: ArenaGameResult): Promise<void> {
+    await db
+      .update(arenaMatches)
+      .set({
+        totalTokensUsed: result.tokensUsed,
+        estimatedCost: result.estimatedCost,
+      })
+      .where(eq(arenaMatches.id, result.matchId));
+    
+    // Update per-player token usage
+    if (result.playerTokenUsage) {
+      for (const [modelId, tokens] of Object.entries(result.playerTokenUsage)) {
+        await db
+          .update(arenaPlayers)
+          .set({ tokensUsed: tokens })
+          .where(eq(arenaPlayers.aiModelId, modelId));
+      }
+    }
+  }
 }
 ```
 
-#### 1.6 Batch Runner API (Days 9-10)
+#### 1.8 Batch Runner API (Days 9-10)
 
 **File:** `src/app/api/arena/batch/route.ts`
 
