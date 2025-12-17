@@ -1,0 +1,51 @@
+# Mafia Arena - Cloudflare Workers Configuration
+name = "mafia-arena"
+main = "src/worker/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Durable Objects
+[durable_objects]
+bindings = [
+  { name = "GAME_RUNNER", class_name = "GameRunner" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameRunner"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "mafia-arena"
+database_id = "placeholder-will-be-replaced"
+
+# R2 Bucket for transcripts
+[[r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "mafia-arena-transcripts"
+
+# Queues
+[[queues.producers]]
+queue = "mafia-arena-games"
+binding = "GAME_QUEUE"
+
+[[queues.consumers]]
+queue = "mafia-arena-games"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "mafia-arena-dlq"
+
+# Environment Variables
+[vars]
+ENVIRONMENT = "development"
+
+# Development environment
+[env.development]
+name = "mafia-arena-dev"
+
+# Production environment
+[env.production]
+name = "mafia-arena"
+
