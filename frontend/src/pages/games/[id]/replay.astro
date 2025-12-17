@@ -9,9 +9,13 @@ let transcript = null;
 let error = null;
 
 try {
+  console.log('[Replay] Fetching game:', id);
   game = await getGame(id!);
+  console.log('[Replay] Game loaded:', game?.id);
   transcript = await getTranscript(id!);
+  console.log('[Replay] Transcript loaded, events:', transcript?.events?.length);
 } catch (e) {
+  console.error('[Replay] Error:', e);
   error = e instanceof Error ? e.message : 'Failed to load game replay';
 }
 
