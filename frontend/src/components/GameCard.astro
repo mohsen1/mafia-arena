@@ -1,0 +1,126 @@
+---
+import type { GameSummary } from '../lib/api';
+import { formatDuration, formatRelativeTime } from '../lib/api';
+
+interface Props {
+  game: GameSummary;
+}
+
+const { game } = Astro.props;
+---
+
+<a href={`/games/${game.id}`} class="game-card">
+  <div class="game-header">
+    <span class="game-id">#{game.id.slice(-8)}</span>
+    <span class="game-time">{formatRelativeTime(game.created_at)}</span>
+  </div>
+  
+  <div class="game-result">
+    <span class={`winner badge badge-${game.winner}`}>
+      {game.winner === 'mafia' ? '🔴' : '🔵'} {game.winner.toUpperCase()} WINS
+    </span>
+  </div>
+  
+  <div class="game-stats">
+    <div class="stat">
+      <span class="stat-value">{game.rounds}</span>
+      <span class="stat-label">rounds</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{formatDuration(game.duration_ms)}</span>
+      <span class="stat-label">duration</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{(game.total_tokens / 1000).toFixed(1)}K</span>
+      <span class="stat-label">tokens</span>
+    </div>
+  </div>
+  
+  <div class="game-arrow">→</div>
+</a>
+
+<style>
+  .game-card {
+    display: block;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .game-card:hover {
+    border-color: var(--border-highlight);
+    transform: translateY(-2px);
+    text-decoration: none;
+  }
+
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-md);
+  }
+
+  .game-id {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--fg-secondary);
+  }
+
+  .game-time {
+    font-size: 0.875rem;
+    color: var(--fg-muted);
+  }
+
+  .game-result {
+    margin-bottom: var(--space-lg);
+  }
+
+  .winner {
+    font-size: 0.875rem;
+  }
+
+  .game-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--fg-primary);
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .game-arrow {
+    position: absolute;
+    right: var(--space-lg);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.5rem;
+    color: var(--fg-muted);
+    opacity: 0;
+    transition: all 0.2s;
+  }
+
+  .game-card:hover .game-arrow {
+    opacity: 1;
+    transform: translateY(-50%) translateX(4px);
+  }
+</style>
+

@@ -1,0 +1,136 @@
+---
+import type { LeaderboardEntry } from '../lib/api';
+import { formatNumber, formatWinRate } from '../lib/api';
+
+interface Props {
+  rankings: LeaderboardEntry[];
+  team: 'mafia' | 'town';
+}
+
+const { rankings, team } = Astro.props;
+
+function getRankClass(index: number): string {
+  if (index === 0) return 'rank-1';
+  if (index === 1) return 'rank-2';
+  if (index === 2) return 'rank-3';
+  return '';
+}
+
+function getProviderIcon(provider: string): string {
+  switch (provider) {
+    case 'openai': return '🟢';
+    case 'anthropic': return '🟠';
+    case 'google': return '🔵';
+    default: return '⚪';
+  }
+}
+---
+
+<div class="leaderboard-table">
+  {rankings.length === 0 ? (
+    <div class="empty-state">
+      <p>No games played yet for {team === 'mafia' ? 'Mafia' : 'Town'} team.</p>
+      <p class="empty-hint">Run some games to see the leaderboard!</p>
+    </div>
+  ) : (
+    <table>
+      <thead>
+        <tr>
+          <th class="col-rank">#</th>
+          <th class="col-model">Model</th>
+          <th class="col-games">Games</th>
+          <th class="col-wins">Wins</th>
+          <th class="col-rate">Win Rate</th>
+          <th class="col-bar"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {rankings.map((entry, index) => (
+          <tr class={`animate-fade-in animate-delay-${Math.min(index + 1, 3)}`}>
+            <td class={`rank ${getRankClass(index)}`}>{index + 1}</td>
+            <td class="model">
+              <span class="provider-icon">{getProviderIcon(entry.provider)}</span>
+              <span class="model-name">{entry.display_name || entry.model_id}</span>
+            </td>
+            <td class="games">{formatNumber(entry.games_played)}</td>
+            <td class="wins">{formatNumber(entry.games_won)}</td>
+            <td class="rate">{formatWinRate(entry.win_rate)}</td>
+            <td class="bar">
+              <div class="win-rate-bar">
+                <div 
+                  class="win-rate-fill" 
+                  style={`width: ${entry.win_rate * 100}%`}
+                  data-team={team}
+                ></div>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</div>
+
+<style>
+  .leaderboard-table {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  table {
+    margin: 0;
+  }
+
+  .col-rank { width: 60px; }
+  .col-model { }
+  .col-games { width: 100px; text-align: right; }
+  .col-wins { width: 100px; text-align: right; }
+  .col-rate { width: 100px; text-align: right; }
+  .col-bar { width: 120px; }
+
+  .model {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .provider-icon {
+    font-size: 1rem;
+  }
+
+  .model-name {
+    font-weight: 500;
+  }
+
+  .games, .wins {
+    font-family: var(--font-mono);
+  }
+
+  .rate {
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  .win-rate-fill[data-team="mafia"] {
+    background: var(--accent-mafia);
+  }
+
+  .win-rate-fill[data-team="town"] {
+    background: var(--accent-town);
+  }
+
+  .empty-state {
+    padding: var(--space-2xl);
+    text-align: center;
+    color: var(--fg-secondary);
+  }
+
+  .empty-hint {
+    font-size: 0.875rem;
+    color: var(--fg-muted);
+    margin-top: var(--space-sm);
+  }
+</style>
+
