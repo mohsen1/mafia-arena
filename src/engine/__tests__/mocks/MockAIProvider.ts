@@ -132,6 +132,13 @@ export class ScenarioMockAIProvider implements AIProvider {
     let action: PlayerAction;
 
     switch (prompt.type) {
+      case 'introduction':
+        action = {
+          type: 'introduction',
+          message: this.strategy.getIntroductionMessage(context),
+        };
+        break;
+
       case 'kill_vote':
         action = {
           type: 'kill_vote',
@@ -174,6 +181,7 @@ export class ScenarioMockAIProvider implements AIProvider {
  * Strategy interface for scenario-based testing.
  */
 export interface GameStrategy {
+  getIntroductionMessage(context: AIContext): string;
   getKillTarget(context: AIContext, validTargets: readonly string[]): string;
   getDiscussionMessage(context: AIContext): string;
   getEliminationTarget(context: AIContext, validTargets: readonly string[]): string | null;
@@ -183,6 +191,10 @@ export interface GameStrategy {
  * Simple strategy that always picks the first valid target.
  */
 export class FirstTargetStrategy implements GameStrategy {
+  getIntroductionMessage(context: AIContext): string {
+    return `Hello everyone, I'm ${context.playerName}. Looking forward to a fair game!`;
+  }
+
   getKillTarget(_context: AIContext, validTargets: readonly string[]): string {
     return validTargets[0]!;
   }
@@ -202,6 +214,13 @@ export class FirstTargetStrategy implements GameStrategy {
 export class CoordinatedMafiaStrategy implements GameStrategy {
   private mafiaTarget: string | null = null;
   private townVoteIndex = 0;
+
+  getIntroductionMessage(context: AIContext): string {
+    if (context.team === 'mafia') {
+      return `Hi, I'm ${context.playerName}. Just a regular citizen here, ready to help find the mafia.`;
+    }
+    return `Greetings, I'm ${context.playerName}. Let's work together to find those mafia members!`;
+  }
 
   getKillTarget(_context: AIContext, validTargets: readonly string[]): string {
     // Mafia always coordinates on the first target

@@ -268,6 +268,89 @@ describe('Game', () => {
       expect(discussionEvents.length).toBeGreaterThan(0);
     });
 
+    it('should run introduction phase at start of game', async () => {
+      const config: GameConfig = {
+        playerCount: 5,
+        mafiaCount: 1,
+        teams: [
+          { modelId: 'mafia', team: 'mafia', count: 1 },
+          { modelId: 'town', team: 'town', count: 4 },
+        ],
+        maxRounds: 10,
+        discussionEnabled: false,
+      };
+
+      const strategy = new FirstTargetStrategy();
+      const scenarioProvider = new ScenarioMockAIProvider(strategy);
+
+      const game = new Game(config, scenarioProvider);
+      const result = await game.run();
+
+      // Check that introduction events were recorded
+      const introEvents = result.events.filter(
+        (e) => e.type === 'introduction'
+      );
+      expect(introEvents.length).toBe(5); // All 5 players should introduce themselves
+
+      // Verify introduction events have correct structure
+      const firstIntro = introEvents[0]!;
+      if (firstIntro.type === 'introduction') {
+        expect(firstIntro.playerId).toBeDefined();
+        expect(firstIntro.playerName).toBeDefined();
+        expect(firstIntro.message).toBeDefined();
+        expect(firstIntro.round).toBe(1);
+      }
+
+      // Check that introduction phase start/end events exist
+      const phaseStartEvents = result.events.filter(
+        (e) => e.type === 'phase_start' && e.phase === 'introduction'
+      );
+      const phaseEndEvents = result.events.filter(
+        (e) => e.type === 'phase_end' && e.phase === 'introduction'
+      );
+      expect(phaseStartEvents.length).toBe(1);
+      expect(phaseEndEvents.length).toBe(1);
+
+      // Verify introduction happens before night phase
+      const introPhaseStartIndex = result.events.findIndex(
+        (e) => e.type === 'phase_start' && e.phase === 'introduction'
+      );
+      const nightPhaseStartIndex = result.events.findIndex(
+        (e) => e.type === 'phase_start' && e.phase === 'night'
+      );
+      expect(introPhaseStartIndex).toBeLessThan(nightPhaseStartIndex);
+    });
+
+    it('should add introductions to conversation history', async () => {
+      const config: GameConfig = {
+        playerCount: 3,
+        mafiaCount: 1,
+        teams: [
+          { modelId: 'mafia', team: 'mafia', count: 1 },
+          { modelId: 'town', team: 'town', count: 2 },
+        ],
+        maxRounds: 10,
+        discussionEnabled: false,
+      };
+
+      const strategy = new FirstTargetStrategy();
+      const scenarioProvider = new ScenarioMockAIProvider(strategy);
+
+      const game = new Game(config, scenarioProvider);
+      await game.run();
+
+      // Check that AI calls for introduction include the visible state with conversation history
+      const calls = scenarioProvider.getCallLog();
+      
+      // Find calls for night phase (after introductions)
+      const nightCalls = calls.filter((c) => c.prompt.type === 'kill_vote');
+      expect(nightCalls.length).toBeGreaterThan(0);
+      
+      // Night phase should have conversation history from introductions
+      const nightCall = nightCalls[0]!;
+      expect(nightCall.context.visibleState.conversationHistory.length).toBe(3); // All 3 players introduced
+    });
+
     it('should record elimination events', async () => {
       const config: GameConfig = {
         playerCount: 3,

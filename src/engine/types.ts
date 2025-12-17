@@ -9,7 +9,7 @@
 
 export type Team = 'mafia' | 'town';
 
-export type Phase = 'night' | 'day_discussion' | 'day_vote';
+export type Phase = 'introduction' | 'night' | 'day_discussion' | 'day_vote';
 
 // =============================================================================
 // Players
@@ -98,7 +98,7 @@ export interface AIContext {
 }
 
 export interface ActionPrompt {
-  readonly type: 'kill_vote' | 'discussion' | 'elimination_vote';
+  readonly type: 'introduction' | 'kill_vote' | 'discussion' | 'elimination_vote';
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly validTargets?: readonly string[];
@@ -117,9 +117,15 @@ export interface AIResponse {
 // =============================================================================
 
 export type PlayerAction =
+  | IntroductionAction
   | KillVoteAction
   | DiscussionAction
   | EliminationVoteAction;
+
+export interface IntroductionAction {
+  readonly type: 'introduction';
+  readonly message: string;
+}
 
 export interface KillVoteAction {
   readonly type: 'kill_vote';
@@ -175,6 +181,7 @@ export type GameEvent =
   | PhaseStartEvent
   | PhaseEndEvent
   | AICallEvent
+  | IntroductionEvent
   | DiscussionEvent
   | VoteEvent
   | EliminationEvent
@@ -202,7 +209,7 @@ export interface AICallEvent {
   readonly playerName: string;
   readonly modelId: string;
   readonly team: Team;
-  readonly actionType: 'kill_vote' | 'discussion' | 'elimination_vote';
+  readonly actionType: 'introduction' | 'kill_vote' | 'discussion' | 'elimination_vote';
   readonly prompt: {
     readonly system: string;
     readonly user: string;
@@ -221,6 +228,15 @@ export interface AICallEvent {
 
 export interface DiscussionEvent {
   readonly type: 'discussion';
+  readonly round: number;
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly message: string;
+  readonly timestamp: number;
+}
+
+export interface IntroductionEvent {
+  readonly type: 'introduction';
   readonly round: number;
   readonly playerId: string;
   readonly playerName: string;

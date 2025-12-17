@@ -48,6 +48,40 @@ IMPORTANT: Always respond with valid JSON in the exact format requested.`,
  * User prompts for specific actions.
  */
 export const ACTION_PROMPTS = {
+  introductionMafia: (playerName: string, playerCount: number) => `INTRODUCTION PHASE
+
+You are ${playerName}. This is the start of the game with ${playerCount} players total.
+
+Introduce yourself to blend in as a Town member. Share your name and a brief persona, then express initial thoughts that make you seem like a concerned citizen trying to find the Mafia.
+
+Tips:
+- Don't be too aggressive or accusatory yet (it's too early)
+- Don't be too passive (that's suspicious too)
+- Establish a believable personality
+- Maybe mention you're watching everyone carefully
+
+Respond with ONLY this JSON format:
+{
+  "message": "your introduction message (2-4 sentences)"
+}`,
+
+  introductionTown: (playerName: string, playerCount: number) => `INTRODUCTION PHASE
+
+You are ${playerName}. This is the start of the game with ${playerCount} players total.
+
+Introduce yourself to the group. Share your name and a brief persona, then express your initial thoughts about the game situation.
+
+Remember:
+- You don't know who the Mafia is, so stay vigilant
+- Pay attention to how others introduce themselves
+- Establish your personality for the group
+- Express genuine concern about finding the Mafia
+
+Respond with ONLY this JSON format:
+{
+  "message": "your introduction message (2-4 sentences)"
+}`,
+
   killVote: (targets: readonly string[], context: string) => `NIGHT PHASE - Mafia Kill Vote
 
 Choose a Town member to eliminate tonight. Coordinate with your teammates if you have any.

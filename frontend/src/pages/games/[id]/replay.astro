@@ -9,13 +9,9 @@ let transcript = null;
 let error = null;
 
 try {
-  console.log('[Replay] Fetching game:', id);
   game = await getGame(id!);
-  console.log('[Replay] Game loaded:', game?.id);
   transcript = await getTranscript(id!);
-  console.log('[Replay] Transcript loaded, events:', transcript?.events?.length);
 } catch (e) {
-  console.error('[Replay] Error:', e);
   error = e instanceof Error ? e.message : 'Failed to load game replay';
 }
 
@@ -42,6 +38,7 @@ const rounds = Object.keys(groupedEvents).map(Number).sort((a, b) => a - b);
 
 function getPhaseIcon(phase: string) {
   switch (phase) {
+    case 'introduction': return '👋';
     case 'night': return '🌙';
     case 'day_discussion': return '☀️';
     case 'day_vote': return '🗳️';
@@ -51,6 +48,7 @@ function getPhaseIcon(phase: string) {
 
 function getPhaseLabel(phase: string) {
   switch (phase) {
+    case 'introduction': return 'Introduction Phase';
     case 'night': return 'Night Phase';
     case 'day_discussion': return 'Day Discussion';
     case 'day_vote': return 'Day Vote';
@@ -135,6 +133,11 @@ function getPhaseLabel(phase: string) {
                             </div>
                           </div>
                         </details>
+                      ) : event.type === 'introduction' ? (
+                        <div class="event-card introduction">
+                          <span class="event-player">👋 {event.playerName}</span>
+                          <p class="introduction-message">"{event.message}"</p>
+                        </div>
                       ) : event.type === 'discussion' ? (
                         <div class="event-card discussion">
                           <span class="event-player">{event.playerName}</span>
@@ -339,6 +342,16 @@ function getPhaseLabel(phase: string) {
   }
 
   .discussion-message {
+    color: var(--fg-secondary);
+    font-style: italic;
+    margin-top: var(--space-sm);
+  }
+
+  .introduction {
+    border-left: 3px solid var(--accent-town);
+  }
+
+  .introduction-message {
     color: var(--fg-secondary);
     font-style: italic;
     margin-top: var(--space-sm);
