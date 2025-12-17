@@ -1,0 +1,392 @@
+---
+description: Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when building web components, pages, or applications. Generates creative, polished code that avoids generic AI aesthetics.
+globs: ["src/pages/**/*.astro", "src/components/**/*.astro", "**/*.css", "**/*.scss", "**/*.tsx", "**/*.jsx"]
+alwaysApply: false
+---
+
+# Frontend Design Rules
+
+This rule guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+
+## Design Thinking
+
+Before coding, understand the context and commit to a BOLD aesthetic direction:
+
+- **Purpose**: What problem does this interface solve? Who uses it?
+- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
+- **Constraints**: Technical requirements (framework, performance, accessibility).
+- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+
+**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+
+Then implement working code (HTML/CSS/JS, React, Vue, Astro, etc.) that is:
+- Production-grade and functional
+- Visually striking and memorable
+- Cohesive with a clear aesthetic point-of-view
+- Meticulously refined in every detail
+
+## Typography
+
+Choose fonts that are beautiful, unique, and interesting:
+
+```css
+/* ❌ NEVER - Generic, overused fonts */
+font-family: Inter, Arial, Roboto, system-ui, sans-serif;
+
+/* ✅ GOOD - Distinctive, characterful choices */
+font-family: 'Clash Display', 'Satoshi', sans-serif;
+font-family: 'PP Neue Montreal', 'Söhne', sans-serif;
+font-family: 'Cabinet Grotesk', 'General Sans', sans-serif;
+font-family: 'Fraunces', 'Literata', serif;
+font-family: 'Space Mono', 'JetBrains Mono', monospace;
+font-family: 'Playfair Display', 'Cormorant Garamond', serif;
+```
+
+### Font Pairing Strategy
+
+Pair a distinctive display font with a refined body font:
+
+```css
+:root {
+  --font-display: 'Clash Display', sans-serif;  /* Headlines, hero text */
+  --font-body: 'Satoshi', sans-serif;           /* Body copy, UI elements */
+  --font-mono: 'Berkeley Mono', monospace;      /* Code, data, numbers */
+}
+
+h1, h2, h3 { font-family: var(--font-display); }
+body { font-family: var(--font-body); }
+code, .data { font-family: var(--font-mono); }
+```
+
+## Color & Theme
+
+Commit to a cohesive aesthetic. Use CSS variables for consistency:
+
+```css
+/* ❌ NEVER - Timid, evenly-distributed palettes */
+:root {
+  --color-1: #6366f1;  /* Indigo */
+  --color-2: #8b5cf6;  /* Purple */
+  --color-3: #a855f7;  /* Violet - the "AI gradient" trap */
+}
+
+/* ✅ GOOD - Dominant colors with sharp accents */
+:root {
+  /* Dark terminal aesthetic */
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --border: #262626;
+  --text: #fafafa;
+  --text-muted: #737373;
+  --accent: #22d3ee;      /* Single vibrant accent */
+  --accent-subtle: #083344;
+}
+
+/* ✅ GOOD - Editorial/luxury aesthetic */
+:root {
+  --bg: #fffbf5;
+  --surface: #f7f3ed;
+  --text: #1a1a1a;
+  --text-muted: #6b6b6b;
+  --accent: #c9a227;      /* Gold accent */
+  --accent-deep: #8b6914;
+}
+
+/* ✅ GOOD - Brutalist/industrial */
+:root {
+  --bg: #e8e4df;
+  --surface: #d4d0cb;
+  --text: #0f0f0f;
+  --accent: #ff3d00;
+  --border: #0f0f0f;
+}
+```
+
+## Motion & Animation
+
+Use animations for effects and micro-interactions. Focus on high-impact moments:
+
+```css
+/* Page load with staggered reveals */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero { animation: fadeInUp 0.6s ease-out; }
+.hero-subtitle { animation: fadeInUp 0.6s ease-out 0.1s backwards; }
+.hero-cta { animation: fadeInUp 0.6s ease-out 0.2s backwards; }
+
+/* Hover states that surprise */
+.card {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.card:hover {
+  transform: translateY(-8px) rotate(-1deg);
+}
+
+/* Micro-interactions */
+.button {
+  position: relative;
+  overflow: hidden;
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+
+.button:hover::before {
+  transform: translateX(100%);
+}
+```
+
+### React/Motion Library
+
+```tsx
+import { motion } from 'framer-motion';
+
+const stagger = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
+};
+
+<motion.div variants={stagger} initial="hidden" animate="visible">
+  <motion.h1 variants={fadeUp}>Title</motion.h1>
+  <motion.p variants={fadeUp}>Subtitle</motion.p>
+  <motion.button variants={fadeUp}>CTA</motion.button>
+</motion.div>
+```
+
+## Spatial Composition
+
+Create unexpected layouts with asymmetry, overlap, and grid-breaking elements:
+
+```css
+/* Asymmetric hero layout */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 4rem;
+  align-items: end;  /* Not center - creates tension */
+}
+
+/* Overlapping elements */
+.feature-card {
+  position: relative;
+}
+
+.feature-card::before {
+  content: attr(data-number);
+  position: absolute;
+  top: -2rem;
+  left: -1rem;
+  font-size: 8rem;
+  font-weight: 900;
+  opacity: 0.05;
+  line-height: 1;
+}
+
+/* Grid-breaking accent */
+.highlight-section {
+  position: relative;
+  margin-left: -5vw;
+  margin-right: -5vw;
+  padding: 4rem 5vw;
+  background: var(--accent-subtle);
+}
+
+/* Generous negative space */
+.section {
+  padding: clamp(4rem, 10vh, 8rem) 0;
+}
+
+/* Controlled density */
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+
+.data-cell {
+  background: var(--surface);
+  padding: 1.5rem;
+}
+```
+
+## Backgrounds & Visual Details
+
+Create atmosphere and depth:
+
+```css
+/* Gradient mesh background */
+.bg-mesh {
+  background: 
+    radial-gradient(at 40% 20%, hsla(180, 80%, 50%, 0.3) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(200, 80%, 40%, 0.2) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(160, 80%, 50%, 0.2) 0px, transparent 50%),
+    var(--bg);
+}
+
+/* Noise texture overlay */
+.noise-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+/* Geometric pattern */
+.pattern-dots {
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Dramatic shadows */
+.elevated-card {
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.07),
+    0 2px 4px rgba(0, 0, 0, 0.07),
+    0 4px 8px rgba(0, 0, 0, 0.07),
+    0 8px 16px rgba(0, 0, 0, 0.07),
+    0 16px 32px rgba(0, 0, 0, 0.07);
+}
+
+/* Glow effect */
+.glow {
+  box-shadow: 
+    0 0 20px var(--accent),
+    0 0 40px color-mix(in srgb, var(--accent) 50%, transparent),
+    0 0 60px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Glassmorphism (use sparingly) */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+```
+
+## Anti-Patterns to Avoid
+
+```css
+/* ❌ NEVER - Generic AI aesthetics */
+.ai-slop {
+  font-family: Inter, system-ui;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* ❌ NEVER - Safe, forgettable choices */
+.boring {
+  color: #333;
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+/* ❌ NEVER - Predictable card pattern */
+.every-ai-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+```
+
+## Mafia Arena Specific Aesthetic
+
+For this project, embrace a **dark terminal/data-visualization aesthetic**:
+
+```css
+:root {
+  /* Dark terminal base */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  
+  /* High contrast text */
+  --fg-primary: #fafafa;
+  --fg-secondary: #a0a0a0;
+  --fg-muted: #525252;
+  
+  /* Game theme colors */
+  --mafia: #ef4444;
+  --mafia-glow: rgba(239, 68, 68, 0.3);
+  --town: #3b82f6;
+  --town-glow: rgba(59, 130, 246, 0.3);
+  
+  /* Data accent */
+  --accent: #22d3ee;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  
+  /* Borders */
+  --border: #262626;
+  --border-subtle: #1f1f1f;
+}
+
+/* Monospace for data */
+body {
+  font-family: 'JetBrains Mono', 'Berkeley Mono', monospace;
+}
+
+/* Tabular numbers for stats */
+.stat, .number, td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle scanline effect for retro feel */
+.terminal-effect::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
+  );
+  pointer-events: none;
+}
+```
+
+## Implementation Checklist
+
+Before submitting frontend code, verify:
+
+- [ ] Typography uses distinctive, non-generic fonts
+- [ ] Color palette has clear dominant + accent hierarchy
+- [ ] At least one "wow moment" animation or interaction
+- [ ] Layout has intentional asymmetry or unexpected composition
+- [ ] Background creates atmosphere (not solid color)
+- [ ] Design has a clear, committed aesthetic direction
+- [ ] Code is production-grade and functional
+- [ ] No Inter, Roboto, or purple gradients anywhere
+
+Remember: Claude is capable of extraordinary creative work. Don't hold back - show what can truly be created when thinking outside the box and committing fully to a distinctive vision.

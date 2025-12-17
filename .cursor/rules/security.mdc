@@ -1,0 +1,371 @@
+---
+description: Security best practices for Mafia Arena
+globs: ["**/*.ts", "**/*.tsx", "wrangler.toml", "**/*.sql"]
+alwaysApply: false
+---
+
+# Security Rules
+
+Follow these security practices to protect Mafia Arena from vulnerabilities.
+
+## Secrets Management
+
+### Never Hardcode Secrets
+
+```typescript
+// ❌ NEVER - hardcoded API key
+const OPENAI_KEY = 'sk-abc123...';
+
+// ❌ NEVER - in code comments
+// API key: sk-abc123...
+
+// ✅ Good - use environment variables
+const apiKey = env.OPENAI_API_KEY;
+```
+
+### Never Log Secrets
+
+```typescript
+// ❌ Bad - logs sensitive data
+console.log('Config:', { apiKey: env.OPENAI_API_KEY, ...config });
+console.log('Request headers:', request.headers);
+
+// ✅ Good - redact sensitive data
+console.log('Config:', { ...config, apiKey: '[REDACTED]' });
+console.log('Request received for game:', gameId);
+```
+
+### Wrangler Secrets
+
+```bash
+# Set secrets via CLI (never in wrangler.toml)
+wrangler secret put OPENAI_API_KEY
+wrangler secret put ANTHROPIC_API_KEY
+wrangler secret put GOOGLE_AI_API_KEY
+
+# List secrets (values hidden)
+wrangler secret list
+```
+
+### Environment Separation
+
+```toml
+# wrangler.toml - different configs per environment
+
+[env.development]
+vars = { ENVIRONMENT = "development" }
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+# Secrets are set separately per environment
+```
+
+## Input Validation
+
+### Validate All User Input
+
+```typescript
+import { z } from 'zod';
+
+// Define strict schemas
+const GameConfigSchema = z.object({
+  playerCount: z.number().int().min(3).max(15),
+  mafiaCount: z.number().int().min(1).max(5),
+  teams: z.array(z.object({
+    modelId: z.string().regex(/^[a-z0-9-]+$/),  // Restrict characters
+    team: z.enum(['mafia', 'town']),
+    count: z.number().int().min(1),
+  })).min(2),
+  maxRounds: z.number().int().min(1).max(20).default(10),
+});
+
+// Validate before processing
+export async function handleRunGames(request: Request): Promise<Response> {
+  const body = await request.json();
+  
+  const result = GameConfigSchema.safeParse(body);
+  if (!result.success) {
+    return Response.json(
+      { error: 'VALIDATION_ERROR', details: result.error.issues },
+      { status: 400 }
+    );
+  }
+  
+  // Use validated data
+  const config = result.data;
+}
+```
+
+### Sanitize String Inputs
+
+```typescript
+// Sanitize user-provided strings
+function sanitizeInput(input: string): string {
+  return input
+    .trim()
+    .slice(0, 1000)  // Limit length
+    .replace(/[<>]/g, '');  // Remove potentially dangerous chars
+}
+
+// For display in HTML
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+```
+
+## SQL Injection Prevention
+
+### Always Use Parameterized Queries
+
+```typescript
+// ❌ NEVER - string interpolation (SQL injection!)
+const result = await db.prepare(
+  `SELECT * FROM games WHERE id = '${gameId}'`
+).first();
+
+// ❌ NEVER - template literals
+const query = `SELECT * FROM users WHERE name = '${username}'`;
+
+// ✅ Good - parameterized queries
+const result = await db.prepare(
+  'SELECT * FROM games WHERE id = ?'
+).bind(gameId).first();
+
+// ✅ Good - multiple parameters
+const result = await db.prepare(`
+  SELECT * FROM games 
+  WHERE status = ? AND created_at > ?
+  ORDER BY created_at DESC
+  LIMIT ?
+`).bind(status, timestamp, limit).all();
+```
+
+### Validate IDs and Parameters
+
+```typescript
+// Validate ID format before query
+const UUID_REGEX = /^[a-f0-9-]{8,36}$/i;
+
+function validateGameId(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
+async function getGame(id: string): Promise<Game | null> {
+  if (!validateGameId(id)) {
+    throw new Error('Invalid game ID format');
+  }
+  
+  return db.prepare('SELECT * FROM games WHERE id = ?')
+    .bind(id)
+    .first();
+}
+```
+
+## Rate Limiting
+
+### Protect Expensive Endpoints
+
+```typescript
+const RATE_LIMITS = {
+  // Game creation - expensive (AI calls)
+  'POST /api/games/run': { maxRequests: 10, windowMs: 60_000 },
+  
+  // Read operations - more lenient
+  'GET /api/games': { maxRequests: 100, windowMs: 60_000 },
+  'GET /api/leaderboard': { maxRequests: 100, windowMs: 60_000 },
+};
+
+// Apply rate limiting
+async function checkRateLimit(request: Request, env: Env): Promise<boolean> {
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const endpoint = `${request.method} ${new URL(request.url).pathname}`;
+  const limit = RATE_LIMITS[endpoint];
+  
+  if (!limit) return true;
+  
+  const key = `ratelimit:${ip}:${endpoint}`;
+  const current = parseInt(await env.KV.get(key) || '0');
+  
+  if (current >= limit.maxRequests) {
+    return false;
+  }
+  
+  await env.KV.put(key, String(current + 1), {
+    expirationTtl: Math.ceil(limit.windowMs / 1000),
+  });
+  
+  return true;
+}
+```
+
+### Cost Controls
+
+```typescript
+// Daily budget check
+const DAILY_BUDGET_USD = 10.00;
+const AVG_COST_PER_GAME = 0.05;
+
+async function canRunGames(count: number, env: Env): Promise<boolean> {
+  const today = new Date().toISOString().split('T')[0];
+  const key = `budget:${today}`;
+  
+  const currentSpend = parseFloat(await env.KV.get(key) || '0');
+  const projectedCost = count * AVG_COST_PER_GAME;
+  
+  if (currentSpend + projectedCost > DAILY_BUDGET_USD) {
+    console.warn(`Budget limit reached: $${currentSpend} spent today`);
+    return false;
+  }
+  
+  return true;
+}
+```
+
+## Authentication & Authorization
+
+### Protect Admin Endpoints
+
+```typescript
+// Simple API key auth for admin endpoints
+async function authenticateAdmin(request: Request, env: Env): Promise<boolean> {
+  const authHeader = request.headers.get('Authorization');
+  
+  if (!authHeader?.startsWith('Bearer ')) {
+    return false;
+  }
+  
+  const token = authHeader.slice(7);
+  
+  // Constant-time comparison to prevent timing attacks
+  return timingSafeEqual(token, env.ADMIN_API_KEY);
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+```
+
+## Content Security
+
+### CORS Configuration
+
+```typescript
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigins = [
+    'https://mafia-arena.pages.dev',
+    'http://localhost:4321',  // Dev only
+  ];
+  
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+  };
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  
+  return headers;
+}
+```
+
+### Response Headers
+
+```typescript
+function securityHeaders(): Record<string, string> {
+  return {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Content-Security-Policy': "default-src 'self'",
+  };
+}
+```
+
+## Error Information Leakage
+
+### Don't Expose Internal Details
+
+```typescript
+// ❌ Bad - exposes internal info
+catch (error) {
+  return Response.json({
+    error: error.message,
+    stack: error.stack,
+    query: sqlQuery,
+  }, { status: 500 });
+}
+
+// ✅ Good - generic error, log details internally
+catch (error) {
+  console.error('Database error:', {
+    message: error.message,
+    stack: error.stack,
+    gameId,
+  });
+  
+  return Response.json({
+    error: { code: 'INTERNAL_ERROR', message: 'An error occurred' }
+  }, { status: 500 });
+}
+```
+
+## Dependency Security
+
+### Keep Dependencies Updated
+
+```bash
+# Check for vulnerabilities
+pnpm audit
+
+# Update dependencies
+pnpm update
+
+# Check for outdated packages
+pnpm outdated
+```
+
+### Minimize Dependencies
+
+Prefer built-in APIs over external packages when possible:
+
+```typescript
+// ✅ Use built-in crypto
+const id = crypto.randomUUID();
+const hash = await crypto.subtle.digest('SHA-256', data);
+
+// ✅ Use built-in fetch
+const response = await fetch(url);
+
+// ✅ Use Web Crypto API
+const encoder = new TextEncoder();
+const data = encoder.encode(message);
+```
+
+## Security Checklist
+
+Before deploying:
+
+- [ ] No hardcoded secrets in code
+- [ ] All secrets set via `wrangler secret`
+- [ ] Input validation on all endpoints
+- [ ] Parameterized queries for all D1 operations
+- [ ] Rate limiting on expensive endpoints
+- [ ] Admin endpoints require authentication
+- [ ] Error responses don't leak internal details
+- [ ] CORS properly configured
+- [ ] Security headers set
+- [ ] Dependencies audited

@@ -1,0 +1,537 @@
+---
+description: Astro frontend development rules for Mafia Arena
+globs: ["src/pages/**/*.astro", "src/components/**/*.astro", "astro.config.*"]
+alwaysApply: false
+---
+
+# Astro Frontend Rules
+
+You are building a minimal, data-focused frontend for Mafia Arena using Astro on Cloudflare Pages.
+
+## Design Philosophy
+
+- **Data-focused:** Prioritize information density and clarity
+- **Minimal:** No unnecessary decoration or animations
+- **Fast:** Server-render everything, minimal JavaScript
+- **Dark theme:** Terminal/IDE-inspired aesthetic
+
+## Astro Configuration
+
+```javascript
+// astro.config.mjs
+import { defineConfig } from 'astro/config';
+import cloudflare from '@astrojs/cloudflare';
+
+export default defineConfig({
+  output: 'server',
+  adapter: cloudflare({
+    mode: 'directory',
+    runtime: {
+      mode: 'local',
+      type: 'pages',
+    },
+  }),
+});
+```
+
+## Component Patterns
+
+### Page Structure
+
+```astro
+---
+// src/pages/index.astro
+import Layout from '../components/Layout.astro';
+import LeaderboardTable from '../components/LeaderboardTable.astro';
+import { getLeaderboard } from '../lib/api';
+
+// Server-side data fetching
+const team = Astro.url.searchParams.get('team') || 'mafia';
+const { rankings } = await getLeaderboard(team);
+---
+
+<Layout title="Leaderboard">
+  <main>
+    <h1>AI Model Leaderboard</h1>
+    <LeaderboardTable {rankings} team={team} />
+  </main>
+</Layout>
+```
+
+### Component Props
+
+```astro
+---
+// src/components/LeaderboardTable.astro
+interface Props {
+  rankings: LeaderboardEntry[];
+  team: 'mafia' | 'town';
+}
+
+const { rankings, team } = Astro.props;
+---
+
+<div class="leaderboard">
+  <div class="tabs">
+    <a href="?team=mafia" class:list={['tab', { active: team === 'mafia' }]}>
+      🔴 Mafia
+    </a>
+    <a href="?team=town" class:list={['tab', { active: team === 'town' }]}>
+      🔵 Town
+    </a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Model</th>
+        <th>Games</th>
+        <th>Wins</th>
+        <th>Win Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rankings.map((entry, i) => (
+        <tr>
+          <td class="rank">{i + 1}</td>
+          <td class="model">{entry.display_name}</td>
+          <td class="num">{entry.games_played}</td>
+          <td class="num">{entry.games_won}</td>
+          <td class="win-rate">{(entry.win_rate * 100).toFixed(1)}%</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+```
+
+### Layout Component
+
+```astro
+---
+// src/components/Layout.astro
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'AI models playing Mafia against each other' } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title} | Mafia Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="nav">
+      <a href="/" class="logo">MAFIA ARENA</a>
+      <div class="nav-links">
+        <a href="/games">Games</a>
+        <a href="/about">About</a>
+      </div>
+    </nav>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --bg-tertiary: #1a1a1a;
+    --fg-primary: #fafafa;
+    --fg-secondary: #a0a0a0;
+    --fg-muted: #666666;
+    --border: #2a2a2a;
+    --accent: #3b82f6;
+    --mafia: #ef4444;
+    --town: #3b82f6;
+    --success: #22c55e;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    background: var(--bg-primary);
+    color: var(--fg-primary);
+  }
+
+  body {
+    min-height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<style>
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+  }
+
+  .logo {
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+    color: var(--fg-primary);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+  }
+
+  .nav-links a {
+    color: var(--fg-secondary);
+    font-size: 0.875rem;
+  }
+
+  .nav-links a:hover {
+    color: var(--fg-primary);
+  }
+</style>
+```
+
+## Styling Guidelines
+
+### CSS Variables
+
+Use CSS custom properties for theming:
+
+```css
+:root {
+  /* Backgrounds */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  
+  /* Text */
+  --fg-primary: #fafafa;
+  --fg-secondary: #a0a0a0;
+  --fg-muted: #666666;
+  
+  /* Colors */
+  --border: #2a2a2a;
+  --accent: #3b82f6;
+  --mafia: #ef4444;
+  --town: #3b82f6;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+}
+```
+
+### Table Styling
+
+```css
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--fg-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+tr:hover {
+  background: var(--bg-secondary);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.win-rate {
+  text-align: right;
+  font-weight: 600;
+}
+```
+
+### Card Component
+
+```css
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+```
+
+### Badges
+
+```css
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge-mafia {
+  background: var(--mafia);
+  color: white;
+}
+
+.badge-town {
+  background: var(--town);
+  color: white;
+}
+
+.badge-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-secondary);
+}
+```
+
+## API Client
+
+```typescript
+// src/lib/api.ts
+const API_URL = import.meta.env.API_URL || 'https://mafia-arena.workers.dev';
+
+async function fetchAPI<T>(endpoint: string): Promise<T> {
+  const response = await fetch(`${API_URL}${endpoint}`);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getLeaderboard(team?: string) {
+  const query = team ? `?team=${team}` : '';
+  return fetchAPI<{ rankings: LeaderboardEntry[] }>(`/api/leaderboard${query}`);
+}
+
+export async function getGames(limit = 20, offset = 0) {
+  return fetchAPI<{ games: Game[]; total: number }>(
+    `/api/games?limit=${limit}&offset=${offset}`
+  );
+}
+
+export async function getGame(id: string) {
+  return fetchAPI<GameWithParticipants>(`/api/games/${id}`);
+}
+
+export async function getTranscript(gameId: string) {
+  const R2_URL = import.meta.env.R2_PUBLIC_URL;
+  const response = await fetch(`${R2_URL}/games/${gameId}/transcript.json`);
+  return response.json();
+}
+```
+
+## Types
+
+```typescript
+// src/lib/types.ts
+export interface LeaderboardEntry {
+  model_id: string;
+  display_name: string;
+  provider: string;
+  team: 'mafia' | 'town';
+  games_played: number;
+  games_won: number;
+  win_rate: number;
+  total_tokens: number;
+}
+
+export interface Game {
+  id: string;
+  winner: 'mafia' | 'town';
+  rounds: number;
+  duration_ms: number;
+  total_tokens: number;
+  created_at: number;
+}
+
+export interface GameWithParticipants extends Game {
+  participants: Participant[];
+}
+
+export interface Participant {
+  model_id: string;
+  model_name: string;
+  team: 'mafia' | 'town';
+  player_count: number;
+  won: boolean;
+}
+```
+
+## Page Routes
+
+```
+/                     → Leaderboard (default: mafia)
+/?team=town           → Leaderboard (town rankings)
+/games                → Game list
+/games/[id]           → Game detail
+/games/[id]/replay    → Full game replay with transcripts
+/about                → How it works
+```
+
+## Error Handling
+
+```astro
+---
+// src/pages/games/[id].astro
+import Layout from '../../components/Layout.astro';
+import { getGame } from '../../lib/api';
+
+const { id } = Astro.params;
+let game;
+let error;
+
+try {
+  game = await getGame(id);
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load game';
+}
+---
+
+<Layout title={game ? `Game ${id}` : 'Error'}>
+  {error ? (
+    <div class="error">
+      <h1>Error</h1>
+      <p>{error}</p>
+      <a href="/games">← Back to games</a>
+    </div>
+  ) : (
+    <main>
+      <!-- Game content -->
+    </main>
+  )}
+</Layout>
+```
+
+## File Structure
+
+```
+/src/pages/
+├── index.astro           # Leaderboard
+├── games/
+│   ├── index.astro       # Games list
+│   ├── [id].astro        # Game detail
+│   └── [id]/
+│       └── replay.astro  # Full replay
+├── about.astro           # How it works
+├── 404.astro             # Not found
+└── 500.astro             # Server error
+
+/src/components/
+├── Layout.astro          # Base layout
+├── Nav.astro             # Navigation
+├── LeaderboardTable.astro
+├── GameCard.astro
+├── GameTimeline.astro
+├── AICallCard.astro
+├── TeamBadge.astro
+└── TokenStats.astro
+
+/src/lib/
+├── api.ts                # API client
+├── types.ts              # TypeScript types
+└── format.ts             # Formatting utilities
+
+/public/
+└── favicon.svg
+```
+
+## Formatting Utilities
+
+```typescript
+// src/lib/format.ts
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+export function formatNumber(n: number): string {
+  return new Intl.NumberFormat('en-US').format(n);
+}
+
+export function formatTokens(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return `${(n / 1000).toFixed(1)}K`;
+  return `${(n / 1_000_000).toFixed(2)}M`;
+}
+
+export function formatRelativeTime(timestamp: number): string {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+export function formatWinRate(rate: number): string {
+  return `${(rate * 100).toFixed(1)}%`;
+}
+```

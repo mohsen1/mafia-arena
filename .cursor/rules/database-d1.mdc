@@ -1,0 +1,544 @@
+---
+description: D1 Database and data layer rules for Mafia Arena
+globs: ["src/worker/db/**/*.ts", "drizzle/**/*", "**/*.sql"]
+alwaysApply: false
+---
+
+# Database & D1 Rules
+
+You are working with Cloudflare D1 (SQLite) for the Mafia Arena database layer.
+
+## Schema Design
+
+### Tables Overview
+
+```sql
+-- AI Models registry
+CREATE TABLE models (
+  id TEXT PRIMARY KEY,           -- e.g., "gpt-4o"
+  provider TEXT NOT NULL,        -- "openai", "anthropic", "google"
+  display_name TEXT NOT NULL,    -- "GPT-4o"
+  config TEXT,                   -- JSON string for model-specific config
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Game metadata (lightweight)
+CREATE TABLE games (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT,                 -- Group related games
+  config_hash TEXT NOT NULL,     -- Hash of game config for grouping
+  player_count INTEGER NOT NULL,
+  mafia_count INTEGER NOT NULL,
+  winner TEXT NOT NULL CHECK (winner IN ('mafia', 'town')),
+  rounds INTEGER NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  total_tokens INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('running', 'completed', 'failed')),
+  error_message TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Per-game model participation
+CREATE TABLE game_participants (
+  id TEXT PRIMARY KEY,
+  game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  model_id TEXT NOT NULL REFERENCES models(id),
+  team TEXT NOT NULL CHECK (team IN ('mafia', 'town')),
+  player_count INTEGER NOT NULL,
+  won INTEGER NOT NULL CHECK (won IN (0, 1)),
+  tokens_used INTEGER NOT NULL DEFAULT 0
+);
+
+-- Aggregated leaderboard (materialized for performance)
+CREATE TABLE leaderboard (
+  model_id TEXT NOT NULL REFERENCES models(id),
+  team TEXT NOT NULL CHECK (team IN ('mafia', 'town')),
+  games_played INTEGER NOT NULL DEFAULT 0,
+  games_won INTEGER NOT NULL DEFAULT 0,
+  total_tokens INTEGER NOT NULL DEFAULT 0,
+  avg_duration_ms INTEGER,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  PRIMARY KEY (model_id, team)
+);
+
+-- Error logging
+CREATE TABLE error_log (
+  id TEXT PRIMARY KEY,
+  message TEXT NOT NULL,
+  stack TEXT,
+  context TEXT,  -- JSON string
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Indexes for common queries
+CREATE INDEX idx_games_created ON games(created_at DESC);
+CREATE INDEX idx_games_batch ON games(batch_id);
+CREATE INDEX idx_games_status ON games(status);
+CREATE INDEX idx_participants_game ON game_participants(game_id);
+CREATE INDEX idx_participants_model ON game_participants(model_id);
+CREATE INDEX idx_leaderboard_team_winrate ON leaderboard(team, games_won DESC);
+```
+
+## Database Service Pattern
+
+```typescript
+// src/worker/db/service.ts
+
+export class DatabaseService {
+  constructor(private db: D1Database) {}
+
+  // === MODELS ===
+
+  async getModels(): Promise<Model[]> {
+    const result = await this.db
+      .prepare('SELECT * FROM models ORDER BY display_name')
+      .all<Model>();
+    return result.results;
+  }
+
+  async getModel(id: string): Promise<Model | null> {
+    return this.db
+      .prepare('SELECT * FROM models WHERE id = ?')
+      .bind(id)
+      .first<Model>();
+  }
+
+  // === GAMES ===
+
+  async createGame(game: CreateGameParams): Promise<void> {
+    await this.db.prepare(`
+      INSERT INTO games (
+        id, batch_id, config_hash, player_count, mafia_count,
+        winner, rounds, duration_ms, total_tokens, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      game.id,
+      game.batchId ?? null,
+      game.configHash,
+      game.playerCount,
+      game.mafiaCount,
+      game.winner,
+      game.rounds,
+      game.durationMs,
+      game.totalTokens,
+      'completed'
+    ).run();
+  }
+
+  async getGames(options: PaginationOptions & { status?: GameStatus }): Promise<PaginatedResult<Game>> {
+    const { limit = 20, offset = 0, status } = options;
+    
+    const whereClause = status ? 'WHERE status = ?' : '';
+    const params = status ? [status] : [];
+
+    // Get total count
+    const countResult = await this.db
+      .prepare(`SELECT COUNT(*) as count FROM games ${whereClause}`)
+      .bind(...params)
+      .first<{ count: number }>();
+
+    // Get games
+    const gamesResult = await this.db
+      .prepare(`
+        SELECT * FROM games ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+      `)
+      .bind(...params, limit, offset)
+      .all<Game>();
+
+    return {
+      items: gamesResult.results,
+      total: countResult?.count ?? 0,
+      hasMore: offset + limit < (countResult?.count ?? 0),
+    };
+  }
+
+  async getGame(id: string): Promise<GameWithParticipants | null> {
+    const game = await this.db
+      .prepare('SELECT * FROM games WHERE id = ?')
+      .bind(id)
+      .first<Game>();
+
+    if (!game) return null;
+
+    const participants = await this.db
+      .prepare(`
+        SELECT gp.*, m.display_name, m.provider
+        FROM game_participants gp
+        JOIN models m ON gp.model_id = m.id
+        WHERE gp.game_id = ?
+      `)
+      .bind(id)
+      .all<ParticipantWithModel>();
+
+    return { ...game, participants: participants.results };
+  }
+
+  // === PARTICIPANTS ===
+
+  async createParticipants(gameId: string, participants: CreateParticipantParams[]): Promise<void> {
+    const stmt = this.db.prepare(`
+      INSERT INTO game_participants (id, game_id, model_id, team, player_count, won, tokens_used)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    await this.db.batch(
+      participants.map(p => stmt.bind(
+        crypto.randomUUID(),
+        gameId,
+        p.modelId,
+        p.team,
+        p.playerCount,
+        p.won ? 1 : 0,
+        p.tokensUsed
+      ))
+    );
+  }
+
+  // === LEADERBOARD ===
+
+  async updateLeaderboard(participant: LeaderboardUpdate): Promise<void> {
+    await this.db.prepare(`
+      INSERT INTO leaderboard (model_id, team, games_played, games_won, total_tokens, updated_at)
+      VALUES (?, ?, 1, ?, ?, unixepoch())
+      ON CONFLICT (model_id, team) DO UPDATE SET
+        games_played = games_played + 1,
+        games_won = games_won + excluded.games_won,
+        total_tokens = total_tokens + excluded.total_tokens,
+        updated_at = unixepoch()
+    `).bind(
+      participant.modelId,
+      participant.team,
+      participant.won ? 1 : 0,
+      participant.tokensUsed
+    ).run();
+  }
+
+  async getLeaderboard(team?: Team): Promise<LeaderboardEntry[]> {
+    let query = `
+      SELECT 
+        l.model_id,
+        l.team,
+        l.games_played,
+        l.games_won,
+        l.total_tokens,
+        l.updated_at,
+        m.display_name,
+        m.provider,
+        CASE WHEN l.games_played > 0 
+          THEN CAST(l.games_won AS REAL) / l.games_played 
+          ELSE 0 
+        END as win_rate
+      FROM leaderboard l
+      JOIN models m ON l.model_id = m.id
+    `;
+
+    if (team) {
+      query += ' WHERE l.team = ?';
+    }
+
+    query += ' ORDER BY win_rate DESC, games_played DESC';
+
+    const result = team
+      ? await this.db.prepare(query).bind(team).all<LeaderboardEntry>()
+      : await this.db.prepare(query).all<LeaderboardEntry>();
+
+    return result.results;
+  }
+
+  // === ERROR LOGGING ===
+
+  async logError(error: Error, context: Record<string, unknown>): Promise<void> {
+    await this.db.prepare(`
+      INSERT INTO error_log (id, message, stack, context, created_at)
+      VALUES (?, ?, ?, ?, unixepoch())
+    `).bind(
+      crypto.randomUUID(),
+      error.message,
+      error.stack ?? null,
+      JSON.stringify(context)
+    ).run();
+  }
+}
+```
+
+## Query Patterns
+
+### Always Use Parameterized Queries
+
+```typescript
+// ✅ Good - parameterized
+await db.prepare('SELECT * FROM games WHERE id = ?').bind(id).first();
+
+// ✅ Good - multiple params
+await db.prepare('SELECT * FROM games WHERE status = ? AND created_at > ?')
+  .bind(status, timestamp)
+  .all();
+
+// ❌ Never - string interpolation (SQL injection!)
+await db.prepare(`SELECT * FROM games WHERE id = '${id}'`).first();
+```
+
+### Batch Operations
+
+```typescript
+// ✅ Good - use batch for multiple inserts
+const stmt = db.prepare('INSERT INTO game_participants VALUES (?, ?, ?, ?)');
+await db.batch([
+  stmt.bind('id1', 'game1', 'model1', 'mafia'),
+  stmt.bind('id2', 'game1', 'model2', 'town'),
+]);
+
+// ❌ Avoid - individual inserts in a loop
+for (const p of participants) {
+  await db.prepare('INSERT INTO ...').bind(...).run(); // Slow!
+}
+```
+
+### Typed Results
+
+```typescript
+// Define types matching your schema
+interface Game {
+  id: string;
+  batch_id: string | null;
+  config_hash: string;
+  player_count: number;
+  mafia_count: number;
+  winner: 'mafia' | 'town';
+  rounds: number;
+  duration_ms: number;
+  total_tokens: number;
+  status: 'running' | 'completed' | 'failed';
+  error_message: string | null;
+  created_at: number;
+}
+
+// Use type parameter
+const result = await db.prepare('SELECT * FROM games').all<Game>();
+const game = await db.prepare('SELECT * FROM games WHERE id = ?').bind(id).first<Game>();
+```
+
+### Pagination
+
+```typescript
+interface PaginationOptions {
+  limit?: number;
+  offset?: number;
+}
+
+interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  hasMore: boolean;
+}
+
+async function paginate<T>(
+  db: D1Database,
+  table: string,
+  options: PaginationOptions
+): Promise<PaginatedResult<T>> {
+  const { limit = 20, offset = 0 } = options;
+
+  const [countResult, itemsResult] = await Promise.all([
+    db.prepare(`SELECT COUNT(*) as count FROM ${table}`).first<{ count: number }>(),
+    db.prepare(`SELECT * FROM ${table} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+      .bind(limit, offset)
+      .all<T>(),
+  ]);
+
+  const total = countResult?.count ?? 0;
+
+  return {
+    items: itemsResult.results,
+    total,
+    hasMore: offset + limit < total,
+  };
+}
+```
+
+## Migrations
+
+### Migration File Naming
+
+```
+drizzle/migrations/
+├── 0001_initial_schema.sql
+├── 0002_add_error_log.sql
+└── 0003_add_batch_id.sql
+```
+
+### Migration Content
+
+```sql
+-- 0001_initial_schema.sql
+
+-- Models table
+CREATE TABLE IF NOT EXISTS models (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  config TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Games table
+CREATE TABLE IF NOT EXISTS games (
+  id TEXT PRIMARY KEY,
+  config_hash TEXT NOT NULL,
+  player_count INTEGER NOT NULL,
+  mafia_count INTEGER NOT NULL,
+  winner TEXT NOT NULL CHECK (winner IN ('mafia', 'town')),
+  rounds INTEGER NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  total_tokens INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'completed',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_games_created ON games(created_at DESC);
+```
+
+### Running Migrations
+
+```bash
+# Create a new migration
+wrangler d1 migrations create mafia-arena add_batch_id
+
+# Apply migrations locally
+wrangler d1 migrations apply mafia-arena --local
+
+# Apply to remote
+wrangler d1 migrations apply mafia-arena --remote
+```
+
+## Seed Data
+
+```sql
+-- seed.sql
+
+INSERT OR IGNORE INTO models (id, provider, display_name) VALUES
+  ('gpt-4o', 'openai', 'GPT-4o'),
+  ('gpt-4o-mini', 'openai', 'GPT-4o Mini'),
+  ('claude-3-5-sonnet', 'anthropic', 'Claude 3.5 Sonnet'),
+  ('claude-3-5-haiku', 'anthropic', 'Claude 3.5 Haiku'),
+  ('gemini-1.5-pro', 'google', 'Gemini 1.5 Pro'),
+  ('gemini-1.5-flash', 'google', 'Gemini 1.5 Flash'),
+  ('gemini-2.0-flash', 'google', 'Gemini 2.0 Flash');
+```
+
+## Type Definitions
+
+```typescript
+// src/worker/db/types.ts
+
+export type Team = 'mafia' | 'town';
+export type GameStatus = 'running' | 'completed' | 'failed';
+export type Provider = 'openai' | 'anthropic' | 'google';
+
+export interface Model {
+  id: string;
+  provider: Provider;
+  display_name: string;
+  config: string | null;
+  created_at: number;
+}
+
+export interface Game {
+  id: string;
+  batch_id: string | null;
+  config_hash: string;
+  player_count: number;
+  mafia_count: number;
+  winner: Team;
+  rounds: number;
+  duration_ms: number;
+  total_tokens: number;
+  status: GameStatus;
+  error_message: string | null;
+  created_at: number;
+}
+
+export interface Participant {
+  id: string;
+  game_id: string;
+  model_id: string;
+  team: Team;
+  player_count: number;
+  won: number; // 0 or 1 in SQLite
+  tokens_used: number;
+}
+
+export interface ParticipantWithModel extends Participant {
+  display_name: string;
+  provider: Provider;
+}
+
+export interface GameWithParticipants extends Game {
+  participants: ParticipantWithModel[];
+}
+
+export interface LeaderboardEntry {
+  model_id: string;
+  team: Team;
+  games_played: number;
+  games_won: number;
+  win_rate: number;
+  total_tokens: number;
+  updated_at: number;
+  display_name: string;
+  provider: Provider;
+}
+
+// Create/Update params
+export interface CreateGameParams {
+  id: string;
+  batchId?: string;
+  configHash: string;
+  playerCount: number;
+  mafiaCount: number;
+  winner: Team;
+  rounds: number;
+  durationMs: number;
+  totalTokens: number;
+}
+
+export interface CreateParticipantParams {
+  modelId: string;
+  team: Team;
+  playerCount: number;
+  won: boolean;
+  tokensUsed: number;
+}
+
+export interface LeaderboardUpdate {
+  modelId: string;
+  team: Team;
+  won: boolean;
+  tokensUsed: number;
+}
+
+// Pagination
+export interface PaginationOptions {
+  limit?: number;
+  offset?: number;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  hasMore: boolean;
+}
+```
+
+## D1 Best Practices
+
+1. **Always use transactions for related writes**
+2. **Use batch operations for multiple inserts**
+3. **Create indexes for frequently queried columns**
+4. **Use INTEGER for timestamps (unixepoch)**
+5. **Keep JSON columns small and query-unfriendly data**
+6. **Use CHECK constraints for enum-like columns**
+7. **Always handle NULL values explicitly**

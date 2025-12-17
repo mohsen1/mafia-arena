@@ -1,0 +1,291 @@
+---
+description: Systematic thinking and problem-solving approach for complex tasks
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Systematic Thinking Rules
+
+Apply structured thinking for complex problems. Think step-by-step before implementing.
+
+## When to Think Systematically
+
+Apply this approach when:
+- Implementing new features with multiple components
+- Debugging complex issues
+- Refactoring existing code
+- Making architectural decisions
+- Handling edge cases
+
+## The THINK Framework
+
+### 1. **T**ask Understanding
+
+Before writing code, clarify:
+- What is the exact requirement?
+- What are the inputs and expected outputs?
+- What are the constraints (performance, compatibility)?
+- What edge cases exist?
+
+```
+Example: "Implement vote resolution"
+
+Task breakdown:
+- Input: Map of voter -> target
+- Output: Eliminated player or null (tie)
+- Constraints: O(n) time, handle empty votes
+- Edge cases: Ties, abstentions, invalid targets
+```
+
+### 2. **H**ypotheses
+
+For debugging, form hypotheses:
+
+```
+Bug: "Games sometimes hang during night phase"
+
+Hypotheses:
+1. AI provider timeout not handled
+2. Infinite loop in vote resolution
+3. Promise never resolves due to error swallowing
+4. Queue message not acknowledged
+
+Test priority: 1 > 3 > 2 > 4 (by likelihood)
+```
+
+### 3. **I**mplementation Plan
+
+Break into steps before coding:
+
+```
+Feature: "Add batch game creation"
+
+Steps:
+1. Define BatchConfig type
+2. Add validation for batch size (1-100)
+3. Generate unique game IDs
+4. Create queue messages
+5. Return batch summary
+6. Add tests for edge cases
+
+Dependencies: Step 2 needs Step 1 types
+```
+
+### 4. **N**avigate Trade-offs
+
+Document decisions:
+
+```
+Decision: "Where to store game transcripts?"
+
+Options:
+A) D1 - Simple, but 1MB row limit
+B) R2 - Unlimited size, but separate fetch
+C) KV - Fast, but 25MB limit
+
+Choice: B (R2)
+Reason: Transcripts can exceed 1MB, don't need SQL queries
+Trade-off: Extra network call, mitigated by caching
+```
+
+### 5. **K**nowledge Capture
+
+After solving, document learnings:
+
+```typescript
+/**
+ * Note: Mafia win condition is >= not >, because when equal
+ * the mafia can coordinate to eliminate remaining town.
+ * 
+ * Example: 2 mafia vs 2 town → Mafia wins (they vote together)
+ */
+if (mafiaCount >= townCount) {
+  return 'mafia';
+}
+```
+
+## Problem-Solving Patterns
+
+### Divide and Conquer
+
+Break complex problems into smaller, independent pieces:
+
+```typescript
+// Complex: Run a full game
+async function runGame(config: GameConfig): Promise<GameResult> {
+  // Divide into phases
+  let state = initializeState(config);
+  
+  while (!isGameOver(state)) {
+    state = await runNightPhase(state);    // Independent
+    if (isGameOver(state)) break;
+    
+    state = await runDayPhase(state);      // Independent
+    if (isGameOver(state)) break;
+    
+    state = await runVotePhase(state);     // Independent
+  }
+  
+  return createResult(state);
+}
+```
+
+### Work Backwards
+
+Start from the desired output:
+
+```typescript
+// Goal: Display leaderboard sorted by win rate
+
+// Step 4: Render the data
+// Need: LeaderboardEntry[]
+
+// Step 3: Calculate win rates
+// Need: games_played, games_won per model per team
+
+// Step 2: Aggregate game results
+// Need: All completed games with participants
+
+// Step 1: Store game results
+// Need: Record winner, participants after each game
+```
+
+### Rubber Duck Debugging
+
+Explain the problem out loud (or in comments):
+
+```typescript
+// BUG: Players can vote for themselves
+// 
+// What should happen:
+// - Player selects a target
+// - Target must be alive AND not the voter
+// 
+// What's happening:
+// - Self-votes are going through
+// 
+// Where's the validation?
+// - API layer: No ← HERE'S THE BUG
+// - Game engine: Yes, but comes after
+// 
+// Fix: Add validation in API before passing to engine
+```
+
+## Architectural Thinking
+
+### Consider the Full Flow
+
+```
+User Request → API → Queue → Durable Object → AI Provider
+                              ↓
+                         Game Engine
+                              ↓
+                    D1 (stats) + R2 (transcript)
+                              ↓
+                    Frontend fetches results
+
+Questions at each step:
+- What can fail here?
+- How long does this take?
+- What's the data format?
+- Who has access to this?
+```
+
+### Identify Boundaries
+
+```
+┌─────────────────────────────────────────┐
+│ Pure (no side effects)                  │
+│ - Game engine                           │
+│ - State calculations                    │
+│ - Vote resolution                       │
+└─────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────┐
+│ Side Effects (async, external)          │
+│ - AI API calls                          │
+│ - Database writes                       │
+│ - Queue messages                        │
+└─────────────────────────────────────────┘
+
+Rule: Keep boundaries clean. Pure code shouldn't 
+directly call side-effect code.
+```
+
+## Checklist Before Implementing
+
+For any significant change:
+
+- [ ] Can I explain the requirement in one sentence?
+- [ ] Have I identified all affected components?
+- [ ] Have I considered error cases?
+- [ ] Have I thought about performance implications?
+- [ ] Is there existing code I can reuse?
+- [ ] How will I test this?
+- [ ] How will I know it's working in production?
+
+## Checklist After Implementing
+
+- [ ] Does the code match the plan?
+- [ ] Are there any shortcuts I took that need cleanup?
+- [ ] Have I added appropriate tests?
+- [ ] Have I updated documentation if needed?
+- [ ] Would another developer understand this code?
+- [ ] Did I learn anything worth documenting?
+
+## Red Flags to Watch For
+
+### Complexity Creep
+
+```typescript
+// 🚩 Red flag: Too many conditionals
+if (phase === 'night' && team === 'mafia' && isAlive && !hasVoted && ...) {
+  // Consider extracting to well-named functions
+}
+
+// ✅ Better
+if (canMafiaVote(player, state)) {
+  // Clear intent
+}
+```
+
+### Premature Optimization
+
+```typescript
+// 🚩 Red flag: Optimizing before measuring
+const cache = new Map();  // "This might be slow"
+
+// ✅ Better: Measure first, then optimize
+// TODO: Profile if leaderboard queries become slow
+```
+
+### Magic Values
+
+```typescript
+// 🚩 Red flag: Unexplained numbers
+if (attempts > 3) { /* ... */ }
+await sleep(1000);
+
+// ✅ Better: Named constants
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+```
+
+## Communication
+
+When explaining your approach:
+
+```
+I'm implementing [FEATURE] because [REASON].
+
+My approach:
+1. [STEP 1] - [WHY]
+2. [STEP 2] - [WHY]
+
+Trade-offs considered:
+- [OPTION A] vs [OPTION B]: Chose [X] because [REASON]
+
+Potential risks:
+- [RISK 1]: Mitigated by [APPROACH]
+```

@@ -1,0 +1,114 @@
+# Mafia Arena - Cursor Rules
+
+You are an expert senior developer working on **Mafia Arena**, an AI benchmark platform that has Large Language Models play Mafia against each other. The system tracks win rates, displays results on a leaderboard, and exposes full game transcripts for transparency.
+
+## Project Overview
+
+- **Name:** Mafia Arena
+- **Purpose:** Benchmark LLMs via social deduction game (Mafia)
+- **Stack:** Cloudflare-native (Workers, D1, R2, Queues, Durable Objects) + Astro frontend
+- **Scale:** Demo/Portfolio project
+
+## Core Architecture
+
+```
+Trigger (CLI/API) → CF Worker → CF Queue → Durable Objects → AI Providers
+                                                    ↓
+                                            D1 (Stats) + R2 (Transcripts)
+                                                    ↓
+                                            CF Pages (Astro Frontend)
+```
+
+## Key Design Principles
+
+1. **Game Engine is Pure TypeScript** - No Cloudflare dependencies in `/src/engine/`. Portable, testable, framework-agnostic.
+2. **Dependency Injection** - AI providers are injected interfaces, not hardcoded.
+3. **Event Sourcing** - All game events are logged to `GameResult.events[]` for full transparency.
+4. **Retry with Backoff** - AI calls retry up to 3x with exponential backoff (1s, 2s, 4s).
+5. **Separation of Concerns** - DO handles orchestration, Engine handles game logic.
+
+## Code Style
+
+- Use TypeScript strict mode
+- Prefer `interface` over `type` for object shapes
+- Use explicit return types on public functions
+- Prefer `const` over `let`
+- Use descriptive variable names (no single letters except loop indices)
+- Keep functions small and focused (< 50 lines)
+- Use early returns to reduce nesting
+
+## File Structure
+
+```
+/src/
+├── engine/           # Pure game logic (NO Cloudflare deps)
+│   ├── types.ts      # All type definitions
+│   ├── Game.ts       # Main game class
+│   ├── GameState.ts  # State management
+│   ├── phases/       # Phase handlers
+│   └── __tests__/    # Unit tests (Vitest)
+├── worker/           # Cloudflare Workers code
+│   ├── index.ts      # Entry point
+│   ├── GameRunner.ts # Durable Object
+│   ├── api/          # HTTP endpoints
+│   ├── ai/           # AI provider implementations
+│   └── db/           # D1 database service
+└── pages/            # Astro frontend
+    ├── src/pages/    # Page components
+    ├── src/components/
+    └── src/lib/      # Shared utilities
+```
+
+## Naming Conventions
+
+- Files: `PascalCase.ts` for classes, `camelCase.ts` for utilities
+- Types/Interfaces: `PascalCase`
+- Functions: `camelCase`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Database tables: `snake_case`
+- API routes: `kebab-case`
+
+## Error Handling
+
+- Use custom error classes with error codes
+- Always include context in error messages
+- Log errors before throwing
+- Use `Result<T, E>` pattern for recoverable errors
+
+## Testing
+
+- Use Vitest for all tests
+- Place tests in `__tests__/` folders adjacent to source
+- Name test files `*.test.ts`
+- Test game engine thoroughly (it's the core logic)
+- Mock AI providers in tests
+
+## Comments
+
+- Avoid obvious comments
+- Document "why" not "what"
+- Use JSDoc for public APIs
+- Keep TODO comments actionable with context
+
+## Git Commits
+
+- Use conventional commits (feat:, fix:, docs:, refactor:, test:)
+- Multiple -m flags for multi-line commits
+- Keep commits atomic and focused
+
+## Performance
+
+- Minimize AI API calls (they're slow and expensive)
+- Use batch operations for D1 queries
+- Stream large transcripts from R2
+- Cache leaderboard data appropriately
+
+## Security
+
+- Never log API keys
+- Validate all user input
+- Use parameterized queries for D1
+- Sanitize data before display
+
+Refer to the detailed rules in `.cursor/rules/` for specific domains.
+

@@ -1,0 +1,539 @@
+---
+description: API routing and HTTP endpoint rules for Cloudflare Workers
+globs: ["src/worker/api/**/*.ts", "src/worker/index.ts"]
+alwaysApply: false
+---
+
+# API & Routing Rules
+
+You are building REST API endpoints for Mafia Arena using Cloudflare Workers.
+
+## API Design Principles
+
+1. **RESTful conventions** - Use proper HTTP methods and status codes
+2. **JSON responses** - Always return JSON with consistent structure
+3. **Error handling** - Return structured errors with codes
+4. **Validation** - Validate input before processing
+5. **Rate limiting** - Protect expensive endpoints
+
+## Router Pattern
+
+```typescript
+// src/worker/api/router.ts
+
+type Handler = (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>;
+
+interface Route {
+  method: string;
+  pattern: RegExp;
+  handler: Handler;
+}
+
+export class Router {
+  private routes: Route[] = [];
+
+  get(path: string, handler: Handler): this {
+    this.routes.push({ method: 'GET', pattern: this.pathToRegex(path), handler });
+    return this;
+  }
+
+  post(path: string, handler: Handler): this {
+    this.routes.push({ method: 'POST', pattern: this.pathToRegex(path), handler });
+    return this;
+  }
+
+  private pathToRegex(path: string): RegExp {
+    // Convert /games/:id to /games/(?<id>[^/]+)
+    const pattern = path
+      .replace(/:[a-zA-Z]+/g, (match) => `(?<${match.slice(1)}>[^/]+)`)
+      .replace(/\//g, '\\/');
+    return new RegExp(`^${pattern}$`);
+  }
+
+  async handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    const method = request.method;
+    const pathname = url.pathname;
+
+    for (const route of this.routes) {
+      if (route.method !== method) continue;
+      
+      const match = pathname.match(route.pattern);
+      if (match) {
+        // Attach params to request
+        (request as any).params = match.groups || {};
+        return route.handler(request, env, ctx);
+      }
+    }
+
+    return Response.json({ error: { code: 'NOT_FOUND', message: 'Endpoint not found' } }, { status: 404 });
+  }
+}
+```
+
+## API Endpoints
+
+```typescript
+// src/worker/api/index.ts
+
+import { Router } from './router';
+import { handleRunGames, handleGetGames, handleGetGame } from './games';
+import { handleGetLeaderboard } from './leaderboard';
+import { handleGetModels } from './models';
+import { withErrorHandling, withValidation, withRateLimit } from './middleware';
+
+export function createRouter(): Router {
+  const router = new Router();
+
+  // Games
+  router.post('/api/games/run', withErrorHandling(withRateLimit(handleRunGames)));
+  router.get('/api/games', withErrorHandling(handleGetGames));
+  router.get('/api/games/:id', withErrorHandling(handleGetGame));
+
+  // Leaderboard
+  router.get('/api/leaderboard', withErrorHandling(handleGetLeaderboard));
+
+  // Models
+  router.get('/api/models', withErrorHandling(handleGetModels));
+
+  // Health
+  router.get('/api/health', async () => Response.json({ status: 'ok', timestamp: Date.now() }));
+
+  return router;
+}
+```
+
+## Request Handlers
+
+### POST /api/games/run
+
+```typescript
+// src/worker/api/games.ts
+
+import { z } from 'zod';
+import { DatabaseService } from '../db/service';
+import { APIError, Errors } from '../utils/errors';
+
+const RunGamesSchema = z.object({
+  count: z.number().int().min(1).max(100),
+  config: z.object({
+    playerCount: z.number().int().min(3).max(15),
+    mafiaCount: z.number().int().min(1),
+    teams: z.array(z.object({
+      modelId: z.string(),
+      team: z.enum(['mafia', 'town']),
+      count: z.number().int().min(1),
+    })),
+    maxRounds: z.number().int().min(1).max(20).default(10),
+    discussionEnabled: z.boolean().default(true),
+  }),
+});
+
+export async function handleRunGames(request: Request, env: Env): Promise<Response> {
+  // Parse and validate request body
+  const body = await request.json();
+  const parsed = RunGamesSchema.safeParse(body);
+  
+  if (!parsed.success) {
+    throw Errors.BadRequest(`Invalid request: ${parsed.error.message}`);
+  }
+
+  const { count, config } = parsed.data;
+
+  // Validate config consistency
+  const totalPlayers = config.teams.reduce((sum, t) => sum + t.count, 0);
+  if (totalPlayers !== config.playerCount) {
+    throw Errors.BadRequest('Team counts must equal playerCount');
+  }
+
+  const mafiaTotal = config.teams
+    .filter(t => t.team === 'mafia')
+    .reduce((sum, t) => sum + t.count, 0);
+  if (mafiaTotal !== config.mafiaCount) {
+    throw Errors.BadRequest('Mafia team counts must equal mafiaCount');
+  }
+
+  // Generate batch and game IDs
+  const batchId = `batch_${crypto.randomUUID().slice(0, 8)}`;
+  const gameIds: string[] = [];
+  const messages: MessageSendRequest[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const gameId = `game_${crypto.randomUUID().slice(0, 12)}`;
+    gameIds.push(gameId);
+    messages.push({
+      body: { gameId, config, batchId },
+    });
+  }
+
+  // Enqueue games
+  await env.GAME_QUEUE.sendBatch(messages);
+
+  return Response.json({
+    success: true,
+    batchId,
+    queued: count,
+    gameIds,
+  }, { status: 202 });
+}
+```
+
+### GET /api/games
+
+```typescript
+export async function handleGetGames(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+  const offset = parseInt(url.searchParams.get('offset') || '0');
+  const status = url.searchParams.get('status') as GameStatus | null;
+
+  const db = new DatabaseService(env.DB);
+  const result = await db.getGames({ limit, offset, status: status ?? undefined });
+
+  return Response.json({
+    games: result.items,
+    total: result.total,
+    hasMore: result.hasMore,
+  });
+}
+```
+
+### GET /api/games/:id
+
+```typescript
+export async function handleGetGame(request: Request, env: Env): Promise<Response> {
+  const { id } = (request as any).params;
+
+  const db = new DatabaseService(env.DB);
+  const game = await db.getGame(id);
+
+  if (!game) {
+    throw Errors.NotFound('Game');
+  }
+
+  // Generate R2 URL for transcript
+  const transcriptUrl = `${env.R2_PUBLIC_URL}/games/${id}/transcript.json`;
+
+  return Response.json({
+    ...game,
+    transcriptUrl,
+  });
+}
+```
+
+### GET /api/leaderboard
+
+```typescript
+// src/worker/api/leaderboard.ts
+
+export async function handleGetLeaderboard(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const team = url.searchParams.get('team') as 'mafia' | 'town' | null;
+
+  const db = new DatabaseService(env.DB);
+  const rankings = await db.getLeaderboard(team ?? undefined);
+
+  return Response.json({ rankings });
+}
+```
+
+### GET /api/models
+
+```typescript
+// src/worker/api/models.ts
+
+export async function handleGetModels(request: Request, env: Env): Promise<Response> {
+  const db = new DatabaseService(env.DB);
+  const models = await db.getModels();
+
+  return Response.json({ models });
+}
+```
+
+## Middleware
+
+### Error Handling
+
+```typescript
+// src/worker/api/middleware.ts
+
+import { APIError, Errors } from '../utils/errors';
+
+type Handler = (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>;
+
+export function withErrorHandling(handler: Handler): Handler {
+  return async (request, env, ctx) => {
+    try {
+      return await handler(request, env, ctx);
+    } catch (error) {
+      console.error('Request error:', error);
+
+      if (error instanceof APIError) {
+        return error.toResponse();
+      }
+
+      if (error instanceof SyntaxError) {
+        return Errors.BadRequest('Invalid JSON').toResponse();
+      }
+
+      return Errors.Internal().toResponse();
+    }
+  };
+}
+```
+
+### Rate Limiting
+
+```typescript
+export function withRateLimit(handler: Handler, config = { maxRequests: 10, windowMs: 60000 }): Handler {
+  return async (request, env, ctx) => {
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const key = `ratelimit:${ip}`;
+    
+    const result = await checkRateLimit(env.KV, key, config);
+    
+    if (!result.allowed) {
+      return new Response(
+        JSON.stringify({ 
+          error: { 
+            code: 'RATE_LIMITED', 
+            message: 'Too many requests' 
+          } 
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(Math.ceil(config.windowMs / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+
+    const response = await handler(request, env, ctx);
+    
+    // Add rate limit headers
+    response.headers.set('X-RateLimit-Remaining', String(result.remaining));
+    
+    return response;
+  };
+}
+
+async function checkRateLimit(
+  kv: KVNamespace,
+  key: string,
+  config: { maxRequests: number; windowMs: number }
+): Promise<{ allowed: boolean; remaining: number }> {
+  const now = Date.now();
+  const windowKey = `${key}:${Math.floor(now / config.windowMs)}`;
+  
+  const current = parseInt(await kv.get(windowKey) || '0');
+  
+  if (current >= config.maxRequests) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  await kv.put(windowKey, String(current + 1), {
+    expirationTtl: Math.ceil(config.windowMs / 1000) + 1,
+  });
+  
+  return { allowed: true, remaining: config.maxRequests - current - 1 };
+}
+```
+
+### CORS
+
+```typescript
+export function withCORS(handler: Handler): Handler {
+  return async (request, env, ctx) => {
+    // Handle preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: corsHeaders(),
+      });
+    }
+
+    const response = await handler(request, env, ctx);
+    
+    // Add CORS headers
+    const headers = new Headers(response.headers);
+    Object.entries(corsHeaders()).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+
+    return new Response(response.body, {
+      status: response.status,
+      headers,
+    });
+  };
+}
+
+function corsHeaders(): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+  };
+}
+```
+
+## Error Classes
+
+```typescript
+// src/worker/utils/errors.ts
+
+export class APIError extends Error {
+  constructor(
+    public statusCode: number,
+    public code: string,
+    message: string,
+    public details?: unknown
+  ) {
+    super(message);
+    this.name = 'APIError';
+  }
+
+  toResponse(): Response {
+    return Response.json(
+      {
+        error: {
+          code: this.code,
+          message: this.message,
+          ...(this.details && { details: this.details }),
+        },
+      },
+      { status: this.statusCode }
+    );
+  }
+}
+
+export const Errors = {
+  NotFound: (resource: string) =>
+    new APIError(404, 'NOT_FOUND', `${resource} not found`),
+
+  BadRequest: (message: string, details?: unknown) =>
+    new APIError(400, 'BAD_REQUEST', message, details),
+
+  RateLimited: () =>
+    new APIError(429, 'RATE_LIMITED', 'Too many requests'),
+
+  Unauthorized: () =>
+    new APIError(401, 'UNAUTHORIZED', 'Authentication required'),
+
+  Forbidden: () =>
+    new APIError(403, 'FORBIDDEN', 'Access denied'),
+
+  Internal: (message = 'Internal server error') =>
+    new APIError(500, 'INTERNAL_ERROR', message),
+};
+```
+
+## Response Format
+
+### Success Response
+
+```json
+{
+  "data": { ... },
+  "meta": {
+    "total": 100,
+    "hasMore": true
+  }
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Invalid request: count must be between 1 and 100",
+    "details": {
+      "field": "count",
+      "received": 150
+    }
+  }
+}
+```
+
+## Worker Entry Point
+
+```typescript
+// src/worker/index.ts
+
+import { createRouter } from './api';
+import { withCORS, withErrorHandling } from './api/middleware';
+
+export { GameRunner } from './GameRunner';
+
+const router = createRouter();
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Health check bypass
+    if (new URL(request.url).pathname === '/') {
+      return Response.json({ name: 'mafia-arena', status: 'ok' });
+    }
+
+    // Handle API routes with CORS
+    return withCORS(withErrorHandling(
+      (req, env, ctx) => router.handle(req, env, ctx)
+    ))(request, env, ctx);
+  },
+
+  async queue(batch: MessageBatch<GameQueueMessage>, env: Env): Promise<void> {
+    for (const message of batch.messages) {
+      const { gameId, config, batchId } = message.body;
+
+      try {
+        const id = env.GAME_RUNNER.idFromName(gameId);
+        const stub = env.GAME_RUNNER.get(id);
+
+        await stub.fetch('http://internal/start', {
+          method: 'POST',
+          body: JSON.stringify({ config, batchId }),
+        });
+
+        message.ack();
+      } catch (error) {
+        console.error(`Queue error for game ${gameId}:`, error);
+        message.retry();
+      }
+    }
+  },
+};
+```
+
+## HTTP Status Codes
+
+| Code | Usage |
+|------|-------|
+| 200 | Successful GET |
+| 201 | Resource created |
+| 202 | Accepted (queued for processing) |
+| 400 | Bad request / validation error |
+| 401 | Authentication required |
+| 403 | Forbidden |
+| 404 | Resource not found |
+| 429 | Rate limited |
+| 500 | Internal server error |
+
+## File Structure
+
+```
+/src/worker/
+├── index.ts              # Entry point, exports
+├── GameRunner.ts         # Durable Object
+├── api/
+│   ├── index.ts          # Router setup
+│   ├── router.ts         # Router class
+│   ├── games.ts          # Game endpoints
+│   ├── leaderboard.ts    # Leaderboard endpoints
+│   ├── models.ts         # Models endpoints
+│   └── middleware.ts     # Error handling, rate limiting, CORS
+└── utils/
+    └── errors.ts         # Error classes
+```

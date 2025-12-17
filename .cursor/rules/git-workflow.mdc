@@ -1,0 +1,201 @@
+---
+description: Git workflow automation and commit conventions for Mafia Arena
+globs: ["**/*.ts", "**/*.tsx", "**/*.astro", ".git/**"]
+alwaysApply: true
+---
+
+# Git Workflow Rules
+
+Follow these Git conventions for Mafia Arena development.
+
+## Commit Message Convention
+
+Use **Conventional Commits** format:
+
+```
+<type>(<scope>): <subject>
+
+[optional body]
+
+[optional footer]
+```
+
+### Types
+
+| Type | Description |
+|------|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `style` | Code style (formatting, semicolons) |
+| `refactor` | Code change that neither fixes nor adds |
+| `perf` | Performance improvement |
+| `test` | Adding or updating tests |
+| `chore` | Maintenance tasks, dependencies |
+| `ci` | CI/CD changes |
+
+### Scopes for Mafia Arena
+
+| Scope | Area |
+|-------|------|
+| `engine` | Game engine logic |
+| `worker` | Cloudflare Worker |
+| `do` | Durable Objects |
+| `api` | API endpoints |
+| `db` | Database/D1 |
+| `ai` | AI providers |
+| `frontend` | Astro pages |
+| `ui` | Components/styling |
+
+### Examples
+
+```bash
+# Single-line commit
+git commit -m "feat(engine): add vote resolution with tie-breaking"
+
+# Multi-line commit (use multiple -m flags)
+git commit -m "feat(api): implement rate limiting" \
+           -m "- Add KV-based token bucket" \
+           -m "- Apply to POST /api/games/run" \
+           -m "- Return X-RateLimit-Remaining header"
+
+# Fix with reference
+git commit -m "fix(do): handle AI timeout during night phase" \
+           -m "Retry up to 3 times with exponential backoff" \
+           -m "Closes #42"
+```
+
+## Commit Best Practices
+
+### Keep Commits Atomic
+
+Each commit should represent ONE logical change:
+
+```bash
+# ❌ Bad - multiple unrelated changes
+git commit -m "fix bug and add feature and update docs"
+
+# ✅ Good - separate commits
+git commit -m "fix(engine): correct mafia win condition check"
+git commit -m "feat(api): add batch_id to game creation"
+git commit -m "docs: update API documentation"
+```
+
+### Include All Dirty Files
+
+When asked to commit, always stage ALL dirty files:
+
+```bash
+# Stage everything
+git add -A
+
+# Or stage specific patterns
+git add "src/**/*.ts" "*.json"
+```
+
+### Write Meaningful Messages
+
+```bash
+# ❌ Bad - vague
+git commit -m "fix stuff"
+git commit -m "wip"
+git commit -m "changes"
+
+# ✅ Good - specific and descriptive
+git commit -m "fix(engine): prevent eliminated players from voting"
+git commit -m "refactor(ai): extract prompt templates to constants"
+```
+
+## Branch Naming
+
+```
+<type>/<short-description>
+
+Examples:
+feat/leaderboard-filtering
+fix/ai-retry-logic
+refactor/game-state-immutability
+```
+
+## Pre-Commit Checklist
+
+Before committing:
+
+1. **Run tests**: `pnpm test`
+2. **Check types**: `pnpm typecheck`
+3. **Lint code**: `pnpm lint`
+4. **Format**: `pnpm format`
+5. **Review changes**: `git diff --staged`
+
+## Workflow Commands
+
+```bash
+# Start new feature
+git checkout -b feat/new-feature
+
+# Stage all changes
+git add -A
+
+# Commit with message
+git commit -m "feat(scope): description"
+
+# Push to remote
+git push origin feat/new-feature
+
+# Create PR (via GitHub CLI)
+gh pr create --title "feat: description" --body "Details..."
+```
+
+## Handling Work in Progress
+
+```bash
+# Save work without committing
+git stash push -m "WIP: working on X"
+
+# Resume work
+git stash pop
+
+# Or create WIP commit (squash later)
+git commit -m "wip: checkpoint for X" --no-verify
+```
+
+## Squashing Commits
+
+Before merging, squash related commits:
+
+```bash
+# Interactive rebase last 3 commits
+git rebase -i HEAD~3
+
+# In editor, mark commits to squash
+pick abc123 feat: add feature
+squash def456 fix: typo
+squash ghi789 fix: edge case
+```
+
+## Git Hooks Recommendations
+
+```bash
+# .husky/pre-commit
+pnpm lint-staged
+
+# .husky/commit-msg
+pnpm commitlint --edit $1
+```
+
+## Recovery Commands
+
+```bash
+# Undo last commit (keep changes)
+git reset --soft HEAD~1
+
+# Discard all local changes
+git checkout -- .
+
+# Fix last commit message
+git commit --amend -m "new message"
+
+# Add to last commit
+git add forgotten-file.ts
+git commit --amend --no-edit
+```
