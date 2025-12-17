@@ -1,5 +1,0 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
-# Run TypeScript check only (focus on critical errors)
-pnpm check:tsc
