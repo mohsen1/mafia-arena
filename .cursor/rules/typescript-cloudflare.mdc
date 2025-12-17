@@ -1,0 +1,316 @@
+---
+description: TypeScript and Cloudflare Workers development rules for Mafia Arena
+globs: ["**/*.ts", "**/*.tsx", "wrangler.toml"]
+alwaysApply: false
+---
+
+# TypeScript & Cloudflare Workers Rules
+
+You are an expert in TypeScript, Cloudflare Workers, Durable Objects, D1, R2, and Queues.
+
+## TypeScript Configuration
+
+Use strict TypeScript configuration:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true
+  }
+}
+```
+
+## Type Definitions
+
+### Prefer Interfaces for Object Shapes
+
+```typescript
+// ✅ Good - extensible and clear
+interface GameConfig {
+  playerCount: number;
+  mafiaCount: number;
+  teams: TeamAssignment[];
+  maxRounds: number;
+}
+
+// ❌ Avoid - use interface instead
+type GameConfig = {
+  playerCount: number;
+  // ...
+};
+```
+
+### Use Discriminated Unions for Events
+
+```typescript
+// ✅ Good - type-safe event handling
+type GameEvent =
+  | { type: 'phase_start'; phase: Phase; round: number }
+  | { type: 'ai_call'; playerId: string; response: AIResponse }
+  | { type: 'elimination'; playerId: string; role: Role }
+  | { type: 'game_end'; winner: Team };
+
+function handleEvent(event: GameEvent) {
+  switch (event.type) {
+    case 'phase_start':
+      // TypeScript knows event.phase exists
+      break;
+    case 'elimination':
+      // TypeScript knows event.role exists
+      break;
+  }
+}
+```
+
+### Explicit Return Types on Public Functions
+
+```typescript
+// ✅ Good - explicit return type
+export async function runGame(config: GameConfig): Promise<GameResult> {
+  // ...
+}
+
+// ❌ Avoid - inferred return types on exports
+export async function runGame(config: GameConfig) {
+  // ...
+}
+```
+
+## Cloudflare Workers
+
+### Durable Object Pattern
+
+```typescript
+export class GameRunner implements DurableObject {
+  private state: DurableObjectState;
+  private env: Env;
+
+  constructor(state: DurableObjectState, env: Env) {
+    this.state = state;
+    this.env = env;
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    
+    // Route internally
+    switch (url.pathname) {
+      case '/start':
+        return this.handleStart(request);
+      case '/status':
+        return this.handleStatus();
+      default:
+        return new Response('Not found', { status: 404 });
+    }
+  }
+
+  private async handleStart(request: Request): Promise<Response> {
+    // Implementation
+  }
+}
+```
+
+### Queue Consumer Pattern
+
+```typescript
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    // Handle HTTP requests
+  },
+
+  async queue(batch: MessageBatch<GameQueueMessage>, env: Env): Promise<void> {
+    for (const message of batch.messages) {
+      try {
+        await processMessage(message.body, env);
+        message.ack();
+      } catch (error) {
+        console.error('Queue processing error:', error);
+        message.retry();
+      }
+    }
+  },
+};
+```
+
+### D1 Database Queries
+
+```typescript
+// ✅ Good - parameterized query with typed result
+const result = await env.DB
+  .prepare('SELECT * FROM games WHERE id = ?')
+  .bind(gameId)
+  .first<Game>();
+
+// ✅ Good - batch operations
+const statements = participants.map(p =>
+  env.DB.prepare('INSERT INTO game_participants VALUES (?, ?, ?, ?)')
+    .bind(p.id, p.gameId, p.modelId, p.team)
+);
+await env.DB.batch(statements);
+
+// ❌ Never use string interpolation
+const result = await env.DB
+  .prepare(`SELECT * FROM games WHERE id = '${gameId}'`) // SQL injection!
+  .first();
+```
+
+### R2 Storage
+
+```typescript
+// Write transcript
+await env.TRANSCRIPTS.put(
+  `games/${gameId}/transcript.json`,
+  JSON.stringify(transcript),
+  {
+    httpMetadata: { contentType: 'application/json' }
+  }
+);
+
+// Read with streaming for large files
+const object = await env.TRANSCRIPTS.get(`games/${gameId}/transcript.json`);
+if (object) {
+  return new Response(object.body, {
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+```
+
+## Environment Bindings
+
+```typescript
+// Define environment interface
+interface Env {
+  // Durable Objects
+  GAME_RUNNER: DurableObjectNamespace;
+  
+  // Queues
+  GAME_QUEUE: Queue<GameQueueMessage>;
+  
+  // Storage
+  DB: D1Database;
+  TRANSCRIPTS: R2Bucket;
+  KV: KVNamespace;
+  
+  // Secrets (set via wrangler secret put)
+  OPENAI_API_KEY: string;
+  ANTHROPIC_API_KEY: string;
+  GOOGLE_AI_API_KEY: string;
+  
+  // Variables
+  ENVIRONMENT: 'development' | 'production';
+}
+```
+
+## Error Handling
+
+```typescript
+// Custom error class
+export class GameError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public cause?: Error
+  ) {
+    super(message);
+    this.name = 'GameError';
+  }
+}
+
+// Error codes
+export const ErrorCodes = {
+  AI_TIMEOUT: 'AI_TIMEOUT',
+  AI_RATE_LIMITED: 'AI_RATE_LIMITED',
+  AI_INVALID_RESPONSE: 'AI_INVALID_RESPONSE',
+  GAME_ABORTED: 'GAME_ABORTED',
+  DB_ERROR: 'DB_ERROR',
+} as const;
+```
+
+## Async Patterns
+
+```typescript
+// ✅ Good - explicit error handling with retry
+async function callWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  backoffMs: number[] = [1000, 2000, 4000]
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < maxRetries) {
+        await sleep(backoffMs[attempt]);
+      }
+    }
+  }
+
+  throw new GameError('RETRY_EXHAUSTED', `Failed after ${maxRetries} retries`, lastError);
+}
+
+// Helper
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+```
+
+## Wrangler Configuration
+
+```toml
+name = "mafia-arena"
+main = "src/worker/index.ts"
+compatibility_date = "2024-01-01"
+
+[durable_objects]
+bindings = [
+  { name = "GAME_RUNNER", class_name = "GameRunner" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameRunner"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mafia-arena"
+database_id = "your-database-id"
+
+[[r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "mafia-arena-transcripts"
+
+[[queues.producers]]
+queue = "mafia-arena-games"
+binding = "GAME_QUEUE"
+
+[[queues.consumers]]
+queue = "mafia-arena-games"
+max_batch_size = 10
+max_retries = 3
+
+[vars]
+ENVIRONMENT = "development"
+```
+
+## Import Conventions
+
+```typescript
+// External packages first
+import { z } from 'zod';
+
+// Internal absolute imports
+import { Game } from '@/engine/Game';
+import { DatabaseService } from '@/worker/db/service';
+
+// Relative imports last
+import { handleError } from './utils';
+import type { GameConfig } from './types';
+
+// Type-only imports when possible
+import type { DurableObjectState } from '@cloudflare/workers-types';
+```

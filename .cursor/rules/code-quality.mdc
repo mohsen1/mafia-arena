@@ -1,0 +1,379 @@
+---
+description: Code quality, complexity, and maintainability rules for Mafia Arena
+globs: ["**/*.ts", "**/*.tsx", "**/*.astro"]
+alwaysApply: false
+---
+
+# Code Quality Rules
+
+Maintain high code quality through consistent patterns, low complexity, and clear architecture.
+
+## Complexity Guidelines
+
+### Function Length
+
+Keep functions under 50 lines. If longer, extract helper functions:
+
+```typescript
+// ❌ Bad - too long, does too much
+async function runGame(config: GameConfig): Promise<GameResult> {
+  // 100+ lines of code...
+}
+
+// ✅ Good - broken into focused functions
+async function runGame(config: GameConfig): Promise<GameResult> {
+  const state = initializeGame(config);
+  const result = await executeGameLoop(state);
+  return finalizeResult(result);
+}
+
+function initializeGame(config: GameConfig): GameState { /* 20 lines */ }
+async function executeGameLoop(state: GameState): Promise<GameState> { /* 30 lines */ }
+function finalizeResult(state: GameState): GameResult { /* 15 lines */ }
+```
+
+### Cyclomatic Complexity
+
+Aim for complexity < 10. Reduce nesting and branches:
+
+```typescript
+// ❌ Bad - deeply nested
+function processAction(action: Action, state: GameState) {
+  if (action.type === 'vote') {
+    if (state.phase === 'day') {
+      if (action.target) {
+        if (state.isPlayerAlive(action.target)) {
+          // finally do something
+        }
+      }
+    }
+  }
+}
+
+// ✅ Good - early returns, guard clauses
+function processAction(action: Action, state: GameState) {
+  if (action.type !== 'vote') return;
+  if (state.phase !== 'day') return;
+  if (!action.target) return;
+  if (!state.isPlayerAlive(action.target)) return;
+
+  // do something
+}
+```
+
+### Parameter Count
+
+Limit to 3-4 parameters. Use objects for more:
+
+```typescript
+// ❌ Bad - too many parameters
+function createGame(
+  playerCount: number,
+  mafiaCount: number,
+  modelId: string,
+  maxRounds: number,
+  discussionEnabled: boolean,
+  timeout: number
+) {}
+
+// ✅ Good - use config object
+interface CreateGameOptions {
+  playerCount: number;
+  mafiaCount: number;
+  modelId: string;
+  maxRounds?: number;
+  discussionEnabled?: boolean;
+  timeout?: number;
+}
+
+function createGame(options: CreateGameOptions) {}
+```
+
+## Code Organization
+
+### Single Responsibility
+
+Each module/class should have one reason to change:
+
+```typescript
+// ❌ Bad - mixed responsibilities
+class Game {
+  runGame() { /* game logic */ }
+  saveToDatabase() { /* persistence */ }
+  callAI() { /* AI integration */ }
+  formatForDisplay() { /* presentation */ }
+}
+
+// ✅ Good - separated concerns
+class Game { runGame() { /* pure game logic */ } }
+class GameRepository { save(result: GameResult) {} }
+class AIProvider { getAction(context: AIContext) {} }
+class GameFormatter { format(result: GameResult) {} }
+```
+
+### Dependency Direction
+
+Dependencies should flow inward (toward core business logic):
+
+```
+❌ Bad: Engine → Worker → Database
+✅ Good: Worker → Engine ← (interfaces only)
+         Worker → Database
+```
+
+### File Organization
+
+```typescript
+// Order within a file:
+// 1. Imports (external, then internal)
+// 2. Types/Interfaces
+// 3. Constants
+// 4. Main export (class/function)
+// 5. Helper functions (private)
+
+// imports
+import { z } from 'zod';
+import type { GameConfig } from './types';
+
+// types
+interface ProcessedConfig extends GameConfig {
+  hash: string;
+}
+
+// constants
+const MAX_RETRIES = 3;
+const DEFAULT_TIMEOUT = 30000;
+
+// main export
+export function processConfig(config: GameConfig): ProcessedConfig {
+  validateConfig(config);
+  return { ...config, hash: hashConfig(config) };
+}
+
+// helpers
+function validateConfig(config: GameConfig): void { /* ... */ }
+function hashConfig(config: GameConfig): string { /* ... */ }
+```
+
+## Naming Conventions
+
+### Be Descriptive
+
+```typescript
+// ❌ Bad - unclear
+const d = getData();
+const p = players.filter(x => x.a);
+function proc(e: any) {}
+
+// ✅ Good - clear intent
+const leaderboardData = getLeaderboard();
+const alivePlayers = players.filter(player => player.isAlive);
+function processGameEvent(event: GameEvent) {}
+```
+
+### Boolean Naming
+
+Use `is`, `has`, `can`, `should` prefixes:
+
+```typescript
+// ❌ Bad
+const alive = player.status === 'alive';
+const admin = user.role === 'admin';
+
+// ✅ Good
+const isAlive = player.status === 'alive';
+const hasAdminRole = user.role === 'admin';
+const canVote = isAlive && phase === 'day_vote';
+const shouldRetry = attempts < MAX_RETRIES;
+```
+
+### Function Naming
+
+Verbs for actions, nouns for getters:
+
+```typescript
+// Actions: verb + noun
+function createGame() {}
+function processVote() {}
+function eliminatePlayer() {}
+function updateLeaderboard() {}
+
+// Queries: get/find/is/has
+function getAlivePlayers() {}
+function findPlayerById() {}
+function isGameOver() {}
+function hasVoted() {}
+```
+
+## Error Handling
+
+### Use Typed Errors
+
+```typescript
+// Define error types
+class GameError extends Error {
+  constructor(
+    public code: GameErrorCode,
+    message: string,
+    public context?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'GameError';
+  }
+}
+
+type GameErrorCode = 
+  | 'INVALID_CONFIG'
+  | 'PLAYER_NOT_FOUND'
+  | 'INVALID_PHASE'
+  | 'AI_FAILURE';
+
+// Use specific errors
+function getPlayer(id: string, state: GameState): Player {
+  const player = state.players.find(p => p.id === id);
+  if (!player) {
+    throw new GameError('PLAYER_NOT_FOUND', `Player ${id} not found`, { id });
+  }
+  return player;
+}
+```
+
+### Handle Errors at Boundaries
+
+```typescript
+// Let errors bubble up through pure code
+function pureLogic(input: Input): Output {
+  // May throw - that's OK
+  return process(input);
+}
+
+// Handle at API/system boundaries
+async function apiHandler(request: Request): Promise<Response> {
+  try {
+    const result = pureLogic(parseInput(request));
+    return Response.json(result);
+  } catch (error) {
+    if (error instanceof GameError) {
+      return Response.json({ error: error.code }, { status: 400 });
+    }
+    console.error('Unexpected error:', error);
+    return Response.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
+  }
+}
+```
+
+## DRY Principle
+
+### Extract Common Patterns
+
+```typescript
+// ❌ Bad - repeated logic
+async function getMafiaPlayers(state: GameState) {
+  return state.players.filter(p => p.isAlive && p.team === 'mafia');
+}
+
+async function getTownPlayers(state: GameState) {
+  return state.players.filter(p => p.isAlive && p.team === 'town');
+}
+
+// ✅ Good - parameterized
+function getPlayersByTeam(state: GameState, team: Team): Player[] {
+  return state.players.filter(p => p.isAlive && p.team === team);
+}
+
+// Or use computed properties
+class GameState {
+  get aliveMafia() { return this.getPlayersByTeam('mafia'); }
+  get aliveTown() { return this.getPlayersByTeam('town'); }
+}
+```
+
+### Reuse Abstractions
+
+```typescript
+// ✅ Good - reusable utilities
+const retry = <T>(fn: () => Promise<T>, attempts: number): Promise<T> => { /* ... */ };
+const batch = <T>(items: T[], size: number): T[][] => { /* ... */ };
+const formatDuration = (ms: number): string => { /* ... */ };
+
+// Use throughout codebase
+await retry(() => aiProvider.complete(prompt), 3);
+const batches = batch(games, 10);
+const duration = formatDuration(result.durationMs);
+```
+
+## Documentation
+
+### JSDoc for Public APIs
+
+```typescript
+/**
+ * Creates and runs a new Mafia game.
+ * 
+ * @param config - Game configuration
+ * @param aiProvider - AI provider for player actions
+ * @returns Complete game result with events and stats
+ * @throws {GameError} If configuration is invalid
+ * 
+ * @example
+ * const result = await runGame({
+ *   playerCount: 7,
+ *   mafiaCount: 2,
+ *   teams: [...]
+ * }, aiProvider);
+ */
+export async function runGame(
+  config: GameConfig,
+  aiProvider: AIProvider
+): Promise<GameResult> {
+  // ...
+}
+```
+
+### Comment "Why" Not "What"
+
+```typescript
+// ❌ Bad - describes what code does (obvious)
+// Loop through players and filter alive ones
+const alive = players.filter(p => p.isAlive);
+
+// ✅ Good - explains why
+// Mafia wins when they equal or outnumber town, not just when majority
+if (mafiaCount >= townCount) {
+  return 'mafia';
+}
+```
+
+## Testing Quality
+
+### Test Behavior, Not Implementation
+
+```typescript
+// ❌ Bad - tests implementation details
+it('should call processVote and updateState', () => {
+  const spy = vi.spyOn(game, 'processVote');
+  game.vote('player_1', 'player_2');
+  expect(spy).toHaveBeenCalled();
+});
+
+// ✅ Good - tests behavior
+it('should eliminate player with most votes', () => {
+  game.vote('player_1', 'player_3');
+  game.vote('player_2', 'player_3');
+  game.resolveVotes();
+  expect(game.isPlayerAlive('player_3')).toBe(false);
+});
+```
+
+### Descriptive Test Names
+
+```typescript
+// ❌ Bad
+it('works', () => {});
+it('test vote', () => {});
+
+// ✅ Good
+it('should eliminate the player with the most votes', () => {});
+it('should not eliminate anyone when votes are tied', () => {});
+it('should allow mafia to see their teammates', () => {});
+```

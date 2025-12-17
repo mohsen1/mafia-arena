@@ -1,0 +1,559 @@
+---
+description: Testing rules and patterns using Vitest
+globs: ["**/*.test.ts", "**/__tests__/**/*.ts", "vitest.config.*"]
+alwaysApply: false
+---
+
+# Testing Rules
+
+You are writing tests for Mafia Arena using Vitest. Focus on testing the game engine thoroughly as it contains the core business logic.
+
+## Test Configuration
+
+```typescript
+// vitest.config.ts
+import { defineConfig } from 'vitest/config';
+import path from 'path';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      include: ['src/engine/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/types.ts'],
+    },
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+});
+```
+
+## Test Organization
+
+```
+/src/engine/
+├── Game.ts
+├── Game.test.ts              # Co-located tests
+├── GameState.ts
+├── GameState.test.ts
+├── phases/
+│   ├── NightPhase.ts
+│   └── NightPhase.test.ts
+└── __tests__/
+    ├── integration.test.ts   # Full game integration tests
+    └── mocks/
+        └── MockAIProvider.ts
+```
+
+## Test Naming Convention
+
+```typescript
+describe('GameState', () => {
+  describe('create', () => {
+    it('should initialize with correct player count', () => {});
+    it('should assign teams based on config', () => {});
+    it('should start in night phase at round 1', () => {});
+  });
+
+  describe('withPlayerKilled', () => {
+    it('should mark player as not alive', () => {});
+    it('should not mutate original state', () => {});
+    it('should preserve other players', () => {});
+  });
+
+  describe('alivePlayers', () => {
+    it('should return only alive players', () => {});
+    it('should return empty array when all dead', () => {});
+  });
+});
+```
+
+## Mock AI Provider
+
+```typescript
+// src/engine/__tests__/mocks/MockAIProvider.ts
+
+import type { AIProvider, AIContext, AIResponse, ActionPrompt } from '../../types';
+
+export class MockAIProvider implements AIProvider {
+  private responseQueue: AIResponse[] = [];
+  private callHistory: Array<{ context: AIContext; prompt: ActionPrompt }> = [];
+
+  /**
+   * Queue a response to be returned on the next getAction call
+   */
+  queueResponse(response: Partial<AIResponse>): this {
+    this.responseQueue.push({
+      action: { type: 'kill_vote', target: 'player_1' },
+      tokensUsed: { input: 100, output: 20 },
+      latencyMs: 500,
+      ...response,
+    });
+    return this;
+  }
+
+  /**
+   * Queue multiple responses at once
+   */
+  queueResponses(responses: Array<Partial<AIResponse>>): this {
+    responses.forEach(r => this.queueResponse(r));
+    return this;
+  }
+
+  /**
+   * Get all calls made to this provider
+   */
+  getCalls(): Array<{ context: AIContext; prompt: ActionPrompt }> {
+    return [...this.callHistory];
+  }
+
+  /**
+   * Get the last call made
+   */
+  getLastCall(): { context: AIContext; prompt: ActionPrompt } | undefined {
+    return this.callHistory.at(-1);
+  }
+
+  /**
+   * Reset state
+   */
+  reset(): void {
+    this.responseQueue = [];
+    this.callHistory = [];
+  }
+
+  async getAction(context: AIContext, prompt: ActionPrompt): Promise<AIResponse> {
+    this.callHistory.push({ context, prompt });
+
+    const response = this.responseQueue.shift();
+    if (!response) {
+      throw new Error(
+        `MockAIProvider: No response queued. Call queueResponse() before running the game. ` +
+        `Calls so far: ${this.callHistory.length}`
+      );
+    }
+
+    return response;
+  }
+}
+
+/**
+ * Create a mock provider with pre-configured responses for a full game
+ */
+export function createGameMockProvider(scenario: 'mafia_wins' | 'town_wins'): MockAIProvider {
+  const mock = new MockAIProvider();
+
+  if (scenario === 'mafia_wins') {
+    // Night 1: Mafia kills a town member
+    mock.queueResponse({
+      action: { type: 'kill_vote', target: 'player_3' },
+    });
+    // Day 1: Discussion
+    mock.queueResponses([
+      { action: { type: 'discussion', message: 'Player 3 was killed. Very suspicious.' } },
+      { action: { type: 'discussion', message: 'I think player 2 might be mafia.' } },
+    ]);
+    // Day 1: Vote - Town votes out another town member
+    mock.queueResponses([
+      { action: { type: 'elimination_vote', target: 'player_4' } },
+      { action: { type: 'elimination_vote', target: 'player_4' } },
+    ]);
+    // Continue until mafia wins...
+  }
+
+  return mock;
+}
+```
+
+## Unit Test Examples
+
+### Testing GameState
+
+```typescript
+// src/engine/GameState.test.ts
+
+import { describe, it, expect } from 'vitest';
+import { GameState } from './GameState';
+import type { GameConfig } from './types';
+
+describe('GameState', () => {
+  const defaultConfig: GameConfig = {
+    playerCount: 5,
+    mafiaCount: 1,
+    teams: [
+      { modelId: 'gpt-4o', team: 'mafia', count: 1 },
+      { modelId: 'claude-3-5-sonnet', team: 'town', count: 4 },
+    ],
+    maxRounds: 10,
+    discussionEnabled: true,
+  };
+
+  describe('create', () => {
+    it('should create state with correct number of players', () => {
+      const state = GameState.create(defaultConfig);
+      expect(state.players).toHaveLength(5);
+    });
+
+    it('should assign correct team distribution', () => {
+      const state = GameState.create(defaultConfig);
+      const mafia = state.players.filter(p => p.team === 'mafia');
+      const town = state.players.filter(p => p.team === 'town');
+      
+      expect(mafia).toHaveLength(1);
+      expect(town).toHaveLength(4);
+    });
+
+    it('should start at night phase, round 1', () => {
+      const state = GameState.create(defaultConfig);
+      expect(state.phase).toBe('night');
+      expect(state.round).toBe(1);
+    });
+
+    it('should initialize all players as alive', () => {
+      const state = GameState.create(defaultConfig);
+      expect(state.players.every(p => p.isAlive)).toBe(true);
+    });
+  });
+
+  describe('withPlayerKilled', () => {
+    it('should mark player as not alive', () => {
+      const state = GameState.create(defaultConfig);
+      const targetId = state.players[0].id;
+      
+      const newState = state.withPlayerKilled(targetId);
+      
+      const target = newState.players.find(p => p.id === targetId);
+      expect(target?.isAlive).toBe(false);
+    });
+
+    it('should return a new state instance', () => {
+      const state = GameState.create(defaultConfig);
+      const newState = state.withPlayerKilled(state.players[0].id);
+      
+      expect(newState).not.toBe(state);
+      // Original state unchanged
+      expect(state.players[0].isAlive).toBe(true);
+    });
+  });
+
+  describe('computed properties', () => {
+    it('alivePlayers should exclude dead players', () => {
+      let state = GameState.create(defaultConfig);
+      state = state.withPlayerKilled(state.players[0].id);
+      
+      expect(state.alivePlayers).toHaveLength(4);
+    });
+
+    it('aliveMafia should return only alive mafia', () => {
+      let state = GameState.create(defaultConfig);
+      const mafia = state.players.find(p => p.team === 'mafia')!;
+      
+      expect(state.aliveMafia).toHaveLength(1);
+      
+      state = state.withPlayerKilled(mafia.id);
+      expect(state.aliveMafia).toHaveLength(0);
+    });
+  });
+});
+```
+
+### Testing Vote Resolution
+
+```typescript
+// src/engine/utils/votes.test.ts
+
+import { describe, it, expect } from 'vitest';
+import { resolveVotes } from './votes';
+
+describe('resolveVotes', () => {
+  const candidates = [
+    { id: 'player_1', name: 'Alice' },
+    { id: 'player_2', name: 'Bob' },
+    { id: 'player_3', name: 'Charlie' },
+  ];
+
+  it('should return candidate with most votes', () => {
+    const votes = new Map([
+      ['voter_1', 'player_2'],
+      ['voter_2', 'player_2'],
+      ['voter_3', 'player_1'],
+    ]);
+
+    const result = resolveVotes(votes, candidates);
+    expect(result?.id).toBe('player_2');
+  });
+
+  it('should return null on tie', () => {
+    const votes = new Map([
+      ['voter_1', 'player_1'],
+      ['voter_2', 'player_2'],
+    ]);
+
+    const result = resolveVotes(votes, candidates);
+    expect(result).toBeNull();
+  });
+
+  it('should return null when no votes', () => {
+    const votes = new Map<string, string>();
+    const result = resolveVotes(votes, candidates);
+    expect(result).toBeNull();
+  });
+
+  it('should handle single vote', () => {
+    const votes = new Map([['voter_1', 'player_3']]);
+    const result = resolveVotes(votes, candidates);
+    expect(result?.id).toBe('player_3');
+  });
+});
+```
+
+### Testing Win Conditions
+
+```typescript
+// src/engine/utils/winConditions.test.ts
+
+import { describe, it, expect } from 'vitest';
+import { checkWinCondition } from './winConditions';
+import { GameState } from '../GameState';
+
+describe('checkWinCondition', () => {
+  it('should return "town" when all mafia eliminated', () => {
+    const state = createStateWithCounts({ mafia: 0, town: 3 });
+    expect(checkWinCondition(state)).toBe('town');
+  });
+
+  it('should return "mafia" when mafia equals town', () => {
+    const state = createStateWithCounts({ mafia: 2, town: 2 });
+    expect(checkWinCondition(state)).toBe('mafia');
+  });
+
+  it('should return "mafia" when mafia outnumbers town', () => {
+    const state = createStateWithCounts({ mafia: 3, town: 2 });
+    expect(checkWinCondition(state)).toBe('mafia');
+  });
+
+  it('should return null when game continues', () => {
+    const state = createStateWithCounts({ mafia: 1, town: 3 });
+    expect(checkWinCondition(state)).toBeNull();
+  });
+});
+
+// Test helper
+function createStateWithCounts(counts: { mafia: number; town: number }): GameState {
+  // Implementation that creates a state with specific alive counts
+}
+```
+
+## Integration Tests
+
+```typescript
+// src/engine/__tests__/integration.test.ts
+
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Game } from '../Game';
+import { MockAIProvider } from './mocks/MockAIProvider';
+import type { GameConfig } from '../types';
+
+describe('Game Integration', () => {
+  let mockAI: MockAIProvider;
+  
+  const config: GameConfig = {
+    playerCount: 5,
+    mafiaCount: 1,
+    teams: [
+      { modelId: 'test-model', team: 'mafia', count: 1 },
+      { modelId: 'test-model', team: 'town', count: 4 },
+    ],
+    maxRounds: 5,
+    discussionEnabled: true,
+  };
+
+  beforeEach(() => {
+    mockAI = new MockAIProvider();
+  });
+
+  it('should complete a game where town wins', async () => {
+    // Queue responses for town victory scenario
+    // Night 1: Mafia kills town
+    mockAI.queueResponse({ action: { type: 'kill_vote', target: 'player_3' } });
+    // Day 1: Discussion (4 alive players)
+    for (let i = 0; i < 4; i++) {
+      mockAI.queueResponse({ action: { type: 'discussion', message: `Player ${i} discussing` } });
+    }
+    // Day 1: Vote - town eliminates mafia
+    for (let i = 0; i < 4; i++) {
+      mockAI.queueResponse({ action: { type: 'elimination_vote', target: 'player_1' } }); // mafia
+    }
+
+    const game = new Game(config, mockAI);
+    const result = await game.run();
+
+    expect(result.winner).toBe('town');
+    expect(result.rounds).toBe(1);
+    expect(result.events.length).toBeGreaterThan(0);
+  });
+
+  it('should track all events in order', async () => {
+    // Setup minimal game
+    mockAI.queueResponse({ action: { type: 'kill_vote', target: 'player_2' } });
+    // Queue enough responses for at least one round...
+
+    const game = new Game(config, mockAI);
+    const result = await game.run();
+
+    const eventTypes = result.events.map(e => e.type);
+    
+    // Verify event ordering
+    expect(eventTypes[0]).toBe('phase_start');
+    expect(result.events[0].phase).toBe('night');
+  });
+
+  it('should respect maxRounds limit', async () => {
+    const limitedConfig = { ...config, maxRounds: 2 };
+    
+    // Queue enough responses to go beyond max rounds
+    for (let i = 0; i < 50; i++) {
+      mockAI.queueResponse({ action: { type: 'kill_vote', target: 'player_2' } });
+      mockAI.queueResponse({ action: { type: 'discussion', message: 'test' } });
+      mockAI.queueResponse({ action: { type: 'elimination_vote', target: null } });
+    }
+
+    const game = new Game(limitedConfig, mockAI);
+    const result = await game.run();
+
+    expect(result.rounds).toBeLessThanOrEqual(2);
+  });
+
+  it('should calculate correct token usage', async () => {
+    mockAI.queueResponse({
+      action: { type: 'kill_vote', target: 'player_2' },
+      tokensUsed: { input: 100, output: 50 },
+    });
+    // More responses with known token counts...
+
+    const game = new Game(config, mockAI);
+    const result = await game.run();
+
+    expect(result.tokenUsage.input).toBeGreaterThan(0);
+    expect(result.tokenUsage.output).toBeGreaterThan(0);
+  });
+});
+```
+
+## Testing Async Code
+
+```typescript
+// Testing retries
+describe('RetryingProvider', () => {
+  it('should retry on failure', async () => {
+    const mockProvider = {
+      complete: vi.fn()
+        .mockRejectedValueOnce(new Error('Timeout'))
+        .mockRejectedValueOnce(new Error('Timeout'))
+        .mockResolvedValueOnce({ content: 'success', tokensUsed: { input: 10, output: 5 } }),
+    };
+
+    const retrying = new RetryingProvider(mockProvider as any, {
+      maxRetries: 3,
+      backoffMs: [10, 20, 40], // Fast for tests
+    });
+
+    const result = await retrying.complete({ systemPrompt: '', userPrompt: '' });
+
+    expect(mockProvider.complete).toHaveBeenCalledTimes(3);
+    expect(result.content).toBe('success');
+  });
+
+  it('should throw after max retries', async () => {
+    const mockProvider = {
+      complete: vi.fn().mockRejectedValue(new Error('Always fails')),
+    };
+
+    const retrying = new RetryingProvider(mockProvider as any, {
+      maxRetries: 2,
+      backoffMs: [10, 20],
+    });
+
+    await expect(retrying.complete({ systemPrompt: '', userPrompt: '' }))
+      .rejects.toThrow('RETRY_EXHAUSTED');
+
+    expect(mockProvider.complete).toHaveBeenCalledTimes(3); // Initial + 2 retries
+  });
+});
+```
+
+## Test Utilities
+
+```typescript
+// src/engine/__tests__/utils.ts
+
+import type { GameConfig, Player, GameState } from '../types';
+
+export function createTestConfig(overrides: Partial<GameConfig> = {}): GameConfig {
+  return {
+    playerCount: 5,
+    mafiaCount: 1,
+    teams: [
+      { modelId: 'test-model', team: 'mafia', count: 1 },
+      { modelId: 'test-model', team: 'town', count: 4 },
+    ],
+    maxRounds: 10,
+    discussionEnabled: true,
+    ...overrides,
+  };
+}
+
+export function createTestPlayer(overrides: Partial<Player> = {}): Player {
+  return {
+    id: `player_${Math.random().toString(36).slice(2)}`,
+    name: 'Test Player',
+    modelId: 'test-model',
+    team: 'town',
+    isAlive: true,
+    ...overrides,
+  };
+}
+
+export function createTestPlayers(count: number, team: 'mafia' | 'town'): Player[] {
+  return Array.from({ length: count }, (_, i) =>
+    createTestPlayer({ id: `player_${team}_${i}`, team })
+  );
+}
+```
+
+## Running Tests
+
+```bash
+# Run all tests
+pnpm test
+
+# Run with coverage
+pnpm test --coverage
+
+# Run specific file
+pnpm test src/engine/GameState.test.ts
+
+# Run in watch mode
+pnpm test --watch
+
+# Run with UI
+pnpm test --ui
+```
+
+## Best Practices
+
+1. **Keep tests focused** - One assertion concept per test
+2. **Use descriptive names** - `it('should return null when all players are dead')`
+3. **Arrange-Act-Assert** - Clear structure in each test
+4. **Don't test implementation** - Test behavior and outputs
+5. **Mock external dependencies** - AI providers, databases
+6. **Test edge cases** - Empty arrays, null values, boundaries
+7. **Keep tests fast** - Use short timeouts in mocks
+8. **Clean up** - Use `beforeEach` to reset state

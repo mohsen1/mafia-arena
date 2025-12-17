@@ -1,0 +1,438 @@
+---
+description: Game Engine development rules - Pure TypeScript Mafia game logic
+globs: ["src/engine/**/*.ts"]
+alwaysApply: false
+---
+
+# Game Engine Rules
+
+You are building a pure TypeScript game engine for Mafia. This engine MUST be framework-agnostic with NO Cloudflare dependencies.
+
+## Core Principle: Purity
+
+The game engine in `/src/engine/` must:
+- Have ZERO external runtime dependencies
+- Be fully testable without mocking infrastructure
+- Accept AI providers via dependency injection
+- Return structured results, not side effects
+
+```typescript
+// ✅ Good - pure engine with injected dependency
+class Game {
+  constructor(
+    private config: GameConfig,
+    private aiProvider: AIProvider // Injected
+  ) {}
+
+  async run(): Promise<GameResult> {
+    // Pure game logic
+  }
+}
+
+// ❌ Bad - engine with infrastructure dependency
+class Game {
+  constructor(config: GameConfig, env: Env) {
+    this.db = env.DB; // NO! Keep engine pure
+  }
+}
+```
+
+## Type Definitions
+
+All game types should be in `/src/engine/types.ts`:
+
+```typescript
+// Teams
+export type Team = 'mafia' | 'town';
+
+// Phases
+export type Phase = 'night' | 'day_discussion' | 'day_vote';
+
+// Player
+export interface Player {
+  id: string;
+  name: string;
+  modelId: string;
+  team: Team;
+  isAlive: boolean;
+}
+
+// Game configuration
+export interface GameConfig {
+  playerCount: number;
+  mafiaCount: number;
+  teams: TeamAssignment[];
+  maxRounds: number;
+  discussionEnabled: boolean;
+}
+
+export interface TeamAssignment {
+  modelId: string;
+  team: Team;
+  count: number;
+}
+
+// Game result
+export interface GameResult {
+  id: string;
+  config: GameConfig;
+  winner: Team;
+  rounds: number;
+  events: GameEvent[];
+  tokenUsage: TokenUsage;
+  durationMs: number;
+}
+
+// AI Provider Interface (injected)
+export interface AIProvider {
+  getAction(context: AIContext, prompt: ActionPrompt): Promise<AIResponse>;
+}
+
+export interface AIContext {
+  gameId: string;
+  playerId: string;
+  modelId: string;
+  phase: Phase;
+  round: number;
+  visibleState: VisibleGameState;
+}
+
+export interface AIResponse {
+  action: PlayerAction;
+  reasoning?: string;
+  tokensUsed: { input: number; output: number };
+  latencyMs: number;
+}
+
+// Player actions
+export type PlayerAction =
+  | { type: 'kill_vote'; target: string }
+  | { type: 'discussion'; message: string }
+  | { type: 'elimination_vote'; target: string | null }; // null = abstain
+```
+
+## Game State Management
+
+Use immutable state patterns:
+
+```typescript
+export class GameState {
+  private constructor(
+    public readonly players: ReadonlyArray<Player>,
+    public readonly phase: Phase,
+    public readonly round: number,
+    public readonly events: ReadonlyArray<GameEvent>,
+    public readonly conversationHistory: ReadonlyArray<ConversationMessage>
+  ) {}
+
+  static create(config: GameConfig): GameState {
+    const players = createPlayers(config);
+    return new GameState(players, 'night', 1, [], []);
+  }
+
+  // Return new state instead of mutating
+  withPlayerKilled(playerId: string): GameState {
+    const players = this.players.map(p =>
+      p.id === playerId ? { ...p, isAlive: false } : p
+    );
+    return new GameState(players, this.phase, this.round, this.events, this.conversationHistory);
+  }
+
+  withEvent(event: GameEvent): GameState {
+    return new GameState(
+      this.players,
+      this.phase,
+      this.round,
+      [...this.events, event],
+      this.conversationHistory
+    );
+  }
+
+  // Computed properties
+  get alivePlayers(): ReadonlyArray<Player> {
+    return this.players.filter(p => p.isAlive);
+  }
+
+  get aliveMafia(): ReadonlyArray<Player> {
+    return this.alivePlayers.filter(p => p.team === 'mafia');
+  }
+
+  get aliveTown(): ReadonlyArray<Player> {
+    return this.alivePlayers.filter(p => p.team === 'town');
+  }
+}
+```
+
+## Win Conditions
+
+```typescript
+export function checkWinCondition(state: GameState): Team | null {
+  const mafiaCount = state.aliveMafia.length;
+  const townCount = state.aliveTown.length;
+
+  // Mafia wins when they equal or outnumber town
+  if (mafiaCount >= townCount) {
+    return 'mafia';
+  }
+
+  // Town wins when all mafia are eliminated
+  if (mafiaCount === 0) {
+    return 'town';
+  }
+
+  // Game continues
+  return null;
+}
+```
+
+## Phase Handlers
+
+Each phase should be a pure function:
+
+```typescript
+// Night Phase - Mafia kills
+export async function executeNightPhase(
+  state: GameState,
+  aiProvider: AIProvider,
+  gameId: string
+): Promise<{ state: GameState; killed: Player | null }> {
+  const mafiaPlayers = state.aliveMafia;
+  const votes: Map<string, string> = new Map();
+
+  // Collect kill votes from mafia
+  for (const player of mafiaPlayers) {
+    const context = createAIContext(state, player, gameId);
+    const response = await aiProvider.getAction(context, {
+      type: 'kill_vote',
+      validTargets: state.aliveTown.map(p => p.id),
+    });
+
+    if (response.action.type === 'kill_vote') {
+      votes.set(player.id, response.action.target);
+    }
+
+    state = state.withEvent({
+      type: 'ai_call',
+      phase: 'night',
+      playerId: player.id,
+      response,
+    });
+  }
+
+  // Resolve kill (majority vote)
+  const killed = resolveVotes(votes, state.aliveTown);
+  
+  if (killed) {
+    state = state.withPlayerKilled(killed.id);
+    state = state.withEvent({
+      type: 'elimination',
+      playerId: killed.id,
+      role: killed.team,
+      phase: 'night',
+    });
+  }
+
+  return { state, killed };
+}
+```
+
+## Vote Resolution
+
+```typescript
+export function resolveVotes<T extends { id: string }>(
+  votes: Map<string, string>,
+  candidates: ReadonlyArray<T>
+): T | null {
+  // Count votes
+  const voteCounts = new Map<string, number>();
+  for (const targetId of votes.values()) {
+    voteCounts.set(targetId, (voteCounts.get(targetId) || 0) + 1);
+  }
+
+  // Find majority
+  const entries = Array.from(voteCounts.entries());
+  if (entries.length === 0) return null;
+
+  entries.sort((a, b) => b[1] - a[1]);
+  const [topId, topCount] = entries[0];
+
+  // Check for tie
+  if (entries.length > 1 && entries[1][1] === topCount) {
+    return null; // Tie - no elimination
+  }
+
+  return candidates.find(c => c.id === topId) || null;
+}
+```
+
+## Visible State (What AI Sees)
+
+Players should only see appropriate information:
+
+```typescript
+export function getVisibleState(
+  state: GameState,
+  player: Player
+): VisibleGameState {
+  return {
+    round: state.round,
+    phase: state.phase,
+    alivePlayers: state.alivePlayers.map(p => ({
+      id: p.id,
+      name: p.name,
+      // Don't reveal other players' teams!
+    })),
+    deadPlayers: state.players
+      .filter(p => !p.isAlive)
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        role: p.team, // Dead players' roles are revealed
+      })),
+    conversationHistory: state.conversationHistory,
+    // Mafia can see their teammates
+    teammates: player.team === 'mafia'
+      ? state.aliveMafia.filter(p => p.id !== player.id).map(p => p.id)
+      : undefined,
+  };
+}
+```
+
+## Event Types
+
+```typescript
+export type GameEvent =
+  | PhaseStartEvent
+  | AICallEvent
+  | ActionEvent
+  | EliminationEvent
+  | PhaseEndEvent
+  | GameEndEvent;
+
+interface PhaseStartEvent {
+  type: 'phase_start';
+  phase: Phase;
+  round: number;
+  timestamp: number;
+}
+
+interface AICallEvent {
+  type: 'ai_call';
+  phase: Phase;
+  playerId: string;
+  modelId: string;
+  prompt: { system: string; user: string };
+  response: { raw: string; parsed: PlayerAction };
+  tokensUsed: { input: number; output: number };
+  latencyMs: number;
+}
+
+interface EliminationEvent {
+  type: 'elimination';
+  playerId: string;
+  role: Team;
+  phase: Phase;
+  round: number;
+}
+
+interface GameEndEvent {
+  type: 'game_end';
+  winner: Team;
+  finalState: { mafia: number; town: number };
+}
+```
+
+## Testing Strategy
+
+```typescript
+// Mock AI Provider for testing
+class MockAIProvider implements AIProvider {
+  private responses: AIResponse[] = [];
+  private responseIndex = 0;
+
+  queueResponse(response: AIResponse): void {
+    this.responses.push(response);
+  }
+
+  async getAction(): Promise<AIResponse> {
+    if (this.responseIndex >= this.responses.length) {
+      throw new Error('No more queued responses');
+    }
+    return this.responses[this.responseIndex++];
+  }
+}
+
+// Test example
+describe('Game', () => {
+  it('should end when mafia equals town count', async () => {
+    const mockAI = new MockAIProvider();
+    // Queue predictable responses
+    mockAI.queueResponse({
+      action: { type: 'kill_vote', target: 'player_3' },
+      tokensUsed: { input: 100, output: 20 },
+      latencyMs: 500,
+    });
+    // ... more responses
+
+    const game = new Game(config, mockAI);
+    const result = await game.run();
+
+    expect(result.winner).toBe('mafia');
+  });
+});
+```
+
+## Prompt Templates
+
+Store prompts as constants:
+
+```typescript
+export const PROMPTS = {
+  SYSTEM_MAFIA: `You are playing Mafia. You are a MAFIA member.
+Your goal is to eliminate all Town members without being discovered.
+Blend in during discussions and vote strategically.`,
+
+  SYSTEM_TOWN: `You are playing Mafia. You are a TOWN member.
+Your goal is to identify and eliminate all Mafia members.
+Pay attention to suspicious behavior during discussions.`,
+
+  KILL_VOTE: (targets: string[]) => `It's night. Choose a player to kill.
+Available targets: ${targets.join(', ')}
+Respond with JSON: { "action": "kill", "target": "player_id", "reasoning": "..." }`,
+
+  DISCUSSION: (history: string) => `Share your thoughts with the group.
+Previous discussion:
+${history}
+Respond with JSON: { "message": "your message" }`,
+
+  ELIMINATION_VOTE: (targets: string[]) => `Vote to eliminate a player or abstain.
+Alive players: ${targets.join(', ')}
+Respond with JSON: { "vote": "player_id" } or { "vote": null }`,
+} as const;
+```
+
+## File Structure
+
+```
+/src/engine/
+├── index.ts              # Public API exports
+├── types.ts              # All type definitions
+├── Game.ts               # Main game orchestrator
+├── GameState.ts          # Immutable state management
+├── phases/
+│   ├── NightPhase.ts     # Mafia kill logic
+│   ├── DiscussionPhase.ts # Day discussion
+│   └── VotePhase.ts      # Elimination voting
+├── utils/
+│   ├── votes.ts          # Vote resolution
+│   ├── visibility.ts     # State visibility
+│   └── prompts.ts        # Prompt templates
+└── __tests__/
+    ├── Game.test.ts
+    ├── GameState.test.ts
+    ├── phases/
+    │   ├── NightPhase.test.ts
+    │   └── VotePhase.test.ts
+    └── mocks/
+        └── MockAIProvider.ts
+```
