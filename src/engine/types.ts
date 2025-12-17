@@ -1,0 +1,261 @@
+/**
+ * Core type definitions for the Mafia game engine.
+ * This file contains all types used throughout the engine.
+ */
+
+// =============================================================================
+// Teams and Phases
+// =============================================================================
+
+export type Team = 'mafia' | 'town';
+
+export type Phase = 'night' | 'day_discussion' | 'day_vote';
+
+// =============================================================================
+// Players
+// =============================================================================
+
+export interface Player {
+  readonly id: string;
+  readonly name: string;
+  readonly modelId: string;
+  readonly team: Team;
+  readonly isAlive: boolean;
+}
+
+export interface DeadPlayer {
+  readonly id: string;
+  readonly name: string;
+  readonly team: Team;
+  readonly eliminatedRound: number;
+  readonly eliminatedPhase: Phase;
+}
+
+// =============================================================================
+// Game Configuration
+// =============================================================================
+
+export interface GameConfig {
+  readonly playerCount: number;
+  readonly mafiaCount: number;
+  readonly teams: readonly TeamAssignment[];
+  readonly maxRounds: number;
+  readonly discussionEnabled: boolean;
+}
+
+export interface TeamAssignment {
+  readonly modelId: string;
+  readonly team: Team;
+  readonly count: number;
+}
+
+// =============================================================================
+// Game Result
+// =============================================================================
+
+export interface GameResult {
+  readonly id: string;
+  readonly config: GameConfig;
+  readonly winner: Team;
+  readonly rounds: number;
+  readonly events: readonly GameEvent[];
+  readonly tokenUsage: TokenUsage;
+  readonly durationMs: number;
+  readonly participants: readonly ParticipantResult[];
+}
+
+export interface ParticipantResult {
+  readonly modelId: string;
+  readonly team: Team;
+  readonly playerCount: number;
+  readonly won: boolean;
+  readonly tokensUsed: number;
+}
+
+export interface TokenUsage {
+  readonly input: number;
+  readonly output: number;
+  readonly total: number;
+}
+
+// =============================================================================
+// AI Provider Interface (Dependency Injection)
+// =============================================================================
+
+export interface AIProvider {
+  getAction(context: AIContext, prompt: ActionPrompt): Promise<AIResponse>;
+}
+
+export interface AIContext {
+  readonly gameId: string;
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly modelId: string;
+  readonly team: Team;
+  readonly phase: Phase;
+  readonly round: number;
+  readonly visibleState: VisibleGameState;
+}
+
+export interface ActionPrompt {
+  readonly type: 'kill_vote' | 'discussion' | 'elimination_vote';
+  readonly systemPrompt: string;
+  readonly userPrompt: string;
+  readonly validTargets?: readonly string[];
+}
+
+export interface AIResponse {
+  readonly action: PlayerAction;
+  readonly rawResponse: string;
+  readonly reasoning?: string;
+  readonly tokensUsed: { readonly input: number; readonly output: number };
+  readonly latencyMs: number;
+}
+
+// =============================================================================
+// Player Actions
+// =============================================================================
+
+export type PlayerAction =
+  | KillVoteAction
+  | DiscussionAction
+  | EliminationVoteAction;
+
+export interface KillVoteAction {
+  readonly type: 'kill_vote';
+  readonly target: string;
+}
+
+export interface DiscussionAction {
+  readonly type: 'discussion';
+  readonly message: string;
+}
+
+export interface EliminationVoteAction {
+  readonly type: 'elimination_vote';
+  readonly target: string | null; // null = abstain
+}
+
+// =============================================================================
+// Visible State (What AI can see)
+// =============================================================================
+
+export interface VisibleGameState {
+  readonly round: number;
+  readonly phase: Phase;
+  readonly alivePlayers: readonly VisiblePlayer[];
+  readonly deadPlayers: readonly VisibleDeadPlayer[];
+  readonly conversationHistory: readonly ConversationMessage[];
+  readonly teammates: readonly string[] | undefined; // Only for mafia
+}
+
+export interface VisiblePlayer {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface VisibleDeadPlayer {
+  readonly id: string;
+  readonly name: string;
+  readonly team: Team; // Revealed on death
+}
+
+export interface ConversationMessage {
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly message: string;
+  readonly round: number;
+}
+
+// =============================================================================
+// Game Events
+// =============================================================================
+
+export type GameEvent =
+  | PhaseStartEvent
+  | PhaseEndEvent
+  | AICallEvent
+  | DiscussionEvent
+  | VoteEvent
+  | EliminationEvent
+  | GameEndEvent;
+
+export interface PhaseStartEvent {
+  readonly type: 'phase_start';
+  readonly phase: Phase;
+  readonly round: number;
+  readonly timestamp: number;
+}
+
+export interface PhaseEndEvent {
+  readonly type: 'phase_end';
+  readonly phase: Phase;
+  readonly round: number;
+  readonly timestamp: number;
+}
+
+export interface AICallEvent {
+  readonly type: 'ai_call';
+  readonly phase: Phase;
+  readonly round: number;
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly modelId: string;
+  readonly team: Team;
+  readonly actionType: 'kill_vote' | 'discussion' | 'elimination_vote';
+  readonly prompt: {
+    readonly system: string;
+    readonly user: string;
+  };
+  readonly response: {
+    readonly raw: string;
+    readonly parsed: PlayerAction;
+  };
+  readonly tokensUsed: {
+    readonly input: number;
+    readonly output: number;
+  };
+  readonly latencyMs: number;
+  readonly timestamp: number;
+}
+
+export interface DiscussionEvent {
+  readonly type: 'discussion';
+  readonly round: number;
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly message: string;
+  readonly timestamp: number;
+}
+
+export interface VoteEvent {
+  readonly type: 'vote';
+  readonly phase: 'night' | 'day_vote';
+  readonly round: number;
+  readonly voterId: string;
+  readonly voterName: string;
+  readonly targetId: string | null;
+  readonly timestamp: number;
+}
+
+export interface EliminationEvent {
+  readonly type: 'elimination';
+  readonly phase: Phase;
+  readonly round: number;
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly team: Team;
+  readonly timestamp: number;
+}
+
+export interface GameEndEvent {
+  readonly type: 'game_end';
+  readonly winner: Team;
+  readonly round: number;
+  readonly finalState: {
+    readonly mafiaAlive: number;
+    readonly townAlive: number;
+  };
+  readonly timestamp: number;
+}
+

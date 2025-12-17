@@ -1,88 +1,34 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependencies
+node_modules/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-package-lock.json
+# Build outputs
+dist/
+.wrangler/
 
-# testing
-/coverage
+# Test outputs
+coverage/
 
-# next.js
-/.next/
-/out/
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/settings.json
 
-# production
-/build
-
-# misc
+# OS
 .DS_Store
-*.pem
+Thumbs.db
 
-# debug
+# Environment variables
+.env
+.env.local
+.env.*.local
+.dev.vars
+
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-!.env.test
-
-# vercel
-.vercel
-
-# cloudflare
-.wrangler/
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# i18n -- any non-english dictionaries is ignored
-# because they are generated on the fly
-!src/app/[lang]/dictionaries/*.json
-!src/app/[lang]/dictionaries/en.json
-
-# DB!
-data/**
-screenshots/
-game_saves/
-.aider*
-.env
-
-
-# Playwright
-playwright-report/
-test-results/
-*.png
-
-# Log files
-dev-server.log
-*.log
-
-# Build/test output files  
-build-output.txt
-dev-server-output.txt
-tsc-errors.txt
-lint-errors.txt
-test-results*.txt
-test-results*.json
-ci-build-test.txt
-commit_msg.txt
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Temporary documentation
-project_docs/
-
-.open-next/
+# Cloudflare
+.mf/
