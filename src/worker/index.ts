@@ -104,6 +104,12 @@ export default {
       return this.handleGetGame(gameMatch[1]!, env);
     }
 
+    // GET /api/games/:id/transcript - Get full game transcript
+    const transcriptMatch = path.match(/^\/api\/games\/([a-zA-Z0-9_-]+)\/transcript$/);
+    if (transcriptMatch && method === 'GET') {
+      return this.handleGetTranscript(transcriptMatch[1]!, env);
+    }
+
     // GET /api/leaderboard - Get leaderboard
     if (path === '/api/leaderboard' && method === 'GET') {
       return this.handleGetLeaderboard(url, env);
@@ -242,6 +248,20 @@ export default {
       participants: participants.results,
       transcriptUrl: `https://mafia-arena-transcripts.${env.ENVIRONMENT === 'production' ? '' : 'dev.'}r2.dev/games/${gameId}/transcript.json`,
     });
+  },
+
+  /**
+   * GET /api/games/:id/transcript - Get full game transcript from R2.
+   */
+  async handleGetTranscript(gameId: string, env: Env): Promise<Response> {
+    const object = await env.TRANSCRIPTS.get(`games/${gameId}/transcript.json`);
+
+    if (!object) {
+      return Response.json({ error: 'Transcript not found' }, { status: 404 });
+    }
+
+    const transcript = await object.json();
+    return Response.json(transcript);
   },
 
   /**

@@ -2,7 +2,7 @@
  * API client for the Mafia Arena backend.
  */
 
-const API_URL = import.meta.env.API_URL || 'http://localhost:8787';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 
 export interface LeaderboardEntry {
   model_id: string;
@@ -96,10 +96,10 @@ export async function getModels(): Promise<Model[]> {
 }
 
 /**
- * Fetch game transcript from R2.
+ * Fetch game transcript.
  */
-export async function getTranscript(url: string): Promise<unknown> {
-  const res = await fetch(url);
+export async function getTranscript(gameId: string): Promise<unknown> {
+  const res = await fetch(`${API_URL}/api/games/${gameId}/transcript`);
   if (!res.ok) throw new Error('Failed to fetch transcript');
 
   return res.json();
