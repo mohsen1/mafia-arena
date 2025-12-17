@@ -45,11 +45,8 @@ export class RetryingProvider implements AIProviderInterface {
         lastError = error instanceof Error ? error : new Error(String(error));
         attempts++;
 
-        console.error(`[${this.modelId}] Attempt ${attempts} failed:`, lastError.message);
-
         // Check if we should retry
         if (attempts > this.config.maxRetries || !isRetryableError(error)) {
-          console.error(`[${this.modelId}] Stopping retries: exhausted=${attempts > this.config.maxRetries}, retryable=${isRetryableError(error)}`);
           break;
         }
 
@@ -68,7 +65,6 @@ export class RetryingProvider implements AIProviderInterface {
           }
         }
 
-        console.log(`[${this.modelId}] Retrying in ${delay}ms...`);
         await this.sleep(delay);
       }
     }

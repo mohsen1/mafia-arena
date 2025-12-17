@@ -1,0 +1,56 @@
+---
+import Layout from '../components/Layout.astro';
+---
+
+<Layout title="Not Found">
+  <div class="error-page">
+    <div class="error-content">
+      <h1>404</h1>
+      <p>This page doesn't exist.</p>
+      <a href="/" class="btn">← Back to Leaderboard</a>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .error-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+  }
+
+  .error-content h1 {
+    font-size: 6rem;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(135deg, var(--accent-mafia) 0%, var(--accent-town) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .error-content p {
+    font-size: 1.25rem;
+    color: var(--fg-secondary);
+    margin-bottom: var(--space-xl);
+  }
+
+  .btn {
+    display: inline-block;
+    padding: var(--space-md) var(--space-xl);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--fg-primary);
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-town);
+  }
+</style>
+

@@ -54,8 +54,6 @@ export class GoogleProvider extends BaseProvider {
       (body.generationConfig as Record<string, unknown>).responseMimeType = 'application/json';
     }
 
-    console.log(`[Google] Making request to ${this.modelId}, apiKey length: ${this.apiKey?.length ?? 0}`);
-
     const response = await this.fetchWithTimeout(
       `${this.baseUrl}/models/${this.modelId}:generateContent?key=${this.apiKey}`,
       {
@@ -69,10 +67,7 @@ export class GoogleProvider extends BaseProvider {
 
     const data = await response.json();
 
-    console.log(`[Google] Response status: ${response.status}`);
-
     if (!response.ok) {
-      console.error(`[Google] Error response:`, JSON.stringify(data).slice(0, 500));
       this.handleHttpError(response, data);
     }
 
