@@ -54,7 +54,7 @@ export function createProvider(
 
     case 'google':
       provider = new GoogleProvider({
-        apiKey: env.GOOGLE_AI_API_KEY,
+        apiKey: env.GOOGLE_API_KEY,
         modelId,
         timeoutMs,
       });
