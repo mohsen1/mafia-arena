@@ -55,6 +55,9 @@ export class GameAIAdapter implements AIProvider {
       const parsed = this.extractJSON(content);
 
       switch (actionType) {
+        case 'introduction':
+          return this.parseIntroduction(parsed);
+
         case 'kill_vote':
           return this.parseKillVote(parsed, validTargets);
 
@@ -71,6 +74,17 @@ export class GameAIAdapter implements AIProvider {
       // Return a fallback action on parse error
       return this.getFallbackAction(actionType, validTargets);
     }
+  }
+
+  private parseIntroduction(parsed: unknown): PlayerAction {
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('Invalid introduction response');
+    }
+
+    const data = parsed as Record<string, unknown>;
+    const message = String(data.message ?? '');
+
+    return { type: 'introduction', message: message || 'Hello everyone!' };
   }
 
   private parseKillVote(parsed: unknown, validTargets?: readonly string[]): PlayerAction {
@@ -128,6 +142,9 @@ export class GameAIAdapter implements AIProvider {
     validTargets?: readonly string[]
   ): PlayerAction {
     switch (actionType) {
+      case 'introduction':
+        return { type: 'introduction', message: 'Hello everyone, nice to meet you.' };
+
       case 'kill_vote':
         return { type: 'kill_vote', target: validTargets?.[0] ?? '' };
 

@@ -27,6 +27,10 @@ describe('Integration Tests', () => {
 
       // Create a deterministic provider that makes mafia lose
       class TownWinsStrategy {
+        getIntroductionMessage(context: AIContext): string {
+          return `Hello, I'm ${context.playerName}. Let's find the mafia!`;
+        }
+
         getKillTarget(_context: AIContext, validTargets: readonly string[]): string {
           return validTargets[0]!;
         }

@@ -4,6 +4,7 @@
  */
 
 import { GameState } from './GameState.js';
+import { executeIntroductionPhase } from './phases/IntroductionPhase.js';
 import { executeNightPhase } from './phases/NightPhase.js';
 import { executeDiscussionPhase } from './phases/DiscussionPhase.js';
 import { executeVotePhase } from './phases/VotePhase.js';
@@ -52,6 +53,10 @@ export class Game {
    */
   async run(): Promise<GameResult> {
     this.startTime = Date.now();
+
+    // Introduction Phase - Players introduce themselves (runs once)
+    const introResult = await executeIntroductionPhase(this.state, this.aiProvider);
+    this.state = introResult.state;
 
     // Main game loop
     while (this.state.round <= this.config.maxRounds) {
