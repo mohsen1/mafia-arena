@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { getGame, getTranscript, formatDuration } from '../../../lib/api';
+import { getGame, getTranscript } from '../../../lib/api';
 
 const { id } = Astro.params;
 
@@ -10,9 +10,7 @@ let error = null;
 
 try {
   game = await getGame(id!);
-  if (game?.transcriptUrl) {
-    transcript = await getTranscript(game.transcriptUrl);
-  }
+  transcript = await getTranscript(id!);
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to load game replay';
 }
