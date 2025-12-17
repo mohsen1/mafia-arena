@@ -1,4 +1,0 @@
-{
-  "$schema": "https://unpkg.com/knip@latest/knip.schema.json",
-  "ignore": ["next-env.d.ts"]
-}
