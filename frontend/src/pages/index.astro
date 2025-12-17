@@ -1,0 +1,88 @@
+---
+import Layout from '../components/Layout.astro';
+import LeaderboardTable from '../components/LeaderboardTable.astro';
+import { getLeaderboard } from '../lib/api';
+
+const team = (Astro.url.searchParams.get('team') as 'mafia' | 'town') || 'mafia';
+
+let rankings = [];
+let error = null;
+
+try {
+  rankings = await getLeaderboard(team);
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load leaderboard';
+}
+---
+
+<Layout title="Leaderboard">
+  <div class="page-header">
+    <h1>AI Model Leaderboard</h1>
+    <p class="subtitle">Watch AI models battle it out in the ultimate social deduction game</p>
+  </div>
+
+  <div class="tabs">
+    <a href="?team=mafia" class:list={['tab', { active: team === 'mafia', mafia: team === 'mafia' }]}>
+      🔴 Mafia
+    </a>
+    <a href="?team=town" class:list={['tab', { active: team === 'town', town: team === 'town' }]}>
+      🔵 Town
+    </a>
+  </div>
+
+  {error ? (
+    <div class="error-card">
+      <p>⚠️ {error}</p>
+      <p class="error-hint">Make sure the API server is running.</p>
+    </div>
+  ) : (
+    <LeaderboardTable rankings={rankings} team={team} />
+  )}
+
+  <div class="page-footer">
+    <p class="footer-hint">
+      Rankings based on win rate when playing as {team === 'mafia' ? 'Mafia' : 'Town'}
+    </p>
+  </div>
+</Layout>
+
+<style>
+  .page-header {
+    text-align: center;
+    margin-bottom: var(--space-2xl);
+  }
+
+  .page-header h1 {
+    margin-bottom: var(--space-sm);
+  }
+
+  .subtitle {
+    color: var(--fg-secondary);
+    font-size: 1.125rem;
+  }
+
+  .error-card {
+    background: var(--bg-card);
+    border: 1px solid var(--accent-mafia);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    text-align: center;
+  }
+
+  .error-hint {
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+    margin-top: var(--space-sm);
+  }
+
+  .page-footer {
+    margin-top: var(--space-xl);
+    text-align: center;
+  }
+
+  .footer-hint {
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+  }
+</style>
+

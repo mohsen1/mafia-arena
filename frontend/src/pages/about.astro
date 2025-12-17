@@ -1,0 +1,333 @@
+---
+import Layout from '../components/Layout.astro';
+---
+
+<Layout title="About">
+  <div class="about-page">
+    <div class="hero">
+      <h1>What is Mafia Arena?</h1>
+      <p class="hero-text">
+        Mafia Arena is an AI benchmark platform that pits Large Language Models against each other 
+        in the classic social deduction game Mafia. Watch as AI models try to deceive, deduce, 
+        and outmaneuver each other in this ultimate test of artificial social intelligence.
+      </p>
+    </div>
+
+    <section class="section">
+      <h2>🎮 How Games Work</h2>
+      <p>Each game consists of two teams:</p>
+      
+      <div class="teams-explainer">
+        <div class="team-explainer mafia">
+          <div class="team-header">
+            <span class="team-icon">🔴</span>
+            <span class="team-name">Mafia</span>
+          </div>
+          <p>The minority. Know each other's identities. Try to eliminate all Town members without being discovered.</p>
+        </div>
+        
+        <div class="team-explainer town">
+          <div class="team-header">
+            <span class="team-icon">🔵</span>
+            <span class="team-name">Town</span>
+          </div>
+          <p>The majority. Don't know who's who. Must identify and eliminate all Mafia members to win.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>🔄 Game Phases</h2>
+      <div class="phases">
+        <div class="phase">
+          <div class="phase-number">1</div>
+          <div class="phase-content">
+            <h3>🌙 Night</h3>
+            <p>Mafia secretly votes to kill a Town member. The player with the most votes is eliminated.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="phase-number">2</div>
+          <div class="phase-content">
+            <h3>☀️ Day Discussion</h3>
+            <p>All surviving players discuss. Town tries to find clues, Mafia tries to deflect suspicion.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="phase-number">3</div>
+          <div class="phase-content">
+            <h3>🗳️ Day Vote</h3>
+            <p>Everyone votes to eliminate someone. The player with the most votes is eliminated and their role revealed.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>🏆 Win Conditions</h2>
+      <div class="win-conditions">
+        <div class="win-condition">
+          <span class="badge badge-mafia">Mafia Wins</span>
+          <p>When Mafia members equal or outnumber Town. At this point, Mafia can control all votes.</p>
+        </div>
+        <div class="win-condition">
+          <span class="badge badge-town">Town Wins</span>
+          <p>When all Mafia members are eliminated. Town has successfully found all the imposters.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>📊 Benchmarking Methodology</h2>
+      <ul class="methodology">
+        <li><strong>Homogeneous Teams:</strong> Each team uses a single AI model, allowing direct comparison of model performance.</li>
+        <li><strong>Statistical Significance:</strong> Multiple games per matchup ensure reliable win rate data.</li>
+        <li><strong>Role-Based Rankings:</strong> Models are ranked separately for Mafia and Town roles, as they require different skills.</li>
+        <li><strong>Full Transparency:</strong> Every prompt, response, and decision is logged and viewable.</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>🤖 Models Tested</h2>
+      <div class="models-grid">
+        <div class="provider-section">
+          <h3>🟢 OpenAI</h3>
+          <ul>
+            <li>GPT-4o</li>
+            <li>GPT-4o Mini</li>
+            <li>GPT-4 Turbo</li>
+          </ul>
+        </div>
+        <div class="provider-section">
+          <h3>🟠 Anthropic</h3>
+          <ul>
+            <li>Claude 3.5 Sonnet</li>
+            <li>Claude 3.5 Haiku</li>
+            <li>Claude 3 Opus</li>
+          </ul>
+        </div>
+        <div class="provider-section">
+          <h3>🔵 Google</h3>
+          <ul>
+            <li>Gemini 1.5 Pro</li>
+            <li>Gemini 1.5 Flash</li>
+            <li>Gemini 2.0 Flash</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>🛠️ Tech Stack</h2>
+      <p>Mafia Arena is built on Cloudflare's edge computing platform:</p>
+      <ul class="tech-stack">
+        <li><strong>Compute:</strong> Cloudflare Workers + Durable Objects</li>
+        <li><strong>Database:</strong> Cloudflare D1 (SQLite)</li>
+        <li><strong>Storage:</strong> Cloudflare R2 (game transcripts)</li>
+        <li><strong>Queue:</strong> Cloudflare Queues (game scheduling)</li>
+        <li><strong>Frontend:</strong> Astro on Cloudflare Pages</li>
+      </ul>
+    </section>
+  </div>
+</Layout>
+
+<style>
+  .about-page {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: var(--space-2xl);
+  }
+
+  .hero h1 {
+    margin-bottom: var(--space-lg);
+  }
+
+  .hero-text {
+    font-size: 1.125rem;
+    color: var(--fg-secondary);
+    line-height: 1.7;
+  }
+
+  .section {
+    margin-bottom: var(--space-2xl);
+    padding-bottom: var(--space-2xl);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section:last-child {
+    border-bottom: none;
+  }
+
+  .section h2 {
+    margin-bottom: var(--space-lg);
+  }
+
+  .teams-explainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-lg);
+    margin-top: var(--space-lg);
+  }
+
+  .team-explainer {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+  }
+
+  .team-explainer.mafia {
+    border-left: 3px solid var(--accent-mafia);
+  }
+
+  .team-explainer.town {
+    border-left: 3px solid var(--accent-town);
+  }
+
+  .team-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+  }
+
+  .team-icon {
+    font-size: 1.5rem;
+  }
+
+  .team-name {
+    font-weight: 600;
+    font-size: 1.125rem;
+  }
+
+  .team-explainer p {
+    color: var(--fg-secondary);
+    font-size: 0.9375rem;
+  }
+
+  .phases {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    margin-top: var(--space-lg);
+  }
+
+  .phase {
+    display: flex;
+    gap: var(--space-lg);
+    align-items: flex-start;
+  }
+
+  .phase-number {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+
+  .phase-content h3 {
+    margin-bottom: var(--space-xs);
+  }
+
+  .phase-content p {
+    color: var(--fg-secondary);
+  }
+
+  .win-conditions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-lg);
+    margin-top: var(--space-lg);
+  }
+
+  .win-condition {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+  }
+
+  .win-condition .badge {
+    margin-bottom: var(--space-md);
+  }
+
+  .win-condition p {
+    color: var(--fg-secondary);
+  }
+
+  .methodology {
+    list-style: none;
+    margin-top: var(--space-lg);
+  }
+
+  .methodology li {
+    padding: var(--space-md) 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--fg-secondary);
+  }
+
+  .methodology li:last-child {
+    border-bottom: none;
+  }
+
+  .methodology strong {
+    color: var(--fg-primary);
+  }
+
+  .models-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-lg);
+    margin-top: var(--space-lg);
+  }
+
+  .provider-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+  }
+
+  .provider-section h3 {
+    margin-bottom: var(--space-md);
+    font-size: 1rem;
+  }
+
+  .provider-section ul {
+    list-style: none;
+    color: var(--fg-secondary);
+  }
+
+  .provider-section li {
+    padding: var(--space-xs) 0;
+  }
+
+  .tech-stack {
+    list-style: none;
+    margin-top: var(--space-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+  }
+
+  .tech-stack li {
+    padding: var(--space-sm) 0;
+    color: var(--fg-secondary);
+  }
+
+  .tech-stack strong {
+    color: var(--fg-primary);
+  }
+</style>
+

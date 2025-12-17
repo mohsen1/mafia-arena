@@ -1,0 +1,385 @@
+---
+import Layout from '../../../components/Layout.astro';
+import { getGame, getTranscript, formatDuration } from '../../../lib/api';
+
+const { id } = Astro.params;
+
+let game = null;
+let transcript = null;
+let error = null;
+
+try {
+  game = await getGame(id!);
+  if (game?.transcriptUrl) {
+    transcript = await getTranscript(game.transcriptUrl);
+  }
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load game replay';
+}
+
+// Group events by round and phase
+function groupEvents(events: any[]) {
+  const grouped: Record<number, Record<string, any[]>> = {};
+  
+  for (const event of events) {
+    const round = event.round || 1;
+    const phase = event.phase || 'other';
+    
+    if (!grouped[round]) grouped[round] = {};
+    if (!grouped[round][phase]) grouped[round][phase] = [];
+    
+    grouped[round][phase].push(event);
+  }
+  
+  return grouped;
+}
+
+const events = transcript?.events || [];
+const groupedEvents = groupEvents(events);
+const rounds = Object.keys(groupedEvents).map(Number).sort((a, b) => a - b);
+
+function getPhaseIcon(phase: string) {
+  switch (phase) {
+    case 'night': return '🌙';
+    case 'day_discussion': return '☀️';
+    case 'day_vote': return '🗳️';
+    default: return '📌';
+  }
+}
+
+function getPhaseLabel(phase: string) {
+  switch (phase) {
+    case 'night': return 'Night Phase';
+    case 'day_discussion': return 'Day Discussion';
+    case 'day_vote': return 'Day Vote';
+    default: return phase;
+  }
+}
+---
+
+<Layout title={game ? `Game #${game.id.slice(-8)} Replay` : 'Replay Not Found'}>
+  {error || !game ? (
+    <div class="error-card">
+      <p>⚠️ {error || 'Game not found'}</p>
+      <a href="/games" class="btn">← Back to Games</a>
+    </div>
+  ) : (
+    <>
+      <div class="breadcrumb">
+        <a href={`/games/${game.id}`}>← Game #{game.id.slice(-8)}</a>
+      </div>
+
+      <div class="replay-header">
+        <h1>Game Replay</h1>
+        <div class="replay-meta">
+          <span class={`badge badge-${game.winner}`}>
+            {game.winner === 'mafia' ? '🔴' : '🔵'} {game.winner.toUpperCase()} WINS
+          </span>
+          <span class="rounds">{game.rounds} rounds</span>
+        </div>
+      </div>
+
+      {!transcript ? (
+        <div class="loading-card">
+          <p>Loading transcript...</p>
+        </div>
+      ) : events.length === 0 ? (
+        <div class="empty-card">
+          <p>No events recorded for this game.</p>
+        </div>
+      ) : (
+        <div class="timeline">
+          {rounds.map(round => (
+            <div class="round-section">
+              <div class="round-header">
+                <span class="round-number">Round {round}</span>
+              </div>
+              
+              {Object.entries(groupedEvents[round] || {}).map(([phase, phaseEvents]) => (
+                <div class="phase-section">
+                  <div class="phase-header">
+                    <span class="phase-icon">{getPhaseIcon(phase)}</span>
+                    <span class="phase-name">{getPhaseLabel(phase)}</span>
+                  </div>
+                  
+                  <div class="events-list">
+                    {(phaseEvents as any[]).map(event => (
+                      event.type === 'ai_call' ? (
+                        <details class="event-card ai-call">
+                          <summary class="event-summary">
+                            <span class="event-player">
+                              <span class={`team-dot ${event.team}`}></span>
+                              {event.playerName}
+                            </span>
+                            <span class="event-model">{event.modelId}</span>
+                            <span class="event-action">{event.actionType}</span>
+                            <span class="event-latency">{event.latencyMs}ms</span>
+                          </summary>
+                          <div class="event-details">
+                            <div class="prompt-section">
+                              <h4>System Prompt</h4>
+                              <pre>{event.prompt?.system}</pre>
+                            </div>
+                            <div class="prompt-section">
+                              <h4>User Prompt</h4>
+                              <pre>{event.prompt?.user}</pre>
+                            </div>
+                            <div class="response-section">
+                              <h4>Response</h4>
+                              <pre>{event.response?.raw}</pre>
+                            </div>
+                            <div class="event-meta">
+                              <span>Tokens: {event.tokensUsed?.input} in / {event.tokensUsed?.output} out</span>
+                            </div>
+                          </div>
+                        </details>
+                      ) : event.type === 'discussion' ? (
+                        <div class="event-card discussion">
+                          <span class="event-player">{event.playerName}</span>
+                          <p class="discussion-message">"{event.message}"</p>
+                        </div>
+                      ) : event.type === 'elimination' ? (
+                        <div class="event-card elimination">
+                          <span class="elimination-icon">💀</span>
+                          <span class="event-player">{event.playerName}</span>
+                          <span class={`badge badge-${event.team}`}>{event.team}</span>
+                          <span class="elimination-text">was eliminated</span>
+                        </div>
+                      ) : event.type === 'vote' ? (
+                        <div class="event-card vote">
+                          <span class="vote-voter">{event.voterName}</span>
+                          <span class="vote-arrow">→</span>
+                          <span class="vote-target">{event.targetId || 'abstain'}</span>
+                        </div>
+                      ) : null
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )}
+</Layout>
+
+<style>
+  .breadcrumb {
+    margin-bottom: var(--space-lg);
+  }
+
+  .breadcrumb a {
+    color: var(--fg-secondary);
+    font-size: 0.875rem;
+  }
+
+  .replay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-2xl);
+    flex-wrap: wrap;
+    gap: var(--space-md);
+  }
+
+  .replay-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+  }
+
+  .rounds {
+    color: var(--fg-secondary);
+    font-family: var(--font-mono);
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+  }
+
+  .round-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .round-header {
+    background: var(--bg-secondary);
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .round-number {
+    font-weight: 700;
+    font-size: 1.125rem;
+  }
+
+  .phase-section {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .phase-section:last-child {
+    border-bottom: none;
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-tertiary);
+    font-weight: 600;
+  }
+
+  .phase-icon {
+    font-size: 1.25rem;
+  }
+
+  .events-list {
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .event-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+  }
+
+  .event-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .event-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .event-player {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-weight: 500;
+  }
+
+  .team-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .team-dot.mafia {
+    background: var(--accent-mafia);
+  }
+
+  .team-dot.town {
+    background: var(--accent-town);
+  }
+
+  .event-model {
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .event-action {
+    color: var(--fg-secondary);
+    font-size: 0.875rem;
+    margin-left: auto;
+  }
+
+  .event-latency {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+  }
+
+  .event-details {
+    margin-top: var(--space-md);
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-md);
+  }
+
+  .prompt-section, .response-section {
+    margin-bottom: var(--space-md);
+  }
+
+  .prompt-section h4, .response-section h4 {
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-sm);
+  }
+
+  .prompt-section pre, .response-section pre {
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .event-meta {
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+  }
+
+  .discussion-message {
+    color: var(--fg-secondary);
+    font-style: italic;
+    margin-top: var(--space-sm);
+  }
+
+  .elimination {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: rgba(220, 38, 38, 0.1);
+    border-color: var(--accent-mafia);
+  }
+
+  .elimination-icon {
+    font-size: 1.25rem;
+  }
+
+  .elimination-text {
+    color: var(--fg-secondary);
+  }
+
+  .vote {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+  }
+
+  .vote-arrow {
+    color: var(--fg-muted);
+  }
+
+  .error-card, .loading-card, .empty-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-2xl);
+    text-align: center;
+  }
+
+  .error-card {
+    border-color: var(--accent-mafia);
+  }
+</style>
+
