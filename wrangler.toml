@@ -18,7 +18,7 @@ new_classes = ["GameRunner"]
 [[d1_databases]]
 binding = "DB"
 database_name = "mafia-arena"
-database_id = "placeholder-will-be-replaced"
+database_id = "936cd74b-f2c4-4739-a9a6-c65e00bc9f8e"
 
 # R2 Bucket for transcripts
 [[r2_buckets]]
