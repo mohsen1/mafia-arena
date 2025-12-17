@@ -3,16 +3,18 @@
  */
 
 import type { AIProviderInterface, CompletionRequest, CompletionResponse } from './types.js';
-import { AIErrors, isRetryableError } from './errors.js';
+import { AIError, AIErrors, isRetryableError } from './errors.js';
 
 export interface RetryConfig {
   maxRetries: number;
-  backoffMs: readonly number[];
+  baseDelayMs: number;
+  maxDelayMs: number;
 }
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxRetries: 3,
-  backoffMs: [1000, 2000, 4000],
+  maxRetries: 5,
+  baseDelayMs: 5000,
+  maxDelayMs: 30000,
 };
 
 /**
@@ -43,13 +45,30 @@ export class RetryingProvider implements AIProviderInterface {
         lastError = error instanceof Error ? error : new Error(String(error));
         attempts++;
 
+        console.error(`[${this.modelId}] Attempt ${attempts} failed:`, lastError.message);
+
         // Check if we should retry
         if (attempts > this.config.maxRetries || !isRetryableError(error)) {
+          console.error(`[${this.modelId}] Stopping retries: exhausted=${attempts > this.config.maxRetries}, retryable=${isRetryableError(error)}`);
           break;
         }
 
-        // Wait before retrying with exponential backoff
-        const delay = this.config.backoffMs[attempts - 1] ?? this.config.backoffMs.at(-1) ?? 4000;
+        // Calculate delay with exponential backoff
+        let delay = Math.min(
+          this.config.baseDelayMs * Math.pow(2, attempts - 1),
+          this.config.maxDelayMs
+        );
+
+        // If rate limited with retry-after, use that value
+        if (error instanceof AIError && error.code === 'RATE_LIMITED') {
+          const retryAfterMatch = error.message.match(/retry after (\d+)s/);
+          if (retryAfterMatch) {
+            const retryAfterSeconds = parseInt(retryAfterMatch[1]!, 10);
+            delay = Math.max(delay, (retryAfterSeconds + 1) * 1000);
+          }
+        }
+
+        console.log(`[${this.modelId}] Retrying in ${delay}ms...`);
         await this.sleep(delay);
       }
     }

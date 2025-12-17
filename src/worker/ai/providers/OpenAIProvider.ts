@@ -46,6 +46,8 @@ export class OpenAIProvider extends BaseProvider {
       body.response_format = { type: 'json_object' };
     }
 
+    console.log(`[OpenAI] Making request to ${this.modelId}, apiKey length: ${this.apiKey?.length ?? 0}`);
+
     const response = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -57,7 +59,10 @@ export class OpenAIProvider extends BaseProvider {
 
     const data = await response.json();
 
+    console.log(`[OpenAI] Response status: ${response.status}`);
+
     if (!response.ok) {
+      console.error(`[OpenAI] Error response:`, JSON.stringify(data).slice(0, 500));
       this.handleHttpError(response, data);
     }
 
