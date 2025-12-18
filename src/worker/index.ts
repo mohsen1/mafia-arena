@@ -4,7 +4,7 @@
  * Handles HTTP requests and queue messages for the Mafia Arena platform.
  */
 
-import type { Env, GameQueueMessage } from './types.js';
+import type { Env, GameQueueMessage, BatchQueueMessage, BatchConfig } from './types.js';
 import {
   APIError,
   Errors,
@@ -14,6 +14,19 @@ import {
   checkBudget,
   logError,
 } from './utils/index.js';
+import {
+  createBatch,
+  getBatch,
+  listBatches,
+  cancelBatch,
+  processBatchMessage,
+  estimateCost,
+  getSystemState,
+  pauseProcessing,
+  resumeProcessing,
+  getAdminStats,
+  MAX_BATCH_SIZE,
+} from './batch/index.js';
 
 // Re-export the Durable Object
 export { GameRunner } from './GameRunner.js';
@@ -250,6 +263,52 @@ export default {
     // GET /api/stats/trends - Activity trends over time
     if (path === '/api/stats/trends' && method === 'GET') {
       return this.handleStatsTrends(url, env);
+    }
+
+    // ==========================================================================
+    // ADMIN API ENDPOINTS
+    // ==========================================================================
+
+    // POST /api/admin/batches - Create a new batch (up to 10,000 games)
+    if (path === '/api/admin/batches' && method === 'POST') {
+      return this.handleCreateBatch(request, env);
+    }
+
+    // GET /api/admin/batches - List all batches
+    if (path === '/api/admin/batches' && method === 'GET') {
+      return this.handleListBatches(url, env);
+    }
+
+    // GET /api/admin/batches/:id - Get batch details
+    const batchMatch = path.match(/^\/api\/admin\/batches\/([a-zA-Z0-9_-]+)$/);
+    if (batchMatch && method === 'GET') {
+      return this.handleGetBatch(batchMatch[1]!, env);
+    }
+
+    // POST /api/admin/batches/:id/cancel - Cancel a batch
+    const cancelMatch = path.match(/^\/api\/admin\/batches\/([a-zA-Z0-9_-]+)\/cancel$/);
+    if (cancelMatch && method === 'POST') {
+      return this.handleCancelBatch(cancelMatch[1]!, env);
+    }
+
+    // POST /api/admin/system/pause - Pause all processing
+    if (path === '/api/admin/system/pause' && method === 'POST') {
+      return this.handlePauseSystem(env);
+    }
+
+    // POST /api/admin/system/resume - Resume processing
+    if (path === '/api/admin/system/resume' && method === 'POST') {
+      return this.handleResumeSystem(env);
+    }
+
+    // GET /api/admin/stats/live - Real-time metrics
+    if (path === '/api/admin/stats/live' && method === 'GET') {
+      return this.handleAdminStatsLive(env);
+    }
+
+    // POST /api/admin/estimate - Cost estimate for config
+    if (path === '/api/admin/estimate' && method === 'POST') {
+      return this.handleCostEstimate(request);
     }
 
     throw Errors.NotFound('Endpoint');
@@ -1082,8 +1141,262 @@ export default {
     });
   },
 
+  // ===========================================================================
+  // ADMIN API HANDLERS
+  // ===========================================================================
+
   /**
-   * Handle queue messages.
+   * POST /api/admin/batches - Create a new batch job.
+   */
+  async handleCreateBatch(request: Request, env: Env): Promise<Response> {
+    interface CreateBatchRequest {
+      name?: string;
+      totalGames: number;
+      config: {
+        playerCount: number;
+        mafiaCount: number;
+        teams: Array<{
+          modelId: string;
+          team: 'mafia' | 'town';
+          count: number;
+        }>;
+        maxRounds?: number;
+        discussionEnabled?: boolean;
+        personaEnabled?: boolean;
+        personaConstraints?: 'strict' | 'moderate' | 'free';
+        contextLevel?: 'full' | 'windowed' | 'summary';
+        contextWindowSize?: number;
+      };
+      useBatchAPI?: boolean;
+    }
+
+    let body: CreateBatchRequest;
+    try {
+      body = (await request.json()) as CreateBatchRequest;
+    } catch {
+      throw Errors.BadRequest('Invalid JSON body');
+    }
+
+    // Validate
+    if (!body.totalGames || body.totalGames < 1 || body.totalGames > MAX_BATCH_SIZE) {
+      throw Errors.BadRequest(`Total games must be between 1 and ${MAX_BATCH_SIZE}`);
+    }
+
+    if (!body.config || !body.config.teams || body.config.teams.length === 0) {
+      throw Errors.BadRequest('Invalid game configuration: teams required');
+    }
+
+    const batchConfig: BatchConfig = {
+      ...(body.name && { name: body.name }),
+      totalGames: body.totalGames,
+      gameConfig: {
+        playerCount: body.config.playerCount,
+        mafiaCount: body.config.mafiaCount,
+        teams: body.config.teams,
+        maxRounds: body.config.maxRounds ?? 10,
+        discussionEnabled: body.config.discussionEnabled ?? true,
+        personaEnabled: body.config.personaEnabled ?? false,
+        personaConstraints: body.config.personaConstraints ?? 'moderate',
+        contextLevel: body.config.contextLevel ?? 'summary',
+        contextWindowSize: body.config.contextWindowSize ?? 3,
+      },
+      useBatchAPI: body.useBatchAPI ?? false,
+    };
+
+    const result = await createBatch(env, batchConfig);
+
+    return Response.json({
+      success: true,
+      batchId: result.batchId,
+      estimatedCostUsd: result.estimatedCost,
+      totalGames: body.totalGames,
+    });
+  },
+
+  /**
+   * GET /api/admin/batches - List all batches.
+   */
+  async handleListBatches(url: URL, env: Env): Promise<Response> {
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 100);
+    const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+    const statusParam = url.searchParams.get('status');
+
+    // Build options object conditionally to avoid undefined values
+    const options: { status?: 'queued' | 'processing' | 'completed' | 'cancelled' | 'paused'; limit: number; offset: number } = { limit, offset };
+    if (statusParam && ['queued', 'processing', 'completed', 'cancelled', 'paused'].includes(statusParam)) {
+      options.status = statusParam as 'queued' | 'processing' | 'completed' | 'cancelled' | 'paused';
+    }
+
+    const result = await listBatches(env, options);
+
+    return Response.json({
+      batches: result.batches.map(b => ({
+        id: b.id,
+        name: b.name,
+        status: b.status,
+        totalGames: b.total_games,
+        completedGames: b.completed_games,
+        failedGames: b.failed_games,
+        estimatedCostUsd: b.estimated_cost_usd,
+        actualCostUsd: b.actual_cost_usd,
+        createdBy: b.created_by,
+        createdAt: b.created_at,
+        startedAt: b.started_at,
+        completedAt: b.completed_at,
+        progress: b.total_games > 0
+          ? ((b.completed_games + b.failed_games) / b.total_games * 100).toFixed(1)
+          : '0',
+      })),
+      total: result.total,
+      hasMore: offset + limit < result.total,
+    });
+  },
+
+  /**
+   * GET /api/admin/batches/:id - Get batch details.
+   */
+  async handleGetBatch(batchId: string, env: Env): Promise<Response> {
+    const batch = await getBatch(env, batchId);
+
+    if (!batch) {
+      throw Errors.NotFound('Batch');
+    }
+
+    // Get recent games from this batch
+    const gamesResult = await env.DB.prepare(`
+      SELECT id, status, winner, rounds, duration_ms, created_at
+      FROM games
+      WHERE batch_id = ?
+      ORDER BY created_at DESC
+      LIMIT 20
+    `).bind(batchId).all();
+
+    return Response.json({
+      id: batch.id,
+      name: batch.name,
+      status: batch.status,
+      totalGames: batch.total_games,
+      completedGames: batch.completed_games,
+      failedGames: batch.failed_games,
+      estimatedCostUsd: batch.estimated_cost_usd,
+      actualCostUsd: batch.actual_cost_usd,
+      createdBy: batch.created_by,
+      createdAt: batch.created_at,
+      startedAt: batch.started_at,
+      completedAt: batch.completed_at,
+      errorMessage: batch.error_message,
+      config: JSON.parse(batch.config_json),
+      progress: batch.total_games > 0
+        ? ((batch.completed_games + batch.failed_games) / batch.total_games * 100).toFixed(1)
+        : '0',
+      recentGames: gamesResult.results,
+    });
+  },
+
+  /**
+   * POST /api/admin/batches/:id/cancel - Cancel a batch.
+   */
+  async handleCancelBatch(batchId: string, env: Env): Promise<Response> {
+    const batch = await getBatch(env, batchId);
+
+    if (!batch) {
+      throw Errors.NotFound('Batch');
+    }
+
+    if (batch.status === 'completed' || batch.status === 'cancelled') {
+      throw Errors.BadRequest(`Batch is already ${batch.status}`);
+    }
+
+    await cancelBatch(env, batchId);
+
+    return Response.json({
+      success: true,
+      message: `Batch ${batchId} cancelled`,
+    });
+  },
+
+  /**
+   * POST /api/admin/system/pause - Pause all processing.
+   */
+  async handlePauseSystem(env: Env): Promise<Response> {
+    await pauseProcessing(env);
+
+    return Response.json({
+      success: true,
+      message: 'System processing paused',
+    });
+  },
+
+  /**
+   * POST /api/admin/system/resume - Resume processing.
+   */
+  async handleResumeSystem(env: Env): Promise<Response> {
+    await resumeProcessing(env);
+
+    return Response.json({
+      success: true,
+      message: 'System processing resumed',
+    });
+  },
+
+  /**
+   * GET /api/admin/stats/live - Get real-time admin stats.
+   */
+  async handleAdminStatsLive(env: Env): Promise<Response> {
+    const stats = await getAdminStats(env);
+
+    return Response.json(stats);
+  },
+
+  /**
+   * POST /api/admin/estimate - Get cost estimate for a batch.
+   */
+  async handleCostEstimate(request: Request): Promise<Response> {
+    interface EstimateRequest {
+      totalGames: number;
+      config: {
+        playerCount: number;
+        mafiaCount: number;
+        teams: Array<{
+          modelId: string;
+          team: 'mafia' | 'town';
+          count: number;
+        }>;
+        discussionEnabled?: boolean;
+        personaEnabled?: boolean;
+        contextLevel?: 'full' | 'windowed' | 'summary';
+      };
+      useBatchAPI?: boolean;
+    }
+
+    let body: EstimateRequest;
+    try {
+      body = (await request.json()) as EstimateRequest;
+    } catch {
+      throw Errors.BadRequest('Invalid JSON body');
+    }
+
+    const estimate = estimateCost({
+      totalGames: body.totalGames,
+      gameConfig: {
+        playerCount: body.config.playerCount,
+        mafiaCount: body.config.mafiaCount,
+        teams: body.config.teams,
+        maxRounds: 10,
+        discussionEnabled: body.config.discussionEnabled ?? true,
+        personaEnabled: body.config.personaEnabled ?? false,
+        personaConstraints: 'moderate',
+        contextLevel: body.config.contextLevel ?? 'summary',
+        contextWindowSize: 3,
+      },
+      useBatchAPI: body.useBatchAPI ?? false,
+    });
+
+    return Response.json(estimate);
+  },
+
+  /**
+   * Handle game queue messages.
    */
   async queue(batch: MessageBatch<GameQueueMessage>, env: Env): Promise<void> {
     for (const message of batch.messages) {
@@ -1120,6 +1433,44 @@ export default {
         }
 
         // Retry the message
+        message.retry();
+      }
+    }
+  },
+
+  /**
+   * Handle batch queue messages - splits batches into individual games.
+   */
+  async batchQueue(
+    batch: MessageBatch<BatchQueueMessage>,
+    env: Env
+  ): Promise<void> {
+    for (const message of batch.messages) {
+      const { batchId, config } = message.body;
+
+      try {
+        console.log(`Processing batch ${batchId} with ${config.totalGames} games`);
+
+        // Check system state
+        const systemState = await getSystemState(env);
+        if (systemState.processingPaused) {
+          console.log(`System paused, retrying batch ${batchId} in 60s`);
+          message.retry({ delaySeconds: 60 });
+          continue;
+        }
+
+        // Process the batch
+        await processBatchMessage(env, batchId, config);
+
+        message.ack();
+        console.log(`Batch ${batchId} processed, ${config.totalGames} games queued`);
+      } catch (error) {
+        console.error(`Failed to process batch ${batchId}:`, error);
+
+        if (error instanceof Error) {
+          await logError(env.DB, error, { batchId }).catch(() => {});
+        }
+
         message.retry();
       }
     }

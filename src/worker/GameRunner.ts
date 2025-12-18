@@ -267,6 +267,9 @@ export class GameRunner extends DurableObject<Env> {
       return;
     }
 
+    // Estimate cost (simplified - uses average token pricing)
+    const costUsd = (result.tokenUsage.total / 1000) * 0.002;
+
     // Write to D1 - games table
     await db
       .prepare(
@@ -288,6 +291,34 @@ export class GameRunner extends DurableObject<Env> {
         Date.now()
       )
       .run();
+
+    // Log to Analytics Engine for real-time metrics (if available)
+    if (this.env.ANALYTICS) {
+      const modelIds = result.participants.map(p => p.modelId);
+      this.env.ANALYTICS.writeDataPoint({
+        blobs: [
+          modelIds[0] ?? 'unknown',
+          modelIds[1] ?? 'unknown',
+          result.winner,
+          batchId,
+        ],
+        doubles: [
+          result.rounds,
+          result.durationMs,
+          result.tokenUsage.total,
+          costUsd,
+        ],
+        indexes: [batchId],
+      });
+    }
+
+    // Update batch progress (if part of a batch)
+    if (batchId && !batchId.includes('direct')) {
+      await this.updateBatchProgress(batchId, costUsd);
+    }
+
+    // Update daily stats
+    await this.updateDailyStats(result, costUsd);
 
     // Write to D1 - game_participants table
     for (const participant of result.participants) {
@@ -391,6 +422,70 @@ export class GameRunner extends DurableObject<Env> {
       contextLevel: config.contextLevel ?? 'summary',
       contextWindowSize: config.contextWindowSize ?? 3,
     };
+  }
+
+  /**
+   * Update batch progress after game completion.
+   */
+  private async updateBatchProgress(batchId: string, costUsd: number): Promise<void> {
+    try {
+      await this.env.DB.prepare(`
+        UPDATE batches 
+        SET completed_games = completed_games + 1,
+            actual_cost_usd = actual_cost_usd + ?
+        WHERE id = ?
+      `).bind(costUsd, batchId).run();
+
+      // Check if batch is complete
+      const batch = await this.env.DB.prepare(`
+        SELECT total_games, completed_games, failed_games, status
+        FROM batches WHERE id = ?
+      `).bind(batchId).first<{
+        total_games: number;
+        completed_games: number;
+        failed_games: number;
+        status: string;
+      }>();
+
+      if (batch && batch.status === 'processing') {
+        const totalProcessed = batch.completed_games + batch.failed_games;
+        if (totalProcessed >= batch.total_games) {
+          await this.env.DB.prepare(`
+            UPDATE batches 
+            SET status = 'completed', completed_at = unixepoch()
+            WHERE id = ?
+          `).bind(batchId).run();
+          console.log(`Batch ${batchId} completed`);
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to update batch progress for ${batchId}:`, error);
+    }
+  }
+
+  /**
+   * Update daily statistics.
+   */
+  private async updateDailyStats(result: GameResult, costUsd: number): Promise<void> {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const mafiaWon = result.winner === 'mafia' ? 1 : 0;
+      const townWon = result.winner === 'town' ? 1 : 0;
+
+      await this.env.DB.prepare(`
+        INSERT INTO daily_stats (date, games_completed, games_failed, tokens_used, cost_usd, mafia_wins, town_wins)
+        VALUES (?, 1, 0, ?, ?, ?, ?)
+        ON CONFLICT (date) DO UPDATE SET
+          games_completed = games_completed + 1,
+          tokens_used = tokens_used + excluded.tokens_used,
+          cost_usd = cost_usd + excluded.cost_usd,
+          mafia_wins = mafia_wins + excluded.mafia_wins,
+          town_wins = town_wins + excluded.town_wins,
+          updated_at = unixepoch()
+      `).bind(today, result.tokenUsage.total, costUsd, mafiaWon, townWon).run();
+    } catch (error) {
+      console.error('Failed to update daily stats:', error);
+    }
   }
 
   /**

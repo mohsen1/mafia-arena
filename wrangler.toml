@@ -4,6 +4,10 @@ main = "src/worker/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Enable Smart Placement for cost optimization
+[placement]
+mode = "smart"
+
 # Durable Objects
 [durable_objects]
 bindings = [
@@ -26,13 +30,29 @@ binding = "TRANSCRIPTS"
 bucket_name = "mafia-arena-transcripts"
 preview_bucket_name = "mafia-arena-transcripts-preview"
 
-# KV Namespace for rate limiting
+# KV Namespace for rate limiting and circuit breaker
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
 id = "98c5d7e961cb44e6bd8246eff27444a8"
 preview_id = "825aa0ec9d4b46ddbcefddebf266158b"
 
-# Queues
+# =============================================================================
+# QUEUES - Hierarchical processing system
+# =============================================================================
+
+# Batch Queue - receives large batch requests (up to 10,000 games)
+[[queues.producers]]
+queue = "mafia-arena-batches"
+binding = "BATCH_QUEUE"
+
+[[queues.consumers]]
+queue = "mafia-arena-batches"
+max_batch_size = 1
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "mafia-arena-dlq"
+
+# Game Queue - individual game processing
 [[queues.producers]]
 queue = "mafia-arena-games"
 binding = "GAME_QUEUE"
@@ -42,7 +62,16 @@ queue = "mafia-arena-games"
 max_batch_size = 10
 max_batch_timeout = 30
 max_retries = 3
+max_concurrency = 50
 dead_letter_queue = "mafia-arena-dlq"
+
+# =============================================================================
+# ANALYTICS ENGINE - Real-time metrics without D1 load
+# =============================================================================
+
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "mafia_events"
 
 # Environment Variables
 [vars]
