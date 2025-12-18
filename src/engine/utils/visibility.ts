@@ -5,6 +5,7 @@
 
 import { GameState } from '../GameState.js';
 import type { Player, VisibleGameState, VisiblePlayer, VisibleDeadPlayer } from '../types.js';
+import type { RandomGenerator } from './random.js';
 
 /**
  * Options for getting visible state with multi-round discussion context.
@@ -96,3 +97,15 @@ export function formatPlayerList(players: readonly Player[]): string {
   return players.map((p) => `- ${p.name} (${p.id})`).join('\n');
 }
 
+/**
+ * Format player list for prompt with randomized order.
+ * POSITION BIAS FIX: LLMs have known bias toward first/last items in lists.
+ * Shuffling the order in prompts eliminates this confound for the benchmark.
+ */
+export function formatPlayerListShuffled(
+  players: readonly Player[],
+  rng: RandomGenerator
+): string {
+  const shuffled = rng.shuffled(players);
+  return shuffled.map((p) => `- ${p.name} (${p.id})`).join('\n');
+}

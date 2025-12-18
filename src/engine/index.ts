@@ -50,10 +50,12 @@ export {
 
 // Utilities
 export { resolveVotes, getVoteCounts } from './utils/votes.js';
-export { getVisibleState, getValidKillTargets, getValidEliminationTargets } from './utils/visibility.js';
+export { getVisibleState, getValidKillTargets, getValidEliminationTargets, formatPlayerList, formatPlayerListShuffled } from './utils/visibility.js';
 export { checkWinCondition, explainWinCondition } from './utils/winCondition.js';
 export { SYSTEM_PROMPTS, ACTION_PROMPTS, PERSONA_PROMPTS, generateNightContext, formatPersona, formatPlayersPersonas } from './utils/prompts.js';
 export { analyzePersonaConsistency, getModelConsistencyScore } from './utils/consistency.js';
+export { createSeededRandom, createRandomGenerator, createDefaultRandomGenerator, generateSeed, type RandomGenerator } from './utils/random.js';
+export { sanitizePersona, sanitizePersonaName, sanitizePersonaBackground, sanitizePersonaPersonality, containsDangerousPatterns } from './utils/sanitize.js';
 
 // All types
 export type {
@@ -109,5 +111,6 @@ export type {
   VoteEvent,
   EliminationEvent,
   GameEndEvent,
+  AIParseErrorEvent,
 } from './types.js';
 

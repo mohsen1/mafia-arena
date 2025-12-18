@@ -61,6 +61,8 @@ export interface GameConfig {
   readonly nightDiscussionRounds?: number | undefined;
   /** Number of discussion rounds during day phase (default: 3) */
   readonly dayDiscussionRounds?: number | undefined;
+  /** Seed for deterministic random number generation (for reproducibility) */
+  readonly seed?: number | undefined;
 }
 
 export interface TeamAssignment {
@@ -257,7 +259,22 @@ export type GameEvent =
   | DiscussionEvent
   | VoteEvent
   | EliminationEvent
-  | GameEndEvent;
+  | GameEndEvent
+  | AIParseErrorEvent;
+
+export interface AIParseErrorEvent {
+  readonly type: 'ai_parse_error';
+  readonly phase: Phase;
+  readonly round: number;
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly modelId: string;
+  readonly team: Team;
+  readonly actionType: ActionPrompt['type'];
+  readonly rawResponse: string;
+  readonly error: string;
+  readonly timestamp: number;
+}
 
 export interface PhaseStartEvent {
   readonly type: 'phase_start';

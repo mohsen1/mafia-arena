@@ -11,8 +11,19 @@ import type {
   ConversationMessage,
   Persona,
 } from './types.js';
+import { 
+  createRandomGenerator, 
+  createDefaultRandomGenerator,
+  generateSeed,
+  type RandomGenerator 
+} from './utils/random.js';
 
 export class GameState {
+  /** The seeded random generator for reproducible games */
+  public readonly rng: RandomGenerator;
+  /** The seed used for this game (for reproducibility) */
+  public readonly seed: number;
+
   private constructor(
     public readonly players: readonly Player[],
     public readonly phase: Phase,
@@ -20,15 +31,26 @@ export class GameState {
     public readonly events: readonly GameEvent[],
     public readonly conversationHistory: readonly ConversationMessage[],
     public readonly gameId: string,
-    public readonly config: GameConfig
-  ) {}
+    public readonly config: GameConfig,
+    rng: RandomGenerator,
+    seed: number
+  ) {
+    this.rng = rng;
+    this.seed = seed;
+  }
 
   /**
    * Create initial game state from configuration.
    */
   static create(gameId: string, config: GameConfig): GameState {
-    const players = createPlayers(config);
-    return new GameState(players, 'night', 1, [], [], gameId, config);
+    // Use provided seed or generate a new one
+    const seed = config.seed ?? generateSeed();
+    const rng = config.seed !== undefined 
+      ? createRandomGenerator(seed)
+      : createDefaultRandomGenerator();
+    
+    const players = createPlayers(config, rng);
+    return new GameState(players, 'night', 1, [], [], gameId, config, rng, seed);
   }
 
   // ===========================================================================
@@ -69,7 +91,9 @@ export class GameState {
       this.events,
       this.conversationHistory,
       this.gameId,
-      this.config
+      this.config,
+      this.rng,
+      this.seed
     );
   }
 
@@ -87,7 +111,9 @@ export class GameState {
       this.events,
       this.conversationHistory,
       this.gameId,
-      this.config
+      this.config,
+      this.rng,
+      this.seed
     );
   }
 
@@ -102,7 +128,9 @@ export class GameState {
       [...this.events, event],
       this.conversationHistory,
       this.gameId,
-      this.config
+      this.config,
+      this.rng,
+      this.seed
     );
   }
 
@@ -117,7 +145,9 @@ export class GameState {
       [...this.events, ...events],
       this.conversationHistory,
       this.gameId,
-      this.config
+      this.config,
+      this.rng,
+      this.seed
     );
   }
 
@@ -132,7 +162,9 @@ export class GameState {
       this.events,
       this.conversationHistory,
       this.gameId,
-      this.config
+      this.config,
+      this.rng,
+      this.seed
     );
   }
 
@@ -147,7 +179,9 @@ export class GameState {
       this.events,
       this.conversationHistory,
       this.gameId,
-      this.config
+      this.config,
+      this.rng,
+      this.seed
     );
   }
 
@@ -162,7 +196,9 @@ export class GameState {
       this.events,
       [...this.conversationHistory, message],
       this.gameId,
-      this.config
+      this.config,
+      this.rng,
+      this.seed
     );
   }
 
@@ -210,9 +246,9 @@ export class GameState {
 
 /**
  * Create players from game configuration.
- * Shuffles players to randomize seating.
+ * Shuffles players using the provided RNG for reproducibility.
  */
-function createPlayers(config: GameConfig): readonly Player[] {
+function createPlayers(config: GameConfig, rng: RandomGenerator): readonly Player[] {
   const players: Player[] = [];
   let playerIndex = 1;
 
@@ -229,19 +265,6 @@ function createPlayers(config: GameConfig): readonly Player[] {
     }
   }
 
-  // Shuffle players to randomize positions
-  return shuffleArray(players);
+  // Shuffle players using seeded RNG for reproducibility
+  return rng.shuffled(players);
 }
-
-/**
- * Fisher-Yates shuffle algorithm.
- */
-function shuffleArray<T>(array: readonly T[]): readonly T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j]!, result[i]!];
-  }
-  return result;
-}
-

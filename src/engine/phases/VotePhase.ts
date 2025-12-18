@@ -14,7 +14,7 @@ import type {
   PhaseEndEvent,
 } from '../types.js';
 import { resolveVotes } from '../utils/votes.js';
-import { getVisibleState, getValidEliminationTargets, formatPlayerList } from '../utils/visibility.js';
+import { getVisibleState, getValidEliminationTargets, formatPlayerListShuffled } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS } from '../utils/prompts.js';
 
 export interface VotePhaseResult {
@@ -59,7 +59,8 @@ export async function executeVotePhase(
           )
         : SYSTEM_PROMPTS.town();
 
-    const targetList = formatPlayerList(validTargets);
+    // POSITION BIAS FIX: Shuffle target list in prompt to eliminate position bias
+    const targetList = formatPlayerListShuffled(validTargets, state.rng);
     const userPrompt = ACTION_PROMPTS.eliminationVote(
       targetList.split('\n'),
       visibleState,
@@ -168,4 +169,3 @@ export async function executeVotePhase(
 
   return { state, eliminated, votes };
 }
-
