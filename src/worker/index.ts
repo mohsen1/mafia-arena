@@ -166,6 +166,11 @@ export default {
       return this.handleRunGames(request, env);
     }
 
+    // POST /api/games/run-direct - Run a game directly (bypasses queue for testing)
+    if (path === '/api/games/run-direct' && method === 'POST') {
+      return this.handleRunGameDirect(request, env);
+    }
+
     // GET /api/games - List games
     if (path === '/api/games' && method === 'GET') {
       return this.handleListGames(url, env);
@@ -333,6 +338,96 @@ export default {
       queued: body.count,
       gameIds,
       contextLevel: body.config.contextLevel ?? 'summary',
+      budget: {
+        spent: budget.spent.toFixed(4),
+        remaining: budget.remaining.toFixed(4),
+        limit: budget.limit,
+      },
+    });
+  },
+
+  /**
+   * POST /api/games/run-direct - Run a game directly without queue.
+   * Bypasses the queue for immediate execution and testing.
+   */
+  async handleRunGameDirect(request: Request, env: Env): Promise<Response> {
+    const budget = await checkBudget(env.DB);
+    if (!budget.allowed) {
+      throw Errors.BudgetExceeded();
+    }
+
+    interface RunGameDirectRequest {
+      config: {
+        playerCount: number;
+        mafiaCount: number;
+        teams: Array<{
+          modelId: string;
+          team: 'mafia' | 'town';
+          count: number;
+        }>;
+        maxRounds?: number;
+        discussionEnabled?: boolean;
+        personaEnabled?: boolean;
+        personaConstraints?: 'strict' | 'moderate' | 'free';
+        contextLevel?: 'full' | 'windowed' | 'summary';
+        contextWindowSize?: number;
+      };
+    }
+
+    let body: RunGameDirectRequest;
+    try {
+      body = (await request.json()) as RunGameDirectRequest;
+    } catch {
+      throw Errors.BadRequest('Invalid JSON body');
+    }
+
+    if (!body.config || !body.config.teams || body.config.teams.length === 0) {
+      throw Errors.BadRequest('Invalid game configuration: teams required');
+    }
+
+    const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_direct`;
+    const batchId = `batch_${Date.now().toString(36)}_direct`;
+
+    // Get Durable Object instance and run directly
+    const id = env.GAME_RUNNER.idFromName(gameId);
+    const stub = env.GAME_RUNNER.get(id);
+
+    console.log(`Running game ${gameId} directly (bypassing queue)`);
+
+    const response = await stub.fetch('http://internal/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gameId,
+        batchId,
+        config: {
+          playerCount: body.config.playerCount,
+          mafiaCount: body.config.mafiaCount,
+          teams: body.config.teams,
+          maxRounds: body.config.maxRounds ?? 10,
+          discussionEnabled: body.config.discussionEnabled ?? true,
+          personaEnabled: body.config.personaEnabled ?? false,
+          personaConstraints: body.config.personaConstraints ?? 'moderate',
+          contextLevel: body.config.contextLevel ?? 'summary',
+          contextWindowSize: body.config.contextWindowSize ?? 3,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = (await response.json()) as { error: string };
+      throw Errors.Internal(error.error ?? 'Failed to start game');
+    }
+
+    const result = await response.json() as { success: boolean; gameId: string; seed: number };
+
+    return Response.json({
+      success: true,
+      gameId,
+      batchId,
+      seed: result.seed,
+      contextLevel: body.config.contextLevel ?? 'summary',
+      message: 'Game started directly (bypassing queue). Check /api/games after ~30-60s.',
       budget: {
         spent: budget.spent.toFixed(4),
         remaining: budget.remaining.toFixed(4),

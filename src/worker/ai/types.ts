@@ -74,12 +74,15 @@ export const SUPPORTED_MODELS: Record<string, { provider: string; displayName: s
   // Google - Current models
   'gemini-1.5-flash': { provider: 'google', displayName: 'Gemini 1.5 Flash' },
   'gemini-1.5-pro': { provider: 'google', displayName: 'Gemini 1.5 Pro' },
-  'gemini-2.0-flash-exp': { provider: 'google', displayName: 'Gemini 2.0 Flash' },
+  'gemini-2.0-flash-exp': { provider: 'google', displayName: 'Gemini 2.0 Flash Exp' },
+  'gemini-2.0-flash': { provider: 'google', displayName: 'Gemini 2.0 Flash' },
   'gemini-2.0-flash-lite': { provider: 'google', displayName: 'Gemini 2.0 Flash Lite' },
   // Google - Future models
   'gemini-3-pro-preview': { provider: 'google', displayName: 'Gemini 3 Pro' },
   'gemini-3-flash-preview': { provider: 'google', displayName: 'Gemini 3 Flash' },
   'gemini-2.5-flash': { provider: 'google', displayName: 'Gemini 2.5 Flash' },
+  'gemini-2.5-flash-preview-05-20': { provider: 'google', displayName: 'Gemini 2.5 Flash Preview' },
+  'gemini-2.5-pro-preview-05-06': { provider: 'google', displayName: 'Gemini 2.5 Pro Preview' },
 };
 
 /**

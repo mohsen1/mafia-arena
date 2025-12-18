@@ -99,9 +99,19 @@ export abstract class BaseProvider implements AIProviderInterface {
       throw AIErrors.rateLimited(this.modelId, retryAfter ? parseInt(retryAfter, 10) : undefined);
     }
 
+    // Handle 503 Service Unavailable (also retryable)
+    if (status === 503) {
+      throw AIErrors.rateLimited(this.modelId, 10); // Use 10s as default retry
+    }
+
     const message = typeof body === 'object' && body !== null && 'error' in body
       ? String((body as { error: { message?: string } }).error?.message ?? body)
       : String(body);
+
+    // Check for Google's rate limit error in message
+    if (message.includes('Resource has been exhausted') || message.includes('quota')) {
+      throw AIErrors.rateLimited(this.modelId, 30);
+    }
 
     throw AIErrors.providerError(this.name, message);
   }
