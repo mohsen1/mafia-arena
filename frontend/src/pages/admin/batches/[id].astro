@@ -3,6 +3,7 @@ import Layout from '../../../components/Layout.astro';
 import { Clock, CheckCircle, XCircle, AlertTriangle, Activity, DollarSign, RefreshCw } from 'lucide-astro';
 
 const { id } = Astro.params;
+const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
 <Layout title="Batch Details">
@@ -23,9 +24,7 @@ const { id } = Astro.params;
   </div>
 </Layout>
 
-<script define:vars={{ batchId: id }}>
-  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
-
+<script define:vars={{ batchId: id, apiUrl }}>
   const statusColors = {
     queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
@@ -53,7 +52,7 @@ const { id } = Astro.params;
     const headers = { 'Authorization': `Basic ${credentials}` };
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/batches/${batchId}`, { headers });
+      const res = await fetch(`${apiUrl}/api/admin/batches/${batchId}`, { headers });
 
       if (res.status === 401) {
         sessionStorage.removeItem('adminCredentials');
@@ -65,8 +64,8 @@ const { id } = Astro.params;
 
       const batch = await res.json();
 
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('content').classList.remove('hidden');
+      document.getElementById('loading')?.classList.add('hidden');
+      document.getElementById('content')?.classList.remove('hidden');
 
       const recentGamesHtml = batch.recentGames.length > 0 ? `
         <div class="space-y-3">
@@ -98,7 +97,8 @@ const { id } = Astro.params;
         </div>
       ` : '';
 
-      document.getElementById('content').innerHTML = `
+      const contentEl = document.getElementById('content');
+      if (contentEl) contentEl.innerHTML = `
         <!-- Header -->
         <div class="flex items-start justify-between">
           <div>
@@ -180,7 +180,7 @@ const { id } = Astro.params;
       document.getElementById('cancelBtn')?.addEventListener('click', async () => {
         if (!confirm('Are you sure you want to cancel this batch?')) return;
         try {
-          const res = await fetch(`${API_URL}/api/admin/batches/${batchId}/cancel`, { method: 'POST', headers });
+          const res = await fetch(`${apiUrl}/api/admin/batches/${batchId}/cancel`, { method: 'POST', headers });
           if (!res.ok) throw new Error('Failed');
           window.location.reload();
         } catch {
@@ -194,9 +194,10 @@ const { id } = Astro.params;
       }
 
     } catch (err) {
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('error').classList.remove('hidden');
-      document.getElementById('error-text').textContent = err.message;
+      document.getElementById('loading')?.classList.add('hidden');
+      document.getElementById('error')?.classList.remove('hidden');
+      const errorText = document.getElementById('error-text');
+      if (errorText) errorText.textContent = err.message;
     }
   }
 

@@ -3,6 +3,7 @@ import Layout from '../../components/Layout.astro';
 import { Lock } from 'lucide-astro';
 
 const redirect = Astro.url.searchParams.get('redirect') || '/admin';
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
 <Layout title="Admin Login">
@@ -58,8 +59,7 @@ const redirect = Astro.url.searchParams.get('redirect') || '/admin';
   </div>
 </Layout>
 
-<script define:vars={{ redirect }}>
-  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+<script define:vars={{ redirect, apiUrl }}>
   const form = document.getElementById('loginForm');
   const errorEl = document.getElementById('error');
 
@@ -78,7 +78,7 @@ const redirect = Astro.url.searchParams.get('redirect') || '/admin';
 
     try {
       // Verify credentials by making a test request
-      const res = await fetch(`${API_URL}/api/admin/stats/live`, {
+      const res = await fetch(`${apiUrl}/api/admin/stats/live`, {
         headers: {
           'Authorization': `Basic ${credentials}`,
         },

@@ -1,6 +1,8 @@
 ---
 import Layout from '../../components/Layout.astro';
 import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut } from 'lucide-astro';
+
+const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
 <Layout title="Admin Dashboard">
@@ -170,10 +172,8 @@ import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTrian
   </div>
 </Layout>
 
-<script>
-  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
-
-  const statusColors: Record<string, string> = {
+<script define:vars={{ apiUrl }}>
+  const statusColors = {
     queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
     completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
@@ -194,8 +194,8 @@ import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTrian
     try {
       // Load stats and batches
       const [statsRes, batchesRes] = await Promise.all([
-        fetch(`${API_URL}/api/admin/stats/live`, { headers }),
-        fetch(`${API_URL}/api/admin/batches?limit=5`, { headers }),
+        fetch(`${apiUrl}/api/admin/stats/live`, { headers }),
+        fetch(`${apiUrl}/api/admin/batches?limit=5`, { headers }),
       ]);
 
       if (statsRes.status === 401 || batchesRes.status === 401) {
@@ -212,32 +212,49 @@ import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTrian
       const batches = await batchesRes.json();
 
       // Hide loading, show dashboard
-      document.getElementById('loading')!.classList.add('hidden');
-      document.getElementById('dashboard')!.classList.remove('hidden');
+      document.getElementById('loading')?.classList.add('hidden');
+      document.getElementById('dashboard')?.classList.remove('hidden');
 
       // Populate stats
-      const statusIcon = document.getElementById('status-icon')!;
-      statusIcon.innerHTML = stats.systemPaused 
-        ? '<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>'
-        : '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>';
+      const statusIcon = document.getElementById('status-icon');
+      if (statusIcon) {
+        statusIcon.innerHTML = stats.systemPaused 
+          ? '<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>'
+          : '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>';
+      }
 
-      document.getElementById('status-text')!.textContent = stats.systemPaused ? 'Paused' : 'Running';
-      const toggleBtn = document.getElementById('toggleSystem')!;
-      toggleBtn.textContent = stats.systemPaused ? 'Resume' : 'Pause';
-      toggleBtn.dataset.paused = String(stats.systemPaused);
+      const statusText = document.getElementById('status-text');
+      if (statusText) statusText.textContent = stats.systemPaused ? 'Paused' : 'Running';
+      
+      const toggleBtn = document.getElementById('toggleSystem');
+      if (toggleBtn) {
+        toggleBtn.textContent = stats.systemPaused ? 'Resume' : 'Pause';
+        toggleBtn.dataset.paused = String(stats.systemPaused);
+      }
 
-      document.getElementById('batches-active')!.textContent = String(stats.batchesActive);
-      document.getElementById('games-queued')!.textContent = `${stats.gamesQueued.toLocaleString()} games in queue`;
-      document.getElementById('cost-today')!.textContent = `$${stats.costToday.toFixed(2)}`;
-      document.getElementById('budget-remaining')!.textContent = `$${stats.budgetRemaining.toFixed(2)} remaining`;
+      const batchesActive = document.getElementById('batches-active');
+      if (batchesActive) batchesActive.textContent = String(stats.batchesActive);
+      
+      const gamesQueued = document.getElementById('games-queued');
+      if (gamesQueued) gamesQueued.textContent = `${stats.gamesQueued.toLocaleString()} games in queue`;
+      
+      const costToday = document.getElementById('cost-today');
+      if (costToday) costToday.textContent = `$${stats.costToday.toFixed(2)}`;
+      
+      const budgetRemaining = document.getElementById('budget-remaining');
+      if (budgetRemaining) budgetRemaining.textContent = `$${stats.budgetRemaining.toFixed(2)} remaining`;
 
       const budgetTotal = stats.costToday + stats.budgetRemaining;
       const budgetPercent = budgetTotal > 0 ? (stats.costToday / budgetTotal) * 100 : 0;
-      document.getElementById('budget-bar')!.style.width = `${Math.min(budgetPercent, 100)}%`;
-      document.getElementById('budget-percent')!.textContent = `${budgetPercent.toFixed(1)}% used`;
+      
+      const budgetBar = document.getElementById('budget-bar');
+      if (budgetBar) budgetBar.style.width = `${Math.min(budgetPercent, 100)}%`;
+      
+      const budgetPercentEl = document.getElementById('budget-percent');
+      if (budgetPercentEl) budgetPercentEl.textContent = `${budgetPercent.toFixed(1)}% used`;
 
       // Populate batches table
-      const tbody = document.getElementById('batches-table')!;
+      const tbody = document.getElementById('batches-table');
       if (batches.batches.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-muted-foreground">No batches yet. <a href="/admin/batches/new" class="underline">Create one</a></td></tr>`;
       } else {
@@ -264,25 +281,27 @@ import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTrian
       }
 
       // Setup event handlers
-      toggleBtn.addEventListener('click', async () => {
-        const isPaused = toggleBtn.dataset.paused === 'true';
-        toggleBtn.disabled = true;
-        toggleBtn.textContent = 'Working...';
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', async () => {
+          const isPaused = toggleBtn.dataset.paused === 'true';
+          toggleBtn.disabled = true;
+          toggleBtn.textContent = 'Working...';
 
-        try {
-          const endpoint = isPaused ? 'resume' : 'pause';
-          const res = await fetch(`${API_URL}/api/admin/system/${endpoint}`, { 
-            method: 'POST',
-            headers,
-          });
-          if (!res.ok) throw new Error('Failed');
-          window.location.reload();
-        } catch {
-          alert('Failed to update system state');
-          toggleBtn.disabled = false;
-          toggleBtn.textContent = isPaused ? 'Resume' : 'Pause';
-        }
-      });
+          try {
+            const endpoint = isPaused ? 'resume' : 'pause';
+            const res = await fetch(`${apiUrl}/api/admin/system/${endpoint}`, { 
+              method: 'POST',
+              headers,
+            });
+            if (!res.ok) throw new Error('Failed');
+            window.location.reload();
+          } catch {
+            alert('Failed to update system state');
+            toggleBtn.disabled = false;
+            toggleBtn.textContent = isPaused ? 'Resume' : 'Pause';
+          }
+        });
+      }
 
       document.getElementById('logoutBtn')?.addEventListener('click', () => {
         sessionStorage.removeItem('adminCredentials');
@@ -290,9 +309,10 @@ import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTrian
       });
 
     } catch (err) {
-      document.getElementById('loading')!.classList.add('hidden');
-      document.getElementById('error-container')!.classList.remove('hidden');
-      document.getElementById('error-message')!.textContent = err instanceof Error ? err.message : 'Unknown error';
+      document.getElementById('loading')?.classList.add('hidden');
+      document.getElementById('error-container')?.classList.remove('hidden');
+      const errorMsg = document.getElementById('error-message');
+      if (errorMsg) errorMsg.textContent = err instanceof Error ? err.message : 'Unknown error';
     }
   }
 
