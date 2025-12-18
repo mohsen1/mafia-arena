@@ -25,6 +25,11 @@ database_id = "936cd74b-f2c4-4739-a9a6-c65e00bc9f8e"
 binding = "TRANSCRIPTS"
 bucket_name = "mafia-arena-transcripts"
 
+# KV Namespace for rate limiting
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "98c5d7e961cb44e6bd8246eff27444a8"
+
 # Queues
 [[queues.producers]]
 queue = "mafia-arena-games"

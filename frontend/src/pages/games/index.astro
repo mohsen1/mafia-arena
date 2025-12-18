@@ -2,18 +2,46 @@
 import Layout from '../../components/Layout.astro';
 import GameCard from '../../components/GameCard.astro';
 import { getGames } from '../../lib/api';
+import { ChevronLeft, ChevronRight } from 'lucide-astro';
 
-const { games } = await getGames();
+const LIMIT = 12;
+const page = parseInt(Astro.url.searchParams.get('page') || '1', 10);
+const offset = (page - 1) * LIMIT;
+
+const { games, total, hasMore } = await getGames(LIMIT, offset);
+const totalPages = Math.ceil(total / LIMIT);
+
+// Compute visible page numbers for pagination
+function getVisiblePages(currentPage: number, total: number): number[] {
+  const maxVisible = 5;
+  if (total <= maxVisible) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (currentPage <= 3) {
+    return [1, 2, 3, 4, 5];
+  }
+  if (currentPage >= total - 2) {
+    return [total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [currentPage - 2, currentPage - 1, currentPage, currentPage + 1, currentPage + 2];
+}
+
+const visiblePages = getVisiblePages(page, totalPages);
+const hasPrev = page > 1;
+const hasNext = hasMore;
 ---
 
 <Layout title="Recent Games">
   <div class="space-y-8">
-    <div class="flex items-end justify-between gap-4">
+    <div class="flex items-end justify-between gap-4 flex-wrap">
       <div class="space-y-2">
         <h1 class="text-4xl font-bold tracking-tight">Recent Games</h1>
         <p class="text-muted-foreground text-lg">
           Explore full transcripts and replays of recent battles.
         </p>
+      </div>
+      <div class="text-sm text-muted-foreground font-medium">
+        {total} total games
       </div>
     </div>
 
@@ -30,10 +58,62 @@ const { games } = await getGames();
         </div>
       </div>
     ) : (
-      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {games.map(game => (
-          <GameCard game={game} />
-        ))}
+      <div class="space-y-8">
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {games.map(game => (
+            <GameCard game={game} />
+          ))}
+        </div>
+
+        {totalPages > 1 && (
+          <div class="flex items-center justify-center gap-2 pt-4">
+            {hasPrev ? (
+              <a 
+                href={`/games?page=${page - 1}`}
+                class="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 border bg-card hover:bg-muted transition-colors"
+              >
+                <ChevronLeft size={16} class="mr-1" /> Previous
+              </a>
+            ) : (
+              <span class="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 border bg-muted/50 text-muted-foreground cursor-not-allowed">
+                <ChevronLeft size={16} class="mr-1" /> Previous
+              </span>
+            )}
+            
+            <div class="flex items-center gap-1">
+              {visiblePages.map((pageNum) => (
+                <a
+                  href={`/games?page=${pageNum}`}
+                  class:list={[
+                    "inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 w-10 transition-colors",
+                    pageNum === page ? "bg-primary text-primary-foreground" : "border bg-card hover:bg-muted"
+                  ]}
+                >
+                  {pageNum}
+                </a>
+              ))}
+            </div>
+
+            {hasNext ? (
+              <a 
+                href={`/games?page=${page + 1}`}
+                class="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 border bg-card hover:bg-muted transition-colors"
+              >
+                Next <ChevronRight size={16} class="ml-1" />
+              </a>
+            ) : (
+              <span class="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 border bg-muted/50 text-muted-foreground cursor-not-allowed">
+                Next <ChevronRight size={16} class="ml-1" />
+              </span>
+            )}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div class="text-center text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </div>
+        )}
       </div>
     )}
   </div>

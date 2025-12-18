@@ -1,7 +1,8 @@
 ---
 import Layout from '../../../components/Layout.astro';
 import { getGame, getTranscript } from '../../../lib/api';
-import { MessageSquare, Moon, Sun, Vote, UserCircle, Cpu, Clock, Hash, Skull, Hand } from 'lucide-astro';
+import { calculateCost, formatCost, calculateTotalCost } from '../../../lib/costs';
+import { MessageSquare, Moon, Sun, Vote, UserCircle, Cpu, Clock, Hash, Skull, Hand, DollarSign } from 'lucide-astro';
 
 const { id } = Astro.params;
 
@@ -37,6 +38,10 @@ const events = transcript?.events || [];
 const groupedEvents = groupEvents(events);
 const rounds = Object.keys(groupedEvents).map(Number).sort((a, b) => a - b);
 
+// Calculate total cost
+const aiCallEvents = events.filter((e: any) => e.type === 'ai_call');
+const totalCost = calculateTotalCost(aiCallEvents);
+
 function getPhaseLabel(phase: string) {
   switch (phase) {
     case 'introduction': return 'Introduction';
@@ -45,6 +50,14 @@ function getPhaseLabel(phase: string) {
     case 'day_vote': return 'Elimination Vote';
     default: return phase;
   }
+}
+
+function getEventCost(event: any): string {
+  if (event.tokensUsed) {
+    const cost = calculateCost(event.modelId, event.tokensUsed);
+    return formatCost(cost);
+  }
+  return '--';
 }
 ---
 
@@ -71,7 +84,7 @@ function getPhaseLabel(phase: string) {
           </div>
           <h1 class="text-4xl font-bold tracking-tight">Game Replay</h1>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <span class={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-bold ${
             game.winner === 'mafia' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
           }`}>
@@ -79,6 +92,9 @@ function getPhaseLabel(phase: string) {
           </span>
           <span class="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full font-medium">
             {game.rounds} Rounds
+          </span>
+          <span class="text-sm text-green-500 bg-green-500/10 px-3 py-1 rounded-full font-medium border border-green-500/20">
+            💰 {formatCost(totalCost)}
           </span>
         </div>
       </div>
@@ -126,10 +142,11 @@ function getPhaseLabel(phase: string) {
                                     <span class="font-bold truncate">{event.playerName}</span>
                                     <span class="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono uppercase tracking-tighter">{event.modelId}</span>
                                   </div>
-                                  <div class="text-xs text-muted-foreground mt-0.5 flex items-center gap-3">
+                                  <div class="text-xs text-muted-foreground mt-0.5 flex items-center gap-3 flex-wrap">
                                     <span class="flex items-center gap-1"><Cpu size={12}/> {event.actionType.replace('_', ' ')}</span>
                                     <span class="flex items-center gap-1"><Clock size={12}/> {event.latencyMs}ms</span>
                                     <span class="flex items-center gap-1"><Hash size={12}/> {event.tokensUsed?.total || (event.tokensUsed?.input + event.tokensUsed?.output)} tokens</span>
+                                    <span class="flex items-center gap-1 text-green-500"><DollarSign size={12}/> {getEventCost(event)}</span>
                                   </div>
                                 </div>
                                 <div class="text-muted-foreground group-open:rotate-180 transition-transform">
@@ -162,6 +179,12 @@ function getPhaseLabel(phase: string) {
                                   <div class="p-4 rounded-lg bg-background text-sm leading-relaxed border border-primary/20 shadow-inner whitespace-pre-wrap">
                                     {event.response?.raw}
                                   </div>
+                                </div>
+                                <div class="flex items-center gap-6 pt-2 border-t text-xs text-muted-foreground">
+                                  <span>Input: <span class="font-mono text-foreground">{event.tokensUsed?.input || 0}</span> tokens</span>
+                                  <span>Output: <span class="font-mono text-foreground">{event.tokensUsed?.output || 0}</span> tokens</span>
+                                  <span>Latency: <span class="font-mono text-foreground">{event.latencyMs}</span>ms</span>
+                                  <span class="text-green-500">Cost: <span class="font-mono font-bold">{getEventCost(event)}</span></span>
                                 </div>
                               </div>
                             </details>

@@ -12,6 +12,9 @@ export interface Env {
   // R2 Bucket
   TRANSCRIPTS: R2Bucket;
 
+  // KV Namespace for rate limiting
+  RATE_LIMIT: KVNamespace;
+
   // Queues
   GAME_QUEUE: Queue<GameQueueMessage>;
 

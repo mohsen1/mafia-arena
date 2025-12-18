@@ -1,13 +1,29 @@
 /**
  * Mafia Arena - Cloudflare Worker Entry Point
- * 
+ *
  * Handles HTTP requests and queue messages for the Mafia Arena platform.
  */
 
 import type { Env, GameQueueMessage } from './types.js';
+import {
+  APIError,
+  Errors,
+  checkRateLimit,
+  getRateLimitKey,
+  getRateLimitConfig,
+  checkBudget,
+  logError,
+} from './utils/index.js';
 
 // Re-export the Durable Object
 export { GameRunner } from './GameRunner.js';
+
+// CORS headers for API
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
 export default {
   /**
@@ -16,40 +32,97 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // CORS headers for API
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    };
-
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
     try {
+      // Check rate limit for API requests
+      if (url.pathname.startsWith('/api/')) {
+        const rateLimitResult = await this.checkRateLimitIfEnabled(request, url, env);
+        if (rateLimitResult) {
+          return rateLimitResult;
+        }
+      }
+
       // Route requests
       const response = await this.handleRequest(request, url, env, ctx);
-      
+
       // Add CORS headers to response
+      return this.addCorsHeaders(response);
+    } catch (error) {
+      console.error('Request error:', error);
+
+      // Log error to D1
+      if (error instanceof Error) {
+        ctx.waitUntil(
+          logError(env.DB, error, {
+            url: url.pathname,
+            method: request.method,
+          })
+        );
+      }
+
+      // Return structured error response
+      if (error instanceof APIError) {
+        return this.addCorsHeaders(error.toResponse());
+      }
+
+      return this.addCorsHeaders(
+        Errors.Internal(error instanceof Error ? error.message : 'Unknown error').toResponse()
+      );
+    }
+  },
+
+  /**
+   * Add CORS headers to a response.
+   */
+  addCorsHeaders(response: Response): Response {
+    const headers = new Headers(response.headers);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  },
+
+  /**
+   * Check rate limit if KV is available.
+   */
+  async checkRateLimitIfEnabled(
+    request: Request,
+    url: URL,
+    env: Env
+  ): Promise<Response | null> {
+    // Skip rate limiting if KV not configured
+    if (!env.RATE_LIMIT) {
+      return null;
+    }
+
+    const key = getRateLimitKey(request, url);
+    const config = getRateLimitConfig(request.method, url.pathname);
+    const result = await checkRateLimit(env.RATE_LIMIT, key, config);
+
+    if (!result.allowed) {
+      const response = Errors.RateLimited(Math.ceil((result.resetAt - Date.now()) / 1000)).toResponse();
       const headers = new Headers(response.headers);
-      Object.entries(corsHeaders).forEach(([key, value]) => {
-        headers.set(key, value);
-      });
+      headers.set('X-RateLimit-Limit', String(config.maxRequests));
+      headers.set('X-RateLimit-Remaining', '0');
+      headers.set('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
+      headers.set('Retry-After', String(Math.ceil((result.resetAt - Date.now()) / 1000)));
 
       return new Response(response.body, {
         status: response.status,
-        statusText: response.statusText,
         headers,
       });
-    } catch (error) {
-      console.error('Request error:', error);
-      return Response.json(
-        { error: 'Internal server error', message: error instanceof Error ? error.message : String(error) },
-        { status: 500, headers: corsHeaders }
-      );
     }
+
+    return null;
   },
 
   /**
@@ -73,7 +146,7 @@ export default {
       return this.handleAPI(request, url, env, ctx);
     }
 
-    return new Response('Not found', { status: 404 });
+    throw Errors.NotFound('Route');
   },
 
   /**
@@ -120,13 +193,24 @@ export default {
       return this.handleGetModels(env);
     }
 
-    return new Response('Not found', { status: 404 });
+    // GET /api/budget - Get budget status
+    if (path === '/api/budget' && method === 'GET') {
+      return this.handleGetBudget(env);
+    }
+
+    throw Errors.NotFound('Endpoint');
   },
 
   /**
    * POST /api/games/run - Queue a batch of games.
    */
   async handleRunGames(request: Request, env: Env): Promise<Response> {
+    // Check daily budget
+    const budget = await checkBudget(env.DB);
+    if (!budget.allowed) {
+      throw Errors.BudgetExceeded();
+    }
+
     interface RunGamesRequest {
       count: number;
       config: {
@@ -142,15 +226,20 @@ export default {
       };
     }
 
-    const body = await request.json() as RunGamesRequest;
+    let body: RunGamesRequest;
+    try {
+      body = (await request.json()) as RunGamesRequest;
+    } catch {
+      throw Errors.BadRequest('Invalid JSON body');
+    }
 
     // Validate request
     if (!body.count || body.count < 1 || body.count > 100) {
-      return Response.json({ error: 'Count must be between 1 and 100' }, { status: 400 });
+      throw Errors.BadRequest('Count must be between 1 and 100');
     }
 
     if (!body.config || !body.config.teams || body.config.teams.length === 0) {
-      return Response.json({ error: 'Invalid game configuration' }, { status: 400 });
+      throw Errors.BadRequest('Invalid game configuration: teams required');
     }
 
     // Generate batch and game IDs
@@ -186,6 +275,11 @@ export default {
       batchId,
       queued: body.count,
       gameIds,
+      budget: {
+        spent: budget.spent.toFixed(4),
+        remaining: budget.remaining.toFixed(4),
+        limit: budget.limit,
+      },
     });
   },
 
@@ -217,6 +311,8 @@ export default {
       games: gamesResult.results,
       total: countResult?.count ?? 0,
       hasMore: offset + limit < (countResult?.count ?? 0),
+      limit,
+      offset,
     });
   },
 
@@ -230,7 +326,7 @@ export default {
       .first();
 
     if (!game) {
-      return Response.json({ error: 'Game not found' }, { status: 404 });
+      throw Errors.NotFound('Game');
     }
 
     const participants = await env.DB
@@ -246,7 +342,7 @@ export default {
     return Response.json({
       ...game,
       participants: participants.results,
-      transcriptUrl: `https://mafia-arena-transcripts.${env.ENVIRONMENT === 'production' ? '' : 'dev.'}r2.dev/games/${gameId}/transcript.json`,
+      transcriptUrl: `/api/games/${gameId}/transcript`,
     });
   },
 
@@ -257,7 +353,7 @@ export default {
     const object = await env.TRANSCRIPTS.get(`games/${gameId}/transcript.json`);
 
     if (!object) {
-      return Response.json({ error: 'Transcript not found' }, { status: 404 });
+      throw Errors.NotFound('Transcript');
     }
 
     const transcript = await object.json();
@@ -302,11 +398,24 @@ export default {
    * GET /api/models - List available models.
    */
   async handleGetModels(env: Env): Promise<Response> {
-    const result = await env.DB
-      .prepare('SELECT * FROM models ORDER BY display_name')
-      .all();
+    const result = await env.DB.prepare('SELECT * FROM models ORDER BY display_name').all();
 
     return Response.json({ models: result.results });
+  },
+
+  /**
+   * GET /api/budget - Get current budget status.
+   */
+  async handleGetBudget(env: Env): Promise<Response> {
+    const budget = await checkBudget(env.DB);
+
+    return Response.json({
+      allowed: budget.allowed,
+      spent: budget.spent.toFixed(4),
+      remaining: budget.remaining.toFixed(4),
+      limit: budget.limit,
+      currency: 'USD',
+    });
   },
 
   /**
@@ -331,7 +440,7 @@ export default {
         });
 
         if (!response.ok) {
-          const error = await response.json() as { error: string };
+          const error = (await response.json()) as { error: string };
           throw new Error(error.error ?? 'Failed to start game');
         }
 
@@ -340,11 +449,15 @@ export default {
         console.log(`Game ${gameId} started successfully`);
       } catch (error) {
         console.error(`Failed to process game ${gameId}:`, error);
-        
+
+        // Log to D1
+        if (error instanceof Error) {
+          await logError(env.DB, error, { gameId, batchId }).catch(() => {});
+        }
+
         // Retry the message
         message.retry();
       }
     }
   },
 };
-

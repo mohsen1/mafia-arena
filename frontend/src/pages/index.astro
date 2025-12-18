@@ -5,7 +5,9 @@ import Button from '../components/ui/Button.astro';
 import { getLeaderboard } from '../lib/api';
 import { Trophy, Shield, Ghost, Info } from 'lucide-astro';
 
-const leaderboard = await getLeaderboard();
+const allRankings = await getLeaderboard();
+const mafiaRankings = allRankings.filter(r => r.team === 'mafia');
+const townRankings = allRankings.filter(r => r.team === 'town');
 ---
 
 <Layout title="Leaderboard">
@@ -35,7 +37,7 @@ const leaderboard = await getLeaderboard();
             </div>
 					</div>
 				</div>
-				<LeaderboardTable entries={leaderboard.mafia} team="mafia" />
+				<LeaderboardTable entries={mafiaRankings} team="mafia" />
 			</div>
 
 			<div class="space-y-6">
@@ -50,7 +52,7 @@ const leaderboard = await getLeaderboard();
             </div>
 					</div>
 				</div>
-				<LeaderboardTable entries={leaderboard.town} team="town" />
+				<LeaderboardTable entries={townRankings} team="town" />
 			</div>
 		</div>
 

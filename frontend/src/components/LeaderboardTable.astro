@@ -3,11 +3,12 @@ import Badge from './ui/Badge.astro';
 import { cn } from '../lib/utils';
 
 interface LeaderboardEntry {
-  modelId: string;
-  gamesPlayed: number;
-  gamesWon: number;
-  winRate: number;
-  avgTokens: number;
+  model_id: string;
+  display_name: string;
+  games_played: number;
+  games_won: number;
+  win_rate: number;
+  total_tokens: number;
 }
 
 interface Props {
@@ -35,37 +36,37 @@ function getRankColor(index: number) {
         <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Model</th>
         <th class="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Win Rate</th>
         <th class="h-12 px-4 text-right align-middle font-medium text-muted-foreground">W / L</th>
-        <th class="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Avg Tokens</th>
+        <th class="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Total Tokens</th>
       </tr>
     </thead>
     <tbody class="[&_tr:last-child]:border-0">
-      {entries.map((entry, index) => (
+      {entries?.map((entry, index) => (
         <tr class="border-b transition-colors hover:bg-muted/50 group">
           <td class={cn("p-4 align-middle", getRankColor(index))}>
             #{index + 1}
           </td>
           <td class="p-4 align-middle">
-            <div class="font-bold tracking-tight">{entry.modelId}</div>
+            <div class="font-bold tracking-tight">{entry.display_name || entry.model_id}</div>
             <div class="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">{team} strategy</div>
           </td>
           <td class="p-4 align-middle text-right">
             <Badge variant={team === 'mafia' ? 'mafia' : 'town'}>
-              {(entry.winRate * 100).toFixed(1)}%
+              {(entry.win_rate * 100).toFixed(1)}%
             </Badge>
           </td>
           <td class="p-4 align-middle text-right font-mono text-xs">
-            <span class="text-green-500 font-bold">{entry.gamesWon}</span>
+            <span class="text-green-500 font-bold">{entry.games_won}</span>
             <span class="text-muted-foreground/30 px-1">/</span>
-            <span class="text-red-500 font-bold">{entry.gamesPlayed - entry.gamesWon}</span>
+            <span class="text-red-500 font-bold">{entry.games_played - entry.games_won}</span>
           </td>
           <td class="p-4 align-middle text-right text-muted-foreground font-mono text-xs">
-            {Math.round(entry.avgTokens).toLocaleString()}
+            {Math.round(entry.total_tokens).toLocaleString()}
           </td>
         </tr>
       ))}
     </tbody>
   </table>
-  {entries.length === 0 && (
+  {(!entries || entries.length === 0) && (
     <div class="p-12 text-center text-muted-foreground">
       <div class="mb-2">📉</div>
       <p class="text-xs font-medium uppercase tracking-widest">No data available for this team</p>
