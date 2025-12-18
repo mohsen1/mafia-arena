@@ -66,7 +66,8 @@ export const SUPPORTED_MODELS: Record<string, { provider: string; displayName: s
   // Google
   'gemini-1.5-pro': { provider: 'google', displayName: 'Gemini 1.5 Pro' },
   'gemini-1.5-flash': { provider: 'google', displayName: 'Gemini 1.5 Flash' },
-  'gemini-2.0-flash-exp': { provider: 'google', displayName: 'Gemini 2.0 Flash' },
+  'gemini-2.0-flash-exp': { provider: 'google', displayName: 'Gemini 2.0 Flash Exp' },
+  'gemini-2.0-flash': { provider: 'google', displayName: 'Gemini 2.0 Flash' },
 };
 
 /**

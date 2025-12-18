@@ -76,7 +76,7 @@ const date = game ? new Date(game.created_at * 1000).toLocaleString() : '';
             <tbody class="divide-y">
               {participants.map(p => (
                 <tr class="transition-colors hover:bg-muted/50">
-                  <td class="p-4 font-semibold">{p.modelId}</td>
+                  <td class="p-4 font-semibold">{p.model_name || p.model_id}</td>
                   <td class="p-4">
                     <span class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                       p.team === 'mafia' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
@@ -84,9 +84,9 @@ const date = game ? new Date(game.created_at * 1000).toLocaleString() : '';
                       {p.team.toUpperCase()}
                     </span>
                   </td>
-                  <td class="p-4 text-center">{p.playerCount}</td>
+                  <td class="p-4 text-center">{p.player_count}</td>
                   <td class="p-4 text-right text-muted-foreground font-mono">
-                    {p.tokensUsed.toLocaleString()}
+                    --
                   </td>
                 </tr>
               ))}

@@ -4,6 +4,11 @@
 
 Mafia Arena is an AI benchmark platform that pits Large Language Models against each other in the classic social deduction game Mafia. Watch as AI models try to deceive, deduce, and outmaneuver each other in this ultimate test of artificial social intelligence.
 
+## 🌐 Live Demo
+
+- **Frontend**: [mafia-arena-frontend.pages.dev](https://mafia-arena-frontend.pages.dev)
+- **API**: [mafia-arena.me-f9a.workers.dev](https://mafia-arena.me-f9a.workers.dev)
+
 ## 🚀 Features
 
 - **Strategic AI Gameplay** - Models play Mafia with complex decision-making and deception.
@@ -11,8 +16,11 @@ Mafia Arena is an AI benchmark platform that pits Large Language Models against 
 - **Pure TypeScript Game Engine** - Framework-agnostic, fully testable, and portable logic.
 - **Multi-Provider AI Support** - OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini).
 - **Cloudflare-Native Infrastructure** - Workers, Durable Objects, D1, R2, Queues.
-- **Modern UI Overhaul** - Polished dashboard built with Astro, Tailwind CSS, and shadcn/ui.
+- **Modern UI** - Polished dashboard built with Astro, Tailwind CSS, and shadcn/ui.
 - **Full Transparency** - Every prompt, response, and decision is logged and viewable.
+- **Cost Tracking** - Per-call and total game cost display in replay viewer.
+- **Rate Limiting** - KV-based rate limiting to protect API endpoints.
+- **Budget Controls** - Daily spending limits to prevent runaway costs.
 
 ## 📊 Leaderboard
 
@@ -166,10 +174,12 @@ wrangler queues create mafia-arena-dlq
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/games/run` | POST | Queue a batch of games |
-| `/api/games` | GET | List completed games |
+| `/api/games` | GET | List completed games (paginated) |
 | `/api/games/:id` | GET | Get game details |
+| `/api/games/:id/transcript` | GET | Get full game transcript |
 | `/api/leaderboard` | GET | Get model rankings |
 | `/api/models` | GET | List available models |
+| `/api/budget` | GET | Get current budget status |
 
 ### Example: Run Games
 
@@ -199,7 +209,15 @@ wrangler deploy
 
 # Deploy frontend
 cd frontend && pnpm build
-# Then connect to Cloudflare Pages
+wrangler pages deploy ./dist --project-name=mafia-arena-frontend
+```
+
+### Run migrations (production)
+
+```bash
+wrangler d1 execute mafia-arena --remote --file=./migrations/0001_initial_schema.sql
+wrangler d1 execute mafia-arena --remote --file=./migrations/0002_seed_models.sql
+wrangler d1 execute mafia-arena --remote --file=./migrations/0003_error_log.sql
 ```
 
 ## 📜 License
