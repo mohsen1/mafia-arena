@@ -73,7 +73,8 @@ function ensureUniqueName(name: string, usedNames: Set<string>): string {
 }
 
 /**
- * Generate personas for all players.
+ * Generate personas for all players in PARALLEL for faster execution.
+ * This significantly reduces wall-clock time for persona generation.
  */
 async function generatePersonas(
   initialState: GameState,
@@ -85,11 +86,9 @@ async function generatePersonas(
   const playerCount = players.length;
   const usedNames = new Set<string>();
 
-  for (const player of players) {
+  // Generate all persona requests in parallel
+  const personaPromises = players.map(async (player) => {
     const visibleState = getVisibleState(state, player);
-    
-    // Get list of already taken names to tell the LLM
-    const takenNames = Array.from(usedNames);
 
     // Generate appropriate system prompt based on team
     const systemPrompt =
@@ -101,11 +100,11 @@ async function generatePersonas(
           )
         : SYSTEM_PROMPTS.town();
 
-    // Use persona generation prompt with taken names
+    // Use persona generation prompt (no taken names in parallel mode)
     const userPrompt =
       player.team === 'mafia'
-        ? PERSONA_PROMPTS.mafia(personaConstraints, playerCount, takenNames)
-        : PERSONA_PROMPTS.town(personaConstraints, playerCount, takenNames);
+        ? PERSONA_PROMPTS.mafia(personaConstraints, playerCount, [])
+        : PERSONA_PROMPTS.town(personaConstraints, playerCount, []);
 
     const response = await aiProvider.getAction(
       {
@@ -125,6 +124,14 @@ async function generatePersonas(
       }
     );
 
+    return { player, response, systemPrompt, userPrompt };
+  });
+
+  // Wait for all persona generations to complete
+  const results = await Promise.all(personaPromises);
+
+  // Process results sequentially to maintain state consistency and ensure unique names
+  for (const { player, response, systemPrompt, userPrompt } of results) {
     // Record the AI call event
     const aiCallEvent: AICallEvent = {
       type: 'ai_call',
@@ -234,8 +241,8 @@ export async function executeIntroductionPhase(
     ? alivePlayers.map(p => state.getPlayer(p.id)!).filter(Boolean)
     : alivePlayers;
 
-  // Each player introduces themselves
-  for (const player of playersForIntro) {
+  // Generate all introduction requests in PARALLEL for faster execution
+  const introPromises = playersForIntro.map(async (player) => {
     const visibleState = getVisibleState(state, player);
 
     // Generate appropriate system prompt based on team
@@ -272,6 +279,14 @@ export async function executeIntroductionPhase(
       }
     );
 
+    return { player, response, systemPrompt, userPrompt };
+  });
+
+  // Wait for all introductions to complete
+  const introResults = await Promise.all(introPromises);
+
+  // Process results sequentially to maintain message order consistency
+  for (const { player, response, systemPrompt, userPrompt } of introResults) {
     // Record the AI call event
     const aiCallEvent: AICallEvent = {
       type: 'ai_call',

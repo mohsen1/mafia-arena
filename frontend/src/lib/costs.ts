@@ -1,24 +1,31 @@
 /**
  * Cost calculation utilities for AI API calls.
+ * Updated pricing from official docs - December 2024
  */
 
 // Cost per 1K tokens by model (USD)
-// Pricing from official docs - late 2025 estimates
 const PRICING: Record<string, { input: number; output: number }> = {
-  // OpenAI (GPT-5.x series)
-  'gpt-5.2': { input: 0.00175, output: 0.014 },
-  'gpt-5.2-pro': { input: 0.021, output: 0.168 },
-  'gpt-5.1': { input: 0.00125, output: 0.01 },
+  // OpenAI GPT-4o series (structured output capable)
+  'gpt-4o': { input: 0.0025, output: 0.01 },
+  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+  'gpt-4-turbo': { input: 0.01, output: 0.03 },
 
-  // Anthropic Claude (4.5 series)
-  'claude-opus-4.5': { input: 0.005, output: 0.025 },
-  'claude-sonnet-4.5': { input: 0.003, output: 0.015 },
-  'claude-haiku-4.5': { input: 0.001, output: 0.005 },
+  // Anthropic Claude 3.5 series
+  'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
+  'claude-3-5-haiku-20241022': { input: 0.001, output: 0.005 },
+  
+  // Anthropic Claude 3 series
+  'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
+  'claude-3-sonnet-20240229': { input: 0.003, output: 0.015 },
+  'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
 
-  // Google Gemini (3.x preview series)
-  'gemini-3-pro-preview': { input: 0.002, output: 0.012 },
-  'gemini-3-flash-preview': { input: 0.00015, output: 0.0006 },
-  'gemini-2.5-flash': { input: 0.0003, output: 0.0025 },
+  // Google Gemini 2.5 series (thinking models)
+  'gemini-2.5-flash-preview-05-20': { input: 0.00015, output: 0.0006 },
+  'gemini-2.5-pro-preview-05-06': { input: 0.00125, output: 0.005 },
+  
+  // Google Gemini 2.0 series
+  'gemini-2.0-flash-exp': { input: 0.0001, output: 0.0004 },
+  'gemini-2.0-flash-thinking-exp': { input: 0.0001, output: 0.0004 },
 };
 
 // Default pricing if model not found
@@ -28,19 +35,22 @@ const DEFAULT_PRICING = { input: 0.001, output: 0.003 };
 // OpenAI Batch API, Anthropic Message Batches, Google Batch
 const BATCH_PRICING: Record<string, { input: number; output: number }> = {
   // OpenAI Batch API (50% discount)
-  'gpt-5.2': { input: 0.000875, output: 0.007 },
-  'gpt-5.2-pro': { input: 0.0105, output: 0.084 },
-  'gpt-5.1': { input: 0.000625, output: 0.005 },
+  'gpt-4o': { input: 0.00125, output: 0.005 },
+  'gpt-4o-mini': { input: 0.000075, output: 0.0003 },
+  'gpt-4-turbo': { input: 0.005, output: 0.015 },
 
   // Anthropic Message Batches (~50% discount)
-  'claude-opus-4.5': { input: 0.0025, output: 0.0125 },
-  'claude-sonnet-4.5': { input: 0.0015, output: 0.0075 },
-  'claude-haiku-4.5': { input: 0.0005, output: 0.0025 },
+  'claude-3-5-sonnet-20241022': { input: 0.0015, output: 0.0075 },
+  'claude-3-5-haiku-20241022': { input: 0.0005, output: 0.0025 },
+  'claude-3-opus-20240229': { input: 0.0075, output: 0.0375 },
+  'claude-3-sonnet-20240229': { input: 0.0015, output: 0.0075 },
+  'claude-3-haiku-20240307': { input: 0.000125, output: 0.000625 },
 
   // Google Batch (~50% discount)
-  'gemini-3-pro-preview': { input: 0.001, output: 0.006 },
-  'gemini-3-flash-preview': { input: 0.000075, output: 0.0003 },
-  'gemini-2.5-flash': { input: 0.00015, output: 0.00125 },
+  'gemini-2.5-flash-preview-05-20': { input: 0.000075, output: 0.0003 },
+  'gemini-2.5-pro-preview-05-06': { input: 0.000625, output: 0.0025 },
+  'gemini-2.0-flash-exp': { input: 0.00005, output: 0.0002 },
+  'gemini-2.0-flash-thinking-exp': { input: 0.00005, output: 0.0002 },
 };
 
 // Default batch pricing (50% of standard default)

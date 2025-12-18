@@ -1,0 +1,203 @@
+---
+import Layout from '../../../components/Layout.astro';
+import { listBatches, formatNumber } from '../../../lib/api';
+import { Plus, ChevronLeft, ChevronRight, Filter } from 'lucide-astro';
+
+const url = Astro.url;
+const status = url.searchParams.get('status') || '';
+const page = parseInt(url.searchParams.get('page') || '1');
+const limit = 20;
+const offset = (page - 1) * limit;
+
+let data;
+let error = null;
+
+try {
+  data = await listBatches({ 
+    status: status || undefined, 
+    limit, 
+    offset 
+  });
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load batches';
+}
+
+const totalPages = data ? Math.ceil(data.total / limit) : 0;
+
+const statusColors = {
+  queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+  processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+  paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+};
+
+const statuses = ['', 'queued', 'processing', 'completed', 'cancelled', 'paused'];
+---
+
+<Layout title="Batches">
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <a href="/admin" class="hover:underline">Admin</a>
+          <span>/</span>
+          <span>Batches</span>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight">Batch Jobs</h1>
+      </div>
+      <a 
+        href="/admin/batches/new" 
+        class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+      >
+        <Plus size={16} />
+        New Batch
+      </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex items-center gap-2">
+      <Filter size={16} class="text-muted-foreground" />
+      <div class="flex gap-1">
+        {statuses.map(s => (
+          <a 
+            href={`/admin/batches${s ? `?status=${s}` : ''}`}
+            class:list={[
+              "px-3 py-1.5 text-sm rounded-md transition-colors",
+              (status === s || (!status && !s)) 
+                ? "bg-primary text-primary-foreground" 
+                : "hover:bg-muted"
+            ]}
+          >
+            {s || 'All'}
+          </a>
+        ))}
+      </div>
+    </div>
+
+    {error ? (
+      <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4">
+        <p class="text-destructive">{error}</p>
+      </div>
+    ) : (
+      <>
+        <!-- Table -->
+        <div class="border rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-muted/50 border-b">
+              <tr>
+                <th class="text-left p-3 font-medium">Batch</th>
+                <th class="text-left p-3 font-medium">Status</th>
+                <th class="text-right p-3 font-medium">Progress</th>
+                <th class="text-right p-3 font-medium">Cost</th>
+                <th class="text-right p-3 font-medium">Created</th>
+                <th class="text-right p-3 font-medium">Duration</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              {data.batches.length === 0 ? (
+                <tr>
+                  <td colspan="6" class="p-8 text-center text-muted-foreground">
+                    No batches found
+                  </td>
+                </tr>
+              ) : (
+                data.batches.map(batch => {
+                  const duration = batch.completedAt && batch.startedAt 
+                    ? batch.completedAt - batch.startedAt 
+                    : batch.startedAt 
+                      ? Math.floor(Date.now() / 1000) - batch.startedAt
+                      : null;
+                  
+                  return (
+                    <tr class="hover:bg-muted/30 transition-colors">
+                      <td class="p-3">
+                        <a href={`/admin/batches/${batch.id}`} class="hover:underline">
+                          <div class="font-medium">{batch.name || batch.id}</div>
+                          <div class="text-xs text-muted-foreground font-mono">{batch.id}</div>
+                        </a>
+                      </td>
+                      <td class="p-3">
+                        <span class={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[batch.status]}`}>
+                          {batch.status}
+                        </span>
+                      </td>
+                      <td class="p-3 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                          <span class="tabular-nums text-xs">
+                            {batch.completedGames}/{batch.totalGames}
+                            {batch.failedGames > 0 && (
+                              <span class="text-destructive"> ({batch.failedGames} failed)</span>
+                            )}
+                          </span>
+                          <div class="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              class="h-full bg-primary"
+                              style={`width: ${batch.progress}%`}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="p-3 text-right tabular-nums">
+                        <div>${batch.actualCostUsd.toFixed(4)}</div>
+                        {batch.estimatedCostUsd && (
+                          <div class="text-xs text-muted-foreground">
+                            / ${batch.estimatedCostUsd.toFixed(2)} est
+                          </div>
+                        )}
+                      </td>
+                      <td class="p-3 text-right text-muted-foreground tabular-nums">
+                        {new Date(batch.createdAt * 1000).toLocaleString()}
+                      </td>
+                      <td class="p-3 text-right tabular-nums">
+                        {duration !== null ? (
+                          duration < 60 
+                            ? `${duration}s` 
+                            : `${Math.floor(duration / 60)}m ${duration % 60}s`
+                        ) : (
+                          <span class="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        {totalPages > 1 && (
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-muted-foreground">
+              Showing {offset + 1}-{Math.min(offset + limit, data.total)} of {data.total}
+            </p>
+            <div class="flex items-center gap-1">
+              <a 
+                href={`/admin/batches?page=${page - 1}${status ? `&status=${status}` : ''}`}
+                class:list={[
+                  "p-2 rounded-md transition-colors",
+                  page <= 1 ? "pointer-events-none opacity-50" : "hover:bg-muted"
+                ]}
+              >
+                <ChevronLeft size={16} />
+              </a>
+              <span class="px-3 text-sm tabular-nums">{page} / {totalPages}</span>
+              <a 
+                href={`/admin/batches?page=${page + 1}${status ? `&status=${status}` : ''}`}
+                class:list={[
+                  "p-2 rounded-md transition-colors",
+                  page >= totalPages ? "pointer-events-none opacity-50" : "hover:bg-muted"
+                ]}
+              >
+                <ChevronRight size={16} />
+              </a>
+            </div>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+</Layout>
+

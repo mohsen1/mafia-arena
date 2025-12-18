@@ -414,3 +414,183 @@ export function formatWinRate(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
 }
 
+// =============================================================================
+// ADMIN API
+// =============================================================================
+
+export interface Batch {
+  id: string;
+  name: string | null;
+  status: 'queued' | 'processing' | 'completed' | 'cancelled' | 'paused';
+  totalGames: number;
+  completedGames: number;
+  failedGames: number;
+  estimatedCostUsd: number | null;
+  actualCostUsd: number;
+  createdBy: string;
+  createdAt: number;
+  startedAt: number | null;
+  completedAt: number | null;
+  progress: string;
+}
+
+export interface BatchDetail extends Batch {
+  errorMessage: string | null;
+  config: {
+    name?: string;
+    totalGames: number;
+    gameConfig: {
+      playerCount: number;
+      mafiaCount: number;
+      teams: Array<{ modelId: string; team: string; count: number }>;
+    };
+  };
+  recentGames: Array<{
+    id: string;
+    status: string;
+    winner: string;
+    rounds: number;
+    duration_ms: number;
+    created_at: number;
+  }>;
+}
+
+export interface AdminStats {
+  gamesRunning: number;
+  gamesQueued: number;
+  batchesActive: number;
+  costToday: number;
+  budgetRemaining: number;
+  systemPaused: boolean;
+}
+
+export interface CostEstimate {
+  estimatedCostUsd: number;
+  tokensPerGame: number;
+  totalTokens: number;
+  timeEstimateMinutes: number;
+  useBatchAPI: boolean;
+  savings: number;
+}
+
+/**
+ * Create a new batch of games.
+ */
+export async function createBatch(data: {
+  name?: string;
+  totalGames: number;
+  config: {
+    playerCount: number;
+    mafiaCount: number;
+    teams: Array<{ modelId: string; team: 'mafia' | 'town'; count: number }>;
+    discussionEnabled?: boolean;
+    personaEnabled?: boolean;
+    contextLevel?: 'full' | 'windowed' | 'summary';
+  };
+  useBatchAPI?: boolean;
+}): Promise<{ success: boolean; batchId: string; estimatedCostUsd: number }> {
+  const res = await fetch(`${API_URL}/api/admin/batches`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || 'Failed to create batch');
+  }
+  return res.json();
+}
+
+/**
+ * List all batches.
+ */
+export async function listBatches(options?: {
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ batches: Batch[]; total: number; hasMore: boolean }> {
+  const params = new URLSearchParams();
+  if (options?.status) params.set('status', options.status);
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.offset) params.set('offset', String(options.offset));
+
+  const res = await fetch(`${API_URL}/api/admin/batches?${params}`);
+  if (!res.ok) throw new Error('Failed to fetch batches');
+  return res.json();
+}
+
+/**
+ * Get batch details.
+ */
+export async function getBatch(batchId: string): Promise<BatchDetail> {
+  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}`);
+  if (!res.ok) throw new Error('Failed to fetch batch');
+  return res.json();
+}
+
+/**
+ * Cancel a batch.
+ */
+export async function cancelBatch(batchId: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}/cancel`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to cancel batch');
+  return res.json();
+}
+
+/**
+ * Pause system processing.
+ */
+export async function pauseSystem(): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_URL}/api/admin/system/pause`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to pause system');
+  return res.json();
+}
+
+/**
+ * Resume system processing.
+ */
+export async function resumeSystem(): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_URL}/api/admin/system/resume`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to resume system');
+  return res.json();
+}
+
+/**
+ * Get live admin stats.
+ */
+export async function getAdminStats(): Promise<AdminStats> {
+  const res = await fetch(`${API_URL}/api/admin/stats/live`);
+  if (!res.ok) throw new Error('Failed to fetch admin stats');
+  return res.json();
+}
+
+/**
+ * Get cost estimate for a batch.
+ */
+export async function getCostEstimate(data: {
+  totalGames: number;
+  config: {
+    playerCount: number;
+    mafiaCount: number;
+    teams: Array<{ modelId: string; team: 'mafia' | 'town'; count: number }>;
+    discussionEnabled?: boolean;
+    personaEnabled?: boolean;
+    contextLevel?: 'full' | 'windowed' | 'summary';
+  };
+  useBatchAPI?: boolean;
+}): Promise<CostEstimate> {
+  const res = await fetch(`${API_URL}/api/admin/estimate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to get cost estimate');
+  return res.json();
+}
+

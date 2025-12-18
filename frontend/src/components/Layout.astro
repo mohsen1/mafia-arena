@@ -84,6 +84,15 @@ const currentPath = Astro.url.pathname;
 							>
 								About
 							</a>
+							<a 
+								href="/admin" 
+								class:list={[
+									"transition-colors hover:text-foreground",
+									currentPath.startsWith("/admin") ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								Admin
+							</a>
 						</nav>
 					</div>
 					<div class="flex items-center gap-2">
