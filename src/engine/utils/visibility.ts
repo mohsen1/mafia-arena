@@ -7,10 +7,25 @@ import { GameState } from '../GameState.js';
 import type { Player, VisibleGameState, VisiblePlayer, VisibleDeadPlayer } from '../types.js';
 
 /**
+ * Options for getting visible state with multi-round discussion context.
+ */
+export interface VisibleStateOptions {
+  /** Current discussion sub-round (1-indexed) */
+  currentDiscussionRound?: number;
+  /** Total discussion rounds for this phase */
+  totalDiscussionRounds?: number;
+}
+
+/**
  * Get the visible game state for a specific player.
  * Players can only see appropriate information based on their role.
+ * Town players cannot see mafia-only messages.
  */
-export function getVisibleState(state: GameState, player: Player): VisibleGameState {
+export function getVisibleState(
+  state: GameState,
+  player: Player,
+  options?: VisibleStateOptions
+): VisibleGameState {
   const alivePlayers: VisiblePlayer[] = state.alivePlayers.map((p) => ({
     id: p.id,
     name: p.name,
@@ -32,13 +47,26 @@ export function getVisibleState(state: GameState, player: Player): VisibleGameSt
           .map((p) => p.id)
       : undefined;
 
+  // Filter conversation history by visibility
+  // Town only sees public messages, Mafia sees public messages in conversationHistory
+  const publicHistory = state.getCurrentRoundPublicConversation();
+
+  // Mafia also gets access to their private strategy chat
+  const mafiaHistory =
+    player.team === 'mafia'
+      ? state.getCurrentRoundMafiaConversation()
+      : undefined;
+
   return {
     round: state.round,
     phase: state.phase,
     alivePlayers,
     deadPlayers,
-    conversationHistory: state.getCurrentRoundConversation(),
+    conversationHistory: publicHistory,
+    mafiaHistory,
     teammates,
+    currentDiscussionRound: options?.currentDiscussionRound,
+    totalDiscussionRounds: options?.totalDiscussionRounds,
   };
 }
 

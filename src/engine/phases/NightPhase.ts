@@ -1,6 +1,6 @@
 /**
  * Night Phase Handler
- * Mafia members vote to kill a Town member.
+ * Mafia members discuss strategy privately, then vote to kill a Town member.
  */
 
 import type { GameState } from '../GameState.js';
@@ -12,10 +12,15 @@ import type {
   EliminationEvent,
   PhaseStartEvent,
   PhaseEndEvent,
+  ConversationMessage,
+  DiscussionEvent,
 } from '../types.js';
 import { resolveVotes } from '../utils/votes.js';
 import { getVisibleState, getValidKillTargets, formatPlayerList } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS, generateNightContext } from '../utils/prompts.js';
+
+/** Default number of discussion rounds for mafia during night */
+const DEFAULT_NIGHT_DISCUSSION_ROUNDS = 2;
 
 export interface NightPhaseResult {
   readonly state: GameState;
@@ -23,8 +28,134 @@ export interface NightPhaseResult {
 }
 
 /**
+ * Fisher-Yates shuffle algorithm.
+ */
+function shuffleArray<T>(array: readonly T[]): readonly T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j]!, result[i]!];
+  }
+  return result;
+}
+
+/**
+ * Execute the mafia private discussion sub-phase.
+ * Mafia members discuss strategy before voting.
+ */
+async function executeMafiaDiscussion(
+  initialState: GameState,
+  aiProvider: AIProvider,
+  numRounds: number
+): Promise<GameState> {
+  let state = initialState;
+  const mafiaPlayers = state.aliveMafia;
+
+  // Skip discussion if only one mafia member (no one to discuss with)
+  if (mafiaPlayers.length <= 1) {
+    return state;
+  }
+
+  for (let discussionRound = 1; discussionRound <= numRounds; discussionRound++) {
+    // Shuffle mafia order each round so one player doesn't always lead
+    const shuffledMafia = shuffleArray(mafiaPlayers);
+
+    for (const mafiaPlayer of shuffledMafia) {
+      const visibleState = getVisibleState(state, mafiaPlayer, {
+        currentDiscussionRound: discussionRound,
+        totalDiscussionRounds: numRounds,
+      });
+
+      const teammates = state.aliveMafia
+        .filter((p) => p.id !== mafiaPlayer.id)
+        .map((p) => p.name);
+
+      const systemPrompt = SYSTEM_PROMPTS.mafia(teammates);
+      const userPrompt = ACTION_PROMPTS.mafiaDiscussion(
+        visibleState,
+        mafiaPlayer.persona
+      );
+
+      const response = await aiProvider.getAction(
+        {
+          gameId: state.gameId,
+          playerId: mafiaPlayer.id,
+          playerName: mafiaPlayer.name,
+          modelId: mafiaPlayer.modelId,
+          team: mafiaPlayer.team,
+          phase: 'night',
+          round: state.round,
+          visibleState,
+        },
+        {
+          type: 'mafia_discussion',
+          systemPrompt,
+          userPrompt,
+        }
+      );
+
+      // Record the AI call event
+      const aiCallEvent: AICallEvent = {
+        type: 'ai_call',
+        phase: 'night',
+        round: state.round,
+        playerId: mafiaPlayer.id,
+        playerName: mafiaPlayer.name,
+        modelId: mafiaPlayer.modelId,
+        team: mafiaPlayer.team,
+        actionType: 'mafia_discussion',
+        prompt: {
+          system: systemPrompt,
+          user: userPrompt,
+        },
+        response: {
+          raw: response.rawResponse,
+          parsed: response.action,
+        },
+        tokensUsed: response.tokensUsed,
+        latencyMs: response.latencyMs,
+        timestamp: Date.now(),
+      };
+      state = state.withEvent(aiCallEvent);
+
+      // Record the discussion message (mafia channel)
+      if (response.action.type === 'mafia_discussion' || response.action.type === 'discussion') {
+        const messageText = response.action.type === 'mafia_discussion' 
+          ? response.action.message 
+          : response.action.message;
+        
+        const message: ConversationMessage = {
+          playerId: mafiaPlayer.id,
+          playerName: mafiaPlayer.name,
+          message: messageText,
+          round: state.round,
+          channel: 'mafia',
+          discussionRound,
+        };
+
+        state = state.withConversationMessage(message);
+
+        const discussionEvent: DiscussionEvent = {
+          type: 'discussion',
+          round: state.round,
+          playerId: mafiaPlayer.id,
+          playerName: mafiaPlayer.name,
+          message: messageText,
+          timestamp: Date.now(),
+          channel: 'mafia',
+          discussionRound,
+        };
+        state = state.withEvent(discussionEvent);
+      }
+    }
+  }
+
+  return state;
+}
+
+/**
  * Execute the night phase.
- * Mafia members vote to kill a Town member.
+ * Mafia members discuss strategy privately, then vote to kill a Town member.
  */
 export async function executeNightPhase(
   initialState: GameState,
@@ -57,6 +188,16 @@ export async function executeNightPhase(
     return { state: state.withEvent(phaseEndEvent), killed: null };
   }
 
+  // === MAFIA DISCUSSION SUB-PHASE ===
+  const numDiscussionRounds = state.config.nightDiscussionRounds ?? DEFAULT_NIGHT_DISCUSSION_ROUNDS;
+  if (numDiscussionRounds > 0 && mafiaPlayers.length > 1) {
+    state = await executeMafiaDiscussion(state, aiProvider, numDiscussionRounds);
+  }
+
+  // Get the mafia discussion history for the kill vote context
+  const mafiaHistory = state.getCurrentRoundMafiaConversation();
+
+  // === KILL VOTE SUB-PHASE ===
   // Collect kill votes from each mafia member
   for (const mafiaPlayer of mafiaPlayers) {
     const visibleState = getVisibleState(state, mafiaPlayer);
@@ -70,7 +211,8 @@ export async function executeNightPhase(
     const userPrompt = ACTION_PROMPTS.killVote(
       targetList.split('\n'),
       context,
-      mafiaPlayer.persona
+      mafiaPlayer.persona,
+      mafiaHistory
     );
 
     const response = await aiProvider.getAction(

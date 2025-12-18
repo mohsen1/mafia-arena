@@ -190,6 +190,7 @@ describe('Game', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
+        nightDiscussionRounds: 0, // Disable for this test
       };
 
       const strategy = new CoordinatedMafiaStrategy();

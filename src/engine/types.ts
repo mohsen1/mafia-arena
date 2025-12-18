@@ -57,6 +57,10 @@ export interface GameConfig {
   readonly discussionEnabled: boolean;
   readonly personaEnabled?: boolean | undefined;
   readonly personaConstraints?: PersonaConstraints | undefined;
+  /** Number of discussion rounds for mafia during night (default: 2) */
+  readonly nightDiscussionRounds?: number | undefined;
+  /** Number of discussion rounds during day phase (default: 3) */
+  readonly dayDiscussionRounds?: number | undefined;
 }
 
 export interface TeamAssignment {
@@ -137,7 +141,7 @@ export interface AIContext {
 }
 
 export interface ActionPrompt {
-  readonly type: 'persona_generation' | 'introduction' | 'kill_vote' | 'discussion' | 'elimination_vote';
+  readonly type: 'persona_generation' | 'introduction' | 'kill_vote' | 'discussion' | 'mafia_discussion' | 'elimination_vote';
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly validTargets?: readonly string[];
@@ -160,6 +164,7 @@ export type PlayerAction =
   | IntroductionAction
   | KillVoteAction
   | DiscussionAction
+  | MafiaDiscussionAction
   | EliminationVoteAction;
 
 export interface PersonaGenerationAction {
@@ -182,6 +187,11 @@ export interface DiscussionAction {
   readonly message: string;
 }
 
+export interface MafiaDiscussionAction {
+  readonly type: 'mafia_discussion';
+  readonly message: string;
+}
+
 export interface EliminationVoteAction {
   readonly type: 'elimination_vote';
   readonly target: string | null; // null = abstain
@@ -196,8 +206,15 @@ export interface VisibleGameState {
   readonly phase: Phase;
   readonly alivePlayers: readonly VisiblePlayer[];
   readonly deadPlayers: readonly VisibleDeadPlayer[];
+  /** Public conversation history visible to all players */
   readonly conversationHistory: readonly ConversationMessage[];
+  /** Private mafia strategy discussion (only visible to mafia members) */
+  readonly mafiaHistory?: readonly ConversationMessage[] | undefined;
   readonly teammates: readonly string[] | undefined; // Only for mafia
+  /** Current discussion sub-round (1-indexed) */
+  readonly currentDiscussionRound?: number | undefined;
+  /** Total discussion rounds for this phase */
+  readonly totalDiscussionRounds?: number | undefined;
 }
 
 export interface VisiblePlayer {
@@ -213,11 +230,18 @@ export interface VisibleDeadPlayer {
   readonly persona?: Persona | undefined;
 }
 
+/** Channel for conversation messages - public for all, mafia for private strategy */
+export type ConversationChannel = 'public' | 'mafia';
+
 export interface ConversationMessage {
   readonly playerId: string;
   readonly playerName: string;
   readonly message: string;
   readonly round: number;
+  /** The channel this message was sent on (default: 'public') */
+  readonly channel?: ConversationChannel | undefined;
+  /** Which discussion sub-round this message occurred in (1-indexed) */
+  readonly discussionRound?: number | undefined;
 }
 
 // =============================================================================
@@ -266,7 +290,7 @@ export interface AICallEvent {
   readonly playerName: string;
   readonly modelId: string;
   readonly team: Team;
-  readonly actionType: 'persona_generation' | 'introduction' | 'kill_vote' | 'discussion' | 'elimination_vote';
+  readonly actionType: 'persona_generation' | 'introduction' | 'kill_vote' | 'discussion' | 'mafia_discussion' | 'elimination_vote';
   readonly prompt: {
     readonly system: string;
     readonly user: string;
@@ -290,6 +314,10 @@ export interface DiscussionEvent {
   readonly playerName: string;
   readonly message: string;
   readonly timestamp: number;
+  /** The channel this message was sent on */
+  readonly channel?: ConversationChannel | undefined;
+  /** Which discussion sub-round this occurred in */
+  readonly discussionRound?: number | undefined;
 }
 
 export interface IntroductionEvent {
