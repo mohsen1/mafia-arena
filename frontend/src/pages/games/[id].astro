@@ -27,7 +27,9 @@ const personas = personasData?.personas || [];
 const personaAnalysis = personasData?.analysis;
 const personaEnabled = personasData?.personaEnabled ?? false;
 
-const date = game ? new Date(game.created_at * 1000).toLocaleString(undefined, {
+// Handle both unix timestamp (seconds) and milliseconds
+const timestamp = game?.created_at && game.created_at > 9999999999 ? game.created_at : (game?.created_at || 0) * 1000;
+const date = game ? new Date(timestamp).toLocaleString(undefined, {
   month: 'short',
   day: 'numeric',
   year: 'numeric',

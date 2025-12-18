@@ -164,7 +164,7 @@ const avgPerDay = data.daily.length > 0 ? (totalGames / data.daily.length).toFix
                   </div>
                 </div>
                 <div class="text-right text-[10px] text-muted-foreground shrink-0 ml-2">
-                  <p>{formatRelativeTime(game.created_at * 1000)}</p>
+                  <p>{formatRelativeTime(game.created_at > 9999999999 ? game.created_at : game.created_at * 1000)}</p>
                 </div>
               </a>
             ))}
