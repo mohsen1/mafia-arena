@@ -164,6 +164,14 @@ export class ScenarioMockAIProvider implements AIProvider {
         };
         break;
 
+      case 'mafia_discussion':
+        action = {
+          type: 'mafia_discussion',
+          message: this.strategy.getMafiaDiscussionMessage?.(context) 
+            ?? `I think we should target someone specific.`,
+        };
+        break;
+
       case 'elimination_vote':
         action = {
           type: 'elimination_vote',
@@ -195,6 +203,7 @@ export interface GameStrategy {
   getIntroductionMessage(context: AIContext): string;
   getKillTarget(context: AIContext, validTargets: readonly string[]): string;
   getDiscussionMessage(context: AIContext): string;
+  getMafiaDiscussionMessage?(context: AIContext): string;
   getEliminationTarget(context: AIContext, validTargets: readonly string[]): string | null;
 }
 

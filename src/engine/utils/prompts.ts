@@ -215,14 +215,19 @@ Respond with ONLY this JSON format:
 }`;
   },
 
-  killVote: (targets: readonly string[], context: string, ownPersona?: Persona) => {
+  killVote: (targets: readonly string[], context: string, ownPersona?: Persona, mafiaHistory?: readonly ConversationMessage[]) => {
     const personaContext = ownPersona 
       ? `You are ${ownPersona.name}. Even though this is the night phase, remember your persona for consistency.\n\n`
       : '';
 
+    // Include mafia discussion summary if available
+    const mafiaDiscussionContext = mafiaHistory && mafiaHistory.length > 0
+      ? `\nYOUR TEAM'S DISCUSSION:\n${formatConversationHistoryWithRounds(mafiaHistory)}\n\nBased on your team's discussion above, make your final decision.\n`
+      : '';
+
     return `NIGHT PHASE - Mafia Kill Vote
 
-${personaContext}Choose a Town member to eliminate tonight. Coordinate with your teammates if you have any.
+${personaContext}Choose a Town member to eliminate tonight.${mafiaDiscussionContext}
 
 Available targets:
 ${targets.join('\n')}
@@ -239,7 +244,13 @@ Respond with ONLY this JSON format:
   },
 
   discussion: (state: VisibleGameState, ownPersona?: Persona) => {
-    const historyText = formatConversationHistory(state.conversationHistory);
+    const currentRound = state.currentDiscussionRound ?? 1;
+    const totalRounds = state.totalDiscussionRounds ?? 1;
+    const isMultiRound = totalRounds > 1;
+    
+    const historyText = isMultiRound 
+      ? formatConversationHistoryWithRounds(state.conversationHistory)
+      : formatConversationHistory(state.conversationHistory);
     const aliveCount = state.alivePlayers.length;
     const deadCount = state.deadPlayers.length;
     
@@ -252,9 +263,23 @@ Respond with ONLY this JSON format:
       ? `OTHER PLAYERS:\n${otherPersonas}\n\n`
       : '';
 
-    return `DAY PHASE - Discussion
+    // Dynamic instructions based on discussion round
+    let roundInstructions = '';
+    if (isMultiRound) {
+      if (currentRound === 1) {
+        roundInstructions = 'This is the opening round. Share your initial observations and suspicions based on what you\'ve seen so far.';
+      } else if (currentRound === totalRounds) {
+        roundInstructions = 'This is the FINAL discussion round before voting. Make your closing arguments, defend yourself if accused, or push for a specific outcome.';
+      } else {
+        roundInstructions = `Respond to what others have said. Address specific claims, defend yourself if targeted, or build on existing accusations.`;
+      }
+    }
 
-${personaContext}${otherPersonasContext}Share your thoughts with the group. There are ${aliveCount} players alive${deadCount > 0 ? ` and ${deadCount} eliminated` : ''}.
+    const roundHeader = isMultiRound 
+      ? `DAY PHASE - Discussion (Round ${currentRound} of ${totalRounds})\n\n${roundInstructions}\n\n`
+      : 'DAY PHASE - Discussion\n\n';
+
+    return `${roundHeader}${personaContext}${otherPersonasContext}Share your thoughts with the group. There are ${aliveCount} players alive${deadCount > 0 ? ` and ${deadCount} eliminated` : ''}.
 
 ${historyText ? `Previous discussion this round:\n${historyText}\n\n` : ''}${
       state.deadPlayers.length > 0
@@ -263,6 +288,66 @@ ${historyText ? `Previous discussion this round:\n${historyText}\n\n` : ''}${
     }Respond with ONLY this JSON format:
 {
   "message": "your discussion message - share thoughts, accusations, or defend yourself (stay in character)"
+}`;
+  },
+
+  /**
+   * Mafia private discussion during night phase.
+   * Used for strategic planning before the kill vote.
+   */
+  mafiaDiscussion: (
+    state: VisibleGameState,
+    ownPersona?: Persona
+  ) => {
+    const currentRound = state.currentDiscussionRound ?? 1;
+    const totalRounds = state.totalDiscussionRounds ?? 1;
+    
+    const mafiaHistoryText = state.mafiaHistory && state.mafiaHistory.length > 0
+      ? formatConversationHistoryWithRounds(state.mafiaHistory)
+      : '(No discussion yet)';
+    
+    // Context from public day discussion
+    const publicHistoryText = state.conversationHistory.length > 0
+      ? formatConversationHistory(state.conversationHistory)
+      : '';
+    
+    const personaNote = ownPersona 
+      ? `(Speaking as ${ownPersona.name})\n\n`
+      : '';
+
+    const teammatesList = state.teammates && state.teammates.length > 0
+      ? state.alivePlayers
+          .filter(p => state.teammates!.includes(p.id))
+          .map(p => p.name)
+          .join(', ')
+      : 'None (solo Mafia)';
+
+    // Dynamic instructions based on discussion round
+    let roundInstructions = '';
+    if (currentRound === 1) {
+      roundInstructions = 'Start by suggesting potential targets and sharing observations about player behavior.';
+    } else if (currentRound === totalRounds) {
+      roundInstructions = 'This is the FINAL discussion before voting. Reach consensus on your target.';
+    } else {
+      roundInstructions = 'Build on your discussion. Debate strategy and work toward a decision.';
+    }
+
+    return `NIGHT PHASE - PRIVATE MAFIA STRATEGY (Round ${currentRound} of ${totalRounds})
+
+${personaNote}You are in a PRIVATE encrypted channel with your Mafia teammates.
+Teammates: ${teammatesList}
+
+${roundInstructions}
+
+YOUR PRIVATE DISCUSSION:
+${mafiaHistoryText}
+
+${publicHistoryText ? `INTEL FROM TODAY'S PUBLIC DISCUSSION:\n${publicHistoryText}\n\n` : ''}ALIVE PLAYERS (potential targets):
+${state.alivePlayers.filter(p => !state.teammates?.includes(p.id)).map(p => `- ${p.name}`).join('\n')}
+
+Respond with ONLY this JSON format:
+{
+  "message": "your strategic message to teammates (who to target, observations, strategy)"
 }`;
   },
 
@@ -311,6 +396,34 @@ function formatConversationHistory(
   return messages
     .map((m) => `${m.playerName}: "${m.message}"`)
     .join('\n');
+}
+
+/**
+ * Format conversation history with discussion round markers for multi-round prompts.
+ */
+function formatConversationHistoryWithRounds(
+  messages: readonly ConversationMessage[]
+): string {
+  if (messages.length === 0) {
+    return '(No discussion yet)';
+  }
+
+  let currentRound = 0;
+  const lines: string[] = [];
+
+  for (const m of messages) {
+    const round = m.discussionRound ?? 1;
+    if (round !== currentRound) {
+      if (currentRound > 0) {
+        lines.push(''); // Empty line between rounds
+      }
+      lines.push(`--- Discussion Round ${round} ---`);
+      currentRound = round;
+    }
+    lines.push(`${m.playerName}: "${m.message}"`);
+  }
+
+  return lines.join('\n');
 }
 
 /**

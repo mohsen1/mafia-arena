@@ -76,6 +76,8 @@ describe('Integration Tests', () => {
         discussionEnabled: false,
         personaEnabled: false,
         personaConstraints: 'moderate',
+        nightDiscussionRounds: 0, // Disable for this test
+        dayDiscussionRounds: 1,
       };
 
       const strategy = new CoordinatedMafiaStrategy();
@@ -103,6 +105,8 @@ describe('Integration Tests', () => {
         discussionEnabled: true,
         personaEnabled: false,
         personaConstraints: 'moderate',
+        nightDiscussionRounds: 0, // Disable for this test
+        dayDiscussionRounds: 1,
       };
 
       const strategy = new FirstTargetStrategy();

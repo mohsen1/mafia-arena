@@ -20,6 +20,7 @@ describe('executeNightPhase', () => {
     discussionEnabled: true,
     personaEnabled: false,
     personaConstraints: 'moderate',
+    nightDiscussionRounds: 0, // Disable mafia discussion for these unit tests
   });
 
   it('should collect kill votes from all mafia members', async () => {

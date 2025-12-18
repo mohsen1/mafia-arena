@@ -183,6 +183,25 @@ export class GameState {
   getCurrentRoundConversation(): readonly ConversationMessage[] {
     return this.conversationHistory.filter((m) => m.round === this.round);
   }
+
+  /**
+   * Get public conversation history for the current round.
+   * Filters out mafia-only messages.
+   */
+  getCurrentRoundPublicConversation(): readonly ConversationMessage[] {
+    return this.conversationHistory.filter(
+      (m) => m.round === this.round && m.channel !== 'mafia'
+    );
+  }
+
+  /**
+   * Get mafia-only conversation history for the current round.
+   */
+  getCurrentRoundMafiaConversation(): readonly ConversationMessage[] {
+    return this.conversationHistory.filter(
+      (m) => m.round === this.round && m.channel === 'mafia'
+    );
+  }
 }
 
 // =============================================================================

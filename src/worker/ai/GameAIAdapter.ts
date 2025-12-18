@@ -67,6 +67,9 @@ export class GameAIAdapter implements AIProvider {
         case 'discussion':
           return this.parseDiscussion(parsed);
 
+        case 'mafia_discussion':
+          return this.parseMafiaDiscussion(parsed);
+
         case 'elimination_vote':
           return this.parseEliminationVote(parsed, validTargets);
       }
@@ -132,6 +135,17 @@ export class GameAIAdapter implements AIProvider {
     return { type: 'discussion', message: message || 'I have nothing to say.' };
   }
 
+  private parseMafiaDiscussion(parsed: unknown): PlayerAction {
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('Invalid mafia discussion response');
+    }
+
+    const data = parsed as Record<string, unknown>;
+    const message = String(data.message ?? '');
+
+    return { type: 'mafia_discussion', message: message || 'Let me think about our target.' };
+  }
+
   private parseEliminationVote(parsed: unknown, validTargets?: readonly string[]): PlayerAction {
     if (typeof parsed !== 'object' || parsed === null) {
       throw new Error('Invalid elimination vote response');
@@ -177,6 +191,9 @@ export class GameAIAdapter implements AIProvider {
 
       case 'discussion':
         return { type: 'discussion', message: 'I have nothing to add.' };
+
+      case 'mafia_discussion':
+        return { type: 'mafia_discussion', message: 'Let me think about our strategy.' };
 
       case 'elimination_vote':
         return { type: 'elimination_vote', target: validTargets?.[0] ?? null };
