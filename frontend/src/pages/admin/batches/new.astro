@@ -228,8 +228,19 @@ const modelsByProvider = models.reduce((acc, m) => {
 </Layout>
 
 <script>
-  const API_URL = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
   
+  // Auth check
+  const credentials = sessionStorage.getItem('adminCredentials');
+  if (!credentials) {
+    window.location.href = '/admin/login?redirect=/admin/batches/new';
+  }
+
+  const headers = credentials ? { 
+    'Authorization': `Basic ${credentials}`,
+    'Content-Type': 'application/json'
+  } : { 'Content-Type': 'application/json' };
+
   const form = document.getElementById('batchForm') as HTMLFormElement;
   const gameCountSlider = document.getElementById('totalGames') as HTMLInputElement;
   const gameCountDisplay = document.getElementById('gameCount')!;
@@ -262,7 +273,7 @@ const modelsByProvider = models.reduce((acc, m) => {
     try {
       const res = await fetch(`${API_URL}/api/admin/estimate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           totalGames,
           config: {
@@ -313,7 +324,7 @@ const modelsByProvider = models.reduce((acc, m) => {
 
       const res = await fetch(`${API_URL}/api/admin/batches`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           name: formData.get('name') || undefined,
           totalGames: parseInt(formData.get('totalGames') as string),

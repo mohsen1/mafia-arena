@@ -1,6 +1,5 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { listBatches, formatNumber } from '../../../lib/api';
 import { Plus, ChevronLeft, ChevronRight, Filter } from 'lucide-astro';
 
 const url = Astro.url;
@@ -8,29 +7,6 @@ const status = url.searchParams.get('status') || '';
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
 const offset = (page - 1) * limit;
-
-let data;
-let error = null;
-
-try {
-  data = await listBatches({ 
-    status: status || undefined, 
-    limit, 
-    offset 
-  });
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load batches';
-}
-
-const totalPages = data ? Math.ceil(data.total / limit) : 0;
-
-const statusColors = {
-  queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-};
 
 const statuses = ['', 'queued', 'processing', 'completed', 'cancelled', 'paused'];
 ---
@@ -76,128 +52,169 @@ const statuses = ['', 'queued', 'processing', 'completed', 'cancelled', 'paused'
       </div>
     </div>
 
-    {error ? (
-      <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4">
-        <p class="text-destructive">{error}</p>
-      </div>
-    ) : (
-      <>
-        <!-- Table -->
-        <div class="border rounded-lg overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="bg-muted/50 border-b">
-              <tr>
-                <th class="text-left p-3 font-medium">Batch</th>
-                <th class="text-left p-3 font-medium">Status</th>
-                <th class="text-right p-3 font-medium">Progress</th>
-                <th class="text-right p-3 font-medium">Cost</th>
-                <th class="text-right p-3 font-medium">Created</th>
-                <th class="text-right p-3 font-medium">Duration</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y">
-              {data.batches.length === 0 ? (
-                <tr>
-                  <td colspan="6" class="p-8 text-center text-muted-foreground">
-                    No batches found
-                  </td>
-                </tr>
-              ) : (
-                data.batches.map(batch => {
-                  const duration = batch.completedAt && batch.startedAt 
-                    ? batch.completedAt - batch.startedAt 
-                    : batch.startedAt 
-                      ? Math.floor(Date.now() / 1000) - batch.startedAt
-                      : null;
-                  
-                  return (
-                    <tr class="hover:bg-muted/30 transition-colors">
-                      <td class="p-3">
-                        <a href={`/admin/batches/${batch.id}`} class="hover:underline">
-                          <div class="font-medium">{batch.name || batch.id}</div>
-                          <div class="text-xs text-muted-foreground font-mono">{batch.id}</div>
-                        </a>
-                      </td>
-                      <td class="p-3">
-                        <span class={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[batch.status]}`}>
-                          {batch.status}
-                        </span>
-                      </td>
-                      <td class="p-3 text-right">
-                        <div class="flex items-center justify-end gap-2">
-                          <span class="tabular-nums text-xs">
-                            {batch.completedGames}/{batch.totalGames}
-                            {batch.failedGames > 0 && (
-                              <span class="text-destructive"> ({batch.failedGames} failed)</span>
-                            )}
-                          </span>
-                          <div class="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              class="h-full bg-primary"
-                              style={`width: ${batch.progress}%`}
-                            ></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="p-3 text-right tabular-nums">
-                        <div>${batch.actualCostUsd.toFixed(4)}</div>
-                        {batch.estimatedCostUsd && (
-                          <div class="text-xs text-muted-foreground">
-                            / ${batch.estimatedCostUsd.toFixed(2)} est
-                          </div>
-                        )}
-                      </td>
-                      <td class="p-3 text-right text-muted-foreground tabular-nums">
-                        {new Date(batch.createdAt * 1000).toLocaleString()}
-                      </td>
-                      <td class="p-3 text-right tabular-nums">
-                        {duration !== null ? (
-                          duration < 60 
-                            ? `${duration}s` 
-                            : `${Math.floor(duration / 60)}m ${duration % 60}s`
-                        ) : (
-                          <span class="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+    <!-- Loading -->
+    <div id="loading" class="flex items-center justify-center py-10">
+      <div class="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
+    </div>
 
-        <!-- Pagination -->
-        {totalPages > 1 && (
-          <div class="flex items-center justify-between">
-            <p class="text-sm text-muted-foreground">
-              Showing {offset + 1}-{Math.min(offset + limit, data.total)} of {data.total}
-            </p>
-            <div class="flex items-center gap-1">
-              <a 
-                href={`/admin/batches?page=${page - 1}${status ? `&status=${status}` : ''}`}
-                class:list={[
-                  "p-2 rounded-md transition-colors",
-                  page <= 1 ? "pointer-events-none opacity-50" : "hover:bg-muted"
-                ]}
-              >
-                <ChevronLeft size={16} />
-              </a>
-              <span class="px-3 text-sm tabular-nums">{page} / {totalPages}</span>
-              <a 
-                href={`/admin/batches?page=${page + 1}${status ? `&status=${status}` : ''}`}
-                class:list={[
-                  "p-2 rounded-md transition-colors",
-                  page >= totalPages ? "pointer-events-none opacity-50" : "hover:bg-muted"
-                ]}
-              >
-                <ChevronRight size={16} />
-              </a>
-            </div>
-          </div>
-        )}
-      </>
-    )}
+    <!-- Error -->
+    <div id="error" class="hidden border border-destructive/50 bg-destructive/10 rounded-lg p-4">
+      <p id="error-text" class="text-destructive"></p>
+    </div>
+
+    <!-- Content -->
+    <div id="content" class="hidden space-y-4">
+      <!-- Table -->
+      <div class="border rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-muted/50 border-b">
+            <tr>
+              <th class="text-left p-3 font-medium">Batch</th>
+              <th class="text-left p-3 font-medium">Status</th>
+              <th class="text-right p-3 font-medium">Progress</th>
+              <th class="text-right p-3 font-medium">Cost</th>
+              <th class="text-right p-3 font-medium">Created</th>
+              <th class="text-right p-3 font-medium">Duration</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination" class="hidden flex items-center justify-between">
+        <p id="pagination-info" class="text-sm text-muted-foreground"></p>
+        <div class="flex items-center gap-1">
+          <a id="prev-link" href="#" class="p-2 rounded-md transition-colors hover:bg-muted">
+            <ChevronLeft size={16} />
+          </a>
+          <span id="page-info" class="px-3 text-sm tabular-nums"></span>
+          <a id="next-link" href="#" class="p-2 rounded-md transition-colors hover:bg-muted">
+            <ChevronRight size={16} />
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 </Layout>
 
+<script define:vars={{ status, page, limit, offset }}>
+  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+
+  const statusColors = {
+    queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  };
+
+  async function init() {
+    const credentials = sessionStorage.getItem('adminCredentials');
+    if (!credentials) {
+      window.location.href = `/admin/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      return;
+    }
+
+    const headers = { 'Authorization': `Basic ${credentials}` };
+
+    try {
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      params.set('limit', String(limit));
+      params.set('offset', String(offset));
+
+      const res = await fetch(`${API_URL}/api/admin/batches?${params}`, { headers });
+
+      if (res.status === 401) {
+        sessionStorage.removeItem('adminCredentials');
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
+        return;
+      }
+
+      if (!res.ok) throw new Error('Failed to load batches');
+
+      const data = await res.json();
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+
+      const tbody = document.getElementById('tbody');
+      if (data.batches.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-muted-foreground">No batches found</td></tr>`;
+      } else {
+        tbody.innerHTML = data.batches.map(batch => {
+          const duration = batch.completedAt && batch.startedAt 
+            ? batch.completedAt - batch.startedAt 
+            : batch.startedAt 
+              ? Math.floor(Date.now() / 1000) - batch.startedAt
+              : null;
+          
+          const durationStr = duration !== null 
+            ? (duration < 60 ? `${duration}s` : `${Math.floor(duration / 60)}m ${duration % 60}s`)
+            : '<span class="text-muted-foreground">—</span>';
+
+          return `
+            <tr class="hover:bg-muted/30 transition-colors">
+              <td class="p-3">
+                <a href="/admin/batches/${batch.id}" class="hover:underline">
+                  <div class="font-medium">${batch.name || batch.id}</div>
+                  <div class="text-xs text-muted-foreground font-mono">${batch.id}</div>
+                </a>
+              </td>
+              <td class="p-3">
+                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[batch.status]}">${batch.status}</span>
+              </td>
+              <td class="p-3 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <span class="tabular-nums text-xs">
+                    ${batch.completedGames}/${batch.totalGames}
+                    ${batch.failedGames > 0 ? `<span class="text-destructive"> (${batch.failedGames} failed)</span>` : ''}
+                  </span>
+                  <div class="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div class="h-full bg-primary" style="width: ${batch.progress}%"></div>
+                  </div>
+                </div>
+              </td>
+              <td class="p-3 text-right tabular-nums">
+                <div>$${batch.actualCostUsd.toFixed(4)}</div>
+                ${batch.estimatedCostUsd ? `<div class="text-xs text-muted-foreground">/ $${batch.estimatedCostUsd.toFixed(2)} est</div>` : ''}
+              </td>
+              <td class="p-3 text-right text-muted-foreground tabular-nums">${new Date(batch.createdAt * 1000).toLocaleString()}</td>
+              <td class="p-3 text-right tabular-nums">${durationStr}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Pagination
+      const totalPages = Math.ceil(data.total / limit);
+      if (totalPages > 1) {
+        document.getElementById('pagination').classList.remove('hidden');
+        document.getElementById('pagination-info').textContent = `Showing ${offset + 1}-${Math.min(offset + limit, data.total)} of ${data.total}`;
+        document.getElementById('page-info').textContent = `${page} / ${totalPages}`;
+
+        const prevLink = document.getElementById('prev-link');
+        const nextLink = document.getElementById('next-link');
+        
+        if (page <= 1) {
+          prevLink.classList.add('pointer-events-none', 'opacity-50');
+        } else {
+          prevLink.href = `/admin/batches?page=${page - 1}${status ? `&status=${status}` : ''}`;
+        }
+
+        if (page >= totalPages) {
+          nextLink.classList.add('pointer-events-none', 'opacity-50');
+        } else {
+          nextLink.href = `/admin/batches?page=${page + 1}${status ? `&status=${status}` : ''}`;
+        }
+      }
+    } catch (err) {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('error').classList.remove('hidden');
+      document.getElementById('error-text').textContent = err.message;
+    }
+  }
+
+  init();
+</script>
