@@ -1,6 +1,6 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { getGame, formatDuration, formatRelativeTime, formatNumber } from '../../lib/api';
+import { getGame } from '../../lib/api';
 
 const { id } = Astro.params;
 
@@ -10,294 +10,90 @@ let error = null;
 try {
   game = await getGame(id!);
 } catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load game';
+  error = e instanceof Error ? e.message : 'Failed to load game details';
 }
+
+const participants = game?.participants || [];
+const date = game ? new Date(game.created_at * 1000).toLocaleString() : '';
 ---
 
 <Layout title={game ? `Game #${game.id.slice(-8)}` : 'Game Not Found'}>
   {error || !game ? (
-    <div class="error-card">
-      <p>⚠️ {error || 'Game not found'}</p>
-      <a href="/games" class="btn">← Back to Games</a>
+    <div class="flex flex-col items-center justify-center min-h-[400px] border border-destructive/20 bg-destructive/5 rounded-xl p-8 text-center space-y-4">
+      <div class="bg-destructive/10 text-destructive rounded-full p-4 text-2xl">⚠️</div>
+      <div class="space-y-1">
+        <h2 class="text-xl font-semibold">Game not found</h2>
+        <p class="text-muted-foreground">{error || 'The requested game could not be found.'}</p>
+      </div>
+      <a href="/games" class="text-sm font-medium hover:underline">← Back to games</a>
     </div>
   ) : (
-    <>
-      <div class="breadcrumb">
-        <a href="/games">← All Games</a>
-      </div>
-
-      <div class="game-header">
-        <div class="game-meta">
-          <h1>Game #{game.id.slice(-8)}</h1>
-          <span class="game-time">{formatRelativeTime(game.created_at)}</span>
+    <div class="max-w-4xl mx-auto space-y-8">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <a href="/games" class="hover:text-foreground">Games</a>
+            <span>/</span>
+            <span class="font-mono">{game.id}</span>
+          </div>
+          <h1 class="text-4xl font-bold tracking-tight">Game Result</h1>
+          <p class="text-muted-foreground font-mono text-sm">{date}</p>
         </div>
-        
-        <div class={`winner-banner ${game.winner}`}>
-          <span class="winner-icon">{game.winner === 'mafia' ? '🔴' : '🔵'}</span>
-          <span class="winner-text">{game.winner.toUpperCase()} WINS</span>
-        </div>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-value">{game.rounds}</div>
-          <div class="stat-label">Rounds</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{formatDuration(game.duration_ms)}</div>
-          <div class="stat-label">Duration</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{formatNumber(game.total_tokens)}</div>
-          <div class="stat-label">Tokens Used</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{game.player_count}</div>
-          <div class="stat-label">Players</div>
-        </div>
-      </div>
-
-      <div class="teams-section">
-        <h2>Teams</h2>
-        <div class="teams-grid">
-          {game.participants.filter(p => p.team === 'mafia').length > 0 && (
-            <div class="team-card mafia">
-              <div class="team-header">
-                <span class="team-icon">🔴</span>
-                <span class="team-name">Mafia</span>
-                <span class={`badge badge-${game.winner === 'mafia' ? 'mafia' : 'muted'}`}>
-                  {game.winner === 'mafia' ? 'WINNER' : 'LOST'}
-                </span>
-              </div>
-              <ul class="player-list">
-                {game.participants
-                  .filter(p => p.team === 'mafia')
-                  .map(p => (
-                    <li class="player">
-                      <span class="model-name">{p.model_name || p.model_id}</span>
-                      <span class="player-count">×{p.player_count}</span>
-                    </li>
-                  ))
-                }
-              </ul>
-            </div>
-          )}
-          
-          {game.participants.filter(p => p.team === 'town').length > 0 && (
-            <div class="team-card town">
-              <div class="team-header">
-                <span class="team-icon">🔵</span>
-                <span class="team-name">Town</span>
-                <span class={`badge badge-${game.winner === 'town' ? 'town' : 'muted'}`}>
-                  {game.winner === 'town' ? 'WINNER' : 'LOST'}
-                </span>
-              </div>
-              <ul class="player-list">
-                {game.participants
-                  .filter(p => p.team === 'town')
-                  .map(p => (
-                    <li class="player">
-                      <span class="model-name">{p.model_name || p.model_id}</span>
-                      <span class="player-count">×{p.player_count}</span>
-                    </li>
-                  ))
-                }
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div class="transcript-section">
-        <h2>Full Transcript</h2>
-        <p class="transcript-hint">
-          View the complete game log with all AI prompts, responses, and decisions.
-        </p>
-        <a href={`/games/${game.id}/replay`} class="btn btn-primary">
-          View Replay →
+        <a href={`/games/${game.id}/replay`} class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-11 px-8">
+          View Full Replay
         </a>
       </div>
-    </>
+
+      <div class="grid gap-6 md:grid-cols-3 text-center">
+        <div class="rounded-xl border bg-card p-6 shadow-sm">
+          <div class="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">Winner</div>
+          <div class={`text-2xl font-black ${game.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'}`}>
+            {game.winner.toUpperCase()}
+          </div>
+        </div>
+        <div class="rounded-xl border bg-card p-6 shadow-sm">
+          <div class="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">Rounds</div>
+          <div class="text-2xl font-black">{game.rounds}</div>
+        </div>
+        <div class="rounded-xl border bg-card p-6 shadow-sm">
+          <div class="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">Players</div>
+          <div class="text-2xl font-black">{participants.length}</div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <h2 class="text-2xl font-bold tracking-tight">Participants</h2>
+        <div class="rounded-xl border bg-card overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b bg-muted/50 font-medium text-muted-foreground">
+                <th class="h-12 px-4 text-left align-middle">Model</th>
+                <th class="h-12 px-4 text-left align-middle">Team</th>
+                <th class="h-12 px-4 text-center align-middle">Players</th>
+                <th class="h-12 px-4 text-right align-middle">Tokens</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              {participants.map(p => (
+                <tr class="transition-colors hover:bg-muted/50">
+                  <td class="p-4 font-semibold">{p.modelId}</td>
+                  <td class="p-4">
+                    <span class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      p.team === 'mafia' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
+                    }`}>
+                      {p.team.toUpperCase()}
+                    </span>
+                  </td>
+                  <td class="p-4 text-center">{p.playerCount}</td>
+                  <td class="p-4 text-right text-muted-foreground font-mono">
+                    {p.tokensUsed.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   )}
 </Layout>
-
-<style>
-  .breadcrumb {
-    margin-bottom: var(--space-lg);
-  }
-
-  .breadcrumb a {
-    color: var(--fg-secondary);
-    font-size: 0.875rem;
-  }
-
-  .breadcrumb a:hover {
-    color: var(--fg-primary);
-  }
-
-  .game-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--space-2xl);
-    flex-wrap: wrap;
-    gap: var(--space-lg);
-  }
-
-  .game-meta h1 {
-    margin-bottom: var(--space-xs);
-  }
-
-  .game-time {
-    color: var(--fg-muted);
-    font-size: 0.875rem;
-  }
-
-  .winner-banner {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-md) var(--space-lg);
-    border-radius: var(--radius-lg);
-    font-weight: 700;
-    font-size: 1.25rem;
-    letter-spacing: 0.05em;
-  }
-
-  .winner-banner.mafia {
-    background: var(--accent-mafia);
-    color: white;
-  }
-
-  .winner-banner.town {
-    background: var(--accent-town);
-    color: white;
-  }
-
-  .winner-icon {
-    font-size: 1.5rem;
-  }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--space-md);
-    margin-bottom: var(--space-2xl);
-  }
-
-  .stat-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-lg);
-    text-align: center;
-  }
-
-  .stat-value {
-    font-family: var(--font-mono);
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--fg-primary);
-  }
-
-  .stat-label {
-    font-size: 0.75rem;
-    color: var(--fg-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: var(--space-xs);
-  }
-
-  .teams-section, .transcript-section {
-    margin-bottom: var(--space-2xl);
-  }
-
-  .teams-section h2, .transcript-section h2 {
-    margin-bottom: var(--space-lg);
-  }
-
-  .teams-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--space-lg);
-  }
-
-  .team-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-lg);
-  }
-
-  .team-card.mafia {
-    border-left: 3px solid var(--accent-mafia);
-  }
-
-  .team-card.town {
-    border-left: 3px solid var(--accent-town);
-  }
-
-  .team-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    margin-bottom: var(--space-md);
-  }
-
-  .team-icon {
-    font-size: 1.25rem;
-  }
-
-  .team-name {
-    font-weight: 600;
-    font-size: 1.125rem;
-    flex: 1;
-  }
-
-  .badge-muted {
-    background: var(--bg-tertiary);
-    color: var(--fg-muted);
-  }
-
-  .player-list {
-    list-style: none;
-  }
-
-  .player {
-    display: flex;
-    justify-content: space-between;
-    padding: var(--space-sm) 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .player:last-child {
-    border-bottom: none;
-  }
-
-  .model-name {
-    font-weight: 500;
-  }
-
-  .player-count {
-    font-family: var(--font-mono);
-    color: var(--fg-muted);
-  }
-
-  .transcript-hint {
-    color: var(--fg-secondary);
-    margin-bottom: var(--space-lg);
-  }
-
-  .error-card {
-    background: var(--bg-card);
-    border: 1px solid var(--accent-mafia);
-    border-radius: var(--radius-lg);
-    padding: var(--space-2xl);
-    text-align: center;
-  }
-
-  .error-card .btn {
-    margin-top: var(--space-lg);
-  }
-</style>
-
