@@ -16,7 +16,7 @@ import type {
   DiscussionEvent,
 } from '../types.js';
 import { resolveVotes } from '../utils/votes.js';
-import { getVisibleState, getValidKillTargets, formatPlayerList } from '../utils/visibility.js';
+import { getVisibleState, getValidKillTargets, formatPlayerListShuffled } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS, generateNightContext } from '../utils/prompts.js';
 
 /** Default number of discussion rounds for mafia during night */
@@ -25,18 +25,6 @@ const DEFAULT_NIGHT_DISCUSSION_ROUNDS = 2;
 export interface NightPhaseResult {
   readonly state: GameState;
   readonly killed: Player | null;
-}
-
-/**
- * Fisher-Yates shuffle algorithm.
- */
-function shuffleArray<T>(array: readonly T[]): readonly T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j]!, result[i]!];
-  }
-  return result;
 }
 
 /**
@@ -57,8 +45,8 @@ async function executeMafiaDiscussion(
   }
 
   for (let discussionRound = 1; discussionRound <= numRounds; discussionRound++) {
-    // Shuffle mafia order each round so one player doesn't always lead
-    const shuffledMafia = shuffleArray(mafiaPlayers);
+    // Shuffle mafia order each round using seeded RNG
+    const shuffledMafia = state.rng.shuffled(mafiaPlayers);
 
     for (const mafiaPlayer of shuffledMafia) {
       const visibleState = getVisibleState(state, mafiaPlayer, {
@@ -206,7 +194,9 @@ export async function executeNightPhase(
       .map((p) => p.name);
 
     const systemPrompt = SYSTEM_PROMPTS.mafia(teammates);
-    const targetList = formatPlayerList(validTargets);
+    
+    // POSITION BIAS FIX: Shuffle target list in prompt to eliminate position bias
+    const targetList = formatPlayerListShuffled(validTargets, state.rng);
     const context = generateNightContext(visibleState);
     const userPrompt = ACTION_PROMPTS.killVote(
       targetList.split('\n'),
@@ -309,4 +299,3 @@ export async function executeNightPhase(
 
   return { state, killed };
 }
-

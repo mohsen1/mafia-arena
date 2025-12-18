@@ -52,5 +52,7 @@ export interface GameQueueConfig {
   discussionEnabled: boolean;
   personaEnabled: boolean;
   personaConstraints: 'strict' | 'moderate' | 'free';
+  /** Optional seed for reproducible games (generated if not provided) */
+  seed?: number;
 }
 

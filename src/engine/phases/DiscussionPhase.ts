@@ -24,18 +24,6 @@ export interface DiscussionPhaseResult {
 }
 
 /**
- * Fisher-Yates shuffle algorithm.
- */
-function shuffleArray<T>(array: readonly T[]): readonly T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j]!, result[i]!];
-  }
-  return result;
-}
-
-/**
  * Execute the discussion phase.
  * Each alive player shares their thoughts across multiple discussion rounds.
  */
@@ -60,8 +48,8 @@ export async function executeDiscussionPhase(
 
   // Execute multiple discussion rounds
   for (let discussionRound = 1; discussionRound <= numRounds; discussionRound++) {
-    // Shuffle player order each round for more dynamic conversations
-    const speakers = shuffleArray(state.alivePlayers);
+    // Shuffle player order each round using seeded RNG for reproducibility
+    const speakers = state.rng.shuffled(state.alivePlayers);
 
     for (const player of speakers) {
       const visibleState = getVisibleState(state, player, {
@@ -163,4 +151,3 @@ export async function executeDiscussionPhase(
 
   return { state, messages };
 }
-
