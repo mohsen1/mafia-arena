@@ -17,6 +17,8 @@ const modelsByProvider = models.reduce((acc, m) => {
   acc[m.provider].push(m);
   return acc;
 }, {} as Record<string, typeof models>);
+
+const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
 <Layout title="New Batch">
@@ -227,9 +229,7 @@ const modelsByProvider = models.reduce((acc, m) => {
   </div>
 </Layout>
 
-<script>
-  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
-  
+<script define:vars={{ apiUrl }}>
   // Auth check
   const credentials = sessionStorage.getItem('adminCredentials');
   if (!credentials) {
@@ -241,19 +241,21 @@ const modelsByProvider = models.reduce((acc, m) => {
     'Content-Type': 'application/json'
   } : { 'Content-Type': 'application/json' };
 
-  const form = document.getElementById('batchForm') as HTMLFormElement;
-  const gameCountSlider = document.getElementById('totalGames') as HTMLInputElement;
-  const gameCountDisplay = document.getElementById('gameCount')!;
-  const estimatedCostEl = document.getElementById('estimatedCost')!;
-  const tokensPerGameEl = document.getElementById('tokensPerGame')!;
-  const totalTokensEl = document.getElementById('totalTokens')!;
-  const timeEstimateEl = document.getElementById('timeEstimate')!;
+  const form = document.getElementById('batchForm');
+  const gameCountSlider = document.getElementById('totalGames');
+  const gameCountDisplay = document.getElementById('gameCount');
+  const estimatedCostEl = document.getElementById('estimatedCost');
+  const tokensPerGameEl = document.getElementById('tokensPerGame');
+  const totalTokensEl = document.getElementById('totalTokens');
+  const timeEstimateEl = document.getElementById('timeEstimate');
 
   // Update game count display
-  gameCountSlider.addEventListener('input', () => {
-    gameCountDisplay.textContent = `${parseInt(gameCountSlider.value).toLocaleString()} games`;
-    updateEstimate();
-  });
+  if (gameCountSlider) {
+    gameCountSlider.addEventListener('input', () => {
+      if (gameCountDisplay) gameCountDisplay.textContent = `${parseInt(gameCountSlider.value).toLocaleString()} games`;
+      updateEstimate();
+    });
+  }
 
   // Update estimate on any change
   const updateTriggers = ['playerCount', 'mafiaCount', 'discussionEnabled', 'personaEnabled', 'useBatchAPI', 'contextLevel'];
@@ -262,16 +264,24 @@ const modelsByProvider = models.reduce((acc, m) => {
   });
 
   async function updateEstimate() {
+    if (!gameCountSlider) return;
     const totalGames = parseInt(gameCountSlider.value);
-    const playerCount = parseInt((document.getElementById('playerCount') as HTMLSelectElement).value);
-    const mafiaCount = parseInt((document.getElementById('mafiaCount') as HTMLSelectElement).value);
-    const discussionEnabled = (document.getElementById('discussionEnabled') as HTMLInputElement).checked;
-    const personaEnabled = (document.getElementById('personaEnabled') as HTMLInputElement).checked;
-    const useBatchAPI = (document.getElementById('useBatchAPI') as HTMLInputElement).checked;
-    const contextLevel = (document.getElementById('contextLevel') as HTMLSelectElement).value;
+    const playerCountEl = document.getElementById('playerCount');
+    const mafiaCountEl = document.getElementById('mafiaCount');
+    const discussionEnabledEl = document.getElementById('discussionEnabled');
+    const personaEnabledEl = document.getElementById('personaEnabled');
+    const useBatchAPIEl = document.getElementById('useBatchAPI');
+    const contextLevelEl = document.getElementById('contextLevel');
+
+    const playerCount = playerCountEl ? parseInt(playerCountEl.value) : 7;
+    const mafiaCount = mafiaCountEl ? parseInt(mafiaCountEl.value) : 2;
+    const discussionEnabled = discussionEnabledEl ? discussionEnabledEl.checked : true;
+    const personaEnabled = personaEnabledEl ? personaEnabledEl.checked : false;
+    const useBatchAPI = useBatchAPIEl ? useBatchAPIEl.checked : false;
+    const contextLevel = contextLevelEl ? contextLevelEl.value : 'summary';
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/estimate`, {
+      const res = await fetch(`${apiUrl}/api/admin/estimate`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -295,10 +305,10 @@ const modelsByProvider = models.reduce((acc, m) => {
 
       const estimate = await res.json();
       
-      estimatedCostEl.textContent = `$${estimate.estimatedCostUsd.toFixed(2)}`;
-      tokensPerGameEl.textContent = `~${estimate.tokensPerGame.toLocaleString()}`;
-      totalTokensEl.textContent = `~${estimate.totalTokens.toLocaleString()}`;
-      timeEstimateEl.textContent = `~${estimate.timeEstimateMinutes} min`;
+      if (estimatedCostEl) estimatedCostEl.textContent = `$${estimate.estimatedCostUsd.toFixed(2)}`;
+      if (tokensPerGameEl) tokensPerGameEl.textContent = `~${estimate.tokensPerGame.toLocaleString()}`;
+      if (totalTokensEl) totalTokensEl.textContent = `~${estimate.totalTokens.toLocaleString()}`;
+      if (timeEstimateEl) timeEstimateEl.textContent = `~${estimate.timeEstimateMinutes} min`;
     } catch (err) {
       console.error('Failed to update estimate:', err);
     }
@@ -308,53 +318,59 @@ const modelsByProvider = models.reduce((acc, m) => {
   updateEstimate();
 
   // Form submission
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Launching...';
-
-    try {
-      const formData = new FormData(form);
-      const playerCount = parseInt(formData.get('playerCount') as string);
-      const mafiaCount = parseInt(formData.get('mafiaCount') as string);
-      const modelA = formData.get('modelA') as string;
-      const modelB = formData.get('modelB') as string;
-
-      const res = await fetch(`${API_URL}/api/admin/batches`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          name: formData.get('name') || undefined,
-          totalGames: parseInt(formData.get('totalGames') as string),
-          config: {
-            playerCount,
-            mafiaCount,
-            teams: [
-              { modelId: modelA, team: 'mafia', count: mafiaCount },
-              { modelId: modelB, team: 'town', count: playerCount - mafiaCount },
-            ],
-            discussionEnabled: formData.get('discussionEnabled') === 'on',
-            personaEnabled: formData.get('personaEnabled') === 'on',
-            contextLevel: formData.get('contextLevel') as 'full' | 'windowed' | 'summary',
-          },
-          useBatchAPI: formData.get('useBatchAPI') === 'on',
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Failed to create batch');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Launching...';
       }
 
-      const result = await res.json();
-      window.location.href = `/admin/batches/${result.batchId}`;
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create batch');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Launch Batch';
-    }
-  });
+      try {
+        const formData = new FormData(form);
+        const playerCount = parseInt(String(formData.get('playerCount') || '7'));
+        const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
+        const modelA = String(formData.get('modelA') || '');
+        const modelB = String(formData.get('modelB') || '');
+
+        const res = await fetch(`${apiUrl}/api/admin/batches`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            name: formData.get('name') || undefined,
+            totalGames: parseInt(String(formData.get('totalGames') || '10')),
+            config: {
+              playerCount,
+              mafiaCount,
+              teams: [
+                { modelId: modelA, team: 'mafia', count: mafiaCount },
+                { modelId: modelB, team: 'town', count: playerCount - mafiaCount },
+              ],
+              discussionEnabled: formData.get('discussionEnabled') === 'on',
+              personaEnabled: formData.get('personaEnabled') === 'on',
+              contextLevel: formData.get('contextLevel') || 'summary',
+            },
+            useBatchAPI: formData.get('useBatchAPI') === 'on',
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Failed to create batch');
+        }
+
+        const result = await res.json();
+        window.location.href = `/admin/batches/${result.batchId}`;
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to create batch');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Launch Batch';
+        }
+      }
+    });
+  }
 </script>
 
