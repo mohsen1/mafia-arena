@@ -4,7 +4,15 @@
  */
 
 import { GameState } from '../GameState.js';
-import type { Player, VisibleGameState, VisiblePlayer, VisibleDeadPlayer } from '../types.js';
+import type { 
+  Player, 
+  VisibleGameState, 
+  VisiblePlayer, 
+  VisibleDeadPlayer,
+  VoteRecord,
+  GameLogEntry,
+  ContextLevel
+} from '../types.js';
 import type { RandomGenerator } from './random.js';
 
 /**
@@ -21,6 +29,9 @@ export interface VisibleStateOptions {
  * Get the visible game state for a specific player.
  * Players can only see appropriate information based on their role.
  * Town players cannot see mafia-only messages.
+ * 
+ * When contextLevel is 'full' or 'windowed', includes complete game history
+ * to leverage large context windows in modern LLMs.
  */
 export function getVisibleState(
   state: GameState,
@@ -58,6 +69,18 @@ export function getVisibleState(
       ? state.getCurrentRoundMafiaConversation()
       : undefined;
 
+  // Get context level from config (default to 'summary' for backwards compatibility)
+  const contextLevel: ContextLevel = state.config.contextLevel ?? 'summary';
+  const windowSize = state.config.contextWindowSize ?? 3;
+
+  // Build large context fields based on context level
+  const largeContextFields = buildLargeContextFields(
+    state,
+    player,
+    contextLevel,
+    windowSize
+  );
+
   return {
     round: state.round,
     phase: state.phase,
@@ -68,7 +91,140 @@ export function getVisibleState(
     teammates,
     currentDiscussionRound: options?.currentDiscussionRound,
     totalDiscussionRounds: options?.totalDiscussionRounds,
+    ...largeContextFields,
   };
+}
+
+/**
+ * Build the large context fields based on context level.
+ * These fields enable AI players to analyze full game history when
+ * using models with large context windows (100k+ tokens).
+ */
+function buildLargeContextFields(
+  state: GameState,
+  player: Player,
+  contextLevel: ContextLevel,
+  windowSize: number
+): Pick<VisibleGameState, 'fullConversationHistory' | 'fullMafiaHistory' | 'voteHistory' | 'gameLog'> {
+  // 'summary' mode: no additional context (original behavior)
+  if (contextLevel === 'summary') {
+    return {};
+  }
+
+  // Build vote history from events
+  const voteHistory = buildVoteHistory(state, player);
+  
+  // Build game log from events
+  const gameLog = buildGameLog(state);
+
+  // 'full' mode: complete verbatim history
+  if (contextLevel === 'full') {
+    const fullConversationHistory = state.conversationHistory.filter(
+      (m) => m.channel !== 'mafia'
+    );
+    
+    const fullMafiaHistory =
+      player.team === 'mafia'
+        ? state.conversationHistory.filter((m) => m.channel === 'mafia')
+        : undefined;
+
+    return {
+      fullConversationHistory,
+      fullMafiaHistory,
+      voteHistory,
+      gameLog,
+    };
+  }
+
+  // 'windowed' mode: last N rounds verbatim, older rounds summarized
+  const windowStart = Math.max(1, state.round - windowSize + 1);
+  
+  const fullConversationHistory = state.conversationHistory.filter(
+    (m) => m.channel !== 'mafia' && m.round >= windowStart
+  );
+  
+  const fullMafiaHistory =
+    player.team === 'mafia'
+      ? state.conversationHistory.filter(
+          (m) => m.channel === 'mafia' && m.round >= windowStart
+        )
+      : undefined;
+
+  return {
+    fullConversationHistory,
+    fullMafiaHistory,
+    voteHistory,
+    gameLog,
+  };
+}
+
+/**
+ * Build vote history from game events.
+ * Only includes votes that have been publicly revealed (day votes).
+ * Night kill votes are attributed to "Mafia" as a group.
+ */
+function buildVoteHistory(state: GameState, _player: Player): VoteRecord[] {
+  const voteRecords: VoteRecord[] = [];
+  const deadPlayerIds = new Set(state.deadPlayers.map(p => p.id));
+
+  for (const event of state.events) {
+    if (event.type === 'vote') {
+      // Get voter info
+      const voter = state.players.find(p => p.id === event.voterId);
+      if (!voter) continue;
+
+      // Get target name
+      let targetName: string | null = null;
+      if (event.targetId) {
+        const target = state.players.find(p => p.id === event.targetId);
+        targetName = target?.name ?? null;
+      }
+
+      // Only reveal voter's team if they're dead (for day votes)
+      // Night votes by mafia are already team-revealing
+      const revealTeam = event.phase === 'night' || deadPlayerIds.has(voter.id);
+
+      voteRecords.push({
+        round: event.round,
+        phase: event.phase,
+        voterName: event.phase === 'night' ? 'Mafia' : voter.name,
+        targetName,
+        voterTeam: revealTeam ? voter.team : undefined,
+      });
+    }
+  }
+
+  return voteRecords;
+}
+
+/**
+ * Build game log from events.
+ * High-level summary of eliminations and phase transitions.
+ */
+function buildGameLog(state: GameState): GameLogEntry[] {
+  const entries: GameLogEntry[] = [];
+
+  for (const event of state.events) {
+    if (event.type === 'elimination') {
+      entries.push({
+        round: event.round,
+        phase: event.phase,
+        event: event.phase === 'night' 
+          ? `${event.playerName} was killed by the Mafia`
+          : `${event.playerName} was eliminated by vote`,
+        playerName: event.playerName,
+        playerTeam: event.team,
+      });
+    } else if (event.type === 'game_end') {
+      entries.push({
+        round: event.round,
+        phase: 'day_vote', // Game ends after a phase
+        event: `Game Over: ${event.winner === 'mafia' ? 'Mafia' : 'Town'} wins!`,
+      });
+    }
+  }
+
+  return entries;
 }
 
 /**

@@ -202,7 +202,8 @@ export async function executeNightPhase(
       targetList.split('\n'),
       context,
       mafiaPlayer.persona,
-      mafiaHistory
+      mafiaHistory,
+      visibleState  // Pass full state for large context support
     );
 
     const response = await aiProvider.getAction(
