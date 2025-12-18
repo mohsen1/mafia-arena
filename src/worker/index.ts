@@ -35,8 +35,41 @@ export { GameRunner } from './GameRunner.js';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
+
+/**
+ * Verify Basic Auth credentials for admin routes.
+ */
+function verifyAdminAuth(request: Request, env: Env): boolean {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return false;
+  }
+
+  try {
+    const base64Credentials = authHeader.slice(6);
+    const credentials = atob(base64Credentials);
+    const [username, password] = credentials.split(':');
+
+    return username === env.ADMIN_USERNAME && password === env.ADMIN_PASSWORD;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Return 401 response requesting Basic Auth.
+ */
+function requireAuth(): Response {
+  return new Response('Authentication required', {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': 'Basic realm="Mafia Arena Admin"',
+      ...corsHeaders,
+    },
+  });
+}
 
 export default {
   /**
@@ -266,8 +299,15 @@ export default {
     }
 
     // ==========================================================================
-    // ADMIN API ENDPOINTS
+    // ADMIN API ENDPOINTS (protected by Basic Auth)
     // ==========================================================================
+
+    if (path.startsWith('/api/admin/')) {
+      // Verify admin credentials
+      if (!verifyAdminAuth(request, env)) {
+        return requireAuth();
+      }
+    }
 
     // POST /api/admin/batches - Create a new batch (up to 10,000 games)
     if (path === '/api/admin/batches' && method === 'POST') {

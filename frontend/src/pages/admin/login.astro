@@ -1,0 +1,106 @@
+---
+import Layout from '../../components/Layout.astro';
+import { Lock } from 'lucide-astro';
+
+const redirect = Astro.url.searchParams.get('redirect') || '/admin';
+---
+
+<Layout title="Admin Login">
+  <div class="max-w-sm mx-auto mt-16 space-y-6">
+    <div class="text-center space-y-2">
+      <div class="inline-flex p-3 bg-primary/10 rounded-full">
+        <Lock class="w-8 h-8 text-primary" />
+      </div>
+      <h1 class="text-2xl font-bold">Admin Login</h1>
+      <p class="text-sm text-muted-foreground">
+        Enter your credentials to access the admin panel
+      </p>
+    </div>
+
+    <form id="loginForm" class="space-y-4">
+      <div class="space-y-2">
+        <label for="username" class="text-sm font-medium">Username</label>
+        <input 
+          type="text" 
+          id="username" 
+          name="username"
+          required
+          autocomplete="username"
+          class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
+      <div class="space-y-2">
+        <label for="password" class="text-sm font-medium">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password"
+          required
+          autocomplete="current-password"
+          class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
+      <div id="error" class="hidden text-sm text-destructive p-2 bg-destructive/10 rounded-md"></div>
+
+      <button 
+        type="submit"
+        class="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+      >
+        Login
+      </button>
+    </form>
+
+    <p class="text-xs text-center text-muted-foreground">
+      Credentials are stored in your browser session only
+    </p>
+  </div>
+</Layout>
+
+<script define:vars={{ redirect }}>
+  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+  const form = document.getElementById('loginForm');
+  const errorEl = document.getElementById('error');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Verifying...';
+    errorEl.classList.add('hidden');
+
+    const formData = new FormData(form);
+    const username = formData.get('username');
+    const password = formData.get('password');
+    const credentials = btoa(`${username}:${password}`);
+
+    try {
+      // Verify credentials by making a test request
+      const res = await fetch(`${API_URL}/api/admin/stats/live`, {
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+        },
+      });
+
+      if (res.status === 401) {
+        throw new Error('Invalid username or password');
+      }
+
+      if (!res.ok) {
+        throw new Error('Failed to verify credentials');
+      }
+
+      // Store credentials and redirect
+      sessionStorage.setItem('adminCredentials', credentials);
+      window.location.href = redirect;
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Login';
+    }
+  });
+</script>
+

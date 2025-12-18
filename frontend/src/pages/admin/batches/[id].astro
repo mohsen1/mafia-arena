@@ -1,45 +1,104 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { getBatch, formatDuration } from '../../../lib/api';
-import { Clock, CheckCircle, XCircle, AlertTriangle, Activity, DollarSign, Layers, RefreshCw } from 'lucide-astro';
+import { Clock, CheckCircle, XCircle, AlertTriangle, Activity, DollarSign, RefreshCw } from 'lucide-astro';
 
 const { id } = Astro.params;
-
-let batch;
-let error = null;
-
-try {
-  batch = await getBatch(id!);
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load batch';
-}
-
-const statusColors = {
-  queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-};
-
-const statusIcons = {
-  queued: Clock,
-  processing: RefreshCw,
-  completed: CheckCircle,
-  cancelled: XCircle,
-  paused: AlertTriangle,
-};
 ---
 
-<Layout title={batch?.name || id || 'Batch Details'}>
-  <div class="space-y-6">
-    {error ? (
-      <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4">
-        <p class="text-destructive">{error}</p>
-        <a href="/admin/batches" class="text-sm underline mt-2 block">← Back to batches</a>
-      </div>
-    ) : batch && (
-      <>
+<Layout title="Batch Details">
+  <div id="container" class="space-y-6">
+    <!-- Loading -->
+    <div id="loading" class="flex items-center justify-center py-20">
+      <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    </div>
+
+    <!-- Error -->
+    <div id="error" class="hidden border border-destructive/50 bg-destructive/10 rounded-lg p-4">
+      <p id="error-text" class="text-destructive"></p>
+      <a href="/admin/batches" class="text-sm underline mt-2 block">← Back to batches</a>
+    </div>
+
+    <!-- Content (filled by JS) -->
+    <div id="content" class="hidden space-y-6"></div>
+  </div>
+</Layout>
+
+<script define:vars={{ batchId: id }}>
+  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+
+  const statusColors = {
+    queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  };
+
+  function formatDuration(ms) {
+    if (ms < 1000) return `${ms}ms`;
+    const seconds = Math.floor(ms / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  async function init() {
+    const credentials = sessionStorage.getItem('adminCredentials');
+    if (!credentials) {
+      window.location.href = `/admin/login?redirect=/admin/batches/${batchId}`;
+      return;
+    }
+
+    const headers = { 'Authorization': `Basic ${credentials}` };
+
+    try {
+      const res = await fetch(`${API_URL}/api/admin/batches/${batchId}`, { headers });
+
+      if (res.status === 401) {
+        sessionStorage.removeItem('adminCredentials');
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
+        return;
+      }
+
+      if (!res.ok) throw new Error('Failed to load batch');
+
+      const batch = await res.json();
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+
+      const recentGamesHtml = batch.recentGames.length > 0 ? `
+        <div class="space-y-3">
+          <h3 class="font-medium">Recent Games</h3>
+          <div class="border rounded-lg overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-muted/50 border-b">
+                <tr>
+                  <th class="text-left p-3 font-medium">Game ID</th>
+                  <th class="text-left p-3 font-medium">Status</th>
+                  <th class="text-left p-3 font-medium">Winner</th>
+                  <th class="text-right p-3 font-medium">Rounds</th>
+                  <th class="text-right p-3 font-medium">Duration</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                ${batch.recentGames.map(game => `
+                  <tr class="hover:bg-muted/30 transition-colors">
+                    <td class="p-3"><a href="/games/${game.id}" class="font-mono text-xs hover:underline">${game.id}</a></td>
+                    <td class="p-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${game.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800'}">${game.status}</span></td>
+                    <td class="p-3">${game.winner ? `<span class="${game.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'}">${game.winner}</span>` : ''}</td>
+                    <td class="p-3 text-right tabular-nums">${game.rounds}</td>
+                    <td class="p-3 text-right tabular-nums">${formatDuration(game.duration_ms)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : '';
+
+      document.getElementById('content').innerHTML = `
         <!-- Header -->
         <div class="flex items-start justify-between">
           <div>
@@ -48,213 +107,98 @@ const statusIcons = {
               <span>/</span>
               <a href="/admin/batches" class="hover:underline">Batches</a>
               <span>/</span>
-              <span class="font-mono">{id}</span>
+              <span class="font-mono">${batchId}</span>
             </div>
-            <h1 class="text-2xl font-bold tracking-tight">{batch.name || 'Unnamed Batch'}</h1>
-            <p class="text-sm text-muted-foreground font-mono mt-1">{batch.id}</p>
+            <h1 class="text-2xl font-bold tracking-tight">${batch.name || 'Unnamed Batch'}</h1>
+            <p class="text-sm text-muted-foreground font-mono mt-1">${batch.id}</p>
           </div>
-          
           <div class="flex items-center gap-2">
-            {batch.status === 'processing' && (
-              <button 
-                id="cancelBtn"
-                class="px-3 py-1.5 text-sm border border-destructive text-destructive rounded-md hover:bg-destructive/10 transition-colors"
-              >
-                Cancel Batch
-              </button>
-            )}
-            <span class={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${statusColors[batch.status]}`}>
-              {batch.status === 'processing' && <RefreshCw size={14} class="animate-spin" />}
-              {batch.status}
+            ${batch.status === 'processing' ? '<button id="cancelBtn" class="px-3 py-1.5 text-sm border border-destructive text-destructive rounded-md hover:bg-destructive/10 transition-colors">Cancel Batch</button>' : ''}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${statusColors[batch.status]}">
+              ${batch.status === 'processing' ? '<svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>' : ''}
+              ${batch.status}
             </span>
           </div>
         </div>
 
-        {/* Progress */}
+        <!-- Progress -->
         <div class="border rounded-lg p-4 space-y-3">
           <div class="flex items-center justify-between">
             <span class="font-medium">Progress</span>
-            <span class="text-2xl font-bold tabular-nums">{batch.progress}%</span>
+            <span class="text-2xl font-bold tabular-nums">${batch.progress}%</span>
           </div>
           <div class="h-3 bg-muted rounded-full overflow-hidden">
-            <div 
-              class="h-full bg-primary transition-all duration-500"
-              style={`width: ${batch.progress}%`}
-            ></div>
+            <div class="h-full bg-primary transition-all duration-500" style="width: ${batch.progress}%"></div>
           </div>
           <div class="grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <div class="text-muted-foreground">Completed</div>
-              <div class="font-medium text-green-600 dark:text-green-400 tabular-nums">
-                {batch.completedGames.toLocaleString()}
-              </div>
-            </div>
-            <div>
-              <div class="text-muted-foreground">Failed</div>
-              <div class="font-medium text-destructive tabular-nums">
-                {batch.failedGames.toLocaleString()}
-              </div>
-            </div>
-            <div>
-              <div class="text-muted-foreground">Total</div>
-              <div class="font-medium tabular-nums">
-                {batch.totalGames.toLocaleString()}
-              </div>
-            </div>
+            <div><div class="text-muted-foreground">Completed</div><div class="font-medium text-green-600 dark:text-green-400 tabular-nums">${batch.completedGames.toLocaleString()}</div></div>
+            <div><div class="text-muted-foreground">Failed</div><div class="font-medium text-destructive tabular-nums">${batch.failedGames.toLocaleString()}</div></div>
+            <div><div class="text-muted-foreground">Total</div><div class="font-medium tabular-nums">${batch.totalGames.toLocaleString()}</div></div>
           </div>
         </div>
 
-        {/* Stats Grid */}
+        <!-- Stats Grid -->
         <div class="grid gap-4 md:grid-cols-4">
           <div class="border rounded-lg p-4 space-y-1">
-            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
-              <DollarSign size={14} />
-              Actual Cost
-            </div>
-            <div class="text-xl font-bold tabular-nums">${batch.actualCostUsd.toFixed(4)}</div>
-            {batch.estimatedCostUsd && (
-              <div class="text-xs text-muted-foreground">
-                Est: ${batch.estimatedCostUsd.toFixed(2)}
-              </div>
-            )}
+            <div class="text-sm text-muted-foreground">Actual Cost</div>
+            <div class="text-xl font-bold tabular-nums">$${batch.actualCostUsd.toFixed(4)}</div>
+            ${batch.estimatedCostUsd ? `<div class="text-xs text-muted-foreground">Est: $${batch.estimatedCostUsd.toFixed(2)}</div>` : ''}
           </div>
-
           <div class="border rounded-lg p-4 space-y-1">
-            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
-              <Clock size={14} />
-              Created
-            </div>
-            <div class="text-sm font-medium">
-              {new Date(batch.createdAt * 1000).toLocaleString()}
-            </div>
-            <div class="text-xs text-muted-foreground">by {batch.createdBy}</div>
+            <div class="text-sm text-muted-foreground">Created</div>
+            <div class="text-sm font-medium">${new Date(batch.createdAt * 1000).toLocaleString()}</div>
+            <div class="text-xs text-muted-foreground">by ${batch.createdBy}</div>
           </div>
-
           <div class="border rounded-lg p-4 space-y-1">
-            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
-              <Activity size={14} />
-              Started
-            </div>
-            <div class="text-sm font-medium">
-              {batch.startedAt 
-                ? new Date(batch.startedAt * 1000).toLocaleString()
-                : '—'}
-            </div>
+            <div class="text-sm text-muted-foreground">Started</div>
+            <div class="text-sm font-medium">${batch.startedAt ? new Date(batch.startedAt * 1000).toLocaleString() : '—'}</div>
           </div>
-
           <div class="border rounded-lg p-4 space-y-1">
-            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
-              <CheckCircle size={14} />
-              Completed
-            </div>
-            <div class="text-sm font-medium">
-              {batch.completedAt 
-                ? new Date(batch.completedAt * 1000).toLocaleString()
-                : batch.status === 'processing' ? 'In progress...' : '—'}
-            </div>
-            {batch.startedAt && batch.completedAt && (
-              <div class="text-xs text-muted-foreground">
-                Duration: {formatDuration((batch.completedAt - batch.startedAt) * 1000)}
-              </div>
-            )}
+            <div class="text-sm text-muted-foreground">Completed</div>
+            <div class="text-sm font-medium">${batch.completedAt ? new Date(batch.completedAt * 1000).toLocaleString() : batch.status === 'processing' ? 'In progress...' : '—'}</div>
+            ${batch.startedAt && batch.completedAt ? `<div class="text-xs text-muted-foreground">Duration: ${formatDuration((batch.completedAt - batch.startedAt) * 1000)}</div>` : ''}
           </div>
         </div>
 
-        {/* Error Message */}
-        {batch.errorMessage && (
+        ${batch.errorMessage ? `
           <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4">
-            <div class="flex items-start gap-2">
-              <AlertTriangle size={18} class="text-destructive shrink-0 mt-0.5" />
-              <div>
-                <p class="font-medium text-destructive">Error</p>
-                <p class="text-sm">{batch.errorMessage}</p>
-              </div>
-            </div>
+            <p class="font-medium text-destructive">Error</p>
+            <p class="text-sm">${batch.errorMessage}</p>
           </div>
-        )}
+        ` : ''}
 
-        {/* Configuration */}
+        <!-- Configuration -->
         <div class="border rounded-lg p-4 space-y-3">
           <h3 class="font-medium">Configuration</h3>
-          <pre class="text-sm bg-muted/50 p-3 rounded-md overflow-x-auto"><code>{JSON.stringify(batch.config, null, 2)}</code></pre>
+          <pre class="text-sm bg-muted/50 p-3 rounded-md overflow-x-auto"><code>${JSON.stringify(batch.config, null, 2)}</code></pre>
         </div>
 
-        {/* Recent Games */}
-        {batch.recentGames.length > 0 && (
-          <div class="space-y-3">
-            <h3 class="font-medium">Recent Games</h3>
-            <div class="border rounded-lg overflow-hidden">
-              <table class="w-full text-sm">
-                <thead class="bg-muted/50 border-b">
-                  <tr>
-                    <th class="text-left p-3 font-medium">Game ID</th>
-                    <th class="text-left p-3 font-medium">Status</th>
-                    <th class="text-left p-3 font-medium">Winner</th>
-                    <th class="text-right p-3 font-medium">Rounds</th>
-                    <th class="text-right p-3 font-medium">Duration</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y">
-                  {batch.recentGames.map(game => (
-                    <tr class="hover:bg-muted/30 transition-colors">
-                      <td class="p-3">
-                        <a href={`/games/${game.id}`} class="font-mono text-xs hover:underline">
-                          {game.id}
-                        </a>
-                      </td>
-                      <td class="p-3">
-                        <span class={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                          game.status === 'completed' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                        }`}>
-                          {game.status}
-                        </span>
-                      </td>
-                      <td class="p-3">
-                        {game.winner && (
-                          <span class={game.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'}>
-                            {game.winner}
-                          </span>
-                        )}
-                      </td>
-                      <td class="p-3 text-right tabular-nums">{game.rounds}</td>
-                      <td class="p-3 text-right tabular-nums">{formatDuration(game.duration_ms)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </>
-    )}
-  </div>
-</Layout>
+        ${recentGamesHtml}
+      `;
 
-<script define:vars={{ batchId: id }}>
-  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
-  
-  document.getElementById('cancelBtn')?.addEventListener('click', async () => {
-    if (!confirm('Are you sure you want to cancel this batch?')) return;
-    
-    try {
-      const res = await fetch(`${API_URL}/api/admin/batches/${batchId}/cancel`, {
-        method: 'POST',
+      // Cancel button handler
+      document.getElementById('cancelBtn')?.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to cancel this batch?')) return;
+        try {
+          const res = await fetch(`${API_URL}/api/admin/batches/${batchId}/cancel`, { method: 'POST', headers });
+          if (!res.ok) throw new Error('Failed');
+          window.location.reload();
+        } catch {
+          alert('Failed to cancel batch');
+        }
       });
-      
-      if (!res.ok) throw new Error('Failed to cancel batch');
-      
-      window.location.reload();
+
+      // Auto-refresh if processing
+      if (batch.status === 'processing') {
+        setTimeout(() => window.location.reload(), 5000);
+      }
+
     } catch (err) {
-      alert('Failed to cancel batch');
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('error').classList.remove('hidden');
+      document.getElementById('error-text').textContent = err.message;
     }
-  });
-
-  // Auto-refresh if processing
-  const isProcessing = document.querySelector('[class*="animate-spin"]');
-  if (isProcessing) {
-    setTimeout(() => window.location.reload(), 5000);
   }
-</script>
 
+  init();
+</script>

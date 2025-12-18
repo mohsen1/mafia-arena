@@ -4,6 +4,52 @@
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 
+/**
+ * Get stored admin credentials from session storage (client-side only).
+ */
+function getAdminCredentials(): string | null {
+  if (typeof window === 'undefined') return null;
+  return sessionStorage.getItem('adminCredentials');
+}
+
+/**
+ * Set admin credentials in session storage.
+ */
+export function setAdminCredentials(username: string, password: string): void {
+  if (typeof window === 'undefined') return;
+  const credentials = btoa(`${username}:${password}`);
+  sessionStorage.setItem('adminCredentials', credentials);
+}
+
+/**
+ * Clear admin credentials.
+ */
+export function clearAdminCredentials(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem('adminCredentials');
+}
+
+/**
+ * Check if admin credentials are set.
+ */
+export function hasAdminCredentials(): boolean {
+  return !!getAdminCredentials();
+}
+
+/**
+ * Create headers with admin auth if available.
+ */
+function getAdminHeaders(): HeadersInit {
+  const credentials = getAdminCredentials();
+  if (credentials) {
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Basic ${credentials}`,
+    };
+  }
+  return { 'Content-Type': 'application/json' };
+}
+
 export interface LeaderboardEntry {
   model_id: string;
   display_name: string;
@@ -491,9 +537,10 @@ export async function createBatch(data: {
 }): Promise<{ success: boolean; batchId: string; estimatedCostUsd: number }> {
   const res = await fetch(`${API_URL}/api/admin/batches`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify(data),
   });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Failed to create batch');
@@ -514,7 +561,10 @@ export async function listBatches(options?: {
   if (options?.limit) params.set('limit', String(options.limit));
   if (options?.offset) params.set('offset', String(options.offset));
 
-  const res = await fetch(`${API_URL}/api/admin/batches?${params}`);
+  const res = await fetch(`${API_URL}/api/admin/batches?${params}`, {
+    headers: getAdminHeaders(),
+  });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to fetch batches');
   return res.json();
 }
@@ -522,8 +572,11 @@ export async function listBatches(options?: {
 /**
  * Get batch details.
  */
-export async function getBatch(batchId: string): Promise<BatchDetail> {
-  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}`);
+export async function getBatchAdmin(batchId: string): Promise<BatchDetail> {
+  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}`, {
+    headers: getAdminHeaders(),
+  });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to fetch batch');
   return res.json();
 }
@@ -534,7 +587,9 @@ export async function getBatch(batchId: string): Promise<BatchDetail> {
 export async function cancelBatch(batchId: string): Promise<{ success: boolean }> {
   const res = await fetch(`${API_URL}/api/admin/batches/${batchId}/cancel`, {
     method: 'POST',
+    headers: getAdminHeaders(),
   });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to cancel batch');
   return res.json();
 }
@@ -545,7 +600,9 @@ export async function cancelBatch(batchId: string): Promise<{ success: boolean }
 export async function pauseSystem(): Promise<{ success: boolean }> {
   const res = await fetch(`${API_URL}/api/admin/system/pause`, {
     method: 'POST',
+    headers: getAdminHeaders(),
   });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to pause system');
   return res.json();
 }
@@ -556,7 +613,9 @@ export async function pauseSystem(): Promise<{ success: boolean }> {
 export async function resumeSystem(): Promise<{ success: boolean }> {
   const res = await fetch(`${API_URL}/api/admin/system/resume`, {
     method: 'POST',
+    headers: getAdminHeaders(),
   });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to resume system');
   return res.json();
 }
@@ -565,7 +624,10 @@ export async function resumeSystem(): Promise<{ success: boolean }> {
  * Get live admin stats.
  */
 export async function getAdminStats(): Promise<AdminStats> {
-  const res = await fetch(`${API_URL}/api/admin/stats/live`);
+  const res = await fetch(`${API_URL}/api/admin/stats/live`, {
+    headers: getAdminHeaders(),
+  });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to fetch admin stats');
   return res.json();
 }
@@ -587,9 +649,10 @@ export async function getCostEstimate(data: {
 }): Promise<CostEstimate> {
   const res = await fetch(`${API_URL}/api/admin/estimate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAdminHeaders(),
     body: JSON.stringify(data),
   });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to get cost estimate');
   return res.json();
 }

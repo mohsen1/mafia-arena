@@ -1,259 +1,300 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { getAdminStats, listBatches, formatNumber } from '../../lib/api';
-import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, Clock, AlertTriangle } from 'lucide-astro';
-
-let stats;
-let batches;
-let error = null;
-
-try {
-  [stats, batches] = await Promise.all([
-    getAdminStats(),
-    listBatches({ limit: 5 })
-  ]);
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load admin data';
-}
-
-const statusColors = {
-  queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-};
+import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut } from 'lucide-astro';
 ---
 
 <Layout title="Admin Dashboard">
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
+  <div id="admin-content" class="space-y-6">
+    <!-- Loading state -->
+    <div id="loading" class="flex items-center justify-center py-20">
+      <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    </div>
+
+    <!-- Error state (hidden initially) -->
+    <div id="error-container" class="hidden border border-destructive/50 bg-destructive/10 rounded-lg p-4 flex items-start gap-3">
+      <AlertTriangle class="text-destructive shrink-0 mt-0.5" size={18} />
       <div>
-        <h1 class="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p class="text-sm text-muted-foreground">Manage batch jobs and monitor system health</p>
-      </div>
-      <div class="flex gap-2">
-        <a 
-          href="/admin/batches/new" 
-          class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus size={16} />
-          New Batch
-        </a>
+        <p class="font-medium text-destructive">Failed to load dashboard</p>
+        <p id="error-message" class="text-sm text-muted-foreground"></p>
       </div>
     </div>
 
-    {error ? (
-      <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4 flex items-start gap-3">
-        <AlertTriangle class="text-destructive shrink-0 mt-0.5" size={18} />
+    <!-- Dashboard content (hidden initially) -->
+    <div id="dashboard" class="hidden space-y-6">
+      <!-- Header -->
+      <div class="flex items-center justify-between">
         <div>
-          <p class="font-medium text-destructive">Failed to load dashboard</p>
-          <p class="text-sm text-muted-foreground">{error}</p>
+          <h1 class="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+          <p class="text-sm text-muted-foreground">Manage batch jobs and monitor system health</p>
+        </div>
+        <div class="flex gap-2">
+          <button 
+            id="logoutBtn"
+            class="inline-flex items-center gap-2 px-3 py-2 border rounded-md text-sm hover:bg-muted transition-colors"
+          >
+            <LogOut size={16} />
+            Logout
+          </button>
+          <a 
+            href="/admin/batches/new" 
+            class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus size={16} />
+            New Batch
+          </a>
         </div>
       </div>
-    ) : (
-      <>
-        <!-- Stats Grid -->
-        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <!-- System Status -->
-          <div class="border rounded-lg p-4 space-y-2">
-            <div class="flex items-center gap-2 text-sm text-muted-foreground">
-              {stats.systemPaused ? <PauseCircle size={16} class="text-orange-500" /> : <PlayCircle size={16} class="text-green-500" />}
-              System Status
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-2xl font-bold">{stats.systemPaused ? 'Paused' : 'Running'}</span>
-              <button 
-                id="toggleSystem"
-                data-paused={stats.systemPaused}
-                class="text-xs px-2 py-1 rounded border hover:bg-accent transition-colors"
-              >
-                {stats.systemPaused ? 'Resume' : 'Pause'}
-              </button>
-            </div>
-          </div>
 
-          <!-- Active Batches -->
-          <div class="border rounded-lg p-4 space-y-2">
-            <div class="flex items-center gap-2 text-sm text-muted-foreground">
-              <Layers size={16} />
-              Active Batches
-            </div>
-            <div class="text-2xl font-bold tabular-nums">{stats.batchesActive}</div>
-            <p class="text-xs text-muted-foreground">{formatNumber(stats.gamesQueued)} games in queue</p>
+      <!-- Stats Grid -->
+      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <!-- System Status -->
+        <div class="border rounded-lg p-4 space-y-2">
+          <div class="flex items-center gap-2 text-sm text-muted-foreground">
+            <span id="status-icon"></span>
+            System Status
           </div>
-
-          <!-- Cost Today -->
-          <div class="border rounded-lg p-4 space-y-2">
-            <div class="flex items-center gap-2 text-sm text-muted-foreground">
-              <DollarSign size={16} />
-              Cost Today
-            </div>
-            <div class="text-2xl font-bold tabular-nums">${stats.costToday.toFixed(2)}</div>
-            <p class="text-xs text-muted-foreground">${stats.budgetRemaining.toFixed(2)} remaining</p>
-          </div>
-
-          <!-- Budget Progress -->
-          <div class="border rounded-lg p-4 space-y-2">
-            <div class="flex items-center gap-2 text-sm text-muted-foreground">
-              <Activity size={16} />
-              Budget Usage
-            </div>
-            <div class="space-y-1">
-              <div class="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  class="h-full bg-primary transition-all duration-300"
-                  style={`width: ${Math.min((stats.costToday / (stats.costToday + stats.budgetRemaining)) * 100, 100)}%`}
-                ></div>
-              </div>
-              <p class="text-xs text-muted-foreground">
-                {((stats.costToday / (stats.costToday + stats.budgetRemaining)) * 100).toFixed(1)}% used
-              </p>
-            </div>
+          <div class="flex items-center justify-between">
+            <span id="status-text" class="text-2xl font-bold">—</span>
+            <button 
+              id="toggleSystem"
+              class="text-xs px-2 py-1 rounded border hover:bg-accent transition-colors"
+            >
+              Toggle
+            </button>
           </div>
         </div>
 
-        <!-- Recent Batches -->
-        <section class="space-y-3">
-          <div class="flex items-center justify-between">
-            <h2 class="font-semibold">Recent Batches</h2>
-            <a href="/admin/batches" class="text-sm text-muted-foreground hover:text-foreground">
-              View all →
-            </a>
+        <!-- Active Batches -->
+        <div class="border rounded-lg p-4 space-y-2">
+          <div class="flex items-center gap-2 text-sm text-muted-foreground">
+            <Layers size={16} />
+            Active Batches
           </div>
+          <div id="batches-active" class="text-2xl font-bold tabular-nums">—</div>
+          <p id="games-queued" class="text-xs text-muted-foreground">— games in queue</p>
+        </div>
 
-          <div class="border rounded-lg overflow-hidden">
-            <table class="w-full text-sm">
-              <thead class="bg-muted/50 border-b">
-                <tr>
-                  <th class="text-left p-3 font-medium">Name</th>
-                  <th class="text-left p-3 font-medium">Status</th>
-                  <th class="text-right p-3 font-medium">Progress</th>
-                  <th class="text-right p-3 font-medium">Cost</th>
-                  <th class="text-right p-3 font-medium">Created</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y">
-                {batches.batches.length === 0 ? (
-                  <tr>
-                    <td colspan="5" class="p-8 text-center text-muted-foreground">
-                      No batches yet. <a href="/admin/batches/new" class="underline">Create one</a>
-                    </td>
-                  </tr>
-                ) : (
-                  batches.batches.map(batch => (
-                    <tr class="hover:bg-muted/30 transition-colors">
-                      <td class="p-3">
-                        <a href={`/admin/batches/${batch.id}`} class="hover:underline font-medium">
-                          {batch.name || batch.id}
-                        </a>
-                      </td>
-                      <td class="p-3">
-                        <span class={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[batch.status]}`}>
-                          {batch.status}
-                        </span>
-                      </td>
-                      <td class="p-3 text-right tabular-nums">
-                        <div class="flex items-center justify-end gap-2">
-                          <span>{batch.completedGames}/{batch.totalGames}</span>
-                          <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              class="h-full bg-primary"
-                              style={`width: ${batch.progress}%`}
-                            ></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="p-3 text-right tabular-nums">
-                        ${batch.actualCostUsd.toFixed(4)}
-                      </td>
-                      <td class="p-3 text-right text-muted-foreground tabular-nums">
-                        {new Date(batch.createdAt * 1000).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <!-- Cost Today -->
+        <div class="border rounded-lg p-4 space-y-2">
+          <div class="flex items-center gap-2 text-sm text-muted-foreground">
+            <DollarSign size={16} />
+            Cost Today
           </div>
-        </section>
+          <div id="cost-today" class="text-2xl font-bold tabular-nums">$—</div>
+          <p id="budget-remaining" class="text-xs text-muted-foreground">$— remaining</p>
+        </div>
 
-        <!-- Quick Actions -->
-        <section class="grid gap-4 md:grid-cols-3">
-          <a 
-            href="/admin/batches/new"
-            class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group"
-          >
-            <div class="flex items-center gap-3">
-              <div class="p-2 bg-primary/10 rounded-lg">
-                <Plus size={20} class="text-primary" />
-              </div>
-              <div>
-                <h3 class="font-medium group-hover:underline">Launch Batch</h3>
-                <p class="text-xs text-muted-foreground">Create a new batch of games</p>
-              </div>
+        <!-- Budget Progress -->
+        <div class="border rounded-lg p-4 space-y-2">
+          <div class="flex items-center gap-2 text-sm text-muted-foreground">
+            <Activity size={16} />
+            Budget Usage
+          </div>
+          <div class="space-y-1">
+            <div class="h-2 bg-muted rounded-full overflow-hidden">
+              <div id="budget-bar" class="h-full bg-primary transition-all duration-300" style="width: 0%"></div>
             </div>
-          </a>
+            <p id="budget-percent" class="text-xs text-muted-foreground">0% used</p>
+          </div>
+        </div>
+      </div>
 
-          <a 
-            href="/admin/batches"
-            class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group"
-          >
-            <div class="flex items-center gap-3">
-              <div class="p-2 bg-blue-500/10 rounded-lg">
-                <Layers size={20} class="text-blue-500" />
-              </div>
-              <div>
-                <h3 class="font-medium group-hover:underline">Manage Batches</h3>
-                <p class="text-xs text-muted-foreground">View and manage all batches</p>
-              </div>
-            </div>
+      <!-- Recent Batches -->
+      <section class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold">Recent Batches</h2>
+          <a href="/admin/batches" class="text-sm text-muted-foreground hover:text-foreground">
+            View all →
           </a>
+        </div>
 
-          <a 
-            href="/stats"
-            class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group"
-          >
-            <div class="flex items-center gap-3">
-              <div class="p-2 bg-green-500/10 rounded-lg">
-                <Activity size={20} class="text-green-500" />
-              </div>
-              <div>
-                <h3 class="font-medium group-hover:underline">View Stats</h3>
-                <p class="text-xs text-muted-foreground">Analyze game results</p>
-              </div>
+        <div class="border rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-muted/50 border-b">
+              <tr>
+                <th class="text-left p-3 font-medium">Name</th>
+                <th class="text-left p-3 font-medium">Status</th>
+                <th class="text-right p-3 font-medium">Progress</th>
+                <th class="text-right p-3 font-medium">Cost</th>
+                <th class="text-right p-3 font-medium">Created</th>
+              </tr>
+            </thead>
+            <tbody id="batches-table" class="divide-y">
+              <tr>
+                <td colspan="5" class="p-8 text-center text-muted-foreground">Loading...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Quick Actions -->
+      <section class="grid gap-4 md:grid-cols-3">
+        <a href="/admin/batches/new" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-primary/10 rounded-lg">
+              <Plus size={20} class="text-primary" />
             </div>
-          </a>
-        </section>
-      </>
-    )}
+            <div>
+              <h3 class="font-medium group-hover:underline">Launch Batch</h3>
+              <p class="text-xs text-muted-foreground">Create a new batch of games</p>
+            </div>
+          </div>
+        </a>
+
+        <a href="/admin/batches" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-blue-500/10 rounded-lg">
+              <Layers size={20} class="text-blue-500" />
+            </div>
+            <div>
+              <h3 class="font-medium group-hover:underline">Manage Batches</h3>
+              <p class="text-xs text-muted-foreground">View and manage all batches</p>
+            </div>
+          </div>
+        </a>
+
+        <a href="/stats" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-green-500/10 rounded-lg">
+              <Activity size={20} class="text-green-500" />
+            </div>
+            <div>
+              <h3 class="font-medium group-hover:underline">View Stats</h3>
+              <p class="text-xs text-muted-foreground">Analyze game results</p>
+            </div>
+          </div>
+        </a>
+      </section>
+    </div>
   </div>
 </Layout>
 
 <script>
-  const API_URL = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+  const API_URL = import.meta.env?.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 
-  document.getElementById('toggleSystem')?.addEventListener('click', async (e) => {
-    const btn = e.target as HTMLButtonElement;
-    const isPaused = btn.dataset.paused === 'true';
-    
-    try {
-      btn.disabled = true;
-      btn.textContent = 'Working...';
-      
-      const endpoint = isPaused ? 'resume' : 'pause';
-      const res = await fetch(`${API_URL}/api/admin/system/${endpoint}`, { method: 'POST' });
-      
-      if (!res.ok) throw new Error('Failed to update system state');
-      
-      // Reload to show updated state
-      window.location.reload();
-    } catch (err) {
-      alert(`Failed to ${isPaused ? 'resume' : 'pause'} system`);
-      btn.disabled = false;
-      btn.textContent = isPaused ? 'Resume' : 'Pause';
+  const statusColors: Record<string, string> = {
+    queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  };
+
+  async function init() {
+    // Check for auth
+    const credentials = sessionStorage.getItem('adminCredentials');
+    if (!credentials) {
+      window.location.href = '/admin/login?redirect=/admin';
+      return;
     }
-  });
-</script>
 
+    const headers = { 'Authorization': `Basic ${credentials}` };
+
+    try {
+      // Load stats and batches
+      const [statsRes, batchesRes] = await Promise.all([
+        fetch(`${API_URL}/api/admin/stats/live`, { headers }),
+        fetch(`${API_URL}/api/admin/batches?limit=5`, { headers }),
+      ]);
+
+      if (statsRes.status === 401 || batchesRes.status === 401) {
+        sessionStorage.removeItem('adminCredentials');
+        window.location.href = '/admin/login?redirect=/admin';
+        return;
+      }
+
+      if (!statsRes.ok || !batchesRes.ok) {
+        throw new Error('Failed to load dashboard data');
+      }
+
+      const stats = await statsRes.json();
+      const batches = await batchesRes.json();
+
+      // Hide loading, show dashboard
+      document.getElementById('loading')!.classList.add('hidden');
+      document.getElementById('dashboard')!.classList.remove('hidden');
+
+      // Populate stats
+      const statusIcon = document.getElementById('status-icon')!;
+      statusIcon.innerHTML = stats.systemPaused 
+        ? '<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>'
+        : '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>';
+
+      document.getElementById('status-text')!.textContent = stats.systemPaused ? 'Paused' : 'Running';
+      const toggleBtn = document.getElementById('toggleSystem')!;
+      toggleBtn.textContent = stats.systemPaused ? 'Resume' : 'Pause';
+      toggleBtn.dataset.paused = String(stats.systemPaused);
+
+      document.getElementById('batches-active')!.textContent = String(stats.batchesActive);
+      document.getElementById('games-queued')!.textContent = `${stats.gamesQueued.toLocaleString()} games in queue`;
+      document.getElementById('cost-today')!.textContent = `$${stats.costToday.toFixed(2)}`;
+      document.getElementById('budget-remaining')!.textContent = `$${stats.budgetRemaining.toFixed(2)} remaining`;
+
+      const budgetTotal = stats.costToday + stats.budgetRemaining;
+      const budgetPercent = budgetTotal > 0 ? (stats.costToday / budgetTotal) * 100 : 0;
+      document.getElementById('budget-bar')!.style.width = `${Math.min(budgetPercent, 100)}%`;
+      document.getElementById('budget-percent')!.textContent = `${budgetPercent.toFixed(1)}% used`;
+
+      // Populate batches table
+      const tbody = document.getElementById('batches-table')!;
+      if (batches.batches.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-muted-foreground">No batches yet. <a href="/admin/batches/new" class="underline">Create one</a></td></tr>`;
+      } else {
+        tbody.innerHTML = batches.batches.map((batch: any) => `
+          <tr class="hover:bg-muted/30 transition-colors">
+            <td class="p-3">
+              <a href="/admin/batches/${batch.id}" class="hover:underline font-medium">${batch.name || batch.id}</a>
+            </td>
+            <td class="p-3">
+              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[batch.status]}">${batch.status}</span>
+            </td>
+            <td class="p-3 text-right tabular-nums">
+              <div class="flex items-center justify-end gap-2">
+                <span>${batch.completedGames}/${batch.totalGames}</span>
+                <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div class="h-full bg-primary" style="width: ${batch.progress}%"></div>
+                </div>
+              </div>
+            </td>
+            <td class="p-3 text-right tabular-nums">$${batch.actualCostUsd.toFixed(4)}</td>
+            <td class="p-3 text-right text-muted-foreground tabular-nums">${new Date(batch.createdAt * 1000).toLocaleDateString()}</td>
+          </tr>
+        `).join('');
+      }
+
+      // Setup event handlers
+      toggleBtn.addEventListener('click', async () => {
+        const isPaused = toggleBtn.dataset.paused === 'true';
+        toggleBtn.disabled = true;
+        toggleBtn.textContent = 'Working...';
+
+        try {
+          const endpoint = isPaused ? 'resume' : 'pause';
+          const res = await fetch(`${API_URL}/api/admin/system/${endpoint}`, { 
+            method: 'POST',
+            headers,
+          });
+          if (!res.ok) throw new Error('Failed');
+          window.location.reload();
+        } catch {
+          alert('Failed to update system state');
+          toggleBtn.disabled = false;
+          toggleBtn.textContent = isPaused ? 'Resume' : 'Pause';
+        }
+      });
+
+      document.getElementById('logoutBtn')?.addEventListener('click', () => {
+        sessionStorage.removeItem('adminCredentials');
+        window.location.href = '/admin/login';
+      });
+
+    } catch (err) {
+      document.getElementById('loading')!.classList.add('hidden');
+      document.getElementById('error-container')!.classList.remove('hidden');
+      document.getElementById('error-message')!.textContent = err instanceof Error ? err.message : 'Unknown error';
+    }
+  }
+
+  init();
+</script>
