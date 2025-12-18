@@ -1436,83 +1436,99 @@ export default {
   },
 
   /**
-   * Handle game queue messages.
+   * Handle queue messages.
+   * This single handler processes both batch queue and game queue messages.
+   * Cloudflare routes messages to this handler based on the queue configuration.
    */
-  async queue(batch: MessageBatch<GameQueueMessage>, env: Env): Promise<void> {
+  async queue(
+    batch: MessageBatch<GameQueueMessage | BatchQueueMessage>,
+    env: Env
+  ): Promise<void> {
     for (const message of batch.messages) {
-      const { gameId, batchId, config } = message.body;
+      const body = message.body;
 
-      try {
-        console.log(`Processing game ${gameId} from batch ${batchId}`);
-
-        // Get Durable Object instance by game ID
-        const id = env.GAME_RUNNER.idFromName(gameId);
-        const stub = env.GAME_RUNNER.get(id);
-
-        // Start the game
-        const response = await stub.fetch('http://internal/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ gameId, batchId, config }),
-        });
-
-        if (!response.ok) {
-          const error = (await response.json()) as { error: string };
-          throw new Error(error.error ?? 'Failed to start game');
-        }
-
-        // Acknowledge message
-        message.ack();
-        console.log(`Game ${gameId} started successfully`);
-      } catch (error) {
-        console.error(`Failed to process game ${gameId}:`, error);
-
-        // Log to D1
-        if (error instanceof Error) {
-          await logError(env.DB, error, { gameId, batchId }).catch(() => {});
-        }
-
-        // Retry the message
-        message.retry();
+      // Check if this is a game message (has gameId) or batch message (has config.totalGames)
+      if ('gameId' in body && body.gameId) {
+        // Game queue message
+        await this.handleGameMessage(message as Message<GameQueueMessage>, env);
+      } else if ('config' in body && body.config && 'totalGames' in body.config) {
+        // Batch queue message
+        await this.handleBatchMessage(message as Message<BatchQueueMessage>, env);
+      } else {
+        console.error('Unknown message type:', body);
+        message.ack(); // Acknowledge to prevent infinite retries
       }
     }
   },
 
   /**
-   * Handle batch queue messages - splits batches into individual games.
+   * Handle a single game queue message.
    */
-  async batchQueue(
-    batch: MessageBatch<BatchQueueMessage>,
-    env: Env
-  ): Promise<void> {
-    for (const message of batch.messages) {
-      const { batchId, config } = message.body;
+  async handleGameMessage(message: Message<GameQueueMessage>, env: Env): Promise<void> {
+    const { gameId, batchId, config } = message.body;
 
-      try {
-        console.log(`Processing batch ${batchId} with ${config.totalGames} games`);
+    try {
+      console.log(`Processing game ${gameId} from batch ${batchId}`);
 
-        // Check system state
-        const systemState = await getSystemState(env);
-        if (systemState.processingPaused) {
-          console.log(`System paused, retrying batch ${batchId} in 60s`);
-          message.retry({ delaySeconds: 60 });
-          continue;
-        }
+      // Get Durable Object instance by game ID
+      const id = env.GAME_RUNNER.idFromName(gameId);
+      const stub = env.GAME_RUNNER.get(id);
 
-        // Process the batch
-        await processBatchMessage(env, batchId, config);
+      // Start the game
+      const response = await stub.fetch('http://internal/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId, batchId, config }),
+      });
 
-        message.ack();
-        console.log(`Batch ${batchId} processed, ${config.totalGames} games queued`);
-      } catch (error) {
-        console.error(`Failed to process batch ${batchId}:`, error);
-
-        if (error instanceof Error) {
-          await logError(env.DB, error, { batchId }).catch(() => {});
-        }
-
-        message.retry();
+      if (!response.ok) {
+        const error = (await response.json()) as { error: string };
+        throw new Error(error.error ?? 'Failed to start game');
       }
+
+      message.ack();
+      console.log(`Game ${gameId} started successfully`);
+    } catch (error) {
+      console.error(`Failed to process game ${gameId}:`, error);
+
+      if (error instanceof Error) {
+        await logError(env.DB, error, { gameId, batchId }).catch(() => {});
+      }
+
+      message.retry();
+    }
+  },
+
+  /**
+   * Handle a single batch queue message - splits into individual games.
+   */
+  async handleBatchMessage(message: Message<BatchQueueMessage>, env: Env): Promise<void> {
+    const { batchId, config } = message.body;
+
+    try {
+      console.log(`Processing batch ${batchId} with ${config.totalGames} games`);
+
+      // Check system state
+      const systemState = await getSystemState(env);
+      if (systemState.processingPaused) {
+        console.log(`System paused, retrying batch ${batchId} in 60s`);
+        message.retry({ delaySeconds: 60 });
+        return;
+      }
+
+      // Process the batch
+      await processBatchMessage(env, batchId, config);
+
+      message.ack();
+      console.log(`Batch ${batchId} processed, ${config.totalGames} games queued`);
+    } catch (error) {
+      console.error(`Failed to process batch ${batchId}:`, error);
+
+      if (error instanceof Error) {
+        await logError(env.DB, error, { batchId }).catch(() => {});
+      }
+
+      message.retry();
     }
   },
 };
