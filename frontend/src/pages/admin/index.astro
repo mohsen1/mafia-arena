@@ -258,7 +258,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       if (batches.batches.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-muted-foreground">No batches yet. <a href="/admin/batches/new" class="underline">Create one</a></td></tr>`;
       } else {
-        tbody.innerHTML = batches.batches.map((batch: any) => `
+        tbody.innerHTML = batches.batches.map((batch) => `
           <tr class="hover:bg-muted/30 transition-colors">
             <td class="p-3">
               <a href="/admin/batches/${batch.id}" class="hover:underline font-medium">${batch.name || batch.id}</a>
