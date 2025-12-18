@@ -12,9 +12,9 @@ export interface RetryConfig {
 }
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxRetries: 5,
-  baseDelayMs: 5000,
-  maxDelayMs: 30000,
+  maxRetries: 8,
+  baseDelayMs: 3000,
+  maxDelayMs: 60000,
 };
 
 /**

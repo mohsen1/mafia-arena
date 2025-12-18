@@ -180,17 +180,28 @@ export class GameRunner extends DurableObject<Env> {
         seed,
       });
 
-      // Run the game asynchronously
-      this.runGame(gameId, batchId, gameConfig).catch(async (error) => {
+      // Run the game synchronously so errors are properly surfaced
+      try {
+        await this.runGame(gameId, batchId, gameConfig);
+        return Response.json({ success: true, gameId, seed, status: 'completed' });
+      } catch (error) {
         console.error(`Game ${gameId} failed:`, error);
         await this.saveState({
           status: 'failed',
           error: error instanceof Error ? error.message : String(error),
           completedAt: Date.now(),
         });
-      });
-
-      return Response.json({ success: true, gameId, seed, status: 'started' });
+        return Response.json(
+          { 
+            success: false, 
+            gameId, 
+            seed, 
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error)
+          },
+          { status: 500 }
+        );
+      }
     } catch (error) {
       console.error('Failed to start game:', error);
       return Response.json(
