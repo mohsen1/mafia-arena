@@ -1,18 +1,21 @@
 ---
 import '../styles/global.css';
+import ThemeToggle from './ThemeToggle.astro';
+import { Github } from 'lucide-astro';
 
 interface Props {
 	title: string;
 }
 
 const { title } = Astro.props;
+const currentPath = Astro.url.pathname;
 ---
 
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="description" content="Mafia Arena - LLM Benchmarking Platform" />
+		<meta name="description" content="Mafia Arena - AI models playing Mafia against each other" />
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
@@ -20,45 +23,94 @@ const { title } = Astro.props;
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		<script is:inline>
+			const theme = localStorage.getItem('theme') || 
+				(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+			if (theme === 'dark') document.documentElement.classList.add('dark');
+		</script>
 	</head>
 	<body class="min-h-screen bg-background font-sans antialiased">
 		<div class="relative flex min-h-screen flex-col">
-			<header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-				<div class="container mx-auto flex h-16 items-center px-4 md:px-8">
-					<div class="mr-4 flex">
-						<a href="/" class="mr-6 flex items-center space-x-2">
-							<span class="text-xl font-bold tracking-tight">🎭 MAFIA ARENA</span>
+			<header class="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
+				<div class="max-w-6xl mx-auto flex h-12 items-center justify-between px-4">
+					<div class="flex items-center gap-6">
+						<a href="/" class="flex items-center gap-2 font-semibold text-sm">
+							<span class="text-lg">🎭</span>
+							<span>Mafia Arena</span>
 						</a>
-						<nav class="flex items-center space-x-6 text-sm font-medium">
-							<a href="/" class="transition-colors hover:text-foreground/80 text-foreground">Leaderboard</a>
-							<a href="/games" class="transition-colors hover:text-foreground/80 text-foreground/60">Games</a>
-							<a href="/about" class="transition-colors hover:text-foreground/80 text-foreground/60">About</a>
+						<nav class="flex items-center gap-4 text-sm">
+							<a 
+								href="/" 
+								class:list={[
+									"transition-colors hover:text-foreground",
+									currentPath === "/" ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								Leaderboard
+							</a>
+							<a 
+								href="/games" 
+								class:list={[
+									"transition-colors hover:text-foreground",
+									currentPath.startsWith("/games") ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								Games
+							</a>
+							<a 
+								href="/analysis" 
+								class:list={[
+									"transition-colors hover:text-foreground",
+									currentPath.startsWith("/analysis") ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								Analysis
+							</a>
+							<a 
+								href="/stats" 
+								class:list={[
+									"transition-colors hover:text-foreground",
+									currentPath.startsWith("/stats") ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								Stats
+							</a>
+							<a 
+								href="/about" 
+								class:list={[
+									"transition-colors hover:text-foreground",
+									currentPath === "/about" ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								About
+							</a>
 						</nav>
 					</div>
-					<div class="flex flex-1 items-center justify-end space-x-4">
+					<div class="flex items-center gap-2">
 						<a 
-							href="https://github.com/mohsenazimi/werewolf-ai" 
+							href="https://github.com/mohsen1/werewolf-ai" 
 							target="_blank" 
 							rel="noreferrer"
-							class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+							class="inline-flex items-center justify-center rounded-md w-8 h-8 hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
+							aria-label="GitHub"
 						>
-							GitHub
+							<Github class="h-4 w-4" />
 						</a>
+						<ThemeToggle />
 					</div>
 				</div>
 			</header>
 
 			<main class="flex-1">
-				<div class="container mx-auto py-8 px-4 md:px-8">
+				<div class="max-w-6xl mx-auto py-6 px-4">
 					<slot />
 				</div>
 			</main>
 
-			<footer class="border-t py-6 md:px-8 md:py-0">
-				<div class="container mx-auto flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row px-4 md:px-8">
-					<p class="text-center text-sm leading-loose text-muted-foreground md:text-left">
-						Built for LLM benchmarking. Pure TypeScript engine.
-					</p>
+			<footer class="border-t">
+				<div class="max-w-6xl mx-auto flex items-center justify-between h-10 px-4 text-xs text-muted-foreground">
+					<span>LLM Benchmarking via Social Deduction</span>
+					<span class="tabular-nums">Cloudflare Workers + D1 + R2</span>
 				</div>
 			</footer>
 		</div>
@@ -75,7 +127,7 @@ const { title } = Astro.props;
 		font-family: var(--font-sans);
 	}
 
-	pre, code {
+	pre, code, .font-mono {
 		font-family: var(--font-mono);
 	}
 </style>

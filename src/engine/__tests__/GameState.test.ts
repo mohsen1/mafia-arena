@@ -16,6 +16,8 @@ describe('GameState', () => {
     ],
     maxRounds: 10,
     discussionEnabled: true,
+    personaEnabled: false,
+    personaConstraints: 'moderate',
   });
 
   describe('create', () => {

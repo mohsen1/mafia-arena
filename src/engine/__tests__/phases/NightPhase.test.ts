@@ -18,6 +18,8 @@ describe('executeNightPhase', () => {
     ],
     maxRounds: 10,
     discussionEnabled: true,
+    personaEnabled: false,
+    personaConstraints: 'moderate',
   });
 
   it('should collect kill votes from all mafia members', async () => {

@@ -1,99 +1,316 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { getGame } from '../../lib/api';
+import { getGame, getGamePersonas } from '../../lib/api';
+import { calculateCostFromTotal, formatCost } from '../../lib/costs';
+import { Play, ArrowLeft, Trophy, X, User, Sparkles } from 'lucide-astro';
 
 const { id } = Astro.params;
 
 let game = null;
+let personasData = null;
 let error = null;
 
 try {
   game = await getGame(id!);
+  // Try to fetch personas (might not exist for older games)
+  try {
+    personasData = await getGamePersonas(id!);
+  } catch {
+    personasData = null;
+  }
 } catch (e) {
   error = e instanceof Error ? e.message : 'Failed to load game details';
 }
 
 const participants = game?.participants || [];
-const date = game ? new Date(game.created_at * 1000).toLocaleString() : '';
+const personas = personasData?.personas || [];
+const personaAnalysis = personasData?.analysis;
+const personaEnabled = personasData?.personaEnabled ?? false;
+
+const date = game ? new Date(game.created_at * 1000).toLocaleString(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+}) : '';
+
+// Calculate costs
+const totalCost = game ? calculateCostFromTotal('gemini-2.0-flash', game.total_tokens) : 0;
+
+// Get mafia and town counts
+const mafiaParticipants = participants.filter((p: any) => p.team === 'mafia');
+const townParticipants = participants.filter((p: any) => p.team === 'town');
+const mafiaCount = mafiaParticipants.reduce((sum: number, p: any) => sum + (p.player_count || 1), 0);
+const townCount = townParticipants.reduce((sum: number, p: any) => sum + (p.player_count || 1), 0);
+
+// Determine winner/loser models
+const winnerTeam = game?.winner;
+const winnerParticipants = participants.filter((p: any) => p.team === winnerTeam);
+const loserParticipants = participants.filter((p: any) => p.team !== winnerTeam);
+
+// Group personas by team
+const mafiaPersonas = personas.filter((p: any) => p.team === 'mafia');
+const townPersonas = personas.filter((p: any) => p.team === 'town');
 ---
 
-<Layout title={game ? `Game #${game.id.slice(-8)}` : 'Game Not Found'}>
+<Layout title={game ? `Game ${game.id.slice(-8)}` : 'Game Not Found'}>
   {error || !game ? (
-    <div class="flex flex-col items-center justify-center min-h-[400px] border border-destructive/20 bg-destructive/5 rounded-xl p-8 text-center space-y-4">
-      <div class="bg-destructive/10 text-destructive rounded-full p-4 text-2xl">⚠️</div>
-      <div class="space-y-1">
-        <h2 class="text-xl font-semibold">Game not found</h2>
-        <p class="text-muted-foreground">{error || 'The requested game could not be found.'}</p>
-      </div>
+    <div class="border rounded-md p-8 text-center text-muted-foreground">
+      <p class="text-sm mb-4">Game not found</p>
       <a href="/games" class="text-sm font-medium hover:underline">← Back to games</a>
     </div>
   ) : (
-    <div class="max-w-4xl mx-auto space-y-8">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="space-y-1">
-          <div class="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <a href="/games" class="hover:text-foreground">Games</a>
-            <span>/</span>
-            <span class="font-mono">{game.id}</span>
-          </div>
-          <h1 class="text-4xl font-bold tracking-tight">Game Result</h1>
-          <p class="text-muted-foreground font-mono text-sm">{date}</p>
+    <div class="space-y-6 max-w-3xl">
+      <div class="flex items-center gap-2 text-sm text-muted-foreground">
+        <a href="/games" class="hover:text-foreground inline-flex items-center gap-1">
+          <ArrowLeft size={14} /> Games
+        </a>
+        <span>/</span>
+        <code class="text-xs">{game.id.slice(-12)}</code>
+      </div>
+
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Game Result</h1>
+          <p class="text-muted-foreground text-sm">{date}</p>
         </div>
-        <a href={`/games/${game.id}/replay`} class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-11 px-8">
-          View Full Replay
+        <a 
+          href={`/games/${game.id}/replay`} 
+          class="inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+        >
+          <Play size={14} /> Replay
         </a>
       </div>
 
-      <div class="grid gap-6 md:grid-cols-3 text-center">
-        <div class="rounded-xl border bg-card p-6 shadow-sm">
-          <div class="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">Winner</div>
-          <div class={`text-2xl font-black ${game.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'}`}>
-            {game.winner.toUpperCase()}
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-4 gap-3">
+        <div class="border rounded-md p-3">
+          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Winner</div>
+          <div class={`font-bold ${game.winner === 'mafia' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+            {game.winner === 'mafia' ? 'Mafia' : 'Town'}
           </div>
         </div>
-        <div class="rounded-xl border bg-card p-6 shadow-sm">
-          <div class="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">Rounds</div>
-          <div class="text-2xl font-black">{game.rounds}</div>
+        <div class="border rounded-md p-3">
+          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Players</div>
+          <div class="font-bold font-mono tabular-nums">
+            <span class="text-red-600 dark:text-red-400">{mafiaCount}</span>
+            <span class="text-muted-foreground mx-1">vs</span>
+            <span class="text-blue-600 dark:text-blue-400">{townCount}</span>
+          </div>
         </div>
-        <div class="rounded-xl border bg-card p-6 shadow-sm">
-          <div class="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">Players</div>
-          <div class="text-2xl font-black">{participants.length}</div>
+        <div class="border rounded-md p-3">
+          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Rounds</div>
+          <div class="font-bold font-mono tabular-nums">{game.rounds}</div>
+        </div>
+        <div class="border rounded-md p-3">
+          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Est. Cost</div>
+          <div class="font-bold font-mono tabular-nums text-green-600 dark:text-green-400">{formatCost(totalCost)}</div>
         </div>
       </div>
 
-      <div class="space-y-4">
-        <h2 class="text-2xl font-bold tracking-tight">Participants</h2>
-        <div class="rounded-xl border bg-card overflow-hidden">
+      <!-- Winner Section -->
+      <section class="space-y-3">
+        <div class="flex items-center gap-2">
+          <Trophy size={16} class={game.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'} />
+          <h2 class="font-semibold">Winner</h2>
+        </div>
+        <div class="border rounded-md overflow-hidden">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b bg-muted/50 font-medium text-muted-foreground">
-                <th class="h-12 px-4 text-left align-middle">Model</th>
-                <th class="h-12 px-4 text-left align-middle">Team</th>
-                <th class="h-12 px-4 text-center align-middle">Players</th>
-                <th class="h-12 px-4 text-right align-middle">Tokens</th>
+              <tr class="border-b bg-muted/50">
+                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Model</th>
+                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Team</th>
+                <th class="h-9 px-3 text-right font-medium text-muted-foreground"># Players</th>
               </tr>
             </thead>
-            <tbody class="divide-y">
-              {participants.map(p => (
-                <tr class="transition-colors hover:bg-muted/50">
-                  <td class="p-4 font-semibold">{p.model_name || p.model_id}</td>
-                  <td class="p-4">
-                    <span class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      p.team === 'mafia' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
+            <tbody>
+              {winnerParticipants.map((p: any) => (
+                <tr class={`border-b last:border-0 ${game.winner === 'mafia' ? 'bg-red-500/5' : 'bg-blue-500/5'}`}>
+                  <td class="h-10 px-3">
+                    <span class="font-semibold">{p.model_name || p.model_id}</span>
+                  </td>
+                  <td class="h-10 px-3">
+                    <span class={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                      p.team === 'mafia' 
+                        ? 'text-red-600 dark:text-red-400' 
+                        : 'text-blue-600 dark:text-blue-400'
                     }`}>
-                      {p.team.toUpperCase()}
+                      <span class={`w-2 h-2 rounded-full ${
+                        p.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
+                      }`}></span>
+                      {p.team}
                     </span>
                   </td>
-                  <td class="p-4 text-center">{p.player_count}</td>
-                  <td class="p-4 text-right text-muted-foreground font-mono">
-                    --
+                  <td class="h-10 px-3 text-right font-mono tabular-nums">
+                    {p.player_count || 1}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
+
+      <!-- Loser Section -->
+      <section class="space-y-3">
+        <div class="flex items-center gap-2">
+          <X size={16} class="text-muted-foreground" />
+          <h2 class="font-semibold text-muted-foreground">Defeated</h2>
+        </div>
+        <div class="border rounded-md overflow-hidden opacity-75">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b bg-muted/50">
+                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Model</th>
+                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Team</th>
+                <th class="h-9 px-3 text-right font-medium text-muted-foreground"># Players</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loserParticipants.map((p: any) => (
+                <tr class="border-b last:border-0">
+                  <td class="h-10 px-3">
+                    <span class="font-medium text-muted-foreground">{p.model_name || p.model_id}</span>
+                  </td>
+                  <td class="h-10 px-3">
+                    <span class={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                      p.team === 'mafia' 
+                        ? 'text-red-500/60' 
+                        : 'text-blue-500/60'
+                    }`}>
+                      <span class={`w-2 h-2 rounded-full opacity-50 ${
+                        p.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
+                      }`}></span>
+                      {p.team}
+                    </span>
+                  </td>
+                  <td class="h-10 px-3 text-right font-mono tabular-nums text-muted-foreground">
+                    {p.player_count || 1}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Token Usage -->
+      <section class="border rounded-md p-4 bg-muted/30">
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-muted-foreground">Total tokens used</span>
+          <span class="font-mono tabular-nums">{game.total_tokens?.toLocaleString() || 0}</span>
+        </div>
+        <div class="flex items-center justify-between text-sm mt-2">
+          <span class="text-muted-foreground">Duration</span>
+          <span class="font-mono tabular-nums">{((game.duration_ms || 0) / 1000).toFixed(1)}s</span>
+        </div>
+      </section>
+
+      <!-- Personas Section (if enabled) -->
+      {personaEnabled && personas.length > 0 && (
+        <section class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Sparkles size={16} class="text-amber-500" />
+              <h2 class="font-semibold">AI-Generated Personas</h2>
+            </div>
+            {personaAnalysis && (
+              <div class="flex items-center gap-4 text-xs">
+                <span class="text-muted-foreground">
+                  Avg Consistency: 
+                  <span class="font-mono font-medium text-foreground ml-1">
+                    {(personaAnalysis.averageScore * 100).toFixed(0)}%
+                  </span>
+                </span>
+              </div>
+            )}
+          </div>
+
+          {personaAnalysis && (
+            <div class="grid grid-cols-2 gap-3">
+              <div class="border rounded-md p-3 bg-red-500/5">
+                <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Mafia Consistency</div>
+                <div class="font-bold font-mono tabular-nums text-red-600 dark:text-red-400">
+                  {(personaAnalysis.mafiaAvgConsistency * 100).toFixed(0)}%
+                </div>
+              </div>
+              <div class="border rounded-md p-3 bg-blue-500/5">
+                <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Town Consistency</div>
+                <div class="font-bold font-mono tabular-nums text-blue-600 dark:text-blue-400">
+                  {(personaAnalysis.townAvgConsistency * 100).toFixed(0)}%
+                </div>
+              </div>
+            </div>
+          )}
+
+          <!-- Persona Cards -->
+          <div class="space-y-3">
+            {personas.map((p: any) => (
+              <div class={`border rounded-md p-4 ${
+                p.team === 'mafia' 
+                  ? 'border-red-500/30 bg-red-500/5' 
+                  : 'border-blue-500/30 bg-blue-500/5'
+              }`}>
+                <div class="flex items-start justify-between gap-4">
+                  <div class="flex items-center gap-3">
+                    <div class={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      p.team === 'mafia' ? 'bg-red-500/20' : 'bg-blue-500/20'
+                    }`}>
+                      <User size={16} class={p.team === 'mafia' ? 'text-red-500' : 'text-blue-500'} />
+                    </div>
+                    <div>
+                      <div class="font-semibold">{p.persona.name}</div>
+                      <div class="text-xs text-muted-foreground">
+                        {p.modelName} • 
+                        <span class={p.team === 'mafia' ? 'text-red-500' : 'text-blue-500'}>
+                          {p.team}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {p.consistency.score !== null && (
+                    <div class="text-right">
+                      <div class="text-xs text-muted-foreground">Consistency</div>
+                      <div class={`font-mono font-semibold ${
+                        p.consistency.score >= 0.7 ? 'text-green-600 dark:text-green-400' :
+                        p.consistency.score >= 0.4 ? 'text-amber-600 dark:text-amber-400' :
+                        'text-red-600 dark:text-red-400'
+                      }`}>
+                        {(p.consistency.score * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div class="mt-3 space-y-2 text-sm">
+                  <div>
+                    <span class="text-muted-foreground">Personality:</span>
+                    <span class="ml-2 font-medium">{p.persona.personality}</span>
+                  </div>
+                  <div class="text-muted-foreground italic">
+                    "{p.persona.background}"
+                  </div>
+                </div>
+
+                {p.consistency.inconsistencies && p.consistency.inconsistencies.length > 0 && (
+                  <div class="mt-3 pt-3 border-t border-dashed">
+                    <div class="text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">Inconsistencies detected:</div>
+                    <ul class="text-xs text-muted-foreground space-y-0.5">
+                      {p.consistency.inconsistencies.map((issue: string) => (
+                        <li class="flex items-start gap-1">
+                          <span class="text-amber-500">•</span>
+                          {issue}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )}
 </Layout>

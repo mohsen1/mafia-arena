@@ -62,7 +62,8 @@ export async function executeVotePhase(
     const targetList = formatPlayerList(validTargets);
     const userPrompt = ACTION_PROMPTS.eliminationVote(
       targetList.split('\n'),
-      visibleState
+      visibleState,
+      player.persona
     );
 
     const response = await aiProvider.getAction(

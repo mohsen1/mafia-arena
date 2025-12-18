@@ -12,6 +12,19 @@ export type Team = 'mafia' | 'town';
 export type Phase = 'introduction' | 'night' | 'day_discussion' | 'day_vote';
 
 // =============================================================================
+// Personas
+// =============================================================================
+
+export type PersonaConstraints = 'strict' | 'moderate' | 'free';
+
+export interface Persona {
+  readonly name: string;
+  readonly background: string;
+  readonly personality: string;
+  readonly occupation?: string | undefined;
+}
+
+// =============================================================================
 // Players
 // =============================================================================
 
@@ -21,6 +34,7 @@ export interface Player {
   readonly modelId: string;
   readonly team: Team;
   readonly isAlive: boolean;
+  readonly persona?: Persona;
 }
 
 export interface DeadPlayer {
@@ -41,6 +55,8 @@ export interface GameConfig {
   readonly teams: readonly TeamAssignment[];
   readonly maxRounds: number;
   readonly discussionEnabled: boolean;
+  readonly personaEnabled?: boolean | undefined;
+  readonly personaConstraints?: PersonaConstraints | undefined;
 }
 
 export interface TeamAssignment {
@@ -62,6 +78,7 @@ export interface GameResult {
   readonly tokenUsage: TokenUsage;
   readonly durationMs: number;
   readonly participants: readonly ParticipantResult[];
+  readonly personaAnalysis?: PersonaAnalysis | undefined;
 }
 
 export interface ParticipantResult {
@@ -70,6 +87,28 @@ export interface ParticipantResult {
   readonly playerCount: number;
   readonly won: boolean;
   readonly tokensUsed: number;
+  readonly consistencyScore?: number | undefined;
+}
+
+export interface PersonaAnalysis {
+  readonly playerScores: readonly PlayerConsistencyScore[];
+  readonly averageScore: number;
+  readonly teamScores: {
+    readonly mafia: number;
+    readonly town: number;
+  };
+}
+
+export interface PlayerConsistencyScore {
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly modelId: string;
+  readonly team: Team;
+  readonly persona: Persona;
+  readonly score: number;
+  readonly nameUsageCount: number;
+  readonly personalityAlignmentScore: number;
+  readonly inconsistencies: readonly string[];
 }
 
 export interface TokenUsage {
@@ -98,7 +137,7 @@ export interface AIContext {
 }
 
 export interface ActionPrompt {
-  readonly type: 'introduction' | 'kill_vote' | 'discussion' | 'elimination_vote';
+  readonly type: 'persona_generation' | 'introduction' | 'kill_vote' | 'discussion' | 'elimination_vote';
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly validTargets?: readonly string[];
@@ -117,10 +156,16 @@ export interface AIResponse {
 // =============================================================================
 
 export type PlayerAction =
+  | PersonaGenerationAction
   | IntroductionAction
   | KillVoteAction
   | DiscussionAction
   | EliminationVoteAction;
+
+export interface PersonaGenerationAction {
+  readonly type: 'persona_generation';
+  readonly persona: Persona;
+}
 
 export interface IntroductionAction {
   readonly type: 'introduction';
@@ -158,12 +203,14 @@ export interface VisibleGameState {
 export interface VisiblePlayer {
   readonly id: string;
   readonly name: string;
+  readonly persona?: Persona | undefined;
 }
 
 export interface VisibleDeadPlayer {
   readonly id: string;
   readonly name: string;
   readonly team: Team; // Revealed on death
+  readonly persona?: Persona | undefined;
 }
 
 export interface ConversationMessage {
@@ -181,6 +228,7 @@ export type GameEvent =
   | PhaseStartEvent
   | PhaseEndEvent
   | AICallEvent
+  | PersonaGenerationEvent
   | IntroductionEvent
   | DiscussionEvent
   | VoteEvent
@@ -201,6 +249,15 @@ export interface PhaseEndEvent {
   readonly timestamp: number;
 }
 
+export interface PersonaGenerationEvent {
+  readonly type: 'persona_generation';
+  readonly round: number;
+  readonly playerId: string;
+  readonly playerName: string;
+  readonly persona: Persona;
+  readonly timestamp: number;
+}
+
 export interface AICallEvent {
   readonly type: 'ai_call';
   readonly phase: Phase;
@@ -209,7 +266,7 @@ export interface AICallEvent {
   readonly playerName: string;
   readonly modelId: string;
   readonly team: Team;
-  readonly actionType: 'introduction' | 'kill_vote' | 'discussion' | 'elimination_vote';
+  readonly actionType: 'persona_generation' | 'introduction' | 'kill_vote' | 'discussion' | 'elimination_vote';
   readonly prompt: {
     readonly system: string;
     readonly user: string;

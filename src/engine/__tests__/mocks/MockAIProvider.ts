@@ -132,6 +132,17 @@ export class ScenarioMockAIProvider implements AIProvider {
     let action: PlayerAction;
 
     switch (prompt.type) {
+      case 'persona_generation':
+        action = {
+          type: 'persona_generation',
+          persona: {
+            name: `Player${context.playerId.slice(-1)}`,
+            background: 'A test player generated for mocking.',
+            personality: 'Analytical',
+          },
+        };
+        break;
+
       case 'introduction':
         action = {
           type: 'introduction',

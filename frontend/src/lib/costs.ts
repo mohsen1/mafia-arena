@@ -3,18 +3,48 @@
  */
 
 // Cost per 1K tokens by model (USD)
+// Pricing from official docs - late 2025 estimates
 const PRICING: Record<string, { input: number; output: number }> = {
-  'gpt-4o': { input: 0.005, output: 0.015 },
-  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
-  'claude-3-5-sonnet': { input: 0.003, output: 0.015 },
-  'claude-3-haiku': { input: 0.00025, output: 0.00125 },
-  'gemini-1.5-pro': { input: 0.00125, output: 0.005 },
-  'gemini-1.5-flash': { input: 0.000075, output: 0.0003 },
-  'gemini-2.0-flash': { input: 0.0001, output: 0.0004 },
+  // OpenAI (GPT-5.x series)
+  'gpt-5.2': { input: 0.00175, output: 0.014 },
+  'gpt-5.2-pro': { input: 0.021, output: 0.168 },
+  'gpt-5.1': { input: 0.00125, output: 0.01 },
+
+  // Anthropic Claude (4.5 series)
+  'claude-opus-4.5': { input: 0.005, output: 0.025 },
+  'claude-sonnet-4.5': { input: 0.003, output: 0.015 },
+  'claude-haiku-4.5': { input: 0.001, output: 0.005 },
+
+  // Google Gemini (3.x preview series)
+  'gemini-3-pro-preview': { input: 0.002, output: 0.012 },
+  'gemini-3-flash-preview': { input: 0.00015, output: 0.0006 },
+  'gemini-2.5-flash': { input: 0.0003, output: 0.0025 },
 };
 
 // Default pricing if model not found
 const DEFAULT_PRICING = { input: 0.001, output: 0.003 };
+
+// Batch API pricing per 1K tokens (USD) - typically 50% discount
+// OpenAI Batch API, Anthropic Message Batches, Google Batch
+const BATCH_PRICING: Record<string, { input: number; output: number }> = {
+  // OpenAI Batch API (50% discount)
+  'gpt-5.2': { input: 0.000875, output: 0.007 },
+  'gpt-5.2-pro': { input: 0.0105, output: 0.084 },
+  'gpt-5.1': { input: 0.000625, output: 0.005 },
+
+  // Anthropic Message Batches (~50% discount)
+  'claude-opus-4.5': { input: 0.0025, output: 0.0125 },
+  'claude-sonnet-4.5': { input: 0.0015, output: 0.0075 },
+  'claude-haiku-4.5': { input: 0.0005, output: 0.0025 },
+
+  // Google Batch (~50% discount)
+  'gemini-3-pro-preview': { input: 0.001, output: 0.006 },
+  'gemini-3-flash-preview': { input: 0.000075, output: 0.0003 },
+  'gemini-2.5-flash': { input: 0.00015, output: 0.00125 },
+};
+
+// Default batch pricing (50% of standard default)
+const DEFAULT_BATCH_PRICING = { input: 0.0005, output: 0.0015 };
 
 /**
  * Calculate the cost of an AI API call.
@@ -24,6 +54,17 @@ export function calculateCost(
   tokens: { input: number; output: number }
 ): number {
   const pricing = PRICING[modelId] || DEFAULT_PRICING;
+  return (tokens.input / 1000) * pricing.input + (tokens.output / 1000) * pricing.output;
+}
+
+/**
+ * Calculate the cost of a batch AI API call (typically 50% cheaper).
+ */
+export function calculateBatchCost(
+  modelId: string,
+  tokens: { input: number; output: number }
+): number {
+  const pricing = BATCH_PRICING[modelId] || DEFAULT_BATCH_PRICING;
   return (tokens.input / 1000) * pricing.input + (tokens.output / 1000) * pricing.output;
 }
 
@@ -55,6 +96,13 @@ export function formatCost(cost: number): string {
  */
 export function getModelPricing(modelId: string): { input: number; output: number } {
   return PRICING[modelId] || DEFAULT_PRICING;
+}
+
+/**
+ * Get the batch pricing info for a model.
+ */
+export function getModelBatchPricing(modelId: string): { input: number; output: number } {
+  return BATCH_PRICING[modelId] || DEFAULT_BATCH_PRICING;
 }
 
 /**

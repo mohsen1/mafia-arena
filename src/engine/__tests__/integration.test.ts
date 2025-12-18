@@ -23,6 +23,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       // Create a deterministic provider that makes mafia lose
@@ -72,6 +74,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       const strategy = new CoordinatedMafiaStrategy();
@@ -97,6 +101,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 15,
         discussionEnabled: true,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       const strategy = new FirstTargetStrategy();
@@ -135,6 +141,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 2,
         discussionEnabled: true,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       const strategy = new FirstTargetStrategy();
@@ -162,6 +170,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 5,
         discussionEnabled: false,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       const strategy = new FirstTargetStrategy();
@@ -203,6 +213,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       const strategy = new FirstTargetStrategy();
@@ -227,6 +239,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       const strategy = new FirstTargetStrategy();
@@ -264,6 +278,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       const strategy = new FirstTargetStrategy();
@@ -285,6 +301,8 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: true,
+        personaEnabled: false,
+        personaConstraints: 'moderate',
       };
 
       const strategy = new FirstTargetStrategy();

@@ -9,6 +9,7 @@ import type {
   GameConfig,
   GameEvent,
   ConversationMessage,
+  Persona,
 } from './types.js';
 
 export class GameState {
@@ -18,7 +19,8 @@ export class GameState {
     public readonly round: number,
     public readonly events: readonly GameEvent[],
     public readonly conversationHistory: readonly ConversationMessage[],
-    public readonly gameId: string
+    public readonly gameId: string,
+    public readonly config: GameConfig
   ) {}
 
   /**
@@ -26,7 +28,7 @@ export class GameState {
    */
   static create(gameId: string, config: GameConfig): GameState {
     const players = createPlayers(config);
-    return new GameState(players, 'night', 1, [], [], gameId);
+    return new GameState(players, 'night', 1, [], [], gameId, config);
   }
 
   // ===========================================================================
@@ -66,7 +68,26 @@ export class GameState {
       this.round,
       this.events,
       this.conversationHistory,
-      this.gameId
+      this.gameId,
+      this.config
+    );
+  }
+
+  /**
+   * Set a player's persona.
+   */
+  withPlayerPersona(playerId: string, persona: Persona): GameState {
+    const players = this.players.map((p) =>
+      p.id === playerId ? { ...p, persona, name: persona.name } : p
+    );
+    return new GameState(
+      players,
+      this.phase,
+      this.round,
+      this.events,
+      this.conversationHistory,
+      this.gameId,
+      this.config
     );
   }
 
@@ -80,7 +101,8 @@ export class GameState {
       this.round,
       [...this.events, event],
       this.conversationHistory,
-      this.gameId
+      this.gameId,
+      this.config
     );
   }
 
@@ -94,7 +116,8 @@ export class GameState {
       this.round,
       [...this.events, ...events],
       this.conversationHistory,
-      this.gameId
+      this.gameId,
+      this.config
     );
   }
 
@@ -108,7 +131,8 @@ export class GameState {
       this.round,
       this.events,
       this.conversationHistory,
-      this.gameId
+      this.gameId,
+      this.config
     );
   }
 
@@ -122,7 +146,8 @@ export class GameState {
       this.round + 1,
       this.events,
       this.conversationHistory,
-      this.gameId
+      this.gameId,
+      this.config
     );
   }
 
@@ -136,7 +161,8 @@ export class GameState {
       this.round,
       this.events,
       [...this.conversationHistory, message],
-      this.gameId
+      this.gameId,
+      this.config
     );
   }
 

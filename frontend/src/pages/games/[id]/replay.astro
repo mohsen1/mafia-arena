@@ -2,7 +2,7 @@
 import Layout from '../../../components/Layout.astro';
 import { getGame, getTranscript } from '../../../lib/api';
 import { calculateCost, formatCost, calculateTotalCost } from '../../../lib/costs';
-import { MessageSquare, Moon, Sun, Vote, UserCircle, Cpu, Clock, Hash, Skull, Hand, DollarSign } from 'lucide-astro';
+import { MessageSquare, Moon, Vote, Cpu, Clock, Hash, Skull, Hand, DollarSign, ChevronDown, ArrowLeft } from 'lucide-astro';
 
 const { id } = Astro.params;
 
@@ -17,242 +17,294 @@ try {
   error = e instanceof Error ? e.message : 'Failed to load game replay';
 }
 
-// Group events by round and phase
 function groupEvents(events: any[]) {
   const grouped: Record<number, Record<string, any[]>> = {};
-
   for (const event of events) {
     const round = event.round || 1;
     const phase = event.phase || 'other';
-
     if (!grouped[round]) grouped[round] = {};
     if (!grouped[round][phase]) grouped[round][phase] = [];
-
     grouped[round][phase].push(event);
   }
-
   return grouped;
 }
 
-const events = transcript?.events || [];
+const events = (transcript as any)?.events || [];
 const groupedEvents = groupEvents(events);
 const rounds = Object.keys(groupedEvents).map(Number).sort((a, b) => a - b);
-
-// Calculate total cost
 const aiCallEvents = events.filter((e: any) => e.type === 'ai_call');
 const totalCost = calculateTotalCost(aiCallEvents);
+
+// Build player roster from ai_call events (persona_generation type)
+interface PlayerInfo {
+  playerId: string;
+  originalName: string;
+  personaName: string;
+  team: 'mafia' | 'town';
+  modelId: string;
+}
+const playerRoster: PlayerInfo[] = [];
+const playerMap: Record<string, PlayerInfo> = {};
+
+// First pass: get team info from ai_call events
+const teamMap: Record<string, 'mafia' | 'town'> = {};
+for (const event of events) {
+  if (event.type === 'ai_call' && event.playerId && event.team) {
+    teamMap[event.playerId] = event.team;
+  }
+}
+
+// Second pass: build roster from persona_generation events
+for (const event of events) {
+  if (event.type === 'persona_generation' && !playerMap[event.playerId]) {
+    const info: PlayerInfo = {
+      playerId: event.playerId,
+      originalName: event.playerId.replace('player_', 'Player '),
+      personaName: event.persona?.name || event.playerName,
+      team: teamMap[event.playerId] || 'town',
+      modelId: '',
+    };
+    playerRoster.push(info);
+    playerMap[event.playerId] = info;
+  }
+}
+
+// If no persona events, build from ai_call events
+if (playerRoster.length === 0) {
+  const seenPlayers = new Set<string>();
+  for (const event of events) {
+    if (event.type === 'ai_call' && event.playerId && !seenPlayers.has(event.playerId)) {
+      seenPlayers.add(event.playerId);
+      const info: PlayerInfo = {
+        playerId: event.playerId,
+        originalName: event.playerId.replace('player_', 'Player '),
+        personaName: event.playerName || event.playerId,
+        team: event.team || 'town',
+        modelId: event.modelId || '',
+      };
+      playerRoster.push(info);
+      playerMap[event.playerId] = info;
+    }
+  }
+}
+
+// Helper to get persona name from player ID
+function getPersonaName(playerId: string): string {
+  return playerMap[playerId]?.personaName || playerId;
+}
+
+function getPlayerTeam(playerId: string): string {
+  return playerMap[playerId]?.team || 'town';
+}
+
+function getPhaseIcon(phase: string) {
+  switch (phase) {
+    case 'introduction': return 'wave';
+    case 'night': return 'moon';
+    case 'day_discussion': return 'chat';
+    case 'day_vote': return 'vote';
+    default: return 'circle';
+  }
+}
 
 function getPhaseLabel(phase: string) {
   switch (phase) {
     case 'introduction': return 'Introduction';
-    case 'night': return 'Night Phase';
+    case 'night': return 'Night';
     case 'day_discussion': return 'Discussion';
-    case 'day_vote': return 'Elimination Vote';
+    case 'day_vote': return 'Vote';
     default: return phase;
   }
 }
 
 function getEventCost(event: any): string {
   if (event.tokensUsed) {
-    const cost = calculateCost(event.modelId, event.tokensUsed);
-    return formatCost(cost);
+    return formatCost(calculateCost(event.modelId, event.tokensUsed));
   }
   return '--';
 }
 ---
 
-<Layout title={game ? `Replay: Game #${game.id.slice(-8)}` : 'Replay Not Found'}>
+<Layout title={game ? `Replay ${game.id.slice(-8)}` : 'Not Found'}>
   {error || !game ? (
-    <div class="flex flex-col items-center justify-center min-h-[400px] border border-destructive/20 bg-destructive/5 rounded-xl p-8 text-center space-y-4">
-      <div class="bg-destructive/10 text-destructive rounded-full p-4 text-2xl">⚠️</div>
-      <div class="space-y-1">
-        <h2 class="text-xl font-semibold">Transcript not found</h2>
-        <p class="text-muted-foreground">{error || 'The requested game transcript could not be found.'}</p>
-      </div>
-      <a href={`/games/${id}`} class="text-sm font-medium hover:underline">← Back to game result</a>
+    <div class="border rounded-md p-8 text-center text-muted-foreground">
+      <p class="text-sm mb-4">Transcript not found</p>
+      <a href="/games" class="text-sm font-medium hover:underline">← Back to games</a>
     </div>
   ) : (
-    <div class="max-w-5xl mx-auto space-y-8">
-      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div class="space-y-1">
-          <div class="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <a href="/games" class="hover:text-foreground">Games</a>
-            <span>/</span>
-            <a href={`/games/${game.id}`} class="hover:text-foreground font-mono">{game.id.slice(-8)}</a>
-            <span>/</span>
-            <span>Replay</span>
+    <div class="space-y-6 max-w-4xl">
+      <div class="flex items-center gap-2 text-sm text-muted-foreground">
+        <a href="/games" class="hover:text-foreground inline-flex items-center gap-1">
+          <ArrowLeft size={14} /> Games
+        </a>
+        <span>/</span>
+        <a href={`/games/${game.id}`} class="hover:text-foreground">
+          <code class="text-xs">{game.id.slice(-12)}</code>
+        </a>
+        <span>/</span>
+        <span>Replay</span>
+      </div>
+
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Game Replay</h1>
+          <div class="flex items-center gap-3 mt-1 text-sm">
+            <span class={`inline-flex items-center gap-1 font-medium ${
+              game.winner === 'mafia' ? 'text-red-500 dark:text-red-400' : 'text-blue-500 dark:text-blue-400'
+            }`}>
+              <span class={`w-2 h-2 rounded-full ${game.winner === 'mafia' ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+              {game.winner === 'mafia' ? 'Mafia' : 'Town'} wins
+            </span>
+            <span class="text-muted-foreground">{game.rounds} rounds</span>
+            <span class="text-green-600 dark:text-green-400 font-mono">{formatCost(totalCost)}</span>
           </div>
-          <h1 class="text-4xl font-bold tracking-tight">Game Replay</h1>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-bold ${
-            game.winner === 'mafia' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-          }`}>
-            {game.winner === 'mafia' ? '🔴' : '🔵'} {game.winner.toUpperCase()} WINS
-          </span>
-          <span class="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full font-medium">
-            {game.rounds} Rounds
-          </span>
-          <span class="text-sm text-green-500 bg-green-500/10 px-3 py-1 rounded-full font-medium border border-green-500/20">
-            💰 {formatCost(totalCost)}
-          </span>
         </div>
       </div>
 
-      {!transcript ? (
-        <div class="flex flex-col items-center justify-center min-h-[400px] border rounded-xl animate-pulse bg-muted/20">
-          <p class="text-muted-foreground font-medium">Loading transcript data...</p>
+      {/* Player Roster */}
+      {playerRoster.length > 0 && (
+        <div class="border rounded-md p-4 bg-muted/30">
+          <h3 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Player Roster</h3>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+            {playerRoster.map((player) => (
+              <div class={`flex items-center gap-2 px-2 py-1.5 rounded border text-sm ${
+                player.team === 'mafia' 
+                  ? 'bg-red-500/5 border-red-500/20' 
+                  : 'bg-blue-500/5 border-blue-500/20'
+              }`}>
+                <div class={`w-2 h-2 rounded-full shrink-0 ${
+                  player.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
+                }`}></div>
+                <div class="min-w-0">
+                  <div class="font-medium truncate">{player.personaName}</div>
+                  <div class="text-[10px] text-muted-foreground truncate">{player.originalName}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div class="flex gap-4 mt-2 text-[10px] text-muted-foreground">
+            <span class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-red-500"></span> Mafia
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span> Town
+            </span>
+          </div>
         </div>
-      ) : events.length === 0 ? (
-        <div class="p-12 text-center border rounded-xl border-dashed">
-          <p class="text-muted-foreground font-medium">No events recorded for this game.</p>
+      )}
+
+      {events.length === 0 ? (
+        <div class="border rounded-md p-8 text-center text-muted-foreground">
+          <p class="text-sm">No events recorded</p>
         </div>
       ) : (
-        <div class="space-y-12">
+        <div class="space-y-6">
           {rounds.map(round => (
-            <div class="space-y-6">
-              <div class="flex items-center gap-4">
-                <div class="h-px flex-1 bg-border"></div>
-                <div class="bg-secondary text-secondary-foreground px-4 py-1 rounded-full text-sm font-bold tracking-widest uppercase">
-                  Round {round}
-                </div>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                <span class="uppercase tracking-wider">Round {round}</span>
                 <div class="h-px flex-1 bg-border"></div>
               </div>
 
-              <div class="grid gap-6">
-                {Object.entries(groupedEvents[round] || {}).map(([phase, phaseEvents]) => (
-                  <div class="space-y-4">
-                    <div class="flex items-center gap-2 text-muted-foreground px-2">
-                      {phase === 'introduction' && <Hand size={18} />}
-                      {phase === 'night' && <Moon size={18} />}
-                      {phase === 'day_discussion' && <MessageSquare size={18} />}
-                      {phase === 'day_vote' && <Vote size={18} />}
-                      <h3 class="font-bold text-sm uppercase tracking-wider">{getPhaseLabel(phase)}</h3>
-                    </div>
+              {Object.entries(groupedEvents[round] || {}).map(([phase, phaseEvents]) => (
+                <div class="space-y-2">
+                  <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-1">
+                    {phase === 'introduction' && <Hand size={12} />}
+                    {phase === 'night' && <Moon size={12} />}
+                    {phase === 'day_discussion' && <MessageSquare size={12} />}
+                    {phase === 'day_vote' && <Vote size={12} />}
+                    <span>{getPhaseLabel(phase)}</span>
+                  </div>
 
-                    <div class="space-y-3">
-                      {(phaseEvents as any[]).map(event => (
-                        event.type === 'ai_call' ? (
-                          <div class="rounded-xl border bg-card shadow-sm overflow-hidden group">
-                            <details class="w-full">
-                              <summary class="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/30 transition-colors list-none">
-                                <div class={`w-2 h-10 rounded-full ${event.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
-                                <div class="flex-1 min-w-0">
-                                  <div class="flex items-center gap-2">
-                                    <span class="font-bold truncate">{event.playerName}</span>
-                                    <span class="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono uppercase tracking-tighter">{event.modelId}</span>
-                                  </div>
-                                  <div class="text-xs text-muted-foreground mt-0.5 flex items-center gap-3 flex-wrap">
-                                    <span class="flex items-center gap-1"><Cpu size={12}/> {event.actionType.replace('_', ' ')}</span>
-                                    <span class="flex items-center gap-1"><Clock size={12}/> {event.latencyMs}ms</span>
-                                    <span class="flex items-center gap-1"><Hash size={12}/> {event.tokensUsed?.total || (event.tokensUsed?.input + event.tokensUsed?.output)} tokens</span>
-                                    <span class="flex items-center gap-1 text-green-500"><DollarSign size={12}/> {getEventCost(event)}</span>
-                                  </div>
-                                </div>
-                                <div class="text-muted-foreground group-open:rotate-180 transition-transform">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                </div>
-                              </summary>
-                              <div class="p-4 border-t bg-muted/10 space-y-6">
-                                <div class="grid md:grid-cols-2 gap-4">
-                                  <div class="space-y-2">
-                                    <div class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                                      <UserCircle size={10} /> System Prompt
-                                    </div>
-                                    <div class="p-3 rounded-lg bg-muted/50 text-xs font-mono leading-relaxed max-h-48 overflow-y-auto border whitespace-pre-wrap">
-                                      {event.prompt?.system}
-                                    </div>
-                                  </div>
-                                  <div class="space-y-2">
-                                    <div class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                                      <MessageSquare size={10} /> User Prompt
-                                    </div>
-                                    <div class="p-3 rounded-lg bg-muted/50 text-xs font-mono leading-relaxed max-h-48 overflow-y-auto border whitespace-pre-wrap">
-                                      {event.prompt?.user}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div class="space-y-2">
-                                  <div class="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-1">
-                                    <Cpu size={10} /> Model Response
-                                  </div>
-                                  <div class="p-4 rounded-lg bg-background text-sm leading-relaxed border border-primary/20 shadow-inner whitespace-pre-wrap">
-                                    {event.response?.raw}
-                                  </div>
-                                </div>
-                                <div class="flex items-center gap-6 pt-2 border-t text-xs text-muted-foreground">
-                                  <span>Input: <span class="font-mono text-foreground">{event.tokensUsed?.input || 0}</span> tokens</span>
-                                  <span>Output: <span class="font-mono text-foreground">{event.tokensUsed?.output || 0}</span> tokens</span>
-                                  <span>Latency: <span class="font-mono text-foreground">{event.latencyMs}</span>ms</span>
-                                  <span class="text-green-500">Cost: <span class="font-mono font-bold">{getEventCost(event)}</span></span>
-                                </div>
+                  <div class="space-y-1.5">
+                    {(phaseEvents as any[]).map(event => (
+                      event.type === 'ai_call' ? (
+                        <details class="border rounded-md overflow-hidden group">
+                          <summary class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors text-sm">
+                            <div class={`w-1 h-6 rounded-full shrink-0 ${event.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
+                            <span class="font-medium truncate">{event.playerName}</span>
+                            <code class="text-[10px] text-muted-foreground truncate">{event.modelId}</code>
+                            <div class="flex-1"></div>
+                            <span class="text-xs text-muted-foreground tabular-nums font-mono">{event.latencyMs}ms</span>
+                            <span class="text-xs text-muted-foreground tabular-nums font-mono">{event.tokensUsed?.total || (event.tokensUsed?.input + event.tokensUsed?.output)}tok</span>
+                            <span class="text-xs text-green-600 dark:text-green-400 tabular-nums font-mono">{getEventCost(event)}</span>
+                            <ChevronDown size={14} class="text-muted-foreground transition-transform group-open:rotate-180" />
+                          </summary>
+                          <div class="px-3 py-3 border-t bg-muted/20 space-y-3 text-xs">
+                            <div class="grid md:grid-cols-2 gap-3">
+                              <div>
+                                <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">System</div>
+                                <pre class="p-2 rounded bg-background border text-[11px] overflow-auto max-h-32 whitespace-pre-wrap">{event.prompt?.system}</pre>
                               </div>
-                            </details>
-                          </div>
-                        ) : event.type === 'discussion' ? (
-                          <div class="flex gap-4 px-4 py-2 group">
-                            <div class="flex-none flex flex-col items-center gap-2">
-                              <div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-secondary-foreground border">
-                                {event.playerName[0]}
+                              <div>
+                                <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">User</div>
+                                <pre class="p-2 rounded bg-background border text-[11px] overflow-auto max-h-32 whitespace-pre-wrap">{event.prompt?.user}</pre>
                               </div>
-                              <div class="w-px flex-1 bg-border group-last:bg-transparent"></div>
-                            </div>
-                            <div class="flex-1 pb-4">
-                              <div class="flex items-baseline gap-2 mb-1">
-                                <span class="font-bold text-sm">{event.playerName}</span>
-                                <span class="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Day {event.round}</span>
-                              </div>
-                              <div class="relative bg-muted/40 p-3 rounded-2xl rounded-tl-none border">
-                                <p class="text-sm italic leading-relaxed text-foreground/90">"{event.message}"</p>
-                              </div>
-                            </div>
-                          </div>
-                        ) : event.type === 'introduction' ? (
-                          <div class="flex gap-4 px-4 py-2 group">
-                             <div class="flex-none flex flex-col items-center gap-2">
-                              <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary border border-primary/20">
-                                👋
-                              </div>
-                              <div class="w-px flex-1 bg-border group-last:bg-transparent"></div>
-                            </div>
-                            <div class="flex-1 pb-4">
-                              <div class="flex items-baseline gap-2 mb-1">
-                                <span class="font-bold text-sm">{event.playerName}</span>
-                                <span class="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Intro</span>
-                              </div>
-                              <div class="bg-primary/5 p-3 rounded-2xl rounded-tl-none border border-primary/10">
-                                <p class="text-sm italic leading-relaxed text-foreground/90">"{event.message}"</p>
-                              </div>
-                            </div>
-                          </div>
-                        ) : event.type === 'elimination' ? (
-                          <div class="mx-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5 flex items-center gap-4">
-                            <div class="p-2 rounded-full bg-red-500 text-white">
-                              <Skull size={20} />
                             </div>
                             <div>
-                              <div class="font-bold text-red-500 underline decoration-red-500/30 underline-offset-4 decoration-2 italic">
-                                {event.playerName} was eliminated.
-                              </div>
-                              <div class="text-[10px] font-bold text-red-500/60 uppercase tracking-widest mt-0.5">
-                                They were part of the {event.team.toUpperCase()} team
-                              </div>
+                              <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Response</div>
+                              <pre class="p-2 rounded bg-background border text-[11px] overflow-auto max-h-40 whitespace-pre-wrap">{event.response?.raw}</pre>
                             </div>
                           </div>
-                        ) : event.type === 'vote' ? (
-                          <div class="mx-4 p-2 text-[10px] font-mono text-muted-foreground flex items-center gap-2">
-                            <span class="font-bold text-foreground">{event.voterName}</span>
-                            <span>voted to eliminate</span>
-                            <span class={`font-bold px-1.5 py-0.5 rounded ${event.targetId ? 'bg-muted text-foreground border' : 'bg-muted/30 text-muted-foreground'}`}>
-                              {event.targetId || 'ABSTAIN'}
-                            </span>
+                        </details>
+                      ) : event.type === 'discussion' || event.type === 'introduction' ? (
+                        <div class="flex gap-2 px-1 py-1">
+                          <div class={`w-1 rounded-full shrink-0 ${
+                            playerMap[event.playerId]?.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
+                          }`}></div>
+                          <div class="min-w-0">
+                            <span class={`text-xs font-medium ${
+                              playerMap[event.playerId]?.team === 'mafia' 
+                                ? 'text-red-600 dark:text-red-400' 
+                                : 'text-blue-600 dark:text-blue-400'
+                            }`}>{event.playerName}</span>
+                            <p class="text-sm text-muted-foreground leading-relaxed">"{event.message}"</p>
                           </div>
-                        ) : null
-                      ))}
-                    </div>
+                        </div>
+                      ) : event.type === 'elimination' ? (
+                        <div class={`flex items-center gap-2 px-2 py-1.5 rounded border text-sm ${
+                          event.team === 'mafia' 
+                            ? 'bg-red-500/10 dark:bg-red-500/5 border-red-500/20'
+                            : 'bg-blue-500/10 dark:bg-blue-500/5 border-blue-500/20'
+                        }`}>
+                          <Skull size={14} class={event.team === 'mafia' ? 'text-red-500' : 'text-blue-500'} />
+                          <span class={`font-medium ${
+                            event.team === 'mafia' 
+                              ? 'text-red-600 dark:text-red-400' 
+                              : 'text-blue-600 dark:text-blue-400'
+                          }`}>{event.playerName || getPersonaName(event.playerId)}</span>
+                          <span class="text-muted-foreground">eliminated</span>
+                          <span class={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                            event.team === 'mafia' 
+                              ? 'bg-red-500/20 text-red-600 dark:text-red-400' 
+                              : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                          }`}>
+                            {event.team}
+                          </span>
+                        </div>
+                      ) : event.type === 'vote' ? (
+                        <div class="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+                          <span class={`font-medium ${
+                            playerMap[event.voterId]?.team === 'mafia' 
+                              ? 'text-red-600 dark:text-red-400' 
+                              : 'text-blue-600 dark:text-blue-400'
+                          }`}>{event.voterName || getPersonaName(event.voterId)}</span>
+                          <span>→</span>
+                          <span class={`px-1.5 py-0.5 rounded ${
+                            event.targetId 
+                              ? (playerMap[event.targetId]?.team === 'mafia' 
+                                  ? 'bg-red-500/10 text-red-600 dark:text-red-400' 
+                                  : 'bg-blue-500/10 text-blue-600 dark:text-blue-400')
+                              : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {event.targetId ? getPersonaName(event.targetId) : 'abstain'}
+                          </span>
+                        </div>
+                      ) : null
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -262,7 +314,6 @@ function getEventCost(event: any): string {
 </Layout>
 
 <style is:global>
-  details summary::-webkit-details-marker {
-    display: none;
-  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary { list-style: none; }
 </style>

@@ -1,0 +1,35 @@
+---
+interface Props {
+  currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+
+const navItems = [
+  { href: '/stats', label: 'Overview', exact: true },
+  { href: '/stats/matchups', label: 'Matchups' },
+  { href: '/stats/costs', label: 'Costs' },
+  { href: '/stats/trends', label: 'Trends' },
+];
+
+function isActive(href: string, exact = false) {
+  if (exact) return currentPath === href;
+  return currentPath.startsWith(href);
+}
+---
+
+<nav class="flex items-center gap-0.5 border-b mb-4 -mt-1">
+  {navItems.map(({ href, label, exact }) => (
+    <a
+      href={href}
+      class:list={[
+        "px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors",
+        isActive(href, exact)
+          ? "border-foreground text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground"
+      ]}
+    >
+      {label}
+    </a>
+  ))}
+</nav>

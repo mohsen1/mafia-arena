@@ -1,0 +1,171 @@
+---
+import Layout from '../../components/Layout.astro';
+import StatsNav from '../../components/StatsNav.astro';
+import { getCostStats, formatNumber } from '../../lib/api';
+import { calculateCostFromTotal, formatCost, getModelPricing } from '../../lib/costs';
+import { Coins, TrendingUp, Zap, Trophy } from 'lucide-astro';
+
+const data = await getCostStats();
+
+const modelData = data.byModel.map(m => {
+  const pricing = getModelPricing(m.model_id);
+  const estimatedCost = calculateCostFromTotal(m.model_id, m.tokens);
+  const costPerGame = m.games > 0 ? estimatedCost / m.games : 0;
+  const winsPerDollar = estimatedCost > 0 ? m.wins / estimatedCost : 0;
+  
+  return { ...m, estimatedCost, costPerGame, winsPerDollar, pricing };
+}).sort((a, b) => b.winsPerDollar - a.winsPerDollar);
+
+const providerData = data.byProvider.map(p => {
+  const estimatedCost = calculateCostFromTotal('gpt-4o', p.tokens);
+  const costPerGame = p.games > 0 ? estimatedCost / p.games : 0;
+  const winsPerDollar = estimatedCost > 0 ? p.wins / estimatedCost : 0;
+  return { ...p, estimatedCost, costPerGame, winsPerDollar };
+});
+
+const mostEfficient = modelData[0];
+const totalTokens = data.byModel.reduce((sum, m) => sum + m.tokens, 0);
+const totalCost = data.byModel.reduce((sum, m) => sum + calculateCostFromTotal(m.model_id, m.tokens), 0);
+const totalGames = data.byModel.reduce((sum, m) => sum + m.games, 0);
+
+const providerColors: Record<string, { bg: string; text: string; border: string }> = {
+  openai: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/30' },
+  anthropic: { bg: 'bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/30' },
+  google: { bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/30' },
+};
+---
+
+<Layout title="Cost Analysis">
+  <div class="space-y-4">
+    <div>
+      <h1 class="text-lg font-semibold">Cost Analysis</h1>
+      <p class="text-muted-foreground text-xs">Token usage and efficiency metrics</p>
+    </div>
+
+    <StatsNav currentPath={Astro.url.pathname} />
+
+    <!-- Summary Row -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div class="bg-card border rounded-md p-3">
+        <div class="flex items-center gap-2 text-muted-foreground mb-1">
+          <Coins class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">Total Cost</span>
+        </div>
+        <p class="text-xl font-bold">{formatCost(totalCost)}</p>
+        <p class="text-[10px] text-muted-foreground">{formatNumber(totalTokens)} tokens</p>
+      </div>
+
+      <div class="bg-card border rounded-md p-3">
+        <div class="flex items-center gap-2 text-muted-foreground mb-1">
+          <Zap class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">$/Game</span>
+        </div>
+        <p class="text-xl font-bold">{formatCost(totalCost / Math.max(totalGames, 1))}</p>
+        <p class="text-[10px] text-muted-foreground">average</p>
+      </div>
+
+      <div class="bg-card border rounded-md p-3">
+        <div class="flex items-center gap-2 text-muted-foreground mb-1">
+          <Trophy class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">Best Value</span>
+        </div>
+        <p class="text-sm font-bold truncate">{mostEfficient?.display_name || 'N/A'}</p>
+        <p class="text-[10px] text-muted-foreground">{mostEfficient ? `${mostEfficient.winsPerDollar.toFixed(1)} wins/$` : ''}</p>
+      </div>
+
+      <div class="bg-card border rounded-md p-3">
+        <div class="flex items-center gap-2 text-muted-foreground mb-1">
+          <TrendingUp class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">Models</span>
+        </div>
+        <p class="text-xl font-bold">{modelData.length}</p>
+        <p class="text-[10px] text-muted-foreground">tracked</p>
+      </div>
+    </div>
+
+    <!-- Provider Cards -->
+    <div class="grid grid-cols-3 gap-2">
+      {providerData.map(p => {
+        const colors = providerColors[p.provider] || { bg: 'bg-muted', text: '', border: '' };
+        return (
+          <div class={`border rounded-md p-3 ${colors.bg} ${colors.border}`}>
+            <p class={`text-sm font-bold capitalize ${colors.text}`}>{p.provider}</p>
+            <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+              <span class="text-muted-foreground">Games</span>
+              <span class="text-right font-medium tabular-nums">{p.games}</span>
+              <span class="text-muted-foreground">Win Rate</span>
+              <span class="text-right font-medium tabular-nums">{p.win_rate !== null ? `${(p.win_rate * 100).toFixed(1)}%` : '—'}</span>
+              <span class="text-muted-foreground">Cost</span>
+              <span class="text-right font-medium tabular-nums">{formatCost(p.estimatedCost)}</span>
+              <span class="text-muted-foreground">Wins/$</span>
+              <span class="text-right font-bold tabular-nums">{p.winsPerDollar.toFixed(1)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    <!-- Model Table -->
+    <div class="bg-card border rounded-md overflow-hidden">
+      <div class="px-3 py-2 border-b bg-muted/30">
+        <h2 class="text-sm font-semibold">Cost by Model</h2>
+      </div>
+      
+      {modelData.length === 0 ? (
+        <p class="text-xs text-muted-foreground p-4 text-center">No data available</p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-muted/30 text-muted-foreground">
+                <th class="text-left p-2 font-medium">#</th>
+                <th class="text-left p-2 font-medium">Model</th>
+                <th class="text-right p-2 font-medium">Games</th>
+                <th class="text-right p-2 font-medium">Win%</th>
+                <th class="text-right p-2 font-medium">Tokens</th>
+                <th class="text-right p-2 font-medium">Cost</th>
+                <th class="text-right p-2 font-medium">$/Game</th>
+                <th class="text-right p-2 font-medium">Wins/$</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border/50">
+              {modelData.map((m, i) => (
+                <tr class="hover:bg-muted/30">
+                  <td class="p-2 text-muted-foreground">{i + 1}</td>
+                  <td class="p-2">
+                    <span class="font-medium">{m.display_name}</span>
+                    <span class="text-muted-foreground ml-1 text-[10px]">{m.provider}</span>
+                  </td>
+                  <td class="text-right p-2 tabular-nums">{m.games}</td>
+                  <td class="text-right p-2 tabular-nums">{m.win_rate !== null ? `${(m.win_rate * 100).toFixed(1)}%` : '—'}</td>
+                  <td class="text-right p-2 tabular-nums text-muted-foreground">{formatNumber(m.tokens)}</td>
+                  <td class="text-right p-2 tabular-nums">{formatCost(m.estimatedCost)}</td>
+                  <td class="text-right p-2 tabular-nums">{formatCost(m.costPerGame)}</td>
+                  <td class="text-right p-2 tabular-nums font-bold">
+                    {i === 0 && <span class="text-amber-500 mr-1">★</span>}
+                    {m.winsPerDollar.toFixed(1)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+
+    <!-- Pricing Reference -->
+    <details class="bg-card border rounded-md">
+      <summary class="px-3 py-2 text-xs font-medium cursor-pointer hover:bg-muted/30">
+        Pricing Reference (per 1K tokens)
+      </summary>
+      <div class="px-3 pb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5 text-[10px]">
+        {modelData.map(m => (
+          <div class="flex justify-between p-1.5 bg-muted/30 rounded">
+            <span class="truncate">{m.display_name}</span>
+            <span class="text-muted-foreground ml-2 tabular-nums">${m.pricing.input.toFixed(4)}/${m.pricing.output.toFixed(4)}</span>
+          </div>
+        ))}
+      </div>
+    </details>
+  </div>
+</Layout>

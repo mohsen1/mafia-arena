@@ -1,0 +1,185 @@
+---
+import Layout from '../../components/Layout.astro';
+import StatsNav from '../../components/StatsNav.astro';
+import Tooltip from '../../components/ui/Tooltip.astro';
+import { getMatchups } from '../../lib/api';
+
+const team = Astro.url.searchParams.get('team') as 'mafia' | 'town' | null;
+const data = await getMatchups(team || undefined);
+
+const modelIds = data.models.map(m => m.id);
+
+const matrix: Record<string, Record<string, { games: number; wins: number; rate: number }>> = {};
+for (const id of modelIds) {
+  matrix[id] = {};
+}
+
+for (const m of data.matchups) {
+  if (!matrix[m.model_a]) matrix[m.model_a] = {};
+  matrix[m.model_a][m.model_b] = {
+    games: m.games,
+    wins: m.model_a_wins,
+    rate: m.games > 0 ? m.model_a_wins / m.games : 0,
+  };
+}
+
+// Create self-play map
+const selfPlayMap = Object.fromEntries(
+  (data.selfPlay || []).map(sp => [
+    sp.model_id,
+    {
+      games: sp.games,
+      mafiaWins: sp.mafia_wins,
+      townWins: sp.town_wins,
+      mafiaRate: sp.games > 0 ? sp.mafia_wins / sp.games : 0,
+      townRate: sp.games > 0 ? sp.town_wins / sp.games : 0,
+    }
+  ])
+);
+
+function getColor(rate: number): string {
+  if (rate < 0.3) return 'bg-red-600/90 text-white';
+  if (rate < 0.4) return 'bg-red-500/70 text-white';
+  if (rate < 0.45) return 'bg-orange-500/60';
+  if (rate < 0.55) return 'bg-yellow-500/40';
+  if (rate < 0.6) return 'bg-lime-500/60';
+  if (rate < 0.7) return 'bg-green-500/70 text-white';
+  return 'bg-green-600/90 text-white';
+}
+
+function getShortName(name: string): string {
+  return name.replace('Claude ', '').replace('GPT-', '').replace('Gemini ', 'G').substring(0, 8);
+}
+---
+
+<Layout title="Model Matchups">
+  <div class="space-y-4">
+    <div>
+      <h1 class="text-lg font-semibold">Model Matchups</h1>
+      <p class="text-muted-foreground text-xs">Head-to-head win rates · Rows vs Columns</p>
+    </div>
+
+    <StatsNav currentPath={Astro.url.pathname} />
+
+    <!-- Filters -->
+    <div class="flex items-center gap-1">
+      <a
+        href="/stats/matchups"
+        class:list={[
+          "px-2.5 py-1 text-xs rounded border transition-colors",
+          !team ? "bg-foreground text-background border-foreground" : "hover:bg-muted"
+        ]}
+      >All</a>
+      <a
+        href="/stats/matchups?team=mafia"
+        class:list={[
+          "px-2.5 py-1 text-xs rounded border transition-colors",
+          team === 'mafia' ? "bg-red-500 text-white border-red-500" : "hover:bg-muted"
+        ]}
+      >Mafia</a>
+      <a
+        href="/stats/matchups?team=town"
+        class:list={[
+          "px-2.5 py-1 text-xs rounded border transition-colors",
+          team === 'town' ? "bg-blue-500 text-white border-blue-500" : "hover:bg-muted"
+        ]}
+      >Town</a>
+      
+      <div class="ml-auto flex items-center gap-2 text-[10px] text-muted-foreground">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-600/90"></span>&lt;30%</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-yellow-500/40"></span>~50%</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-600/90"></span>&gt;70%</span>
+      </div>
+    </div>
+
+    {data.models.length === 0 ? (
+      <div class="bg-card border rounded-md p-8 text-center">
+        <p class="text-sm text-muted-foreground">No matchup data available</p>
+      </div>
+    ) : (
+      <div class="bg-card border rounded-md overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-muted/50">
+                <th class="p-1.5 text-left font-medium text-muted-foreground sticky left-0 bg-muted/50 z-10 min-w-[80px]">
+                  ↓ vs →
+                </th>
+                {data.models.map(m => (
+                  <th class="p-1.5 text-center font-medium min-w-[52px]">
+                    <Tooltip content={`${m.display_name}\nProvider: ${m.provider}`} side="bottom">
+                      <span class="truncate block cursor-help">
+                        {getShortName(m.display_name)}
+                      </span>
+                    </Tooltip>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.models.map(rowModel => (
+                <tr class="border-t border-border/50">
+                  <td class="p-1.5 font-medium sticky left-0 bg-card z-10 border-r">
+                    <Tooltip content={`${rowModel.display_name}\nProvider: ${rowModel.provider}`} side="right">
+                      <span class="truncate block max-w-[80px] cursor-help">
+                        {getShortName(rowModel.display_name)}
+                      </span>
+                    </Tooltip>
+                  </td>
+                  {data.models.map(colModel => {
+                    const cell = matrix[rowModel.id]?.[colModel.id];
+                    const isSelf = rowModel.id === colModel.id;
+                    const selfPlay = isSelf && !team ? selfPlayMap[rowModel.id] : null;
+                    
+                    return (
+                      <td class="p-0.5 text-center">
+                        {isSelf ? (
+                          selfPlay ? (
+                            <Tooltip 
+                              content={`Self-play: ${rowModel.display_name}\nMafia wins: ${selfPlay.mafiaWins}/${selfPlay.games} (${(selfPlay.mafiaRate * 100).toFixed(0)}%)\nTown wins: ${selfPlay.townWins}/${selfPlay.games} (${(selfPlay.townRate * 100).toFixed(0)}%)`}
+                              side="top"
+                            >
+                              <div class="w-full h-9 flex flex-col items-center justify-center cursor-help transition-transform hover:scale-105 bg-purple-500/60 text-white">
+                                <span class="font-bold text-[10px]">
+                                  {selfPlay.mafiaRate > selfPlay.townRate ? 'M' : selfPlay.townRate > selfPlay.mafiaRate ? 'T' : '='}
+                                  {(Math.max(selfPlay.mafiaRate, selfPlay.townRate) * 100).toFixed(0)}%
+                                </span>
+                                <span class="text-[8px] opacity-75">{selfPlay.games}</span>
+                              </div>
+                            </Tooltip>
+                          ) : (
+                            <div class="w-full h-9 bg-muted/30 flex items-center justify-center text-muted-foreground">—</div>
+                          )
+                        ) : cell ? (
+                          <Tooltip 
+                            content={`${rowModel.display_name} vs ${colModel.display_name}: ${cell.wins}/${cell.games} (${(cell.rate * 100).toFixed(0)}%)`}
+                            side="top"
+                          >
+                            <div 
+                              class={`w-full h-9 flex flex-col items-center justify-center cursor-help transition-transform hover:scale-105 ${getColor(cell.rate)}`}
+                            >
+                              <span class="font-bold text-[11px]">{(cell.rate * 100).toFixed(0)}%</span>
+                              <span class="text-[8px] opacity-75">{cell.games}</span>
+                            </div>
+                          </Tooltip>
+                        ) : (
+                          <div class="w-full h-9 bg-muted/10 flex items-center justify-center text-[10px] text-muted-foreground">—</div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-3 py-2 border-t bg-muted/30 text-[10px] text-muted-foreground">
+          Row model's win rate against column model. Number indicates total games.
+          {!team && (
+            <span class="ml-2">Diagonal cells show self-play win rates (M=Mafia, T=Town).</span>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+</Layout>

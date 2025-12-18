@@ -9,6 +9,7 @@ import { executeNightPhase } from './phases/NightPhase.js';
 import { executeDiscussionPhase } from './phases/DiscussionPhase.js';
 import { executeVotePhase } from './phases/VotePhase.js';
 import { checkWinCondition } from './utils/winCondition.js';
+import { analyzePersonaConsistency, getModelConsistencyScore } from './utils/consistency.js';
 import type {
   GameConfig,
   GameResult,
@@ -17,6 +18,7 @@ import type {
   ParticipantResult,
   TokenUsage,
   Team,
+  PersonaAnalysis,
 } from './types.js';
 
 export interface GameOptions {
@@ -127,8 +129,13 @@ export class Game {
     // Calculate token usage
     const tokenUsage = this.calculateTokenUsage();
 
+    // Analyze persona consistency (if personas are enabled)
+    const personaAnalysis = this.config.personaEnabled
+      ? analyzePersonaConsistency(this.state.players, this.state.events)
+      : undefined;
+
     // Create participant results
-    const participants = this.createParticipantResults(winner);
+    const participants = this.createParticipantResults(winner, personaAnalysis);
 
     return {
       id: this.gameId,
@@ -139,6 +146,7 @@ export class Game {
       tokenUsage,
       durationMs,
       participants,
+      personaAnalysis: personaAnalysis ?? undefined,
     };
   }
 
@@ -162,7 +170,10 @@ export class Game {
   /**
    * Create participant result summaries.
    */
-  private createParticipantResults(winner: Team): ParticipantResult[] {
+  private createParticipantResults(
+    winner: Team,
+    personaAnalysis: PersonaAnalysis | null | undefined
+  ): ParticipantResult[] {
     // Group players by model and team
     const modelTeamMap = new Map<string, { team: Team; count: number; tokens: number }>();
 
@@ -195,12 +206,19 @@ export class Game {
     const results: ParticipantResult[] = [];
     for (const [key, value] of modelTeamMap) {
       const [modelId] = key.split(':') as [string, Team];
+      
+      // Get consistency score for this model if available
+      const consistencyScore = personaAnalysis
+        ? getModelConsistencyScore(personaAnalysis, modelId!) ?? undefined
+        : undefined;
+
       results.push({
         modelId: modelId!,
         team: value.team,
         playerCount: value.count,
         won: value.team === winner,
         tokensUsed: value.tokens,
+        consistencyScore,
       });
     }
 
