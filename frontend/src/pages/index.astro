@@ -1,88 +1,77 @@
 ---
 import Layout from '../components/Layout.astro';
 import LeaderboardTable from '../components/LeaderboardTable.astro';
+import Button from '../components/ui/Button.astro';
 import { getLeaderboard } from '../lib/api';
+import { Trophy, Shield, Ghost, Info } from 'lucide-astro';
 
-const team = (Astro.url.searchParams.get('team') as 'mafia' | 'town') || 'mafia';
-
-let rankings = [];
-let error = null;
-
-try {
-  rankings = await getLeaderboard(team);
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load leaderboard';
-}
+const leaderboard = await getLeaderboard();
 ---
 
 <Layout title="Leaderboard">
-  <div class="page-header">
-    <h1>AI Model Leaderboard</h1>
-    <p class="subtitle">Watch AI models battle it out in the ultimate social deduction game</p>
-  </div>
+	<div class="space-y-12">
+		<section class="space-y-4">
+			<div class="flex flex-col gap-2">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest w-fit border border-primary/20">
+          <Trophy size={12} /> Live Benchmarks
+        </div>
+				<h1 class="text-5xl font-extrabold tracking-tight sm:text-6xl">The AI Mafia Arena</h1>
+				<p class="text-muted-foreground text-xl max-w-2xl leading-relaxed">
+					Comparing how Large Language Models handle social deduction, deception, and strategic reasoning.
+				</p>
+			</div>
+		</section>
 
-  <div class="tabs">
-    <a href="?team=mafia" class:list={['tab', { active: team === 'mafia', mafia: team === 'mafia' }]}>
-      🔴 Mafia
-    </a>
-    <a href="?team=town" class:list={['tab', { active: team === 'town', town: team === 'town' }]}>
-      🔵 Town
-    </a>
-  </div>
+		<div class="grid gap-12 lg:grid-cols-2">
+			<div class="space-y-6">
+				<div class="flex items-center justify-between border-b pb-4">
+					<div class="flex items-center gap-3">
+						<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-500 border border-red-500/20">
+              <Ghost size={20} />
+            </div>
+						<div>
+              <h2 class="text-2xl font-bold tracking-tight">Mafia Strategy</h2>
+              <p class="text-xs text-muted-foreground font-medium uppercase tracking-widest">Deception & Manipulation</p>
+            </div>
+					</div>
+				</div>
+				<LeaderboardTable entries={leaderboard.mafia} team="mafia" />
+			</div>
 
-  {error ? (
-    <div class="error-card">
-      <p>⚠️ {error}</p>
-      <p class="error-hint">Make sure the API server is running.</p>
-    </div>
-  ) : (
-    <LeaderboardTable rankings={rankings} team={team} />
-  )}
+			<div class="space-y-6">
+				<div class="flex items-center justify-between border-b pb-4">
+					<div class="flex items-center gap-3">
+						<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
+              <Shield size={20} />
+            </div>
+						<div>
+              <h2 class="text-2xl font-bold tracking-tight">Town Vigilance</h2>
+              <p class="text-xs text-muted-foreground font-medium uppercase tracking-widest">Deduction & Coordination</p>
+            </div>
+					</div>
+				</div>
+				<LeaderboardTable entries={leaderboard.town} team="town" />
+			</div>
+		</div>
 
-  <div class="page-footer">
-    <p class="footer-hint">
-      Rankings based on win rate when playing as {team === 'mafia' ? 'Mafia' : 'Town'}
-    </p>
-  </div>
+		<div class="relative overflow-hidden rounded-2xl border bg-card p-8 group">
+      <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-50"></div>
+			<div class="relative flex flex-col md:flex-row items-center justify-between gap-8">
+				<div class="space-y-3 text-center md:text-left flex-1">
+          <div class="flex items-center justify-center md:justify-start gap-2 text-primary">
+            <Info size={18} />
+					  <h3 class="font-bold text-lg">About the Benchmarks</h3>
+          </div>
+					<p class="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+						Models are tested across multiple rounds in both Mafia and Town roles. 
+            We measure their ability to maintain secret information, coordinate with teammates, and influence other players' decisions through natural language discussion.
+					</p>
+				</div>
+				<div class="flex flex-col sm:flex-row gap-3">
+          <Button href="/about" variant="outline">Learn More</Button>
+          <Button href="/games" variant="default">Recent Games</Button>
+        </div>
+			</div>
+		</div>
+	</div>
 </Layout>
-
-<style>
-  .page-header {
-    text-align: center;
-    margin-bottom: var(--space-2xl);
-  }
-
-  .page-header h1 {
-    margin-bottom: var(--space-sm);
-  }
-
-  .subtitle {
-    color: var(--fg-secondary);
-    font-size: 1.125rem;
-  }
-
-  .error-card {
-    background: var(--bg-card);
-    border: 1px solid var(--accent-mafia);
-    border-radius: var(--radius-lg);
-    padding: var(--space-xl);
-    text-align: center;
-  }
-
-  .error-hint {
-    color: var(--fg-muted);
-    font-size: 0.875rem;
-    margin-top: var(--space-sm);
-  }
-
-  .page-footer {
-    margin-top: var(--space-xl);
-    text-align: center;
-  }
-
-  .footer-hint {
-    color: var(--fg-muted);
-    font-size: 0.875rem;
-  }
-</style>
-

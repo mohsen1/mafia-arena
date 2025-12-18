@@ -1,138 +1,81 @@
 ---
+import '../styles/global.css';
+
 interface Props {
-  title: string;
-  description?: string;
+	title: string;
 }
 
-const { title, description = 'AI models playing Mafia against each other' } = Astro.props;
+const { title } = Astro.props;
 ---
 
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{title} | Mafia Arena</title>
-  </head>
-  <body>
-    <header class="header">
-      <div class="container">
-        <nav class="nav">
-          <a href="/" class="logo">
-            <span class="logo-icon">🎭</span>
-            <span class="logo-text">MAFIA ARENA</span>
-          </a>
-          <div class="nav-links">
-            <a href="/" class="nav-link">Leaderboard</a>
-            <a href="/games" class="nav-link">Games</a>
-            <a href="/about" class="nav-link">About</a>
-          </div>
-        </nav>
-      </div>
-    </header>
+<!doctype html>
+<html lang="en" class="dark">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="Mafia Arena - LLM Benchmarking Platform" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title} | Mafia Arena</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+	</head>
+	<body class="min-h-screen bg-background font-sans antialiased">
+		<div class="relative flex min-h-screen flex-col">
+			<header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+				<div class="container mx-auto flex h-16 items-center px-4 md:px-8">
+					<div class="mr-4 flex">
+						<a href="/" class="mr-6 flex items-center space-x-2">
+							<span class="text-xl font-bold tracking-tight">🎭 MAFIA ARENA</span>
+						</a>
+						<nav class="flex items-center space-x-6 text-sm font-medium">
+							<a href="/" class="transition-colors hover:text-foreground/80 text-foreground">Leaderboard</a>
+							<a href="/games" class="transition-colors hover:text-foreground/80 text-foreground/60">Games</a>
+							<a href="/about" class="transition-colors hover:text-foreground/80 text-foreground/60">About</a>
+						</nav>
+					</div>
+					<div class="flex flex-1 items-center justify-end space-x-4">
+						<a 
+							href="https://github.com/mohsenazimi/werewolf-ai" 
+							target="_blank" 
+							rel="noreferrer"
+							class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+						>
+							GitHub
+						</a>
+					</div>
+				</div>
+			</header>
 
-    <main class="main">
-      <div class="container">
-        <slot />
-      </div>
-    </main>
+			<main class="flex-1">
+				<div class="container mx-auto py-8 px-4 md:px-8">
+					<slot />
+				</div>
+			</main>
 
-    <footer class="footer">
-      <div class="container">
-        <p class="footer-text">
-          Mafia Arena — AI Benchmark Platform
-          <span class="footer-divider">•</span>
-          <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
-        </p>
-      </div>
-    </footer>
-  </body>
+			<footer class="border-t py-6 md:px-8 md:py-0">
+				<div class="container mx-auto flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row px-4 md:px-8">
+					<p class="text-center text-sm leading-loose text-muted-foreground md:text-left">
+						Built for LLM benchmarking. Pure TypeScript engine.
+					</p>
+				</div>
+			</footer>
+		</div>
+	</body>
 </html>
 
-<style>
-  @import '../styles/global.css';
+<style is:global>
+	:root {
+		--font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+		--font-mono: 'JetBrains Mono', monospace;
+	}
 
-  .header {
-    padding: var(--space-lg) 0;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(10px);
-  }
+	html {
+		font-family: var(--font-sans);
+	}
 
-  .nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    font-weight: 700;
-    font-size: 1.125rem;
-    letter-spacing: 0.05em;
-    transition: opacity 0.2s;
-  }
-
-  .logo:hover {
-    opacity: 0.8;
-    text-decoration: none;
-  }
-
-  .logo-icon {
-    font-size: 1.5rem;
-  }
-
-  .nav-links {
-    display: flex;
-    gap: var(--space-lg);
-  }
-
-  .nav-link {
-    color: var(--fg-secondary);
-    font-weight: 500;
-    transition: color 0.2s;
-  }
-
-  .nav-link:hover {
-    color: var(--fg-primary);
-    text-decoration: none;
-  }
-
-  .main {
-    padding: var(--space-2xl) 0;
-    min-height: calc(100vh - 200px);
-  }
-
-  .footer {
-    padding: var(--space-xl) 0;
-    border-top: 1px solid var(--border);
-    background: var(--bg-secondary);
-  }
-
-  .footer-text {
-    text-align: center;
-    color: var(--fg-muted);
-    font-size: 0.875rem;
-  }
-
-  .footer-divider {
-    margin: 0 var(--space-sm);
-  }
-
-  .footer a {
-    color: var(--fg-secondary);
-    transition: color 0.2s;
-  }
-
-  .footer a:hover {
-    color: var(--fg-primary);
-  }
+	pre, code {
+		font-family: var(--font-mono);
+	}
 </style>
-

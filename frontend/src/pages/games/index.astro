@@ -3,118 +3,38 @@ import Layout from '../../components/Layout.astro';
 import GameCard from '../../components/GameCard.astro';
 import { getGames } from '../../lib/api';
 
-const page = parseInt(Astro.url.searchParams.get('page') || '1', 10);
-const limit = 12;
-const offset = (page - 1) * limit;
-
-let games = [];
-let total = 0;
-let hasMore = false;
-let error = null;
-
-try {
-  const result = await getGames(limit, offset);
-  games = result.games;
-  total = result.total;
-  hasMore = result.hasMore;
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load games';
-}
-
-const totalPages = Math.ceil(total / limit);
+const { games } = await getGames();
 ---
 
-<Layout title="Games">
-  <div class="page-header">
-    <h1>Recent Games</h1>
-    <p class="subtitle">{total} games played</p>
-  </div>
+<Layout title="Recent Games">
+  <div class="space-y-8">
+    <div class="flex items-end justify-between gap-4">
+      <div class="space-y-2">
+        <h1 class="text-4xl font-bold tracking-tight">Recent Games</h1>
+        <p class="text-muted-foreground text-lg">
+          Explore full transcripts and replays of recent battles.
+        </p>
+      </div>
+    </div>
 
-  {error ? (
-    <div class="error-card">
-      <p>⚠️ {error}</p>
-      <p class="error-hint">Make sure the API server is running.</p>
-    </div>
-  ) : games.length === 0 ? (
-    <div class="empty-card">
-      <p>🎮 No games yet</p>
-      <p class="empty-hint">Run some games to see them here!</p>
-    </div>
-  ) : (
-    <>
-      <div class="games-grid">
-        {games.map((game, i) => (
-          <div class={`animate-fade-in animate-delay-${Math.min(i % 3 + 1, 3)}`}>
-            <GameCard game={game} />
-          </div>
+    {games.length === 0 ? (
+      <div class="flex flex-col items-center justify-center min-h-[400px] border border-dashed rounded-xl p-8 text-center space-y-4">
+        <div class="bg-muted rounded-full p-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+        </div>
+        <div class="space-y-1">
+          <h2 class="text-xl font-semibold">No games found</h2>
+          <p class="text-muted-foreground max-w-sm mx-auto">
+            It looks like no games have been played yet. Trigger a game from the CLI to see it here!
+          </p>
+        </div>
+      </div>
+    ) : (
+      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {games.map(game => (
+          <GameCard game={game} />
         ))}
       </div>
-
-      {totalPages > 1 && (
-        <div class="pagination">
-          {page > 1 && (
-            <a href={`?page=${page - 1}`} class="btn">← Previous</a>
-          )}
-          <span class="page-info">Page {page} of {totalPages}</span>
-          {hasMore && (
-            <a href={`?page=${page + 1}`} class="btn">Next →</a>
-          )}
-        </div>
-      )}
-    </>
-  )}
+    )}
+  </div>
 </Layout>
-
-<style>
-  .page-header {
-    text-align: center;
-    margin-bottom: var(--space-2xl);
-  }
-
-  .page-header h1 {
-    margin-bottom: var(--space-sm);
-  }
-
-  .subtitle {
-    color: var(--fg-secondary);
-    font-size: 1.125rem;
-  }
-
-  .games-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: var(--space-lg);
-  }
-
-  .error-card, .empty-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-2xl);
-    text-align: center;
-  }
-
-  .error-card {
-    border-color: var(--accent-mafia);
-  }
-
-  .error-hint, .empty-hint {
-    color: var(--fg-muted);
-    font-size: 0.875rem;
-    margin-top: var(--space-sm);
-  }
-
-  .pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: var(--space-lg);
-    margin-top: var(--space-2xl);
-  }
-
-  .page-info {
-    color: var(--fg-secondary);
-    font-family: var(--font-mono);
-  }
-</style>
-

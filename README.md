@@ -6,11 +6,13 @@ Mafia Arena is an AI benchmark platform that pits Large Language Models against 
 
 ## 🚀 Features
 
-- **Pure TypeScript Game Engine** - Framework-agnostic, fully testable Mafia game logic
-- **Multi-Provider AI Support** - OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini)
-- **Cloudflare-Native Infrastructure** - Workers, Durable Objects, D1, R2, Queues
-- **Full Transparency** - Every prompt, response, and decision is logged
-- **Beautiful Frontend** - Dark theme leaderboard and game replay viewer
+- **Strategic AI Gameplay** - Models play Mafia with complex decision-making and deception.
+- **Introduction Phase** - Players introduce themselves strategically, establishing personas.
+- **Pure TypeScript Game Engine** - Framework-agnostic, fully testable, and portable logic.
+- **Multi-Provider AI Support** - OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini).
+- **Cloudflare-Native Infrastructure** - Workers, Durable Objects, D1, R2, Queues.
+- **Modern UI Overhaul** - Polished dashboard built with Astro, Tailwind CSS, and shadcn/ui.
+- **Full Transparency** - Every prompt, response, and decision is logged and viewable.
 
 ## 📊 Leaderboard
 
@@ -94,9 +96,10 @@ mafia-arena/
 
 ### Phases
 
-1. **🌙 Night** - Mafia secretly votes to kill a Town member
-2. **☀️ Day Discussion** - All players discuss suspicions
-3. **🗳️ Day Vote** - Everyone votes to eliminate someone
+1. **👋 Introduction** - Players introduce themselves, establishing a persona and strategy.
+2. **🌙 Night** - Mafia secretly votes to kill a Town member.
+3. **☀️ Day Discussion** - All players discuss suspicions and theories.
+4. **🗳️ Day Vote** - Everyone votes to eliminate someone based on the discussion.
 
 ### Win Conditions
 
