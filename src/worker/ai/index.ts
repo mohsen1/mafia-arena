@@ -8,9 +8,27 @@ export type {
   AIProviderConfig,
   CompletionRequest,
   CompletionResponse,
+  JsonSchema,
+  JsonSchemaProperty,
+  StructuredOutputConfig,
+  StructuredOutputLevel,
+  ModelConfig,
 } from './types.js';
 
-export { SUPPORTED_MODELS, getProviderForModel, isModelSupported } from './types.js';
+export {
+  SUPPORTED_MODELS,
+  getProviderForModel,
+  getStructuredOutputLevel,
+  isModelSupported,
+  getSchemaForAction,
+  schemaToPromptInstructions,
+  extractJSON,
+  validateAgainstSchema,
+  PERSONA_SCHEMA,
+  MESSAGE_SCHEMA,
+  KILL_VOTE_SCHEMA,
+  ELIMINATION_VOTE_SCHEMA,
+} from './types.js';
 
 // Errors
 export { AIError, AIErrors, isRetryableError } from './errors.js';

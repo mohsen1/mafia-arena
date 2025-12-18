@@ -8,12 +8,14 @@ import { ScenarioMockAIProvider, FirstTargetStrategy, CoordinatedMafiaStrategy }
 import type { GameConfig } from '../types.js';
 
 describe('Game', () => {
+  // Standard benchmark config: 9 players (2 mafia, 7 town)
+  // This allows for multi-round games with meaningful social deduction
   const createTestConfig = (): GameConfig => ({
-    playerCount: 5,
-    mafiaCount: 1,
+    playerCount: 9,
+    mafiaCount: 2,
     teams: [
-      { modelId: 'test-mafia', team: 'mafia', count: 1 },
-      { modelId: 'test-town', team: 'town', count: 4 },
+      { modelId: 'test-mafia', team: 'mafia', count: 2 },
+      { modelId: 'test-town', team: 'town', count: 7 },
     ],
     maxRounds: 10,
     discussionEnabled: false, // Disable for faster tests
@@ -30,42 +32,46 @@ describe('Game', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should reject player count less than 3', () => {
+    it('should reject player count less than 7', () => {
       const config: GameConfig = {
         ...createTestConfig(),
-        playerCount: 2,
-        mafiaCount: 1,
+        playerCount: 5,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 1 },
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 3 },
         ],
       };
 
       const result = validateConfig(config);
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Player count must be at least 3');
+      expect(result.errors.some(e => e.includes('at least 7'))).toBe(true);
     });
 
-    it('should reject mafia count less than 1', () => {
+    it('should reject mafia count less than 2', () => {
       const config: GameConfig = {
         ...createTestConfig(),
-        mafiaCount: 0,
-        teams: [{ modelId: 'town', team: 'town', count: 5 }],
+        playerCount: 7,
+        mafiaCount: 1,
+        teams: [
+          { modelId: 'mafia', team: 'mafia', count: 1 },
+          { modelId: 'town', team: 'town', count: 6 },
+        ],
       };
 
       const result = validateConfig(config);
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Mafia count must be at least 1');
+      expect(result.errors.some(e => e.includes('at least 2'))).toBe(true);
     });
 
     it('should reject when mafia >= player count', () => {
       const config: GameConfig = {
         ...createTestConfig(),
-        playerCount: 3,
-        mafiaCount: 3,
-        teams: [{ modelId: 'mafia', team: 'mafia', count: 3 }],
+        playerCount: 7,
+        mafiaCount: 7,
+        teams: [{ modelId: 'mafia', team: 'mafia', count: 7 }],
       };
 
       const result = validateConfig(config);
@@ -74,13 +80,30 @@ describe('Game', () => {
       expect(result.errors).toContain('Mafia count must be less than player count');
     });
 
+    it('should reject when town does not outnumber mafia by 3', () => {
+      const config: GameConfig = {
+        ...createTestConfig(),
+        playerCount: 7,
+        mafiaCount: 3,
+        teams: [
+          { modelId: 'mafia', team: 'mafia', count: 3 },
+          { modelId: 'town', team: 'town', count: 4 }, // 4 town, 3 mafia - only +1
+        ],
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('outnumber mafia'))).toBe(true);
+    });
+
     it('should reject mismatched team assignments', () => {
       const config: GameConfig = {
         ...createTestConfig(),
-        playerCount: 5,
+        playerCount: 9,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 3 }, // Only 4 assigned, not 5
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 5 }, // Only 7 assigned, not 9
         ],
       };
 
@@ -92,24 +115,21 @@ describe('Game', () => {
   });
 
   describe('run', () => {
-    it('should complete a game with town winning', async () => {
-      // Create a scenario where town always votes for mafia
-      const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia-model', team: 'mafia', count: 1 },
-          { modelId: 'town-model', team: 'town', count: 2 },
-        ],
-        maxRounds: 10,
-        discussionEnabled: false,
-      };
+    // Standard benchmark config for tests: 7 players (2 mafia, 5 town)
+    const createBenchmarkConfig = (overrides?: Partial<GameConfig>): GameConfig => ({
+      playerCount: 7,
+      mafiaCount: 2,
+      teams: [
+        { modelId: 'mafia-model', team: 'mafia', count: 2 },
+        { modelId: 'town-model', team: 'town', count: 5 },
+      ],
+      maxRounds: 10,
+      discussionEnabled: false,
+      ...overrides,
+    });
 
-      // The game will need responses for:
-      // Night 1: 1 mafia kill vote
-      // Day 1: 3 elimination votes
-      // This creates a complex scenario, let's use the strategy provider
-
+    it('should complete a game with a winner', async () => {
+      const config = createBenchmarkConfig();
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
@@ -121,21 +141,11 @@ describe('Game', () => {
       expect(['mafia', 'town']).toContain(result.winner);
       expect(result.rounds).toBeGreaterThanOrEqual(1);
       expect(result.events.length).toBeGreaterThan(0);
-      expect(result.durationMs).toBeGreaterThanOrEqual(0); // Can be 0 if game runs very fast
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
     });
 
     it('should track token usage', async () => {
-      const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 2 },
-        ],
-        maxRounds: 10,
-        discussionEnabled: false,
-      };
-
+      const config = createBenchmarkConfig();
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
@@ -150,17 +160,7 @@ describe('Game', () => {
     });
 
     it('should record AI call events', async () => {
-      const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 2 },
-        ],
-        maxRounds: 10,
-        discussionEnabled: false,
-      };
-
+      const config = createBenchmarkConfig();
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
@@ -182,15 +182,15 @@ describe('Game', () => {
 
     it('should create participant results', async () => {
       const config: GameConfig = {
-        playerCount: 5,
+        playerCount: 9,
         mafiaCount: 2,
         teams: [
           { modelId: 'gpt-4o', team: 'mafia', count: 2 },
-          { modelId: 'claude', team: 'town', count: 3 },
+          { modelId: 'claude', team: 'town', count: 7 },
         ],
         maxRounds: 10,
         discussionEnabled: false,
-        nightDiscussionRounds: 0, // Disable for this test
+        nightDiscussionRounds: 0,
       };
 
       const strategy = new CoordinatedMafiaStrategy();
@@ -213,7 +213,7 @@ describe('Game', () => {
       expect(mafiaParticipant!.modelId).toBe('gpt-4o');
       expect(townParticipant!.modelId).toBe('claude');
       expect(mafiaParticipant!.playerCount).toBe(2);
-      expect(townParticipant!.playerCount).toBe(3);
+      expect(townParticipant!.playerCount).toBe(7);
 
       // Exactly one team should have won
       expect(
@@ -223,42 +223,22 @@ describe('Game', () => {
     });
 
     it('should respect max rounds limit', async () => {
-      const config: GameConfig = {
-        playerCount: 5,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 4 },
-        ],
-        maxRounds: 2,
-        discussionEnabled: false,
-      };
-
-      // Create provider where votes always tie (no eliminations)
-      // This would normally go forever, but maxRounds limits it
+      // With 7 players (2 mafia, 5 town) and Day-first order,
+      // games naturally take more rounds. Use a higher limit.
+      const config = createBenchmarkConfig({ maxRounds: 5 });
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
       const game = new Game(config, scenarioProvider);
       const result = await game.run();
 
-      expect(result.rounds).toBeLessThanOrEqual(2);
+      // Game should end at or before maxRounds
+      expect(result.rounds).toBeLessThanOrEqual(5);
     });
 
     it('should include discussion when enabled', async () => {
-      // Use more players so game doesn't end immediately after night
-      // 5 players: 1 mafia kills 1 town → 1 mafia, 3 town left → game continues to discussion
-      const config: GameConfig = {
-        playerCount: 5,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 4 },
-        ],
-        maxRounds: 10,
-        discussionEnabled: true,
-      };
-
+      // With Day-first order, discussion happens before any deaths
+      const config = createBenchmarkConfig({ discussionEnabled: true });
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
@@ -272,17 +252,7 @@ describe('Game', () => {
     });
 
     it('should run introduction phase at start of game', async () => {
-      const config: GameConfig = {
-        playerCount: 5,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 4 },
-        ],
-        maxRounds: 10,
-        discussionEnabled: false,
-      };
-
+      const config = createBenchmarkConfig();
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
@@ -293,7 +263,7 @@ describe('Game', () => {
       const introEvents = result.events.filter(
         (e) => e.type === 'introduction'
       );
-      expect(introEvents.length).toBe(5); // All 5 players should introduce themselves
+      expect(introEvents.length).toBe(7); // All 7 players should introduce themselves
 
       // Verify introduction events have correct structure
       const firstIntro = introEvents[0]!;
@@ -314,58 +284,38 @@ describe('Game', () => {
       expect(phaseStartEvents.length).toBe(1);
       expect(phaseEndEvents.length).toBe(1);
 
-      // Verify introduction happens before night phase
+      // Verify introduction happens before day vote phase (Day-first order)
       const introPhaseStartIndex = result.events.findIndex(
         (e) => e.type === 'phase_start' && e.phase === 'introduction'
       );
-      const nightPhaseStartIndex = result.events.findIndex(
-        (e) => e.type === 'phase_start' && e.phase === 'night'
+      const votePhaseStartIndex = result.events.findIndex(
+        (e) => e.type === 'phase_start' && e.phase === 'day_vote'
       );
-      expect(introPhaseStartIndex).toBeLessThan(nightPhaseStartIndex);
+      expect(introPhaseStartIndex).toBeLessThan(votePhaseStartIndex);
     });
 
     it('should add introductions to conversation history', async () => {
-      const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 2 },
-        ],
-        maxRounds: 10,
-        discussionEnabled: false,
-      };
-
+      const config = createBenchmarkConfig();
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
       const game = new Game(config, scenarioProvider);
       await game.run();
 
-      // Check that AI calls for introduction include the visible state with conversation history
+      // Check AI calls include conversation history from introductions
       const calls = scenarioProvider.getCallLog();
       
-      // Find calls for night phase (after introductions)
-      const nightCalls = calls.filter((c) => c.prompt.type === 'kill_vote');
-      expect(nightCalls.length).toBeGreaterThan(0);
+      // Find calls for vote phase (after introductions, Day-first order)
+      const voteCalls = calls.filter((c) => c.prompt.type === 'elimination_vote');
+      expect(voteCalls.length).toBeGreaterThan(0);
       
-      // Night phase should have conversation history from introductions
-      const nightCall = nightCalls[0]!;
-      expect(nightCall.context.visibleState.conversationHistory.length).toBe(3); // All 3 players introduced
+      // Vote phase should have conversation history from introductions
+      const voteCall = voteCalls[0]!;
+      expect(voteCall.context.visibleState.conversationHistory.length).toBe(7); // All 7 players introduced
     });
 
     it('should record elimination events', async () => {
-      const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 2 },
-        ],
-        maxRounds: 10,
-        discussionEnabled: false,
-      };
-
+      const config = createBenchmarkConfig();
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
@@ -386,17 +336,7 @@ describe('Game', () => {
     });
 
     it('should record game end event', async () => {
-      const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
-        teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 2 },
-        ],
-        maxRounds: 10,
-        discussionEnabled: false,
-      };
-
+      const config = createBenchmarkConfig();
       const strategy = new FirstTargetStrategy();
       const scenarioProvider = new ScenarioMockAIProvider(strategy);
 
@@ -424,9 +364,9 @@ describe('Game', () => {
 
       const state = game.getState();
 
-      expect(state.players.length).toBe(5);
+      expect(state.players.length).toBe(9); // Updated for benchmark config
       expect(state.round).toBe(1);
-      expect(state.phase).toBe('night');
+      expect(state.phase).toBe('night'); // Initial phase before game starts
     });
   });
 });

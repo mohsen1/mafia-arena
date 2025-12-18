@@ -191,13 +191,13 @@ describe('Edge Cases', () => {
   });
 
   describe('Configuration Validation', () => {
-    it('should reject player count less than 3', () => {
+    it('should reject player count less than 7', () => {
       const config: GameConfig = {
-        playerCount: 2,
-        mafiaCount: 1,
+        playerCount: 5,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 1 },
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 3 },
         ],
         maxRounds: 10,
         discussionEnabled: false,
@@ -205,21 +205,24 @@ describe('Edge Cases', () => {
 
       const result = validateConfig(config);
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Player count must be at least 3');
+      expect(result.errors.some(e => e.includes('at least 7'))).toBe(true);
     });
 
-    it('should reject mafia count of 0', () => {
+    it('should reject mafia count less than 2', () => {
       const config: GameConfig = {
-        playerCount: 5,
-        mafiaCount: 0,
-        teams: [{ modelId: 'town', team: 'town', count: 5 }],
+        playerCount: 7,
+        mafiaCount: 1,
+        teams: [
+          { modelId: 'mafia', team: 'mafia', count: 1 },
+          { modelId: 'town', team: 'town', count: 6 },
+        ],
         maxRounds: 10,
         discussionEnabled: false,
       };
 
       const result = validateConfig(config);
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Mafia count must be at least 1');
+      expect(result.errors.some(e => e.includes('at least 2'))).toBe(true);
     });
 
     it('should reject mafia equal to player count', () => {

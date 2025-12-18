@@ -52,6 +52,10 @@ export class Game {
   /**
    * Run the game to completion.
    * Returns the final game result with all events and statistics.
+   * 
+   * Game loop order: Day Discussion → Day Vote → Night (kills)
+   * This ensures Town always gets a chance to discuss before anyone dies,
+   * creating a proper social deduction benchmark.
    */
   async run(): Promise<GameResult> {
     this.startTime = Date.now();
@@ -60,19 +64,11 @@ export class Game {
     const introResult = await executeIntroductionPhase(this.state, this.aiProvider);
     this.state = introResult.state;
 
-    // Main game loop
+    // Main game loop: Day → Night order
+    // This ensures discussion happens BEFORE any kills
     while (this.state.round <= this.config.maxRounds) {
-      // Night Phase - Mafia kills
-      const nightResult = await executeNightPhase(this.state, this.aiProvider);
-      this.state = nightResult.state;
-
-      // Check win condition after night
-      const winnerAfterNight = checkWinCondition(this.state);
-      if (winnerAfterNight) {
-        return this.createResult(winnerAfterNight);
-      }
-
       // Day Discussion Phase (if enabled)
+      // Town discusses and analyzes behavior before voting
       if (this.config.discussionEnabled) {
         const discussionResult = await executeDiscussionPhase(
           this.state,
@@ -81,7 +77,7 @@ export class Game {
         this.state = discussionResult.state;
       }
 
-      // Day Vote Phase
+      // Day Vote Phase - Town votes to eliminate a suspect
       const voteResult = await executeVotePhase(this.state, this.aiProvider);
       this.state = voteResult.state;
 
@@ -89,6 +85,16 @@ export class Game {
       const winnerAfterVote = checkWinCondition(this.state);
       if (winnerAfterVote) {
         return this.createResult(winnerAfterVote);
+      }
+
+      // Night Phase - Mafia kills a town member
+      const nightResult = await executeNightPhase(this.state, this.aiProvider);
+      this.state = nightResult.state;
+
+      // Check win condition after night
+      const winnerAfterNight = checkWinCondition(this.state);
+      if (winnerAfterNight) {
+        return this.createResult(winnerAfterNight);
       }
 
       // Advance to next round
@@ -248,20 +254,34 @@ function generateGameId(): string {
 
 /**
  * Validate game configuration.
+ * 
+ * For a proper social intelligence benchmark, we require:
+ * - Minimum 7 players (2 mafia, 5 town) for meaningful deduction
+ * - At least 2 mafia for coordination testing
+ * - Town must outnumber mafia by at least 3 for multi-round games
  */
 export function validateConfig(config: GameConfig): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (config.playerCount < 3) {
-    errors.push('Player count must be at least 3');
+  // Minimum 7 players for a proper social deduction game
+  // With fewer players, games end too quickly for meaningful benchmark data
+  if (config.playerCount < 7) {
+    errors.push('Player count must be at least 7 for a valid social intelligence benchmark');
   }
 
-  if (config.mafiaCount < 1) {
-    errors.push('Mafia count must be at least 1');
+  // Need at least 2 mafia for coordination testing
+  if (config.mafiaCount < 2) {
+    errors.push('Mafia count must be at least 2 for coordination testing');
   }
 
   if (config.mafiaCount >= config.playerCount) {
     errors.push('Mafia count must be less than player count');
+  }
+
+  // Town should significantly outnumber mafia for multiple rounds
+  const townCount = config.playerCount - config.mafiaCount;
+  if (townCount < config.mafiaCount + 3) {
+    errors.push(`Town (${townCount}) must outnumber mafia (${config.mafiaCount}) by at least 3 for multi-round games`);
   }
 
   // Validate team assignments match player count

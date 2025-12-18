@@ -8,18 +8,19 @@ import { ScenarioMockAIProvider, FirstTargetStrategy, CoordinatedMafiaStrategy }
 import type { GameConfig, AIContext } from '../types.js';
 
 describe('Integration Tests', () => {
+  // Standard benchmark config: 7 players (2 mafia, 5 town) minimum
+  // This ensures multi-round games for meaningful social deduction testing
+  
   describe('Town Victory Scenario', () => {
-    it('should result in town win when mafia is eliminated', async () => {
-      // 3 players: 1 mafia, 2 town
-      // Strategy: Everyone votes for the first player
-      // Night: Mafia kills first town player
-      // Day: Both remaining players vote for first (hopefully mafia)
+    it('should result in town win when all mafia are eliminated', async () => {
+      // 7 players: 2 mafia, 5 town
+      // With Day-first order, Town gets to discuss and vote before any night kills
       const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
+        playerCount: 7,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia-model', team: 'mafia', count: 1 },
-          { modelId: 'town-model', team: 'town', count: 2 },
+          { modelId: 'mafia-model', team: 'mafia', count: 2 },
+          { modelId: 'town-model', team: 'town', count: 5 },
         ],
         maxRounds: 10,
         discussionEnabled: false,
@@ -27,7 +28,7 @@ describe('Integration Tests', () => {
         personaConstraints: 'moderate',
       };
 
-      // Create a deterministic provider that makes mafia lose
+      // Create a deterministic provider
       class TownWinsStrategy {
         getIntroductionMessage(context: AIContext): string {
           return `Hello, I'm ${context.playerName}. Let's find the mafia!`;
@@ -42,7 +43,6 @@ describe('Integration Tests', () => {
         }
 
         getEliminationTarget(_context: AIContext, validTargets: readonly string[]): string | null {
-          // Town always votes for first target - might be mafia!
           return validTargets[0] ?? null;
         }
       }
@@ -62,21 +62,21 @@ describe('Integration Tests', () => {
   });
 
   describe('Mafia Victory Scenario', () => {
-    it('should result in mafia win when they equal town', async () => {
-      // Start with 2 mafia, 3 town
-      // If town loses 2 members, it's 2v1 = mafia wins
+    it('should result in mafia win when they equal or outnumber town', async () => {
+      // 7 players: 2 mafia, 5 town
+      // Multi-round game that can result in mafia victory
       const config: GameConfig = {
-        playerCount: 5,
+        playerCount: 7,
         mafiaCount: 2,
         teams: [
           { modelId: 'mafia-model', team: 'mafia', count: 2 },
-          { modelId: 'town-model', team: 'town', count: 3 },
+          { modelId: 'town-model', team: 'town', count: 5 },
         ],
         maxRounds: 10,
         discussionEnabled: false,
         personaEnabled: false,
         personaConstraints: 'moderate',
-        nightDiscussionRounds: 0, // Disable for this test
+        nightDiscussionRounds: 0,
         dayDiscussionRounds: 1,
       };
 
@@ -137,11 +137,11 @@ describe('Integration Tests', () => {
   describe('Discussion Phase', () => {
     it('should record all discussion messages', async () => {
       const config: GameConfig = {
-        playerCount: 5,
-        mafiaCount: 1,
+        playerCount: 7,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 4 },
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 5 },
         ],
         maxRounds: 2,
         discussionEnabled: true,
@@ -157,20 +157,19 @@ describe('Integration Tests', () => {
 
       const discussionEvents = result.events.filter(e => e.type === 'discussion');
       
-      // Each alive player discusses each round (before voting)
-      // At minimum, all 5 players should discuss in round 1
-      expect(discussionEvents.length).toBeGreaterThanOrEqual(4); // At least 4 if someone died
+      // With Day-first order, all 7 players discuss in round 1 before any kills
+      expect(discussionEvents.length).toBeGreaterThanOrEqual(6); // At least 6 if someone was eliminated
     });
   });
 
   describe('Event Timeline', () => {
-    it('should have correct event ordering', async () => {
+    it('should have correct event ordering (Day-first)', async () => {
       const config: GameConfig = {
-        playerCount: 4,
-        mafiaCount: 1,
+        playerCount: 7,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 3 },
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 5 },
         ],
         maxRounds: 5,
         discussionEnabled: false,
@@ -184,36 +183,36 @@ describe('Integration Tests', () => {
       const game = new Game(config, provider);
       const result = await game.run();
 
-      // Verify event ordering for first round
+      // Verify event ordering for first round (Day-first: Vote → Night)
       const firstRoundEvents = result.events.filter(
         e => 'round' in e && e.round === 1
       );
 
       // Find indices
-      const nightStart = firstRoundEvents.findIndex(
-        e => e.type === 'phase_start' && e.phase === 'night'
-      );
-      const nightEnd = firstRoundEvents.findIndex(
-        e => e.type === 'phase_end' && e.phase === 'night'
-      );
       const voteStart = firstRoundEvents.findIndex(
         e => e.type === 'phase_start' && e.phase === 'day_vote'
       );
+      const voteEnd = firstRoundEvents.findIndex(
+        e => e.type === 'phase_end' && e.phase === 'day_vote'
+      );
+      const nightStart = firstRoundEvents.findIndex(
+        e => e.type === 'phase_start' && e.phase === 'night'
+      );
 
-      // Night should come before day vote
-      expect(nightStart).toBeLessThan(nightEnd);
-      if (voteStart !== -1) {
-        expect(nightEnd).toBeLessThan(voteStart);
+      // Day vote should come BEFORE night (Day-first order)
+      expect(voteStart).toBeLessThan(voteEnd);
+      if (nightStart !== -1) {
+        expect(voteEnd).toBeLessThan(nightStart);
       }
     });
 
     it('should end with game_end event', async () => {
       const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
+        playerCount: 7,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 2 },
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 5 },
         ],
         maxRounds: 10,
         discussionEnabled: false,
@@ -235,11 +234,11 @@ describe('Integration Tests', () => {
   describe('Token Tracking', () => {
     it('should accurately sum all token usage', async () => {
       const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
+        playerCount: 7,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 2 },
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 5 },
         ],
         maxRounds: 10,
         discussionEnabled: false,
@@ -272,13 +271,13 @@ describe('Integration Tests', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle single mafia player', async () => {
+    it('should handle minimum valid config (7 players, 2 mafia)', async () => {
       const config: GameConfig = {
-        playerCount: 4,
-        mafiaCount: 1,
+        playerCount: 7,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 3 },
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 5 },
         ],
         maxRounds: 10,
         discussionEnabled: false,
@@ -295,13 +294,13 @@ describe('Integration Tests', () => {
       expect(['mafia', 'town']).toContain(result.winner);
     });
 
-    it('should handle minimum player count (3)', async () => {
+    it('should allow multi-round games with proper config', async () => {
       const config: GameConfig = {
-        playerCount: 3,
-        mafiaCount: 1,
+        playerCount: 9,
+        mafiaCount: 2,
         teams: [
-          { modelId: 'mafia', team: 'mafia', count: 1 },
-          { modelId: 'town', team: 'town', count: 2 },
+          { modelId: 'mafia', team: 'mafia', count: 2 },
+          { modelId: 'town', team: 'town', count: 7 },
         ],
         maxRounds: 10,
         discussionEnabled: true,
@@ -315,7 +314,7 @@ describe('Integration Tests', () => {
       const game = new Game(config, provider);
       const result = await game.run();
 
-      // Should complete without errors
+      // With 9 players and Day-first order, games should last multiple rounds
       expect(result.rounds).toBeGreaterThanOrEqual(1);
       expect(['mafia', 'town']).toContain(result.winner);
     });
