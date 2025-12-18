@@ -1,0 +1,233 @@
+---
+import Layout from '../components/Layout.astro';
+import { getTeamPatterns, getWinRateByPersonality, getModels } from '../lib/api';
+import { BarChart3, Users, Trophy, Sparkles } from 'lucide-astro';
+
+let teamPatterns = null;
+let winRates = null;
+let models = [];
+let error = null;
+
+try {
+  [teamPatterns, winRates, models] = await Promise.all([
+    getTeamPatterns().catch(() => null),
+    getWinRateByPersonality().catch(() => null),
+    getModels().catch(() => []),
+  ]);
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load analysis data';
+}
+
+const hasData = teamPatterns && (teamPatterns.totals.mafia > 0 || teamPatterns.totals.town > 0);
+---
+
+<Layout title="Persona Analysis">
+  <div class="space-y-8 max-w-4xl">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight flex items-center gap-2">
+        <Sparkles size={24} class="text-amber-500" />
+        Persona Analysis
+      </h1>
+      <p class="text-muted-foreground mt-1">
+        Analyzing how AI models construct identities and whether certain personas correlate with winning.
+      </p>
+    </div>
+
+    {error ? (
+      <div class="border rounded-md p-8 text-center text-muted-foreground">
+        <p class="text-sm">{error}</p>
+      </div>
+    ) : !hasData ? (
+      <div class="border rounded-md p-12 text-center">
+        <Sparkles size={48} class="mx-auto text-muted-foreground/30 mb-4" />
+        <h3 class="font-semibold mb-2">No Persona Data Yet</h3>
+        <p class="text-sm text-muted-foreground max-w-md mx-auto">
+          Run games with persona generation enabled to see bias analysis and persona patterns.
+          Enable personas in the game configuration to start collecting data.
+        </p>
+      </div>
+    ) : (
+      <div class="space-y-8">
+        <!-- Team Persona Divergence -->
+        <section class="space-y-4">
+          <div class="flex items-center gap-2">
+            <Users size={18} class="text-primary" />
+            <h2 class="font-semibold text-lg">Team Persona Patterns</h2>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            Do Mafia members systematically choose different personas than Town members?
+          </p>
+          
+          <div class="grid md:grid-cols-2 gap-4">
+            <!-- Mafia Patterns -->
+            <div class="border rounded-md overflow-hidden">
+              <div class="px-4 py-2 bg-red-500/10 border-b flex items-center justify-between">
+                <span class="font-semibold text-red-600 dark:text-red-400 flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                  Mafia
+                </span>
+                <span class="text-xs text-muted-foreground">
+                  {teamPatterns?.totals.mafia || 0} games
+                </span>
+              </div>
+              <div class="divide-y">
+                {teamPatterns?.mafia.slice(0, 5).map((pattern: any) => (
+                  <div class="px-4 py-2 flex items-center justify-between">
+                    <span class="text-sm font-medium">{pattern.personality}</span>
+                    <div class="flex items-center gap-3">
+                      <div class="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          class="h-full bg-red-500 rounded-full" 
+                          style={`width: ${pattern.percentage}%`}
+                        />
+                      </div>
+                      <span class="text-xs text-muted-foreground font-mono w-12 text-right">
+                        {pattern.percentage}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {(!teamPatterns?.mafia || teamPatterns.mafia.length === 0) && (
+                  <div class="px-4 py-6 text-center text-sm text-muted-foreground">
+                    No data yet
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <!-- Town Patterns -->
+            <div class="border rounded-md overflow-hidden">
+              <div class="px-4 py-2 bg-blue-500/10 border-b flex items-center justify-between">
+                <span class="font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                  Town
+                </span>
+                <span class="text-xs text-muted-foreground">
+                  {teamPatterns?.totals.town || 0} games
+                </span>
+              </div>
+              <div class="divide-y">
+                {teamPatterns?.town.slice(0, 5).map((pattern: any) => (
+                  <div class="px-4 py-2 flex items-center justify-between">
+                    <span class="text-sm font-medium">{pattern.personality}</span>
+                    <div class="flex items-center gap-3">
+                      <div class="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          class="h-full bg-blue-500 rounded-full" 
+                          style={`width: ${pattern.percentage}%`}
+                        />
+                      </div>
+                      <span class="text-xs text-muted-foreground font-mono w-12 text-right">
+                        {pattern.percentage}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {(!teamPatterns?.town || teamPatterns.town.length === 0) && (
+                  <div class="px-4 py-6 text-center text-sm text-muted-foreground">
+                    No data yet
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Win Rate by Personality -->
+        <section class="space-y-4">
+          <div class="flex items-center gap-2">
+            <Trophy size={18} class="text-amber-500" />
+            <h2 class="font-semibold text-lg">Win Rate by Personality</h2>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            Do certain personality types correlate with higher win rates? This reveals potential bias.
+          </p>
+
+          <div class="border rounded-md overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b bg-muted/50">
+                  <th class="h-9 px-4 text-left font-medium text-muted-foreground">Personality</th>
+                  <th class="h-9 px-4 text-center font-medium text-muted-foreground">Games</th>
+                  <th class="h-9 px-4 text-center font-medium text-muted-foreground">Wins</th>
+                  <th class="h-9 px-4 text-right font-medium text-muted-foreground">Win Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {winRates?.results.slice(0, 10).map((row: any, index: number) => (
+                  <tr class="border-b last:border-0 hover:bg-muted/30">
+                    <td class="h-10 px-4">
+                      <span class="font-medium">{row.personality}</span>
+                      {index === 0 && (
+                        <span class="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-semibold">
+                          TOP
+                        </span>
+                      )}
+                    </td>
+                    <td class="h-10 px-4 text-center font-mono text-muted-foreground">
+                      {row.games}
+                    </td>
+                    <td class="h-10 px-4 text-center font-mono text-muted-foreground">
+                      {row.wins}
+                    </td>
+                    <td class="h-10 px-4 text-right">
+                      <span class={`font-mono font-semibold ${
+                        row.winRate >= 0.6 ? 'text-green-600 dark:text-green-400' :
+                        row.winRate >= 0.4 ? 'text-foreground' :
+                        'text-red-600 dark:text-red-400'
+                      }`}>
+                        {(row.winRate * 100).toFixed(1)}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {(!winRates?.results || winRates.results.length === 0) && (
+                  <tr>
+                    <td colspan="4" class="h-20 text-center text-muted-foreground">
+                      No data yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Model Fingerprints Link -->
+        <section class="space-y-4">
+          <div class="flex items-center gap-2">
+            <BarChart3 size={18} class="text-primary" />
+            <h2 class="font-semibold text-lg">Model Persona Fingerprints</h2>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            Each model develops characteristic persona patterns. View detailed analysis for specific models.
+          </p>
+
+          <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {models.map((model: any) => (
+              <a 
+                href={`/analysis/model/${model.id}`}
+                class="border rounded-md p-4 hover:border-primary/50 hover:bg-muted/30 transition-colors"
+              >
+                <div class="font-semibold text-sm">{model.display_name}</div>
+                <div class="text-xs text-muted-foreground mt-1">{model.provider}</div>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <!-- Explanation -->
+        <section class="border rounded-md p-4 bg-muted/30">
+          <h3 class="font-semibold text-sm mb-2">Understanding Bias in AI Personas</h3>
+          <p class="text-sm text-muted-foreground">
+            When AI models generate their own identities, they may exhibit systematic biases.
+            For example, Mafia members might choose more "trustworthy" sounding personas,
+            or certain personality types might consistently win more often.
+            This analysis helps identify and quantify these patterns.
+          </p>
+        </section>
+      </div>
+    )}
+  </div>
+</Layout>
+

@@ -14,12 +14,14 @@ export function getVisibleState(state: GameState, player: Player): VisibleGameSt
   const alivePlayers: VisiblePlayer[] = state.alivePlayers.map((p) => ({
     id: p.id,
     name: p.name,
+    persona: p.persona,
   }));
 
   const deadPlayers: VisibleDeadPlayer[] = state.deadPlayers.map((p) => ({
     id: p.id,
     name: p.name,
     team: p.team, // Roles are revealed on death
+    persona: p.persona,
   }));
 
   // Mafia can see their teammates

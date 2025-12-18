@@ -69,7 +69,8 @@ export async function executeNightPhase(
     const context = generateNightContext(visibleState);
     const userPrompt = ACTION_PROMPTS.killVote(
       targetList.split('\n'),
-      context
+      context,
+      mafiaPlayer.persona
     );
 
     const response = await aiProvider.getAction(

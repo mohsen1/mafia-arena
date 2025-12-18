@@ -55,6 +55,9 @@ export class GameAIAdapter implements AIProvider {
       const parsed = this.extractJSON(content);
 
       switch (actionType) {
+        case 'persona_generation':
+          return this.parsePersonaGeneration(parsed);
+
         case 'introduction':
           return this.parseIntroduction(parsed);
 
@@ -66,14 +69,28 @@ export class GameAIAdapter implements AIProvider {
 
         case 'elimination_vote':
           return this.parseEliminationVote(parsed, validTargets);
-
-        default:
-          throw new Error(`Unknown action type: ${actionType}`);
       }
     } catch (error) {
       // Return a fallback action on parse error
       return this.getFallbackAction(actionType, validTargets);
     }
+  }
+
+  private parsePersonaGeneration(parsed: unknown): PlayerAction {
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('Invalid persona generation response');
+    }
+
+    const data = parsed as Record<string, unknown>;
+    const name = String(data.name ?? 'Unknown');
+    const background = String(data.background ?? 'A mysterious player.');
+    const personality = String(data.personality ?? 'Reserved');
+    const occupation = data.occupation ? String(data.occupation) : undefined;
+
+    return {
+      type: 'persona_generation',
+      persona: { name, background, personality, occupation },
+    };
   }
 
   private parseIntroduction(parsed: unknown): PlayerAction {
@@ -142,6 +159,16 @@ export class GameAIAdapter implements AIProvider {
     validTargets?: readonly string[]
   ): PlayerAction {
     switch (actionType) {
+      case 'persona_generation':
+        return { 
+          type: 'persona_generation', 
+          persona: { 
+            name: 'Unknown', 
+            background: 'A mysterious player.', 
+            personality: 'Reserved' 
+          } 
+        };
+
       case 'introduction':
         return { type: 'introduction', message: 'Hello everyone, nice to meet you.' };
 

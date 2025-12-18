@@ -55,7 +55,7 @@ export async function executeDiscussionPhase(
           )
         : SYSTEM_PROMPTS.town();
 
-    const userPrompt = ACTION_PROMPTS.discussion(visibleState);
+    const userPrompt = ACTION_PROMPTS.discussion(visibleState, player.persona);
 
     const response = await aiProvider.getAction(
       {

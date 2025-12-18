@@ -1,0 +1,43 @@
+---
+import { cn } from '../../lib/utils';
+
+interface Props {
+  content: string;
+  side?: 'top' | 'right' | 'bottom' | 'left';
+  class?: string;
+  contentClass?: string;
+}
+
+const { content, side = 'top', class: className, contentClass } = Astro.props;
+---
+
+<div class={cn('relative inline-block group', className)}>
+  <slot />
+  <div
+    class={cn(
+      'absolute z-[100] overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md',
+      'whitespace-pre-line max-w-xs',
+      'opacity-0 pointer-events-none transition-opacity duration-200',
+      'group-hover:opacity-100 group-hover:pointer-events-auto',
+      'group-focus-within:opacity-100 group-focus-within:pointer-events-auto',
+      side === 'top' && 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
+      side === 'bottom' && 'top-full left-1/2 -translate-x-1/2 mt-1.5',
+      side === 'left' && 'right-full top-1/2 -translate-y-1/2 mr-1.5',
+      side === 'right' && 'left-full top-1/2 -translate-y-1/2 ml-1.5',
+      contentClass
+    )}
+    role="tooltip"
+  >
+    {content}
+    <div
+      class={cn(
+        'absolute w-2 h-2 rotate-45 bg-popover border',
+        side === 'top' && 'top-full left-1/2 -translate-x-1/2 -mt-1 border-t border-r',
+        side === 'bottom' && 'bottom-full left-1/2 -translate-x-1/2 -mb-1 border-b border-l',
+        side === 'left' && 'left-full top-1/2 -translate-y-1/2 -ml-1 border-l border-b',
+        side === 'right' && 'right-full top-1/2 -translate-y-1/2 -mr-1 border-r border-t'
+      )}
+    ></div>
+  </div>
+</div>
+

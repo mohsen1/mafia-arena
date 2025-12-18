@@ -50,5 +50,7 @@ export interface GameQueueConfig {
   }>;
   maxRounds: number;
   discussionEnabled: boolean;
+  personaEnabled: boolean;
+  personaConstraints: 'strict' | 'moderate' | 'free';
 }
 

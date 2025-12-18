@@ -17,6 +17,8 @@ describe('checkWinCondition', () => {
     ],
     maxRounds: 10,
     discussionEnabled: true,
+    personaEnabled: false,
+    personaConstraints: 'moderate',
   });
 
   it('should return town when all mafia eliminated', () => {
@@ -114,6 +116,8 @@ describe('explainWinCondition', () => {
       ],
       maxRounds: 10,
       discussionEnabled: true,
+      personaEnabled: false,
+      personaConstraints: 'moderate',
     };
 
     let state = GameState.create('test', config);
@@ -134,6 +138,8 @@ describe('explainWinCondition', () => {
       ],
       maxRounds: 10,
       discussionEnabled: true,
+      personaEnabled: false,
+      personaConstraints: 'moderate',
     };
 
     const state = GameState.create('test', config);

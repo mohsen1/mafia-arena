@@ -52,7 +52,8 @@ export {
 export { resolveVotes, getVoteCounts } from './utils/votes.js';
 export { getVisibleState, getValidKillTargets, getValidEliminationTargets } from './utils/visibility.js';
 export { checkWinCondition, explainWinCondition } from './utils/winCondition.js';
-export { SYSTEM_PROMPTS, ACTION_PROMPTS, generateNightContext } from './utils/prompts.js';
+export { SYSTEM_PROMPTS, ACTION_PROMPTS, PERSONA_PROMPTS, generateNightContext, formatPersona, formatPlayersPersonas } from './utils/prompts.js';
+export { analyzePersonaConsistency, getModelConsistencyScore } from './utils/consistency.js';
 
 // All types
 export type {
@@ -61,6 +62,12 @@ export type {
   Phase,
   Player,
   DeadPlayer,
+
+  // Persona types
+  Persona,
+  PersonaConstraints,
+  PersonaAnalysis,
+  PlayerConsistencyScore,
 
   // Configuration
   GameConfig,
@@ -79,6 +86,8 @@ export type {
 
   // Player actions
   PlayerAction,
+  PersonaGenerationAction,
+  IntroductionAction,
   KillVoteAction,
   DiscussionAction,
   EliminationVoteAction,
@@ -93,7 +102,9 @@ export type {
   GameEvent,
   PhaseStartEvent,
   PhaseEndEvent,
+  PersonaGenerationEvent,
   AICallEvent,
+  IntroductionEvent,
   DiscussionEvent,
   VoteEvent,
   EliminationEvent,
