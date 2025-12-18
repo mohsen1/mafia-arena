@@ -3,7 +3,14 @@
  * Centralized prompts ensure consistency across the game.
  */
 
-import type { VisibleGameState, ConversationMessage, PersonaConstraints, Persona } from '../types.js';
+import type { 
+  VisibleGameState, 
+  ConversationMessage, 
+  PersonaConstraints, 
+  Persona,
+  VoteRecord,
+  GameLogEntry
+} from '../types.js';
 
 /**
  * System prompts define the AI's role and objectives.
@@ -215,7 +222,7 @@ Respond with ONLY this JSON format:
 }`;
   },
 
-  killVote: (targets: readonly string[], context: string, ownPersona?: Persona, mafiaHistory?: readonly ConversationMessage[]) => {
+  killVote: (targets: readonly string[], context: string, ownPersona?: Persona, mafiaHistory?: readonly ConversationMessage[], state?: VisibleGameState) => {
     const personaContext = ownPersona 
       ? `You are ${ownPersona.name}. Even though this is the night phase, remember your persona for consistency.\n\n`
       : '';
@@ -225,9 +232,33 @@ Respond with ONLY this JSON format:
       ? `\nYOUR TEAM'S DISCUSSION:\n${formatConversationHistoryWithRounds(mafiaHistory)}\n\nBased on your team's discussion above, make your final decision.\n`
       : '';
 
+    // Build full history context if available
+    const hasFullHistory = state && hasFullHistoryContext(state);
+    let fullHistoryContext = '';
+    let strategicInstructions = '';
+    
+    if (hasFullHistory && state) {
+      fullHistoryContext = formatFullGameHistory(
+        state.fullConversationHistory!,
+        state.voteHistory ?? [],
+        state.gameLog ?? [],
+        state.round
+      );
+      
+      strategicInstructions = `
+STRATEGIC KILL DECISION:
+Review the full game history. Consider:
+• Who is most dangerous? (Correctly identified previous Mafia)
+• Who is leading investigations against you?
+• Who might be easy to frame tomorrow?
+• Eliminate threats while avoiding obvious patterns.
+
+`;
+    }
+
     return `NIGHT PHASE - Mafia Kill Vote
 
-${personaContext}Choose a Town member to eliminate tonight.${mafiaDiscussionContext}
+${personaContext}${fullHistoryContext}${strategicInstructions}Choose a Town member to eliminate tonight.${mafiaDiscussionContext}
 
 Available targets:
 ${targets.join('\n')}
@@ -247,6 +278,9 @@ Respond with ONLY this JSON format:
     const currentRound = state.currentDiscussionRound ?? 1;
     const totalRounds = state.totalDiscussionRounds ?? 1;
     const isMultiRound = totalRounds > 1;
+    
+    // Use full history if available (large context mode)
+    const hasFullHistory = hasFullHistoryContext(state);
     
     const historyText = isMultiRound 
       ? formatConversationHistoryWithRounds(state.conversationHistory)
@@ -279,13 +313,41 @@ Respond with ONLY this JSON format:
       ? `DAY PHASE - Discussion (Round ${currentRound} of ${totalRounds})\n\n${roundInstructions}\n\n`
       : 'DAY PHASE - Discussion\n\n';
 
-    return `${roundHeader}${personaContext}${otherPersonasContext}Share your thoughts with the group. There are ${aliveCount} players alive${deadCount > 0 ? ` and ${deadCount} eliminated` : ''}.
+    // Build full history context if available
+    let fullHistoryContext = '';
+    if (hasFullHistory) {
+      fullHistoryContext = formatFullGameHistory(
+        state.fullConversationHistory!,
+        state.voteHistory ?? [],
+        state.gameLog ?? [],
+        state.round
+      );
+      
+      // Add vote analysis
+      if (state.voteHistory && state.voteHistory.length > 0 && state.deadPlayers.length > 0) {
+        fullHistoryContext += '\n\n' + formatVoteAnalysis(
+          state.voteHistory,
+          state.deadPlayers.map(p => ({ name: p.name, team: p.team }))
+        );
+      }
+      
+      fullHistoryContext += '\n\n';
+    }
+
+    return `${roundHeader}${personaContext}${otherPersonasContext}${fullHistoryContext}Share your thoughts with the group. There are ${aliveCount} players alive${deadCount > 0 ? ` and ${deadCount} eliminated` : ''}.
 
 ${historyText ? `Previous discussion this round:\n${historyText}\n\n` : ''}${
       state.deadPlayers.length > 0
         ? `Eliminated players: ${state.deadPlayers.map((p) => `${p.name} (${p.team})`).join(', ')}\n\n`
         : ''
-    }Respond with ONLY this JSON format:
+    }${hasFullHistory ? `STRATEGIC ANALYSIS TASK:
+Before responding, analyze the full game history above:
+1. Review voting patterns - who has voted with/against confirmed Mafia?
+2. Look for contradictions - has anyone changed their story?
+3. Note who defended eliminated players
+4. Reference specific past statements if relevant (e.g., "In Round 2, you said...")
+
+` : ''}Respond with ONLY this JSON format:
 {
   "message": "your discussion message - share thoughts, accusations, or defend yourself (stay in character)"
 }`;
@@ -301,6 +363,7 @@ ${historyText ? `Previous discussion this round:\n${historyText}\n\n` : ''}${
   ) => {
     const currentRound = state.currentDiscussionRound ?? 1;
     const totalRounds = state.totalDiscussionRounds ?? 1;
+    const hasFullHistory = hasFullHistoryContext(state);
     
     const mafiaHistoryText = state.mafiaHistory && state.mafiaHistory.length > 0
       ? formatConversationHistoryWithRounds(state.mafiaHistory)
@@ -332,13 +395,36 @@ ${historyText ? `Previous discussion this round:\n${historyText}\n\n` : ''}${
       roundInstructions = 'Build on your discussion. Debate strategy and work toward a decision.';
     }
 
+    // Build full history context if available
+    let fullHistoryContext = '';
+    let strategicAnalysis = '';
+    
+    if (hasFullHistory) {
+      // Include full mafia history for strategic context
+      fullHistoryContext = formatFullGameHistory(
+        state.fullMafiaHistory ?? [],
+        state.voteHistory ?? [],
+        state.gameLog ?? [],
+        state.round
+      );
+      
+      strategicAnalysis = `
+STRATEGIC ANALYSIS FOR MAFIA:
+• Who is most suspicious of you? (Eliminate threats)
+• Who has been helpful to Town? (Target skilled players)
+• Who can you frame? (Set up tomorrow's discussion)
+• What patterns might expose you? (Avoid predictable kills)
+
+`;
+    }
+
     return `NIGHT PHASE - PRIVATE MAFIA STRATEGY (Round ${currentRound} of ${totalRounds})
 
 ${personaNote}You are in a PRIVATE encrypted channel with your Mafia teammates.
 Teammates: ${teammatesList}
 
 ${roundInstructions}
-
+${fullHistoryContext}${strategicAnalysis}
 YOUR PRIVATE DISCUSSION:
 ${mafiaHistoryText}
 
@@ -357,19 +443,52 @@ Respond with ONLY this JSON format:
     ownPersona?: Persona
   ) => {
     const historyText = formatConversationHistory(state.conversationHistory);
+    const hasFullHistory = hasFullHistoryContext(state);
     
     const personaContext = ownPersona 
       ? `You are ${ownPersona.name} (${ownPersona.personality}). Vote in a way consistent with your character.\n\n`
       : '';
 
+    // Build full history context if available
+    let fullHistoryContext = '';
+    if (hasFullHistory) {
+      fullHistoryContext = formatFullGameHistory(
+        state.fullConversationHistory!,
+        state.voteHistory ?? [],
+        state.gameLog ?? [],
+        state.round
+      );
+      
+      // Add vote analysis
+      if (state.voteHistory && state.voteHistory.length > 0 && state.deadPlayers.length > 0) {
+        fullHistoryContext += '\n\n' + formatVoteAnalysis(
+          state.voteHistory,
+          state.deadPlayers.map(p => ({ name: p.name, team: p.team }))
+        );
+      }
+      
+      fullHistoryContext += '\n\n';
+    }
+
+    const strategicInstructions = hasFullHistory
+      ? `STRATEGIC DECISION:
+Before voting, consider the FULL GAME HISTORY above:
+• Who has consistently voted for Town members? (Suspicious!)
+• Who defended players that turned out to be Mafia?
+• Who has been helpful in eliminating Mafia?
+• Look for voting blocks - who always votes together?
+
+`
+      : '';
+
     return `DAY PHASE - Elimination Vote
 
-${personaContext}Based on the discussion, vote to eliminate a player you suspect is Mafia, or abstain if you're unsure.
+${personaContext}${fullHistoryContext}Based on the discussion, vote to eliminate a player you suspect is Mafia, or abstain if you're unsure.
 
 Alive players you can vote for:
 ${targets.join('\n')}
 
-${historyText ? `Discussion summary:\n${historyText}\n\n` : ''}Respond with ONLY this JSON format:
+${historyText ? `Discussion summary:\n${historyText}\n\n` : ''}${strategicInstructions}Respond with ONLY this JSON format:
 {
   "vote": "player_id",
   "reasoning": "brief explanation of your vote"
@@ -447,5 +566,193 @@ export function generateNightContext(state: VisibleGameState): string {
   }
 
   return parts.join('\n');
+}
+
+// =============================================================================
+// Large Context Support (Leveraging 100k+ token context windows)
+// =============================================================================
+
+/**
+ * Format the complete game history for large context prompts.
+ * Structures history by round with clear markers for AI analysis.
+ * 
+ * This enables AI players to:
+ * - Reference specific past statements ("In round 2, you said...")
+ * - Analyze voting patterns across the entire game
+ * - Detect inconsistencies and behavioral changes
+ * - Build long-term strategic understanding
+ */
+export function formatFullGameHistory(
+  messages: readonly ConversationMessage[],
+  votes: readonly VoteRecord[],
+  logs: readonly GameLogEntry[],
+  currentRound: number
+): string {
+  if (messages.length === 0 && votes.length === 0 && logs.length === 0) {
+    return '';
+  }
+
+  const parts: string[] = ['═══════════════════════════════════════════════════════════════'];
+  parts.push('                        FULL GAME HISTORY');
+  parts.push('═══════════════════════════════════════════════════════════════');
+  parts.push('');
+  parts.push('ANALYSIS TIPS:');
+  parts.push('• Look for voting patterns - who consistently votes together?');
+  parts.push('• Watch for contradictions - did anyone change their story?');
+  parts.push('• Note defenders of eliminated Mafia - are they suspicious?');
+  parts.push('• Track who accuses whom - is there a pattern?');
+  parts.push('');
+
+  // Get all rounds that have any activity
+  const allRounds = new Set([
+    ...messages.map(m => m.round),
+    ...votes.map(v => v.round),
+    ...logs.map(l => l.round),
+  ]);
+  const sortedRounds = Array.from(allRounds).sort((a, b) => a - b);
+
+  for (const round of sortedRounds) {
+    parts.push(`┌─────────────────────────────────────────────────────────────┐`);
+    parts.push(`│                         ROUND ${round}                           │`);
+    parts.push(`└─────────────────────────────────────────────────────────────┘`);
+    parts.push('');
+
+    // Round events (eliminations)
+    const roundLogs = logs.filter(l => l.round === round);
+    if (roundLogs.length > 0) {
+      parts.push('📋 EVENTS:');
+      for (const log of roundLogs) {
+        const teamTag = log.playerTeam ? ` [${log.playerTeam.toUpperCase()}]` : '';
+        parts.push(`   ▸ ${log.event}${teamTag}`);
+      }
+      parts.push('');
+    }
+
+    // Night votes (mafia kill decision - shown as result only)
+    const nightVotes = votes.filter(v => v.round === round && v.phase === 'night');
+    if (nightVotes.length > 0) {
+      parts.push('🌙 NIGHT PHASE:');
+      const killTarget = nightVotes.find(v => v.targetName);
+      if (killTarget?.targetName) {
+        parts.push(`   Mafia killed: ${killTarget.targetName}`);
+      }
+      parts.push('');
+    }
+
+    // Day discussion
+    const roundMsgs = messages.filter(m => m.round === round);
+    if (roundMsgs.length > 0) {
+      parts.push('💬 DAY DISCUSSION:');
+      
+      // Group by discussion round if multi-round
+      const discussionRounds = new Set(roundMsgs.map(m => m.discussionRound ?? 1));
+      const sortedDiscRounds = Array.from(discussionRounds).sort((a, b) => a - b);
+      
+      for (const discRound of sortedDiscRounds) {
+        if (sortedDiscRounds.length > 1) {
+          parts.push(`   --- Discussion Phase ${discRound} ---`);
+        }
+        const discMsgs = roundMsgs.filter(m => (m.discussionRound ?? 1) === discRound);
+        for (const msg of discMsgs) {
+          parts.push(`   ${msg.playerName}: "${msg.message}"`);
+        }
+      }
+      parts.push('');
+    }
+
+    // Day votes
+    const dayVotes = votes.filter(v => v.round === round && v.phase === 'day_vote');
+    if (dayVotes.length > 0) {
+      parts.push('🗳️ ELIMINATION VOTES:');
+      for (const vote of dayVotes) {
+        const teamTag = vote.voterTeam ? ` [${vote.voterTeam.toUpperCase()}]` : '';
+        const target = vote.targetName ?? 'ABSTAIN';
+        parts.push(`   ${vote.voterName}${teamTag} → ${target}`);
+      }
+      parts.push('');
+    }
+  }
+
+  parts.push('═══════════════════════════════════════════════════════════════');
+  parts.push(`                    END OF HISTORY (Now: Round ${currentRound})`);
+  parts.push('═══════════════════════════════════════════════════════════════');
+
+  return parts.join('\n');
+}
+
+/**
+ * Format vote analysis for strategic prompts.
+ * Highlights patterns that might indicate Mafia behavior.
+ */
+export function formatVoteAnalysis(
+  votes: readonly VoteRecord[],
+  deadPlayers: readonly { name: string; team: string }[]
+): string {
+  if (votes.length === 0) {
+    return '';
+  }
+
+  const parts: string[] = ['📊 VOTING PATTERN ANALYSIS:'];
+  
+  // Find who voted for confirmed Mafia (suspicious if they defended)
+  const mafiaNames = new Set(
+    deadPlayers.filter(p => p.team === 'mafia').map(p => p.name)
+  );
+  const townNames = new Set(
+    deadPlayers.filter(p => p.team === 'town').map(p => p.name)
+  );
+
+  // Track who voted for whom
+  const voterTargets = new Map<string, string[]>();
+  for (const vote of votes) {
+    if (vote.phase === 'day_vote' && vote.targetName) {
+      const targets = voterTargets.get(vote.voterName) ?? [];
+      targets.push(vote.targetName);
+      voterTargets.set(vote.voterName, targets);
+    }
+  }
+
+  // Analyze voting patterns
+  const suspiciousVoters: string[] = [];
+  const helpfulVoters: string[] = [];
+
+  for (const [voter, targets] of voterTargets) {
+    const votedForMafia = targets.filter(t => mafiaNames.has(t)).length;
+    const votedForTown = targets.filter(t => townNames.has(t)).length;
+    
+    if (votedForTown > votedForMafia && votedForTown >= 2) {
+      suspiciousVoters.push(`${voter} (voted for ${votedForTown} Town members)`);
+    }
+    if (votedForMafia > votedForTown && votedForMafia >= 2) {
+      helpfulVoters.push(`${voter} (helped eliminate ${votedForMafia} Mafia)`);
+    }
+  }
+
+  if (suspiciousVoters.length > 0) {
+    parts.push('   ⚠️ SUSPICIOUS (voted against Town):');
+    for (const voter of suspiciousVoters) {
+      parts.push(`      • ${voter}`);
+    }
+  }
+
+  if (helpfulVoters.length > 0) {
+    parts.push('   ✅ HELPFUL (voted against Mafia):');
+    for (const voter of helpfulVoters) {
+      parts.push(`      • ${voter}`);
+    }
+  }
+
+  if (suspiciousVoters.length === 0 && helpfulVoters.length === 0) {
+    parts.push('   (Not enough data to detect patterns yet)');
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Check if the state has full history context enabled.
+ */
+export function hasFullHistoryContext(state: VisibleGameState): boolean {
+  return !!(state.fullConversationHistory && state.fullConversationHistory.length > 0);
 }
 

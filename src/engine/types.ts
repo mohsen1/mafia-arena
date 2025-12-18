@@ -49,6 +49,14 @@ export interface DeadPlayer {
 // Game Configuration
 // =============================================================================
 
+/**
+ * Context level determines how much game history is passed to AI players.
+ * - 'full': All history verbatim (High Cost, Maximum Strategy)
+ * - 'windowed': Last N rounds verbatim, summary before that (Medium Cost)
+ * - 'summary': Only current round + event log (Low Cost, Current Behavior)
+ */
+export type ContextLevel = 'full' | 'windowed' | 'summary';
+
 export interface GameConfig {
   readonly playerCount: number;
   readonly mafiaCount: number;
@@ -63,6 +71,15 @@ export interface GameConfig {
   readonly dayDiscussionRounds?: number | undefined;
   /** Seed for deterministic random number generation (for reproducibility) */
   readonly seed?: number | undefined;
+  /**
+   * How much game history context to provide to AI players.
+   * - 'full': Complete verbatim history from Round 1 (leverages large context windows)
+   * - 'windowed': Last 3 rounds verbatim + summary of earlier rounds
+   * - 'summary': Current round only (default, original behavior)
+   */
+  readonly contextLevel?: ContextLevel | undefined;
+  /** Number of rounds to include in windowed context (default: 3) */
+  readonly contextWindowSize?: number | undefined;
 }
 
 export interface TeamAssignment {
@@ -203,6 +220,30 @@ export interface EliminationVoteAction {
 // Visible State (What AI can see)
 // =============================================================================
 
+/**
+ * A record of a vote cast during the game.
+ * Used to track voting patterns across rounds.
+ */
+export interface VoteRecord {
+  readonly round: number;
+  readonly phase: 'night' | 'day_vote';
+  readonly voterName: string;
+  readonly targetName: string | null; // null = abstain
+  readonly voterTeam?: Team | undefined; // Only revealed after voter is eliminated
+}
+
+/**
+ * A high-level game event for the game log.
+ * Summarizes eliminations and major game events.
+ */
+export interface GameLogEntry {
+  readonly round: number;
+  readonly phase: Phase;
+  readonly event: string;
+  readonly playerName?: string;
+  readonly playerTeam?: Team;
+}
+
 export interface VisibleGameState {
   readonly round: number;
   readonly phase: Phase;
@@ -217,6 +258,17 @@ export interface VisibleGameState {
   readonly currentDiscussionRound?: number | undefined;
   /** Total discussion rounds for this phase */
   readonly totalDiscussionRounds?: number | undefined;
+  
+  // === LARGE CONTEXT FIELDS (for leveraging 100k+ token context windows) ===
+  
+  /** Full history of ALL public conversations from Round 1 to now */
+  readonly fullConversationHistory?: readonly ConversationMessage[] | undefined;
+  /** Full history of ALL mafia conversations (only for mafia members) */
+  readonly fullMafiaHistory?: readonly ConversationMessage[] | undefined;
+  /** Complete history of all public votes revealed to this player */
+  readonly voteHistory?: readonly VoteRecord[] | undefined;
+  /** High-level summary of game events (eliminations, phase transitions) */
+  readonly gameLog?: readonly GameLogEntry[] | undefined;
 }
 
 export interface VisiblePlayer {
