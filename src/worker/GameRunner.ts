@@ -377,6 +377,8 @@ export class GameRunner extends DurableObject<Env> {
       personaEnabled: config.personaEnabled,
       personaConstraints: config.personaConstraints,
       seed, // Include seed for reproducibility
+      contextLevel: config.contextLevel ?? 'summary',
+      contextWindowSize: config.contextWindowSize ?? 3,
     };
   }
 

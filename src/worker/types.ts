@@ -54,5 +54,14 @@ export interface GameQueueConfig {
   personaConstraints: 'strict' | 'moderate' | 'free';
   /** Optional seed for reproducible games (generated if not provided) */
   seed?: number;
+  /** 
+   * Context level for AI players:
+   * - 'full': Complete history from Round 1 (leverages large context windows)
+   * - 'windowed': Last N rounds verbatim + summary of earlier rounds
+   * - 'summary': Current round only (default)
+   */
+  contextLevel?: 'full' | 'windowed' | 'summary';
+  /** Number of rounds to include in windowed context (default: 3) */
+  contextWindowSize?: number;
 }
 

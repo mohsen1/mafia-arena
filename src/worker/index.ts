@@ -274,6 +274,8 @@ export default {
         discussionEnabled?: boolean;
         personaEnabled?: boolean;
         personaConstraints?: 'strict' | 'moderate' | 'free';
+        contextLevel?: 'full' | 'windowed' | 'summary';
+        contextWindowSize?: number;
       };
     }
 
@@ -314,6 +316,8 @@ export default {
             discussionEnabled: body.config.discussionEnabled ?? true,
             personaEnabled: body.config.personaEnabled ?? false,
             personaConstraints: body.config.personaConstraints ?? 'moderate',
+            contextLevel: body.config.contextLevel ?? 'summary',
+            contextWindowSize: body.config.contextWindowSize ?? 3,
           },
           createdAt: Date.now(),
         },
@@ -328,6 +332,7 @@ export default {
       batchId,
       queued: body.count,
       gameIds,
+      contextLevel: body.config.contextLevel ?? 'summary',
       budget: {
         spent: budget.spent.toFixed(4),
         remaining: budget.remaining.toFixed(4),
