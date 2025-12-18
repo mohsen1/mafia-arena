@@ -14,6 +14,7 @@ import type {
 
 /**
  * System prompts define the AI's role and objectives.
+ * Note: JSON format is now enforced via structured output, not prompting.
  */
 export const SYSTEM_PROMPTS = {
   mafia: (teammates: readonly string[]) => `You are playing Mafia. You are a MAFIA member.
@@ -30,9 +31,7 @@ GOALS:
 RULES:
 - During night: Vote to kill a Town member
 - During day discussion: Share your thoughts, accusations, or defenses
-- During day vote: Vote to eliminate someone suspicious (or abstain)
-
-IMPORTANT: Always respond with valid JSON in the exact format requested.`,
+- During day vote: Vote to eliminate someone suspicious (or abstain)`,
 
   town: () => `You are playing Mafia. You are a TOWN member.
 
@@ -46,9 +45,7 @@ GOALS:
 RULES:
 - You don't know who the Mafia members are
 - During day discussion: Share your suspicions and theories
-- During day vote: Vote to eliminate someone you suspect is Mafia
-
-IMPORTANT: Always respond with valid JSON in the exact format requested.`,
+- During day vote: Vote to eliminate someone you suspect is Mafia`,
 } as const;
 
 /**
@@ -104,6 +101,7 @@ function formatTakenNames(takenNames: readonly string[]): string {
 
 /**
  * Persona generation prompts - used before introduction to create AI identities.
+ * Note: JSON format is now enforced via structured output schema, not prompting.
  */
 export const PERSONA_PROMPTS = {
   mafia: (constraints: PersonaConstraints, playerCount: number, takenNames: readonly string[] = []) => `PERSONA GENERATION - Create Your Character
@@ -119,12 +117,7 @@ STRATEGY TIPS FOR MAFIA:
 - Your personality should help deflect suspicion
 - Consider how your character would naturally react to accusations
 
-Respond with ONLY this JSON format:
-{
-  "name": "your chosen name",
-  "background": "1-2 sentences about your character's approach/motivation",
-  "personality": "your communication style"
-}`,
+Provide your persona with a name, background (1-2 sentences), and personality (communication style).`,
 
   town: (constraints: PersonaConstraints, playerCount: number, takenNames: readonly string[] = []) => `PERSONA GENERATION - Create Your Character
 
@@ -139,12 +132,7 @@ TIPS FOR TOWN:
 - Your personality should help you communicate effectively
 - Consider how your character would naturally investigate and question
 
-Respond with ONLY this JSON format:
-{
-  "name": "your chosen name",
-  "background": "1-2 sentences about your character's approach/motivation",
-  "personality": "your communication style"
-}`,
+Provide your persona with a name, background (1-2 sentences), and personality (communication style).`,
 } as const;
 
 /**
@@ -192,10 +180,7 @@ Tips:
 - Stay consistent with your established persona
 - Maybe mention you're watching everyone carefully
 
-Respond with ONLY this JSON format:
-{
-  "message": "your introduction message (2-4 sentences)"
-}`;
+Provide your introduction message (2-4 sentences).`;
   },
 
   introductionTown: (playerName: string, playerCount: number, persona?: Persona) => {
@@ -216,10 +201,7 @@ Remember:
 - Stay consistent with your established persona
 - Express genuine concern about finding the Mafia
 
-Respond with ONLY this JSON format:
-{
-  "message": "your introduction message (2-4 sentences)"
-}`;
+Provide your introduction message (2-4 sentences).`;
   },
 
   killVote: (targets: readonly string[], context: string, ownPersona?: Persona, mafiaHistory?: readonly ConversationMessage[], state?: VisibleGameState) => {
@@ -266,12 +248,9 @@ ${targets.join('\n')}
 Game context:
 ${context}
 
-Respond with ONLY this JSON format:
-{
-  "action": "kill",
-  "target": "player_id",
-  "reasoning": "brief explanation of your choice"
-}`;
+IMPORTANT: Your target MUST be the exact player ID (e.g., "player_1", "player_2") - NOT the player's name.
+
+Provide your target and brief reasoning for your choice.`;
   },
 
   discussion: (state: VisibleGameState, ownPersona?: Persona) => {
@@ -347,10 +326,7 @@ Before responding, analyze the full game history above:
 3. Note who defended eliminated players
 4. Reference specific past statements if relevant (e.g., "In Round 2, you said...")
 
-` : ''}Respond with ONLY this JSON format:
-{
-  "message": "your discussion message - share thoughts, accusations, or defend yourself (stay in character)"
-}`;
+` : ''}Provide your discussion message - share thoughts, accusations, or defend yourself (stay in character).`;
   },
 
   /**
@@ -431,10 +407,7 @@ ${mafiaHistoryText}
 ${publicHistoryText ? `INTEL FROM TODAY'S PUBLIC DISCUSSION:\n${publicHistoryText}\n\n` : ''}ALIVE PLAYERS (potential targets):
 ${state.alivePlayers.filter(p => !state.teammates?.includes(p.id)).map(p => `- ${p.name}`).join('\n')}
 
-Respond with ONLY this JSON format:
-{
-  "message": "your strategic message to teammates (who to target, observations, strategy)"
-}`;
+Provide your strategic message to teammates (who to target, observations, strategy).`;
   },
 
   eliminationVote: (
@@ -485,20 +458,13 @@ Before voting, consider the FULL GAME HISTORY above:
 
 ${personaContext}${fullHistoryContext}Based on the discussion, vote to eliminate a player you suspect is Mafia, or abstain if you're unsure.
 
-Alive players you can vote for:
+Alive players:
 ${targets.join('\n')}
 
-${historyText ? `Discussion summary:\n${historyText}\n\n` : ''}${strategicInstructions}Respond with ONLY this JSON format:
-{
-  "vote": "player_id",
-  "reasoning": "brief explanation of your vote"
-}
+${historyText ? `Discussion summary:\n${historyText}\n\n` : ''}${strategicInstructions}IMPORTANT: Your vote MUST be the exact player ID (e.g., "player_1", "player_2") - NOT the player's name.
+To abstain, use null.
 
-Or to abstain:
-{
-  "vote": null,
-  "reasoning": "why you're abstaining"
-}`;
+Provide your vote and brief reasoning.`;
   },
 };
 

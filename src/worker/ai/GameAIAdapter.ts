@@ -10,6 +10,7 @@
 import type { AIProvider, AIContext, ActionPrompt, AIResponse, PlayerAction } from '../../engine/types.js';
 import type { AIProviderInterface } from './types.js';
 import { AIErrors } from './errors.js';
+import { getSchemaForAction } from './types.js';
 import { sanitizePersona } from '../../engine/utils/sanitize.js';
 
 /**
@@ -44,10 +45,13 @@ export class GameAIAdapter implements AIProvider {
 
     const startTime = Date.now();
 
+    // Get the appropriate JSON schema for this action type
+    const structuredOutput = getSchemaForAction(prompt.type);
+
     const response = await provider.complete({
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
-      responseFormat: 'json',
+      structuredOutput,
       temperature: 0.7,
       maxTokens: 1000,
     });
