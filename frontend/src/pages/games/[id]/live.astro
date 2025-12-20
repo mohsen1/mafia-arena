@@ -1,109 +1,92 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { getGame, formatDuration } from '../../../lib/api';
-import { getProviderColorFromModel } from '../../../lib/providers';
-import { MessageSquare, Moon, Vote, ArrowLeft, Radio, Loader2 } from 'lucide-astro';
+import { ArrowLeft, Radio, Loader2 } from 'lucide-astro';
 
 const { id } = Astro.params;
-
-let game = null;
-let error = null;
-
-try {
-  game = await getGame(id!);
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load game';
-}
+const gameId = id!;
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
-<Layout title={game ? `Live: ${game.id.slice(-8)}` : 'Not Found'}>
-  {error || !game ? (
-    <div class="border rounded-md p-8 text-center text-muted-foreground">
-      <p class="text-sm mb-4">Game not found</p>
-      <a href="/games" class="text-sm font-medium hover:underline">← Back to games</a>
+<Layout title={`Live: ${gameId.slice(-8)}`}>
+  <div class="space-y-6 max-w-4xl">
+    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+      <a href="/games" class="hover:text-foreground inline-flex items-center gap-1">
+        <ArrowLeft size={14} /> Games
+      </a>
+      <span>/</span>
+      <a href={`/games/${gameId}`} class="hover:text-foreground">
+        <code class="text-xs">{gameId.slice(-12)}</code>
+      </a>
+      <span>/</span>
+      <span>Live</span>
     </div>
-  ) : (
-    <div class="space-y-6 max-w-4xl">
-      <div class="flex items-center gap-2 text-sm text-muted-foreground">
-        <a href="/games" class="hover:text-foreground inline-flex items-center gap-1">
-          <ArrowLeft size={14} /> Games
-        </a>
-        <span>/</span>
-        <a href={`/games/${game.id}`} class="hover:text-foreground">
-          <code class="text-xs">{game.id.slice(-12)}</code>
-        </a>
-        <span>/</span>
-        <span>Live</span>
-      </div>
 
-      <div class="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold tracking-tight">Live Game</h1>
-            <span id="live-badge" class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-              <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-              </span>
-              LIVE
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold tracking-tight">Live Game</h1>
+          <span id="live-badge" class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
             </span>
-          </div>
-          <div id="game-status" class="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-            <span id="status-text">Connecting...</span>
-          </div>
+            LIVE
+          </span>
         </div>
+        <div id="game-status" class="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+          <span id="status-text">Connecting...</span>
+        </div>
+      </div>
+      <a 
+        href={`/games/${gameId}/replay`} 
+        id="replay-link"
+        class="hidden inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+      >
+        View Full Replay
+      </a>
+    </div>
+
+    {/* Connection Status */}
+    <div id="connection-status" class="border rounded-md p-4 bg-muted/30">
+      <div class="flex items-center gap-3">
+        <div class="animate-spin">
+          <Loader2 size={20} class="text-muted-foreground" />
+        </div>
+        <span class="text-sm text-muted-foreground">Connecting to live stream...</span>
+      </div>
+    </div>
+
+    {/* Player Roster (populated by JS) */}
+    <div id="player-roster" class="hidden border rounded-md p-4 bg-muted/30">
+      <h3 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Player Roster</h3>
+      <div id="roster-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+      </div>
+    </div>
+
+    {/* Events Container */}
+    <div id="events-container" class="space-y-6">
+      <div class="text-center text-muted-foreground text-sm py-8">
+        Waiting for events...
+      </div>
+    </div>
+
+    {/* Game End Banner (hidden initially) */}
+    <div id="game-end-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+      <div class="bg-background border-2 rounded-lg shadow-xl p-4 flex items-center gap-4">
+        <div id="winner-indicator" class="text-lg font-bold"></div>
         <a 
-          href={`/games/${game.id}/replay`} 
-          id="replay-link"
-          class="hidden inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+          href={`/games/${gameId}/replay`}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           View Full Replay
         </a>
       </div>
-
-      {/* Connection Status */}
-      <div id="connection-status" class="border rounded-md p-4 bg-muted/30">
-        <div class="flex items-center gap-3">
-          <div class="animate-spin">
-            <Loader2 size={20} class="text-muted-foreground" />
-          </div>
-          <span class="text-sm text-muted-foreground">Connecting to live stream...</span>
-        </div>
-      </div>
-
-      {/* Player Roster (populated by JS) */}
-      <div id="player-roster" class="hidden border rounded-md p-4 bg-muted/30">
-        <h3 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Player Roster</h3>
-        <div id="roster-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-        </div>
-      </div>
-
-      {/* Events Container */}
-      <div id="events-container" class="space-y-6">
-        <div class="text-center text-muted-foreground text-sm py-8">
-          Waiting for events...
-        </div>
-      </div>
-
-      {/* Game End Banner (hidden initially) */}
-      <div id="game-end-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
-        <div class="bg-background border-2 rounded-lg shadow-xl p-4 flex items-center gap-4">
-          <div id="winner-indicator" class="text-lg font-bold"></div>
-          <a 
-            href={`/games/${game.id}/replay`}
-            class="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            View Full Replay
-          </a>
-        </div>
-      </div>
     </div>
-  )}
+  </div>
 </Layout>
 
-<script define:vars={{ gameId: id, apiUrl }}>
+<script define:vars={{ gameId, apiUrl }}>
   // WebSocket connection for live streaming
   let ws = null;
   let events = [];
@@ -181,11 +164,19 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         </svg>
         FAILED
       `;
+    } else if (status === 'idle') {
+      badge.className = 'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
+      badge.innerHTML = `
+        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+        </svg>
+        STARTING
+      `;
     }
     
     if (statusText) {
       const eventCount = events.length;
-      statusText.textContent = `${eventCount} events`;
+      statusText.textContent = eventCount > 0 ? `${eventCount} events` : 'Waiting for game to start...';
     }
   }
 
@@ -407,6 +398,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       
       if (data.status === 'completed' || data.status === 'failed') {
         updateLiveBadge(data.status);
+      } else if (data.status === 'idle') {
+        updateLiveBadge('idle');
       }
     } else if (data.type === 'EVENT') {
       // New event
@@ -552,4 +545,3 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     .dark\:text-blue-400 { color: rgb(96, 165, 250); }
   }
 </style>
-
