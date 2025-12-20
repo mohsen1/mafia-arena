@@ -12,6 +12,12 @@ export async function rateLimitMiddleware(c: Context<{ Bindings: Env }>, next: N
     return next();
   }
 
+  // Skip rate limiting for WebSocket upgrades
+  const upgradeHeader = c.req.header('Upgrade');
+  if (upgradeHeader?.toLowerCase() === 'websocket') {
+    return next();
+  }
+
   const url = new URL(c.req.url);
   const key = getRateLimitKey(c.req.raw, url);
   const config = getRateLimitConfig(c.req.method, url.pathname);
