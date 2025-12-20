@@ -19,23 +19,25 @@ interface Props {
 const { entries, team } = Astro.props;
 
 function getRankDisplay(index: number) {
-  if (index === 0) return { icon: '🥇', class: 'text-yellow-500' };
-  if (index === 1) return { icon: '🥈', class: 'text-zinc-400' };
-  if (index === 2) return { icon: '🥉', class: 'text-amber-600' };
-  return { icon: `${index + 1}`, class: 'text-muted-foreground' };
+  if (index === 0) return { icon: '🥇', class: 'text-yellow-500', bg: 'bg-yellow-500/10' };
+  if (index === 1) return { icon: '🥈', class: 'text-zinc-400', bg: 'bg-zinc-500/10' };
+  if (index === 2) return { icon: '🥉', class: 'text-amber-600', bg: 'bg-amber-500/10' };
+  return { icon: `${index + 1}`, class: 'text-muted-foreground', bg: '' };
 }
+
+const teamColor = team === 'mafia' 
+  ? { text: 'text-red-500 dark:text-red-400', bg: 'bg-red-500/10' }
+  : { text: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10' };
 ---
 
 <div class="border rounded-md overflow-hidden">
   <table class="w-full text-sm">
     <thead>
       <tr class="border-b bg-muted/50">
-        <th class="h-9 px-3 text-left font-medium text-muted-foreground w-12">#</th>
+        <th class="h-9 px-3 text-left font-medium text-muted-foreground w-10">#</th>
         <th class="h-9 px-3 text-left font-medium text-muted-foreground">Model</th>
+        <th class="h-9 px-3 text-right font-medium text-muted-foreground w-24">Record</th>
         <th class="h-9 px-3 text-right font-medium text-muted-foreground w-20">Win %</th>
-        <th class="h-9 px-3 text-right font-medium text-muted-foreground w-16">W</th>
-        <th class="h-9 px-3 text-right font-medium text-muted-foreground w-16">L</th>
-        <th class="h-9 px-3 text-right font-medium text-muted-foreground w-24">Tokens</th>
       </tr>
     </thead>
     <tbody>
@@ -43,30 +45,29 @@ function getRankDisplay(index: number) {
         const rank = getRankDisplay(index);
         const winRate = (entry.win_rate * 100).toFixed(1);
         const losses = entry.games_played - entry.games_won;
+        const isTop3 = index < 3;
         return (
-          <tr class="border-b last:border-0 hover:bg-muted/30 transition-colors">
-            <td class={cn("h-10 px-3 tabular-nums font-medium", rank.class)}>
+          <tr class={cn("border-b last:border-0 hover:bg-muted/30 transition-colors", isTop3 && rank.bg)}>
+            <td class={cn("h-11 px-3 tabular-nums font-medium text-center", rank.class)}>
               {rank.icon}
             </td>
-            <td class="h-10 px-3">
-              <span class="font-medium">{entry.display_name || entry.model_id}</span>
+            <td class="h-11 px-3">
+              <span class={cn("font-semibold", isTop3 && "text-base")}>{entry.display_name || entry.model_id}</span>
             </td>
-            <td class="h-10 px-3 text-right">
+            <td class="h-11 px-3 text-right">
+              <span class="font-mono tabular-nums">
+                <span class="text-green-600 dark:text-green-400 font-semibold">{entry.games_won}</span>
+                <span class="text-muted-foreground mx-0.5">-</span>
+                <span class="text-muted-foreground">{losses}</span>
+              </span>
+            </td>
+            <td class="h-11 px-3 text-right">
               <span class={cn(
-                "font-mono font-semibold tabular-nums",
-                team === 'mafia' ? 'text-red-500 dark:text-red-400' : 'text-blue-500 dark:text-blue-400'
+                "font-mono font-bold tabular-nums text-base",
+                teamColor.text
               )}>
                 {winRate}%
               </span>
-            </td>
-            <td class="h-10 px-3 text-right font-mono tabular-nums text-green-600 dark:text-green-400">
-              {entry.games_won}
-            </td>
-            <td class="h-10 px-3 text-right font-mono tabular-nums text-muted-foreground">
-              {losses}
-            </td>
-            <td class="h-10 px-3 text-right font-mono tabular-nums text-xs text-muted-foreground">
-              {Math.round(entry.total_tokens).toLocaleString()}
             </td>
           </tr>
         );
