@@ -2,9 +2,10 @@
  * AI Provider factory.
  * Creates the appropriate provider based on model ID.
  *
- * OpenRouter Integration:
- * When OPENROUTER_API_KEY is set, OpenAI and Anthropic models
- * are routed through OpenRouter for unified billing and management.
+ * Provider Priority:
+ * 1. OpenRouter (when OPENROUTER_API_KEY is set) - unified billing
+ * 2. Azure OpenAI (when AZURE_OPENAI_API_KEY is set) - for OpenAI models
+ * 3. Direct API calls (OpenAI, Anthropic, Google)
  */
 
 import type { Env } from '../types.js';
@@ -16,6 +17,7 @@ import { OpenAIProvider } from './providers/OpenAIProvider.js';
 import { AnthropicProvider } from './providers/AnthropicProvider.js';
 import { GoogleProvider } from './providers/GoogleProvider.js';
 import { OpenRouterProvider } from './providers/OpenRouterProvider.js';
+import { AzureOpenAIProvider } from './providers/AzureOpenAIProvider.js';
 
 export interface CreateProviderOptions {
   enableRetry?: boolean;
@@ -41,8 +43,11 @@ export function createProvider(
 
   let provider: AIProviderInterface;
 
-  // Use OpenRouter for all providers if key is available
+  // Priority 1: Use OpenRouter for all providers if key is available
   const useOpenRouter = !!env.OPENROUTER_API_KEY;
+  
+  // Priority 2: Use Azure OpenAI for OpenAI models if configured
+  const useAzure = !!env.AZURE_OPENAI_API_KEY && !!env.AZURE_OPENAI_ENDPOINT;
 
   if (useOpenRouter) {
     provider = new OpenRouterProvider({
@@ -53,11 +58,23 @@ export function createProvider(
   } else {
     switch (modelConfig.provider) {
       case 'openai':
-        provider = new OpenAIProvider({
-          apiKey: env.OPENAI_API_KEY,
-          modelId,
-          timeoutMs,
-        });
+        // Use Azure OpenAI if configured, otherwise fall back to direct OpenAI
+        if (useAzure) {
+          provider = new AzureOpenAIProvider({
+            apiKey: env.AZURE_OPENAI_API_KEY!,
+            modelId,
+            timeoutMs,
+            endpoint: env.AZURE_OPENAI_ENDPOINT!,
+            apiVersion: env.AZURE_OPENAI_API_VERSION || '2024-12-01-preview',
+            deploymentName: modelId, // Will be mapped internally
+          });
+        } else {
+          provider = new OpenAIProvider({
+            apiKey: env.OPENAI_API_KEY,
+            modelId,
+            timeoutMs,
+          });
+        }
         break;
 
       case 'anthropic':
