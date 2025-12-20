@@ -309,6 +309,43 @@ games.get('/:id/transcript', async (c) => {
 });
 
 /**
+ * GET /api/games/:id/live - WebSocket endpoint for live game streaming.
+ * Upgrades to WebSocket connection to receive real-time game events.
+ */
+games.get('/:id/live', async (c) => {
+  const env = c.env;
+  const gameId = c.req.param('id');
+
+  // Get the Durable Object instance for this game
+  const doId = env.GAME_RUNNER.idFromName(gameId);
+  const stub = env.GAME_RUNNER.get(doId);
+
+  // Forward the WebSocket upgrade request to the Durable Object
+  return stub.fetch(new Request('http://internal/websocket', {
+    headers: c.req.raw.headers,
+  }));
+});
+
+/**
+ * GET /api/games/:id/events - Get current events (polling fallback).
+ * Returns current game state and all events so far.
+ */
+games.get('/:id/events', async (c) => {
+  const env = c.env;
+  const gameId = c.req.param('id');
+
+  // Get the Durable Object instance for this game
+  const doId = env.GAME_RUNNER.idFromName(gameId);
+  const stub = env.GAME_RUNNER.get(doId);
+
+  // Forward the request to the Durable Object
+  const response = await stub.fetch(new Request('http://internal/events'));
+  const data = await response.json();
+
+  return c.json(data);
+});
+
+/**
  * GET /api/games/:id/personas - Get personas for a specific game.
  */
 games.get('/:id/personas', async (c) => {
