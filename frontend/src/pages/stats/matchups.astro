@@ -180,7 +180,7 @@ function getProviderColor(provider: string): string {
                     <div class="h-full flex flex-col items-center justify-end pb-1.5">
                       <div class="writing-vertical flex items-center gap-1">
                         <span 
-                          class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
+                          class="w-1.5 h-1.5 rounded-full shrink-0" 
                           style={`background: ${getProviderColor(m.provider)}`}
                         ></span>
                         <span class="font-medium whitespace-nowrap">{m.display_name}</span>
@@ -197,7 +197,7 @@ function getProviderColor(provider: string): string {
                     <td class="sticky left-0 z-10 bg-card border-r p-0">
                       <div class="w-32 h-9 flex items-center gap-1.5 px-1.5 group-hover:bg-muted/50 transition-colors">
                         <span 
-                          class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
+                          class="w-1.5 h-1.5 rounded-full shrink-0" 
                           style={`background: ${getProviderColor(rowModel.provider)}`}
                         ></span>
                         <span class="font-medium truncate">{rowModel.display_name}</span>

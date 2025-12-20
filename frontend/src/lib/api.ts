@@ -432,6 +432,17 @@ export function formatDuration(ms: number): string {
 }
 
 /**
+ * Format duration in seconds to human-readable string (e.g., "4m 13s").
+ */
+export function formatDurationSeconds(seconds: number): string {
+  const secs = Math.round(seconds);
+  if (secs < 60) return `${secs}s`;
+  const minutes = Math.floor(secs / 60);
+  const remainingSeconds = secs % 60;
+  return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+}
+
+/**
  * Format relative time.
  */
 export function formatRelativeTime(timestamp: number): string {
