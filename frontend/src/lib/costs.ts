@@ -1,56 +1,63 @@
 /**
  * Cost calculation utilities for AI API calls.
- * Updated pricing from official docs - December 2024
+ * Updated pricing from official docs - December 2025
  */
 
 // Cost per 1K tokens by model (USD)
 const PRICING: Record<string, { input: number; output: number }> = {
-  // OpenAI GPT-4o series (structured output capable)
-  'gpt-4o': { input: 0.0025, output: 0.01 },
-  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
-  'gpt-4-turbo': { input: 0.01, output: 0.03 },
+  // OpenAI GPT-5.2 series (frontier models)
+  'gpt-5.2': { input: 0.003, output: 0.012 },
+  'gpt-5.2-pro': { input: 0.006, output: 0.024 },
+  'gpt-5-mini': { input: 0.0003, output: 0.0012 },
+  'gpt-5-nano': { input: 0.0001, output: 0.0004 },
 
-  // Anthropic Claude 3.5 series
-  'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
-  'claude-3-5-haiku-20241022': { input: 0.001, output: 0.005 },
-  
-  // Anthropic Claude 3 series
-  'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
-  'claude-3-sonnet-20240229': { input: 0.003, output: 0.015 },
-  'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
+  // Anthropic Claude 4.5 series
+  'claude-sonnet-4-5-20250929': { input: 0.003, output: 0.015 },
+  'claude-haiku-4-5-20251001': { input: 0.001, output: 0.005 },
+  'claude-opus-4-5-20251101': { input: 0.005, output: 0.025 },
 
-  // Google Gemini 2.5 series (thinking models)
-  'gemini-2.5-flash-preview-05-20': { input: 0.00015, output: 0.0006 },
-  'gemini-2.5-pro-preview-05-06': { input: 0.00125, output: 0.005 },
-  
+  // Google Gemini 3.x series (preview)
+  'gemini-3-pro-preview': { input: 0.00125, output: 0.005 },
+  'gemini-3-flash-preview': { input: 0.0003, output: 0.0012 },
+
+  // Google Gemini 2.5 series
+  'gemini-2.5-pro': { input: 0.00125, output: 0.005 },
+  'gemini-2.5-flash': { input: 0.00015, output: 0.0006 },
+  'gemini-2.5-flash-lite': { input: 0.0001, output: 0.0004 },
+
   // Google Gemini 2.0 series
-  'gemini-2.0-flash-exp': { input: 0.0001, output: 0.0004 },
-  'gemini-2.0-flash-thinking-exp': { input: 0.0001, output: 0.0004 },
+  'gemini-2.0-flash': { input: 0.0001, output: 0.0004 },
+  'gemini-2.0-flash-lite': { input: 0.00005, output: 0.0002 },
 };
 
 // Default pricing if model not found
 const DEFAULT_PRICING = { input: 0.001, output: 0.003 };
 
 // Batch API pricing per 1K tokens (USD) - typically 50% discount
-// OpenAI Batch API, Anthropic Message Batches, Google Batch
 const BATCH_PRICING: Record<string, { input: number; output: number }> = {
-  // OpenAI Batch API (50% discount)
-  'gpt-4o': { input: 0.00125, output: 0.005 },
-  'gpt-4o-mini': { input: 0.000075, output: 0.0003 },
-  'gpt-4-turbo': { input: 0.005, output: 0.015 },
+  // OpenAI GPT-5.2 Batch API (50% discount)
+  'gpt-5.2': { input: 0.0015, output: 0.006 },
+  'gpt-5.2-pro': { input: 0.003, output: 0.012 },
+  'gpt-5-mini': { input: 0.00015, output: 0.0006 },
+  'gpt-5-nano': { input: 0.00005, output: 0.0002 },
 
-  // Anthropic Message Batches (~50% discount)
-  'claude-3-5-sonnet-20241022': { input: 0.0015, output: 0.0075 },
-  'claude-3-5-haiku-20241022': { input: 0.0005, output: 0.0025 },
-  'claude-3-opus-20240229': { input: 0.0075, output: 0.0375 },
-  'claude-3-sonnet-20240229': { input: 0.0015, output: 0.0075 },
-  'claude-3-haiku-20240307': { input: 0.000125, output: 0.000625 },
+  // Anthropic Claude 4.5 Batch (~50% discount)
+  'claude-sonnet-4-5-20250929': { input: 0.0015, output: 0.0075 },
+  'claude-haiku-4-5-20251001': { input: 0.0005, output: 0.0025 },
+  'claude-opus-4-5-20251101': { input: 0.0025, output: 0.0125 },
 
-  // Google Batch (~50% discount)
-  'gemini-2.5-flash-preview-05-20': { input: 0.000075, output: 0.0003 },
-  'gemini-2.5-pro-preview-05-06': { input: 0.000625, output: 0.0025 },
-  'gemini-2.0-flash-exp': { input: 0.00005, output: 0.0002 },
-  'gemini-2.0-flash-thinking-exp': { input: 0.00005, output: 0.0002 },
+  // Google Gemini 3.x Batch (~50% discount)
+  'gemini-3-pro-preview': { input: 0.000625, output: 0.0025 },
+  'gemini-3-flash-preview': { input: 0.00015, output: 0.0006 },
+
+  // Google Gemini 2.5 Batch (~50% discount)
+  'gemini-2.5-pro': { input: 0.000625, output: 0.0025 },
+  'gemini-2.5-flash': { input: 0.000075, output: 0.0003 },
+  'gemini-2.5-flash-lite': { input: 0.00005, output: 0.0002 },
+
+  // Google Gemini 2.0 Batch (~50% discount)
+  'gemini-2.0-flash': { input: 0.00005, output: 0.0002 },
+  'gemini-2.0-flash-lite': { input: 0.000025, output: 0.0001 },
 };
 
 // Default batch pricing (50% of standard default)
@@ -131,4 +138,3 @@ export function calculateTotalCost(
     return total;
   }, 0);
 }
-
