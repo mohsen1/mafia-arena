@@ -21,7 +21,7 @@ export type PersonaInput = z.infer<typeof PersonaSchema>;
  * Schema for introduction message response.
  */
 export const IntroductionSchema = z.object({
-  message: z.string().min(1, 'Message is required').max(1000, 'Message too long'),
+  message: z.string().min(1, 'Message is required').max(3000, 'Message too long'),
 });
 
 export type IntroductionInput = z.infer<typeof IntroductionSchema>;
@@ -42,9 +42,10 @@ export type KillVoteInput = z.infer<typeof KillVoteSchema>;
 
 /**
  * Schema for discussion message response.
+ * Increased limit to 5000 for verbose models like Gemini.
  */
 export const DiscussionSchema = z.object({
-  message: z.string().min(1, 'Message is required').max(2000, 'Message too long'),
+  message: z.string().min(1, 'Message is required').max(5000, 'Message too long'),
 });
 
 export type DiscussionInput = z.infer<typeof DiscussionSchema>;
@@ -53,7 +54,7 @@ export type DiscussionInput = z.infer<typeof DiscussionSchema>;
  * Schema for mafia discussion message response.
  */
 export const MafiaDiscussionSchema = z.object({
-  message: z.string().min(1, 'Message is required').max(2000, 'Message too long'),
+  message: z.string().min(1, 'Message is required').max(5000, 'Message too long'),
 });
 
 export type MafiaDiscussionInput = z.infer<typeof MafiaDiscussionSchema>;
