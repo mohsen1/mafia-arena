@@ -7,11 +7,16 @@
  * - Uses ctx.storage to persist state across DO evictions
  * - Idempotent result persistence to prevent double-counting
  * - Records seed for game reproducibility
+ * 
+ * LIVE STREAMING:
+ * - Supports WebSocket connections for real-time event streaming
+ * - Broadcasts game events to connected watchers
+ * - Late-joiners receive full event history via SYNC message
  */
 
 import { DurableObject } from 'cloudflare:workers';
 import type { Env, GameQueueConfig } from './types.js';
-import { Game, validateConfig, type GameConfig, type GameResult } from '../engine/index.js';
+import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent } from '../engine/index.js';
 import { createProvidersForGame, GameAIAdapter } from './ai/index.js';
 import { generateSeed } from '../engine/utils/random.js';
 import { calculateGameCost } from './utils/budget.js';
@@ -26,6 +31,7 @@ const STORAGE_KEYS = {
   ERROR: 'error',
   CONFIG: 'config',
   SEED: 'seed',
+  EVENT_LOG: 'eventLog',
 } as const;
 
 interface GameRunnerState {
@@ -38,8 +44,24 @@ interface GameRunnerState {
   seed: number | null;
 }
 
+/** WebSocket message types for live streaming */
+interface WsMessage {
+  type: 'SYNC' | 'EVENT' | 'STATUS' | 'ERROR';
+  events?: GameEvent[] | undefined;
+  event?: GameEvent | undefined;
+  status?: GameRunnerState['status'] | undefined;
+  error?: string | undefined;
+  gameId?: string | undefined;
+}
+
 export class GameRunner extends DurableObject<Env> {
   private stateCache: GameRunnerState | null = null;
+  
+  /** Connected WebSocket clients for live streaming */
+  private sessions: WebSocket[] = [];
+  
+  /** In-memory event log for live streaming (persisted to storage periodically) */
+  private eventLog: GameEvent[] = [];
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -130,9 +152,118 @@ export class GameRunner extends DurableObject<Env> {
       case '/status':
         return this.handleStatus();
 
+      case '/websocket':
+        return this.handleWebSocket(request);
+
+      case '/events':
+        return this.handleGetEvents();
+
       default:
         return new Response('Not found', { status: 404 });
     }
+  }
+
+  /**
+   * Handle WebSocket upgrade for live game streaming.
+   */
+  private async handleWebSocket(request: Request): Promise<Response> {
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (!upgradeHeader || upgradeHeader !== 'websocket') {
+      return new Response('Expected Upgrade: websocket', { status: 426 });
+    }
+
+    const pair = new WebSocketPair();
+    const [client, server] = [pair[0], pair[1]];
+
+    // Accept the WebSocket connection
+    this.ctx.acceptWebSocket(server);
+    this.sessions.push(server);
+
+    // Load event log from storage if not already loaded
+    if (this.eventLog.length === 0) {
+      const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
+      if (storedEvents) {
+        this.eventLog = storedEvents;
+      }
+    }
+
+    // Send current state and event history to new client
+    const state = await this.loadState();
+    const syncMessage: WsMessage = {
+      type: 'SYNC',
+      events: this.eventLog,
+      status: state.status,
+      gameId: state.gameId ?? undefined,
+    };
+    server.send(JSON.stringify(syncMessage));
+
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /**
+   * Handle WebSocket message event (Hibernation API).
+   */
+  async webSocketMessage(_ws: WebSocket, _message: string | ArrayBuffer): Promise<void> {
+    // Currently we don't handle incoming messages from clients
+    // But this could be extended for interactive features
+  }
+
+  /**
+   * Handle WebSocket close event (Hibernation API).
+   */
+  async webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): Promise<void> {
+    this.sessions = this.sessions.filter(s => s !== ws);
+  }
+
+  /**
+   * Handle WebSocket error event (Hibernation API).
+   */
+  async webSocketError(ws: WebSocket, error: unknown): Promise<void> {
+    console.error('WebSocket error:', error);
+    this.sessions = this.sessions.filter(s => s !== ws);
+  }
+
+  /**
+   * Broadcast a message to all connected WebSocket clients.
+   */
+  private broadcast(message: WsMessage): void {
+    const data = JSON.stringify(message);
+    const deadSessions: WebSocket[] = [];
+
+    for (const ws of this.sessions) {
+      try {
+        ws.send(data);
+      } catch {
+        deadSessions.push(ws);
+      }
+    }
+
+    // Clean up dead sessions
+    if (deadSessions.length > 0) {
+      this.sessions = this.sessions.filter(s => !deadSessions.includes(s));
+    }
+  }
+
+  /**
+   * Get current events (for polling fallback).
+   */
+  private async handleGetEvents(): Promise<Response> {
+    const state = await this.loadState();
+    
+    // Load events from storage if not in memory
+    if (this.eventLog.length === 0) {
+      const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
+      if (storedEvents) {
+        this.eventLog = storedEvents;
+      }
+    }
+
+    return Response.json({
+      status: state.status,
+      gameId: state.gameId,
+      eventCount: this.eventLog.length,
+      events: this.eventLog,
+    });
   }
 
   /**
@@ -170,16 +301,25 @@ export class GameRunner extends DurableObject<Env> {
         );
       }
 
+      const startedAt = Date.now();
+
       // Persist state to storage BEFORE starting
       await this.saveState({
         status: 'running',
         gameId,
         batchId,
-        startedAt: Date.now(),
+        startedAt,
         completedAt: null,
         error: null,
         seed,
       });
+
+      // Reset event log
+      this.eventLog = [];
+      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, []);
+
+      // Insert 'running' record into D1 immediately so game appears in lists
+      await this.insertRunningGame(gameId, batchId, gameConfig, startedAt);
 
       // Run the game synchronously so errors are properly surfaced
       try {
@@ -187,18 +327,32 @@ export class GameRunner extends DurableObject<Env> {
         return Response.json({ success: true, gameId, seed, status: 'completed' });
       } catch (error) {
         console.error(`Game ${gameId} failed:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
         await this.saveState({
           status: 'failed',
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
           completedAt: Date.now(),
         });
+
+        // Update game status to failed in D1
+        await this.updateGameStatus(gameId, 'failed', errorMessage);
+
+        // Broadcast error to connected clients
+        this.broadcast({
+          type: 'ERROR',
+          error: errorMessage,
+          status: 'failed',
+          gameId,
+        });
+
         return Response.json(
           { 
             success: false, 
             gameId, 
             seed, 
             status: 'failed',
-            error: error instanceof Error ? error.message : String(error)
+            error: errorMessage,
           },
           { status: 500 }
         );
@@ -209,6 +363,49 @@ export class GameRunner extends DurableObject<Env> {
         { error: 'Failed to start game', details: error instanceof Error ? error.message : String(error) },
         { status: 500 }
       );
+    }
+  }
+
+  /**
+   * Insert a running game record into D1 immediately.
+   * This allows the game to appear in listings while it's still running.
+   */
+  private async insertRunningGame(
+    gameId: string,
+    batchId: string,
+    config: GameConfig,
+    startedAt: number
+  ): Promise<void> {
+    try {
+      await this.env.DB.prepare(
+        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, status, seed, created_at)
+         VALUES (?, ?, ?, ?, ?, 'running', ?, ?)
+         ON CONFLICT (id) DO UPDATE SET status = 'running', created_at = excluded.created_at`
+      ).bind(
+        gameId,
+        batchId,
+        this.hashConfig(config),
+        config.playerCount,
+        config.mafiaCount,
+        config.seed ?? null,
+        startedAt
+      ).run();
+    } catch (error) {
+      console.error(`Failed to insert running game ${gameId}:`, error);
+      // Don't throw - game can still run without this record
+    }
+  }
+
+  /**
+   * Update game status in D1 (for failures).
+   */
+  private async updateGameStatus(gameId: string, status: string, errorMessage?: string): Promise<void> {
+    try {
+      await this.env.DB.prepare(
+        `UPDATE games SET status = ?, error_message = ?, updated_at = ? WHERE id = ?`
+      ).bind(status, errorMessage ?? null, Date.now(), gameId).run();
+    } catch (error) {
+      console.error(`Failed to update game status for ${gameId}:`, error);
     }
   }
 
@@ -226,6 +423,9 @@ export class GameRunner extends DurableObject<Env> {
   private async runGame(gameId: string, batchId: string, config: GameConfig): Promise<void> {
     console.log(`Starting game ${gameId} (batch: ${batchId}, seed: ${config.seed})`);
 
+    // Reset event log for this game
+    this.eventLog = [];
+
     // Get all unique model IDs from the config
     const modelIds = config.teams.map((t) => t.modelId);
 
@@ -233,11 +433,37 @@ export class GameRunner extends DurableObject<Env> {
     const providers = createProvidersForGame(modelIds, this.env);
     const aiAdapter = new GameAIAdapter(providers);
 
-    // Create and run the game
-    const game = new Game(config, aiAdapter, { gameId });
+    // Event callback for live streaming
+    const onEvent = async (event: GameEvent) => {
+      // Add to in-memory log
+      this.eventLog.push(event);
+
+      // Persist periodically (every 10 events or on important events)
+      if (
+        this.eventLog.length % 10 === 0 ||
+        event.type === 'elimination' ||
+        event.type === 'game_end' ||
+        event.type === 'phase_start'
+      ) {
+        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog);
+      }
+
+      // Broadcast to connected WebSocket clients
+      this.broadcast({
+        type: 'EVENT',
+        event,
+        gameId,
+      });
+    };
+
+    // Create and run the game with live streaming
+    const game = new Game(config, aiAdapter, { gameId, onEvent });
     const result = await game.run();
 
     console.log(`Game ${gameId} completed: ${result.winner} wins in ${result.rounds} rounds`);
+
+    // Final persist of all events
+    await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog);
 
     // Persist results (idempotent)
     await this.persistResults(result, batchId);
@@ -246,6 +472,13 @@ export class GameRunner extends DurableObject<Env> {
     await this.saveState({
       status: 'completed',
       completedAt: Date.now(),
+    });
+
+    // Broadcast completion status
+    this.broadcast({
+      type: 'STATUS',
+      status: 'completed',
+      gameId,
     });
   }
 

@@ -33,7 +33,7 @@
  */
 
 // Main game class
-export { Game, validateConfig, type GameOptions } from './Game.js';
+export { Game, validateConfig, type GameOptions, type GameEventCallback } from './Game.js';
 
 // State management
 export { GameState } from './GameState.js';

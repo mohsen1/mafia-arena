@@ -19,10 +19,16 @@ import type {
   TokenUsage,
   Team,
   PersonaAnalysis,
+  GameEvent,
 } from './types.js';
+
+/** Callback invoked when a game event occurs (for live streaming) */
+export type GameEventCallback = (event: GameEvent) => void | Promise<void>;
 
 export interface GameOptions {
   readonly gameId?: string;
+  /** Optional callback invoked for each game event (enables live streaming) */
+  readonly onEvent?: GameEventCallback;
 }
 
 /**
@@ -35,6 +41,7 @@ export class Game {
   private readonly config: GameConfig;
   private readonly aiProvider: AIProvider;
   private readonly gameId: string;
+  private readonly onEvent: GameEventCallback | undefined;
   private state: GameState;
   private startTime: number = 0;
 
@@ -46,7 +53,18 @@ export class Game {
     this.config = config;
     this.aiProvider = aiProvider;
     this.gameId = options.gameId ?? generateGameId();
+    this.onEvent = options.onEvent;
     this.state = GameState.create(this.gameId, config);
+  }
+
+  /**
+   * Add an event to state and emit to live listeners.
+   */
+  private async emitEvent(event: GameEvent): Promise<void> {
+    this.state = this.state.withEvent(event);
+    if (this.onEvent) {
+      await this.onEvent(event);
+    }
   }
 
   /**
@@ -62,7 +80,7 @@ export class Game {
 
     // Introduction Phase - Players introduce themselves (runs once)
     const introResult = await executeIntroductionPhase(this.state, this.aiProvider);
-    this.state = introResult.state;
+    await this.updateStateAndEmitEvents(introResult.state);
 
     // Main game loop: Day → Night order
     // This ensures discussion happens BEFORE any kills
@@ -74,27 +92,27 @@ export class Game {
           this.state,
           this.aiProvider
         );
-        this.state = discussionResult.state;
+        await this.updateStateAndEmitEvents(discussionResult.state);
       }
 
       // Day Vote Phase - Town votes to eliminate a suspect
       const voteResult = await executeVotePhase(this.state, this.aiProvider);
-      this.state = voteResult.state;
+      await this.updateStateAndEmitEvents(voteResult.state);
 
       // Check win condition after vote
       const winnerAfterVote = checkWinCondition(this.state);
       if (winnerAfterVote) {
-        return this.createResult(winnerAfterVote);
+        return await this.createResult(winnerAfterVote);
       }
 
       // Night Phase - Mafia kills a town member
       const nightResult = await executeNightPhase(this.state, this.aiProvider);
-      this.state = nightResult.state;
+      await this.updateStateAndEmitEvents(nightResult.state);
 
       // Check win condition after night
       const winnerAfterNight = checkWinCondition(this.state);
       if (winnerAfterNight) {
-        return this.createResult(winnerAfterNight);
+        return await this.createResult(winnerAfterNight);
       }
 
       // Advance to next round
@@ -103,7 +121,24 @@ export class Game {
 
     // Max rounds reached - determine winner by surviving counts
     const winner = this.determineWinnerByCount();
-    return this.createResult(winner);
+    return await this.createResult(winner);
+  }
+
+  /**
+   * Update state and emit any new events to live listeners.
+   */
+  private async updateStateAndEmitEvents(newState: GameState): Promise<void> {
+    const previousEventCount = this.state.events.length;
+    const newEvents = newState.events.slice(previousEventCount);
+    
+    this.state = newState;
+    
+    // Emit new events to live listeners
+    if (this.onEvent) {
+      for (const event of newEvents) {
+        await this.onEvent(event);
+      }
+    }
   }
 
   /**
@@ -116,7 +151,7 @@ export class Game {
   /**
    * Create the final game result.
    */
-  private createResult(winner: Team): GameResult {
+  private async createResult(winner: Team): Promise<GameResult> {
     const durationMs = Date.now() - this.startTime;
 
     // Add game end event
@@ -130,7 +165,7 @@ export class Game {
       },
       timestamp: Date.now(),
     };
-    this.state = this.state.withEvent(gameEndEvent);
+    await this.emitEvent(gameEndEvent);
 
     // Calculate token usage
     const tokenUsage = this.calculateTokenUsage();
