@@ -25,6 +25,8 @@ import {
   pauseProcessing,
   resumeProcessing,
   getAdminStats,
+  incrementBatchProgress,
+  updateDailyStats,
   MAX_BATCH_SIZE,
 } from './batch/index.js';
 
@@ -1466,9 +1468,10 @@ export default {
    */
   async handleGameMessage(message: Message<GameQueueMessage>, env: Env): Promise<void> {
     const { gameId, batchId, config } = message.body;
+    const MAX_RETRIES = 3;
 
     try {
-      console.log(`Processing game ${gameId} from batch ${batchId}`);
+      console.log(`Processing game ${gameId} from batch ${batchId} (attempt ${message.attempts})`);
 
       // Get Durable Object instance by game ID
       const id = env.GAME_RUNNER.idFromName(gameId);
@@ -1489,13 +1492,28 @@ export default {
       message.ack();
       console.log(`Game ${gameId} started successfully`);
     } catch (error) {
-      console.error(`Failed to process game ${gameId}:`, error);
+      console.error(`Failed to process game ${gameId} (attempt ${message.attempts}):`, error);
 
       if (error instanceof Error) {
         await logError(env.DB, error, { gameId, batchId }).catch(() => {});
       }
 
-      message.retry();
+      // Check if we've exhausted retries
+      if (message.attempts >= MAX_RETRIES) {
+        console.error(`Game ${gameId} failed after ${MAX_RETRIES} attempts, marking as failed`);
+        
+        // Update batch failed counter
+        if (batchId) {
+          await incrementBatchProgress(env, batchId, 0, 1, 0).catch((e) => {
+            console.error('Failed to update batch progress:', e);
+          });
+          await updateDailyStats(env, { gamesFailed: 1 }).catch(() => {});
+        }
+        
+        message.ack(); // Acknowledge to prevent DLQ
+      } else {
+        message.retry();
+      }
     }
   },
 
