@@ -26,12 +26,12 @@ function getRankDisplay(index: number) {
 }
 
 const teamColor = team === 'mafia' 
-  ? { text: 'text-red-500 dark:text-red-400', bg: 'bg-red-500/10' }
-  : { text: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10' };
+  ? { text: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' }
+  : { text: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/10' };
 ---
 
 <div class="border rounded-md overflow-hidden">
-  <table class="w-full text-sm">
+  <table class="w-full text-sm card-table">
     <thead>
       <tr class="border-b bg-muted/50">
         <th class="h-9 px-3 text-left font-medium text-muted-foreground w-10">#</th>
@@ -48,22 +48,22 @@ const teamColor = team === 'mafia'
         const isTop3 = index < 3;
         return (
           <tr class={cn("border-b last:border-0 hover:bg-muted/30 transition-colors", isTop3 && rank.bg)}>
-            <td class={cn("h-11 px-3 tabular-nums font-medium text-center", rank.class)}>
+            <td class={cn("h-11 px-3 tabular-nums font-medium text-center", rank.class)} data-label="Rank">
               {rank.icon}
             </td>
-            <td class="h-11 px-3">
+            <td class="h-11 px-3" data-label="Model">
               <span class={cn("font-semibold", isTop3 && "text-base")}>{entry.display_name || entry.model_id}</span>
             </td>
-            <td class="h-11 px-3 text-right">
+            <td class="h-11 px-3 text-right" data-label="Record">
               <span class="font-mono tabular-nums">
-                <span class="text-green-600 dark:text-green-400 font-semibold">{entry.games_won}</span>
+                <span class="text-emerald-600 dark:text-emerald-400 font-bold text-base">{entry.games_won}</span>
                 <span class="text-muted-foreground mx-0.5">-</span>
-                <span class="text-muted-foreground">{losses}</span>
+                <span class="text-muted-foreground opacity-50">{losses}</span>
               </span>
             </td>
-            <td class="h-11 px-3 text-right">
+            <td class="h-11 px-3 text-right" data-label="Win Rate">
               <span class={cn(
-                "font-mono font-bold tabular-nums text-base",
+                "font-mono font-bold tabular-nums text-lg",
                 teamColor.text
               )}>
                 {winRate}%

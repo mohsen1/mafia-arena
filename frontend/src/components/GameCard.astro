@@ -55,7 +55,7 @@ function formatDuration(ms: number): string {
       </div>
       
       <div class="flex items-center gap-4">
-        <div class={`h-12 w-1 rounded-full ${game.winner === 'mafia' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]'}`}></div>
+        <div class={`h-12 w-1 rounded-full ${game.winner === 'mafia' ? 'bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.4)]' : 'bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]'}`}></div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1">
              <h3 class="font-bold text-lg leading-tight tracking-tight">
@@ -80,7 +80,7 @@ function formatDuration(ms: number): string {
             <span class="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block">Mafia</span>
             <div class="flex flex-wrap gap-1">
               {mafiaPlayer && (
-                <span class="text-[10px] font-semibold text-red-500 bg-red-500/5 px-1.5 py-0.5 rounded border border-red-500/10 truncate max-w-full">
+                <span class="text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/5 px-1.5 py-0.5 rounded border border-rose-500/10 truncate max-w-full">
                   {mafiaPlayer.model_id}
                 </span>
               )}
@@ -90,7 +90,7 @@ function formatDuration(ms: number): string {
             <span class="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block">Town</span>
             <div class="flex flex-wrap gap-1">
               {townPlayers.slice(0, 2).map(p => (
-                <span class="text-[10px] font-semibold text-blue-500 bg-blue-500/5 px-1.5 py-0.5 rounded border border-blue-500/10 truncate max-w-full">
+                <span class="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 px-1.5 py-0.5 rounded border border-indigo-500/10 truncate max-w-full">
                   {p.model_id}
                 </span>
               ))}

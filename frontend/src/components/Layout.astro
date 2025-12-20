@@ -23,6 +23,7 @@ const currentPath = Astro.url.pathname;
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 		<script is:inline>
 			const theme = localStorage.getItem('theme') || 
 				(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -31,7 +32,7 @@ const currentPath = Astro.url.pathname;
 	</head>
 	<body class="min-h-screen bg-background font-sans antialiased">
 		<div class="relative flex min-h-screen flex-col">
-			<header class="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
+			<header class="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
 				<div class="max-w-6xl mx-auto flex h-12 items-center justify-between px-4">
 					<div class="flex items-center gap-6">
 						<a href="/" class="flex items-center gap-2 font-semibold text-sm">

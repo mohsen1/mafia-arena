@@ -47,63 +47,106 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         </div>
       </div>
 
+      <!-- Mission Control HUD -->
+      <div class="border-2 rounded-lg p-6 bg-gradient-to-br from-primary/5 to-transparent space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div id="status-pulse" class="relative w-4 h-4">
+              <span class="absolute inline-flex h-full w-full rounded-full opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-4 w-4"></span>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold">System Control</h2>
+              <p id="status-subtitle" class="text-xs text-muted-foreground">Initializing...</p>
+            </div>
+          </div>
+          <button 
+            id="toggleSystem"
+            class="px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm"
+          >
+            <span id="toggle-text">Toggle</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Stats Grid -->
-      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <!-- System Status -->
-        <div class="border rounded-lg p-4 space-y-2">
-          <div class="flex items-center gap-2 text-sm text-muted-foreground">
-            <span id="status-icon"></span>
-            System Status
+      <div class="grid gap-4 md:grid-cols-3">
+        <!-- Active Operations -->
+        <div class="border rounded-lg p-5 space-y-3 bg-gradient-to-br from-indigo-500/5 to-transparent">
+          <div class="flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400">
+            <Layers size={18} />
+            <span>Active Operations</span>
           </div>
-          <div class="flex items-center justify-between">
-            <span id="status-text" class="text-2xl font-bold">—</span>
-            <button 
-              id="toggleSystem"
-              class="text-xs px-2 py-1 rounded border hover:bg-accent transition-colors"
-            >
-              Toggle
-            </button>
-          </div>
-        </div>
-
-        <!-- Active Batches -->
-        <div class="border rounded-lg p-4 space-y-2">
-          <div class="flex items-center gap-2 text-sm text-muted-foreground">
-            <Layers size={16} />
-            Active Batches
-          </div>
-          <div id="batches-active" class="text-2xl font-bold tabular-nums">—</div>
-          <p id="games-running" class="text-xs text-emerald-600 dark:text-emerald-400 font-medium hidden">
-            <span class="relative inline-flex h-2 w-2 mr-1">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            — running now
-          </p>
-          <p id="games-queued" class="text-xs text-muted-foreground">— games in queue</p>
-        </div>
-
-        <!-- Cost Today -->
-        <div class="border rounded-lg p-4 space-y-2">
-          <div class="flex items-center gap-2 text-sm text-muted-foreground">
-            <DollarSign size={16} />
-            Cost Today
-          </div>
-          <div id="cost-today" class="text-2xl font-bold tabular-nums">$—</div>
-          <p id="budget-remaining" class="text-xs text-muted-foreground">$— remaining</p>
-        </div>
-
-        <!-- Budget Progress -->
-        <div class="border rounded-lg p-4 space-y-2">
-          <div class="flex items-center gap-2 text-sm text-muted-foreground">
-            <Activity size={16} />
-            Budget Usage
+          <div>
+            <div id="batches-active" class="text-3xl font-bold tabular-nums">—</div>
+            <div class="text-xs text-muted-foreground">active batches</div>
           </div>
           <div class="space-y-1">
-            <div class="h-2 bg-muted rounded-full overflow-hidden">
-              <div id="budget-bar" class="h-full bg-primary transition-all duration-300" style="width: 0%"></div>
+            <p id="games-running" class="text-sm font-medium text-emerald-600 dark:text-emerald-400 hidden">
+              <span class="relative inline-flex h-2 w-2 mr-1.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>— running now</span>
+            </p>
+            <p id="games-queued" class="text-sm text-muted-foreground">— games queued</p>
+          </div>
+        </div>
+
+        <!-- Cost Tracking -->
+        <div class="border rounded-lg p-5 space-y-3 bg-gradient-to-br from-emerald-500/5 to-transparent">
+          <div class="flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+            <DollarSign size={18} />
+            <span>Cost Today</span>
+          </div>
+          <div>
+            <div id="cost-today" class="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">$—</div>
+            <div class="text-xs text-muted-foreground">spent today</div>
+          </div>
+          <p id="budget-remaining" class="text-sm text-muted-foreground font-medium">$— remaining</p>
+        </div>
+
+        <!-- Budget Fuel Tank -->
+        <div class="border rounded-lg p-5 space-y-3 bg-gradient-to-br from-amber-500/5 to-transparent">
+          <div class="flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
+            <Activity size={18} />
+            <span>Budget Fuel</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="relative w-20 h-20">
+              <!-- Radial progress -->
+              <svg class="transform -rotate-90 w-20 h-20">
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="32"
+                  stroke="currentColor"
+                  stroke-width="6"
+                  fill="transparent"
+                  class="text-muted"
+                />
+                <circle
+                  id="budget-circle"
+                  cx="40"
+                  cy="40"
+                  r="32"
+                  stroke="currentColor"
+                  stroke-width="6"
+                  fill="transparent"
+                  class="text-amber-500 transition-all duration-300"
+                  stroke-dasharray="201"
+                  stroke-dashoffset="201"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span id="budget-percent-large" class="text-sm font-bold tabular-nums">0%</span>
+              </div>
             </div>
-            <p id="budget-percent" class="text-xs text-muted-foreground">0% used</p>
+            <div class="flex-1 space-y-1">
+              <p id="budget-percent" class="text-sm font-semibold tabular-nums">0% used</p>
+              <p class="text-xs text-muted-foreground">Daily allocation</p>
+            </div>
           </div>
         </div>
       </div>
@@ -235,19 +278,39 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       document.getElementById('dashboard')?.classList.remove('hidden');
 
       // Populate stats
-      const statusIcon = document.getElementById('status-icon');
-      if (statusIcon) {
-        statusIcon.innerHTML = stats.systemPaused 
-          ? '<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>'
-          : '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>';
-      }
-
-      const statusText = document.getElementById('status-text');
-      if (statusText) statusText.textContent = stats.systemPaused ? 'Paused' : 'Running';
-      
+      const statusPulse = document.getElementById('status-pulse');
+      const statusSubtitle = document.getElementById('status-subtitle');
       const toggleBtn = document.getElementById('toggleSystem');
-      if (toggleBtn) {
-        toggleBtn.textContent = stats.systemPaused ? 'Resume' : 'Pause';
+      const toggleText = document.getElementById('toggle-text');
+      
+      if (statusPulse) {
+        if (stats.systemPaused) {
+          statusPulse.innerHTML = `
+            <span class="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-pulse-slow"></span>
+            <span class="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
+          `;
+        } else {
+          statusPulse.innerHTML = `
+            <span class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping"></span>
+            <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+          `;
+        }
+      }
+      
+      if (statusSubtitle) {
+        statusSubtitle.textContent = stats.systemPaused 
+          ? 'Circuit breaker active - System paused' 
+          : 'System operational - Processing games';
+      }
+      
+      if (toggleBtn && toggleText) {
+        if (stats.systemPaused) {
+          toggleBtn.className = 'px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm bg-emerald-500 hover:bg-emerald-600 text-white';
+          toggleText.textContent = 'Resume System';
+        } else {
+          toggleBtn.className = 'px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm bg-amber-500 hover:bg-amber-600 text-white';
+          toggleText.textContent = 'Pause System';
+        }
         toggleBtn.dataset.paused = String(stats.systemPaused);
       }
 
@@ -282,11 +345,31 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       const budgetTotal = stats.costToday + stats.budgetRemaining;
       const budgetPercent = budgetTotal > 0 ? (stats.costToday / budgetTotal) * 100 : 0;
       
-      const budgetBar = document.getElementById('budget-bar');
-      if (budgetBar) budgetBar.style.width = `${Math.min(budgetPercent, 100)}%`;
+      // Update radial gauge
+      const budgetCircle = document.getElementById('budget-circle');
+      if (budgetCircle) {
+        const circumference = 2 * Math.PI * 32; // r=32
+        const offset = circumference - (budgetPercent / 100) * circumference;
+        budgetCircle.style.strokeDashoffset = String(offset);
+        
+        // Color code based on usage
+        if (budgetPercent > 80) {
+          budgetCircle.classList.remove('text-amber-500', 'text-yellow-500');
+          budgetCircle.classList.add('text-rose-500');
+        } else if (budgetPercent > 50) {
+          budgetCircle.classList.remove('text-amber-500', 'text-rose-500');
+          budgetCircle.classList.add('text-yellow-500');
+        } else {
+          budgetCircle.classList.remove('text-yellow-500', 'text-rose-500');
+          budgetCircle.classList.add('text-amber-500');
+        }
+      }
       
       const budgetPercentEl = document.getElementById('budget-percent');
       if (budgetPercentEl) budgetPercentEl.textContent = `${budgetPercent.toFixed(1)}% used`;
+      
+      const budgetPercentLarge = document.getElementById('budget-percent-large');
+      if (budgetPercentLarge) budgetPercentLarge.textContent = `${Math.round(budgetPercent)}%`;
 
       // Populate batches table
       const tbody = document.getElementById('batches-table');
@@ -316,11 +399,11 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       }
 
       // Setup event handlers
-      if (toggleBtn) {
+      if (toggleBtn && toggleText) {
         toggleBtn.addEventListener('click', async () => {
           const isPaused = toggleBtn.dataset.paused === 'true';
           toggleBtn.disabled = true;
-          toggleBtn.textContent = 'Working...';
+          toggleText.textContent = 'Processing...';
 
           try {
             const endpoint = isPaused ? 'resume' : 'pause';
@@ -333,7 +416,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
           } catch {
             alert('Failed to update system state');
             toggleBtn.disabled = false;
-            toggleBtn.textContent = isPaused ? 'Resume' : 'Pause';
+            toggleText.textContent = isPaused ? 'Resume System' : 'Pause System';
           }
         });
       }

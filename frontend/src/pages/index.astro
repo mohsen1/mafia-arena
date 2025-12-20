@@ -38,38 +38,38 @@ const overallBest = statsData?.topModels?.[0];
 		{(overallBest || topMafia || topTown) && (
 			<div class="space-y-3">
 				{overallBest && (
-					<div class="border rounded-lg p-4 bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/30">
+					<div class="border rounded-lg p-5 bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/30 shadow-sm">
 						<div class="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 mb-2">
-							<Crown size={14} />
-							<span class="font-medium uppercase tracking-wide">Overall Best Model</span>
+							<Crown size={16} />
+							<span class="font-semibold uppercase tracking-wide">Overall Champion</span>
 						</div>
-						<p class="text-xl font-bold">{overallBest.display_name}</p>
-						<p class="text-sm text-muted-foreground">
+						<p class="text-2xl font-bold mb-1">{overallBest.display_name}</p>
+						<p class="text-sm text-muted-foreground tabular-nums">
 							{(overallBest.win_rate * 100).toFixed(1)}% overall win rate · {overallBest.games} games
 						</p>
 					</div>
 				)}
 				<div class="grid gap-3 sm:grid-cols-2">
 					{topMafia && (
-						<div class="border rounded-lg p-4 bg-gradient-to-br from-red-500/5 to-transparent border-red-500/20">
-							<div class="flex items-center gap-2 text-xs text-red-500 mb-2">
-								<Trophy size={14} />
+						<div class="border rounded-lg p-4 bg-gradient-to-br from-rose-500/5 to-transparent border-rose-500/20">
+							<div class="flex items-center gap-2 text-xs text-rose-600 dark:text-rose-400 mb-2">
+								<Ghost size={14} />
 								<span class="font-medium uppercase tracking-wide">Best Deceiver</span>
 							</div>
 							<p class="text-lg font-bold">{topMafia.display_name}</p>
-							<p class="text-sm text-muted-foreground">
+							<p class="text-sm text-muted-foreground tabular-nums">
 								{(topMafia.win_rate * 100).toFixed(1)}% win rate as Mafia
 							</p>
 						</div>
 					)}
 					{topTown && (
-						<div class="border rounded-lg p-4 bg-gradient-to-br from-blue-500/5 to-transparent border-blue-500/20">
-							<div class="flex items-center gap-2 text-xs text-blue-500 mb-2">
-								<Trophy size={14} />
+						<div class="border rounded-lg p-4 bg-gradient-to-br from-indigo-500/5 to-transparent border-indigo-500/20">
+							<div class="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 mb-2">
+								<Shield size={14} />
 								<span class="font-medium uppercase tracking-wide">Best Detective</span>
 							</div>
 							<p class="text-lg font-bold">{topTown.display_name}</p>
-							<p class="text-sm text-muted-foreground">
+							<p class="text-sm text-muted-foreground tabular-nums">
 								{(topTown.win_rate * 100).toFixed(1)}% win rate as Town
 							</p>
 						</div>
@@ -89,25 +89,46 @@ const overallBest = statsData?.topModels?.[0];
 			<MatchupMatrix compact={true} />
 		</section>
 
-		<div class="grid gap-8 lg:grid-cols-2">
-			<section class="space-y-3">
-				<div class="flex items-center gap-2">
-					<Ghost size={16} class="text-red-500 dark:text-red-400" />
-					<h2 class="text-sm font-medium text-foreground/90">Mafia Performance</h2>
-					<span class="text-[11px] text-muted-foreground/70 ml-auto">Deception skill</span>
+		<!-- Unified Performance Leaderboard with Tabs -->
+		<section class="space-y-4" x-data="{ tab: 'mafia' }">
+			<div class="flex items-center justify-between">
+				<h2 class="text-lg font-semibold">Performance Leaderboard</h2>
+				<div class="inline-flex items-center rounded-lg border bg-muted/30 p-1">
+					<button 
+						@click="tab = 'mafia'" 
+						:class="tab === 'mafia' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
+						class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+					>
+						<Ghost size={14} class="text-rose-600 dark:text-rose-400" />
+						<span>Mafia</span>
+					</button>
+					<button 
+						@click="tab = 'town'" 
+						:class="tab === 'town' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
+						class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+					>
+						<Shield size={14} class="text-indigo-600 dark:text-indigo-400" />
+						<span>Town</span>
+					</button>
+				</div>
+			</div>
+			
+			<div x-show="tab === 'mafia'" x-transition>
+				<div class="mb-2 text-xs text-muted-foreground">
+					<Ghost size={12} class="inline text-rose-600 dark:text-rose-400 mr-1" />
+					Deception skill - How well models lie and manipulate as Mafia
 				</div>
 				<LeaderboardTable entries={mafiaRankings} team="mafia" />
-			</section>
-
-			<section class="space-y-3">
-				<div class="flex items-center gap-2">
-					<Shield size={16} class="text-blue-500 dark:text-blue-400" />
-					<h2 class="text-sm font-medium text-foreground/90">Town Performance</h2>
-					<span class="text-[11px] text-muted-foreground/70 ml-auto">Deduction skill</span>
+			</div>
+			
+			<div x-show="tab === 'town'" x-transition x-cloak>
+				<div class="mb-2 text-xs text-muted-foreground">
+					<Shield size={12} class="inline text-indigo-600 dark:text-indigo-400 mr-1" />
+					Deduction skill - How well models detect lies and find Mafia as Town
 				</div>
 				<LeaderboardTable entries={townRankings} team="town" />
-			</section>
-		</div>
+			</div>
+		</section>
 
 		<section class="border rounded-md p-4 bg-muted/30">
 			<div class="flex items-start justify-between gap-4">
