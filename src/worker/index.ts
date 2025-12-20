@@ -1298,14 +1298,23 @@ export default {
       throw Errors.NotFound('Batch');
     }
 
-    // Get recent games from this batch
+    // Get recent games from this batch (include error_message for debugging)
     const gamesResult = await env.DB.prepare(`
-      SELECT id, status, winner, rounds, duration_ms, created_at
+      SELECT id, status, winner, rounds, duration_ms, created_at, error_message
       FROM games
       WHERE batch_id = ?
       ORDER BY created_at DESC
-      LIMIT 20
+      LIMIT 50
     `).bind(batchId).all();
+
+    // Get recent error logs that might be related to this batch
+    const errorLogsResult = await env.DB.prepare(`
+      SELECT id, level, message, stack, context, created_at
+      FROM error_log
+      WHERE context LIKE ? OR context LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 20
+    `).bind(`%${batchId}%`, `%batch_id%${batchId}%`).all();
 
     return Response.json({
       id: batch.id,
@@ -1326,6 +1335,7 @@ export default {
         ? ((batch.completed_games + batch.failed_games) / batch.total_games * 100).toFixed(1)
         : '0',
       recentGames: gamesResult.results,
+      errorLogs: errorLogsResult.results,
     });
   },
 

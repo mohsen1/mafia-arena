@@ -1,22 +1,70 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { Clock, CheckCircle, XCircle, AlertTriangle, Activity, DollarSign, RefreshCw } from 'lucide-astro';
+import { Clock, CheckCircle, XCircle, AlertTriangle, Activity, DollarSign, RefreshCw, Bug } from 'lucide-astro';
 
 const { id } = Astro.params;
-const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.workers.dev';
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
 <Layout title="Batch Details">
   <div id="container" class="space-y-6">
+    <!-- Breadcrumb (always visible) -->
+    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+      <a href="/admin" class="hover:underline">Admin</a>
+      <span>/</span>
+      <a href="/admin/batches" class="hover:underline">Batches</a>
+      <span>/</span>
+      <span class="font-mono">{id}</span>
+    </div>
+
     <!-- Loading -->
     <div id="loading" class="flex items-center justify-center py-20">
       <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      <span class="ml-3 text-muted-foreground">Loading batch data...</span>
     </div>
 
     <!-- Error -->
-    <div id="error" class="hidden border border-destructive/50 bg-destructive/10 rounded-lg p-4">
-      <p id="error-text" class="text-destructive"></p>
-      <a href="/admin/batches" class="text-sm underline mt-2 block">← Back to batches</a>
+    <div id="error" class="hidden space-y-4">
+      <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4 space-y-3">
+        <div class="flex items-start gap-3">
+          <AlertTriangle class="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+          <div class="space-y-1">
+            <p id="error-title" class="font-medium text-destructive">Failed to load batch</p>
+            <p id="error-text" class="text-sm text-muted-foreground"></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Debug Details (collapsible) -->
+      <details class="border rounded-lg">
+        <summary class="px-4 py-3 cursor-pointer font-medium flex items-center gap-2 hover:bg-muted/30 transition-colors">
+          <Bug class="w-4 h-4" />
+          Debug Information
+        </summary>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+          <div>
+            <p class="text-muted-foreground mb-1">Request URL:</p>
+            <code id="debug-url" class="block bg-muted/50 p-2 rounded font-mono text-xs break-all"></code>
+          </div>
+          <div>
+            <p class="text-muted-foreground mb-1">Response Status:</p>
+            <code id="debug-status" class="block bg-muted/50 p-2 rounded font-mono text-xs"></code>
+          </div>
+          <div>
+            <p class="text-muted-foreground mb-1">Response Body:</p>
+            <pre id="debug-body" class="bg-muted/50 p-2 rounded font-mono text-xs overflow-x-auto max-h-48"></pre>
+          </div>
+          <div>
+            <p class="text-muted-foreground mb-1">Error Stack:</p>
+            <pre id="debug-stack" class="bg-muted/50 p-2 rounded font-mono text-xs overflow-x-auto max-h-48 whitespace-pre-wrap"></pre>
+          </div>
+        </div>
+      </details>
+
+      <div class="flex gap-3">
+        <a href="/admin/batches" class="px-4 py-2 border rounded-md hover:bg-muted/30 transition-colors">← Back to batches</a>
+        <button id="retry-btn" class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">Retry</button>
+      </div>
     </div>
 
     <!-- Content (filled by JS) -->
@@ -42,6 +90,35 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
     return `${minutes}m ${remainingSeconds}s`;
   }
 
+  function showError(title, message, debug = {}) {
+    document.getElementById('loading')?.classList.add('hidden');
+    document.getElementById('content')?.classList.add('hidden');
+    document.getElementById('error')?.classList.remove('hidden');
+    
+    const errorTitle = document.getElementById('error-title');
+    const errorText = document.getElementById('error-text');
+    if (errorTitle) errorTitle.textContent = title;
+    if (errorText) errorText.textContent = message;
+
+    // Fill debug info
+    if (debug.url) {
+      document.getElementById('debug-url').textContent = debug.url;
+    }
+    if (debug.status !== undefined) {
+      document.getElementById('debug-status').textContent = `${debug.status} ${debug.statusText || ''}`;
+    }
+    if (debug.body) {
+      document.getElementById('debug-body').textContent = typeof debug.body === 'string' 
+        ? debug.body 
+        : JSON.stringify(debug.body, null, 2);
+    }
+    if (debug.stack) {
+      document.getElementById('debug-stack').textContent = debug.stack;
+    }
+
+    console.error('[Batch Detail Error]', { title, message, debug });
+  }
+
   async function init() {
     const credentials = sessionStorage.getItem('adminCredentials');
     if (!credentials) {
@@ -50,9 +127,21 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
     }
 
     const headers = { 'Authorization': `Basic ${credentials}` };
+    const requestUrl = `${apiUrl}/api/admin/batches/${batchId}`;
+    
+    let res;
+    let responseBody;
 
     try {
-      const res = await fetch(`${apiUrl}/api/admin/batches/${batchId}`, { headers });
+      res = await fetch(requestUrl, { headers });
+      
+      // Try to parse response body for debugging
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        responseBody = await res.json();
+      } else {
+        responseBody = await res.text();
+      }
 
       if (res.status === 401) {
         sessionStorage.removeItem('adminCredentials');
@@ -60,14 +149,76 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         return;
       }
 
-      if (!res.ok) throw new Error('Failed to load batch');
+      if (res.status === 404) {
+        showError(
+          'Batch Not Found',
+          `No batch found with ID "${batchId}". It may have been deleted or the ID is incorrect.`,
+          { url: requestUrl, status: res.status, statusText: res.statusText, body: responseBody }
+        );
+        return;
+      }
 
-      const batch = await res.json();
+      if (!res.ok) {
+        const errorMessage = responseBody?.message || responseBody?.error || `HTTP ${res.status}`;
+        showError(
+          'Failed to Load Batch',
+          errorMessage,
+          { url: requestUrl, status: res.status, statusText: res.statusText, body: responseBody }
+        );
+        return;
+      }
+
+      const batch = responseBody;
 
       document.getElementById('loading')?.classList.add('hidden');
       document.getElementById('content')?.classList.remove('hidden');
 
-      const recentGamesHtml = batch.recentGames.length > 0 ? `
+      // Separate failed games for debugging
+      const failedGames = batch.recentGames.filter(g => g.status === 'failed' || g.status === 'error');
+      const otherGames = batch.recentGames.filter(g => g.status !== 'failed' && g.status !== 'error');
+
+      const failedGamesHtml = failedGames.length > 0 ? `
+        <div class="space-y-3">
+          <h3 class="font-medium text-destructive flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Failed Games (${failedGames.length})
+          </h3>
+          <div class="border border-destructive/30 rounded-lg overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-destructive/10 border-b border-destructive/30">
+                <tr>
+                  <th class="text-left p-3 font-medium">Game ID</th>
+                  <th class="text-left p-3 font-medium">Status</th>
+                  <th class="text-left p-3 font-medium">Error</th>
+                  <th class="text-right p-3 font-medium">Created</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-destructive/20">
+                ${failedGames.map(game => `
+                  <tr class="hover:bg-destructive/5 transition-colors">
+                    <td class="p-3">
+                      <a href="/games/${game.id}" class="font-mono text-xs hover:underline">${game.id}</a>
+                    </td>
+                    <td class="p-3">
+                      <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/20 text-destructive">
+                        ${game.status}
+                      </span>
+                    </td>
+                    <td class="p-3 text-sm text-muted-foreground max-w-xs truncate" title="${game.error_message || 'No error message'}">
+                      ${game.error_message || '—'}
+                    </td>
+                    <td class="p-3 text-right text-xs text-muted-foreground">
+                      ${new Date(game.created_at * 1000).toLocaleString()}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : '';
+
+      const recentGamesHtml = otherGames.length > 0 ? `
         <div class="space-y-3">
           <h3 class="font-medium">Recent Games</h3>
           <div class="border rounded-lg overflow-hidden">
@@ -82,13 +233,13 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
                 </tr>
               </thead>
               <tbody class="divide-y">
-                ${batch.recentGames.map(game => `
+                ${otherGames.map(game => `
                   <tr class="hover:bg-muted/30 transition-colors">
                     <td class="p-3"><a href="/games/${game.id}" class="font-mono text-xs hover:underline">${game.id}</a></td>
                     <td class="p-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${game.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800'}">${game.status}</span></td>
                     <td class="p-3">${game.winner ? `<span class="${game.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'}">${game.winner}</span>` : ''}</td>
-                    <td class="p-3 text-right tabular-nums">${game.rounds}</td>
-                    <td class="p-3 text-right tabular-nums">${formatDuration(game.duration_ms)}</td>
+                    <td class="p-3 text-right tabular-nums">${game.rounds || '—'}</td>
+                    <td class="p-3 text-right tabular-nums">${game.duration_ms ? formatDuration(game.duration_ms) : '—'}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -102,13 +253,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         <!-- Header -->
         <div class="flex items-start justify-between">
           <div>
-            <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <a href="/admin" class="hover:underline">Admin</a>
-              <span>/</span>
-              <a href="/admin/batches" class="hover:underline">Batches</a>
-              <span>/</span>
-              <span class="font-mono">${batchId}</span>
-            </div>
             <h1 class="text-2xl font-bold tracking-tight">${batch.name || 'Unnamed Batch'}</h1>
             <p class="text-sm text-muted-foreground font-mono mt-1">${batch.id}</p>
           </div>
@@ -173,7 +317,40 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
           <pre class="text-sm bg-muted/50 p-3 rounded-md overflow-x-auto"><code>${JSON.stringify(batch.config, null, 2)}</code></pre>
         </div>
 
+        ${failedGamesHtml}
+
         ${recentGamesHtml}
+
+        ${batch.errorLogs && batch.errorLogs.length > 0 ? `
+          <details class="border border-amber-500/30 rounded-lg">
+            <summary class="px-4 py-3 cursor-pointer font-medium flex items-center gap-2 hover:bg-amber-500/5 transition-colors text-amber-600 dark:text-amber-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              Error Logs (${batch.errorLogs.length})
+            </summary>
+            <div class="border-t border-amber-500/30">
+              ${batch.errorLogs.map(log => \`
+                <div class="p-4 border-b border-amber-500/20 last:border-b-0 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium \${log.level === 'error' ? 'bg-destructive/20 text-destructive' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'}">
+                      \${log.level}
+                    </span>
+                    <span class="text-xs text-muted-foreground">
+                      \${new Date(log.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <p class="text-sm font-medium">\${log.message}</p>
+                  \${log.context ? \`<pre class="text-xs bg-muted/50 p-2 rounded overflow-x-auto">\${log.context}</pre>\` : ''}
+                  \${log.stack ? \`
+                    <details class="text-xs">
+                      <summary class="cursor-pointer text-muted-foreground hover:text-foreground">Stack trace</summary>
+                      <pre class="bg-muted/50 p-2 rounded mt-1 overflow-x-auto whitespace-pre-wrap">\${log.stack}</pre>
+                    </details>
+                  \` : ''}
+                </div>
+              \`).join('')}
+            </div>
+          </details>
+        ` : ''}
       `;
 
       // Cancel button handler
@@ -194,12 +371,26 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       }
 
     } catch (err) {
-      document.getElementById('loading')?.classList.add('hidden');
-      document.getElementById('error')?.classList.remove('hidden');
-      const errorText = document.getElementById('error-text');
-      if (errorText) errorText.textContent = err.message;
+      showError(
+        'Network or Parse Error',
+        err.message || 'An unexpected error occurred',
+        { 
+          url: requestUrl, 
+          status: res?.status, 
+          statusText: res?.statusText,
+          body: responseBody,
+          stack: err.stack 
+        }
+      );
     }
   }
+
+  // Retry button handler
+  document.getElementById('retry-btn')?.addEventListener('click', () => {
+    document.getElementById('error')?.classList.add('hidden');
+    document.getElementById('loading')?.classList.remove('hidden');
+    init();
+  });
 
   init();
 </script>
