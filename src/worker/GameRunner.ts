@@ -20,6 +20,7 @@ import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent 
 import { createProvidersForGame, GameAIAdapter } from './ai/index.js';
 import { generateSeed } from '../engine/utils/random.js';
 import { calculateGameCost } from './utils/budget.js';
+import { createLogger, logErrorWithStack, type Logger } from './utils/logger.js';
 
 /** Storage keys for DO state persistence */
 const STORAGE_KEYS = {
@@ -116,8 +117,13 @@ export class GameRunner extends DurableObject<Env> {
   /** In-memory event log for live streaming (persisted to storage periodically) */
   private eventLog: GameEvent[] = [];
 
+  /** Logger instance for this DO */
+  private log: Logger;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.log = createLogger('GameRunner', { doId: ctx.id.toString().slice(-8) });
+    this.log.info('DO initialized');
   }
 
   /**
@@ -197,22 +203,29 @@ export class GameRunner extends DurableObject<Env> {
    */
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    this.log.debug('Incoming request', { path: url.pathname, method: request.method });
 
-    switch (url.pathname) {
-      case '/start':
-        return this.handleStart(request);
+    try {
+      switch (url.pathname) {
+        case '/start':
+          return await this.handleStart(request);
 
-      case '/status':
-        return this.handleStatus();
+        case '/status':
+          return await this.handleStatus();
 
-      case '/websocket':
-        return this.handleWebSocket(request);
+        case '/websocket':
+          return await this.handleWebSocket(request);
 
-      case '/events':
-        return this.handleGetEvents();
+        case '/events':
+          return await this.handleGetEvents();
 
-      default:
-        return new Response('Not found', { status: 404 });
+        default:
+          this.log.warn('Unknown path', { path: url.pathname });
+          return new Response('Not found', { status: 404 });
+      }
+    } catch (error) {
+      logErrorWithStack(this.log, 'Request handler error', error, { path: url.pathname });
+      throw error;
     }
   }
 
@@ -221,7 +234,13 @@ export class GameRunner extends DurableObject<Env> {
    */
   private async handleWebSocket(request: Request): Promise<Response> {
     const upgradeHeader = request.headers.get('Upgrade');
+    this.log.info('WebSocket upgrade request', { 
+      upgradeHeader, 
+      sessionCount: this.sessions.length 
+    });
+
     if (!upgradeHeader || upgradeHeader !== 'websocket') {
+      this.log.warn('Invalid WebSocket upgrade', { upgradeHeader });
       return new Response('Expected Upgrade: websocket', { status: 426 });
     }
 
@@ -231,12 +250,14 @@ export class GameRunner extends DurableObject<Env> {
     // Accept the WebSocket connection
     this.ctx.acceptWebSocket(server);
     this.sessions.push(server);
+    this.log.info('WebSocket connected', { sessionCount: this.sessions.length });
 
     // Load event log from storage if not already loaded
     if (this.eventLog.length === 0) {
       const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
       if (storedEvents) {
         this.eventLog = storedEvents;
+        this.log.debug('Loaded events from storage', { eventCount: this.eventLog.length });
       }
     }
 
@@ -249,6 +270,11 @@ export class GameRunner extends DurableObject<Env> {
       gameId: state.gameId ?? undefined,
     };
     server.send(JSON.stringify(syncMessage));
+    this.log.info('Sent SYNC message', { 
+      eventCount: this.eventLog.length, 
+      status: state.status,
+      gameId: state.gameId 
+    });
 
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -264,15 +290,23 @@ export class GameRunner extends DurableObject<Env> {
   /**
    * Handle WebSocket close event (Hibernation API).
    */
-  async webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): Promise<void> {
+  async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
     this.sessions = this.sessions.filter(s => s !== ws);
+    this.log.info('WebSocket closed', { 
+      code, 
+      reason: reason || 'none', 
+      wasClean, 
+      remainingSessions: this.sessions.length 
+    });
   }
 
   /**
    * Handle WebSocket error event (Hibernation API).
    */
   async webSocketError(ws: WebSocket, error: unknown): Promise<void> {
-    console.error('WebSocket error:', error);
+    logErrorWithStack(this.log, 'WebSocket error', error, { 
+      sessionCount: this.sessions.length 
+    });
     this.sessions = this.sessions.filter(s => s !== ws);
   }
 
@@ -469,17 +503,24 @@ export class GameRunner extends DurableObject<Env> {
     batchId: string, 
     gameConfig: GameConfig
   ): Promise<void> {
+    const gameLog = this.log.child({ gameId, batchId });
+    
     try {
+      gameLog.info('Starting background game execution');
       await this.runGame(gameId, batchId, gameConfig);
+      gameLog.info('Background game execution completed successfully');
     } catch (error) {
-      console.error(`Background game ${gameId} failed:`, error);
       const errorMessage = error instanceof Error ? error.message : String(error);
+      logErrorWithStack(gameLog, 'Background game failed', error, {
+        eventCount: this.eventLog.length,
+      });
       
       await this.saveState({
         status: 'failed',
         error: errorMessage,
         completedAt: Date.now(),
       });
+      gameLog.info('State saved as failed');
 
       // Update game status to failed in D1
       await this.updateGameStatus(gameId, 'failed', errorMessage);
@@ -491,6 +532,7 @@ export class GameRunner extends DurableObject<Env> {
         status: 'failed',
         gameId,
       });
+      gameLog.info('Error broadcasted to clients', { sessionCount: this.sessions.length });
     }
   }
 
@@ -505,6 +547,7 @@ export class GameRunner extends DurableObject<Env> {
     startedAt: number
   ): Promise<void> {
     try {
+      this.log.debug('Inserting running game record', { gameId, batchId });
       await this.env.DB.prepare(
         `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, status, seed, created_at)
          VALUES (?, ?, ?, ?, ?, 'running', ?, ?)
@@ -518,8 +561,9 @@ export class GameRunner extends DurableObject<Env> {
         config.seed ?? null,
         startedAt
       ).run();
+      this.log.debug('Running game record inserted', { gameId });
     } catch (error) {
-      console.error(`Failed to insert running game ${gameId}:`, error);
+      logErrorWithStack(this.log, 'Failed to insert running game', error, { gameId });
       // Don't throw - game can still run without this record
     }
   }
@@ -529,11 +573,13 @@ export class GameRunner extends DurableObject<Env> {
    */
   private async updateGameStatus(gameId: string, status: string, errorMessage?: string): Promise<void> {
     try {
+      this.log.debug('Updating game status in D1', { gameId, status });
       await this.env.DB.prepare(
         `UPDATE games SET status = ?, error_message = ?, updated_at = ? WHERE id = ?`
       ).bind(status, errorMessage ?? null, Date.now(), gameId).run();
+      this.log.debug('Game status updated', { gameId, status });
     } catch (error) {
-      console.error(`Failed to update game status for ${gameId}:`, error);
+      logErrorWithStack(this.log, 'Failed to update game status', error, { gameId, status });
     }
   }
 
@@ -549,7 +595,15 @@ export class GameRunner extends DurableObject<Env> {
    * Run the game to completion.
    */
   private async runGame(gameId: string, batchId: string, config: GameConfig): Promise<void> {
-    console.log(`Starting game ${gameId} (batch: ${batchId}, seed: ${config.seed})`);
+    const gameLog = this.log.child({ gameId, batchId });
+    const startTime = Date.now();
+    
+    gameLog.info('Game starting', { 
+      seed: config.seed,
+      playerCount: config.playerCount,
+      mafiaCount: config.mafiaCount,
+      models: config.teams.map(t => t.modelId),
+    });
 
     // Reset event log for this game
     this.eventLog = [];
@@ -558,11 +612,61 @@ export class GameRunner extends DurableObject<Env> {
     const modelIds = config.teams.map((t) => t.modelId);
 
     // Create AI providers for all models
+    gameLog.debug('Creating AI providers', { modelIds });
     const providers = createProvidersForGame(modelIds, this.env);
     const aiAdapter = new GameAIAdapter(providers);
 
+    // Track event counts for logging
+    let eventCount = 0;
+    let lastPhase = '';
+    let lastRound = 0;
+
     // Event callback for live streaming
     const onEvent = async (event: GameEvent) => {
+      eventCount++;
+      
+      // Log phase transitions
+      if (event.type === 'phase_start') {
+        gameLog.info('Phase started', { 
+          phase: event.phase, 
+          round: event.round,
+          eventCount,
+        });
+        lastPhase = event.phase;
+        lastRound = event.round;
+      }
+
+      // Log eliminations
+      if (event.type === 'elimination') {
+        gameLog.info('Player eliminated', { 
+          playerId: event.playerId,
+          playerName: event.playerName,
+          team: event.team,
+          phase: event.phase,
+          round: event.round,
+        });
+      }
+
+      // Log AI calls (at debug level)
+      if (event.type === 'ai_call') {
+        gameLog.debug('AI call completed', { 
+          modelId: event.modelId,
+          playerId: event.playerId,
+          actionType: event.actionType,
+          tokensUsed: event.tokensUsed?.input + event.tokensUsed?.output,
+          latencyMs: event.latencyMs,
+        });
+      }
+
+      // Log AI errors
+      if (event.type === 'ai_error' || event.type === 'ai_parse_error') {
+        gameLog.warn('AI error', { 
+          eventType: event.type,
+          playerId: event.playerId,
+          modelId: event.modelId,
+        });
+      }
+
       // Add to in-memory log (full events for R2 transcript)
       this.eventLog.push(event);
 
@@ -576,6 +680,7 @@ export class GameRunner extends DurableObject<Env> {
       ) {
         const eventsToStore = prepareEventsForStorage(this.eventLog);
         await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
+        gameLog.debug('Events persisted to storage', { storedCount: eventsToStore.length });
       }
 
       // Broadcast to connected WebSocket clients (with stripped event for large responses)
@@ -587,16 +692,27 @@ export class GameRunner extends DurableObject<Env> {
     };
 
     // Create and run the game with live streaming
+    gameLog.info('Creating game instance');
     const game = new Game(config, aiAdapter, { gameId, onEvent });
+    
+    gameLog.info('Running game loop');
     const result = await game.run();
 
-    console.log(`Game ${gameId} completed: ${result.winner} wins in ${result.rounds} rounds`);
+    const durationMs = Date.now() - startTime;
+    gameLog.info('Game completed', { 
+      winner: result.winner,
+      rounds: result.rounds,
+      eventCount,
+      durationMs,
+      totalTokens: result.tokenUsage.total,
+    });
 
     // Final persist of stripped events for DO storage
     const eventsToStore = prepareEventsForStorage(this.eventLog);
     await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
 
     // Persist results (idempotent)
+    gameLog.debug('Persisting results to D1/R2');
     await this.persistResults(result, batchId);
 
     // Update state
@@ -604,6 +720,7 @@ export class GameRunner extends DurableObject<Env> {
       status: 'completed',
       completedAt: Date.now(),
     });
+    gameLog.info('State saved as completed');
 
     // Broadcast completion status
     this.broadcast({

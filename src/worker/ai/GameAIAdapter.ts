@@ -11,6 +11,7 @@ import type { AIProvider, AIContext, ActionPrompt, AIResponse, PlayerAction } fr
 import type { AIProviderInterface } from './types.js';
 import { AIErrors } from './errors.js';
 import { getSchemaForAction } from './types.js';
+import { createLogger, logErrorWithStack, type Logger } from '../utils/logger.js';
 import {
   PersonaSchema,
   IntroductionSchema,
@@ -42,44 +43,83 @@ export class AIParseError extends Error {
  * Adapts the worker AI providers to the game engine's AIProvider interface.
  */
 export class GameAIAdapter implements AIProvider {
-  constructor(private readonly providers: Map<string, AIProviderInterface>) {}
+  private log: Logger;
+
+  constructor(private readonly providers: Map<string, AIProviderInterface>) {
+    this.log = createLogger('GameAIAdapter');
+    this.log.debug('Adapter created', { providerCount: providers.size, models: Array.from(providers.keys()) });
+  }
 
   async getAction(context: AIContext, prompt: ActionPrompt): Promise<AIResponse> {
+    const callLog = this.log.child({ 
+      modelId: context.modelId, 
+      playerId: context.playerId,
+      actionType: prompt.type,
+    });
+
     const provider = this.providers.get(context.modelId);
     if (!provider) {
+      callLog.error('Provider not found for model', { availableModels: Array.from(this.providers.keys()) });
       throw AIErrors.unsupportedModel(context.modelId);
     }
 
     const startTime = Date.now();
+    callLog.debug('Starting AI call');
 
     // Get the appropriate JSON schema for this action type
     const structuredOutput = getSchemaForAction(prompt.type);
 
-    const response = await provider.complete({
-      systemPrompt: prompt.systemPrompt,
-      userPrompt: prompt.userPrompt,
-      structuredOutput,
-      temperature: 0.7,
-      maxTokens: 4000,
-    });
+    try {
+      const response = await provider.complete({
+        systemPrompt: prompt.systemPrompt,
+        userPrompt: prompt.userPrompt,
+        structuredOutput,
+        temperature: 0.7,
+        maxTokens: 4000,
+      });
 
-    // Parse the response into a PlayerAction - throws AIParseError on failure
-    const action = this.parseAction(
-      response.content, 
-      prompt.type, 
-      prompt.validTargets,
-      context.modelId
-    );
+      const latencyMs = Date.now() - startTime;
+      callLog.debug('AI response received', { 
+        latencyMs, 
+        inputTokens: response.tokensUsed.input,
+        outputTokens: response.tokensUsed.output,
+        contentLength: response.content.length,
+      });
 
-    return {
-      action,
-      rawResponse: response.content,
-      tokensUsed: {
-        input: response.tokensUsed.input,
-        output: response.tokensUsed.output,
-      },
-      latencyMs: Date.now() - startTime,
-    };
+      // Parse the response into a PlayerAction - throws AIParseError on failure
+      const action = this.parseAction(
+        response.content, 
+        prompt.type, 
+        prompt.validTargets,
+        context.modelId
+      );
+
+      callLog.debug('Action parsed successfully', { actionType: action.type });
+
+      return {
+        action,
+        rawResponse: response.content,
+        tokensUsed: {
+          input: response.tokensUsed.input,
+          output: response.tokensUsed.output,
+        },
+        latencyMs,
+      };
+    } catch (error) {
+      const latencyMs = Date.now() - startTime;
+      
+      if (error instanceof AIParseError) {
+        callLog.warn('AI parse error', { 
+          latencyMs,
+          parseError: error.parseError,
+          rawResponseLength: error.rawResponse.length,
+        });
+      } else {
+        logErrorWithStack(callLog, 'AI call failed', error, { latencyMs });
+      }
+      
+      throw error;
+    }
   }
 
   /**
