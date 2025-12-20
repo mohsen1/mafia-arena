@@ -193,10 +193,13 @@ export const SUPPORTED_MODELS: Record<string, ModelConfig> = {
   'gpt-5-mini': { provider: 'openai', displayName: 'GPT-5 Mini', structuredOutput: 'schema' },
   'gpt-5-nano': { provider: 'openai', displayName: 'GPT-5 Nano', structuredOutput: 'schema' },
 
-  // Anthropic Claude 4.5 family (latest models)
-  'claude-sonnet-4-5-20250929': { provider: 'anthropic', displayName: 'Claude Sonnet 4.5', structuredOutput: 'tool' },
-  'claude-haiku-4-5-20251001': { provider: 'anthropic', displayName: 'Claude Haiku 4.5', structuredOutput: 'tool' },
-  'claude-opus-4-5-20251101': { provider: 'anthropic', displayName: 'Claude Opus 4.5', structuredOutput: 'tool' },
+  // Anthropic Claude 4.5 family (using aliases for latest versions)
+  'claude-sonnet-4-5': { provider: 'anthropic', displayName: 'Claude Sonnet 4.5', structuredOutput: 'tool' },
+  'claude-haiku-4-5': { provider: 'anthropic', displayName: 'Claude Haiku 4.5', structuredOutput: 'tool' },
+  'claude-opus-4-5': { provider: 'anthropic', displayName: 'Claude Opus 4.5', structuredOutput: 'tool' },
+  // Also keep the specific versions
+  'claude-3-5-sonnet-20241022': { provider: 'anthropic', displayName: 'Claude 3.5 Sonnet', structuredOutput: 'tool' },
+  'claude-3-opus-20240229': { provider: 'anthropic', displayName: 'Claude 3 Opus', structuredOutput: 'tool' },
 
   // Google Gemini 2.0+ family
   'gemini-3-pro-preview': { provider: 'google', displayName: 'Gemini 3 Pro', structuredOutput: 'schema' },

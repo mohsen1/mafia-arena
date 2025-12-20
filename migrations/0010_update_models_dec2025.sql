@@ -9,11 +9,11 @@ INSERT OR IGNORE INTO models (id, provider, display_name) VALUES
   ('gpt-5-mini', 'openai', 'GPT-5 Mini'),
   ('gpt-5-nano', 'openai', 'GPT-5 Nano');
 
--- Insert new Anthropic Claude 4.5 series
+-- Insert new Anthropic Claude 4.5 series (using aliases)
 INSERT OR IGNORE INTO models (id, provider, display_name) VALUES
-  ('claude-sonnet-4-5-20250929', 'anthropic', 'Claude Sonnet 4.5'),
-  ('claude-haiku-4-5-20251001', 'anthropic', 'Claude Haiku 4.5'),
-  ('claude-opus-4-5-20251101', 'anthropic', 'Claude Opus 4.5');
+  ('claude-sonnet-4-5', 'anthropic', 'Claude Sonnet 4.5'),
+  ('claude-haiku-4-5', 'anthropic', 'Claude Haiku 4.5'),
+  ('claude-opus-4-5', 'anthropic', 'Claude Opus 4.5');
 
 -- Insert/update Google Gemini 2.0+ series
 INSERT OR IGNORE INTO models (id, provider, display_name) VALUES
