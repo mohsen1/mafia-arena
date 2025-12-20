@@ -10,6 +10,25 @@ import { BaseProvider } from '../BaseProvider.js';
 import type { AIProviderConfig, CompletionRequest, CompletionResponse, JsonSchema } from '../types.js';
 import { schemaToPromptInstructions } from '../types.js';
 
+/**
+ * Map placeholder/future model IDs to real OpenAI model IDs.
+ * GPT-5.x models don't exist yet - map to current best equivalents.
+ */
+const MODEL_MAPPING: Record<string, string> = {
+  'gpt-5.2': 'gpt-4o',
+  'gpt-5.2-pro': 'gpt-4o',
+  'gpt-5-mini': 'gpt-4o-mini',
+  'gpt-5-nano': 'gpt-4o-mini',
+  'gpt-5.1': 'gpt-4o',
+};
+
+/**
+ * Get the actual OpenAI model ID to use for API calls.
+ */
+function getActualModelId(modelId: string): string {
+  return MODEL_MAPPING[modelId] ?? modelId;
+}
+
 interface OpenAIChatResponse {
   choices: Array<{
     message: { content: string; refusal?: string };
@@ -58,7 +77,8 @@ export class OpenAIProvider extends BaseProvider {
 
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
     const startTime = Date.now();
-    const useNativeSchema = request.structuredOutput && supportsNativeSchema(this.modelId);
+    const actualModelId = getActualModelId(this.modelId);
+    const useNativeSchema = request.structuredOutput && supportsNativeSchema(actualModelId);
     const useJsonMode = request.structuredOutput && !useNativeSchema;
 
     // For json_mode models, inject schema instructions into the prompt
@@ -69,7 +89,7 @@ export class OpenAIProvider extends BaseProvider {
     }
 
     const body: Record<string, unknown> = {
-      model: this.modelId,
+      model: actualModelId,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: request.userPrompt },
