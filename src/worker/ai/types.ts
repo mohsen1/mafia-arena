@@ -183,30 +183,29 @@ export interface ModelConfig {
  * - 'tool': Schema via tool_use (100% reliable)
  * - 'json_mode': JSON mode + prompt instructions (high reliability)
  * - 'prompt_only': Prompt instructions only (reasonable reliability)
+ * 
+ * Updated: December 2025
  */
 export const SUPPORTED_MODELS: Record<string, ModelConfig> = {
-  // OpenAI - gpt-4o has native schema, gpt-4-turbo has json_mode only
-  'gpt-4o': { provider: 'openai', displayName: 'GPT-4o', structuredOutput: 'schema' },
-  'gpt-4o-mini': { provider: 'openai', displayName: 'GPT-4o Mini', structuredOutput: 'schema' },
-  'gpt-4-turbo': { provider: 'openai', displayName: 'GPT-4 Turbo', structuredOutput: 'json_mode' },
+  // OpenAI GPT-5.2 family (latest frontier models)
+  'gpt-5.2': { provider: 'openai', displayName: 'GPT-5.2', structuredOutput: 'schema' },
+  'gpt-5.2-pro': { provider: 'openai', displayName: 'GPT-5.2 Pro', structuredOutput: 'schema' },
+  'gpt-5-mini': { provider: 'openai', displayName: 'GPT-5 Mini', structuredOutput: 'schema' },
+  'gpt-5-nano': { provider: 'openai', displayName: 'GPT-5 Nano', structuredOutput: 'schema' },
 
-  // Anthropic - All Claude models use tool_use for structured output
-  'claude-3-haiku-20240307': { provider: 'anthropic', displayName: 'Claude 3 Haiku', structuredOutput: 'tool' },
-  'claude-3-sonnet-20240229': { provider: 'anthropic', displayName: 'Claude 3 Sonnet', structuredOutput: 'tool' },
-  'claude-3-opus-20240229': { provider: 'anthropic', displayName: 'Claude 3 Opus', structuredOutput: 'tool' },
-  'claude-3-5-haiku-20241022': { provider: 'anthropic', displayName: 'Claude 3.5 Haiku', structuredOutput: 'tool' },
-  'claude-3-5-sonnet-20241022': { provider: 'anthropic', displayName: 'Claude 3.5 Sonnet', structuredOutput: 'tool' },
+  // Anthropic Claude 4.5 family (latest models)
+  'claude-sonnet-4-5-20250929': { provider: 'anthropic', displayName: 'Claude Sonnet 4.5', structuredOutput: 'tool' },
+  'claude-haiku-4-5-20251001': { provider: 'anthropic', displayName: 'Claude Haiku 4.5', structuredOutput: 'tool' },
+  'claude-opus-4-5-20251101': { provider: 'anthropic', displayName: 'Claude Opus 4.5', structuredOutput: 'tool' },
 
-  // Google Gemini - All current models support responseSchema
-  'gemini-1.5-flash': { provider: 'google', displayName: 'Gemini 1.5 Flash', structuredOutput: 'json_mode' },
-  'gemini-1.5-pro': { provider: 'google', displayName: 'Gemini 1.5 Pro', structuredOutput: 'json_mode' },
-  'gemini-2.0-flash': { provider: 'google', displayName: 'Gemini 2.0 Flash', structuredOutput: 'schema' },
-  'gemini-2.0-flash-exp': { provider: 'google', displayName: 'Gemini 2.0 Flash Exp', structuredOutput: 'schema' },
-  'gemini-2.0-flash-lite': { provider: 'google', displayName: 'Gemini 2.0 Flash Lite', structuredOutput: 'schema' },
-  'gemini-2.5-flash': { provider: 'google', displayName: 'Gemini 2.5 Flash', structuredOutput: 'schema' },
-  'gemini-2.5-pro': { provider: 'google', displayName: 'Gemini 2.5 Pro', structuredOutput: 'schema' },
+  // Google Gemini 2.0+ family
   'gemini-3-pro-preview': { provider: 'google', displayName: 'Gemini 3 Pro', structuredOutput: 'schema' },
   'gemini-3-flash-preview': { provider: 'google', displayName: 'Gemini 3 Flash', structuredOutput: 'schema' },
+  'gemini-2.5-pro': { provider: 'google', displayName: 'Gemini 2.5 Pro', structuredOutput: 'schema' },
+  'gemini-2.5-flash': { provider: 'google', displayName: 'Gemini 2.5 Flash', structuredOutput: 'schema' },
+  'gemini-2.5-flash-lite': { provider: 'google', displayName: 'Gemini 2.5 Flash Lite', structuredOutput: 'schema' },
+  'gemini-2.0-flash': { provider: 'google', displayName: 'Gemini 2.0 Flash', structuredOutput: 'schema' },
+  'gemini-2.0-flash-lite': { provider: 'google', displayName: 'Gemini 2.0 Flash Lite', structuredOutput: 'schema' },
 };
 
 /**
