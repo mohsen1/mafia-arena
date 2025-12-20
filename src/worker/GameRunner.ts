@@ -791,11 +791,17 @@ export class GameRunner extends DurableObject<Env> {
     // 2. Build all D1 statements for atomic batch execution
     const statements: D1PreparedStatement[] = [];
 
-    // Insert game record
+    // Insert or update game record (may already exist from insertRunningGame)
     statements.push(
       db.prepare(
         `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET
+           winner = excluded.winner,
+           rounds = excluded.rounds,
+           duration_ms = excluded.duration_ms,
+           total_tokens = excluded.total_tokens,
+           status = excluded.status`
       ).bind(
         result.id,
         batchId,
