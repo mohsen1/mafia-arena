@@ -70,12 +70,9 @@ function getMatchup(game: any) {
                 const matchup = getMatchup(game);
                 const mafiaWon = game.winner === 'mafia';
                 return (
-                  <tr 
-                    class="border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onclick={`window.location.href='/games/${game.id}'`}
-                  >
-                    <td class="h-12 px-3">
-                      <div class="flex items-center gap-2 text-xs">
+                  <tr class="border-b last:border-0 hover:bg-muted/50 transition-colors group">
+                    <td class="h-12 p-0">
+                      <a href={`/games/${game.id}`} class="flex items-center gap-2 text-xs px-3 h-full">
                         <span class={`font-medium px-1.5 py-0.5 rounded ${mafiaWon ? 'bg-red-500/15 text-red-600 dark:text-red-400 ring-1 ring-red-500/20' : 'text-muted-foreground'}`}>
                           {matchup.mafia}
                         </span>
@@ -83,10 +80,10 @@ function getMatchup(game: any) {
                         <span class={`font-medium px-1.5 py-0.5 rounded ${!mafiaWon ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20' : 'text-muted-foreground'}`}>
                           {matchup.town}
                         </span>
-                      </div>
+                      </a>
                     </td>
-                    <td class="h-12 px-3">
-                      <div class="flex items-center gap-2">
+                    <td class="h-12 p-0">
+                      <a href={`/games/${game.id}`} class="flex items-center gap-2 px-3 h-full">
                         <Trophy size={14} class={mafiaWon ? 'text-red-500' : 'text-blue-500'} />
                         <div>
                           <span class={`text-xs font-semibold ${mafiaWon ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
@@ -96,13 +93,13 @@ function getMatchup(game: any) {
                             {mafiaWon ? 'Mafia' : 'Town'}
                           </span>
                         </div>
-                      </div>
+                      </a>
                     </td>
-                    <td class="h-12 px-3 text-right font-mono tabular-nums text-muted-foreground">
-                      {game.rounds}
+                    <td class="h-12 p-0 text-right font-mono tabular-nums text-muted-foreground">
+                      <a href={`/games/${game.id}`} class="flex items-center justify-end px-3 h-full">{game.rounds}</a>
                     </td>
-                    <td class="h-12 px-3 text-right text-muted-foreground text-xs">
-                      {formatDate(game.created_at)}
+                    <td class="h-12 p-0 text-right text-muted-foreground text-xs">
+                      <a href={`/games/${game.id}`} class="flex items-center justify-end px-3 h-full">{formatDate(game.created_at)}</a>
                     </td>
                   </tr>
                 );

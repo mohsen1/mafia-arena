@@ -2,7 +2,7 @@
 import Layout from '../../../components/Layout.astro';
 import { getGame, getTranscript } from '../../../lib/api';
 import { calculateCost, formatCost, calculateTotalCost } from '../../../lib/costs';
-import { MessageSquare, Moon, Vote, Cpu, Clock, Hash, Skull, Hand, DollarSign, ChevronDown, ArrowLeft } from 'lucide-astro';
+import { MessageSquare, Moon, Vote, Cpu, Clock, Hash, Skull, Hand, DollarSign, ChevronDown, ArrowLeft, Ghost } from 'lucide-astro';
 
 const { id } = Astro.params;
 
@@ -21,7 +21,7 @@ function groupEvents(events: any[]) {
   const grouped: Record<number, Record<string, any[]>> = {};
   for (const event of events) {
     const round = event.round || 1;
-    const phase = event.phase || 'other';
+    const phase = event.phase || 'mafia_chat';
     if (!grouped[round]) grouped[round] = {};
     if (!grouped[round][phase]) grouped[round][phase] = [];
     grouped[round][phase].push(event);
@@ -113,6 +113,7 @@ function getPhaseLabel(phase: string) {
     case 'night': return 'Night';
     case 'day_discussion': return 'Discussion';
     case 'day_vote': return 'Vote';
+    case 'mafia_chat': return 'Mafia Chat';
     default: return phase;
   }
 }
@@ -213,6 +214,7 @@ function getEventCost(event: any): string {
                     {phase === 'night' && <Moon size={12} />}
                     {phase === 'day_discussion' && <MessageSquare size={12} />}
                     {phase === 'day_vote' && <Vote size={12} />}
+                    {phase === 'mafia_chat' && <Ghost size={12} class="text-red-500" />}
                     <span>{getPhaseLabel(phase)}</span>
                   </div>
 
@@ -222,13 +224,15 @@ function getEventCost(event: any): string {
                         <details class="border rounded-md overflow-hidden group">
                           <summary class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors text-sm">
                             <div class={`w-1 h-6 rounded-full shrink-0 ${event.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
-                            <span class="font-medium truncate">{event.playerName}</span>
-                            <code class="text-[10px] text-muted-foreground truncate">{event.modelId}</code>
+                            <span class="font-medium">{event.playerName}</span>
+                            <code class="text-[10px] text-muted-foreground/60">{event.modelId}</code>
                             <div class="flex-1"></div>
-                            <span class="text-xs text-muted-foreground tabular-nums font-mono">{event.latencyMs}ms</span>
-                            <span class="text-xs text-muted-foreground tabular-nums font-mono">{event.tokensUsed?.total || (event.tokensUsed?.input + event.tokensUsed?.output)}tok</span>
-                            <span class="text-xs text-green-600 dark:text-green-400 tabular-nums font-mono">{getEventCost(event)}</span>
-                            <ChevronDown size={14} class="text-muted-foreground transition-transform group-open:rotate-180" />
+                            <div class="hidden sm:flex items-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums font-mono">
+                              <span>{event.latencyMs}ms</span>
+                              <span>{event.tokensUsed?.total || (event.tokensUsed?.input + event.tokensUsed?.output)}tok</span>
+                              <span class="text-green-600/70 dark:text-green-400/70">{getEventCost(event)}</span>
+                            </div>
+                            <ChevronDown size={14} class="text-muted-foreground/60 transition-transform group-open:rotate-180" />
                           </summary>
                           <div class="px-3 py-3 border-t bg-muted/20 space-y-3 text-xs">
                             <div class="grid md:grid-cols-2 gap-3">
