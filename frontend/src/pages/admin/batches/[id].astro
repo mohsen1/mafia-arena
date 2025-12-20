@@ -36,12 +36,22 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       </div>
       
       <!-- Debug Details (collapsible) -->
-      <details class="border rounded-lg">
+      <details class="border rounded-lg" open>
         <summary class="px-4 py-3 cursor-pointer font-medium flex items-center gap-2 hover:bg-muted/30 transition-colors">
           <Bug class="w-4 h-4" />
           Debug Information
         </summary>
         <div class="px-4 pb-4 space-y-3 text-sm">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-muted-foreground mb-1">Batch ID:</p>
+              <code class="block bg-muted/50 p-2 rounded font-mono text-xs break-all">{id}</code>
+            </div>
+            <div>
+              <p class="text-muted-foreground mb-1">Timestamp:</p>
+              <code id="debug-timestamp" class="block bg-muted/50 p-2 rounded font-mono text-xs"></code>
+            </div>
+          </div>
           <div>
             <p class="text-muted-foreground mb-1">Request URL:</p>
             <code id="debug-url" class="block bg-muted/50 p-2 rounded font-mono text-xs break-all"></code>
@@ -52,7 +62,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           </div>
           <div>
             <p class="text-muted-foreground mb-1">Response Body:</p>
-            <pre id="debug-body" class="bg-muted/50 p-2 rounded font-mono text-xs overflow-x-auto max-h-48"></pre>
+            <pre id="debug-body" class="bg-muted/50 p-2 rounded font-mono text-xs overflow-x-auto max-h-60"></pre>
           </div>
           <div>
             <p class="text-muted-foreground mb-1">Error Stack:</p>
@@ -124,8 +134,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       '</details>';
   }
 
-  function escapeHtml(str) {
-    if (!str) return '';
+  function escapeHtml(val) {
+    if (val === null || val === undefined) return '';
+    const str = typeof val === 'string' ? val : String(val);
     return str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -135,32 +146,53 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   }
 
   function showError(title, message, debug = {}) {
-    document.getElementById('loading')?.classList.add('hidden');
-    document.getElementById('content')?.classList.add('hidden');
-    document.getElementById('error')?.classList.remove('hidden');
-    
-    const errorTitle = document.getElementById('error-title');
-    const errorText = document.getElementById('error-text');
-    if (errorTitle) errorTitle.textContent = title;
-    if (errorText) errorText.textContent = message;
+    try {
+      // Hide other states
+      const loadingEl = document.getElementById('loading');
+      const contentEl = document.getElementById('content');
+      const errorEl = document.getElementById('error');
+      
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (contentEl) contentEl.style.display = 'none';
+      if (errorEl) {
+        errorEl.classList.remove('hidden');
+        errorEl.style.display = 'block';
+      }
+      
+      // Set error message
+      const errorTitle = document.getElementById('error-title');
+      const errorText = document.getElementById('error-text');
+      if (errorTitle) errorTitle.textContent = title || 'Error';
+      if (errorText) errorText.textContent = message || 'An unknown error occurred';
 
-    // Fill debug info
-    if (debug.url) {
-      document.getElementById('debug-url').textContent = debug.url;
-    }
-    if (debug.status !== undefined) {
-      document.getElementById('debug-status').textContent = `${debug.status} ${debug.statusText || ''}`;
-    }
-    if (debug.body) {
-      document.getElementById('debug-body').textContent = typeof debug.body === 'string' 
-        ? debug.body 
-        : JSON.stringify(debug.body, null, 2);
-    }
-    if (debug.stack) {
-      document.getElementById('debug-stack').textContent = debug.stack;
-    }
+      // Fill debug info with defaults for empty values
+      const debugTimestamp = document.getElementById('debug-timestamp');
+      const debugUrl = document.getElementById('debug-url');
+      const debugStatus = document.getElementById('debug-status');
+      const debugBody = document.getElementById('debug-body');
+      const debugStack = document.getElementById('debug-stack');
 
-    console.error('[Batch Detail Error]', { title, message, debug });
+      if (debugTimestamp) debugTimestamp.textContent = new Date().toISOString();
+      if (debugUrl) debugUrl.textContent = debug.url || '(not available)';
+      if (debugStatus) debugStatus.textContent = debug.status !== undefined 
+        ? `${debug.status} ${debug.statusText || ''}` 
+        : '(not available)';
+      if (debugBody) {
+        if (debug.body) {
+          debugBody.textContent = typeof debug.body === 'string' 
+            ? debug.body 
+            : JSON.stringify(debug.body, null, 2);
+        } else {
+          debugBody.textContent = '(no response body)';
+        }
+      }
+      if (debugStack) debugStack.textContent = debug.stack || '(no stack trace)';
+
+      console.error('[Batch Detail Error]', { title, message, debug });
+    } catch (e) {
+      console.error('[showError failed]', e);
+      alert(`Error: ${title}\n\n${message}`);
+    }
   }
 
   async function init() {
@@ -402,10 +434,27 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
   // Retry button handler
   document.getElementById('retry-btn')?.addEventListener('click', () => {
-    document.getElementById('error')?.classList.add('hidden');
-    document.getElementById('loading')?.classList.remove('hidden');
+    const errorEl = document.getElementById('error');
+    const loadingEl = document.getElementById('loading');
+    if (errorEl) {
+      errorEl.classList.add('hidden');
+      errorEl.style.display = '';
+    }
+    if (loadingEl) {
+      loadingEl.classList.remove('hidden');
+      loadingEl.style.display = '';
+    }
     init();
   });
 
-  init();
+  // Run init with top-level error handling
+  try {
+    init().catch(err => {
+      console.error('[init promise rejected]', err);
+      showError('Initialization Error', err.message || 'Failed to initialize page', { stack: err.stack });
+    });
+  } catch (err) {
+    console.error('[init threw]', err);
+    showError('Script Error', err.message || 'Script failed to execute', { stack: err.stack });
+  }
 </script>
