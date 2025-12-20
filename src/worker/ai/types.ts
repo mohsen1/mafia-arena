@@ -178,6 +178,8 @@ export interface ModelConfig {
 /**
  * Supported AI model registry with structured output capabilities.
  * 
+ * All models are accessed via OpenRouter. Model IDs match OpenRouter's naming.
+ * 
  * Capability Levels:
  * - 'schema': Native API schema enforcement (100% reliable)
  * - 'tool': Schema via tool_use (100% reliable)
@@ -187,28 +189,67 @@ export interface ModelConfig {
  * Updated: December 2025
  */
 export const SUPPORTED_MODELS: Record<string, ModelConfig> = {
-  // OpenAI GPT-5.2 family (latest frontier models)
-  'gpt-5.2': { provider: 'openai', displayName: 'GPT-5.2', structuredOutput: 'schema' },
-  'gpt-5.2-pro': { provider: 'openai', displayName: 'GPT-5.2 Pro', structuredOutput: 'schema' },
-  'gpt-5-mini': { provider: 'openai', displayName: 'GPT-5 Mini', structuredOutput: 'schema' },
-  'gpt-5-nano': { provider: 'openai', displayName: 'GPT-5 Nano', structuredOutput: 'schema' },
+  // Amazon Nova family
+  'amazon/nova-2-lite-v1': { provider: 'openrouter', displayName: 'Nova 2 Lite', structuredOutput: 'tool' },
+  'amazon/nova-lite-v1': { provider: 'openrouter', displayName: 'Nova Lite', structuredOutput: 'tool' },
+  'amazon/nova-premier-v1': { provider: 'openrouter', displayName: 'Nova Premier', structuredOutput: 'tool' },
+  'amazon/nova-pro-v1': { provider: 'openrouter', displayName: 'Nova Pro', structuredOutput: 'tool' },
 
-  // Anthropic Claude 4.5 family (using aliases for latest versions)
-  'claude-sonnet-4-5': { provider: 'anthropic', displayName: 'Claude Sonnet 4.5', structuredOutput: 'tool' },
-  'claude-haiku-4-5': { provider: 'anthropic', displayName: 'Claude Haiku 4.5', structuredOutput: 'tool' },
-  'claude-opus-4-5': { provider: 'anthropic', displayName: 'Claude Opus 4.5', structuredOutput: 'tool' },
-  // Also keep the specific versions
-  'claude-3-5-sonnet-20241022': { provider: 'anthropic', displayName: 'Claude 3.5 Sonnet', structuredOutput: 'tool' },
-  'claude-3-opus-20240229': { provider: 'anthropic', displayName: 'Claude 3 Opus', structuredOutput: 'tool' },
+  // Anthropic Claude
+  'anthropic/claude-sonnet-4.5': { provider: 'openrouter', displayName: 'Claude Sonnet 4.5', structuredOutput: 'tool' },
 
-  // Google Gemini 2.0+ family
-  'gemini-3-pro-preview': { provider: 'google', displayName: 'Gemini 3 Pro', structuredOutput: 'schema' },
-  'gemini-3-flash-preview': { provider: 'google', displayName: 'Gemini 3 Flash', structuredOutput: 'schema' },
-  'gemini-2.5-pro': { provider: 'google', displayName: 'Gemini 2.5 Pro', structuredOutput: 'schema' },
-  'gemini-2.5-flash': { provider: 'google', displayName: 'Gemini 2.5 Flash', structuredOutput: 'schema' },
-  'gemini-2.5-flash-lite': { provider: 'google', displayName: 'Gemini 2.5 Flash Lite', structuredOutput: 'schema' },
-  'gemini-2.0-flash': { provider: 'google', displayName: 'Gemini 2.0 Flash', structuredOutput: 'schema' },
-  'gemini-2.0-flash-lite': { provider: 'google', displayName: 'Gemini 2.0 Flash Lite', structuredOutput: 'schema' },
+  // Google Gemini family
+  'google/gemini-2.5-flash-lite-preview-09-2025': { provider: 'openrouter', displayName: 'Gemini 2.5 Flash Lite', structuredOutput: 'schema' },
+  'google/gemini-2.5-flash-preview-09-2025': { provider: 'openrouter', displayName: 'Gemini 2.5 Flash', structuredOutput: 'schema' },
+  'google/gemini-2.5-pro': { provider: 'openrouter', displayName: 'Gemini 2.5 Pro', structuredOutput: 'schema' },
+  'google/gemini-2.5-pro-preview-05-06': { provider: 'openrouter', displayName: 'Gemini 2.5 Pro Preview', structuredOutput: 'schema' },
+  'google/gemini-3-flash-preview': { provider: 'openrouter', displayName: 'Gemini 3 Flash', structuredOutput: 'schema' },
+  'google/gemini-3-pro-preview': { provider: 'openrouter', displayName: 'Gemini 3 Pro', structuredOutput: 'schema' },
+
+  // Meta Llama 4 family
+  'meta-llama/llama-4-maverick': { provider: 'openrouter', displayName: 'Llama 4 Maverick', structuredOutput: 'json_mode' },
+  'meta-llama/llama-4-scout': { provider: 'openrouter', displayName: 'Llama 4 Scout', structuredOutput: 'json_mode' },
+
+  // MiniMax family
+  'minimax/minimax-01': { provider: 'openrouter', displayName: 'MiniMax 01', structuredOutput: 'json_mode' },
+  'minimax/minimax-m1': { provider: 'openrouter', displayName: 'MiniMax M1', structuredOutput: 'json_mode' },
+
+  // Mistral family
+  'mistralai/devstral-2512': { provider: 'openrouter', displayName: 'Devstral', structuredOutput: 'json_mode' },
+  'mistralai/devstral-2512:free': { provider: 'openrouter', displayName: 'Devstral (Free)', structuredOutput: 'json_mode' },
+  'mistralai/ministral-14b-2512': { provider: 'openrouter', displayName: 'Ministral 14B', structuredOutput: 'json_mode' },
+  'mistralai/ministral-8b-2512': { provider: 'openrouter', displayName: 'Ministral 8B', structuredOutput: 'json_mode' },
+  'mistralai/mistral-large-2512': { provider: 'openrouter', displayName: 'Mistral Large', structuredOutput: 'json_mode' },
+
+  // Moonshot Kimi family
+  'moonshotai/kimi-k2-0905': { provider: 'openrouter', displayName: 'Kimi K2', structuredOutput: 'json_mode' },
+  'moonshotai/kimi-k2-0905:exacto': { provider: 'openrouter', displayName: 'Kimi K2 Exacto', structuredOutput: 'json_mode' },
+  'moonshotai/kimi-k2-thinking': { provider: 'openrouter', displayName: 'Kimi K2 Thinking', structuredOutput: 'json_mode' },
+
+  // NVIDIA Nemotron
+  'nvidia/nemotron-3-nano-30b-a3b': { provider: 'openrouter', displayName: 'Nemotron 3 Nano', structuredOutput: 'json_mode' },
+
+  // OpenAI GPT-5.2 family
+  'openai/gpt-5.2': { provider: 'openrouter', displayName: 'GPT-5.2', structuredOutput: 'schema' },
+  'openai/gpt-5.2-pro': { provider: 'openrouter', displayName: 'GPT-5.2 Pro', structuredOutput: 'schema' },
+
+  // Qwen family
+  'qwen/qwen-plus-2025-07-28': { provider: 'openrouter', displayName: 'Qwen Plus', structuredOutput: 'json_mode' },
+  'qwen/qwen-plus-2025-07-28:thinking': { provider: 'openrouter', displayName: 'Qwen Plus Thinking', structuredOutput: 'json_mode' },
+  'qwen/qwen-turbo': { provider: 'openrouter', displayName: 'Qwen Turbo', structuredOutput: 'json_mode' },
+  'qwen/qwen3-30b-a3b-instruct-2507': { provider: 'openrouter', displayName: 'Qwen3 30B', structuredOutput: 'json_mode' },
+  'qwen/qwen3-next-80b-a3b-instruct': { provider: 'openrouter', displayName: 'Qwen3 Next 80B', structuredOutput: 'json_mode' },
+  'qwen/qwen3-vl-235b-a22b-instruct': { provider: 'openrouter', displayName: 'Qwen3 VL 235B', structuredOutput: 'json_mode' },
+  'qwen/qwen3-vl-235b-a22b-thinking': { provider: 'openrouter', displayName: 'Qwen3 VL 235B Thinking', structuredOutput: 'json_mode' },
+  'qwen/qwen3-vl-30b-a3b-instruct': { provider: 'openrouter', displayName: 'Qwen3 VL 30B', structuredOutput: 'json_mode' },
+  'qwen/qwen3-vl-32b-instruct': { provider: 'openrouter', displayName: 'Qwen3 VL 32B', structuredOutput: 'json_mode' },
+
+  // xAI Grok family
+  'x-ai/grok-4-fast': { provider: 'openrouter', displayName: 'Grok 4 Fast', structuredOutput: 'json_mode' },
+  'x-ai/grok-4.1-fast': { provider: 'openrouter', displayName: 'Grok 4.1 Fast', structuredOutput: 'json_mode' },
+
+  // Xiaomi MiMo
+  'xiaomi/mimo-v2-flash:free': { provider: 'openrouter', displayName: 'MiMo V2 Flash (Free)', structuredOutput: 'json_mode' },
 };
 
 /**
