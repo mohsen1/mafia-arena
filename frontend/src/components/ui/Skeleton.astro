@@ -1,0 +1,24 @@
+---
+interface Props {
+  class?: string;
+  variant?: 'text' | 'card' | 'row' | 'circle';
+}
+
+const { class: className, variant = 'text' } = Astro.props;
+
+const variantClasses = {
+  text: 'h-4 w-full rounded',
+  card: 'h-32 w-full rounded-lg',
+  row: 'h-12 w-full rounded',
+  circle: 'h-12 w-12 rounded-full',
+};
+---
+
+<div 
+  class:list={[
+    'animate-pulse bg-muted',
+    variantClasses[variant],
+    className
+  ]}
+></div>
+

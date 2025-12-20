@@ -69,11 +69,19 @@
     --ring: #18181b;
     --radius: 0.375rem;
 
-    /* Team colors */
-    --mafia: #dc2626;
-    --mafia-bg: #fef2f2;
-    --town: #2563eb;
-    --town-bg: #eff6ff;
+    /* Team colors - Shifted to avoid conflict with success/failure */
+    --mafia: #e11d48; /* Crimson/Rose instead of pure red */
+    --mafia-bg: #fff1f2;
+    --mafia-glow: rgba(225, 29, 72, 0.3);
+    --town: #4f46e5; /* Indigo instead of blue */
+    --town-bg: #eef2ff;
+    --town-glow: rgba(79, 70, 229, 0.3);
+    
+    /* Success/Win and Failure/Loss - decoupled from team colors */
+    --success: #22c55e;
+    --success-bg: #f0fdf4;
+    --warning: #f59e0b;
+    --warning-bg: #fffbeb;
   }
 
   /* Dark mode */
@@ -99,10 +107,18 @@
     --ring: #d4d4d8;
 
     /* Team colors - dark mode */
-    --mafia: #f87171;
-    --mafia-bg: rgba(239, 68, 68, 0.1);
-    --town: #60a5fa;
-    --town-bg: rgba(59, 130, 246, 0.1);
+    --mafia: #fb7185; /* Rose */
+    --mafia-bg: rgba(225, 29, 72, 0.1);
+    --mafia-glow: rgba(251, 113, 133, 0.3);
+    --town: #818cf8; /* Indigo */
+    --town-bg: rgba(79, 70, 229, 0.1);
+    --town-glow: rgba(129, 140, 248, 0.3);
+    
+    /* Success/Win and Failure/Loss */
+    --success: #4ade80;
+    --success-bg: rgba(34, 197, 94, 0.1);
+    --warning: #fbbf24;
+    --warning-bg: rgba(245, 158, 11, 0.1);
   }
 }
 
@@ -114,12 +130,17 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  
+  /* Alpine.js cloak */
+  [x-cloak] {
+    display: none !important;
+  }
 }
 
-/* Dense table styling */
+/* Dense table styling - increased row height for breathing room */
 .table-dense th,
 .table-dense td {
-  @apply py-2 px-3 text-sm;
+  @apply py-3 px-3 text-sm;
 }
 
 /* Compact card styling */
@@ -149,4 +170,88 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+/* Animation utilities */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Live indicator */
+.live-pulse {
+  position: relative;
+}
+
+.live-pulse::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: inherit;
+  border-radius: inherit;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Mobile card-table pattern */
+@media (max-width: 768px) {
+  .card-table thead {
+    display: none;
+  }
+  
+  .card-table tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+  }
+  
+  .card-table tbody td {
+    display: block;
+    text-align: left !important;
+    padding: 0.25rem 0;
+  }
+  
+  .card-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
 }

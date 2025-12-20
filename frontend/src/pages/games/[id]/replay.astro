@@ -180,9 +180,9 @@ function parseResponse(raw: string): { type: 'persona' | 'message' | 'vote' | 'a
           <h1 class="text-2xl font-bold tracking-tight">Game Replay</h1>
           <div class="flex items-center gap-3 mt-1 text-sm">
             <span class={`inline-flex items-center gap-1 font-medium ${
-              game.winner === 'mafia' ? 'text-red-500 dark:text-red-400' : 'text-blue-500 dark:text-blue-400'
+              game.winner === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
             }`}>
-              <span class={`w-2 h-2 rounded-full ${game.winner === 'mafia' ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+              <span class={`w-2 h-2 rounded-full ${game.winner === 'mafia' ? 'bg-rose-600' : 'bg-indigo-600'}`}></span>
               {game.winner === 'mafia' ? 'Mafia' : 'Town'} wins
             </span>
             <span class="text-muted-foreground">{game.rounds} rounds</span>
@@ -200,11 +200,11 @@ function parseResponse(raw: string): { type: 'persona' | 'message' | 'vote' | 'a
             {playerRoster.map((player) => (
               <div class={`flex items-start gap-2 px-2 py-2 rounded border text-sm ${
                 player.team === 'mafia' 
-                  ? 'bg-red-500/5 border-red-500/20' 
-                  : 'bg-blue-500/5 border-blue-500/20'
+                  ? 'bg-rose-500/5 border-rose-500/20' 
+                  : 'bg-indigo-500/5 border-indigo-500/20'
               }`}>
                 <div class={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${
-                  player.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
+                  player.team === 'mafia' ? 'bg-rose-600' : 'bg-indigo-600'
                 }`}></div>
                 <div class="min-w-0 flex-1">
                   <div class="font-medium truncate">{player.personaName}</div>
@@ -212,7 +212,7 @@ function parseResponse(raw: string): { type: 'persona' | 'message' | 'vote' | 'a
                     <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style={`background: ${getProviderColorFromModel(player.modelId)}`}></span>
                     {player.modelId || player.originalName}
                   </div>
-                  <div class={`text-[10px] ${player.team === 'mafia' ? 'text-red-500' : 'text-blue-500'}`}>
+                  <div class={`text-[10px] ${player.team === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
                     {player.team}
                   </div>
                 </div>
@@ -230,18 +230,18 @@ function parseResponse(raw: string): { type: 'persona' | 'message' | 'vote' | 'a
         <div class="space-y-6">
           {rounds.map(round => (
             <div class="space-y-4">
-              <div class="flex items-center gap-3 text-sm font-semibold">
+              <div class="sticky top-12 z-10 flex items-center gap-3 text-sm font-semibold py-2 bg-background/95 backdrop-blur-sm -mx-4 px-4">
                 <span class="uppercase tracking-wider text-muted-foreground">Round {round}</span>
                 <div class="h-px flex-1 bg-border"></div>
               </div>
 
               {Object.entries(groupedEvents[round] || {}).map(([phase, phaseEvents]) => (
                 <div class="space-y-2">
-                  {/* Phase Header */}
-                  <div class={`flex items-center gap-2 text-xs font-medium px-2 py-1 rounded ${
+                  {/* Phase Header - Sticky */}
+                  <div class={`sticky top-[72px] z-10 flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded shadow-sm ${
                     phase === 'mafia_chat' || phase === 'night' 
-                      ? 'bg-red-500/10 text-red-600 dark:text-red-400' 
-                      : 'bg-muted text-muted-foreground'
+                      ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/20' 
+                      : 'bg-muted/95 text-foreground border border-border backdrop-blur-sm'
                   }`}>
                     {phase === 'introduction' && <MessageSquare size={12} />}
                     {(phase === 'night' || phase === 'mafia_chat') && <Moon size={12} />}
@@ -421,10 +421,15 @@ function parseResponse(raw: string): { type: 'persona' | 'message' | 'vote' | 'a
 </script>
 
 <style>
-  .bg-red-500 { background-color: rgb(239 68 68); }
-  .bg-blue-500 { background-color: rgb(59 130 246); }
-  .text-red-600 { color: rgb(220 38 38); }
-  .text-blue-600 { color: rgb(37 99 235); }
-  :global(.dark) .text-red-400 { color: rgb(248 113 113); }
-  :global(.dark) .text-blue-400 { color: rgb(96 165 250); }
+  /* Use rose and indigo for team colors */
+  .bg-rose-500 { background-color: rgb(244 63 94); }
+  .bg-rose-600 { background-color: rgb(225 29 72); }
+  .bg-indigo-500 { background-color: rgb(99 102 241); }
+  .bg-indigo-600 { background-color: rgb(79 70 229); }
+  .text-rose-600 { color: rgb(225 29 72); }
+  .text-rose-700 { color: rgb(190 18 60); }
+  .text-indigo-600 { color: rgb(79 70 229); }
+  .text-indigo-700 { color: rgb(67 56 202); }
+  :global(.dark) .text-rose-400 { color: rgb(251 113 133); }
+  :global(.dark) .text-indigo-400 { color: rgb(129 140 248); }
 </style>
