@@ -73,6 +73,13 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
             Active Batches
           </div>
           <div id="batches-active" class="text-2xl font-bold tabular-nums">—</div>
+          <p id="games-running" class="text-xs text-emerald-600 dark:text-emerald-400 font-medium hidden">
+            <span class="relative inline-flex h-2 w-2 mr-1">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            — running now
+          </p>
           <p id="games-queued" class="text-xs text-muted-foreground">— games in queue</p>
         </div>
 
@@ -234,6 +241,22 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
 
       const batchesActive = document.getElementById('batches-active');
       if (batchesActive) batchesActive.textContent = String(stats.batchesActive);
+      
+      const gamesRunning = document.getElementById('games-running');
+      if (gamesRunning) {
+        if (stats.gamesRunning > 0) {
+          gamesRunning.classList.remove('hidden');
+          gamesRunning.innerHTML = `
+            <span class="relative inline-flex h-2 w-2 mr-1">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            ${stats.gamesRunning} running now
+          `;
+        } else {
+          gamesRunning.classList.add('hidden');
+        }
+      }
       
       const gamesQueued = document.getElementById('games-queued');
       if (gamesQueued) gamesQueued.textContent = `${stats.gamesQueued.toLocaleString()} games in queue`;

@@ -338,6 +338,11 @@ export async function getAdminStats(env: Env): Promise<AdminStats> {
     FROM batches
   `).first<{ active: number; queued: number }>();
 
+  // Get running games count from D1
+  const runningGames = await env.DB.prepare(`
+    SELECT COUNT(*) as count FROM games WHERE status = 'running'
+  `).first<{ count: number }>();
+
   // Get today's cost
   const today = new Date().toISOString().slice(0, 10);
   const dailyStats = await env.DB.prepare(`
@@ -347,7 +352,7 @@ export async function getAdminStats(env: Env): Promise<AdminStats> {
   const costToday = dailyStats?.cost_usd ?? 0;
 
   return {
-    gamesRunning: 0, // Would need to track in KV for real-time
+    gamesRunning: runningGames?.count ?? 0,
     gamesQueued: batchStats?.queued ?? 0,
     batchesActive: batchStats?.active ?? 0,
     costToday,
