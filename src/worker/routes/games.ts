@@ -316,14 +316,24 @@ games.get('/:id/live', async (c) => {
   const env = c.env;
   const gameId = c.req.param('id');
 
+  // Check if this is a WebSocket upgrade request
+  const upgradeHeader = c.req.header('Upgrade');
+  if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
+    return c.text('Expected Upgrade: websocket header', 426);
+  }
+
   // Get the Durable Object instance for this game
   const doId = env.GAME_RUNNER.idFromName(gameId);
   const stub = env.GAME_RUNNER.get(doId);
 
   // Forward the WebSocket upgrade request to the Durable Object
-  return stub.fetch(new Request('http://internal/websocket', {
+  // We need to forward the original request to preserve all WebSocket headers
+  const url = new URL(c.req.url);
+  url.pathname = '/websocket';
+  
+  return stub.fetch(url.toString(), {
     headers: c.req.raw.headers,
-  }));
+  });
 });
 
 /**
