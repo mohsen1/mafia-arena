@@ -90,6 +90,50 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     return `${minutes}m ${remainingSeconds}s`;
   }
 
+  function renderErrorLogs(errorLogs) {
+    if (!errorLogs || errorLogs.length === 0) return '';
+    
+    const logsHtml = errorLogs.map(log => {
+      const levelClass = log.level === 'error' 
+        ? 'bg-destructive/20 text-destructive' 
+        : 'bg-amber-500/20 text-amber-600 dark:text-amber-400';
+      const contextHtml = log.context 
+        ? '<pre class="text-xs bg-muted/50 p-2 rounded overflow-x-auto">' + escapeHtml(log.context) + '</pre>' 
+        : '';
+      const stackHtml = log.stack 
+        ? '<details class="text-xs"><summary class="cursor-pointer text-muted-foreground hover:text-foreground">Stack trace</summary><pre class="bg-muted/50 p-2 rounded mt-1 overflow-x-auto whitespace-pre-wrap">' + escapeHtml(log.stack) + '</pre></details>' 
+        : '';
+      
+      return '<div class="p-4 border-b border-amber-500/20 last:border-b-0 space-y-2">' +
+        '<div class="flex items-center justify-between">' +
+        '<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium ' + levelClass + '">' + log.level + '</span>' +
+        '<span class="text-xs text-muted-foreground">' + new Date(log.created_at).toLocaleString() + '</span>' +
+        '</div>' +
+        '<p class="text-sm font-medium">' + escapeHtml(log.message) + '</p>' +
+        contextHtml +
+        stackHtml +
+        '</div>';
+    }).join('');
+    
+    return '<details class="border border-amber-500/30 rounded-lg">' +
+      '<summary class="px-4 py-3 cursor-pointer font-medium flex items-center gap-2 hover:bg-amber-500/5 transition-colors text-amber-600 dark:text-amber-400">' +
+      '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
+      'Error Logs (' + errorLogs.length + ')' +
+      '</summary>' +
+      '<div class="border-t border-amber-500/30">' + logsHtml + '</div>' +
+      '</details>';
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function showError(title, message, debug = {}) {
     document.getElementById('loading')?.classList.add('hidden');
     document.getElementById('content')?.classList.add('hidden');
@@ -321,36 +365,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
         ${recentGamesHtml}
 
-        ${batch.errorLogs && batch.errorLogs.length > 0 ? `
-          <details class="border border-amber-500/30 rounded-lg">
-            <summary class="px-4 py-3 cursor-pointer font-medium flex items-center gap-2 hover:bg-amber-500/5 transition-colors text-amber-600 dark:text-amber-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-              Error Logs (${batch.errorLogs.length})
-            </summary>
-            <div class="border-t border-amber-500/30">
-              ${batch.errorLogs.map(log => \`
-                <div class="p-4 border-b border-amber-500/20 last:border-b-0 space-y-2">
-                  <div class="flex items-center justify-between">
-                    <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium \${log.level === 'error' ? 'bg-destructive/20 text-destructive' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'}">
-                      \${log.level}
-                    </span>
-                    <span class="text-xs text-muted-foreground">
-                      \${new Date(log.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <p class="text-sm font-medium">\${log.message}</p>
-                  \${log.context ? \`<pre class="text-xs bg-muted/50 p-2 rounded overflow-x-auto">\${log.context}</pre>\` : ''}
-                  \${log.stack ? \`
-                    <details class="text-xs">
-                      <summary class="cursor-pointer text-muted-foreground hover:text-foreground">Stack trace</summary>
-                      <pre class="bg-muted/50 p-2 rounded mt-1 overflow-x-auto whitespace-pre-wrap">\${log.stack}</pre>
-                    </details>
-                  \` : ''}
-                </div>
-              \`).join('')}
-            </div>
-          </details>
-        ` : ''}
+        ${renderErrorLogs(batch.errorLogs)}
       `;
 
       // Cancel button handler
