@@ -90,7 +90,38 @@ export abstract class BaseProvider implements AIProviderInterface {
   protected handleHttpError(response: Response, body: unknown): never {
     const status = response.status;
 
+    // Extract error message from various formats
+    const extractMessage = (b: unknown): string => {
+      if (typeof b === 'object' && b !== null) {
+        const obj = b as Record<string, unknown>;
+        // OpenRouter format: { error: { message: "..." } }
+        if (obj.error && typeof obj.error === 'object') {
+          const err = obj.error as Record<string, unknown>;
+          if (err.message) return String(err.message);
+        }
+        // Direct message
+        if (obj.message) return String(obj.message);
+      }
+      return String(b);
+    };
+
+    const message = extractMessage(body);
+
+    // Check for rate limit errors in the message (providers often return 4xx with rate limit info)
+    if (message.includes('rate limit') || 
+        message.includes('Rate limit') || 
+        message.includes('Resource has been exhausted') || 
+        message.includes('quota') ||
+        message.includes('too many requests') ||
+        message.includes('Too many requests')) {
+      throw AIErrors.rateLimited(this.modelId, 30);
+    }
+
     if (status === 401 || status === 403) {
+      // Check if it's actually a model access issue, not an API key issue
+      if (message.includes('model') || message.includes('access')) {
+        throw AIErrors.providerError(this.name, `${status}: ${message}`);
+      }
       throw AIErrors.authError(this.name);
     }
 
@@ -101,19 +132,15 @@ export abstract class BaseProvider implements AIProviderInterface {
 
     // Handle 503 Service Unavailable (also retryable)
     if (status === 503) {
-      throw AIErrors.rateLimited(this.modelId, 10); // Use 10s as default retry
+      throw AIErrors.rateLimited(this.modelId, 10);
     }
 
-    const message = typeof body === 'object' && body !== null && 'error' in body
-      ? String((body as { error: { message?: string } }).error?.message ?? body)
-      : String(body);
-
-    // Check for Google's rate limit error in message
-    if (message.includes('Resource has been exhausted') || message.includes('quota')) {
-      throw AIErrors.rateLimited(this.modelId, 30);
+    // Handle 502 Bad Gateway (upstream provider issues - retryable)
+    if (status === 502) {
+      throw AIErrors.providerError(this.name, `502 Bad Gateway: ${message}`);
     }
 
-    throw AIErrors.providerError(this.name, message);
+    throw AIErrors.providerError(this.name, `${status}: ${message}`);
   }
 }
 
