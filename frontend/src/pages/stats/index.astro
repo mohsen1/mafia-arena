@@ -109,29 +109,41 @@ const providerColors: Record<string, string> = {
       <div class="bg-card border rounded-md">
         <div class="flex items-center gap-2 p-3 border-b">
           <Trophy class="h-3.5 w-3.5 text-amber-500" />
-          <h2 class="text-sm font-semibold">Top Models</h2>
-          <span class="text-[10px] text-muted-foreground ml-auto">min 3 games</span>
+          <h2 class="text-sm font-semibold">Top Performing Models</h2>
+          <span class="text-[10px] text-muted-foreground ml-auto">Overall Win Rate</span>
         </div>
         
         {stats.topModels.length === 0 ? (
           <p class="text-xs text-muted-foreground p-4 text-center">Not enough data</p>
         ) : (
           <div class="divide-y">
-            {stats.topModels.map((model, i) => (
-              <div class="flex items-center gap-3 px-3 py-2 hover:bg-muted/50">
-                <span class="w-5 h-5 rounded bg-muted text-[10px] font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium truncate">{model.display_name}</p>
-                  <p class="text-[10px] text-muted-foreground">{model.provider}</p>
+            {stats.topModels.slice(0, 8).map((model, i) => {
+              const rankIcons = ['🥇', '🥈', '🥉'];
+              const isTop3 = i < 3;
+              return (
+                <div class="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                  <span class={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${isTop3 ? '' : 'bg-muted text-muted-foreground'}`}>
+                    {isTop3 ? rankIcons[i] : i + 1}
+                  </span>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium truncate">{model.display_name}</p>
+                    <p class={`text-[10px] ${providerColors[model.provider] || 'text-muted-foreground'}`}>{model.provider}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-base font-bold tabular-nums text-green-600 dark:text-green-400">{(model.win_rate * 100).toFixed(1)}%</p>
+                    <p class="text-[10px] text-muted-foreground tabular-nums">{model.wins}W / {model.games - model.wins}L</p>
+                  </div>
                 </div>
-                <div class="text-right">
-                  <p class="text-sm font-bold tabular-nums">{(model.win_rate * 100).toFixed(1)}%</p>
-                  <p class="text-[10px] text-muted-foreground tabular-nums">{model.wins}/{model.games}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        )}
+        
+        {stats.topModels.length > 0 && (
+          <div class="p-2 border-t">
+            <a href="/analysis" class="text-[10px] text-muted-foreground hover:text-foreground flex items-center justify-center gap-1">
+              View detailed model analysis →
+            </a>
           </div>
         )}
       </div>
@@ -139,7 +151,7 @@ const providerColors: Record<string, string> = {
       <!-- Provider Stats -->
       <div class="bg-card border rounded-md">
         <div class="p-3 border-b">
-          <h2 class="text-sm font-semibold">By Provider</h2>
+          <h2 class="text-sm font-semibold">Provider Performance</h2>
         </div>
         
         {stats.byProvider.length === 0 ? (
@@ -148,14 +160,23 @@ const providerColors: Record<string, string> = {
           <div class="divide-y">
             {stats.byProvider.map((p) => {
               const winRate = p.games > 0 ? ((p.wins / p.games) * 100).toFixed(1) : '0';
+              const winRateNum = parseFloat(winRate);
               return (
-                <div class="flex items-center justify-between px-3 py-2 hover:bg-muted/50">
-                  <span class={`text-sm font-semibold capitalize ${providerColors[p.provider] || ''}`}>
-                    {p.provider}
-                  </span>
-                  <div class="flex items-center gap-4 text-xs">
-                    <span class="tabular-nums text-muted-foreground">{p.games} games</span>
-                    <span class="tabular-nums font-bold w-14 text-right">{winRate}%</span>
+                <div class="px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class={`text-sm font-semibold capitalize ${providerColors[p.provider] || ''}`}>
+                      {p.provider}
+                    </span>
+                    <div class="flex items-center gap-3 text-xs">
+                      <span class="tabular-nums text-muted-foreground">{p.games} games</span>
+                      <span class={`tabular-nums font-bold ${winRateNum >= 50 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>{winRate}%</span>
+                    </div>
+                  </div>
+                  <div class="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      class={`h-full transition-all ${winRateNum >= 50 ? 'bg-green-500' : 'bg-muted-foreground/50'}`}
+                      style={`width: ${winRate}%`}
+                    />
                   </div>
                 </div>
               );

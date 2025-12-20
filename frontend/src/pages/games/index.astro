@@ -1,7 +1,7 @@
 ---
 import Layout from '../../components/Layout.astro';
 import { getGames } from '../../lib/api';
-import { ChevronLeft, ChevronRight } from 'lucide-astro';
+import { ChevronLeft, ChevronRight, Trophy } from 'lucide-astro';
 
 const LIMIT = 20;
 const page = parseInt(Astro.url.searchParams.get('page') || '1', 10);
@@ -28,9 +28,14 @@ function getMatchup(game: any) {
   const participants = game.participants || [];
   const mafia = participants.find((p: any) => p.team === 'mafia');
   const town = participants.find((p: any) => p.team === 'town');
+  const mafiaModel = mafia?.model_name || mafia?.model_id || '?';
+  const townModel = town?.model_name || town?.model_id || '?';
+  const mafiaWon = game.winner === 'mafia';
   return {
-    mafia: mafia?.model_name || mafia?.model_id || '?',
-    town: town?.model_name || town?.model_id || '?',
+    mafia: mafiaModel,
+    town: townModel,
+    winner: mafiaWon ? mafiaModel : townModel,
+    winnerTeam: game.winner,
   };
 }
 ---
@@ -55,7 +60,7 @@ function getMatchup(game: any) {
             <thead>
               <tr class="border-b bg-muted/50">
                 <th class="h-9 px-3 text-left font-medium text-muted-foreground">Matchup</th>
-                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Result</th>
+                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Winner</th>
                 <th class="h-9 px-3 text-right font-medium text-muted-foreground">Rounds</th>
                 <th class="h-9 px-3 text-right font-medium text-muted-foreground">Date</th>
               </tr>
@@ -81,14 +86,17 @@ function getMatchup(game: any) {
                       </div>
                     </td>
                     <td class="h-12 px-3">
-                      <span class={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-                        mafiaWon 
-                          ? 'text-red-600 dark:text-red-400' 
-                          : 'text-blue-600 dark:text-blue-400'
-                      }`}>
-                        <span class={`w-2 h-2 rounded-full ${mafiaWon ? 'bg-red-500' : 'bg-blue-500'}`}></span>
-                        {mafiaWon ? 'Mafia wins' : 'Town wins'}
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <Trophy size={14} class={mafiaWon ? 'text-red-500' : 'text-blue-500'} />
+                        <div>
+                          <span class={`text-xs font-semibold ${mafiaWon ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                            {matchup.winner}
+                          </span>
+                          <span class={`ml-1.5 text-[10px] px-1 py-0.5 rounded ${mafiaWon ? 'bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'}`}>
+                            {mafiaWon ? 'Mafia' : 'Town'}
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td class="h-12 px-3 text-right font-mono tabular-nums text-muted-foreground">
                       {game.rounds}
