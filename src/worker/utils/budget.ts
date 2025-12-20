@@ -3,37 +3,10 @@
  * Prevents runaway API costs by enforcing daily spending limits.
  */
 
+import { MODEL_PRICING, DEFAULT_PRICING } from '../ai/models.js';
+
 // Daily budget in USD
 const DAILY_BUDGET_USD = 10.0;
-
-// Cost per 1K tokens by model (USD) - Updated December 2024
-const TOKEN_COSTS: Record<string, { input: number; output: number }> = {
-  // OpenAI GPT-4o series
-  'gpt-4o': { input: 0.0025, output: 0.01 },
-  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
-  'gpt-4-turbo': { input: 0.01, output: 0.03 },
-
-  // Anthropic Claude 3.5 series
-  'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
-  'claude-3-5-haiku-20241022': { input: 0.001, output: 0.005 },
-  
-  // Anthropic Claude 3 series
-  'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
-  'claude-3-sonnet-20240229': { input: 0.003, output: 0.015 },
-  'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
-
-  // Google Gemini 2.5 series
-  'gemini-2.5-flash-preview-05-20': { input: 0.00015, output: 0.0006 },
-  'gemini-2.5-pro-preview-05-06': { input: 0.00125, output: 0.005 },
-  
-  // Google Gemini 2.0 series
-  'gemini-2.0-flash-exp': { input: 0.0001, output: 0.0004 },
-  'gemini-2.0-flash': { input: 0.0001, output: 0.0004 },
-  'gemini-2.0-flash-thinking-exp': { input: 0.0001, output: 0.0004 },
-};
-
-// Default pricing if model not found
-const DEFAULT_PRICING = { input: 0.001, output: 0.003 };
 
 // Average cost per token (used for rough estimates from total tokens)
 const AVG_COST_PER_TOKEN = 0.000002; // $0.002 per 1K tokens average
@@ -79,7 +52,7 @@ export function calculateCost(
   modelId: string,
   tokens: { input: number; output: number }
 ): number {
-  const costs = TOKEN_COSTS[modelId] || DEFAULT_PRICING;
+  const costs = MODEL_PRICING[modelId] || DEFAULT_PRICING;
   return (tokens.input / 1000) * costs.input + (tokens.output / 1000) * costs.output;
 }
 
@@ -88,7 +61,7 @@ export function calculateCost(
  * Uses a 70/30 input/output ratio estimate.
  */
 export function calculateCostFromTotal(modelId: string, totalTokens: number): number {
-  const pricing = TOKEN_COSTS[modelId] || DEFAULT_PRICING;
+  const pricing = MODEL_PRICING[modelId] || DEFAULT_PRICING;
   // Assume 70% input, 30% output ratio
   const inputTokens = totalTokens * 0.7;
   const outputTokens = totalTokens * 0.3;
@@ -121,6 +94,6 @@ export function calculateGameCost(modelIds: string[], totalTokens: number): numb
  * Get the pricing info for a model.
  */
 export function getModelPricing(modelId: string): { input: number; output: number } {
-  return TOKEN_COSTS[modelId] || DEFAULT_PRICING;
+  return MODEL_PRICING[modelId] || DEFAULT_PRICING;
 }
 

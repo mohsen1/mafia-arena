@@ -18,6 +18,8 @@ import type {
 // CONSTANTS
 // =============================================================================
 
+import { MODEL_PRICING, DEFAULT_PRICING } from '../ai/models.js';
+
 /** Maximum games per batch */
 export const MAX_BATCH_SIZE = 10_000;
 
@@ -251,7 +253,6 @@ export async function processBatchMessage(
 export function estimateCost(config: BatchConfig): CostEstimate {
   const { totalGames, gameConfig, useBatchAPI = false } = config;
 
-
   // Estimate tokens per game based on player count and settings
   // Personas are always enabled (1.2x base multiplier)
   let tokensMultiplier = 1.2;
@@ -261,10 +262,29 @@ export function estimateCost(config: BatchConfig): CostEstimate {
   const tokensPerGame = Math.round(TOKENS_PER_GAME * tokensMultiplier);
   const totalTokens = tokensPerGame * totalGames;
 
-  // Estimate cost (simplified - assumes average pricing)
-  // Real implementation would use the actual model pricing
-  const baseCostPer1kTokens = useBatchAPI ? 0.001 : 0.002;
-  const estimatedCostUsd = (totalTokens / 1000) * baseCostPer1kTokens;
+  // Calculate weighted average cost based on models in the config
+  const modelIds = gameConfig.teams.map(t => t.modelId);
+  const uniqueModels = [...new Set(modelIds)];
+  
+  let avgCostPer1k = 0;
+  if (uniqueModels.length > 0) {
+    const totalWeight = gameConfig.teams.reduce((sum, t) => sum + t.count, 0);
+    avgCostPer1k = gameConfig.teams.reduce((sum, t) => {
+      const pricing = MODEL_PRICING[t.modelId] || DEFAULT_PRICING;
+      // Assume 70/30 input/output ratio
+      const weightedPrice = (pricing.input * 0.7 + pricing.output * 0.3);
+      return sum + (weightedPrice * (t.count / totalWeight));
+    }, 0);
+  } else {
+    avgCostPer1k = (DEFAULT_PRICING.input * 0.7 + DEFAULT_PRICING.output * 0.3);
+  }
+
+  // Apply batch discount if requested
+  if (useBatchAPI) {
+    avgCostPer1k *= 0.5;
+  }
+
+  const estimatedCostUsd = (totalTokens / 1000) * avgCostPer1k;
 
   // Estimate time
   const timeEstimateMinutes = Math.ceil((totalGames * SECONDS_PER_GAME) / 60);

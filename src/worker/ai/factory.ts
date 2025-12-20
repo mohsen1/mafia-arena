@@ -5,7 +5,7 @@
 
 import type { Env } from '../types.js';
 import type { AIProviderInterface } from './types.js';
-import { SUPPORTED_MODELS } from './types.js';
+import { SUPPORTED_MODELS } from './models.js';
 import { AIErrors } from './errors.js';
 import { RetryingProvider } from './RetryingProvider.js';
 import { OpenRouterProvider } from './providers/OpenRouterProvider.js';

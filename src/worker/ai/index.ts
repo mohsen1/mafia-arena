@@ -16,10 +16,6 @@ export type {
 } from './types.js';
 
 export {
-  SUPPORTED_MODELS,
-  getProviderForModel,
-  getStructuredOutputLevel,
-  isModelSupported,
   getSchemaForAction,
   schemaToPromptInstructions,
   extractJSON,
@@ -29,6 +25,12 @@ export {
   KILL_VOTE_SCHEMA,
   ELIMINATION_VOTE_SCHEMA,
 } from './types.js';
+
+export {
+  SUPPORTED_MODELS,
+  MODEL_PRICING,
+  getPricing,
+} from './models.js';
 
 // Errors
 export { AIError, AIErrors, isRetryableError } from './errors.js';
