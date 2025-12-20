@@ -198,6 +198,8 @@ export const SUPPORTED_MODELS: Record<string, ModelConfig> = {
   'claude-3-5-sonnet-20241022': { provider: 'anthropic', displayName: 'Claude 3.5 Sonnet', structuredOutput: 'tool' },
 
   // Google Gemini - All current models support responseSchema
+  'gemini-1.5-flash': { provider: 'google', displayName: 'Gemini 1.5 Flash', structuredOutput: 'json_mode' },
+  'gemini-1.5-pro': { provider: 'google', displayName: 'Gemini 1.5 Pro', structuredOutput: 'json_mode' },
   'gemini-2.0-flash': { provider: 'google', displayName: 'Gemini 2.0 Flash', structuredOutput: 'schema' },
   'gemini-2.0-flash-exp': { provider: 'google', displayName: 'Gemini 2.0 Flash Exp', structuredOutput: 'schema' },
   'gemini-2.0-flash-lite': { provider: 'google', displayName: 'Gemini 2.0 Flash Lite', structuredOutput: 'schema' },
