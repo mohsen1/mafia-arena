@@ -34,15 +34,13 @@ interface AnthropicTool {
 }
 
 /**
- * Check if model supports native structured outputs (Claude 4+ only).
- * Claude 3/3.5 models must use tool_use approach.
+ * Check if model supports native structured outputs.
+ * Currently disabled - tool_use approach works reliably for all Claude models.
+ * Native structured outputs may be available in future API versions.
  */
-function supportsNativeStructuredOutput(modelId: string): boolean {
-  // Claude 4.5 series supports native output_format
-  if (modelId.includes('claude-4') || modelId.includes('claude-opus-4') || 
-      modelId.includes('claude-sonnet-4') || modelId.includes('claude-haiku-4')) {
-    return true;
-  }
+function supportsNativeStructuredOutput(_modelId: string): boolean {
+  // Disable native structured outputs for now - use tool_use for all models
+  // The beta header for native structured outputs may not be stable yet
   return false;
 }
 
