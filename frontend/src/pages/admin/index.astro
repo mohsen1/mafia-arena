@@ -29,23 +29,37 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
           <h1 class="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
           <p class="text-sm text-muted-foreground">Manage batch jobs and monitor system health</p>
         </div>
-        <div class="flex gap-2">
-          <button 
-            id="logoutBtn"
-            class="inline-flex items-center gap-2 px-3 py-2 border rounded-md text-sm hover:bg-muted transition-colors"
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
-          <a 
-            href="/admin/batches/new" 
-            class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus size={16} />
-            New Batch
-          </a>
-        </div>
+        <button 
+          id="logoutBtn"
+          class="inline-flex items-center gap-2 px-3 py-2 border rounded-md text-sm hover:bg-muted transition-colors"
+        >
+          <LogOut size={16} />
+          Logout
+        </button>
       </div>
+
+      <!-- Quick Actions - At the top -->
+      <section class="flex flex-wrap gap-3">
+        <a href="/admin/games/new" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
+          <Radio size={16} />
+          <span>Run Live Game</span>
+        </a>
+
+        <a href="/admin/batches/new" class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+          <Plus size={16} />
+          <span>New Batch</span>
+        </a>
+
+        <a href="/admin/batches" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
+          <Layers size={16} />
+          <span>Manage Batches</span>
+        </a>
+
+        <a href="/stats" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
+          <Activity size={16} />
+          <span>View Stats</span>
+        </a>
+      </section>
 
       <!-- Mission Control HUD -->
       <div class="border-2 rounded-lg p-6 bg-gradient-to-br from-primary/5 to-transparent space-y-4">
@@ -151,30 +165,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         </div>
       </div>
 
-      <!-- Quick Actions - Compact buttons -->
-      <section class="flex flex-wrap gap-3">
-        <a href="/admin/games/new" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
-          <Radio size={16} />
-          <span>Run Live Game</span>
-        </a>
-
-        <a href="/admin/batches/new" class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus size={16} />
-          <span>New Batch</span>
-        </a>
-
-        <a href="/admin/batches" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
-          <Layers size={16} />
-          <span>Manage Batches</span>
-        </a>
-
-        <a href="/stats" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
-          <Activity size={16} />
-          <span>View Stats</span>
-        </a>
-      </section>
-
-      <!-- Recent Batches - Moved to bottom -->
+      <!-- Recent Batches -->
       <section class="space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="font-semibold">Recent Batches</h2>
