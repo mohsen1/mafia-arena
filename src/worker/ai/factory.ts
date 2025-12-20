@@ -1,6 +1,10 @@
 /**
  * AI Provider factory.
  * Creates the appropriate provider based on model ID.
+ *
+ * OpenRouter Integration:
+ * When OPENROUTER_API_KEY is set, OpenAI and Anthropic models
+ * are routed through OpenRouter for unified billing and management.
  */
 
 import type { Env } from '../types.js';
@@ -11,6 +15,7 @@ import { RetryingProvider } from './RetryingProvider.js';
 import { OpenAIProvider } from './providers/OpenAIProvider.js';
 import { AnthropicProvider } from './providers/AnthropicProvider.js';
 import { GoogleProvider } from './providers/GoogleProvider.js';
+import { OpenRouterProvider } from './providers/OpenRouterProvider.js';
 
 export interface CreateProviderOptions {
   enableRetry?: boolean;
@@ -20,6 +25,7 @@ export interface CreateProviderOptions {
 
 /**
  * Create an AI provider for the given model.
+ * Uses OpenRouter for OpenAI/Anthropic models when OPENROUTER_API_KEY is available.
  */
 export function createProvider(
   modelId: string,
@@ -35,33 +41,45 @@ export function createProvider(
 
   let provider: AIProviderInterface;
 
-  switch (modelConfig.provider) {
-    case 'openai':
-      provider = new OpenAIProvider({
-        apiKey: env.OPENAI_API_KEY,
-        modelId,
-        timeoutMs,
-      });
-      break;
+  // Use OpenRouter for OpenAI and Anthropic if key is available
+  const useOpenRouter = env.OPENROUTER_API_KEY && (modelConfig.provider === 'openai' || modelConfig.provider === 'anthropic');
 
-    case 'anthropic':
-      provider = new AnthropicProvider({
-        apiKey: env.ANTHROPIC_API_KEY,
-        modelId,
-        timeoutMs,
-      });
-      break;
+  if (useOpenRouter) {
+    provider = new OpenRouterProvider({
+      apiKey: env.OPENROUTER_API_KEY!,
+      modelId,
+      timeoutMs,
+      underlyingProvider: modelConfig.provider as 'openai' | 'anthropic',
+    });
+  } else {
+    switch (modelConfig.provider) {
+      case 'openai':
+        provider = new OpenAIProvider({
+          apiKey: env.OPENAI_API_KEY,
+          modelId,
+          timeoutMs,
+        });
+        break;
 
-    case 'google':
-      provider = new GoogleProvider({
-        apiKey: env.GOOGLE_API_KEY,
-        modelId,
-        timeoutMs,
-      });
-      break;
+      case 'anthropic':
+        provider = new AnthropicProvider({
+          apiKey: env.ANTHROPIC_API_KEY,
+          modelId,
+          timeoutMs,
+        });
+        break;
 
-    default:
-      throw AIErrors.unsupportedModel(modelId);
+      case 'google':
+        provider = new GoogleProvider({
+          apiKey: env.GOOGLE_API_KEY,
+          modelId,
+          timeoutMs,
+        });
+        break;
+
+      default:
+        throw AIErrors.unsupportedModel(modelId);
+    }
   }
 
   // Wrap with retry logic if enabled
