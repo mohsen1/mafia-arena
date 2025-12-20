@@ -34,6 +34,59 @@ const STORAGE_KEYS = {
   EVENT_LOG: 'eventLog',
 } as const;
 
+/** DO storage limit is 128KB - use 100KB to leave headroom */
+const MAX_STORAGE_BYTES = 100_000;
+
+/**
+ * Strip large fields from events for DO storage.
+ * AICallEvent contains full prompts and raw responses which can be huge.
+ * For live streaming, viewers only need to see the parsed action, not the prompts.
+ * Full data is preserved in the R2 transcript.
+ */
+function stripEventForStorage(event: GameEvent): GameEvent {
+  if (event.type === 'ai_call') {
+    return {
+      ...event,
+      prompt: {
+        system: '[stripped for storage]',
+        user: '[stripped for storage]',
+      },
+      response: {
+        raw: '[stripped for storage]',
+        parsed: event.response.parsed,
+      },
+    };
+  }
+  if (event.type === 'ai_parse_error') {
+    return {
+      ...event,
+      rawResponse: '[stripped for storage]',
+    };
+  }
+  return event;
+}
+
+/**
+ * Prepare events for DO storage by stripping large fields and truncating if needed.
+ */
+function prepareEventsForStorage(events: GameEvent[]): GameEvent[] {
+  // Strip large fields from all events
+  let stripped = events.map(stripEventForStorage);
+  
+  // Check size and truncate if still too large
+  let serialized = JSON.stringify(stripped);
+  
+  // Progressively truncate if needed
+  while (serialized.length > MAX_STORAGE_BYTES && stripped.length > 10) {
+    // Keep last half of events, minimum 10
+    const keepCount = Math.max(10, Math.floor(stripped.length / 2));
+    stripped = stripped.slice(-keepCount);
+    serialized = JSON.stringify(stripped);
+  }
+  
+  return stripped;
+}
+
 interface GameRunnerState {
   status: 'idle' | 'running' | 'completed' | 'failed';
   gameId: string | null;
@@ -455,35 +508,25 @@ export class GameRunner extends DurableObject<Env> {
 
     // Event callback for live streaming
     const onEvent = async (event: GameEvent) => {
-      // Add to in-memory log
+      // Add to in-memory log (full events for R2 transcript)
       this.eventLog.push(event);
 
       // Persist periodically (every 10 events or on important events)
-      // DO storage has 128KB limit, so we truncate if needed
-      const MAX_STORAGE_BYTES = 100_000; // 100KB to leave headroom
+      // DO storage has 128KB limit, so we strip large fields and truncate if needed
       if (
         this.eventLog.length % 10 === 0 ||
         event.type === 'elimination' ||
         event.type === 'game_end' ||
         event.type === 'phase_start'
       ) {
-        const eventsToStore = this.eventLog;
-        const serialized = JSON.stringify(eventsToStore);
-        
-        // If too large, keep only the most recent events
-        if (serialized.length > MAX_STORAGE_BYTES) {
-          console.warn(`Event log too large (${serialized.length} bytes), truncating to recent events`);
-          const truncated = this.eventLog.slice(-50); // Keep last 50 events
-          await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, truncated);
-        } else {
-          await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
-        }
+        const eventsToStore = prepareEventsForStorage(this.eventLog);
+        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
       }
 
-      // Broadcast to connected WebSocket clients
+      // Broadcast to connected WebSocket clients (with stripped event for large responses)
       this.broadcast({
         type: 'EVENT',
-        event,
+        event: stripEventForStorage(event),
         gameId,
       });
     };
@@ -494,15 +537,9 @@ export class GameRunner extends DurableObject<Env> {
 
     console.log(`Game ${gameId} completed: ${result.winner} wins in ${result.rounds} rounds`);
 
-    // Final persist of all events (with size check)
-    const MAX_STORAGE_BYTES = 100_000;
-    const serialized = JSON.stringify(this.eventLog);
-    if (serialized.length > MAX_STORAGE_BYTES) {
-      console.warn(`Final event log too large (${serialized.length} bytes), truncating`);
-      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog.slice(-50));
-    } else {
-      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog);
-    }
+    // Final persist of stripped events for DO storage
+    const eventsToStore = prepareEventsForStorage(this.eventLog);
+    await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
 
     // Persist results (idempotent)
     await this.persistResults(result, batchId);
