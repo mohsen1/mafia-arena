@@ -12,7 +12,6 @@ import type {
   PhaseStartEvent,
   PhaseEndEvent,
   ConversationMessage,
-  Persona,
   Player,
 } from '../types.js';
 import { getVisibleState } from '../utils/visibility.js';
@@ -22,39 +21,6 @@ import { sanitizePersona } from '../utils/sanitize.js';
 export interface IntroductionPhaseResult {
   readonly state: GameState;
   readonly messages: readonly ConversationMessage[];
-}
-
-/**
- * Parse persona from AI response.
- */
-function parsePersona(rawResponse: string): Persona | null {
-  try {
-    const parsed = JSON.parse(rawResponse);
-    if (parsed.name && parsed.background && parsed.personality) {
-      // Sanitize to prevent prompt injection
-      return sanitizePersona({
-        name: parsed.name,
-        background: parsed.background,
-        personality: parsed.personality,
-        occupation: parsed.occupation,
-      });
-    }
-  } catch {
-    // Try to extract from malformed JSON
-    const nameMatch = rawResponse.match(/"name"\s*:\s*"([^"]+)"/);
-    const backgroundMatch = rawResponse.match(/"background"\s*:\s*"([^"]+)"/);
-    const personalityMatch = rawResponse.match(/"personality"\s*:\s*"([^"]+)"/);
-    
-    if (nameMatch && backgroundMatch && personalityMatch) {
-      // Sanitize to prevent prompt injection
-      return sanitizePersona({
-        name: nameMatch[1]!,
-        background: backgroundMatch[1]!,
-        personality: personalityMatch[1]!,
-      });
-    }
-  }
-  return null;
 }
 
 /**
@@ -157,8 +123,26 @@ async function generatePersonas(
     state = state.withEvent(aiCallEvent);
 
     // Parse and store the persona
+    // Note: GameAIAdapter guarantees persona_generation type via zod validation
     if (response.action.type === 'persona_generation') {
-      let persona = response.action.persona;
+      // Sanitize persona to prevent prompt injection attacks
+      // Build input object explicitly to satisfy exactOptionalPropertyTypes
+      const rawPersona = response.action.persona;
+      const personaInput: {
+        name: string;
+        background: string;
+        personality: string;
+        occupation?: string;
+      } = {
+        name: rawPersona.name,
+        background: rawPersona.background,
+        personality: rawPersona.personality,
+      };
+      if (typeof rawPersona.occupation === 'string') {
+        personaInput.occupation = rawPersona.occupation;
+      }
+      let persona = sanitizePersona(personaInput);
+      
       // Ensure unique name
       const uniqueName = ensureUniqueName(persona.name, usedNames);
       usedNames.add(uniqueName.toLowerCase());
@@ -178,30 +162,6 @@ async function generatePersonas(
         timestamp: Date.now(),
       };
       state = state.withEvent(personaEvent);
-    } else {
-      // Fallback: try to parse from raw response
-      let persona = parsePersona(response.rawResponse);
-      if (persona) {
-        // Ensure unique name
-        const uniqueName = ensureUniqueName(persona.name, usedNames);
-        usedNames.add(uniqueName.toLowerCase());
-        
-        if (uniqueName !== persona.name) {
-          persona = { ...persona, name: uniqueName };
-        }
-        
-        state = state.withPlayerPersona(player.id, persona);
-
-        const personaEvent: PersonaGenerationEvent = {
-          type: 'persona_generation',
-          round: state.round,
-          playerId: player.id,
-          playerName: persona.name,
-          persona,
-          timestamp: Date.now(),
-        };
-        state = state.withEvent(personaEvent);
-      }
     }
   }
 

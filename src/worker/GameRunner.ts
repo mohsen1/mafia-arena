@@ -14,6 +14,7 @@ import type { Env, GameQueueConfig } from './types.js';
 import { Game, validateConfig, type GameConfig, type GameResult } from '../engine/index.js';
 import { createProvidersForGame, GameAIAdapter } from './ai/index.js';
 import { generateSeed } from '../engine/utils/random.js';
+import { calculateGameCost } from './utils/budget.js';
 
 /** Storage keys for DO state persistence */
 const STORAGE_KEYS = {
@@ -251,6 +252,8 @@ export class GameRunner extends DurableObject<Env> {
   /**
    * Persist game results to D1 and R2.
    * IDEMPOTENT: Checks if game already exists before inserting.
+   * Uses db.batch() for atomic D1 operations to prevent partial data states.
+   * R2 write happens BEFORE D1 to ensure transcript exists if game record exists.
    */
   private async persistResults(result: GameResult, batchId: string): Promise<void> {
     const db = this.env.DB;
@@ -267,16 +270,52 @@ export class GameRunner extends DurableObject<Env> {
       return;
     }
 
-    // Estimate cost (simplified - uses average token pricing)
-    const costUsd = (result.tokenUsage.total / 1000) * 0.002;
+    // Calculate cost using per-model pricing
+    const modelIds = result.participants.map(p => p.modelId);
+    const costUsd = calculateGameCost(modelIds, result.tokenUsage.total);
+    const createdAt = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    const mafiaWon = result.winner === 'mafia' ? 1 : 0;
+    const townWon = result.winner === 'town' ? 1 : 0;
 
-    // Write to D1 - games table
-    await db
-      .prepare(
+    // 1. Write transcript to R2 FIRST (before D1)
+    // This ensures we never have a game record pointing to a missing transcript
+    const transcript = {
+      gameId: result.id,
+      batchId,
+      seed: result.config.seed,
+      config: result.config,
+      events: result.events,
+      result: {
+        winner: result.winner,
+        rounds: result.rounds,
+        participants: result.participants,
+      },
+      metadata: {
+        totalTokens: result.tokenUsage,
+        durationMs: result.durationMs,
+        createdAt,
+        costUsd,
+      },
+    };
+
+    await transcripts.put(
+      `games/${result.id}/transcript.json`,
+      JSON.stringify(transcript, null, 2),
+      {
+        httpMetadata: { contentType: 'application/json' },
+      }
+    );
+
+    // 2. Build all D1 statements for atomic batch execution
+    const statements: D1PreparedStatement[] = [];
+
+    // Insert game record
+    statements.push(
+      db.prepare(
         `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .bind(
+      ).bind(
         result.id,
         batchId,
         this.hashConfig(result.config),
@@ -288,13 +327,85 @@ export class GameRunner extends DurableObject<Env> {
         result.tokenUsage.total,
         'completed',
         result.config.seed ?? null,
-        Date.now()
+        createdAt
       )
-      .run();
+    );
 
-    // Log to Analytics Engine for real-time metrics (if available)
+    // Insert game participants
+    for (const participant of result.participants) {
+      statements.push(
+        db.prepare(
+          `INSERT INTO game_participants (id, game_id, model_id, team, player_count, won)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        ).bind(
+          `${result.id}_${participant.modelId}_${participant.team}`,
+          result.id,
+          participant.modelId,
+          participant.team,
+          participant.playerCount,
+          participant.won ? 1 : 0
+        )
+      );
+    }
+
+    // Update leaderboard for each participant
+    for (const participant of result.participants) {
+      statements.push(
+        db.prepare(
+          `INSERT INTO leaderboard (model_id, team, games_played, games_won, total_tokens, updated_at)
+           VALUES (?, ?, 1, ?, ?, ?)
+           ON CONFLICT (model_id, team) DO UPDATE SET
+             games_played = games_played + 1,
+             games_won = games_won + excluded.games_won,
+             total_tokens = total_tokens + excluded.total_tokens,
+             updated_at = excluded.updated_at`
+        ).bind(
+          participant.modelId,
+          participant.team,
+          participant.won ? 1 : 0,
+          participant.tokensUsed,
+          createdAt
+        )
+      );
+    }
+
+    // Update daily stats
+    statements.push(
+      db.prepare(`
+        INSERT INTO daily_stats (date, games_completed, games_failed, tokens_used, cost_usd, mafia_wins, town_wins)
+        VALUES (?, 1, 0, ?, ?, ?, ?)
+        ON CONFLICT (date) DO UPDATE SET
+          games_completed = games_completed + 1,
+          tokens_used = tokens_used + excluded.tokens_used,
+          cost_usd = cost_usd + excluded.cost_usd,
+          mafia_wins = mafia_wins + excluded.mafia_wins,
+          town_wins = town_wins + excluded.town_wins,
+          updated_at = unixepoch()
+      `).bind(today, result.tokenUsage.total, costUsd, mafiaWon, townWon)
+    );
+
+    // Update batch progress (if part of a batch)
+    if (batchId && !batchId.includes('direct')) {
+      statements.push(
+        db.prepare(`
+          UPDATE batches 
+          SET completed_games = completed_games + 1,
+              actual_cost_usd = actual_cost_usd + ?
+          WHERE id = ?
+        `).bind(costUsd, batchId)
+      );
+    }
+
+    // 3. Execute all D1 statements atomically
+    await db.batch(statements);
+
+    // 4. Check and update batch completion status
+    if (batchId && !batchId.includes('direct')) {
+      await this.checkBatchCompletion(batchId);
+    }
+
+    // 5. Log to Analytics Engine for real-time metrics (if available)
     if (this.env.ANALYTICS) {
-      const modelIds = result.participants.map(p => p.modelId);
       this.env.ANALYTICS.writeDataPoint({
         blobs: [
           modelIds[0] ?? 'unknown',
@@ -312,130 +423,14 @@ export class GameRunner extends DurableObject<Env> {
       });
     }
 
-    // Update batch progress (if part of a batch)
-    if (batchId && !batchId.includes('direct')) {
-      await this.updateBatchProgress(batchId, costUsd);
-    }
-
-    // Update daily stats
-    await this.updateDailyStats(result, costUsd);
-
-    // Write to D1 - game_participants table
-    for (const participant of result.participants) {
-      await db
-        .prepare(
-          `INSERT INTO game_participants (id, game_id, model_id, team, player_count, won)
-           VALUES (?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          `${result.id}_${participant.modelId}_${participant.team}`,
-          result.id,
-          participant.modelId,
-          participant.team,
-          participant.playerCount,
-          participant.won ? 1 : 0
-        )
-        .run();
-    }
-
-    // Update leaderboard (using proper aggregation)
-    await this.updateLeaderboard(result);
-
-    // Write full transcript to R2
-    const transcript = {
-      gameId: result.id,
-      batchId,
-      seed: result.config.seed,
-      config: result.config,
-      events: result.events,
-      result: {
-        winner: result.winner,
-        rounds: result.rounds,
-        participants: result.participants,
-      },
-      metadata: {
-        totalTokens: result.tokenUsage,
-        durationMs: result.durationMs,
-        createdAt: Date.now(),
-      },
-    };
-
-    await transcripts.put(
-      `games/${result.id}/transcript.json`,
-      JSON.stringify(transcript, null, 2),
-      {
-        httpMetadata: { contentType: 'application/json' },
-      }
-    );
-
-    console.log(`Persisted results for game ${result.id}`);
+    console.log(`Persisted results for game ${result.id} (cost: $${costUsd.toFixed(4)})`);
   }
 
   /**
-   * Update the leaderboard with game results.
-   * Uses INSERT OR IGNORE + UPDATE pattern for idempotency.
+   * Check if a batch is complete and update its status.
    */
-  private async updateLeaderboard(result: GameResult): Promise<void> {
-    const db = this.env.DB;
-
-    for (const participant of result.participants) {
-      // Use a transaction-like pattern: INSERT if not exists, then UPDATE
-      // This ensures we don't double-count even if called multiple times
-      await db
-        .prepare(
-          `INSERT INTO leaderboard (model_id, team, games_played, games_won, total_tokens, updated_at)
-           VALUES (?, ?, 1, ?, ?, ?)
-           ON CONFLICT (model_id, team) DO UPDATE SET
-             games_played = games_played + 1,
-             games_won = games_won + excluded.games_won,
-             total_tokens = total_tokens + excluded.total_tokens,
-             updated_at = excluded.updated_at`
-        )
-        .bind(
-          participant.modelId,
-          participant.team,
-          participant.won ? 1 : 0,
-          participant.tokensUsed,
-          Date.now()
-        )
-        .run();
-    }
-  }
-
-  /**
-   * Convert queue config to game engine config.
-   */
-  private toGameConfig(config: GameQueueConfig, seed: number): GameConfig {
-    return {
-      playerCount: config.playerCount,
-      mafiaCount: config.mafiaCount,
-      teams: config.teams.map((t) => ({
-        modelId: t.modelId,
-        team: t.team,
-        count: t.count,
-      })),
-      maxRounds: config.maxRounds,
-      discussionEnabled: config.discussionEnabled,
-      personaConstraints: config.personaConstraints,
-      seed, // Include seed for reproducibility
-      contextLevel: config.contextLevel ?? 'summary',
-      contextWindowSize: config.contextWindowSize ?? 3,
-    };
-  }
-
-  /**
-   * Update batch progress after game completion.
-   */
-  private async updateBatchProgress(batchId: string, costUsd: number): Promise<void> {
+  private async checkBatchCompletion(batchId: string): Promise<void> {
     try {
-      await this.env.DB.prepare(`
-        UPDATE batches 
-        SET completed_games = completed_games + 1,
-            actual_cost_usd = actual_cost_usd + ?
-        WHERE id = ?
-      `).bind(costUsd, batchId).run();
-
-      // Check if batch is complete
       const batch = await this.env.DB.prepare(`
         SELECT total_games, completed_games, failed_games, status
         FROM batches WHERE id = ?
@@ -458,34 +453,32 @@ export class GameRunner extends DurableObject<Env> {
         }
       }
     } catch (error) {
-      console.error(`Failed to update batch progress for ${batchId}:`, error);
+      console.error(`Failed to check batch completion for ${batchId}:`, error);
     }
   }
+
 
   /**
-   * Update daily statistics.
+   * Convert queue config to game engine config.
    */
-  private async updateDailyStats(result: GameResult, costUsd: number): Promise<void> {
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const mafiaWon = result.winner === 'mafia' ? 1 : 0;
-      const townWon = result.winner === 'town' ? 1 : 0;
-
-      await this.env.DB.prepare(`
-        INSERT INTO daily_stats (date, games_completed, games_failed, tokens_used, cost_usd, mafia_wins, town_wins)
-        VALUES (?, 1, 0, ?, ?, ?, ?)
-        ON CONFLICT (date) DO UPDATE SET
-          games_completed = games_completed + 1,
-          tokens_used = tokens_used + excluded.tokens_used,
-          cost_usd = cost_usd + excluded.cost_usd,
-          mafia_wins = mafia_wins + excluded.mafia_wins,
-          town_wins = town_wins + excluded.town_wins,
-          updated_at = unixepoch()
-      `).bind(today, result.tokenUsage.total, costUsd, mafiaWon, townWon).run();
-    } catch (error) {
-      console.error('Failed to update daily stats:', error);
-    }
+  private toGameConfig(config: GameQueueConfig, seed: number): GameConfig {
+    return {
+      playerCount: config.playerCount,
+      mafiaCount: config.mafiaCount,
+      teams: config.teams.map((t) => ({
+        modelId: t.modelId,
+        team: t.team,
+        count: t.count,
+      })),
+      maxRounds: config.maxRounds,
+      discussionEnabled: config.discussionEnabled,
+      personaConstraints: config.personaConstraints,
+      seed, // Include seed for reproducibility
+      contextLevel: config.contextLevel ?? 'summary',
+      contextWindowSize: config.contextWindowSize ?? 3,
+    };
   }
+
 
   /**
    * Create a hash of the game configuration for grouping.
