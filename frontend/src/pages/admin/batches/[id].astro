@@ -295,66 +295,95 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       ` : '';
 
       // Game status grid - visual overview of all games
-      const runningGames = batch.recentGames.filter(g => g.status === 'running');
-      const queuedGames = batch.recentGames.filter(g => g.status === 'queued');
-      const completedGamesInBatch = batch.recentGames.filter(g => g.status === 'completed');
+      // Sort games: running first (to show live), then by created_at desc
+      const sortedGames = [...batch.recentGames].sort((a, b) => {
+        if (a.status === 'running' && b.status !== 'running') return -1;
+        if (b.status === 'running' && a.status !== 'running') return 1;
+        return (b.created_at || 0) - (a.created_at || 0);
+      });
+      
+      const runningGames = sortedGames.filter(g => g.status === 'running');
+      const completedGamesCount = batch.completedGames;
+      const failedGamesCount = batch.failedGames;
+      const queuedCount = Math.max(0, batch.totalGames - completedGamesCount - failedGamesCount - runningGames.length);
+      
+      // Build grid items: first show actual games from DB, then fill remaining with "queued" placeholders
+      const gridItems = [];
+      
+      // Add all games we have data for
+      for (const game of sortedGames) {
+        let colorClass = 'bg-gray-300 dark:bg-gray-600';
+        const href = game.status === 'running' ? `/games/${game.id}/live` : `/games/${game.id}`;
+        const title = `${game.id.slice(-8)} (${game.status}${game.winner ? ' - ' + game.winner : ''})`;
+        
+        if (game.status === 'completed') {
+          colorClass = game.winner === 'mafia' 
+            ? 'bg-red-400 dark:bg-red-500 hover:bg-red-500 dark:hover:bg-red-400' 
+            : 'bg-blue-400 dark:bg-blue-500 hover:bg-blue-500 dark:hover:bg-blue-400';
+        } else if (game.status === 'running') {
+          colorClass = 'bg-emerald-500 animate-pulse hover:bg-emerald-600';
+        } else if (game.status === 'failed') {
+          colorClass = 'bg-red-600 dark:bg-red-700 hover:bg-red-700';
+        }
+        
+        gridItems.push(`<a href="${href}" class="w-full aspect-square rounded ${colorClass} transition-colors cursor-pointer" title="${title}"></a>`);
+      }
+      
+      // Fill remaining with queued placeholders
+      for (let i = 0; i < queuedCount; i++) {
+        gridItems.push(`<div class="w-full aspect-square rounded bg-gray-300 dark:bg-gray-600" title="Queued (waiting to start)"></div>`);
+      }
       
       const gameStatusGridHtml = `
         <div class="space-y-3">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between flex-wrap gap-2">
             <h3 class="font-medium">Game Status Overview</h3>
-            <div class="flex items-center gap-4 text-xs">
+            <div class="flex items-center gap-4 text-xs flex-wrap">
               <span class="flex items-center gap-1.5">
-                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span></span>
+                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
                 Running (${runningGames.length})
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
-                Queued (${batch.totalGames - batch.completedGames - batch.failedGames - runningGames.length})
+                Queued (${queuedCount})
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                Completed (${batch.completedGames})
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                Town Won (${sortedGames.filter(g => g.status === 'completed' && g.winner === 'town').length})
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                Failed (${batch.failedGames})
+                <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                Mafia Won (${sortedGames.filter(g => g.status === 'completed' && g.winner === 'mafia').length})
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+                Failed (${failedGamesCount})
               </span>
             </div>
           </div>
+          ${runningGames.length > 0 ? `
+            <div class="border border-emerald-500/30 rounded-lg p-3 bg-emerald-500/10">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
+                <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400">Games Running Now</span>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                ${runningGames.map(g => `
+                  <a href="/games/${g.id}/live" class="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 rounded text-xs font-mono transition-colors">
+                    <span class="relative flex h-1.5 w-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span></span>
+                    ${g.id.slice(-8)}
+                    <span class="text-emerald-600 dark:text-emerald-400">Watch Live →</span>
+                  </a>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
           <div class="border rounded-lg p-4 bg-muted/20">
             <div class="grid grid-cols-10 gap-1.5">
-              ${Array.from({ length: batch.totalGames }, (_, i) => {
-                const game = batch.recentGames.find((g, idx) => idx === i);
-                let status = 'queued';
-                let colorClass = 'bg-gray-300 dark:bg-gray-600';
-                let href = '';
-                let title = `Game ${i + 1}`;
-                
-                if (game) {
-                  status = game.status;
-                  href = game.status === 'running' ? `/games/${game.id}/live` : `/games/${game.id}`;
-                  title = `${game.id.slice(-8)} (${game.status})`;
-                  
-                  if (game.status === 'completed') {
-                    colorClass = game.winner === 'mafia' 
-                      ? 'bg-red-400 dark:bg-red-500 hover:bg-red-500 dark:hover:bg-red-400' 
-                      : 'bg-blue-400 dark:bg-blue-500 hover:bg-blue-500 dark:hover:bg-blue-400';
-                  } else if (game.status === 'running') {
-                    colorClass = 'bg-blue-500 animate-pulse hover:bg-blue-600';
-                  } else if (game.status === 'failed') {
-                    colorClass = 'bg-red-600 dark:bg-red-700 hover:bg-red-700';
-                  }
-                }
-                
-                if (href) {
-                  return `<a href="${href}" class="w-full aspect-square rounded ${colorClass} transition-colors cursor-pointer" title="${title}"></a>`;
-                }
-                return `<div class="w-full aspect-square rounded ${colorClass}" title="${title}"></div>`;
-              }).join('')}
+              ${gridItems.join('')}
             </div>
             <div class="mt-3 text-xs text-muted-foreground text-center">
-              Click on a game to view details. Running games can be watched live.
+              Click on a game to view details. Running games (green pulsing) can be watched live.
             </div>
           </div>
         </div>
