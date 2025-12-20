@@ -118,6 +118,41 @@ function cleanMessage(message: string): string {
   // Remove surrounding quotes if present
   return message?.replace(/^["']|["']$/g, '').trim() || '';
 }
+
+function parseResponse(raw: string): { type: 'persona' | 'message' | 'vote' | 'action' | 'raw'; content: any } {
+  if (!raw) return { type: 'raw', content: '' };
+  
+  // Try to parse as JSON
+  try {
+    const parsed = JSON.parse(raw);
+    
+    // Check if it's a persona object
+    if (parsed.name && (parsed.background || parsed.personality)) {
+      return { type: 'persona', content: parsed };
+    }
+    
+    // Check if it's a message response
+    if (parsed.message) {
+      return { type: 'message', content: parsed.message };
+    }
+    
+    // Check if it's a vote response
+    if (parsed.vote !== undefined) {
+      return { type: 'vote', content: parsed };
+    }
+    
+    // Check if it's a night action (kill/target)
+    if (parsed.action && parsed.target) {
+      return { type: 'action', content: parsed };
+    }
+    
+    // Return raw parsed if none matched
+    return { type: 'raw', content: raw };
+  } catch {
+    // Not JSON, return as raw text
+    return { type: 'raw', content: cleanMessage(raw) };
+  }
+}
 ---
 
 <Layout title={game ? `Replay ${game.id.slice(-8)}` : 'Not Found'}>
@@ -223,6 +258,8 @@ function cleanMessage(message: string): string {
                       const teamColor = isMailia ? 'red' : 'blue';
                       
                       if (event.type === 'ai_call') {
+                        const parsed = parseResponse(event.response?.raw);
+                        
                         // Chat-style message with hidden system prompt
                         return (
                           <div class="group flex gap-3 py-2 hover:bg-muted/30 rounded px-2 -mx-2 transition-colors">
@@ -243,7 +280,37 @@ function cleanMessage(message: string): string {
                                   <Info size={10} /> Prompt
                                 </button>
                               </div>
-                              <p class="text-sm mt-1 leading-relaxed">{cleanMessage(event.response?.raw)}</p>
+                              
+                              {/* Render based on response type */}
+                              {parsed.type === 'persona' ? (
+                                <div class="text-sm mt-2 space-y-1">
+                                  <p class="italic text-muted-foreground">
+                                    {parsed.content.occupation && <span class="font-medium">{parsed.content.occupation}.</span>}
+                                    {' '}{parsed.content.personality}
+                                  </p>
+                                  <p class="text-foreground/80">{parsed.content.background}</p>
+                                </div>
+                              ) : parsed.type === 'message' ? (
+                                <p class="text-sm mt-1 leading-relaxed whitespace-pre-wrap">{parsed.content}</p>
+                              ) : parsed.type === 'vote' ? (
+                                <div class="text-sm mt-1">
+                                  <span class="text-muted-foreground">Vote: </span>
+                                  <span class="font-medium">{getPersonaName(parsed.content.vote)}</span>
+                                  {parsed.content.reasoning && (
+                                    <p class="text-xs text-muted-foreground mt-1 italic">{parsed.content.reasoning}</p>
+                                  )}
+                                </div>
+                              ) : parsed.type === 'action' ? (
+                                <div class="text-sm mt-1">
+                                  <span class="text-muted-foreground capitalize">{parsed.content.action}: </span>
+                                  <span class="font-medium">{getPersonaName(parsed.content.target)}</span>
+                                  {parsed.content.reasoning && (
+                                    <p class="text-xs text-muted-foreground mt-1 italic">{parsed.content.reasoning}</p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p class="text-sm mt-1 leading-relaxed">{parsed.content}</p>
+                              )}
                               
                               {/* Hidden prompt details */}
                               <div id={`prompt-${round}-${phase}-${idx}`} class="prompt-details hidden mt-3 p-3 bg-muted/50 rounded border text-xs space-y-2">
