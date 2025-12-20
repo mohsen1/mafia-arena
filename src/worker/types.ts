@@ -29,6 +29,8 @@ export interface Env {
   OPENAI_API_KEY: string;
   ANTHROPIC_API_KEY: string;
   GOOGLE_API_KEY: string;
+  /** OpenRouter API key - when set, used for OpenAI and Anthropic models */
+  OPENROUTER_API_KEY?: string;
 
   // Admin authentication (secrets)
   ADMIN_USERNAME: string;
