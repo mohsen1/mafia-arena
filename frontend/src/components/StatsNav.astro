@@ -8,8 +8,6 @@ const { currentPath } = Astro.props;
 const navItems = [
   { href: '/stats', label: 'Overview', exact: true },
   { href: '/stats/matchups', label: 'Matchups' },
-  { href: '/stats/costs', label: 'Costs' },
-  { href: '/stats/trends', label: 'Trends' },
 ];
 
 function isActive(href: string, exact = false) {

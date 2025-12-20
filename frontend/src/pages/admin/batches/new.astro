@@ -166,23 +166,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         </label>
       </div>
 
-      <!-- Context Level -->
-      <div class="space-y-2">
-        <label for="contextLevel" class="text-sm font-medium">Context Level</label>
-        <select 
-          id="contextLevel" 
-          name="contextLevel"
-          class="w-full px-3 py-2 border rounded-md bg-background"
-        >
-          <option value="summary">Summary (current round only)</option>
-          <option value="windowed">Windowed (last 3 rounds)</option>
-          <option value="full">Full (complete history)</option>
-        </select>
-        <p class="text-xs text-muted-foreground">
-          Full context uses more tokens but may improve reasoning
-        </p>
-      </div>
-
       <!-- Cost Estimate -->
       <div class="border rounded-lg p-4 bg-muted/30 space-y-3">
         <div class="flex items-center justify-between">
@@ -224,7 +207,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
   </div>
 </Layout>
 
-<script define:vars={{ apiUrl }}>
+<script define:vars={{ apiUrl, modelsByProvider }}>
   // Auth check
   const credentials = sessionStorage.getItem('adminCredentials');
   if (!credentials) {
@@ -244,6 +227,30 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
   const totalTokensEl = document.getElementById('totalTokens');
   const timeEstimateEl = document.getElementById('timeEstimate');
 
+  // Randomly select models from different providers on page load
+  const providers = Object.keys(modelsByProvider);
+  if (providers.length > 0) {
+    const shuffled = providers.sort(() => Math.random() - 0.5);
+    const modelA = document.getElementById('modelA');
+    const modelB = document.getElementById('modelB');
+    
+    // Select random model from first provider for Mafia
+    const mafiaProvider = shuffled[0];
+    const mafiaModels = modelsByProvider[mafiaProvider];
+    if (mafiaModels && mafiaModels.length > 0 && modelA) {
+      const randomMafia = mafiaModels[Math.floor(Math.random() * mafiaModels.length)];
+      modelA.value = randomMafia.id;
+    }
+    
+    // Select random model from different provider for Town (or same if only one provider)
+    const townProvider = shuffled.length > 1 ? shuffled[1] : shuffled[0];
+    const townModels = modelsByProvider[townProvider];
+    if (townModels && townModels.length > 0 && modelB) {
+      const randomTown = townModels[Math.floor(Math.random() * townModels.length)];
+      modelB.value = randomTown.id;
+    }
+  }
+
   // Update game count display
   if (gameCountSlider) {
     gameCountSlider.addEventListener('input', () => {
@@ -253,7 +260,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
   }
 
   // Update estimate on any change
-  const updateTriggers = ['playerCount', 'mafiaCount', 'discussionEnabled', 'useBatchAPI', 'contextLevel'];
+  const updateTriggers = ['playerCount', 'mafiaCount', 'discussionEnabled', 'useBatchAPI'];
   updateTriggers.forEach(id => {
     document.getElementById(id)?.addEventListener('change', updateEstimate);
   });
@@ -265,13 +272,11 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
     const mafiaCountEl = document.getElementById('mafiaCount');
     const discussionEnabledEl = document.getElementById('discussionEnabled');
     const useBatchAPIEl = document.getElementById('useBatchAPI');
-    const contextLevelEl = document.getElementById('contextLevel');
 
     const playerCount = playerCountEl ? parseInt(playerCountEl.value) : 7;
     const mafiaCount = mafiaCountEl ? parseInt(mafiaCountEl.value) : 2;
     const discussionEnabled = discussionEnabledEl ? discussionEnabledEl.checked : true;
     const useBatchAPI = useBatchAPIEl ? useBatchAPIEl.checked : false;
-    const contextLevel = contextLevelEl ? contextLevelEl.value : 'summary';
 
     try {
       const res = await fetch(`${apiUrl}/api/admin/estimate`, {
@@ -287,7 +292,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
               { modelId: 'estimate', team: 'town', count: playerCount - mafiaCount },
             ],
             discussionEnabled,
-            contextLevel,
+            contextLevel: 'full',
           },
           useBatchAPI,
         }),
@@ -341,7 +346,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
                 { modelId: modelB, team: 'town', count: playerCount - mafiaCount },
               ],
               discussionEnabled: formData.get('discussionEnabled') === 'on',
-              contextLevel: formData.get('contextLevel') || 'summary',
+              contextLevel: 'full',
             },
             useBatchAPI: formData.get('useBatchAPI') === 'on',
           }),

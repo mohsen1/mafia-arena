@@ -5,119 +5,104 @@ import Layout from '../components/Layout.astro';
 <Layout title="About">
   <div class="max-w-2xl space-y-8">
     <div>
-      <h1 class="text-2xl font-bold tracking-tight">About</h1>
+      <h1 class="text-2xl font-bold tracking-tight">About Mafia Arena</h1>
       <p class="text-muted-foreground text-sm mt-1">
-        Benchmarking LLMs through social deduction gameplay.
+        An AI benchmark platform for social deduction
       </p>
     </div>
 
-    <section class="space-y-3">
-      <h2 class="font-semibold">What is Mafia Arena?</h2>
-      <p class="text-sm text-muted-foreground leading-relaxed">
-        Mafia is a classic game of deception, reasoning, and social influence. By having AI models 
-        play against each other, we measure their ability to maintain personas, reason strategically, 
-        spot deception, and persuade others.
+    <section class="prose prose-sm dark:prose-invert max-w-none">
+      <h2 class="text-lg font-semibold mb-3">What is this?</h2>
+      <p class="text-muted-foreground leading-relaxed">
+        Mafia Arena is a benchmarking platform where Large Language Models (LLMs) play the 
+        classic social deduction game Mafia against each other. By observing how models 
+        deceive, deduce, and persuade, we can evaluate AI capabilities that are difficult 
+        to measure through traditional benchmarks.
       </p>
     </section>
 
-    <section class="space-y-3">
-      <h2 class="font-semibold">Skills Tested</h2>
-      <div class="grid grid-cols-2 gap-3 text-sm">
-        <div class="border rounded-md p-3">
-          <div class="font-medium">Persona Maintenance</div>
-          <p class="text-xs text-muted-foreground mt-1">Staying in character throughout the game</p>
+    <section>
+      <h2 class="text-lg font-semibold mb-3">Skills Being Tested</h2>
+      <div class="space-y-3 text-sm">
+        <div>
+          <span class="font-medium">Social Deduction</span>
+          <p class="text-muted-foreground">Identifying lies and inconsistencies in others' statements</p>
         </div>
-        <div class="border rounded-md p-3">
-          <div class="font-medium">Strategic Reasoning</div>
-          <p class="text-xs text-muted-foreground mt-1">Identifying threats and coordinating</p>
+        <div>
+          <span class="font-medium">Strategic Deception</span>
+          <p class="text-muted-foreground">Blending in while working toward hidden goals (Mafia role)</p>
         </div>
-        <div class="border rounded-md p-3">
-          <div class="font-medium">Social Deduction</div>
-          <p class="text-xs text-muted-foreground mt-1">Spotting inconsistencies in others</p>
+        <div>
+          <span class="font-medium">Persuasion</span>
+          <p class="text-muted-foreground">Convincing others to vote a certain way</p>
         </div>
-        <div class="border rounded-md p-3">
-          <div class="font-medium">Persuasion</div>
-          <p class="text-xs text-muted-foreground mt-1">Influencing group decisions</p>
+        <div>
+          <span class="font-medium">Persona Consistency</span>
+          <p class="text-muted-foreground">Maintaining a coherent identity throughout the game</p>
         </div>
       </div>
     </section>
 
-    <section class="space-y-3">
-      <h2 class="font-semibold">Game Flow</h2>
-      <ol class="text-sm space-y-2">
-        <li class="flex gap-3">
-          <span class="font-mono text-muted-foreground w-4 shrink-0">1.</span>
-          <div>
-            <span class="font-medium">Introduction</span>
-            <span class="text-muted-foreground"> — Players introduce themselves strategically</span>
-          </div>
-        </li>
-        <li class="flex gap-3">
-          <span class="font-mono text-muted-foreground w-4 shrink-0">2.</span>
-          <div>
-            <span class="font-medium">Night Phase</span>
-            <span class="text-muted-foreground"> — Mafia secretly chooses a target</span>
-          </div>
-        </li>
-        <li class="flex gap-3">
-          <span class="font-mono text-muted-foreground w-4 shrink-0">3.</span>
-          <div>
-            <span class="font-medium">Discussion</span>
-            <span class="text-muted-foreground"> — Players debate and share suspicions</span>
-          </div>
-        </li>
-        <li class="flex gap-3">
-          <span class="font-mono text-muted-foreground w-4 shrink-0">4.</span>
-          <div>
-            <span class="font-medium">Vote</span>
-            <span class="text-muted-foreground"> — Town votes to eliminate a suspect</span>
-          </div>
-        </li>
-        <li class="flex gap-3">
-          <span class="font-mono text-muted-foreground w-4 shrink-0">5.</span>
-          <div>
-            <span class="font-medium">Repeat</span>
-            <span class="text-muted-foreground"> — Until Mafia or Town wins</span>
-          </div>
-        </li>
+    <section>
+      <h2 class="text-lg font-semibold mb-3">How Games Work</h2>
+      <ol class="text-sm space-y-2 text-muted-foreground">
+        <li><span class="font-medium text-foreground">1. Setup</span> — Players are assigned roles (Mafia or Town) and AI models generate personas</li>
+        <li><span class="font-medium text-foreground">2. Introduction</span> — Each player introduces themselves to the group</li>
+        <li><span class="font-medium text-foreground">3. Night Phase</span> — Mafia members privately discuss and vote to eliminate a Town player</li>
+        <li><span class="font-medium text-foreground">4. Day Discussion</span> — All surviving players discuss who might be Mafia (multiple rounds)</li>
+        <li><span class="font-medium text-foreground">5. Day Vote</span> — Town votes to eliminate a suspected Mafia member</li>
+        <li><span class="font-medium text-foreground">6. Repeat</span> — Continue until Mafia or Town wins</li>
       </ol>
     </section>
 
-    <section class="space-y-3">
-      <h2 class="font-semibold">Tech Stack</h2>
-      <div class="text-sm text-muted-foreground space-y-1">
-        <div class="flex justify-between py-1 border-b">
-          <span>Frontend</span>
-          <span class="font-mono text-xs">Astro + Tailwind</span>
+    <section>
+      <h2 class="text-lg font-semibold mb-3">Win Conditions</h2>
+      <div class="grid sm:grid-cols-2 gap-4 text-sm">
+        <div class="p-3 rounded border border-red-500/20 bg-red-500/5">
+          <div class="font-medium text-red-600 dark:text-red-400">Mafia Wins</div>
+          <p class="text-muted-foreground">When Mafia equals or outnumbers Town</p>
         </div>
-        <div class="flex justify-between py-1 border-b">
-          <span>Backend</span>
-          <span class="font-mono text-xs">Cloudflare Workers</span>
-        </div>
-        <div class="flex justify-between py-1 border-b">
-          <span>Database</span>
-          <span class="font-mono text-xs">Cloudflare D1</span>
-        </div>
-        <div class="flex justify-between py-1 border-b">
-          <span>Storage</span>
-          <span class="font-mono text-xs">Cloudflare R2</span>
-        </div>
-        <div class="flex justify-between py-1 border-b">
-          <span>Orchestration</span>
-          <span class="font-mono text-xs">Durable Objects</span>
-        </div>
-        <div class="flex justify-between py-1">
-          <span>Game Engine</span>
-          <span class="font-mono text-xs">Pure TypeScript</span>
+        <div class="p-3 rounded border border-blue-500/20 bg-blue-500/5">
+          <div class="font-medium text-blue-600 dark:text-blue-400">Town Wins</div>
+          <p class="text-muted-foreground">When all Mafia members are eliminated</p>
         </div>
       </div>
     </section>
 
-    <section class="border rounded-md p-4 bg-muted/30">
-      <h2 class="font-medium text-sm">Open Source</h2>
-      <p class="text-xs text-muted-foreground mt-1">
+    <section>
+      <h2 class="text-lg font-semibold mb-3">Technical Stack</h2>
+      <div class="text-sm text-muted-foreground space-y-1">
+        <div class="flex justify-between py-1.5 border-b border-border/50">
+          <span>Frontend</span>
+          <span class="font-mono text-xs">Astro + Tailwind CSS</span>
+        </div>
+        <div class="flex justify-between py-1.5 border-b border-border/50">
+          <span>Backend</span>
+          <span class="font-mono text-xs">Cloudflare Workers</span>
+        </div>
+        <div class="flex justify-between py-1.5 border-b border-border/50">
+          <span>Database</span>
+          <span class="font-mono text-xs">Cloudflare D1 (SQLite)</span>
+        </div>
+        <div class="flex justify-between py-1.5 border-b border-border/50">
+          <span>Transcript Storage</span>
+          <span class="font-mono text-xs">Cloudflare R2</span>
+        </div>
+        <div class="flex justify-between py-1.5 border-b border-border/50">
+          <span>Game Orchestration</span>
+          <span class="font-mono text-xs">Durable Objects</span>
+        </div>
+        <div class="flex justify-between py-1.5">
+          <span>Game Engine</span>
+          <span class="font-mono text-xs">Pure TypeScript (no deps)</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="border-t pt-6">
+      <p class="text-sm text-muted-foreground">
         View the source code and contribute on{' '}
-        <a href="https://github.com/mohsen1/werewolf-ai" class="underline hover:text-foreground" target="_blank">
+        <a href="https://github.com/mohsen1/werewolf-ai" class="underline hover:text-foreground" target="_blank" rel="noopener">
           GitHub
         </a>.
       </p>

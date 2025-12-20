@@ -1,8 +1,9 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { getGame, getTranscript } from '../../../lib/api';
+import { getGame, getTranscript, formatDuration } from '../../../lib/api';
+import { getProviderColorFromModel } from '../../../lib/providers';
 import { calculateCost, formatCost, calculateTotalCost } from '../../../lib/costs';
-import { MessageSquare, Moon, Vote, Cpu, Clock, Hash, Skull, Hand, DollarSign, ChevronDown, ArrowLeft, Ghost } from 'lucide-astro';
+import { MessageSquare, Moon, Vote, Clock, Skull, ArrowLeft, Ghost, Info, ChevronDown } from 'lucide-astro';
 
 const { id } = Astro.params;
 
@@ -46,11 +47,13 @@ interface PlayerInfo {
 const playerRoster: PlayerInfo[] = [];
 const playerMap: Record<string, PlayerInfo> = {};
 
-// First pass: get team info from ai_call events
+// First pass: get team and model info from ai_call events
 const teamMap: Record<string, 'mafia' | 'town'> = {};
+const modelMap: Record<string, string> = {};
 for (const event of events) {
-  if (event.type === 'ai_call' && event.playerId && event.team) {
-    teamMap[event.playerId] = event.team;
+  if (event.type === 'ai_call' && event.playerId) {
+    if (event.team) teamMap[event.playerId] = event.team;
+    if (event.modelId) modelMap[event.playerId] = event.modelId;
   }
 }
 
@@ -62,7 +65,7 @@ for (const event of events) {
       originalName: event.playerId.replace('player_', 'Player '),
       personaName: event.persona?.name || event.playerName,
       team: teamMap[event.playerId] || 'town',
-      modelId: '',
+      modelId: modelMap[event.playerId] || '',
     };
     playerRoster.push(info);
     playerMap[event.playerId] = info;
@@ -88,7 +91,6 @@ if (playerRoster.length === 0) {
   }
 }
 
-// Helper to get persona name from player ID
 function getPersonaName(playerId: string): string {
   return playerMap[playerId]?.personaName || playerId;
 }
@@ -97,32 +99,24 @@ function getPlayerTeam(playerId: string): string {
   return playerMap[playerId]?.team || 'town';
 }
 
-function getPhaseIcon(phase: string) {
-  switch (phase) {
-    case 'introduction': return 'wave';
-    case 'night': return 'moon';
-    case 'day_discussion': return 'chat';
-    case 'day_vote': return 'vote';
-    default: return 'circle';
-  }
+function getPlayerModel(playerId: string): string {
+  return playerMap[playerId]?.modelId || '';
 }
 
 function getPhaseLabel(phase: string) {
   switch (phase) {
     case 'introduction': return 'Introduction';
-    case 'night': return 'Night';
-    case 'day_discussion': return 'Discussion';
-    case 'day_vote': return 'Vote';
-    case 'mafia_chat': return 'Mafia Chat';
+    case 'night': return 'Night Phase';
+    case 'day_discussion': return 'Day Discussion';
+    case 'day_vote': return 'Day Vote';
+    case 'mafia_chat': return 'Mafia Strategy';
     default: return phase;
   }
 }
 
-function getEventCost(event: any): string {
-  if (event.tokensUsed) {
-    return formatCost(calculateCost(event.modelId, event.tokensUsed));
-  }
-  return '--';
+function cleanMessage(message: string): string {
+  // Remove surrounding quotes if present
+  return message?.replace(/^["']|["']$/g, '').trim() || '';
 }
 ---
 
@@ -157,6 +151,7 @@ function getEventCost(event: any): string {
               {game.winner === 'mafia' ? 'Mafia' : 'Town'} wins
             </span>
             <span class="text-muted-foreground">{game.rounds} rounds</span>
+            <span class="text-muted-foreground">{formatDuration(game.duration_ms || 0)}</span>
             <span class="text-green-600 dark:text-green-400 font-mono">{formatCost(totalCost)}</span>
           </div>
         </div>
@@ -166,30 +161,28 @@ function getEventCost(event: any): string {
       {playerRoster.length > 0 && (
         <div class="border rounded-md p-4 bg-muted/30">
           <h3 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Player Roster</h3>
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
             {playerRoster.map((player) => (
-              <div class={`flex items-center gap-2 px-2 py-1.5 rounded border text-sm ${
+              <div class={`flex items-start gap-2 px-2 py-2 rounded border text-sm ${
                 player.team === 'mafia' 
                   ? 'bg-red-500/5 border-red-500/20' 
                   : 'bg-blue-500/5 border-blue-500/20'
               }`}>
-                <div class={`w-2 h-2 rounded-full shrink-0 ${
+                <div class={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${
                   player.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
                 }`}></div>
-                <div class="min-w-0">
+                <div class="min-w-0 flex-1">
                   <div class="font-medium truncate">{player.personaName}</div>
-                  <div class="text-[10px] text-muted-foreground truncate">{player.originalName}</div>
+                  <div class="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style={`background: ${getProviderColorFromModel(player.modelId)}`}></span>
+                    {player.modelId || player.originalName}
+                  </div>
+                  <div class={`text-[10px] ${player.team === 'mafia' ? 'text-red-500' : 'text-blue-500'}`}>
+                    {player.team}
+                  </div>
                 </div>
               </div>
             ))}
-          </div>
-          <div class="flex gap-4 mt-2 text-[10px] text-muted-foreground">
-            <span class="flex items-center gap-1">
-              <span class="w-2 h-2 rounded-full bg-red-500"></span> Mafia
-            </span>
-            <span class="flex items-center gap-1">
-              <span class="w-2 h-2 rounded-full bg-blue-500"></span> Town
-            </span>
           </div>
         </div>
       )}
@@ -201,111 +194,139 @@ function getEventCost(event: any): string {
       ) : (
         <div class="space-y-6">
           {rounds.map(round => (
-            <div class="space-y-3">
-              <div class="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-                <span class="uppercase tracking-wider">Round {round}</span>
+            <div class="space-y-4">
+              <div class="flex items-center gap-3 text-sm font-semibold">
+                <span class="uppercase tracking-wider text-muted-foreground">Round {round}</span>
                 <div class="h-px flex-1 bg-border"></div>
               </div>
 
               {Object.entries(groupedEvents[round] || {}).map(([phase, phaseEvents]) => (
                 <div class="space-y-2">
-                  <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-1">
-                    {phase === 'introduction' && <Hand size={12} />}
-                    {phase === 'night' && <Moon size={12} />}
+                  {/* Phase Header */}
+                  <div class={`flex items-center gap-2 text-xs font-medium px-2 py-1 rounded ${
+                    phase === 'mafia_chat' || phase === 'night' 
+                      ? 'bg-red-500/10 text-red-600 dark:text-red-400' 
+                      : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {phase === 'introduction' && <MessageSquare size={12} />}
+                    {(phase === 'night' || phase === 'mafia_chat') && <Moon size={12} />}
                     {phase === 'day_discussion' && <MessageSquare size={12} />}
                     {phase === 'day_vote' && <Vote size={12} />}
-                    {phase === 'mafia_chat' && <Ghost size={12} class="text-red-500" />}
                     <span>{getPhaseLabel(phase)}</span>
                   </div>
 
-                  <div class="space-y-1.5">
-                    {(phaseEvents as any[]).map(event => (
-                      event.type === 'ai_call' ? (
-                        <details class="border rounded-md overflow-hidden group">
-                          <summary class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors text-sm">
-                            <div class={`w-1 h-6 rounded-full shrink-0 ${event.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
-                            <span class="font-medium">{event.playerName}</span>
-                            <code class="text-[10px] text-muted-foreground/60">{event.modelId}</code>
-                            <div class="flex-1"></div>
-                            <div class="hidden sm:flex items-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums font-mono">
-                              <span>{event.latencyMs}ms</span>
-                              <span>{event.tokensUsed?.total || (event.tokensUsed?.input + event.tokensUsed?.output)}tok</span>
-                              <span class="text-green-600/70 dark:text-green-400/70">{getEventCost(event)}</span>
-                            </div>
-                            <ChevronDown size={14} class="text-muted-foreground/60 transition-transform group-open:rotate-180" />
-                          </summary>
-                          <div class="px-3 py-3 border-t bg-muted/20 space-y-3 text-xs">
-                            <div class="grid md:grid-cols-2 gap-3">
-                              <div>
-                                <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">System</div>
-                                <pre class="p-2 rounded bg-background border text-[11px] overflow-auto max-h-32 whitespace-pre-wrap">{event.prompt?.system}</pre>
+                  {/* Phase Events */}
+                  <div class="space-y-1 pl-2">
+                    {(phaseEvents as any[]).map((event, idx) => {
+                      const team = event.team || getPlayerTeam(event.playerId || event.voterId);
+                      const isMailia = team === 'mafia';
+                      const teamColor = isMailia ? 'red' : 'blue';
+                      
+                      if (event.type === 'ai_call') {
+                        // Chat-style message with hidden system prompt
+                        return (
+                          <div class="group flex gap-3 py-2 hover:bg-muted/30 rounded px-2 -mx-2 transition-colors">
+                            <div class={`w-1 rounded-full shrink-0 bg-${teamColor}-500`}></div>
+                            <div class="flex-1 min-w-0">
+                              <div class="flex items-center gap-2 flex-wrap">
+                                <span class={`font-medium text-${teamColor}-600 dark:text-${teamColor}-400`}>
+                                  {event.playerName}
+                                </span>
+                                <span class="text-[10px] text-muted-foreground flex items-center gap-1">
+                                  <span class="w-1.5 h-1.5 rounded-full" style={`background: ${getProviderColorFromModel(event.modelId)}`}></span>
+                                  {event.modelId}
+                                </span>
+                                <button 
+                                  class="prompt-toggle text-[10px] text-muted-foreground/70 hover:text-foreground inline-flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  data-target={`prompt-${round}-${phase}-${idx}`}
+                                >
+                                  <Info size={10} /> Prompt
+                                </button>
                               </div>
-                              <div>
-                                <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">User</div>
-                                <pre class="p-2 rounded bg-background border text-[11px] overflow-auto max-h-32 whitespace-pre-wrap">{event.prompt?.user}</pre>
+                              <p class="text-sm mt-1 leading-relaxed">{cleanMessage(event.response?.raw)}</p>
+                              
+                              {/* Hidden prompt details */}
+                              <div id={`prompt-${round}-${phase}-${idx}`} class="prompt-details hidden mt-3 p-3 bg-muted/50 rounded border text-xs space-y-2">
+                                <div>
+                                  <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">System</div>
+                                  <pre class="whitespace-pre-wrap text-[11px] text-muted-foreground overflow-auto max-h-32">{event.prompt?.system}</pre>
+                                </div>
+                                <div>
+                                  <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">User</div>
+                                  <pre class="whitespace-pre-wrap text-[11px] text-muted-foreground overflow-auto max-h-32">{event.prompt?.user}</pre>
+                                </div>
+                                <div class="flex items-center gap-4 text-[10px] text-muted-foreground pt-2 border-t">
+                                  <span>{event.latencyMs}ms</span>
+                                  <span>{event.tokensUsed?.total || (event.tokensUsed?.input + event.tokensUsed?.output)} tokens</span>
+                                  <span class="text-green-600/70 dark:text-green-400/70">{formatCost(calculateCost(event.modelId, event.tokensUsed))}</span>
+                                </div>
                               </div>
-                            </div>
-                            <div>
-                              <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Response</div>
-                              <pre class="p-2 rounded bg-background border text-[11px] overflow-auto max-h-40 whitespace-pre-wrap">{event.response?.raw}</pre>
                             </div>
                           </div>
-                        </details>
-                      ) : event.type === 'discussion' || event.type === 'introduction' ? (
-                        <div class="flex gap-2 px-1 py-1">
-                          <div class={`w-1 rounded-full shrink-0 ${
-                            playerMap[event.playerId]?.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
-                          }`}></div>
-                          <div class="min-w-0">
-                            <span class={`text-xs font-medium ${
-                              playerMap[event.playerId]?.team === 'mafia' 
+                        );
+                      } else if (event.type === 'discussion' || event.type === 'introduction') {
+                        // Simple chat message
+                        return (
+                          <div class="flex gap-3 py-1.5">
+                            <div class={`w-1 rounded-full shrink-0 bg-${teamColor}-500`}></div>
+                            <div class="min-w-0">
+                              <span class={`text-sm font-medium text-${teamColor}-600 dark:text-${teamColor}-400`}>
+                                {event.playerName}
+                              </span>
+                              <p class="text-sm text-foreground/90 leading-relaxed">{cleanMessage(event.message)}</p>
+                            </div>
+                          </div>
+                        );
+                      } else if (event.type === 'elimination') {
+                        // Elimination event - clear visual
+                        return (
+                          <div class={`flex items-center gap-2 px-3 py-2 rounded border my-2 ${
+                            event.team === 'mafia' 
+                              ? 'bg-red-500/10 dark:bg-red-500/5 border-red-500/30'
+                              : 'bg-blue-500/10 dark:bg-blue-500/5 border-blue-500/30'
+                          }`}>
+                            <Skull size={14} class={event.team === 'mafia' ? 'text-red-500' : 'text-blue-500'} />
+                            <span class={`font-semibold ${
+                              event.team === 'mafia' 
                                 ? 'text-red-600 dark:text-red-400' 
                                 : 'text-blue-600 dark:text-blue-400'
-                            }`}>{event.playerName}</span>
-                            <p class="text-sm text-muted-foreground leading-relaxed">"{event.message}"</p>
+                            }`}>{event.playerName || getPersonaName(event.playerId)}</span>
+                            <span class="text-muted-foreground">was eliminated</span>
+                            <span class={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                              event.team === 'mafia' 
+                                ? 'bg-red-500/20 text-red-600 dark:text-red-400' 
+                                : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                            }`}>
+                              {event.team}
+                            </span>
                           </div>
-                        </div>
-                      ) : event.type === 'elimination' ? (
-                        <div class={`flex items-center gap-2 px-2 py-1.5 rounded border text-sm ${
-                          event.team === 'mafia' 
-                            ? 'bg-red-500/10 dark:bg-red-500/5 border-red-500/20'
-                            : 'bg-blue-500/10 dark:bg-blue-500/5 border-blue-500/20'
-                        }`}>
-                          <Skull size={14} class={event.team === 'mafia' ? 'text-red-500' : 'text-blue-500'} />
-                          <span class={`font-medium ${
-                            event.team === 'mafia' 
-                              ? 'text-red-600 dark:text-red-400' 
-                              : 'text-blue-600 dark:text-blue-400'
-                          }`}>{event.playerName || getPersonaName(event.playerId)}</span>
-                          <span class="text-muted-foreground">eliminated</span>
-                          <span class={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                            event.team === 'mafia' 
-                              ? 'bg-red-500/20 text-red-600 dark:text-red-400' 
-                              : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                          }`}>
-                            {event.team}
-                          </span>
-                        </div>
-                      ) : event.type === 'vote' ? (
-                        <div class="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-                          <span class={`font-medium ${
-                            playerMap[event.voterId]?.team === 'mafia' 
-                              ? 'text-red-600 dark:text-red-400' 
-                              : 'text-blue-600 dark:text-blue-400'
-                          }`}>{event.voterName || getPersonaName(event.voterId)}</span>
-                          <span>→</span>
-                          <span class={`px-1.5 py-0.5 rounded ${
-                            event.targetId 
-                              ? (playerMap[event.targetId]?.team === 'mafia' 
-                                  ? 'bg-red-500/10 text-red-600 dark:text-red-400' 
-                                  : 'bg-blue-500/10 text-blue-600 dark:text-blue-400')
-                              : 'bg-muted text-muted-foreground'
-                          }`}>
-                            {event.targetId ? getPersonaName(event.targetId) : 'abstain'}
-                          </span>
-                        </div>
-                      ) : null
-                    ))}
+                        );
+                      } else if (event.type === 'vote') {
+                        // Vote as inline text
+                        const voterTeam = getPlayerTeam(event.voterId);
+                        const targetTeam = event.targetId ? getPlayerTeam(event.targetId) : null;
+                        return (
+                          <div class="flex items-center gap-2 py-1 text-sm">
+                            <span class={`font-medium ${
+                              voterTeam === 'mafia' 
+                                ? 'text-red-600 dark:text-red-400' 
+                                : 'text-blue-600 dark:text-blue-400'
+                            }`}>{event.voterName || getPersonaName(event.voterId)}</span>
+                            <span class="text-muted-foreground">voted for</span>
+                            {event.targetId ? (
+                              <span class={`font-medium ${
+                                targetTeam === 'mafia' 
+                                  ? 'text-red-600 dark:text-red-400' 
+                                  : 'text-blue-600 dark:text-blue-400'
+                              }`}>{getPersonaName(event.targetId)}</span>
+                            ) : (
+                              <span class="text-muted-foreground italic">abstain</span>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
                   </div>
                 </div>
               ))}
@@ -317,7 +338,26 @@ function getEventCost(event: any): string {
   )}
 </Layout>
 
-<style is:global>
-  details summary::-webkit-details-marker { display: none; }
-  details summary { list-style: none; }
+<script>
+  // Toggle prompt visibility
+  document.querySelectorAll('.prompt-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-target');
+      if (targetId) {
+        const target = document.getElementById(targetId);
+        if (target) {
+          target.classList.toggle('hidden');
+        }
+      }
+    });
+  });
+</script>
+
+<style>
+  .bg-red-500 { background-color: rgb(239 68 68); }
+  .bg-blue-500 { background-color: rgb(59 130 246); }
+  .text-red-600 { color: rgb(220 38 38); }
+  .text-blue-600 { color: rgb(37 99 235); }
+  :global(.dark) .text-red-400 { color: rgb(248 113 113); }
+  :global(.dark) .text-blue-400 { color: rgb(96 165 250); }
 </style>

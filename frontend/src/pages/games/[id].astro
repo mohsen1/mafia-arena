@@ -1,6 +1,6 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { getGame, getGamePersonas, type GameDetail, type GamePersona } from '../../lib/api';
+import { getGame, getGamePersonas, formatDuration, type GameDetail, type GamePersona } from '../../lib/api';
 import { calculateCostFromTotal, formatCost } from '../../lib/costs';
 import { Play, ArrowLeft, Trophy, X, User, Sparkles } from 'lucide-astro';
 
@@ -207,7 +207,7 @@ const townPersonas = personas.filter((p) => p.team === 'town');
         </div>
         <div class="flex items-center justify-between text-sm mt-2">
           <span class="text-muted-foreground">Duration</span>
-          <span class="font-mono tabular-nums">{((game.duration_ms || 0) / 1000).toFixed(1)}s</span>
+          <span class="font-mono tabular-nums">{formatDuration(game.duration_ms || 0)}</span>
         </div>
       </section>
 

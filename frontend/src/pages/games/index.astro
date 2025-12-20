@@ -1,6 +1,7 @@
 ---
 import Layout from '../../components/Layout.astro';
 import { getGames } from '../../lib/api';
+import { getProviderColorFromModel } from '../../lib/providers';
 import { ChevronLeft, ChevronRight, Trophy } from 'lucide-astro';
 
 const LIMIT = 20;
@@ -14,7 +15,6 @@ const hasPrev = page > 1;
 const hasNext = hasMore;
 
 function formatDate(timestamp: number) {
-  // Handle both unix timestamp (seconds) and milliseconds
   const ts = timestamp > 9999999999 ? timestamp : timestamp * 1000;
   return new Date(ts).toLocaleString(undefined, {
     month: 'short',
@@ -34,6 +34,8 @@ function getMatchup(game: any) {
   return {
     mafia: mafiaModel,
     town: townModel,
+    mafiaColor: getProviderColorFromModel(mafiaModel),
+    townColor: getProviderColorFromModel(townModel),
     winner: mafiaWon ? mafiaModel : townModel,
     winnerTeam: game.winner,
   };
@@ -73,11 +75,13 @@ function getMatchup(game: any) {
                   <tr class="border-b last:border-0 hover:bg-muted/50 transition-colors group">
                     <td class="h-12 p-0">
                       <a href={`/games/${game.id}`} class="flex items-center gap-2 text-xs px-3 h-full">
-                        <span class={`font-medium px-1.5 py-0.5 rounded ${mafiaWon ? 'bg-red-500/15 text-red-600 dark:text-red-400 ring-1 ring-red-500/20' : 'text-muted-foreground'}`}>
+                        <span class={`font-medium px-1.5 py-0.5 rounded inline-flex items-center gap-1.5 ${mafiaWon ? 'bg-red-500/15 text-red-600 dark:text-red-400 ring-1 ring-red-500/20' : 'text-muted-foreground'}`}>
+                          <span class="w-2 h-2 rounded-full flex-shrink-0" style={`background: ${matchup.mafiaColor}`}></span>
                           {matchup.mafia}
                         </span>
                         <span class="text-muted-foreground">vs</span>
-                        <span class={`font-medium px-1.5 py-0.5 rounded ${!mafiaWon ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20' : 'text-muted-foreground'}`}>
+                        <span class={`font-medium px-1.5 py-0.5 rounded inline-flex items-center gap-1.5 ${!mafiaWon ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20' : 'text-muted-foreground'}`}>
+                          <span class="w-2 h-2 rounded-full flex-shrink-0" style={`background: ${matchup.townColor}`}></span>
                           {matchup.town}
                         </span>
                       </a>
