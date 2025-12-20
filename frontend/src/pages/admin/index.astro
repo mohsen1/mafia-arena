@@ -151,54 +151,26 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         </div>
       </div>
 
-      <!-- Quick Actions - Moved up for prominence -->
-      <section class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <a href="/admin/games/new" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group bg-gradient-to-br from-red-500/5 to-orange-500/5 border-red-500/20">
-          <div class="flex items-center gap-3">
-            <div class="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-lg">
-              <Radio size={20} class="text-red-500" />
-            </div>
-            <div>
-              <h3 class="font-medium group-hover:underline">Run Live Game</h3>
-              <p class="text-xs text-muted-foreground">Watch a single game in real-time</p>
-            </div>
-          </div>
+      <!-- Quick Actions - Compact buttons -->
+      <section class="flex flex-wrap gap-3">
+        <a href="/admin/games/new" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
+          <Radio size={16} />
+          <span>Run Live Game</span>
         </a>
 
-        <a href="/admin/batches/new" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group">
-          <div class="flex items-center gap-3">
-            <div class="p-2 bg-primary/10 rounded-lg">
-              <Plus size={20} class="text-primary" />
-            </div>
-            <div>
-              <h3 class="font-medium group-hover:underline">Launch Batch</h3>
-              <p class="text-xs text-muted-foreground">Create a new batch of games</p>
-            </div>
-          </div>
+        <a href="/admin/batches/new" class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+          <Plus size={16} />
+          <span>New Batch</span>
         </a>
 
-        <a href="/admin/batches" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group">
-          <div class="flex items-center gap-3">
-            <div class="p-2 bg-blue-500/10 rounded-lg">
-              <Layers size={20} class="text-blue-500" />
-            </div>
-            <div>
-              <h3 class="font-medium group-hover:underline">Manage Batches</h3>
-              <p class="text-xs text-muted-foreground">View and manage all batches</p>
-            </div>
-          </div>
+        <a href="/admin/batches" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
+          <Layers size={16} />
+          <span>Manage Batches</span>
         </a>
 
-        <a href="/stats" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group">
-          <div class="flex items-center gap-3">
-            <div class="p-2 bg-green-500/10 rounded-lg">
-              <Activity size={20} class="text-green-500" />
-            </div>
-            <div>
-              <h3 class="font-medium group-hover:underline">View Stats</h3>
-              <p class="text-xs text-muted-foreground">Analyze game results</p>
-            </div>
-          </div>
+        <a href="/stats" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
+          <Activity size={16} />
+          <span>View Stats</span>
         </a>
       </section>
 
