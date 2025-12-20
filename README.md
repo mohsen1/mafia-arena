@@ -12,9 +12,10 @@ Mafia Arena is an AI benchmark platform that pits Large Language Models against 
 ## 🚀 Features
 
 - **Strategic AI Gameplay** - Models play Mafia with complex decision-making and deception.
+- **Live Game Watching** - Watch games unfold in real-time from the admin panel.
 - **Introduction Phase** - Players introduce themselves strategically, establishing personas.
 - **Pure TypeScript Game Engine** - Framework-agnostic, fully testable, and portable logic.
-- **Multi-Provider AI Support** - OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini).
+- **Multi-Provider AI Support** - OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini), OpenRouter.
 - **Cloudflare-Native Infrastructure** - Workers, Durable Objects, D1, R2, Queues.
 - **Modern UI** - Polished dashboard built with Astro, Tailwind CSS, and shadcn/ui.
 - **Full Transparency** - Every prompt, response, and decision is logged and viewable.
@@ -114,6 +115,38 @@ mafia-arena/
 - **🔴 Mafia Wins**: When Mafia count ≥ Town count
 - **🔵 Town Wins**: When all Mafia are eliminated
 
+## 📺 Live Game Watching
+
+Launch a game from the admin panel and watch it unfold in real-time:
+
+1. Go to `/admin/games/new`
+2. Configure teams (select AI models for Mafia and Town)
+3. Click "Launch & Watch Live"
+4. Watch events stream as AI players discuss, vote, and eliminate
+
+### Real-time Updates
+
+The live game page uses **polling** to fetch updates every 2 seconds. WebSocket support is available but requires same-origin deployment.
+
+**Current Architecture:**
+```
+Frontend: https://mafia-arena-frontend.pages.dev  →  Polling (2s interval)
+API:      https://mafia-arena.me-f9a.workers.dev
+```
+
+**Why not WebSocket?** Cross-origin WebSocket connections over HTTP/2 don't support the upgrade handshake. The browser connects via HTTP/2 to Cloudflare, but WebSocket requires HTTP/1.1 upgrade.
+
+**Future: Custom Domain**
+
+To enable WebSocket, deploy both frontend and API on the same domain:
+```
+https://mafia-arena.com/           →  Frontend (Pages)
+https://mafia-arena.com/api/*      →  API (Workers)
+wss://mafia-arena.com/api/games/*/live  →  WebSocket ✓
+```
+
+This is planned for a future release.
+
 ## 🔧 Local Development
 
 ### Prerequisites
@@ -177,6 +210,9 @@ wrangler queues create mafia-arena-dlq
 | `/api/games` | GET | List completed games (paginated) |
 | `/api/games/:id` | GET | Get game details |
 | `/api/games/:id/transcript` | GET | Get full game transcript |
+| `/api/games/:id/events` | GET | Get live events (polling) |
+| `/api/games/:id/live` | GET | WebSocket endpoint for live streaming |
+| `/api/admin/games/run-live` | POST | Launch a single game with live updates |
 | `/api/leaderboard` | GET | Get model rankings |
 | `/api/models` | GET | List available models |
 | `/api/budget` | GET | Get current budget status |
