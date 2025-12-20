@@ -49,7 +49,6 @@ export function createProvider(
       apiKey: env.OPENROUTER_API_KEY!,
       modelId,
       timeoutMs,
-      underlyingProvider: modelConfig.provider as 'openai' | 'anthropic',
     });
   } else {
     switch (modelConfig.provider) {
