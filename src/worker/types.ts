@@ -31,6 +31,11 @@ export interface Env {
   GOOGLE_API_KEY: string;
   /** OpenRouter API key - when set, used for OpenAI and Anthropic models */
   OPENROUTER_API_KEY?: string;
+  
+  // Azure OpenAI (optional - when set, OpenAI models route through Azure)
+  AZURE_OPENAI_API_KEY?: string;
+  AZURE_OPENAI_ENDPOINT?: string;
+  AZURE_OPENAI_API_VERSION?: string;
 
   // Admin authentication (secrets)
   ADMIN_USERNAME: string;
