@@ -41,8 +41,8 @@ export function createProvider(
 
   let provider: AIProviderInterface;
 
-  // Use OpenRouter for OpenAI and Anthropic if key is available
-  const useOpenRouter = env.OPENROUTER_API_KEY && (modelConfig.provider === 'openai' || modelConfig.provider === 'anthropic');
+  // Use OpenRouter for all providers if key is available
+  const useOpenRouter = !!env.OPENROUTER_API_KEY;
 
   if (useOpenRouter) {
     provider = new OpenRouterProvider({
