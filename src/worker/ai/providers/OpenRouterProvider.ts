@@ -104,6 +104,7 @@ export class OpenRouterProvider extends BaseProvider {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error(`OpenRouter error for ${this.openRouterModelId}:`, JSON.stringify(data));
       this.handleHttpError(response, data);
     }
 
