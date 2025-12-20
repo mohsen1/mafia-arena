@@ -27,7 +27,6 @@ for (const rowModel of uniqueModels) {
     let totalGames = 0;
     let totalWins = 0;
     
-    // Aggregate all matchups between model variants
     for (const rowId of rowModel.ids) {
       for (const colId of colModel.ids) {
         const matchup = data.matchups.find(m => m.model_a === rowId && m.model_b === colId);
@@ -82,71 +81,35 @@ uniqueModels.sort((a, b) => {
   return bGames - aGames;
 });
 
-// Calculate max games for intensity scaling
-let maxGames = 1;
-for (const rowModel of uniqueModels) {
-  for (const colModel of uniqueModels) {
-    const cell = matrix[rowModel.display_name]?.[colModel.display_name];
-    if (cell && cell.games > maxGames) maxGames = cell.games;
-  }
-}
-
-function getShortName(name: string): string {
-  // Handle common patterns
-  return name
-    .replace('Claude 3.5 ', 'C3.5 ')
-    .replace('Claude 3 ', 'C3 ')
-    .replace('Claude ', 'C ')
-    .replace('GPT-4o', 'GPT-4o')
-    .replace('GPT-4', 'GPT-4')
-    .replace('GPT-3.5', 'GPT-3.5')
-    .replace('Gemini 2.5 ', 'G2.5 ')
-    .replace('Gemini 2.0 ', 'G2.0 ')
-    .replace('Gemini 1.5 ', 'G1.5 ')
-    .replace('Gemini 3 ', 'G3 ')
-    .replace(' Pro', 'P')
-    .replace(' Flash', 'F')
-    .replace(' Thinking', 'T');
-}
-
 function getProviderColor(provider: string): string {
   switch (provider.toLowerCase()) {
-    case 'anthropic': return 'text-amber-600 dark:text-amber-400';
-    case 'openai': return 'text-emerald-600 dark:text-emerald-400';
-    case 'google': return 'text-sky-600 dark:text-sky-400';
-    default: return 'text-muted-foreground';
-  }
-}
-
-function getProviderIcon(provider: string): string {
-  switch (provider.toLowerCase()) {
-    case 'anthropic': return '◉';
-    case 'openai': return '◆';
-    case 'google': return '▲';
-    default: return '•';
+    case 'anthropic': return '#f59e0b';
+    case 'openai': return '#10b981';
+    case 'google': return '#3b82f6';
+    default: return '#71717a';
   }
 }
 ---
 
 <Layout title="Model Matchups">
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- Header -->
-    <div class="flex items-start justify-between">
+    <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-xl font-bold tracking-tight">Head-to-Head Matrix</h1>
-        <p class="text-muted-foreground text-sm mt-1">Win rates when models face each other · Row vs Column</p>
+        <h1 class="text-lg font-semibold">Head-to-Head Matrix</h1>
+        <p class="text-muted-foreground text-xs">Win rates when models face each other</p>
       </div>
-      <div class="flex items-center gap-3 text-xs">
-        <div class="flex items-center gap-1.5">
-          <span class="text-amber-600 dark:text-amber-400 font-medium">◉</span>
+      <div class="flex items-center gap-3 text-[10px]">
+        <div class="flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full" style="background: #f59e0b"></span>
           <span class="text-muted-foreground">Anthropic</span>
         </div>
-        <div class="flex items-center gap-1.5">
-          <span class="text-emerald-600 dark:text-emerald-400 font-medium">◆</span>
+        <div class="flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full" style="background: #10b981"></span>
           <span class="text-muted-foreground">OpenAI</span>
         </div>
-        <div class="flex items-center gap-1.5">
-          <span class="text-sky-600 dark:text-sky-400 font-medium">▲</span>
+        <div class="flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full" style="background: #3b82f6"></span>
           <span class="text-muted-foreground">Google</span>
         </div>
       </div>
@@ -154,215 +117,140 @@ function getProviderIcon(provider: string): string {
 
     <StatsNav currentPath={Astro.url.pathname} />
 
-    <!-- Team Filter Pills -->
-    <div class="flex items-center gap-2">
-      <span class="text-xs text-muted-foreground font-medium uppercase tracking-wide">Filter:</span>
-      <div class="flex rounded-lg border overflow-hidden">
+    <!-- Filters -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-1">
+        <span class="text-[10px] text-muted-foreground uppercase tracking-wide mr-1">Filter:</span>
         <a
           href="/stats/matchups"
           class:list={[
-            "px-4 py-2 text-sm font-medium transition-all",
-            !team 
-              ? "bg-foreground text-background" 
-              : "hover:bg-muted text-muted-foreground hover:text-foreground"
+            "px-2 py-1 text-[11px] rounded border transition-colors",
+            !team ? "bg-foreground text-background" : "hover:bg-muted text-muted-foreground"
           ]}
-        >All Games</a>
+        >All</a>
         <a
           href="/stats/matchups?team=mafia"
           class:list={[
-            "px-4 py-2 text-sm font-medium border-l transition-all",
-            team === 'mafia' 
-              ? "bg-red-500/90 text-white" 
-              : "hover:bg-red-500/10 text-muted-foreground hover:text-red-500"
+            "px-2 py-1 text-[11px] rounded border transition-colors",
+            team === 'mafia' ? "bg-red-600 text-white border-red-600" : "hover:bg-muted text-muted-foreground"
           ]}
-        >As Mafia</a>
+        >Mafia</a>
         <a
           href="/stats/matchups?team=town"
           class:list={[
-            "px-4 py-2 text-sm font-medium border-l transition-all",
-            team === 'town' 
-              ? "bg-blue-500/90 text-white" 
-              : "hover:bg-blue-500/10 text-muted-foreground hover:text-blue-500"
+            "px-2 py-1 text-[11px] rounded border transition-colors",
+            team === 'town' ? "bg-blue-600 text-white border-blue-600" : "hover:bg-muted text-muted-foreground"
           ]}
-        >As Town</a>
+        >Town</a>
+      </div>
+      
+      <div class="flex items-center gap-2 text-[10px] text-muted-foreground">
+        {!team && <span class="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-600 dark:text-violet-400">Diagonal = self-play</span>}
+        <div class="flex items-center gap-1">
+          <span>0%</span>
+          <div class="flex h-3 rounded overflow-hidden">
+            <div class="w-4 bg-red-500"></div>
+            <div class="w-4 bg-orange-400"></div>
+            <div class="w-4 bg-yellow-400"></div>
+            <div class="w-4 bg-lime-400"></div>
+            <div class="w-4 bg-green-500"></div>
+          </div>
+          <span>100%</span>
+        </div>
       </div>
     </div>
 
     {uniqueModels.length === 0 ? (
-      <div class="rounded-xl border-2 border-dashed p-12 text-center">
-        <div class="text-4xl mb-3">🎭</div>
-        <p class="text-muted-foreground">No matchup data available yet</p>
-        <p class="text-xs text-muted-foreground mt-1">Run some games to see head-to-head statistics</p>
+      <div class="rounded border p-8 text-center text-sm text-muted-foreground">
+        No matchup data available
       </div>
     ) : (
-      <div class="space-y-4">
-        <!-- Legend -->
-        <div class="flex items-center justify-between text-xs">
-          <div class="flex items-center gap-4">
-            <span class="text-muted-foreground">Row model's win rate against column model</span>
-            {!team && (
-              <span class="text-muted-foreground border-l pl-4">
-                Diagonal = self-play <span class="text-purple-500">(M=Mafia wins, T=Town wins)</span>
-              </span>
-            )}
-          </div>
-          <div class="flex items-center gap-1">
-            <div class="flex items-center rounded-md overflow-hidden border">
-              <div class="w-8 h-6 bg-gradient-to-r from-red-600 to-red-500"></div>
-              <div class="w-8 h-6 bg-gradient-to-r from-red-500 to-orange-400"></div>
-              <div class="w-8 h-6 bg-gradient-to-r from-orange-400 to-yellow-400"></div>
-              <div class="w-8 h-6 bg-gradient-to-r from-yellow-400 to-lime-400"></div>
-              <div class="w-8 h-6 bg-gradient-to-r from-lime-400 to-emerald-500"></div>
-              <div class="w-8 h-6 bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
-            </div>
-            <span class="text-muted-foreground ml-2">0%</span>
-            <span class="text-muted-foreground">→</span>
-            <span class="text-muted-foreground">100%</span>
-          </div>
-        </div>
-
-        <!-- Heatmap -->
-        <div class="rounded-xl border bg-card overflow-hidden shadow-sm">
-          <div class="overflow-x-auto">
-            <table class="w-full border-collapse" id="matchup-matrix">
-              <thead>
-                <tr>
-                  <th class="sticky left-0 z-20 bg-card p-0">
-                    <div class="w-40 h-12 flex items-end justify-end px-3 pb-2 border-b border-r bg-gradient-to-br from-muted/50 to-transparent">
-                      <span class="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">vs →</span>
+      <div class="rounded border bg-card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-[11px]" id="matchup-matrix">
+            <thead>
+              <tr>
+                <th class="sticky left-0 z-20 bg-card border-b border-r p-0">
+                  <div class="w-32 h-32 flex items-end justify-end p-1.5">
+                    <span class="text-[9px] text-muted-foreground uppercase tracking-wide">vs</span>
+                  </div>
+                </th>
+                {uniqueModels.map(m => (
+                  <th class="border-b p-0 min-w-[36px] h-32 align-bottom">
+                    <div class="h-full flex flex-col items-center justify-end pb-1.5">
+                      <div class="writing-vertical flex items-center gap-1">
+                        <span 
+                          class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
+                          style={`background: ${getProviderColor(m.provider)}`}
+                        ></span>
+                        <span class="font-medium whitespace-nowrap">{m.display_name}</span>
+                      </div>
                     </div>
                   </th>
-                  {uniqueModels.map(m => (
-                    <th class="p-0 border-b min-w-[72px]">
-                      <div class="h-12 flex flex-col items-center justify-end pb-2 px-1">
-                        <span class:list={["text-[10px] font-medium", getProviderColor(m.provider)]}>
-                          {getProviderIcon(m.provider)}
-                        </span>
-                        <span 
-                          class="text-xs font-semibold truncate max-w-[68px] cursor-help"
-                          title={m.display_name}
-                        >
-                          {getShortName(m.display_name)}
-                        </span>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {uniqueModels.map((rowModel, rowIdx) => (
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {uniqueModels.map((rowModel) => {
+                return (
                   <tr class="group">
-                    <td class="sticky left-0 z-10 bg-card p-0 border-r">
-                      <div class="w-40 h-[52px] flex items-center gap-2 px-3 group-hover:bg-muted/50 transition-colors">
-                        <span class:list={["text-sm font-medium", getProviderColor(rowModel.provider)]}>
-                          {getProviderIcon(rowModel.provider)}
-                        </span>
+                    <td class="sticky left-0 z-10 bg-card border-r p-0">
+                      <div class="w-32 h-9 flex items-center gap-1.5 px-1.5 group-hover:bg-muted/50 transition-colors">
                         <span 
-                          class="text-sm font-medium truncate cursor-help flex-1"
-                          title={rowModel.display_name}
-                        >
-                          {getShortName(rowModel.display_name)}
-                        </span>
+                          class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
+                          style={`background: ${getProviderColor(rowModel.provider)}`}
+                        ></span>
+                        <span class="font-medium truncate">{rowModel.display_name}</span>
                       </div>
                     </td>
-                    {uniqueModels.map((colModel, colIdx) => {
+                    {uniqueModels.map((colModel) => {
                       const cell = matrix[rowModel.display_name]?.[colModel.display_name];
                       const isSelf = rowModel.display_name === colModel.display_name;
                       const selfPlay = isSelf && !team ? selfPlayMap[rowModel.display_name] : null;
                       
-                      // Calculate color based on win rate
-                      const getHeatColor = (rate: number, games: number): string => {
-                        if (games === 0) return 'bg-transparent';
-                        
-                        // Opacity based on sample size
-                        const opacity = Math.min(0.95, 0.3 + (games / maxGames) * 0.65);
-                        
-                        if (rate < 0.25) return `rgba(220, 38, 38, ${opacity})`; // red-600
-                        if (rate < 0.35) return `rgba(239, 68, 68, ${opacity})`; // red-500
-                        if (rate < 0.45) return `rgba(251, 146, 60, ${opacity})`; // orange-400
-                        if (rate < 0.55) return `rgba(250, 204, 21, ${opacity})`; // yellow-400
-                        if (rate < 0.65) return `rgba(163, 230, 53, ${opacity})`; // lime-400
-                        if (rate < 0.75) return `rgba(34, 197, 94, ${opacity})`; // green-500
-                        return `rgba(5, 150, 105, ${opacity})`; // emerald-600
-                      };
-                      
-                      const getTextColor = (rate: number): string => {
-                        if (rate < 0.35 || rate > 0.65) return 'text-white';
-                        return 'text-zinc-900';
+                      const getHeatColor = (rate: number): string => {
+                        const hue = Math.round(rate * 120);
+                        const sat = 70 + Math.abs(rate - 0.5) * 40;
+                        const light = 45;
+                        return `hsl(${hue}, ${sat}%, ${light}%)`;
                       };
                       
                       return (
-                        <td class="p-0.5">
+                        <td class="p-px">
                           {isSelf ? (
                             selfPlay ? (
                               <div 
-                                class="heatmap-cell w-full h-[48px] rounded-md flex flex-col items-center justify-center cursor-help transition-all hover:scale-105 hover:z-10 hover:shadow-lg relative"
-                                style={`background: linear-gradient(135deg, rgba(139, 92, 246, 0.7) 0%, rgba(168, 85, 247, 0.7) 100%);`}
-                                data-tooltip={`Self-play: ${rowModel.display_name}\n\nMafia wins: ${selfPlay.mafiaWins}/${selfPlay.games} (${(selfPlay.mafiaRate * 100).toFixed(0)}%)\nTown wins: ${selfPlay.townWins}/${selfPlay.games} (${(selfPlay.townRate * 100).toFixed(0)}%)`}
+                                class="cell w-full h-9 flex flex-col items-center justify-center text-white text-[10px] bg-violet-500 hover:ring-1 hover:ring-violet-300"
+                                data-tooltip={`Self-play: ${rowModel.display_name}\nMafia: ${selfPlay.mafiaWins}/${selfPlay.games} (${(selfPlay.mafiaRate * 100).toFixed(0)}%)\nTown: ${selfPlay.townWins}/${selfPlay.games} (${(selfPlay.townRate * 100).toFixed(0)}%)`}
                               >
-                                <span class="font-bold text-white text-sm">
-                                  {selfPlay.mafiaRate > selfPlay.townRate ? 'M' : selfPlay.townRate > selfPlay.mafiaRate ? 'T' : '='}{(Math.max(selfPlay.mafiaRate, selfPlay.townRate) * 100).toFixed(0)}%
+                                <span class="font-semibold leading-none">
+                                  {selfPlay.mafiaRate > selfPlay.townRate ? 'M' : 'T'}{(Math.max(selfPlay.mafiaRate, selfPlay.townRate) * 100).toFixed(0)}%
                                 </span>
-                                <span class="text-[10px] text-white/70 font-medium">{selfPlay.games}g</span>
+                                <span class="text-[8px] opacity-70">{selfPlay.games}</span>
                               </div>
                             ) : (
-                              <div class="w-full h-[48px] rounded-md bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center">
-                                <span class="text-zinc-400 dark:text-zinc-600">—</span>
-                              </div>
+                              <div class="w-full h-9 bg-muted/30 flex items-center justify-center text-muted-foreground">-</div>
                             )
                           ) : cell ? (
                             <div 
-                              class="heatmap-cell w-full h-[48px] rounded-md flex flex-col items-center justify-center cursor-help transition-all hover:scale-105 hover:z-10 hover:shadow-lg relative"
-                              style={`background: ${getHeatColor(cell.rate, cell.games)};`}
-                              data-tooltip={`${rowModel.display_name}\nvs ${colModel.display_name}\n\nWins: ${cell.wins}/${cell.games}\nWin Rate: ${(cell.rate * 100).toFixed(1)}%`}
+                              class="cell w-full h-9 flex flex-col items-center justify-center text-white text-[10px] hover:ring-1 hover:ring-white/50"
+                              style={`background: ${getHeatColor(cell.rate)}`}
+                              data-tooltip={`${rowModel.display_name} vs ${colModel.display_name}\n${cell.wins}/${cell.games} wins (${(cell.rate * 100).toFixed(1)}%)`}
                             >
-                              <span class={`font-bold text-sm ${getTextColor(cell.rate)}`}>
-                                {(cell.rate * 100).toFixed(0)}%
-                              </span>
-                              <span class={`text-[10px] font-medium ${cell.rate < 0.35 || cell.rate > 0.65 ? 'text-white/70' : 'text-zinc-900/60'}`}>
-                                {cell.games}g
-                              </span>
+                              <span class="font-semibold leading-none">{(cell.rate * 100).toFixed(0)}%</span>
+                              <span class="text-[8px] opacity-70">{cell.games}</span>
                             </div>
                           ) : (
-                            <div class="w-full h-[48px] rounded-md bg-zinc-50 dark:bg-zinc-900/30 flex items-center justify-center">
-                              <span class="text-zinc-300 dark:text-zinc-700 text-xs">—</span>
-                            </div>
+                            <div class="w-full h-9 bg-muted/10 flex items-center justify-center text-[9px] text-muted-foreground/50">-</div>
                           )}
                         </td>
                       );
                     })}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Summary Stats -->
-        <div class="grid grid-cols-3 gap-4">
-          <div class="rounded-lg border bg-card p-4">
-            <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">Models</div>
-            <div class="text-2xl font-bold mt-1">{uniqueModels.length}</div>
-            <div class="text-xs text-muted-foreground mt-1">in matchup data</div>
-          </div>
-          <div class="rounded-lg border bg-card p-4">
-            <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total Matchups</div>
-            <div class="text-2xl font-bold mt-1">
-              {Object.values(matrix).reduce((sum, row) => 
-                sum + Object.values(row).filter(c => c.games > 0).length, 0
-              )}
-            </div>
-            <div class="text-xs text-muted-foreground mt-1">unique pairs</div>
-          </div>
-          <div class="rounded-lg border bg-card p-4">
-            <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">Games Analyzed</div>
-            <div class="text-2xl font-bold mt-1">
-              {Math.round(Object.values(matrix).reduce((sum, row) => 
-                sum + Object.values(row).reduce((s, c) => s + c.games, 0), 0
-              ) / 2)}
-            </div>
-            <div class="text-xs text-muted-foreground mt-1">head-to-head</div>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     )}
@@ -370,73 +258,46 @@ function getProviderIcon(provider: string): string {
 </Layout>
 
 <style>
-  /* Tooltip styles */
-  .heatmap-cell {
-    position: relative;
+  .writing-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
   }
   
-  .heatmap-cell::after {
+  .cell {
+    position: relative;
+    cursor: default;
+  }
+  
+  .cell::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: calc(100% + 8px);
+    bottom: calc(100% + 4px);
     left: 50%;
     transform: translateX(-50%);
     background: var(--popover);
     color: var(--popover-foreground);
     border: 1px solid var(--border);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    line-height: 1.5;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    line-height: 1.4;
     white-space: pre-line;
-    text-align: left;
-    min-width: 180px;
-    max-width: 250px;
+    min-width: 140px;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.15s, visibility 0.15s;
+    transition: opacity 0.1s;
     z-index: 50;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     pointer-events: none;
   }
   
-  .heatmap-cell::before {
-    content: '';
-    position: absolute;
-    bottom: calc(100% + 4px);
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-top-color: var(--border);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s, visibility 0.15s;
-    z-index: 51;
-  }
-  
-  .heatmap-cell:hover::after,
-  .heatmap-cell:hover::before {
+  .cell:hover::after {
     opacity: 1;
     visibility: visible;
   }
   
-  /* Dark mode tooltip arrow fix */
-  .dark .heatmap-cell::before {
-    border-top-color: var(--border);
-  }
-  
-  /* Smooth table scrolling */
   #matchup-matrix {
-    border-spacing: 2px;
-  }
-  
-  /* Header gradient effect */
-  thead th {
-    background: linear-gradient(180deg, var(--muted) 0%, transparent 100%);
-  }
-  
-  /* Row hover effect */
-  tbody tr:hover td:first-child {
-    background: var(--muted);
+    border-spacing: 1px;
   }
 </style>
