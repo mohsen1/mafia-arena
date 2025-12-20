@@ -135,10 +135,8 @@ export class Game {
     // Calculate token usage
     const tokenUsage = this.calculateTokenUsage();
 
-    // Analyze persona consistency (if personas are enabled)
-    const personaAnalysis = this.config.personaEnabled
-      ? analyzePersonaConsistency(this.state.players, this.state.events)
-      : undefined;
+    // Analyze persona consistency (personas are always enabled)
+    const personaAnalysis = analyzePersonaConsistency(this.state.players, this.state.events);
 
     // Create participant results
     const participants = this.createParticipantResults(winner, personaAnalysis);

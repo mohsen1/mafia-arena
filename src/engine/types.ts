@@ -63,7 +63,6 @@ export interface GameConfig {
   readonly teams: readonly TeamAssignment[];
   readonly maxRounds: number;
   readonly discussionEnabled: boolean;
-  readonly personaEnabled?: boolean | undefined;
   readonly personaConstraints?: PersonaConstraints | undefined;
   /** Number of discussion rounds for mafia during night (default: 2) */
   readonly nightDiscussionRounds?: number | undefined;

@@ -253,9 +253,9 @@ export function estimateCost(config: BatchConfig): CostEstimate {
 
 
   // Estimate tokens per game based on player count and settings
-  let tokensMultiplier = 1;
+  // Personas are always enabled (1.2x base multiplier)
+  let tokensMultiplier = 1.2;
   if (gameConfig.discussionEnabled) tokensMultiplier *= 1.5;
-  if (gameConfig.personaEnabled) tokensMultiplier *= 1.2;
   if (gameConfig.contextLevel === 'full') tokensMultiplier *= 2;
 
   const tokensPerGame = Math.round(TOKENS_PER_GAME * tokensMultiplier);

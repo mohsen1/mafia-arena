@@ -271,7 +271,6 @@ describe('Security - Information Hiding', () => {
     it('should include strict persona constraints in prompts when configured', async () => {
       const config: GameConfig = {
         ...createTestConfig(),
-        personaEnabled: true,
         personaConstraints: 'strict',
       };
 

@@ -17,7 +17,6 @@ describe('checkWinCondition', () => {
     ],
     maxRounds: 10,
     discussionEnabled: true,
-    personaEnabled: false,
     personaConstraints: 'moderate',
   });
 
@@ -116,7 +115,6 @@ describe('explainWinCondition', () => {
       ],
       maxRounds: 10,
       discussionEnabled: true,
-      personaEnabled: false,
       personaConstraints: 'moderate',
     };
 
@@ -138,7 +136,6 @@ describe('explainWinCondition', () => {
       ],
       maxRounds: 10,
       discussionEnabled: true,
-      personaEnabled: false,
       personaConstraints: 'moderate',
     };
 

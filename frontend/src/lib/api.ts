@@ -530,7 +530,6 @@ export async function createBatch(data: {
     mafiaCount: number;
     teams: Array<{ modelId: string; team: 'mafia' | 'town'; count: number }>;
     discussionEnabled?: boolean;
-    personaEnabled?: boolean;
     contextLevel?: 'full' | 'windowed' | 'summary';
   };
   useBatchAPI?: boolean;
@@ -642,7 +641,6 @@ export async function getCostEstimate(data: {
     mafiaCount: number;
     teams: Array<{ modelId: string; team: 'mafia' | 'town'; count: number }>;
     discussionEnabled?: boolean;
-    personaEnabled?: boolean;
     contextLevel?: 'full' | 'windowed' | 'summary';
   };
   useBatchAPI?: boolean;

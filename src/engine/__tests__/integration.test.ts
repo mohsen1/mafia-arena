@@ -24,7 +24,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
-        personaEnabled: false,
         personaConstraints: 'moderate',
       };
 
@@ -74,7 +73,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
-        personaEnabled: false,
         personaConstraints: 'moderate',
         nightDiscussionRounds: 0,
         dayDiscussionRounds: 1,
@@ -103,7 +101,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 15,
         discussionEnabled: true,
-        personaEnabled: false,
         personaConstraints: 'moderate',
         nightDiscussionRounds: 0, // Disable for this test
         dayDiscussionRounds: 1,
@@ -145,7 +142,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 2,
         discussionEnabled: true,
-        personaEnabled: false,
         personaConstraints: 'moderate',
       };
 
@@ -173,7 +169,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 5,
         discussionEnabled: false,
-        personaEnabled: false,
         personaConstraints: 'moderate',
       };
 
@@ -216,7 +211,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
-        personaEnabled: false,
         personaConstraints: 'moderate',
       };
 
@@ -242,7 +236,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
-        personaEnabled: false,
         personaConstraints: 'moderate',
       };
 
@@ -281,7 +274,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: false,
-        personaEnabled: false,
         personaConstraints: 'moderate',
       };
 
@@ -304,7 +296,6 @@ describe('Integration Tests', () => {
         ],
         maxRounds: 10,
         discussionEnabled: true,
-        personaEnabled: false,
         personaConstraints: 'moderate',
       };
 
