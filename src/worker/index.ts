@@ -378,7 +378,6 @@ export default {
         }>;
         maxRounds?: number;
         discussionEnabled?: boolean;
-        personaEnabled?: boolean;
         personaConstraints?: 'strict' | 'moderate' | 'free';
         contextLevel?: 'full' | 'windowed' | 'summary';
         contextWindowSize?: number;
@@ -420,7 +419,6 @@ export default {
             teams: body.config.teams,
             maxRounds: body.config.maxRounds ?? 10,
             discussionEnabled: body.config.discussionEnabled ?? true,
-            personaEnabled: body.config.personaEnabled ?? false,
             personaConstraints: body.config.personaConstraints ?? 'moderate',
             contextLevel: body.config.contextLevel ?? 'summary',
             contextWindowSize: body.config.contextWindowSize ?? 3,
@@ -468,7 +466,6 @@ export default {
         }>;
         maxRounds?: number;
         discussionEnabled?: boolean;
-        personaEnabled?: boolean;
         personaConstraints?: 'strict' | 'moderate' | 'free';
         contextLevel?: 'full' | 'windowed' | 'summary';
         contextWindowSize?: number;
@@ -507,7 +504,6 @@ export default {
           teams: body.config.teams,
           maxRounds: body.config.maxRounds ?? 10,
           discussionEnabled: body.config.discussionEnabled ?? true,
-          personaEnabled: body.config.personaEnabled ?? false,
           personaConstraints: body.config.personaConstraints ?? 'moderate',
           contextLevel: body.config.contextLevel ?? 'summary',
           contextWindowSize: body.config.contextWindowSize ?? 3,
@@ -1204,7 +1200,6 @@ export default {
         }>;
         maxRounds?: number;
         discussionEnabled?: boolean;
-        personaEnabled?: boolean;
         personaConstraints?: 'strict' | 'moderate' | 'free';
         contextLevel?: 'full' | 'windowed' | 'summary';
         contextWindowSize?: number;
@@ -1237,7 +1232,6 @@ export default {
         teams: body.config.teams,
         maxRounds: body.config.maxRounds ?? 10,
         discussionEnabled: body.config.discussionEnabled ?? true,
-        personaEnabled: body.config.personaEnabled ?? false,
         personaConstraints: body.config.personaConstraints ?? 'moderate',
         contextLevel: body.config.contextLevel ?? 'summary',
         contextWindowSize: body.config.contextWindowSize ?? 3,
@@ -1405,7 +1399,6 @@ export default {
           count: number;
         }>;
         discussionEnabled?: boolean;
-        personaEnabled?: boolean;
         contextLevel?: 'full' | 'windowed' | 'summary';
       };
       useBatchAPI?: boolean;
@@ -1426,7 +1419,6 @@ export default {
         teams: body.config.teams,
         maxRounds: 10,
         discussionEnabled: body.config.discussionEnabled ?? true,
-        personaEnabled: body.config.personaEnabled ?? false,
         personaConstraints: 'moderate',
         contextLevel: body.config.contextLevel ?? 'summary',
         contextWindowSize: 3,

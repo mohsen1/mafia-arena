@@ -231,15 +231,11 @@ export async function executeIntroductionPhase(
   };
   state = state.withEvent(phaseStartEvent);
 
-  // Generate personas first (if enabled)
-  if (state.config.personaEnabled) {
-    state = await generatePersonas(state, aiProvider, alivePlayers);
-  }
+  // Generate personas for all players
+  state = await generatePersonas(state, aiProvider, alivePlayers);
 
   // Re-fetch players after persona generation (names may have changed)
-  const playersForIntro = state.config.personaEnabled 
-    ? alivePlayers.map(p => state.getPlayer(p.id)!).filter(Boolean)
-    : alivePlayers;
+  const playersForIntro = alivePlayers.map(p => state.getPlayer(p.id)!).filter(Boolean);
 
   // Generate all introduction requests in PARALLEL for faster execution
   const introPromises = playersForIntro.map(async (player) => {

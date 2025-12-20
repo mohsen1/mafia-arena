@@ -161,11 +161,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         </label>
 
         <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" id="personaEnabled" name="personaEnabled" class="rounded" />
-          <span class="text-sm">Enable Persona Generation</span>
-        </label>
-
-        <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" id="useBatchAPI" name="useBatchAPI" class="rounded" />
           <span class="text-sm">Use Batch API (50% cheaper, 24h delay)</span>
         </label>
@@ -258,7 +253,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
   }
 
   // Update estimate on any change
-  const updateTriggers = ['playerCount', 'mafiaCount', 'discussionEnabled', 'personaEnabled', 'useBatchAPI', 'contextLevel'];
+  const updateTriggers = ['playerCount', 'mafiaCount', 'discussionEnabled', 'useBatchAPI', 'contextLevel'];
   updateTriggers.forEach(id => {
     document.getElementById(id)?.addEventListener('change', updateEstimate);
   });
@@ -269,14 +264,12 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
     const playerCountEl = document.getElementById('playerCount');
     const mafiaCountEl = document.getElementById('mafiaCount');
     const discussionEnabledEl = document.getElementById('discussionEnabled');
-    const personaEnabledEl = document.getElementById('personaEnabled');
     const useBatchAPIEl = document.getElementById('useBatchAPI');
     const contextLevelEl = document.getElementById('contextLevel');
 
     const playerCount = playerCountEl ? parseInt(playerCountEl.value) : 7;
     const mafiaCount = mafiaCountEl ? parseInt(mafiaCountEl.value) : 2;
     const discussionEnabled = discussionEnabledEl ? discussionEnabledEl.checked : true;
-    const personaEnabled = personaEnabledEl ? personaEnabledEl.checked : false;
     const useBatchAPI = useBatchAPIEl ? useBatchAPIEl.checked : false;
     const contextLevel = contextLevelEl ? contextLevelEl.value : 'summary';
 
@@ -294,7 +287,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
               { modelId: 'estimate', team: 'town', count: playerCount - mafiaCount },
             ],
             discussionEnabled,
-            personaEnabled,
             contextLevel,
           },
           useBatchAPI,
@@ -349,7 +341,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
                 { modelId: modelB, team: 'town', count: playerCount - mafiaCount },
               ],
               discussionEnabled: formData.get('discussionEnabled') === 'on',
-              personaEnabled: formData.get('personaEnabled') === 'on',
               contextLevel: formData.get('contextLevel') || 'summary',
             },
             useBatchAPI: formData.get('useBatchAPI') === 'on',

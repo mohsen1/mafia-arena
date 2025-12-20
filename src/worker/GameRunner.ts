@@ -416,7 +416,6 @@ export class GameRunner extends DurableObject<Env> {
       })),
       maxRounds: config.maxRounds,
       discussionEnabled: config.discussionEnabled,
-      personaEnabled: config.personaEnabled,
       personaConstraints: config.personaConstraints,
       seed, // Include seed for reproducibility
       contextLevel: config.contextLevel ?? 'summary',

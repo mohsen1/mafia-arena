@@ -19,7 +19,6 @@ describe('Game', () => {
     ],
     maxRounds: 10,
     discussionEnabled: false, // Disable for faster tests
-    personaEnabled: false,
     personaConstraints: 'moderate',
   });
 

@@ -18,7 +18,6 @@ describe('executeNightPhase', () => {
     ],
     maxRounds: 10,
     discussionEnabled: true,
-    personaEnabled: false,
     personaConstraints: 'moderate',
     nightDiscussionRounds: 0, // Disable mafia discussion for these unit tests
   });

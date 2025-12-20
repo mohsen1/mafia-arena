@@ -115,7 +115,6 @@ export interface GameQueueConfig {
   }>;
   maxRounds: number;
   discussionEnabled: boolean;
-  personaEnabled: boolean;
   personaConstraints: 'strict' | 'moderate' | 'free';
   /** Optional seed for reproducible games (generated if not provided) */
   seed?: number;
