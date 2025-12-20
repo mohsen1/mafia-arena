@@ -11,10 +11,13 @@ const PRICING: Record<string, { input: number; output: number }> = {
   'gpt-5-mini': { input: 0.0003, output: 0.0012 },
   'gpt-5-nano': { input: 0.0001, output: 0.0004 },
 
-  // Anthropic Claude 4.5 series
-  'claude-sonnet-4-5-20250929': { input: 0.003, output: 0.015 },
-  'claude-haiku-4-5-20251001': { input: 0.001, output: 0.005 },
-  'claude-opus-4-5-20251101': { input: 0.005, output: 0.025 },
+  // Anthropic Claude 4.5 series (aliases)
+  'claude-sonnet-4-5': { input: 0.003, output: 0.015 },
+  'claude-haiku-4-5': { input: 0.001, output: 0.005 },
+  'claude-opus-4-5': { input: 0.005, output: 0.025 },
+  // Anthropic Claude 3.5 series
+  'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
+  'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
 
   // Google Gemini 3.x series (preview)
   'gemini-3-pro-preview': { input: 0.00125, output: 0.005 },
@@ -42,9 +45,12 @@ const BATCH_PRICING: Record<string, { input: number; output: number }> = {
   'gpt-5-nano': { input: 0.00005, output: 0.0002 },
 
   // Anthropic Claude 4.5 Batch (~50% discount)
-  'claude-sonnet-4-5-20250929': { input: 0.0015, output: 0.0075 },
-  'claude-haiku-4-5-20251001': { input: 0.0005, output: 0.0025 },
-  'claude-opus-4-5-20251101': { input: 0.0025, output: 0.0125 },
+  'claude-sonnet-4-5': { input: 0.0015, output: 0.0075 },
+  'claude-haiku-4-5': { input: 0.0005, output: 0.0025 },
+  'claude-opus-4-5': { input: 0.0025, output: 0.0125 },
+  // Anthropic Claude 3.5 Batch
+  'claude-3-5-sonnet-20241022': { input: 0.0015, output: 0.0075 },
+  'claude-3-opus-20240229': { input: 0.0075, output: 0.0375 },
 
   // Google Gemini 3.x Batch (~50% discount)
   'gemini-3-pro-preview': { input: 0.000625, output: 0.0025 },
