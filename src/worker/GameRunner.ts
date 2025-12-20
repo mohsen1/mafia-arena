@@ -272,11 +272,31 @@ export class GameRunner extends DurableObject<Env> {
   private async handleStart(request: Request): Promise<Response> {
     const currentState = await this.loadState();
     
-    if (currentState.status === 'running') {
+    // Check if game is stuck in "running" state (stale after 10 minutes)
+    const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+    const isStale = currentState.status === 'running' && 
+      currentState.startedAt && 
+      (Date.now() - currentState.startedAt) > STALE_THRESHOLD_MS;
+
+    if (currentState.status === 'running' && !isStale) {
       return Response.json(
         { error: 'Game already running', gameId: currentState.gameId },
         { status: 409 }
       );
+    }
+
+    // If stale, log and reset
+    if (isStale) {
+      console.log(`Game ${currentState.gameId} was stale (started ${Math.round((Date.now() - currentState.startedAt!) / 1000 / 60)} min ago), resetting`);
+      await this.saveState({
+        status: 'failed',
+        error: 'Game timed out (stale)',
+        completedAt: Date.now(),
+      });
+      // Update D1 if game was inserted
+      if (currentState.gameId) {
+        await this.updateGameStatus(currentState.gameId, 'failed', 'Game timed out');
+      }
     }
 
     try {
@@ -439,13 +459,25 @@ export class GameRunner extends DurableObject<Env> {
       this.eventLog.push(event);
 
       // Persist periodically (every 10 events or on important events)
+      // DO storage has 128KB limit, so we truncate if needed
+      const MAX_STORAGE_BYTES = 100_000; // 100KB to leave headroom
       if (
         this.eventLog.length % 10 === 0 ||
         event.type === 'elimination' ||
         event.type === 'game_end' ||
         event.type === 'phase_start'
       ) {
-        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog);
+        const eventsToStore = this.eventLog;
+        const serialized = JSON.stringify(eventsToStore);
+        
+        // If too large, keep only the most recent events
+        if (serialized.length > MAX_STORAGE_BYTES) {
+          console.warn(`Event log too large (${serialized.length} bytes), truncating to recent events`);
+          const truncated = this.eventLog.slice(-50); // Keep last 50 events
+          await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, truncated);
+        } else {
+          await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
+        }
       }
 
       // Broadcast to connected WebSocket clients
@@ -462,8 +494,15 @@ export class GameRunner extends DurableObject<Env> {
 
     console.log(`Game ${gameId} completed: ${result.winner} wins in ${result.rounds} rounds`);
 
-    // Final persist of all events
-    await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog);
+    // Final persist of all events (with size check)
+    const MAX_STORAGE_BYTES = 100_000;
+    const serialized = JSON.stringify(this.eventLog);
+    if (serialized.length > MAX_STORAGE_BYTES) {
+      console.warn(`Final event log too large (${serialized.length} bytes), truncating`);
+      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog.slice(-50));
+    } else {
+      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog);
+    }
 
     // Persist results (idempotent)
     await this.persistResults(result, batchId);
