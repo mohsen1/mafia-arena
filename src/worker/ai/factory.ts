@@ -30,7 +30,7 @@ export function createProvider(
     throw AIErrors.unsupportedModel(modelId);
   }
 
-  const { enableRetry = true, maxRetries = 3, timeoutMs = 30000 } = options;
+  const { enableRetry = true, maxRetries = 8, timeoutMs = 60000 } = options;
 
   if (!env.OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY is required - all models are accessed via OpenRouter');

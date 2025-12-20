@@ -83,8 +83,9 @@ export const AIErrors = {
  */
 export function isRetryableError(error: unknown): boolean {
   if (error instanceof AIError) {
-    // Don't retry auth errors or invalid requests
-    const nonRetryable: AIErrorCode[] = ['AUTH_ERROR', 'INVALID_REQUEST', 'UNSUPPORTED_MODEL'];
+    // Only don't retry for unsupported models or clearly invalid requests
+    // Auth errors from OpenRouter might be temporary (rate limits disguised as 401)
+    const nonRetryable: AIErrorCode[] = ['UNSUPPORTED_MODEL', 'INVALID_REQUEST'];
     return !nonRetryable.includes(error.code);
   }
   // Retry unknown errors
