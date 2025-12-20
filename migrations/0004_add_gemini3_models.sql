@@ -11,3 +11,5 @@ INSERT OR IGNORE INTO models (id, provider, display_name) VALUES
 -- Update gemini-2.0-flash display name (if needed)
 UPDATE models SET display_name = 'Gemini 2.0 Flash' WHERE id = 'gemini-2.0-flash';
 
+
+
