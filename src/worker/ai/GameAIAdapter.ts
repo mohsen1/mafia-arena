@@ -60,7 +60,7 @@ export class GameAIAdapter implements AIProvider {
       userPrompt: prompt.userPrompt,
       structuredOutput,
       temperature: 0.7,
-      maxTokens: 1000,
+      maxTokens: 4000,
     });
 
     // Parse the response into a PlayerAction - throws AIParseError on failure
