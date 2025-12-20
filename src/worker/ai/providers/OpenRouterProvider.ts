@@ -66,7 +66,7 @@ export class OpenRouterProvider extends BaseProvider {
     const body: Record<string, unknown> = {
       model: this.openRouterModelId,
       messages,
-      max_tokens: request.maxTokens ?? 1000,
+      max_tokens: request.maxTokens ?? 4000,
       temperature: request.temperature ?? 0.7,
     };
 
