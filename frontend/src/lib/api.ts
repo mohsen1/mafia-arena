@@ -666,3 +666,55 @@ export async function getCostEstimate(data: {
   return res.json();
 }
 
+/**
+ * Game configuration for running a live game.
+ */
+export interface LiveGameConfig {
+  playerCount: number;
+  mafiaCount: number;
+  teams: Array<{ modelId: string; team: 'mafia' | 'town'; count: number }>;
+  maxRounds?: number;
+  discussionEnabled?: boolean;
+  personaConstraints?: 'strict' | 'moderate' | 'free';
+  contextLevel?: 'full' | 'windowed' | 'summary';
+  contextWindowSize?: number;
+}
+
+/**
+ * Response from running a live game.
+ */
+export interface LiveGameResponse {
+  success: boolean;
+  gameId: string;
+  batchId: string;
+  seed: number;
+  status: string;
+  liveUrl: string;
+  message: string;
+  budget: {
+    spent: string;
+    remaining: string;
+    limit: number;
+  };
+}
+
+/**
+ * Run a single game with live streaming.
+ * Starts the game in background mode and returns immediately.
+ * Use the returned liveUrl to connect via WebSocket for real-time updates.
+ */
+export async function runLiveGame(config: LiveGameConfig): Promise<LiveGameResponse> {
+  const res = await fetch(`${API_URL}/api/admin/games/run-live`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ config }),
+  });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
+  if (res.status === 402) throw new Error('BUDGET_EXCEEDED');
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || 'Failed to start live game');
+  }
+  return res.json();
+}
+

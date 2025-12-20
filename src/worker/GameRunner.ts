@@ -321,6 +321,11 @@ export class GameRunner extends DurableObject<Env> {
 
   /**
    * Start a new game.
+   * 
+   * Supports two modes:
+   * - Synchronous (default): Waits for game to complete before returning
+   * - Background (background=true): Returns immediately, game runs via ctx.waitUntil
+   *   Useful for live watching where frontend connects via WebSocket
    */
   private async handleStart(request: Request): Promise<Response> {
     const currentState = await this.loadState();
@@ -357,9 +362,11 @@ export class GameRunner extends DurableObject<Env> {
         gameId: string;
         batchId: string;
         config: GameQueueConfig;
+        /** Run in background mode - returns immediately while game executes */
+        background?: boolean;
       };
 
-      const { gameId, batchId, config } = body;
+      const { gameId, batchId, config, background = false } = body;
 
       // Generate seed for reproducibility if not provided
       const seed = config.seed ?? generateSeed();
@@ -394,7 +401,21 @@ export class GameRunner extends DurableObject<Env> {
       // Insert 'running' record into D1 immediately so game appears in lists
       await this.insertRunningGame(gameId, batchId, gameConfig, startedAt);
 
-      // Run the game synchronously so errors are properly surfaced
+      // Background mode: Return immediately, run game via waitUntil
+      // This is used for live watching where frontend connects via WebSocket
+      if (background) {
+        this.ctx.waitUntil(this.runGameWithErrorHandling(gameId, batchId, gameConfig));
+        return Response.json({ 
+          success: true, 
+          gameId, 
+          seed, 
+          status: 'running',
+          message: 'Game started in background. Connect to WebSocket for live updates.',
+          liveUrl: `/api/games/${gameId}/live`,
+        });
+      }
+
+      // Synchronous mode: Run the game and wait for completion
       try {
         await this.runGame(gameId, batchId, gameConfig);
         return Response.json({ success: true, gameId, seed, status: 'completed' });
@@ -436,6 +457,40 @@ export class GameRunner extends DurableObject<Env> {
         { error: 'Failed to start game', details: error instanceof Error ? error.message : String(error) },
         { status: 500 }
       );
+    }
+  }
+
+  /**
+   * Run game with error handling for background execution.
+   * Used with ctx.waitUntil() for non-blocking game execution.
+   */
+  private async runGameWithErrorHandling(
+    gameId: string, 
+    batchId: string, 
+    gameConfig: GameConfig
+  ): Promise<void> {
+    try {
+      await this.runGame(gameId, batchId, gameConfig);
+    } catch (error) {
+      console.error(`Background game ${gameId} failed:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      await this.saveState({
+        status: 'failed',
+        error: errorMessage,
+        completedAt: Date.now(),
+      });
+
+      // Update game status to failed in D1
+      await this.updateGameStatus(gameId, 'failed', errorMessage);
+
+      // Broadcast error to connected clients
+      this.broadcast({
+        type: 'ERROR',
+        error: errorMessage,
+        status: 'failed',
+        gameId,
+      });
     }
   }
 

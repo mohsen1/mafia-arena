@@ -1,6 +1,6 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut } from 'lucide-astro';
+import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut, Radio } from 'lucide-astro';
 
 const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.workers.dev';
 ---
@@ -138,7 +138,19 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       </section>
 
       <!-- Quick Actions -->
-      <section class="grid gap-4 md:grid-cols-3">
+      <section class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <a href="/admin/games/new" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group bg-gradient-to-br from-red-500/5 to-orange-500/5 border-red-500/20">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-lg">
+              <Radio size={20} class="text-red-500" />
+            </div>
+            <div>
+              <h3 class="font-medium group-hover:underline">Run Live Game</h3>
+              <p class="text-xs text-muted-foreground">Watch a single game in real-time</p>
+            </div>
+          </div>
+        </a>
+
         <a href="/admin/batches/new" class="border rounded-lg p-4 hover:bg-muted/30 transition-colors group">
           <div class="flex items-center gap-3">
             <div class="p-2 bg-primary/10 rounded-lg">
