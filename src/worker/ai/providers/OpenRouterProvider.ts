@@ -35,37 +35,12 @@ interface OpenRouterResponse {
 }
 
 /**
- * Map our model IDs to OpenRouter model IDs.
- * See: https://openrouter.ai/models
+ * Model IDs are now OpenRouter IDs directly (e.g., "openai/gpt-5.2").
+ * This function ensures the ID is passed through correctly.
  */
-const MODEL_MAPPING: Record<string, string> = {
-  // OpenAI models
-  'gpt-4o': 'openai/gpt-4o',
-  'gpt-4o-mini': 'openai/gpt-4o-mini',
-  'gpt-5.2': 'openai/gpt-5.2',
-  'gpt-5.2-pro': 'openai/gpt-5.2-pro',
-  'gpt-5-mini': 'openai/gpt-5-mini',
-  'gpt-5-nano': 'openai/gpt-5-nano',
-  
-  // Anthropic Claude 4.5 (note: OpenRouter uses dots, not dashes)
-  'claude-opus-4-5': 'anthropic/claude-opus-4.5',
-  'claude-sonnet-4-5': 'anthropic/claude-sonnet-4.5',
-  'claude-haiku-4-5': 'anthropic/claude-haiku-4.5',
-  // Anthropic Claude 3.5/3
-  'claude-3-5-sonnet-20241022': 'anthropic/claude-3.5-sonnet',
-  'claude-3-opus-20240229': 'anthropic/claude-3-opus',
-  
-  // Google Gemini models (exact OpenRouter IDs)
-  'gemini-3-pro-preview': 'google/gemini-3-pro-preview',
-  'gemini-3-flash-preview': 'google/gemini-3-flash-preview',
-  'gemini-2.5-pro': 'google/gemini-2.5-pro',
-  'gemini-2.5-flash': 'google/gemini-2.5-flash',
-  'gemini-2.5-flash-lite': 'google/gemini-2.5-flash-lite',
-  'gemini-2.0-flash': 'google/gemini-2.0-flash-001',
-  'gemini-2.0-flash-lite': 'google/gemini-2.0-flash-lite-001',
-  'gemini-1.5-pro': 'google/gemini-pro-1.5',
-  'gemini-1.5-flash': 'google/gemini-flash-1.5',
-};
+function getOpenRouterModelId(modelId: string): string {
+  return modelId;
+}
 
 export class OpenRouterProvider extends BaseProvider {
   readonly name = 'openrouter';
@@ -77,7 +52,7 @@ export class OpenRouterProvider extends BaseProvider {
   constructor(config: AIProviderConfig) {
     super(config);
     this.modelId = config.modelId;
-    this.openRouterModelId = MODEL_MAPPING[config.modelId] || config.modelId;
+    this.openRouterModelId = getOpenRouterModelId(config.modelId);
   }
 
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
