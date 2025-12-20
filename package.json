@@ -13,7 +13,13 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\""
   },
-  "keywords": ["ai", "benchmark", "mafia", "llm", "cloudflare"],
+  "keywords": [
+    "ai",
+    "benchmark",
+    "mafia",
+    "llm",
+    "cloudflare"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
@@ -21,15 +27,16 @@
     "@types/node": "^22.10.2",
     "eslint": "^9.16.0",
     "prettier": "^3.4.2",
+    "puppeteer": "^24.34.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8",
     "wrangler": "^3.99.0"
   },
   "dependencies": {
+    "hono": "^4.11.1",
     "zod": "^3.24.1"
   },
   "engines": {
     "node": ">=20.0.0"
   }
 }
-

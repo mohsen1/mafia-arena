@@ -11,7 +11,14 @@ import type { AIProvider, AIContext, ActionPrompt, AIResponse, PlayerAction } fr
 import type { AIProviderInterface } from './types.js';
 import { AIErrors } from './errors.js';
 import { getSchemaForAction } from './types.js';
-import { sanitizePersona } from '../../engine/utils/sanitize.js';
+import {
+  PersonaSchema,
+  IntroductionSchema,
+  KillVoteSchema,
+  DiscussionSchema,
+  MafiaDiscussionSchema,
+  EliminationVoteSchema,
+} from './schemas.js';
 
 /**
  * Error thrown when AI response cannot be parsed into a valid action.
@@ -132,88 +139,55 @@ export class GameAIAdapter implements AIProvider {
   }
 
   private parsePersonaGeneration(parsed: unknown, modelId: string): PlayerAction {
-    if (typeof parsed !== 'object' || parsed === null) {
+    const result = PersonaSchema.safeParse(parsed);
+    
+    if (!result.success) {
+      const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new AIParseError(
         'persona_generation',
         JSON.stringify(parsed),
-        'Response is not an object',
+        errors,
         modelId
       );
     }
 
-    const data = parsed as Record<string, unknown>;
-    
-    if (typeof data.name !== 'string' || data.name.trim().length === 0) {
-      throw new AIParseError(
-        'persona_generation',
-        JSON.stringify(parsed),
-        'Missing or invalid "name" field',
-        modelId
-      );
-    }
-    
-    if (typeof data.background !== 'string' || data.background.trim().length === 0) {
-      throw new AIParseError(
-        'persona_generation',
-        JSON.stringify(parsed),
-        'Missing or invalid "background" field',
-        modelId
-      );
-    }
-    
-    if (typeof data.personality !== 'string' || data.personality.trim().length === 0) {
-      throw new AIParseError(
-        'persona_generation',
-        JSON.stringify(parsed),
-        'Missing or invalid "personality" field',
-        modelId
-      );
-    }
-
-    // Sanitize persona to prevent prompt injection
-    const personaInput: {
+    // Return validated persona - sanitization happens in the engine layer
+    // This keeps the adapter focused on structure validation (zod)
+    // and the engine handles content safety (sanitization)
+    const persona: {
       name: string;
       background: string;
       personality: string;
       occupation?: string;
     } = {
-      name: data.name,
-      background: data.background,
-      personality: data.personality,
+      name: result.data.name,
+      background: result.data.background,
+      personality: result.data.personality,
     };
-    if (typeof data.occupation === 'string') {
-      personaInput.occupation = data.occupation;
+    if (result.data.occupation !== undefined) {
+      persona.occupation = result.data.occupation;
     }
-    const sanitized = sanitizePersona(personaInput);
 
     return {
       type: 'persona_generation',
-      persona: sanitized,
+      persona,
     };
   }
 
   private parseIntroduction(parsed: unknown, modelId: string): PlayerAction {
-    if (typeof parsed !== 'object' || parsed === null) {
-      throw new AIParseError(
-        'introduction',
-        JSON.stringify(parsed),
-        'Response is not an object',
-        modelId
-      );
-    }
-
-    const data = parsed as Record<string, unknown>;
+    const result = IntroductionSchema.safeParse(parsed);
     
-    if (typeof data.message !== 'string' || data.message.trim().length === 0) {
+    if (!result.success) {
+      const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new AIParseError(
         'introduction',
         JSON.stringify(parsed),
-        'Missing or invalid "message" field',
+        errors,
         modelId
       );
     }
 
-    return { type: 'introduction', message: data.message.trim() };
+    return { type: 'introduction', message: result.data.message.trim() };
   }
 
   private parseKillVote(
@@ -221,17 +195,19 @@ export class GameAIAdapter implements AIProvider {
     validTargets: readonly string[] | undefined,
     modelId: string
   ): PlayerAction {
-    if (typeof parsed !== 'object' || parsed === null) {
+    const result = KillVoteSchema.safeParse(parsed);
+    
+    if (!result.success) {
+      const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new AIParseError(
         'kill_vote',
         JSON.stringify(parsed),
-        'Response is not an object',
+        errors,
         modelId
       );
     }
 
-    const data = parsed as Record<string, unknown>;
-    const target = String(data.target ?? data.vote ?? '').trim();
+    const target = (result.data.target ?? result.data.vote ?? '').trim();
 
     if (!target) {
       throw new AIParseError(
@@ -256,51 +232,35 @@ export class GameAIAdapter implements AIProvider {
   }
 
   private parseDiscussion(parsed: unknown, modelId: string): PlayerAction {
-    if (typeof parsed !== 'object' || parsed === null) {
-      throw new AIParseError(
-        'discussion',
-        JSON.stringify(parsed),
-        'Response is not an object',
-        modelId
-      );
-    }
-
-    const data = parsed as Record<string, unknown>;
+    const result = DiscussionSchema.safeParse(parsed);
     
-    if (typeof data.message !== 'string' || data.message.trim().length === 0) {
+    if (!result.success) {
+      const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new AIParseError(
         'discussion',
         JSON.stringify(parsed),
-        'Missing or invalid "message" field',
+        errors,
         modelId
       );
     }
 
-    return { type: 'discussion', message: data.message.trim() };
+    return { type: 'discussion', message: result.data.message.trim() };
   }
 
   private parseMafiaDiscussion(parsed: unknown, modelId: string): PlayerAction {
-    if (typeof parsed !== 'object' || parsed === null) {
-      throw new AIParseError(
-        'mafia_discussion',
-        JSON.stringify(parsed),
-        'Response is not an object',
-        modelId
-      );
-    }
-
-    const data = parsed as Record<string, unknown>;
+    const result = MafiaDiscussionSchema.safeParse(parsed);
     
-    if (typeof data.message !== 'string' || data.message.trim().length === 0) {
+    if (!result.success) {
+      const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new AIParseError(
         'mafia_discussion',
         JSON.stringify(parsed),
-        'Missing or invalid "message" field',
+        errors,
         modelId
       );
     }
 
-    return { type: 'mafia_discussion', message: data.message.trim() };
+    return { type: 'mafia_discussion', message: result.data.message.trim() };
   }
 
   private parseEliminationVote(
@@ -308,16 +268,19 @@ export class GameAIAdapter implements AIProvider {
     validTargets: readonly string[] | undefined,
     modelId: string
   ): PlayerAction {
-    if (typeof parsed !== 'object' || parsed === null) {
+    const result = EliminationVoteSchema.safeParse(parsed);
+    
+    if (!result.success) {
+      const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new AIParseError(
         'elimination_vote',
         JSON.stringify(parsed),
-        'Response is not an object',
+        errors,
         modelId
       );
     }
 
-    const data = parsed as Record<string, unknown>;
+    const data = result.data;
     
     // Handle explicit null/abstention
     if (data.vote === null || data.vote === 'null' || data.vote === '') {

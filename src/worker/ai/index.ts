@@ -47,3 +47,22 @@ export { createProvider, createProvidersForGame, type CreateProviderOptions } fr
 // Game adapter
 export { GameAIAdapter } from './GameAIAdapter.js';
 
+// Zod schemas for action validation
+export {
+  PersonaSchema,
+  IntroductionSchema,
+  KillVoteSchema,
+  DiscussionSchema,
+  MafiaDiscussionSchema,
+  EliminationVoteSchema,
+  getActionSchema,
+} from './schemas.js';
+export type {
+  PersonaInput,
+  IntroductionInput,
+  KillVoteInput,
+  DiscussionInput,
+  MafiaDiscussionInput,
+  EliminationVoteInput,
+} from './schemas.js';
+
