@@ -124,6 +124,36 @@ export class GameRunner extends DurableObject<Env> {
     super(ctx, env);
     this.log = createLogger('GameRunner', { doId: ctx.id.toString().slice(-8) });
     this.log.info('DO initialized');
+
+    // Auto-resume interrupted games if they are not stale
+    this.ctx.blockConcurrencyWhile(async () => {
+      const state = await this.loadState();
+      
+      if (state.status === 'running' && state.startedAt && state.gameId && state.batchId) {
+        const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+        const isStale = (Date.now() - state.startedAt) > STALE_THRESHOLD_MS;
+        
+        if (!isStale) {
+          const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
+          if (config) {
+            this.log.info('Resuming interrupted game', { gameId: state.gameId });
+            const gameConfig = this.toGameConfig(config, state.seed || 0);
+            
+            // In DO environment, any unfinished waitUntil tasks are lost on eviction.
+            // By calling it here, we ensure it starts again when the DO wakes up.
+            this.ctx.waitUntil(this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig));
+          }
+        } else {
+          this.log.warn('Interrupted game is stale, marking as failed', { gameId: state.gameId });
+          await this.saveState({
+            status: 'failed',
+            error: 'Interrupted and timed out (stale)',
+            completedAt: Date.now(),
+          });
+          await this.updateGameStatus(state.gameId, 'failed', 'Interrupted and timed out');
+        }
+      }
+    });
   }
 
   /**
@@ -162,7 +192,7 @@ export class GameRunner extends DurableObject<Env> {
   /**
    * Save state to storage.
    */
-  private async saveState(state: Partial<GameRunnerState>): Promise<void> {
+  private async saveState(state: Partial<GameRunnerState & { config: GameQueueConfig }>): Promise<void> {
     const storage = this.ctx.storage;
     const updates: Promise<void>[] = [];
 
@@ -193,6 +223,9 @@ export class GameRunner extends DurableObject<Env> {
     if (state.seed !== undefined) {
       updates.push(storage.put(STORAGE_KEYS.SEED, state.seed));
       if (this.stateCache) this.stateCache.seed = state.seed;
+    }
+    if (state.config !== undefined) {
+      updates.push(storage.put(STORAGE_KEYS.CONFIG, state.config));
     }
 
     await Promise.all(updates);
@@ -426,6 +459,7 @@ export class GameRunner extends DurableObject<Env> {
         completedAt: null,
         error: null,
         seed,
+        config, // Store config for resume logic
       });
 
       // Reset event log
@@ -740,14 +774,15 @@ export class GameRunner extends DurableObject<Env> {
     const db = this.env.DB;
     const transcripts = this.env.TRANSCRIPTS;
 
-    // Check if this game was already persisted (idempotency check)
+    // Check if this game was already completed (idempotency check)
+    // Note: Record might exist with status 'running' from insertRunningGame()
     const existingGame = await db
-      .prepare('SELECT id FROM games WHERE id = ?')
+      .prepare('SELECT status FROM games WHERE id = ?')
       .bind(result.id)
-      .first();
+      .first<{ status: string }>();
 
-    if (existingGame) {
-      console.log(`Game ${result.id} already persisted, skipping to avoid double-counting`);
+    if (existingGame?.status === 'completed') {
+      console.log(`Game ${result.id} already completed, skipping to avoid double-counting`);
       return;
     }
 
