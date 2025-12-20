@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env, BatchConfig } from '../types.js';
-import { Errors } from '../utils/errors.js';
+import { Errors, checkBudget } from '../utils/index.js';
 import {
   createBatch,
   getBatch,
@@ -290,6 +290,123 @@ admin.post('/estimate', async (c) => {
   });
 
   return c.json(estimate);
+});
+
+/**
+ * POST /api/admin/games/run-live - Run a single game with live streaming.
+ * Starts the game in background mode and returns immediately so the
+ * frontend can connect to the WebSocket for real-time updates.
+ */
+admin.post('/games/run-live', async (c) => {
+  const env = c.env;
+
+  // Check daily budget
+  const budget = await checkBudget(env.DB);
+  if (!budget.allowed) {
+    throw Errors.BudgetExceeded();
+  }
+
+  interface RunLiveGameRequest {
+    config: {
+      playerCount: number;
+      mafiaCount: number;
+      teams: Array<{
+        modelId: string;
+        team: 'mafia' | 'town';
+        count: number;
+      }>;
+      maxRounds?: number;
+      discussionEnabled?: boolean;
+      personaConstraints?: 'strict' | 'moderate' | 'free';
+      contextLevel?: 'full' | 'windowed' | 'summary';
+      contextWindowSize?: number;
+    };
+  }
+
+  let body: RunLiveGameRequest;
+  try {
+    body = await c.req.json<RunLiveGameRequest>();
+  } catch {
+    throw Errors.BadRequest('Invalid JSON body');
+  }
+
+  // Validate configuration
+  if (!body.config || !body.config.teams || body.config.teams.length === 0) {
+    throw Errors.BadRequest('Invalid game configuration: teams required');
+  }
+
+  const { config } = body;
+
+  // Validate player counts
+  const totalTeamPlayers = config.teams.reduce((sum, t) => sum + t.count, 0);
+  if (totalTeamPlayers !== config.playerCount) {
+    throw Errors.BadRequest(`Team player counts (${totalTeamPlayers}) must equal playerCount (${config.playerCount})`);
+  }
+
+  const mafiaPlayers = config.teams
+    .filter(t => t.team === 'mafia')
+    .reduce((sum, t) => sum + t.count, 0);
+  if (mafiaPlayers !== config.mafiaCount) {
+    throw Errors.BadRequest(`Mafia team counts (${mafiaPlayers}) must equal mafiaCount (${config.mafiaCount})`);
+  }
+
+  // Generate IDs
+  const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_live`;
+  const batchId = `batch_${Date.now().toString(36)}_live`;
+
+  // Get Durable Object instance and start game in background mode
+  const id = env.GAME_RUNNER.idFromName(gameId);
+  const stub = env.GAME_RUNNER.get(id);
+
+  console.log(`Starting live game ${gameId} via admin panel`);
+
+  const response = await stub.fetch('http://internal/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gameId,
+      batchId,
+      config: {
+        playerCount: config.playerCount,
+        mafiaCount: config.mafiaCount,
+        teams: config.teams,
+        maxRounds: config.maxRounds ?? 10,
+        discussionEnabled: config.discussionEnabled ?? true,
+        personaConstraints: config.personaConstraints ?? 'moderate',
+        contextLevel: config.contextLevel ?? 'summary',
+        contextWindowSize: config.contextWindowSize ?? 3,
+      },
+      background: true, // Run in background mode for live streaming
+    }),
+  });
+
+  if (!response.ok) {
+    const error = (await response.json()) as { error: string };
+    throw Errors.Internal(error.error ?? 'Failed to start game');
+  }
+
+  const result = await response.json() as { 
+    success: boolean; 
+    gameId: string; 
+    seed: number;
+    status: string;
+    liveUrl: string;
+  };
+
+  return c.json({
+    success: true,
+    gameId,
+    batchId,
+    seed: result.seed,
+    status: result.status,
+    liveUrl: `/games/${gameId}/live`,
+    message: 'Game started. Redirect to live URL to watch progress.',
+    budget: {
+      spent: budget.spent.toFixed(4),
+      remaining: budget.remaining.toFixed(4),
+      limit: budget.limit,
+    },
+  });
 });
 
 export default admin;
