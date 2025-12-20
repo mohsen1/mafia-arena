@@ -549,8 +549,8 @@ export class GameRunner extends DurableObject<Env> {
     try {
       this.log.debug('Inserting running game record', { gameId, batchId });
       await this.env.DB.prepare(
-        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, status, seed, created_at)
-         VALUES (?, ?, ?, ?, ?, 'running', ?, ?)
+        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, created_at)
+         VALUES (?, ?, ?, ?, ?, NULL, 0, 0, 0, 'running', ?, ?)
          ON CONFLICT (id) DO UPDATE SET status = 'running', created_at = excluded.created_at`
       ).bind(
         gameId,

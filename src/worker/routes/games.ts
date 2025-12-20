@@ -327,13 +327,14 @@ games.get('/:id/live', async (c) => {
   const stub = env.GAME_RUNNER.get(doId);
 
   // Forward the WebSocket upgrade request to the Durable Object
-  // We need to forward the original request to preserve all WebSocket headers
-  const url = new URL(c.req.url);
-  url.pathname = '/websocket';
-  
-  return stub.fetch(url.toString(), {
+  // Use internal URL - DO's fetch handles this internally
+  // Clone the original request to preserve all WebSocket-related headers
+  const wsRequest = new Request('http://internal/websocket', {
+    method: 'GET',
     headers: c.req.raw.headers,
   });
+  
+  return stub.fetch(wsRequest);
 });
 
 /**
