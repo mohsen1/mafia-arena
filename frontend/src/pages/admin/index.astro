@@ -59,6 +59,16 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
           <Activity size={16} />
           <span>View Stats</span>
         </a>
+
+        <button 
+          id="killHangingBtn"
+          class="inline-flex items-center gap-2 px-4 py-2 border border-red-500/50 text-red-600 dark:text-red-400 rounded-md text-sm font-medium hover:bg-red-500/10 transition-colors"
+          title="Kill games running >10 minutes"
+        >
+          <AlertTriangle size={16} />
+          <span id="kill-btn-text">Kill Hanging Games</span>
+          <span id="hanging-count" class="hidden px-1.5 py-0.5 rounded-full bg-red-500/20 text-xs font-bold tabular-nums"></span>
+        </button>
       </section>
 
       <!-- Mission Control HUD -->
@@ -84,7 +94,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       </div>
 
       <!-- Stats Grid -->
-      <div class="grid gap-4 md:grid-cols-3">
+      <div class="grid gap-4 md:grid-cols-2">
         <!-- Active Operations -->
         <div class="border rounded-lg p-5 space-y-3 bg-gradient-to-br from-indigo-500/5 to-transparent">
           <div class="flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400">
@@ -116,51 +126,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
           <div>
             <div id="cost-today" class="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">$—</div>
             <div class="text-xs text-muted-foreground">spent today</div>
-          </div>
-          <p id="budget-remaining" class="text-sm text-muted-foreground font-medium">$— remaining</p>
-        </div>
-
-        <!-- Budget Fuel Tank -->
-        <div class="border rounded-lg p-5 space-y-3 bg-gradient-to-br from-amber-500/5 to-transparent">
-          <div class="flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
-            <Activity size={18} />
-            <span>Budget Fuel</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="relative w-20 h-20">
-              <!-- Radial progress -->
-              <svg class="transform -rotate-90 w-20 h-20">
-                <circle
-                  cx="40"
-                  cy="40"
-                  r="32"
-                  stroke="currentColor"
-                  stroke-width="6"
-                  fill="transparent"
-                  class="text-muted"
-                />
-                <circle
-                  id="budget-circle"
-                  cx="40"
-                  cy="40"
-                  r="32"
-                  stroke="currentColor"
-                  stroke-width="6"
-                  fill="transparent"
-                  class="text-amber-500 transition-all duration-300"
-                  stroke-dasharray="201"
-                  stroke-dashoffset="201"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <div class="absolute inset-0 flex items-center justify-center">
-                <span id="budget-percent-large" class="text-sm font-bold tabular-nums">0%</span>
-              </div>
-            </div>
-            <div class="flex-1 space-y-1">
-              <p id="budget-percent" class="text-sm font-semibold tabular-nums">0% used</p>
-              <p class="text-xs text-muted-foreground">Daily allocation</p>
-            </div>
           </div>
         </div>
       </div>
@@ -301,38 +266,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       
       const costToday = document.getElementById('cost-today');
       if (costToday) costToday.textContent = `$${stats.costToday.toFixed(2)}`;
-      
-      const budgetRemaining = document.getElementById('budget-remaining');
-      if (budgetRemaining) budgetRemaining.textContent = `$${stats.budgetRemaining.toFixed(2)} remaining`;
-
-      const budgetTotal = stats.costToday + stats.budgetRemaining;
-      const budgetPercent = budgetTotal > 0 ? (stats.costToday / budgetTotal) * 100 : 0;
-      
-      // Update radial gauge
-      const budgetCircle = document.getElementById('budget-circle');
-      if (budgetCircle) {
-        const circumference = 2 * Math.PI * 32; // r=32
-        const offset = circumference - (budgetPercent / 100) * circumference;
-        budgetCircle.style.strokeDashoffset = String(offset);
-        
-        // Color code based on usage
-        if (budgetPercent > 80) {
-          budgetCircle.classList.remove('text-amber-500', 'text-yellow-500');
-          budgetCircle.classList.add('text-rose-500');
-        } else if (budgetPercent > 50) {
-          budgetCircle.classList.remove('text-amber-500', 'text-rose-500');
-          budgetCircle.classList.add('text-yellow-500');
-        } else {
-          budgetCircle.classList.remove('text-yellow-500', 'text-rose-500');
-          budgetCircle.classList.add('text-amber-500');
-        }
-      }
-      
-      const budgetPercentEl = document.getElementById('budget-percent');
-      if (budgetPercentEl) budgetPercentEl.textContent = `${budgetPercent.toFixed(1)}% used`;
-      
-      const budgetPercentLarge = document.getElementById('budget-percent-large');
-      if (budgetPercentLarge) budgetPercentLarge.textContent = `${Math.round(budgetPercent)}%`;
 
       // Populate batches table
       const tbody = document.getElementById('batches-table');
@@ -389,11 +322,65 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         window.location.href = '/admin/login';
       });
 
+      // Load running games count
+      loadRunningGamesCount(headers);
+
+      // Setup kill hanging games button
+      document.getElementById('killHangingBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('killHangingBtn');
+        const btnText = document.getElementById('kill-btn-text');
+        if (!btn || !btnText) return;
+
+        if (!confirm('Kill all games that have been running for >10 minutes?\n\nThis will mark them as failed. This action cannot be undone.')) {
+          return;
+        }
+
+        btn.disabled = true;
+        btnText.textContent = 'Killing...';
+
+        try {
+          const res = await fetch(`${apiUrl}/api/admin/games/kill-hanging`, {
+            method: 'POST',
+            headers,
+          });
+
+          if (!res.ok) throw new Error('Failed to kill hanging games');
+
+          const result = await res.json();
+          alert(`✅ Killed ${result.killedCount} hanging game(s)`);
+          
+          // Reload page to refresh stats
+          window.location.reload();
+        } catch (err) {
+          alert(`❌ Failed to kill hanging games: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          btn.disabled = false;
+          btnText.textContent = 'Kill Hanging Games';
+        }
+      });
+
     } catch (err) {
       document.getElementById('loading')?.classList.add('hidden');
       document.getElementById('error-container')?.classList.remove('hidden');
       const errorMsg = document.getElementById('error-message');
       if (errorMsg) errorMsg.textContent = err instanceof Error ? err.message : 'Unknown error';
+    }
+  }
+
+  async function loadRunningGamesCount(headers) {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/games/running`, { headers });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const hangingCount = document.getElementById('hanging-count');
+      
+      if (data.stale > 0 && hangingCount) {
+        hangingCount.textContent = String(data.stale);
+        hangingCount.classList.remove('hidden');
+        hangingCount.classList.add('animate-pulse');
+      }
+    } catch (err) {
+      console.error('Failed to load running games count:', err);
     }
   }
 

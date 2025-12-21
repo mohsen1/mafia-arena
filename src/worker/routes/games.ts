@@ -5,7 +5,8 @@
 import { Hono } from 'hono';
 import type { Env, GameQueueMessage } from '../types.js';
 import { Errors } from '../utils/errors.js';
-import { checkBudget } from '../utils/budget.js';
+import { getRandomTheme } from '../utils/random-config.js';
+import { generateTraceId } from '../utils/trace.js';
 
 const games = new Hono<{ Bindings: Env }>();
 
@@ -14,12 +15,6 @@ const games = new Hono<{ Bindings: Env }>();
  */
 games.post('/run', async (c) => {
   const env = c.env;
-
-  // Check daily budget
-  const budget = await checkBudget(env.DB);
-  if (!budget.allowed) {
-    throw Errors.BudgetExceeded();
-  }
 
   interface RunGamesRequest {
     count: number;
@@ -36,6 +31,7 @@ games.post('/run', async (c) => {
       personaConstraints?: 'strict' | 'moderate' | 'free';
       contextLevel?: 'full' | 'windowed' | 'summary';
       contextWindowSize?: number;
+      personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
     };
   }
 
@@ -55,14 +51,22 @@ games.post('/run', async (c) => {
     throw Errors.BadRequest('Invalid game configuration: teams required');
   }
 
+  // Generate trace ID for this batch request
+  const traceId = generateTraceId();
+
   // Generate batch and game IDs
   const batchId = `batch_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const gameIds: string[] = [];
   const messages: MessageSendRequest<GameQueueMessage>[] = [];
 
+  console.log(`[${traceId}] Creating batch ${batchId} with ${body.count} games`);
+
   for (let i = 0; i < body.count; i++) {
     const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_${i}`;
     gameIds.push(gameId);
+
+    // Each game gets a random theme for variety (unless specified)
+    const personaTheme = body.config.personaTheme ?? getRandomTheme();
 
     messages.push({
       body: {
@@ -77,8 +81,10 @@ games.post('/run', async (c) => {
           personaConstraints: body.config.personaConstraints ?? 'moderate',
           contextLevel: body.config.contextLevel ?? 'summary',
           contextWindowSize: body.config.contextWindowSize ?? 3,
+          personaTheme,
         },
         createdAt: Date.now(),
+        traceId,
       },
     });
   }
@@ -92,11 +98,7 @@ games.post('/run', async (c) => {
     queued: body.count,
     gameIds,
     contextLevel: body.config.contextLevel ?? 'summary',
-    budget: {
-      spent: budget.spent.toFixed(4),
-      remaining: budget.remaining.toFixed(4),
-      limit: budget.limit,
-    },
+    traceId,
   });
 });
 
@@ -105,11 +107,6 @@ games.post('/run', async (c) => {
  */
 games.post('/run-direct', async (c) => {
   const env = c.env;
-
-  const budget = await checkBudget(env.DB);
-  if (!budget.allowed) {
-    throw Errors.BudgetExceeded();
-  }
 
   interface RunGameDirectRequest {
     config: {
@@ -125,6 +122,7 @@ games.post('/run-direct', async (c) => {
       personaConstraints?: 'strict' | 'moderate' | 'free';
       contextLevel?: 'full' | 'windowed' | 'summary';
       contextWindowSize?: number;
+      personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
     };
   }
 
@@ -139,14 +137,20 @@ games.post('/run-direct', async (c) => {
     throw Errors.BadRequest('Invalid game configuration: teams required');
   }
 
+  // Generate trace ID for this direct game
+  const traceId = generateTraceId();
+
   const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_direct`;
   const batchId = `batch_${Date.now().toString(36)}_direct`;
+
+  // Pick random theme if not specified
+  const personaTheme = body.config.personaTheme ?? getRandomTheme();
 
   // Get Durable Object instance and run directly
   const id = env.GAME_RUNNER.idFromName(gameId);
   const stub = env.GAME_RUNNER.get(id);
 
-  console.log(`Running game ${gameId} directly (bypassing queue)`);
+  console.log(`[${traceId}] Running game ${gameId} directly (bypassing queue)`);
 
   const response = await stub.fetch('http://internal/start', {
     method: 'POST',
@@ -163,7 +167,9 @@ games.post('/run-direct', async (c) => {
         personaConstraints: body.config.personaConstraints ?? 'moderate',
         contextLevel: body.config.contextLevel ?? 'summary',
         contextWindowSize: body.config.contextWindowSize ?? 3,
+        personaTheme,
       },
+      traceId,
     }),
   });
 
@@ -181,11 +187,7 @@ games.post('/run-direct', async (c) => {
     seed: result.seed,
     contextLevel: body.config.contextLevel ?? 'summary',
     message: 'Game started directly (bypassing queue). Check /api/games after ~30-60s.',
-    budget: {
-      spent: budget.spent.toFixed(4),
-      remaining: budget.remaining.toFixed(4),
-      limit: budget.limit,
-    },
+    traceId,
   });
 });
 
@@ -206,7 +208,7 @@ games.get('/', async (c) => {
 
   const gamesResult = await env.DB
     .prepare(
-      `SELECT id, batch_id, winner, rounds, duration_ms, total_tokens, created_at
+      `SELECT id, batch_id, winner, rounds, duration_ms, total_tokens, persona_theme, status, created_at
        FROM games
        WHERE status = ?
        ORDER BY created_at DESC

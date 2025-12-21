@@ -79,6 +79,11 @@ export interface GameConfig {
   readonly contextLevel?: ContextLevel | undefined;
   /** Number of rounds to include in windowed context (default: 3) */
   readonly contextWindowSize?: number | undefined;
+  /** 
+   * Persona theme for pre-assigned names and archetypes (default: 'noir') 
+   * Ensures unique names and diverse personalities across players.
+   */
+  readonly personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy' | undefined;
 }
 
 export interface TeamAssignment {

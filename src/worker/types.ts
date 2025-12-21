@@ -28,6 +28,7 @@ export interface Env {
   // API Keys (secrets)
   OPENAI_API_KEY: string;
   ANTHROPIC_API_KEY: string;
+  /** Google API key - used for native Gemini models */
   GOOGLE_API_KEY: string;
   /** OpenRouter API key - when set, used for OpenAI and Anthropic models */
   OPENROUTER_API_KEY?: string;
@@ -60,6 +61,8 @@ export interface BatchQueueMessage {
   batchId: string;
   config: BatchConfig;
   createdAt: number;
+  /** Trace ID for distributed tracing */
+  traceId?: string;
 }
 
 /**
@@ -107,6 +110,8 @@ export interface GameQueueMessage {
   batchId: string;
   config: GameQueueConfig;
   createdAt: number;
+  /** Trace ID for distributed tracing */
+  traceId?: string;
 }
 
 /**
@@ -134,6 +139,11 @@ export interface GameQueueConfig {
   contextLevel?: 'full' | 'windowed' | 'summary';
   /** Number of rounds to include in windowed context (default: 3) */
   contextWindowSize?: number;
+  /** 
+   * Persona theme for pre-assigned names and archetypes (default: 'noir')
+   * Ensures unique names and diverse personalities across players.
+   */
+  personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
 }
 
 // =============================================================================
@@ -145,7 +155,6 @@ export interface GameQueueConfig {
  */
 export interface SystemState {
   processingPaused: boolean;
-  dailyBudgetUsd: number;
   maxConcurrentGames: number;
 }
 
@@ -157,7 +166,6 @@ export interface AdminStats {
   gamesQueued: number;
   batchesActive: number;
   costToday: number;
-  budgetRemaining: number;
   systemPaused: boolean;
 }
 

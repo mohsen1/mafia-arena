@@ -71,6 +71,7 @@ export class OpenRouterProvider extends BaseProvider {
     };
 
     // Add structured output via tools if requested
+    let useStructuredOutput = false;
     if (request.structuredOutput) {
       body.tools = [{
         type: 'function',
@@ -88,9 +89,10 @@ export class OpenRouterProvider extends BaseProvider {
         type: 'function',
         function: { name: request.structuredOutput.name },
       };
+      useStructuredOutput = true;
     }
 
-    const response = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
+    let response = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,7 +103,45 @@ export class OpenRouterProvider extends BaseProvider {
       body: JSON.stringify(body),
     });
 
-    const data = await response.json();
+    let data = await response.json();
+
+    // Fallback: If model doesn't support tool_choice, retry without it
+    if (!response.ok && useStructuredOutput) {
+      const error = data as { error?: { message?: string; code?: number } };
+      const isToolChoiceError = 
+        error.error?.message?.includes('tool_choice') ||
+        error.error?.message?.includes('endpoints found') ||
+        error.error?.code === 404;
+      
+      if (isToolChoiceError) {
+        console.warn(`Model ${this.openRouterModelId} doesn't support tool_choice, retrying without structured output`);
+        
+        // Retry without tool_choice - just use JSON mode prompt
+        delete body.tools;
+        delete body.tool_choice;
+        body.response_format = { type: 'json_object' };
+        
+        // Add JSON instructions to the user prompt
+        const schemaInstructions = this.schemaToPrompt(request.structuredOutput!.schema);
+        const enhancedUserPrompt = `${request.userPrompt}\n\n${schemaInstructions}`;
+        (messages[1] as { content: string }).content = enhancedUserPrompt;
+        (body as { messages: unknown }).messages = messages;
+        
+        response = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`,
+            'HTTP-Referer': 'https://mafia-arena.me-f9a.workers.dev',
+            'X-Title': 'Mafia Arena',
+          },
+          body: JSON.stringify(body),
+        });
+        
+        data = await response.json();
+        useStructuredOutput = false; // Don't try to extract from tool_calls
+      }
+    }
 
     if (!response.ok) {
       console.error(`OpenRouter error for ${this.openRouterModelId}:`, JSON.stringify(data));
@@ -114,11 +154,11 @@ export class OpenRouterProvider extends BaseProvider {
     let content: string;
     const choice = typedData.choices[0];
 
-    if (request.structuredOutput && choice?.message.tool_calls?.[0]) {
-      // Extract tool call result
+    if (useStructuredOutput && choice?.message.tool_calls?.[0]) {
+      // Extract tool call result (native structured output)
       content = choice.message.tool_calls[0].function.arguments;
     } else {
-      // Regular text response
+      // Regular text response or fallback JSON mode
       content = choice?.message.content ?? '';
     }
 
@@ -132,5 +172,18 @@ export class OpenRouterProvider extends BaseProvider {
       latencyMs,
       modelId: this.modelId,
     };
+  }
+
+  /**
+   * Convert JSON schema to prompt instructions for models that don't support structured outputs.
+   */
+  private schemaToPrompt(schema: { properties: Record<string, unknown>; required: string[] }): string {
+    const fields = Object.keys(schema.properties);
+    return `CRITICAL: Respond with ONLY valid JSON (no markdown, no extra text) matching this exact structure:
+{
+  ${fields.map(f => `"${f}": "your ${f} here"`).join(',\n  ')}
+}
+
+Required fields: ${schema.required.join(', ')}`;
   }
 }

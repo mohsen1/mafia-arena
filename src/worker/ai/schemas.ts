@@ -10,8 +10,8 @@ import { z } from 'zod';
  */
 export const PersonaSchema = z.object({
   name: z.string().min(1, 'Name is required').max(50, 'Name too long'),
-  background: z.string().min(1, 'Background is required').max(500, 'Background too long'),
-  personality: z.string().min(1, 'Personality is required').max(500, 'Personality too long'),
+  background: z.string().min(1, 'Background is required').max(1000, 'Background too long'),
+  personality: z.string().min(1, 'Personality is required').max(1000, 'Personality too long'),
   occupation: z.string().max(100).optional(),
 });
 

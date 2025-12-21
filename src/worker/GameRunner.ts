@@ -33,6 +33,7 @@ const STORAGE_KEYS = {
   CONFIG: 'config',
   SEED: 'seed',
   EVENT_LOG: 'eventLog',
+  TRACE_ID: 'traceId',
 } as const;
 
 /** DO storage limit is 128KB - use 100KB to leave headroom */
@@ -69,6 +70,7 @@ function stripEventForStorage(event: GameEvent): GameEvent {
 
 /**
  * Prepare events for DO storage by stripping large fields and truncating if needed.
+ * Returns stripped events that fit within DO storage limits.
  */
 function prepareEventsForStorage(events: GameEvent[]): GameEvent[] {
   // Strip large fields from all events
@@ -85,6 +87,11 @@ function prepareEventsForStorage(events: GameEvent[]): GameEvent[] {
     serialized = JSON.stringify(stripped);
   }
   
+  // Final safety check - if still too large, keep only last 10 events
+  if (serialized.length > MAX_STORAGE_BYTES) {
+    stripped = stripped.slice(-10);
+  }
+  
   return stripped;
 }
 
@@ -96,6 +103,7 @@ interface GameRunnerState {
   completedAt: number | null;
   error: string | null;
   seed: number | null;
+  traceId: string | null;
 }
 
 /** WebSocket message types for live streaming */
@@ -166,7 +174,7 @@ export class GameRunner extends DurableObject<Env> {
 
     const storage = this.ctx.storage;
     
-    const [status, gameId, batchId, startedAt, completedAt, error, seed] = await Promise.all([
+    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId] = await Promise.all([
       storage.get<GameRunnerState['status']>(STORAGE_KEYS.STATUS),
       storage.get<string>(STORAGE_KEYS.GAME_ID),
       storage.get<string>(STORAGE_KEYS.BATCH_ID),
@@ -174,6 +182,7 @@ export class GameRunner extends DurableObject<Env> {
       storage.get<number>(STORAGE_KEYS.COMPLETED_AT),
       storage.get<string>(STORAGE_KEYS.ERROR),
       storage.get<number>(STORAGE_KEYS.SEED),
+      storage.get<string>(STORAGE_KEYS.TRACE_ID),
     ]);
 
     this.stateCache = {
@@ -184,6 +193,7 @@ export class GameRunner extends DurableObject<Env> {
       completedAt: completedAt ?? null,
       error: error ?? null,
       seed: seed ?? null,
+      traceId: traceId ?? null,
     };
 
     return this.stateCache;
@@ -223,6 +233,10 @@ export class GameRunner extends DurableObject<Env> {
     if (state.seed !== undefined) {
       updates.push(storage.put(STORAGE_KEYS.SEED, state.seed));
       if (this.stateCache) this.stateCache.seed = state.seed;
+    }
+    if (state.traceId !== undefined) {
+      updates.push(storage.put(STORAGE_KEYS.TRACE_ID, state.traceId));
+      if (this.stateCache) this.stateCache.traceId = state.traceId;
     }
     if (state.config !== undefined) {
       updates.push(storage.put(STORAGE_KEYS.CONFIG, state.config));
@@ -431,9 +445,16 @@ export class GameRunner extends DurableObject<Env> {
         config: GameQueueConfig;
         /** Run in background mode - returns immediately while game executes */
         background?: boolean;
+        /** Trace ID for distributed tracing */
+        traceId?: string;
       };
 
-      const { gameId, batchId, config, background = false } = body;
+      const { gameId, batchId, config, background = false, traceId } = body;
+      
+      // Create logger with traceId context
+      const gameLog = traceId 
+        ? this.log.child({ gameId, batchId, traceId })
+        : this.log.child({ gameId, batchId });
 
       // Generate seed for reproducibility if not provided
       const seed = config.seed ?? generateSeed();
@@ -459,15 +480,18 @@ export class GameRunner extends DurableObject<Env> {
         completedAt: null,
         error: null,
         seed,
+        traceId: traceId ?? null,
         config, // Store config for resume logic
       });
+      
+      gameLog.info('Game starting', { seed, background });
 
       // Reset event log
       this.eventLog = [];
       await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, []);
 
       // Insert 'running' record into D1 immediately so game appears in lists
-      await this.insertRunningGame(gameId, batchId, gameConfig, startedAt);
+      await this.insertRunningGame(gameId, batchId, gameConfig, startedAt, traceId);
 
       // Background mode: Return immediately, run game via waitUntil
       // This is used for live watching where frontend connects via WebSocket
@@ -578,14 +602,15 @@ export class GameRunner extends DurableObject<Env> {
     gameId: string,
     batchId: string,
     config: GameConfig,
-    startedAt: number
+    startedAt: number,
+    traceId?: string
   ): Promise<void> {
     try {
-      this.log.debug('Inserting running game record', { gameId, batchId });
+      this.log.debug('Inserting running game record', { gameId, batchId, traceId });
       await this.env.DB.prepare(
-        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, created_at)
-         VALUES (?, ?, ?, ?, ?, NULL, 0, 0, 0, 'running', ?, ?)
-         ON CONFLICT (id) DO UPDATE SET status = 'running', created_at = excluded.created_at`
+        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, persona_theme, trace_id, created_at)
+         VALUES (?, ?, ?, ?, ?, NULL, 0, 0, 0, 'running', ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET status = 'running', trace_id = excluded.trace_id, created_at = excluded.created_at`
       ).bind(
         gameId,
         batchId,
@@ -593,6 +618,8 @@ export class GameRunner extends DurableObject<Env> {
         config.playerCount,
         config.mafiaCount,
         config.seed ?? null,
+        config.personaTheme ?? 'noir',
+        traceId ?? null,
         startedAt
       ).run();
       this.log.debug('Running game record inserted', { gameId });
@@ -712,9 +739,34 @@ export class GameRunner extends DurableObject<Env> {
         event.type === 'game_end' ||
         event.type === 'phase_start'
       ) {
-        const eventsToStore = prepareEventsForStorage(this.eventLog);
-        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
-        gameLog.debug('Events persisted to storage', { storedCount: eventsToStore.length });
+        try {
+          const eventsToStore = prepareEventsForStorage(this.eventLog);
+          const serializedSize = JSON.stringify(eventsToStore).length;
+          
+          if (serializedSize > MAX_STORAGE_BYTES) {
+            gameLog.warn('Events still too large after stripping, keeping last 10 only', {
+              size: serializedSize,
+              eventCount: eventsToStore.length,
+            });
+            // Emergency truncation - keep only last 10 events with all fields stripped
+            const emergency = eventsToStore.slice(-10);
+            await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, emergency);
+            gameLog.debug('Emergency event truncation applied', { storedCount: emergency.length });
+          } else {
+            await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
+            gameLog.debug('Events persisted to storage', { 
+              storedCount: eventsToStore.length,
+              sizeBytes: serializedSize 
+            });
+          }
+        } catch (error) {
+          // Storage failed - likely size issue. Log but don't fail the game.
+          // Full events are still preserved in R2 transcript.
+          logErrorWithStack(gameLog, 'Failed to persist events to DO storage', error, {
+            eventCount: this.eventLog.length,
+          });
+          gameLog.warn('Continuing game without DO event storage (R2 transcript unaffected)');
+        }
       }
 
       // Broadcast to connected WebSocket clients (with stripped event for large responses)
@@ -742,8 +794,24 @@ export class GameRunner extends DurableObject<Env> {
     });
 
     // Final persist of stripped events for DO storage
-    const eventsToStore = prepareEventsForStorage(this.eventLog);
-    await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
+    try {
+      const eventsToStore = prepareEventsForStorage(this.eventLog);
+      const serializedSize = JSON.stringify(eventsToStore).length;
+      
+      if (serializedSize > MAX_STORAGE_BYTES) {
+        gameLog.warn('Final events too large, keeping last 10 only', {
+          size: serializedSize,
+          eventCount: eventsToStore.length,
+        });
+        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore.slice(-10));
+      } else {
+        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
+      }
+    } catch (error) {
+      // Storage failed but game completed - R2 transcript has full data
+      logErrorWithStack(gameLog, 'Failed to persist final events to DO storage', error);
+      gameLog.warn('Game completed successfully, but DO event storage failed (R2 transcript has full data)');
+    }
 
     // Persist results (idempotent)
     gameLog.debug('Persisting results to D1/R2');
@@ -773,6 +841,10 @@ export class GameRunner extends DurableObject<Env> {
   private async persistResults(result: GameResult, batchId: string): Promise<void> {
     const db = this.env.DB;
     const transcripts = this.env.TRANSCRIPTS;
+    
+    // Get current state to retrieve traceId
+    const state = await this.loadState();
+    const traceId = state.traceId;
 
     // Check if this game was already completed (idempotency check)
     // Note: Record might exist with status 'running' from insertRunningGame()
@@ -782,7 +854,7 @@ export class GameRunner extends DurableObject<Env> {
       .first<{ status: string }>();
 
     if (existingGame?.status === 'completed') {
-      console.log(`Game ${result.id} already completed, skipping to avoid double-counting`);
+      console.log(`[${traceId || 'no-trace'}] Game ${result.id} already completed, skipping to avoid double-counting`);
       return;
     }
 
@@ -799,6 +871,7 @@ export class GameRunner extends DurableObject<Env> {
     const transcript = {
       gameId: result.id,
       batchId,
+      traceId: traceId ?? undefined,
       seed: result.config.seed,
       config: result.config,
       events: result.events,
@@ -829,14 +902,16 @@ export class GameRunner extends DurableObject<Env> {
     // Insert or update game record (may already exist from insertRunningGame)
     statements.push(
       db.prepare(
-        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, persona_theme, trace_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (id) DO UPDATE SET
            winner = excluded.winner,
            rounds = excluded.rounds,
            duration_ms = excluded.duration_ms,
            total_tokens = excluded.total_tokens,
-           status = excluded.status`
+           status = excluded.status,
+           persona_theme = excluded.persona_theme,
+           trace_id = COALESCE(excluded.trace_id, trace_id)`
       ).bind(
         result.id,
         batchId,
@@ -849,6 +924,8 @@ export class GameRunner extends DurableObject<Env> {
         result.tokenUsage.total,
         'completed',
         result.config.seed ?? null,
+        result.config.personaTheme ?? 'noir',
+        traceId ?? null,
         createdAt
       )
     );
@@ -998,6 +1075,7 @@ export class GameRunner extends DurableObject<Env> {
       seed, // Include seed for reproducibility
       contextLevel: config.contextLevel ?? 'summary',
       contextWindowSize: config.contextWindowSize ?? 3,
+      personaTheme: config.personaTheme ?? 'noir',
     };
   }
 

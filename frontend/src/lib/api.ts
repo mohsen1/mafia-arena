@@ -64,10 +64,12 @@ export interface LeaderboardEntry {
 export interface GameSummary {
   id: string;
   batch_id: string | null;
-  winner: 'mafia' | 'town';
+  winner: 'mafia' | 'town' | null;
   rounds: number;
   duration_ms: number;
   total_tokens: number;
+  persona_theme: 'noir' | 'victorian' | 'modern' | 'fantasy' | null;
+  status: 'running' | 'completed' | 'failed';
   created_at: number;
 }
 
@@ -75,7 +77,6 @@ export interface GameDetail extends GameSummary {
   config_hash: string;
   player_count: number;
   mafia_count: number;
-  status: string;
   participants: Array<{
     model_id: string;
     model_name: string;
@@ -260,10 +261,21 @@ export async function getLeaderboard(team?: 'mafia' | 'town'): Promise<Leaderboa
  */
 export async function getGames(
   limit = 20,
-  offset = 0
+  offset = 0,
+  status: 'completed' | 'running' | 'failed' = 'completed'
 ): Promise<{ games: GameSummary[]; total: number; hasMore: boolean }> {
-  const res = await fetch(`${API_URL}/api/games?limit=${limit}&offset=${offset}`);
+  const res = await fetch(`${API_URL}/api/games?limit=${limit}&offset=${offset}&status=${status}`);
   if (!res.ok) throw new Error('Failed to fetch games');
+
+  return res.json();
+}
+
+/**
+ * Fetch running/live games.
+ */
+export async function getLiveGames(): Promise<{ games: GameSummary[]; total: number }> {
+  const res = await fetch(`${API_URL}/api/games?status=running&limit=50`);
+  if (!res.ok) throw new Error('Failed to fetch live games');
 
   return res.json();
 }
@@ -517,7 +529,6 @@ export interface AdminStats {
   gamesQueued: number;
   batchesActive: number;
   costToday: number;
-  budgetRemaining: number;
   systemPaused: boolean;
 }
 
@@ -691,11 +702,6 @@ export interface LiveGameResponse {
   status: string;
   liveUrl: string;
   message: string;
-  budget: {
-    spent: string;
-    remaining: string;
-    limit: number;
-  };
 }
 
 /**
@@ -710,7 +716,6 @@ export async function runLiveGame(config: LiveGameConfig): Promise<LiveGameRespo
     body: JSON.stringify({ config }),
   });
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
-  if (res.status === 402) throw new Error('BUDGET_EXCEEDED');
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Failed to start live game');

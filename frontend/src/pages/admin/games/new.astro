@@ -316,23 +316,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           return;
         }
 
-        if (res.status === 402) {
-          alert('Daily budget exceeded. Cannot start new games.');
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = `
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-              Launch & Watch Live
-            `;
-          }
-          if (statusDiv) {
-            statusDiv.classList.add('hidden');
-          }
-          return;
-        }
-
         if (!res.ok) {
           const err = await res.json();
           throw new Error(err.message || 'Failed to start game');

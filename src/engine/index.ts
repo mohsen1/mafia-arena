@@ -66,6 +66,16 @@ export {
 export { analyzePersonaConsistency, getModelConsistencyScore } from './utils/consistency.js';
 export { createSeededRandom, createRandomGenerator, createDefaultRandomGenerator, generateSeed, type RandomGenerator } from './utils/random.js';
 export { sanitizePersona, sanitizePersonaName, sanitizePersonaBackground, sanitizePersonaPersonality, containsDangerousPatterns } from './utils/sanitize.js';
+export { 
+  getUniqueAssignments, 
+  getThemeNames, 
+  getThemeDescription, 
+  isValidTheme,
+  THEMES,
+  type ThemeName,
+  type PersonaArchetype,
+  type PersonaAssignment
+} from './utils/game-presets.js';
 
 // All types
 export type {

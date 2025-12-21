@@ -1,6 +1,6 @@
 /**
  * AI Provider factory.
- * All models are accessed via OpenRouter for unified billing and access.
+ * Routes models to their respective providers (OpenRouter, Google Gemini, etc.)
  */
 
 import type { Env } from '../types.js';
@@ -9,6 +9,7 @@ import { SUPPORTED_MODELS } from './models.js';
 import { AIErrors } from './errors.js';
 import { RetryingProvider } from './RetryingProvider.js';
 import { OpenRouterProvider } from './providers/OpenRouterProvider.js';
+import { GoogleProvider } from './providers/GoogleProvider.js';
 
 export interface CreateProviderOptions {
   enableRetry?: boolean;
@@ -18,7 +19,7 @@ export interface CreateProviderOptions {
 
 /**
  * Create an AI provider for the given model.
- * All models are accessed via OpenRouter.
+ * Routes to the appropriate provider based on model configuration.
  */
 export function createProvider(
   modelId: string,
@@ -32,15 +33,30 @@ export function createProvider(
 
   const { enableRetry = true, maxRetries = 8, timeoutMs = 60000 } = options;
 
-  if (!env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is required - all models are accessed via OpenRouter');
-  }
+  let provider: AIProviderInterface;
 
-  const provider = new OpenRouterProvider({
-    apiKey: env.OPENROUTER_API_KEY,
-    modelId,
-    timeoutMs,
-  });
+  // Route to the appropriate provider
+  if (modelConfig.provider === 'google') {
+    if (!env.GOOGLE_API_KEY) {
+      throw new Error('GOOGLE_API_KEY is required for Google models');
+    }
+    provider = new GoogleProvider({
+      apiKey: env.GOOGLE_API_KEY,
+      modelId,
+      timeoutMs,
+    });
+  } else if (modelConfig.provider === 'openrouter') {
+    if (!env.OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY is required for OpenRouter models');
+    }
+    provider = new OpenRouterProvider({
+      apiKey: env.OPENROUTER_API_KEY,
+      modelId,
+      timeoutMs,
+    });
+  } else {
+    throw new Error(`Unknown provider: ${modelConfig.provider}`);
+  }
 
   if (enableRetry) {
     return new RetryingProvider(provider, { maxRetries });
