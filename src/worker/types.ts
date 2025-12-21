@@ -144,6 +144,12 @@ export interface GameQueueConfig {
    * Ensures unique names and diverse personalities across players.
    */
   personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
+  /**
+   * Use discount pricing mode (50% cheaper, up to 24h response time).
+   * Games using this mode have a 48-hour stale threshold instead of 10 minutes.
+   * The game state is persisted to allow resumption after long AI response delays.
+   */
+  discountPricing?: boolean;
 }
 
 // =============================================================================

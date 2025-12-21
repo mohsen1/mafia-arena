@@ -32,6 +32,8 @@ games.post('/run', async (c) => {
       contextLevel?: 'full' | 'windowed' | 'summary';
       contextWindowSize?: number;
       personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
+      /** Use discount pricing (50% cheaper, up to 24h response time) */
+      discountPricing?: boolean;
     };
   }
 
@@ -53,13 +55,14 @@ games.post('/run', async (c) => {
 
   // Generate trace ID for this batch request
   const traceId = generateTraceId();
+  const discountPricing = body.config.discountPricing ?? false;
 
   // Generate batch and game IDs
   const batchId = `batch_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const gameIds: string[] = [];
   const messages: MessageSendRequest<GameQueueMessage>[] = [];
 
-  console.log(`[${traceId}] Creating batch ${batchId} with ${body.count} games`);
+  console.log(`[${traceId}] Creating batch ${batchId} with ${body.count} games (discountPricing: ${discountPricing})`);
 
   for (let i = 0; i < body.count; i++) {
     const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_${i}`;
@@ -82,6 +85,7 @@ games.post('/run', async (c) => {
           contextLevel: body.config.contextLevel ?? 'summary',
           contextWindowSize: body.config.contextWindowSize ?? 3,
           personaTheme,
+          discountPricing,
         },
         createdAt: Date.now(),
         traceId,
@@ -98,6 +102,7 @@ games.post('/run', async (c) => {
     queued: body.count,
     gameIds,
     contextLevel: body.config.contextLevel ?? 'summary',
+    discountPricing,
     traceId,
   });
 });
@@ -123,6 +128,8 @@ games.post('/run-direct', async (c) => {
       contextLevel?: 'full' | 'windowed' | 'summary';
       contextWindowSize?: number;
       personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
+      /** Use discount pricing (50% cheaper, up to 24h response time) */
+      discountPricing?: boolean;
     };
   }
 
@@ -139,6 +146,7 @@ games.post('/run-direct', async (c) => {
 
   // Generate trace ID for this direct game
   const traceId = generateTraceId();
+  const discountPricing = body.config.discountPricing ?? false;
 
   const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_direct`;
   const batchId = `batch_${Date.now().toString(36)}_direct`;
@@ -150,7 +158,7 @@ games.post('/run-direct', async (c) => {
   const id = env.GAME_RUNNER.idFromName(gameId);
   const stub = env.GAME_RUNNER.get(id);
 
-  console.log(`[${traceId}] Running game ${gameId} directly (bypassing queue)`);
+  console.log(`[${traceId}] Running game ${gameId} directly (discountPricing: ${discountPricing})`);
 
   const response = await stub.fetch('http://internal/start', {
     method: 'POST',
@@ -168,6 +176,7 @@ games.post('/run-direct', async (c) => {
         contextLevel: body.config.contextLevel ?? 'summary',
         contextWindowSize: body.config.contextWindowSize ?? 3,
         personaTheme,
+        discountPricing,
       },
       traceId,
     }),
@@ -180,13 +189,18 @@ games.post('/run-direct', async (c) => {
 
   const result = await response.json() as { success: boolean; gameId: string; seed: number };
 
+  const estimatedTime = discountPricing 
+    ? 'Game uses discount pricing. May take up to 24 hours per AI response.'
+    : 'Check /api/games after ~30-60s.';
+
   return c.json({
     success: true,
     gameId,
     batchId,
     seed: result.seed,
     contextLevel: body.config.contextLevel ?? 'summary',
-    message: 'Game started directly (bypassing queue). Check /api/games after ~30-60s.',
+    discountPricing,
+    message: `Game started directly (bypassing queue). ${estimatedTime}`,
     traceId,
   });
 });
