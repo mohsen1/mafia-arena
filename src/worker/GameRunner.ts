@@ -34,6 +34,18 @@ const STORAGE_KEYS = {
   SEED: 'seed',
   EVENT_LOG: 'eventLog',
   TRACE_ID: 'traceId',
+  DISCOUNT_PRICING: 'discountPricing',
+  LAST_ACTIVITY: 'lastActivity',
+} as const;
+
+/** 
+ * Stale thresholds for game status checks.
+ * Discount pricing games get a much longer threshold (48 hours) to accommodate
+ * AI provider batch API response times (up to 24 hours).
+ */
+const STALE_THRESHOLD_MS = {
+  STANDARD: 10 * 60 * 1000,              // 10 minutes for real-time games
+  DISCOUNT_PRICING: 48 * 60 * 60 * 1000, // 48 hours for discount pricing games
 } as const;
 
 /** DO storage limit is 128KB - use 100KB to leave headroom */
@@ -104,6 +116,10 @@ interface GameRunnerState {
   error: string | null;
   seed: number | null;
   traceId: string | null;
+  /** Whether this game uses discount pricing (longer timeouts) */
+  discountPricing: boolean;
+  /** Timestamp of last activity (AI call, event, etc.) */
+  lastActivity: number | null;
 }
 
 /** WebSocket message types for live streaming */
@@ -138,13 +154,23 @@ export class GameRunner extends DurableObject<Env> {
       const state = await this.loadState();
       
       if (state.status === 'running' && state.startedAt && state.gameId && state.batchId) {
-        const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
-        const isStale = (Date.now() - state.startedAt) > STALE_THRESHOLD_MS;
+        // Use longer timeout for discount pricing games (48h vs 10min)
+        const staleThreshold = state.discountPricing 
+          ? STALE_THRESHOLD_MS.DISCOUNT_PRICING 
+          : STALE_THRESHOLD_MS.STANDARD;
+        
+        // Check against lastActivity if available, otherwise startedAt
+        const lastActive = state.lastActivity ?? state.startedAt;
+        const isStale = (Date.now() - lastActive) > staleThreshold;
         
         if (!isStale) {
           const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
           if (config) {
-            this.log.info('Resuming interrupted game', { gameId: state.gameId });
+            this.log.info('Resuming interrupted game', { 
+              gameId: state.gameId,
+              discountPricing: state.discountPricing,
+              lastActive: new Date(lastActive).toISOString(),
+            });
             const gameConfig = this.toGameConfig(config, state.seed || 0);
             
             // In DO environment, any unfinished waitUntil tasks are lost on eviction.
@@ -152,13 +178,18 @@ export class GameRunner extends DurableObject<Env> {
             this.ctx.waitUntil(this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig));
           }
         } else {
-          this.log.warn('Interrupted game is stale, marking as failed', { gameId: state.gameId });
+          const staleDuration = state.discountPricing ? '48 hours' : '10 minutes';
+          this.log.warn('Interrupted game is stale, marking as failed', { 
+            gameId: state.gameId,
+            discountPricing: state.discountPricing,
+            staleDuration,
+          });
           await this.saveState({
             status: 'failed',
-            error: 'Interrupted and timed out (stale)',
+            error: `Interrupted and timed out (stale after ${staleDuration})`,
             completedAt: Date.now(),
           });
-          await this.updateGameStatus(state.gameId, 'failed', 'Interrupted and timed out');
+          await this.updateGameStatus(state.gameId, 'failed', `Interrupted and timed out (stale after ${staleDuration})`);
         }
       }
     });
@@ -174,7 +205,7 @@ export class GameRunner extends DurableObject<Env> {
 
     const storage = this.ctx.storage;
     
-    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId] = await Promise.all([
+    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId, discountPricing, lastActivity] = await Promise.all([
       storage.get<GameRunnerState['status']>(STORAGE_KEYS.STATUS),
       storage.get<string>(STORAGE_KEYS.GAME_ID),
       storage.get<string>(STORAGE_KEYS.BATCH_ID),
@@ -183,6 +214,8 @@ export class GameRunner extends DurableObject<Env> {
       storage.get<string>(STORAGE_KEYS.ERROR),
       storage.get<number>(STORAGE_KEYS.SEED),
       storage.get<string>(STORAGE_KEYS.TRACE_ID),
+      storage.get<boolean>(STORAGE_KEYS.DISCOUNT_PRICING),
+      storage.get<number>(STORAGE_KEYS.LAST_ACTIVITY),
     ]);
 
     this.stateCache = {
@@ -194,6 +227,8 @@ export class GameRunner extends DurableObject<Env> {
       error: error ?? null,
       seed: seed ?? null,
       traceId: traceId ?? null,
+      discountPricing: discountPricing ?? false,
+      lastActivity: lastActivity ?? null,
     };
 
     return this.stateCache;
@@ -237,6 +272,14 @@ export class GameRunner extends DurableObject<Env> {
     if (state.traceId !== undefined) {
       updates.push(storage.put(STORAGE_KEYS.TRACE_ID, state.traceId));
       if (this.stateCache) this.stateCache.traceId = state.traceId;
+    }
+    if (state.discountPricing !== undefined) {
+      updates.push(storage.put(STORAGE_KEYS.DISCOUNT_PRICING, state.discountPricing));
+      if (this.stateCache) this.stateCache.discountPricing = state.discountPricing;
+    }
+    if (state.lastActivity !== undefined) {
+      updates.push(storage.put(STORAGE_KEYS.LAST_ACTIVITY, state.lastActivity));
+      if (this.stateCache) this.stateCache.lastActivity = state.lastActivity;
     }
     if (state.config !== undefined) {
       updates.push(storage.put(STORAGE_KEYS.CONFIG, state.config));
@@ -411,30 +454,44 @@ export class GameRunner extends DurableObject<Env> {
   private async handleStart(request: Request): Promise<Response> {
     const currentState = await this.loadState();
     
-    // Check if game is stuck in "running" state (stale after 10 minutes)
-    const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+    // Check if game is stuck in "running" state - use appropriate threshold
+    const staleThreshold = currentState.discountPricing 
+      ? STALE_THRESHOLD_MS.DISCOUNT_PRICING 
+      : STALE_THRESHOLD_MS.STANDARD;
+    
+    // Check against lastActivity if available, otherwise startedAt
+    const lastActive = currentState.lastActivity ?? currentState.startedAt;
     const isStale = currentState.status === 'running' && 
-      currentState.startedAt && 
-      (Date.now() - currentState.startedAt) > STALE_THRESHOLD_MS;
+      lastActive && 
+      (Date.now() - lastActive) > staleThreshold;
 
     if (currentState.status === 'running' && !isStale) {
       return Response.json(
-        { error: 'Game already running', gameId: currentState.gameId },
+        { 
+          error: 'Game already running', 
+          gameId: currentState.gameId,
+          discountPricing: currentState.discountPricing,
+          lastActivity: currentState.lastActivity,
+        },
         { status: 409 }
       );
     }
 
     // If stale, log and reset
     if (isStale) {
-      console.log(`Game ${currentState.gameId} was stale (started ${Math.round((Date.now() - currentState.startedAt!) / 1000 / 60)} min ago), resetting`);
+      const staleDuration = currentState.discountPricing ? '48 hours' : '10 minutes';
+      const timeAgo = currentState.discountPricing 
+        ? Math.round((Date.now() - lastActive!) / 1000 / 60 / 60) + ' hours'
+        : Math.round((Date.now() - lastActive!) / 1000 / 60) + ' min';
+      console.log(`Game ${currentState.gameId} was stale (last active ${timeAgo} ago, threshold: ${staleDuration}), resetting`);
       await this.saveState({
         status: 'failed',
-        error: 'Game timed out (stale)',
+        error: `Game timed out (stale after ${staleDuration})`,
         completedAt: Date.now(),
       });
       // Update D1 if game was inserted
       if (currentState.gameId) {
-        await this.updateGameStatus(currentState.gameId, 'failed', 'Game timed out');
+        await this.updateGameStatus(currentState.gameId, 'failed', `Game timed out (stale after ${staleDuration})`);
       }
     }
 
@@ -470,6 +527,7 @@ export class GameRunner extends DurableObject<Env> {
       }
 
       const startedAt = Date.now();
+      const discountPricing = config.discountPricing ?? false;
 
       // Persist state to storage BEFORE starting
       await this.saveState({
@@ -481,10 +539,12 @@ export class GameRunner extends DurableObject<Env> {
         error: null,
         seed,
         traceId: traceId ?? null,
+        discountPricing,
+        lastActivity: startedAt,
         config, // Store config for resume logic
       });
       
-      gameLog.info('Game starting', { seed, background });
+      gameLog.info('Game starting', { seed, background, discountPricing });
 
       // Reset event log
       this.eventLog = [];
@@ -607,22 +667,48 @@ export class GameRunner extends DurableObject<Env> {
   ): Promise<void> {
     try {
       this.log.debug('Inserting running game record', { gameId, batchId, traceId });
-      await this.env.DB.prepare(
-        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, persona_theme, trace_id, created_at)
-         VALUES (?, ?, ?, ?, ?, NULL, 0, 0, 0, 'running', ?, ?, ?, ?)
-         ON CONFLICT (id) DO UPDATE SET status = 'running', trace_id = excluded.trace_id, created_at = excluded.created_at`
-      ).bind(
-        gameId,
-        batchId,
-        this.hashConfig(config),
-        config.playerCount,
-        config.mafiaCount,
-        config.seed ?? null,
-        config.personaTheme ?? 'noir',
-        traceId ?? null,
-        startedAt
-      ).run();
-      this.log.debug('Running game record inserted', { gameId });
+      
+      // Build batch of statements for game and participants
+      const statements: D1PreparedStatement[] = [];
+      
+      // Insert game record
+      statements.push(
+        this.env.DB.prepare(
+          `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, persona_theme, trace_id, created_at)
+           VALUES (?, ?, ?, ?, ?, NULL, 0, 0, 0, 'running', ?, ?, ?, ?)
+           ON CONFLICT (id) DO UPDATE SET status = 'running', trace_id = excluded.trace_id, created_at = excluded.created_at`
+        ).bind(
+          gameId,
+          batchId,
+          this.hashConfig(config),
+          config.playerCount,
+          config.mafiaCount,
+          config.seed ?? null,
+          config.personaTheme ?? 'noir',
+          traceId ?? null,
+          startedAt
+        )
+      );
+      
+      // Insert participants with won = 0 (will be updated when game completes)
+      for (const team of config.teams) {
+        statements.push(
+          this.env.DB.prepare(
+            `INSERT INTO game_participants (id, game_id, model_id, team, player_count, won)
+             VALUES (?, ?, ?, ?, ?, 0)
+             ON CONFLICT (id) DO NOTHING`
+          ).bind(
+            `${gameId}_${team.modelId}_${team.team}`,
+            gameId,
+            team.modelId,
+            team.team,
+            team.count
+          )
+        );
+      }
+      
+      await this.env.DB.batch(statements);
+      this.log.debug('Running game record and participants inserted', { gameId });
     } catch (error) {
       logErrorWithStack(this.log, 'Failed to insert running game', error, { gameId });
       // Don't throw - game can still run without this record
@@ -663,28 +749,37 @@ export class GameRunner extends DurableObject<Env> {
       seed: config.seed,
       playerCount: config.playerCount,
       mafiaCount: config.mafiaCount,
-      models: config.teams.map(t => t.modelId),
+      models: config.teams.map(t => t.modelId).join(','),
     });
 
     // Reset event log for this game
     this.eventLog = [];
 
+    // Get discountPricing from config for activity tracking and provider configuration
+    const discountPricing = (await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG))?.discountPricing ?? false;
+
     // Get all unique model IDs from the config
     const modelIds = config.teams.map((t) => t.modelId);
 
     // Create AI providers for all models
-    gameLog.debug('Creating AI providers', { modelIds });
-    const providers = createProvidersForGame(modelIds, this.env);
+    // Pass discountPricing to use longer timeouts and more retries
+    gameLog.debug('Creating AI providers', { modelIds: modelIds.join(','), discountPricing });
+    const providers = createProvidersForGame(modelIds, this.env, { discountPricing });
     const aiAdapter = new GameAIAdapter(providers);
 
     // Track event counts for logging
     let eventCount = 0;
-    let lastPhase = '';
-    let lastRound = 0;
 
     // Event callback for live streaming
     const onEvent = async (event: GameEvent) => {
       eventCount++;
+      
+      // Update lastActivity on significant events (especially AI calls)
+      // This is crucial for discount pricing games to avoid being marked stale
+      if (event.type === 'ai_call' || event.type === 'phase_start' || event.type === 'elimination') {
+        await this.ctx.storage.put(STORAGE_KEYS.LAST_ACTIVITY, Date.now());
+        if (this.stateCache) this.stateCache.lastActivity = Date.now();
+      }
       
       // Log phase transitions
       if (event.type === 'phase_start') {
@@ -692,9 +787,8 @@ export class GameRunner extends DurableObject<Env> {
           phase: event.phase, 
           round: event.round,
           eventCount,
+          discountPricing,
         });
-        lastPhase = event.phase;
-        lastRound = event.round;
       }
 
       // Log eliminations
@@ -719,9 +813,9 @@ export class GameRunner extends DurableObject<Env> {
         });
       }
 
-      // Log AI errors
-      if (event.type === 'ai_error' || event.type === 'ai_parse_error') {
-        gameLog.warn('AI error', { 
+      // Log AI parse errors
+      if (event.type === 'ai_parse_error') {
+        gameLog.warn('AI parse error', { 
           eventType: event.type,
           playerId: event.playerId,
           modelId: event.modelId,
@@ -930,12 +1024,13 @@ export class GameRunner extends DurableObject<Env> {
       )
     );
 
-    // Insert game participants
+    // Insert or update game participants (may already exist from insertRunningGame)
     for (const participant of result.participants) {
       statements.push(
         db.prepare(
           `INSERT INTO game_participants (id, game_id, model_id, team, player_count, won)
-           VALUES (?, ?, ?, ?, ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT (id) DO UPDATE SET won = excluded.won, player_count = excluded.player_count`
         ).bind(
           `${result.id}_${participant.modelId}_${participant.team}`,
           result.id,
@@ -1059,6 +1154,8 @@ export class GameRunner extends DurableObject<Env> {
 
   /**
    * Convert queue config to game engine config.
+   * Note: discountPricing is NOT passed to engine - it's a worker-level config
+   * that affects timeouts and state persistence, not game logic.
    */
   private toGameConfig(config: GameQueueConfig, seed: number): GameConfig {
     return {

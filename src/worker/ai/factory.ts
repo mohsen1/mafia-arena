@@ -15,7 +15,30 @@ export interface CreateProviderOptions {
   enableRetry?: boolean;
   maxRetries?: number;
   timeoutMs?: number;
+  /**
+   * Enable discount pricing mode for longer timeouts and more retries.
+   * AI providers may take up to 24 hours to respond in this mode.
+   */
+  discountPricing?: boolean;
 }
+
+/**
+ * Default timeouts and retries for different pricing modes.
+ */
+const PRICING_MODE_DEFAULTS = {
+  STANDARD: {
+    timeoutMs: 60000,       // 60 seconds
+    maxRetries: 8,
+    baseDelayMs: 3000,      // 3 seconds
+    maxDelayMs: 60000,      // 60 seconds
+  },
+  DISCOUNT: {
+    timeoutMs: 300000,      // 5 minutes (longer individual request timeout)
+    maxRetries: 20,         // More retries for long-running requests
+    baseDelayMs: 10000,     // 10 seconds base delay
+    maxDelayMs: 300000,     // 5 minutes max delay between retries
+  },
+} as const;
 
 /**
  * Create an AI provider for the given model.
@@ -31,7 +54,16 @@ export function createProvider(
     throw AIErrors.unsupportedModel(modelId);
   }
 
-  const { enableRetry = true, maxRetries = 8, timeoutMs = 60000 } = options;
+  // Select defaults based on pricing mode
+  const defaults = options.discountPricing 
+    ? PRICING_MODE_DEFAULTS.DISCOUNT 
+    : PRICING_MODE_DEFAULTS.STANDARD;
+
+  const { 
+    enableRetry = true, 
+    maxRetries = defaults.maxRetries, 
+    timeoutMs = defaults.timeoutMs,
+  } = options;
 
   let provider: AIProviderInterface;
 
@@ -59,7 +91,11 @@ export function createProvider(
   }
 
   if (enableRetry) {
-    return new RetryingProvider(provider, { maxRetries });
+    return new RetryingProvider(provider, { 
+      maxRetries,
+      baseDelayMs: defaults.baseDelayMs,
+      maxDelayMs: defaults.maxDelayMs,
+    });
   }
 
   return provider;
@@ -68,6 +104,11 @@ export function createProvider(
 /**
  * Create providers for all models in a game configuration.
  * Returns a map of modelId -> provider.
+ * 
+ * When discountPricing is enabled:
+ * - Longer individual request timeouts (5 min vs 60s)
+ * - More retry attempts (20 vs 8)
+ * - Longer delays between retries (10s-5min vs 3s-60s)
  */
 export function createProvidersForGame(
   modelIds: readonly string[],
