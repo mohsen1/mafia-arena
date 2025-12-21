@@ -158,6 +158,21 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       <div class="space-y-3">
         <h3 class="text-sm font-medium">Options</h3>
         
+        <div class="space-y-2">
+          <label for="personaTheme" class="text-sm text-muted-foreground">Persona Theme</label>
+          <select 
+            id="personaTheme" 
+            name="personaTheme"
+            class="w-full px-3 py-2 border rounded-md bg-background"
+          >
+            <option value="noir">1940s Noir - Gritty & Secretive</option>
+            <option value="victorian">Victorian London - Formal & Precise</option>
+            <option value="modern">Modern Tech Hub - Casual & Analytical</option>
+            <option value="fantasy">High Fantasy - Mystical & Diverse</option>
+          </select>
+          <p class="text-xs text-muted-foreground">Pre-assigned names and archetypes ensure unique, diverse personalities</p>
+        </div>
+        
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" id="discussionEnabled" name="discussionEnabled" checked class="rounded" />
           <span class="text-sm">Enable Discussion Phase</span>
@@ -218,9 +233,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
               <span class="font-semibold">Total Cost</span>
               <div class="text-right">
                 <div id="receipt-cost" class="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">$0.00</div>
-                <div id="budget-warning" class="text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 hidden">
-                  ⚠ Exceeds remaining budget
-                </div>
               </div>
             </div>
           </div>
@@ -369,6 +381,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
         const modelA = String(formData.get('modelA') || '');
         const modelB = String(formData.get('modelB') || '');
+        const personaTheme = String(formData.get('personaTheme') || 'noir');
 
         const res = await fetch(`${apiUrl}/api/admin/batches`, {
           method: 'POST',
@@ -385,6 +398,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
               ],
               discussionEnabled: formData.get('discussionEnabled') === 'on',
               contextLevel: 'full',
+              personaTheme: personaTheme,
             },
             useBatchAPI: formData.get('useBatchAPI') === 'on',
           }),

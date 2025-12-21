@@ -1,49 +1,9 @@
 /**
- * Budget control utilities.
- * Prevents runaway API costs by enforcing daily spending limits.
+ * Cost calculation utilities.
+ * Calculates AI API costs based on token usage and model pricing.
  */
 
 import { MODEL_PRICING, DEFAULT_PRICING } from '../ai/models.js';
-
-// Daily budget in USD
-const DAILY_BUDGET_USD = 10.0;
-
-// Average cost per token (used for rough estimates from total tokens)
-const AVG_COST_PER_TOKEN = 0.000002; // $0.002 per 1K tokens average
-
-interface BudgetCheckResult {
-  allowed: boolean;
-  spent: number;
-  remaining: number;
-  limit: number;
-}
-
-/**
- * Check if we're within the daily budget.
- */
-export async function checkBudget(db: D1Database): Promise<BudgetCheckResult> {
-  const today = new Date().toISOString().split('T')[0];
-
-  const result = await db
-    .prepare(
-      `SELECT SUM(total_tokens) as tokens 
-       FROM games 
-       WHERE date(created_at / 1000, 'unixepoch') = ?`
-    )
-    .bind(today)
-    .first<{ tokens: number | null }>();
-
-  const tokens = result?.tokens || 0;
-  const estimatedCost = tokens * AVG_COST_PER_TOKEN;
-  const remaining = Math.max(0, DAILY_BUDGET_USD - estimatedCost);
-
-  return {
-    allowed: estimatedCost < DAILY_BUDGET_USD,
-    spent: estimatedCost,
-    remaining,
-    limit: DAILY_BUDGET_USD,
-  };
-}
 
 /**
  * Calculate the cost of an AI call.

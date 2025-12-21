@@ -92,47 +92,101 @@ PERSONALITY:
 };
 
 /**
- * Format taken names for prompt.
- */
-function formatTakenNames(takenNames: readonly string[]): string {
-  if (takenNames.length === 0) return '';
-  return `\n⚠️ NAMES ALREADY TAKEN (choose something different): ${takenNames.join(', ')}\n`;
-}
-
-/**
  * Persona generation prompts - used before introduction to create AI identities.
  * Note: JSON format is now enforced via structured output schema, not prompting.
+ * 
+ * Now accepts a PersonaAssignment with pre-assigned name and archetype to ensure:
+ * - Unique names (no duplicates like "Vesper-2")
+ * - Diverse personalities (prevents homogeneous responses)
  */
 export const PERSONA_PROMPTS = {
-  mafia: (constraints: PersonaConstraints, playerCount: number, takenNames: readonly string[] = []) => `PERSONA GENERATION - Create Your Character
+  mafia: (constraints: PersonaConstraints, playerCount: number, assignment?: { name: string; archetype: { role: string; trait: string } }) => {
+    if (assignment) {
+      // Use pre-assigned name and archetype for strict character constraints
+      return `PERSONA GENERATION - Develop Your Assigned Character
+
+You are about to play a game of Mafia with ${playerCount} players. You are MAFIA.
+
+YOUR ASSIGNED CHARACTER:
+- Name: ${assignment.name}
+- Role: ${assignment.archetype.role}
+- Personality Trait: ${assignment.archetype.trait}
+
+CRITICAL: You MUST use the name "${assignment.name}" exactly. Do NOT use any other name.
+
+Your task is to develop this character by creating:
+1. A brief background (1-2 sentences) that explains who ${assignment.name} is as a ${assignment.archetype.role}
+2. A personality description that reflects the trait: "${assignment.archetype.trait}"
+
+STRATEGY TIPS FOR MAFIA:
+- Develop your character to seem trustworthy and engaged
+- Your personality should help deflect suspicion
+- Stay true to your assigned traits - this makes you more believable
+- Consider how a ${assignment.archetype.role} would naturally react to accusations
+
+Provide your persona with background and personality that matches your assigned role and traits.`;
+    }
+    
+    // Fallback to old behavior if no assignment provided (for backward compatibility)
+    return `PERSONA GENERATION - Create Your Character
 
 You are about to play a game of Mafia with ${playerCount} players. You are MAFIA.
 
 Create a persona that will help you blend in and avoid suspicion. Choose wisely - your identity will influence how others perceive you throughout the game.
 
 ${PERSONA_CONSTRAINT_RULES[constraints]}
-${formatTakenNames(takenNames)}
+
 STRATEGY TIPS FOR MAFIA:
 - Pick a persona that seems trustworthy and engaged
 - Your personality should help deflect suspicion
 - Consider how your character would naturally react to accusations
 
-Provide your persona with a name, background (1-2 sentences), and personality (communication style).`,
+Provide your persona with a name, background (1-2 sentences), and personality (communication style).`;
+  },
 
-  town: (constraints: PersonaConstraints, playerCount: number, takenNames: readonly string[] = []) => `PERSONA GENERATION - Create Your Character
+  town: (constraints: PersonaConstraints, playerCount: number, assignment?: { name: string; archetype: { role: string; trait: string } }) => {
+    if (assignment) {
+      // Use pre-assigned name and archetype for strict character constraints
+      return `PERSONA GENERATION - Develop Your Assigned Character
+
+You are about to play a game of Mafia with ${playerCount} players. You are TOWN.
+
+YOUR ASSIGNED CHARACTER:
+- Name: ${assignment.name}
+- Role: ${assignment.archetype.role}
+- Personality Trait: ${assignment.archetype.trait}
+
+CRITICAL: You MUST use the name "${assignment.name}" exactly. Do NOT use any other name.
+
+Your task is to develop this character by creating:
+1. A brief background (1-2 sentences) that explains who ${assignment.name} is as a ${assignment.archetype.role}
+2. A personality description that reflects the trait: "${assignment.archetype.trait}"
+
+TIPS FOR TOWN:
+- Develop your character to reflect how you'll approach finding the Mafia
+- Your personality should help you communicate effectively
+- Stay true to your assigned traits - authenticity is key
+- Consider how a ${assignment.archetype.role} would naturally investigate and question
+
+Provide your persona with background and personality that matches your assigned role and traits.`;
+    }
+    
+    // Fallback to old behavior if no assignment provided (for backward compatibility)
+    return `PERSONA GENERATION - Create Your Character
 
 You are about to play a game of Mafia with ${playerCount} players. You are TOWN.
 
 Create a persona that represents who you'll be in this game. Your identity will influence how you interact with others and how they perceive you.
 
 ${PERSONA_CONSTRAINT_RULES[constraints]}
-${formatTakenNames(takenNames)}
+
 TIPS FOR TOWN:
 - Pick a persona that reflects how you want to approach finding the Mafia
 - Your personality should help you communicate effectively
 - Consider how your character would naturally investigate and question
 
-Provide your persona with a name, background (1-2 sentences), and personality (communication style).`,
+Provide your persona with a name, background (1-2 sentences), and personality (communication style).`;
+  },
 } as const;
 
 /**

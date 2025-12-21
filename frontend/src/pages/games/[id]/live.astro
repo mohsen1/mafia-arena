@@ -147,7 +147,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
     if (!badge) return;
 
-    if (status === 'completed') {
+    if (status === 'running') {
+      // Keep the animated LIVE badge
+      badge.className = 'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20';
+      badge.innerHTML = `
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+        </span>
+        LIVE
+      `;
+    } else if (status === 'completed') {
       badge.className = 'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-500 border border-green-500/20';
       badge.innerHTML = `
         <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -176,7 +186,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     
     if (statusText) {
       const eventCount = events.length;
-      statusText.textContent = eventCount > 0 ? `${eventCount} events` : 'Waiting for game to start...';
+      if (status === 'completed' || status === 'failed') {
+        statusText.textContent = status === 'completed' ? 'Game complete' : 'Game failed';
+      } else if (status === 'running') {
+        const lastEvent = events[events.length - 1];
+        const phase = lastEvent?.phase || 'introduction';
+        const round = lastEvent?.round || 1;
+        statusText.textContent = `Round ${round} - ${getPhaseLabel(phase)} (${eventCount} events)`;
+      } else {
+        statusText.textContent = eventCount > 0 ? `${eventCount} events` : 'Waiting for game to start...';
+      }
     }
   }
 
@@ -421,8 +440,33 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       }
     } else if (data.type === 'ERROR') {
       updateLiveBadge('failed');
-      updateConnectionStatus(false, `Error: ${data.error}`);
+      showErrorBanner(data.error || 'Game failed');
     }
+  }
+
+  function showErrorBanner(errorMessage) {
+    const container = document.getElementById('events-container');
+    if (!container) return;
+
+    // Show error at the top of events
+    const errorHtml = `
+      <div class="border-2 border-red-500/50 bg-red-500/10 rounded-lg p-4">
+        <div class="flex items-start gap-3">
+          <span class="text-red-500 text-xl">⚠️</span>
+          <div class="flex-1">
+            <div class="font-bold text-red-500">Game Failed</div>
+            <div class="text-sm text-muted-foreground mt-1">${errorMessage}</div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    const existingContent = container.innerHTML;
+    if (!existingContent.includes('Game Failed')) {
+      container.innerHTML = errorHtml + existingContent;
+    }
+    
+    updateConnectionStatus(false, 'Game failed - See error above');
   }
 
   function connect() {
@@ -500,6 +544,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
             if (lastEvent?.type === 'game_end') {
               showGameEndBanner(lastEvent.winner);
             }
+          } else if (data.status === 'failed') {
+            // Check for ai_parse_error events to show specific error
+            const parseError = events.find(e => e.type === 'ai_parse_error');
+            const errorMsg = parseError 
+              ? `AI Parse Error from ${parseError.modelId}: ${parseError.error}`
+              : 'Game encountered an error and could not complete';
+            showErrorBanner(errorMsg);
           }
           clearInterval(pollInterval);
         }
@@ -509,7 +560,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     }
 
     poll();
-    pollInterval = setInterval(poll, 2000);
+    pollInterval = setInterval(poll, 1000); // Poll every 1 second for faster updates
   }
 
   // Start connection

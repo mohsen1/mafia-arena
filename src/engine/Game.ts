@@ -213,17 +213,20 @@ export class Game {
     winner: Team,
     personaAnalysis: PersonaAnalysis | null | undefined
   ): ParticipantResult[] {
+    // Use a separator that won't appear in model IDs (they contain ':' in free tier models)
+    const SEPARATOR = '|||';
+    
     // Group players by model and team
-    const modelTeamMap = new Map<string, { team: Team; count: number; tokens: number }>();
+    const modelTeamMap = new Map<string, { modelId: string; team: Team; count: number; tokens: number }>();
 
     for (const player of this.state.players) {
-      const key = `${player.modelId}:${player.team}`;
+      const key = `${player.modelId}${SEPARATOR}${player.team}`;
       const existing = modelTeamMap.get(key);
 
       if (existing) {
         existing.count++;
       } else {
-        modelTeamMap.set(key, { team: player.team, count: 1, tokens: 0 });
+        modelTeamMap.set(key, { modelId: player.modelId, team: player.team, count: 1, tokens: 0 });
       }
     }
 
@@ -232,7 +235,7 @@ export class Game {
       if (event.type === 'ai_call') {
         const player = this.state.getPlayer(event.playerId);
         if (player) {
-          const key = `${player.modelId}:${player.team}`;
+          const key = `${player.modelId}${SEPARATOR}${player.team}`;
           const entry = modelTeamMap.get(key);
           if (entry) {
             entry.tokens += event.tokensUsed.input + event.tokensUsed.output;
@@ -243,16 +246,14 @@ export class Game {
 
     // Create results
     const results: ParticipantResult[] = [];
-    for (const [key, value] of modelTeamMap) {
-      const [modelId] = key.split(':') as [string, Team];
-      
+    for (const [, value] of modelTeamMap) {
       // Get consistency score for this model if available
       const consistencyScore = personaAnalysis
-        ? getModelConsistencyScore(personaAnalysis, modelId!) ?? undefined
+        ? getModelConsistencyScore(personaAnalysis, value.modelId) ?? undefined
         : undefined;
 
       results.push({
-        modelId: modelId!,
+        modelId: value.modelId,
         team: value.team,
         playerCount: value.count,
         won: value.team === winner,

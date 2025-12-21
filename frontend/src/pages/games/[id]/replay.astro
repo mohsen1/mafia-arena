@@ -92,7 +92,24 @@ if (playerRoster.length === 0) {
 }
 
 function getPersonaName(playerId: string): string {
-  return playerMap[playerId]?.personaName || playerId;
+  const player = playerMap[playerId];
+  if (!player) return playerId;
+  
+  // Check if the persona name is generic/placeholder
+  // This shouldn't happen with the new archetype system, but handles legacy games
+  const name = player.personaName;
+  const isGeneric = name.toLowerCase().includes('vesper') || 
+                    name.toLowerCase().includes('player') ||
+                    name === playerId ||
+                    /^player[_\s-]\d+$/i.test(name);
+  
+  if (isGeneric) {
+    // Fall back to a cleaner display name based on player ID
+    const match = playerId.match(/player_(\d+)/);
+    return match ? `Subject ${match[1]}` : player.originalName;
+  }
+  
+  return name;
 }
 
 function getPlayerTeam(playerId: string): string {

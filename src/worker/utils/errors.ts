@@ -38,9 +38,6 @@ export const Errors = {
   RateLimited: (retryAfter?: number) =>
     new APIError(429, 'RATE_LIMITED', 'Too many requests', { retryAfter }),
 
-  BudgetExceeded: () =>
-    new APIError(503, 'BUDGET_EXCEEDED', 'Daily API budget exceeded. Try again tomorrow.'),
-
   Internal: (message = 'Internal server error') =>
     new APIError(500, 'INTERNAL_ERROR', message),
 

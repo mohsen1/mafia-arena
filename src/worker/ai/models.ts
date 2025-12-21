@@ -1,7 +1,9 @@
 /**
  * Supported AI models and their pricing.
  * 
- * All models are accessed via OpenRouter. Model IDs match OpenRouter's naming.
+ * Models are accessed through their respective providers:
+ * - Google Gemini models use native Gemini API
+ * - Other models use OpenRouter
  * 
  * Updated: December 2025
  */
@@ -18,16 +20,18 @@ export const SUPPORTED_MODELS: Record<string, ModelConfig> = {
   'amazon/nova-premier-v1': { provider: 'openrouter', displayName: 'Nova Premier', structuredOutput: 'tool' },
   'amazon/nova-pro-v1': { provider: 'openrouter', displayName: 'Nova Pro', structuredOutput: 'tool' },
 
-  // Anthropic Claude
+  // Anthropic Claude (4.5 series) - OpenRouter IDs use periods not hyphens
+  'anthropic/claude-haiku-4.5': { provider: 'openrouter', displayName: 'Claude Haiku 4.5', structuredOutput: 'tool' },
+  'anthropic/claude-opus-4.5': { provider: 'openrouter', displayName: 'Claude Opus 4.5', structuredOutput: 'tool' },
   'anthropic/claude-sonnet-4.5': { provider: 'openrouter', displayName: 'Claude Sonnet 4.5', structuredOutput: 'tool' },
 
-  // Google Gemini family
-  'google/gemini-2.5-flash-lite-preview-09-2025': { provider: 'openrouter', displayName: 'Gemini 2.5 Flash Lite', structuredOutput: 'schema' },
-  'google/gemini-2.5-flash-preview-09-2025': { provider: 'openrouter', displayName: 'Gemini 2.5 Flash', structuredOutput: 'schema' },
-  'google/gemini-2.5-pro': { provider: 'openrouter', displayName: 'Gemini 2.5 Pro', structuredOutput: 'schema' },
-  'google/gemini-2.5-pro-preview-05-06': { provider: 'openrouter', displayName: 'Gemini 2.5 Pro Preview', structuredOutput: 'schema' },
-  'google/gemini-3-flash-preview': { provider: 'openrouter', displayName: 'Gemini 3 Flash', structuredOutput: 'schema' },
-  'google/gemini-3-pro-preview': { provider: 'openrouter', displayName: 'Gemini 3 Pro', structuredOutput: 'schema' },
+  // Google Gemini family (using native Gemini API)
+  'google/gemini-2.5-flash-lite-preview-09-2025': { provider: 'google', displayName: 'Gemini 2.5 Flash Lite', structuredOutput: 'schema' },
+  'google/gemini-2.5-flash-preview-09-2025': { provider: 'google', displayName: 'Gemini 2.5 Flash', structuredOutput: 'schema' },
+  'google/gemini-2.5-pro': { provider: 'google', displayName: 'Gemini 2.5 Pro', structuredOutput: 'schema' },
+  'google/gemini-2.5-pro-preview-05-06': { provider: 'google', displayName: 'Gemini 2.5 Pro Preview', structuredOutput: 'schema' },
+  'google/gemini-3-flash-preview': { provider: 'google', displayName: 'Gemini 3 Flash', structuredOutput: 'schema' },
+  'google/gemini-3-pro-preview': { provider: 'google', displayName: 'Gemini 3 Pro', structuredOutput: 'schema' },
 
   // Meta Llama 4 family
   'meta-llama/llama-4-maverick': { provider: 'openrouter', displayName: 'Llama 4 Maverick', structuredOutput: 'json_mode' },
@@ -77,7 +81,7 @@ export const SUPPORTED_MODELS: Record<string, ModelConfig> = {
 
 /**
  * Model pricing per 1K tokens (USD).
- * All models are accessed via OpenRouter.
+ * Pricing from respective provider APIs (Google, OpenRouter).
  */
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   // Amazon Nova
@@ -86,8 +90,10 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
   'amazon/nova-premier-v1': { input: 0.003, output: 0.012 },
   'amazon/nova-pro-v1': { input: 0.0008, output: 0.0032 },
 
-  // Anthropic Claude
-  'anthropic/claude-sonnet-4.5': { input: 0.015, output: 0.075 },
+  // Anthropic Claude (4.5 series) - Corrected pricing per OpenRouter
+  'anthropic/claude-haiku-4.5': { input: 0.001, output: 0.005 },
+  'anthropic/claude-opus-4.5': { input: 0.005, output: 0.025 },
+  'anthropic/claude-sonnet-4.5': { input: 0.003, output: 0.015 },
 
   // Google Gemini
   'google/gemini-2.5-flash-lite-preview-09-2025': { input: 0.000075, output: 0.0003 },

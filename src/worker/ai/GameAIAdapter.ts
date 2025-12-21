@@ -355,7 +355,7 @@ export class GameAIAdapter implements AIProvider {
     const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (codeBlockMatch?.[1]) {
       try {
-        return JSON.parse(codeBlockMatch[1].trim());
+        return JSON.parse(this.sanitizeJSON(codeBlockMatch[1].trim()));
       } catch {
         // Continue trying
       }
@@ -365,13 +365,49 @@ export class GameAIAdapter implements AIProvider {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch?.[0]) {
       try {
-        return JSON.parse(jsonMatch[0]);
+        return JSON.parse(this.sanitizeJSON(jsonMatch[0]));
       } catch {
         // Continue trying
       }
     }
 
     // Try raw content
-    return JSON.parse(content.trim());
+    return JSON.parse(this.sanitizeJSON(content.trim()));
+  }
+
+  /**
+   * Sanitize JSON string to fix common issues from free/cheap models:
+   * - Unescaped control characters (newlines, tabs) inside string values
+   * - Trailing commas
+   */
+  private sanitizeJSON(json: string): string {
+    // Fix unescaped control characters inside JSON strings
+    // This regex finds strings and escapes any unescaped control characters
+    let sanitized = json;
+    
+    // Replace literal newlines/tabs inside strings with escaped versions
+    // We do this by finding string boundaries and fixing content within
+    try {
+      // Simple approach: replace control characters that would break JSON
+      // \x00-\x1f are control characters (except we keep \n, \r, \t patterns that are already escaped)
+      sanitized = sanitized.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ');
+      
+      // Fix literal newlines/carriage returns inside string values
+      // Match strings and fix their contents
+      sanitized = sanitized.replace(
+        /"([^"\\]*(?:\\.[^"\\]*)*)"/g,
+        (match) => {
+          // Inside the string, escape unescaped newlines and tabs
+          return match
+            .replace(/(?<!\\)\n/g, '\\n')
+            .replace(/(?<!\\)\r/g, '\\r')
+            .replace(/(?<!\\)\t/g, '\\t');
+        }
+      );
+    } catch {
+      // If sanitization fails, return original
+    }
+    
+    return sanitized;
   }
 }

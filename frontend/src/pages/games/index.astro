@@ -1,14 +1,23 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { getGames } from '../../lib/api';
+import { getGames, getLiveGames } from '../../lib/api';
 import { getProviderColorFromModel } from '../../lib/providers';
-import { ChevronLeft, ChevronRight, Trophy } from 'lucide-astro';
+import { ChevronLeft, ChevronRight, Trophy, Radio } from 'lucide-astro';
 
 const LIMIT = 20;
 const page = parseInt(Astro.url.searchParams.get('page') || '1', 10);
 const offset = (page - 1) * LIMIT;
 
-const { games, total, hasMore } = await getGames(LIMIT, offset);
+// Fetch both live games and completed games
+const [liveGamesResult, completedGamesResult] = await Promise.all([
+  getLiveGames(),
+  getGames(LIMIT, offset, 'completed'),
+]);
+
+const liveGames = liveGamesResult.games;
+const games = completedGamesResult.games;
+const total = completedGamesResult.total;
+const hasMore = completedGamesResult.hasMore;
 const totalPages = Math.ceil(total / LIMIT);
 
 const hasPrev = page > 1;
@@ -40,6 +49,17 @@ function getMatchup(game: any) {
     winnerTeam: game.winner,
   };
 }
+
+const THEME_STYLES: Record<string, { label: string; class: string }> = {
+  noir: { label: '🎬 Noir', class: 'bg-slate-500/20 text-slate-700 dark:text-slate-300' },
+  victorian: { label: '🎩 Victorian', class: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
+  modern: { label: '💻 Modern', class: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' },
+  fantasy: { label: '⚔️ Fantasy', class: 'bg-purple-500/20 text-purple-700 dark:text-purple-300' },
+};
+
+function getThemeStyle(theme: string | null) {
+  return THEME_STYLES[theme || 'noir'] || THEME_STYLES.noir;
+}
 ---
 
 <Layout title="Games">
@@ -47,22 +67,84 @@ function getMatchup(game: any) {
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">Games</h1>
-        <p class="text-muted-foreground text-sm">{total} games played</p>
+        <p class="text-muted-foreground text-sm">
+          {total} completed{liveGames.length > 0 ? ` • ${liveGames.length} live` : ''}
+        </p>
       </div>
     </div>
 
-    {games.length === 0 ? (
+    {/* Live Games Section */}
+    {liveGames.length > 0 && (
+      <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+          </span>
+          <h2 class="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">Live Games</h2>
+        </div>
+        <div class="grid gap-3">
+          {liveGames.map(game => {
+            const matchup = getMatchup(game);
+            return (
+              <a 
+                href={`/games/${game.id}/live`} 
+                class="border border-red-500/30 bg-red-500/5 rounded-lg p-4 hover:bg-red-500/10 transition-colors group"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold px-2 py-1 rounded inline-flex items-center gap-1.5 bg-rose-500/15 text-rose-700 dark:text-rose-400">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style={`background: ${matchup.mafiaColor}`}></span>
+                        {matchup.mafia}
+                      </span>
+                      <span class="text-muted-foreground font-bold">vs</span>
+                      <span class="font-semibold px-2 py-1 rounded inline-flex items-center gap-1.5 bg-indigo-500/15 text-indigo-700 dark:text-indigo-400">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style={`background: ${matchup.townColor}`}></span>
+                        {matchup.town}
+                      </span>
+                    </div>
+                    <span class={`text-xs px-2 py-1 rounded font-medium ${getThemeStyle(game.persona_theme).class}`}>
+                      {getThemeStyle(game.persona_theme).label}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    {game.rounds > 0 && (
+                      <span class="text-sm text-muted-foreground font-mono">Round {game.rounds}</span>
+                    )}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500 text-white group-hover:bg-red-600 transition-colors">
+                      <Radio size={12} /> Watch Live
+                    </span>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    {/* Completed Games Section */}
+    {games.length === 0 && liveGames.length === 0 ? (
       <div class="border rounded-md p-8 text-center text-muted-foreground">
         <p class="text-sm">No games yet</p>
       </div>
+    ) : games.length === 0 ? (
+      <div class="border rounded-md p-8 text-center text-muted-foreground">
+        <p class="text-sm">No completed games yet</p>
+      </div>
     ) : (
       <div class="space-y-4">
+        {liveGames.length > 0 && (
+          <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Completed Games</h2>
+        )}
         <div class="border rounded-md overflow-hidden">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b bg-muted/50">
                 <th class="h-9 px-3 text-left font-medium text-muted-foreground">Matchup</th>
                 <th class="h-9 px-3 text-left font-medium text-muted-foreground">Winner</th>
+                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Theme</th>
                 <th class="h-9 px-3 text-right font-medium text-muted-foreground">Rounds</th>
                 <th class="h-9 px-3 text-right font-medium text-muted-foreground">Date</th>
               </tr>
@@ -97,6 +179,13 @@ function getMatchup(game: any) {
                             {mafiaWon ? 'Mafia' : 'Town'}
                           </span>
                         </div>
+                      </a>
+                    </td>
+                    <td class="h-12 p-0">
+                      <a href={`/games/${game.id}`} class="flex items-center px-3 h-full">
+                        <span class={`text-xs px-2 py-1 rounded font-medium ${getThemeStyle(game.persona_theme).class}`}>
+                          {getThemeStyle(game.persona_theme).label}
+                        </span>
                       </a>
                     </td>
                     <td class="h-12 p-0 text-right font-mono tabular-nums text-muted-foreground">

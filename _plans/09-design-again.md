@@ -498,24 +498,16 @@ If you have 1 hour, do these immediately to improve the visual polish:
 The Admin panel is functional but feels like a database frontend. It needs to feel like a **Command Center** for managing expensive GPU resources.
 
 ### A. Dashboard Overview (`admin/index.astro`)
-*   **Problem:** The "System Status" and "Active Batches" are treated with the same visual weight as "Recent Batches."
-*   **Solution: The Status HUD (Heads-Up Display).**
-    1.  **System Heartbeat:** Create a prominent top-bar component.
-        *   *Running:* Green pulsing orb + "System Operational".
-        *   *Paused:* Amber striped background + "Circuit Breaker Active".
-        *   *Action:* The Pause/Resume button should be a large, distinct toggle, not a small text button.
-    2.  **Budget Gauge:** Transform the "Budget Usage" linear bar into a **Radial Gauge** or a "Fuel Tank" visual. Color code it: Green (<50%), Yellow (50-80%), Red (>80%).
-    3.  **Live Log Ticker:** Add a small, scrolling terminal-like window showing the last 5 logs (`Game X started`, `Batch Y completed`). This creates a feeling of activity/liveness.
+*   **Problem:** The "Active Batches" are treated with the same visual weight as "Recent Batches."
+*   **Solution:**
+    1.  **Live Log Ticker:** Add a small, scrolling terminal-like window showing the last 5 logs (`Game X started`, `Batch Y completed`). This creates a feeling of activity/liveness.
 
 ### B. Batch Creation Flow (`admin/batches/new.astro`)
-*   **Problem:** The form is long and vertical. The "Estimated Cost" is buried at the bottom, but it changes as you tweak settings at the top.
-*   **Solution: Split-Screen Layout (Desktop).**
+*   **Problem:** The form is long and vertical. Configuration options need better organization.
+*   **Solution: Improved Layout.**
     *   **Left Column (Controls):** Configuration form.
         *   *Model Selection:* Replace native `<select>` with a **Rich Select Component**. Group by Provider (OpenAI, Anthropic) using their logos as icons.
-    *   **Right Column (Simulator):** Sticky "Receipt" panel.
-        *   Shows: Total Games, Estimated Time, and **Estimated Cost**.
-        *   Update the cost in real-time with a satisfying number animation.
-        *   Add a "Budget Warning" if the batch exceeds the remaining daily budget.
+    *   **Right Column (Summary):** Sticky panel showing batch configuration summary (Total Games, Estimated Time).
 
 ### C. Batch Detail View (`admin/batches/[id].astro`)
 *   **Problem:** The list of games in a batch is just a table. Hard to see where failures occurred.
@@ -586,10 +578,9 @@ Currently, we have various badges for games, batches, and system status. Unify t
 
 If you have 2 hours, prioritize these changes to the Admin panel:
 
-1.  **Cost Sticky Panel:** In `admin/batches/new.astro`, wrap the "Cost Estimate" div in a `sticky top-4` class and move it to a sidebar layout on desktop.
-2.  **Batch Visualization:** In `admin/batches/[id].astro`, add a simple flex-wrap container of colored `div`s (w-4 h-4) representing the games completed so far.
-3.  **Provider Logos:** Import SVGs for OpenAI, Anthropic, and Google. Replace the text "provider" column in the Leaderboard with these icons.
-4.  **Error States:** Create a dedicated `<ErrorState />` component that looks better than the current red text box, using an icon (AlertTriangle) and a clear "Retry" button.
+1.  **Batch Visualization:** In `admin/batches/[id].astro`, add a simple flex-wrap container of colored `div`s (w-4 h-4) representing the games completed so far.
+2.  **Provider Logos:** Import SVGs for OpenAI, Anthropic, and Google. Replace the text "provider" column in the Leaderboard with these icons.
+3.  **Error States:** Create a dedicated `<ErrorState />` component that looks better than the current red text box, using an icon (AlertTriangle) and a clear "Retry" button.
 
 ---
 

@@ -13,7 +13,6 @@ import {
   gamesRoutes,
   leaderboardRoutes,
   modelsRoutes,
-  budgetRoutes,
   statsRoutes,
   analysisRoutes,
   adminRoutes,
@@ -41,11 +40,52 @@ app.use('/api/*', rateLimitMiddleware);
 app.get('/', (c) => c.json({ status: 'ok', service: 'mafia-arena' }));
 app.get('/health', (c) => c.json({ status: 'ok', service: 'mafia-arena' }));
 
+// Deep health check - verifies all infrastructure components
+app.get('/health/deep', async (c) => {
+  const startTime = Date.now();
+  
+  const checks = await Promise.allSettled([
+    // D1 Database
+    c.env.DB.prepare('SELECT 1 as ok').first(),
+    // R2 Storage (head request is cheap)
+    c.env.TRANSCRIPTS.head('health-check'),
+    // KV (get non-existent key is cheap)
+    c.env.RATE_LIMIT.get('health-check'),
+  ]);
+
+  const d1Status = checks[0].status === 'fulfilled' ? 'ok' : 'error';
+  const r2Status = checks[1].status === 'fulfilled' ? 'ok' : 'error';
+  const kvStatus = checks[2].status === 'fulfilled' ? 'ok' : 'error';
+
+  const allHealthy = d1Status === 'ok' && r2Status === 'ok' && kvStatus === 'ok';
+
+  const response = {
+    status: allHealthy ? 'healthy' : 'degraded',
+    latencyMs: Date.now() - startTime,
+    components: {
+      d1: {
+        status: d1Status,
+        error: checks[0].status === 'rejected' ? String(checks[0].reason) : undefined,
+      },
+      r2: {
+        status: r2Status,
+        error: checks[1].status === 'rejected' ? String(checks[1].reason) : undefined,
+      },
+      kv: {
+        status: kvStatus,
+        error: checks[2].status === 'rejected' ? String(checks[2].reason) : undefined,
+      },
+    },
+    timestamp: new Date().toISOString(),
+  };
+
+  return c.json(response, { status: allHealthy ? 200 : 503 });
+});
+
 // Mount route handlers
 app.route('/api/games', gamesRoutes);
 app.route('/api/leaderboard', leaderboardRoutes);
 app.route('/api/models', modelsRoutes);
-app.route('/api/budget', budgetRoutes);
 app.route('/api/stats', statsRoutes);
 app.route('/api/analysis', analysisRoutes);
 app.route('/api/admin', adminRoutes);
@@ -113,21 +153,21 @@ export default {
  * Handle a single game queue message.
  */
 async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): Promise<void> {
-  const { gameId, batchId, config } = message.body;
+  const { gameId, batchId, config, traceId } = message.body;
   const MAX_RETRIES = 3;
 
   try {
-    console.log(`Processing game ${gameId} from batch ${batchId} (attempt ${message.attempts})`);
+    console.log(`[${traceId || 'no-trace'}] Processing game ${gameId} from batch ${batchId} (attempt ${message.attempts})`);
 
     // Get Durable Object instance by game ID
     const id = env.GAME_RUNNER.idFromName(gameId);
     const stub = env.GAME_RUNNER.get(id);
 
-    // Start the game
+    // Start the game with traceId
     const response = await stub.fetch('http://internal/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId, batchId, config }),
+      body: JSON.stringify({ gameId, batchId, config, traceId }),
     });
 
     if (!response.ok) {
@@ -136,7 +176,7 @@ async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): 
     }
 
     message.ack();
-    console.log(`Game ${gameId} started successfully`);
+    console.log(`[${traceId || 'no-trace'}] Game ${gameId} started successfully`);
   } catch (error) {
     console.error(`Failed to process game ${gameId} (attempt ${message.attempts}):`, error);
 
@@ -155,6 +195,13 @@ async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): 
     // Check if we've exhausted retries
     if (message.attempts >= MAX_RETRIES) {
       console.error(`Game ${gameId} failed after ${MAX_RETRIES} attempts, marking as failed`);
+      
+      // Log to DLQ tracking table for visibility
+      try {
+        await logToDlq(env.DB, 'game-queue', message.body, error, message.attempts);
+      } catch (dlqError) {
+        console.error('Failed to log to DLQ table:', dlqError);
+      }
       
       // Update batch failed counter
       if (batchId) {
@@ -180,24 +227,24 @@ async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): 
  * Handle a single batch queue message - splits into individual games.
  */
 async function handleBatchMessage(message: Message<BatchQueueMessage>, env: Env): Promise<void> {
-  const { batchId, config } = message.body;
+  const { batchId, config, traceId } = message.body;
 
   try {
-    console.log(`Processing batch ${batchId} with ${config.totalGames} games`);
+    console.log(`[${traceId || 'no-trace'}] Processing batch ${batchId} with ${config.totalGames} games`);
 
     // Check system state
     const systemState = await getSystemState(env);
     if (systemState.processingPaused) {
-      console.log(`System paused, retrying batch ${batchId} in 60s`);
+      console.log(`[${traceId || 'no-trace'}] System paused, retrying batch ${batchId} in 60s`);
       message.retry({ delaySeconds: 60 });
       return;
     }
 
-    // Process the batch
-    await processBatchMessage(env, batchId, config);
+    // Process the batch with traceId propagation
+    await processBatchMessage(env, batchId, config, traceId);
 
     message.ack();
-    console.log(`Batch ${batchId} processed, ${config.totalGames} games queued`);
+    console.log(`[${traceId || 'no-trace'}] Batch ${batchId} processed, ${config.totalGames} games queued`);
   } catch (error) {
     console.error(`Failed to process batch ${batchId}:`, error);
 
@@ -209,6 +256,45 @@ async function handleBatchMessage(message: Message<BatchQueueMessage>, env: Env)
       }
     }
 
-    message.retry();
+    // Log to DLQ if max retries exhausted
+    if (message.attempts >= 3) {
+      try {
+        await logToDlq(env.DB, 'batch-queue', message.body, error, message.attempts);
+      } catch (dlqError) {
+        console.error('Failed to log batch to DLQ table:', dlqError);
+      }
+      message.ack();
+    } else {
+      message.retry();
+    }
   }
+}
+
+/**
+ * Log a failed message to the DLQ tracking table.
+ */
+async function logToDlq(
+  db: D1Database,
+  queueName: string,
+  messageBody: unknown,
+  error: unknown,
+  attempts: number
+): Promise<void> {
+  const id = `dlq_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorStack = error instanceof Error ? error.stack : undefined;
+
+  await db.prepare(`
+    INSERT INTO dlq_entries (id, queue_name, message_body, error_message, error_stack, attempts)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(
+    id,
+    queueName,
+    JSON.stringify(messageBody),
+    errorMessage,
+    errorStack ?? null,
+    attempts
+  ).run();
+
+  console.log(`Logged failed message to DLQ: ${id}`);
 }

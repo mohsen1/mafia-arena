@@ -9,9 +9,11 @@ import type {
   BatchRecord,
   BatchStatus,
   GameQueueMessage,
+  GameQueueConfig,
   CostEstimate,
   AdminStats,
   SystemState,
+  BatchQueueMessage,
 } from '../types.js';
 
 // =============================================================================
@@ -19,6 +21,7 @@ import type {
 // =============================================================================
 
 import { MODEL_PRICING, DEFAULT_PRICING } from '../ai/models.js';
+import { getRandomTheme } from '../utils/random-config.js';
 
 /** Maximum games per batch */
 export const MAX_BATCH_SIZE = 10_000;
@@ -195,22 +198,25 @@ export async function cancelBatch(env: Env, batchId: string): Promise<void> {
 
 /**
  * Process a batch message - split into individual game messages.
+ * Preserves traceId from the batch message for distributed tracing.
  */
 export async function processBatchMessage(
   env: Env,
   batchId: string,
-  config: BatchConfig
+  config: BatchConfig,
+  traceId?: string
 ): Promise<void> {
   // Check system state
   const systemState = await getSystemState(env);
   if (systemState.processingPaused) {
-    // Re-queue with delay
-    await env.BATCH_QUEUE.send(
-      { batchId, config, createdAt: Date.now() },
-      { delaySeconds: 60 }
-    );
+    // Re-queue with delay, preserving traceId
+    const msg: BatchQueueMessage = { batchId, config, createdAt: Date.now() };
+    if (traceId) msg.traceId = traceId;
+    await env.BATCH_QUEUE.send(msg, { delaySeconds: 60 });
     return;
   }
+
+  console.log(`[${traceId || 'no-trace'}] Processing batch ${batchId} with ${config.totalGames} games`);
 
   // Update batch status
   await updateBatchStatus(env, batchId, 'processing');
@@ -221,14 +227,25 @@ export async function processBatchMessage(
   for (let i = 0; i < config.totalGames; i++) {
     const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_${i}`;
 
-    messages.push({
-      body: {
-        gameId,
-        batchId,
-        config: config.gameConfig,
-        createdAt: Date.now(),
-      },
-    });
+    // Each game gets a random theme for variety
+    const gameConfig: GameQueueConfig = {
+      ...config.gameConfig,
+      personaTheme: config.gameConfig.personaTheme ?? getRandomTheme(),
+    };
+
+    const gameMessage: GameQueueMessage = {
+      gameId,
+      batchId,
+      config: gameConfig,
+      createdAt: Date.now(),
+    };
+    
+    // Propagate traceId to individual games
+    if (traceId) {
+      gameMessage.traceId = traceId;
+    }
+
+    messages.push({ body: gameMessage });
 
     // Send in batches of 100 to avoid hitting queue limits
     if (messages.length >= 100) {
@@ -312,14 +329,13 @@ export async function getSystemState(env: Env): Promise<SystemState> {
 
   // Get other settings from D1
   const settings = await env.DB.prepare(`
-    SELECT key, value FROM system_state WHERE key IN ('daily_budget_usd', 'max_concurrent_games')
+    SELECT key, value FROM system_state WHERE key IN ('max_concurrent_games')
   `).all<{ key: string; value: string }>();
 
   const settingsMap = new Map(settings.results.map(s => [s.key, s.value]));
 
   return {
     processingPaused: isPaused === 'true',
-    dailyBudgetUsd: parseFloat(settingsMap.get('daily_budget_usd') ?? '10'),
     maxConcurrentGames: parseInt(settingsMap.get('max_concurrent_games') ?? '50', 10),
   };
 }
@@ -376,7 +392,6 @@ export async function getAdminStats(env: Env): Promise<AdminStats> {
     gamesQueued: batchStats?.queued ?? 0,
     batchesActive: batchStats?.active ?? 0,
     costToday,
-    budgetRemaining: systemState.dailyBudgetUsd - costToday,
     systemPaused: systemState.processingPaused,
   };
 }

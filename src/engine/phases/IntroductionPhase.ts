@@ -17,6 +17,7 @@ import type {
 import { getVisibleState } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS, PERSONA_PROMPTS } from '../utils/prompts.js';
 import { sanitizePersona } from '../utils/sanitize.js';
+import { getUniqueAssignments } from '../utils/game-presets.js';
 
 export interface IntroductionPhaseResult {
   readonly state: GameState;
@@ -24,23 +25,13 @@ export interface IntroductionPhaseResult {
 }
 
 /**
- * Ensure persona name is unique by adding suffix if needed.
- */
-function ensureUniqueName(name: string, usedNames: Set<string>): string {
-  if (!usedNames.has(name.toLowerCase())) {
-    return name;
-  }
-  // Add numeric suffix to make unique
-  let suffix = 2;
-  while (usedNames.has(`${name.toLowerCase()}-${suffix}`)) {
-    suffix++;
-  }
-  return `${name}-${suffix}`;
-}
-
-/**
  * Generate personas for all players in PARALLEL for faster execution.
  * This significantly reduces wall-clock time for persona generation.
+ * 
+ * Uses pre-assigned names and archetypes to ensure:
+ * - Unique names (no "Vesper-2" duplicates)
+ * - Diverse personalities (prevents "Analytical Phalanx")
+ * - Consistent character development
  */
 async function generatePersonas(
   initialState: GameState,
@@ -50,10 +41,14 @@ async function generatePersonas(
   let state = initialState;
   const personaConstraints = state.config.personaConstraints ?? 'moderate';
   const playerCount = players.length;
-  const usedNames = new Set<string>();
+  const personaTheme = state.config.personaTheme ?? 'noir';
+
+  // Pre-assign unique names and archetypes using seeded RNG for reproducibility
+  const assignments = getUniqueAssignments(playerCount, personaTheme, state.rng);
 
   // Generate all persona requests in parallel
-  const personaPromises = players.map(async (player) => {
+  const personaPromises = players.map(async (player, index) => {
+    const assignment = assignments[index];
     const visibleState = getVisibleState(state, player);
 
     // Generate appropriate system prompt based on team
@@ -66,11 +61,11 @@ async function generatePersonas(
           )
         : SYSTEM_PROMPTS.town();
 
-    // Use persona generation prompt (no taken names in parallel mode)
+    // Use persona generation prompt with pre-assigned name and archetype
     const userPrompt =
       player.team === 'mafia'
-        ? PERSONA_PROMPTS.mafia(personaConstraints, playerCount, [])
-        : PERSONA_PROMPTS.town(personaConstraints, playerCount, []);
+        ? PERSONA_PROMPTS.mafia(personaConstraints, playerCount, assignment)
+        : PERSONA_PROMPTS.town(personaConstraints, playerCount, assignment);
 
     const response = await aiProvider.getAction(
       {
@@ -90,14 +85,14 @@ async function generatePersonas(
       }
     );
 
-    return { player, response, systemPrompt, userPrompt };
+    return { player, response, systemPrompt, userPrompt, assignment };
   });
 
   // Wait for all persona generations to complete
   const results = await Promise.all(personaPromises);
 
-  // Process results sequentially to maintain state consistency and ensure unique names
-  for (const { player, response, systemPrompt, userPrompt } of results) {
+  // Process results sequentially to maintain state consistency
+  for (const { player, response, systemPrompt, userPrompt, assignment } of results) {
     // Record the AI call event
     const aiCallEvent: AICallEvent = {
       type: 'ai_call',
@@ -124,33 +119,24 @@ async function generatePersonas(
 
     // Parse and store the persona
     // Note: GameAIAdapter guarantees persona_generation type via zod validation
-    if (response.action.type === 'persona_generation') {
-      // Sanitize persona to prevent prompt injection attacks
-      // Build input object explicitly to satisfy exactOptionalPropertyTypes
+    if (response.action.type === 'persona_generation' && assignment) {
       const rawPersona = response.action.persona;
+      
+      // Use PRE-ASSIGNED name and occupation from archetype to ensure uniqueness
+      // AI only generates background and personality (which are constrained by archetype)
       const personaInput: {
         name: string;
         background: string;
         personality: string;
         occupation?: string;
       } = {
-        name: rawPersona.name,
-        background: rawPersona.background,
-        personality: rawPersona.personality,
+        name: assignment.name, // Use pre-assigned name (guaranteed unique)
+        background: rawPersona.background, // AI-generated background
+        personality: rawPersona.personality, // AI-generated personality
+        occupation: assignment.archetype.role, // Use archetype role
       };
-      if (typeof rawPersona.occupation === 'string') {
-        personaInput.occupation = rawPersona.occupation;
-      }
-      let persona = sanitizePersona(personaInput);
       
-      // Ensure unique name
-      const uniqueName = ensureUniqueName(persona.name, usedNames);
-      usedNames.add(uniqueName.toLowerCase());
-      
-      if (uniqueName !== persona.name) {
-        persona = { ...persona, name: uniqueName };
-      }
-      
+      const persona = sanitizePersona(personaInput);
       state = state.withPlayerPersona(player.id, persona);
 
       const personaEvent: PersonaGenerationEvent = {

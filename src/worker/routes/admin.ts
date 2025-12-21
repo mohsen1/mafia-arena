@@ -4,7 +4,8 @@
 
 import { Hono } from 'hono';
 import type { Env, BatchConfig } from '../types.js';
-import { Errors, checkBudget } from '../utils/index.js';
+import { Errors, generateTraceId } from '../utils/index.js';
+import { getRandomTheme } from '../utils/random-config.js';
 import {
   createBatch,
   getBatch,
@@ -17,6 +18,7 @@ import {
   MAX_BATCH_SIZE,
 } from '../batch/index.js';
 import { adminAuthMiddleware, batchRateLimitMiddleware } from '../middleware/index.js';
+import { killHangingGames, getRunningGamesCount } from './admin-cleanup.js';
 
 const admin = new Hono<{ Bindings: Env }>();
 
@@ -300,12 +302,6 @@ admin.post('/estimate', async (c) => {
 admin.post('/games/run-live', async (c) => {
   const env = c.env;
 
-  // Check daily budget
-  const budget = await checkBudget(env.DB);
-  if (!budget.allowed) {
-    throw Errors.BudgetExceeded();
-  }
-
   interface RunLiveGameRequest {
     config: {
       playerCount: number;
@@ -320,6 +316,7 @@ admin.post('/games/run-live', async (c) => {
       personaConstraints?: 'strict' | 'moderate' | 'free';
       contextLevel?: 'full' | 'windowed' | 'summary';
       contextWindowSize?: number;
+      personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
     };
   }
 
@@ -350,15 +347,19 @@ admin.post('/games/run-live', async (c) => {
     throw Errors.BadRequest(`Mafia team counts (${mafiaPlayers}) must equal mafiaCount (${config.mafiaCount})`);
   }
 
-  // Generate IDs
+  // Generate IDs and trace ID
+  const traceId = generateTraceId();
   const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_live`;
   const batchId = `batch_${Date.now().toString(36)}_live`;
+
+  // Pick random theme if not specified
+  const personaTheme = config.personaTheme ?? getRandomTheme();
 
   // Get Durable Object instance and start game in background mode
   const id = env.GAME_RUNNER.idFromName(gameId);
   const stub = env.GAME_RUNNER.get(id);
 
-  console.log(`Starting live game ${gameId} via admin panel`);
+  console.log(`[${traceId}] Starting live game ${gameId} via admin panel`);
 
   const response = await stub.fetch('http://internal/start', {
     method: 'POST',
@@ -375,8 +376,10 @@ admin.post('/games/run-live', async (c) => {
         personaConstraints: config.personaConstraints ?? 'moderate',
         contextLevel: config.contextLevel ?? 'summary',
         contextWindowSize: config.contextWindowSize ?? 3,
+        personaTheme,
       },
       background: true, // Run in background mode for live streaming
+      traceId,
     }),
   });
 
@@ -401,11 +404,194 @@ admin.post('/games/run-live', async (c) => {
     status: result.status,
     liveUrl: `/games/${gameId}/live`,
     message: 'Game started. Redirect to live URL to watch progress.',
-    budget: {
-      spent: budget.spent.toFixed(4),
-      remaining: budget.remaining.toFixed(4),
-      limit: budget.limit,
-    },
+    traceId,
+  });
+});
+
+/**
+ * GET /api/admin/games/running - Get count of running/stale games.
+ */
+admin.get('/games/running', getRunningGamesCount);
+
+/**
+ * POST /api/admin/games/kill-hanging - Kill all hanging games.
+ * Marks games that have been "running" for >10 minutes as failed.
+ */
+admin.post('/games/kill-hanging', killHangingGames);
+
+/**
+ * POST /api/admin/games/:id/fail - Mark a specific game as failed.
+ * Useful for manually fixing stuck games.
+ */
+admin.post('/games/:id/fail', async (c) => {
+  const gameId = c.req.param('id');
+  const { reason } = await c.req.json<{ reason?: string }>();
+  
+  const now = Date.now();
+  const errorMessage = reason || 'Manually marked as failed by admin';
+  
+  try {
+    await c.env.DB.prepare(`
+      UPDATE games 
+      SET status = 'failed', 
+          error_message = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).bind(errorMessage, now, gameId).run();
+    
+    // Also update daily stats
+    const today = new Date().toISOString().slice(0, 10);
+    await c.env.DB.prepare(`
+      INSERT INTO daily_stats (date, games_failed)
+      VALUES (?, 1)
+      ON CONFLICT (date) DO UPDATE SET
+        games_failed = games_failed + 1,
+        updated_at = unixepoch()
+    `).bind(today).run();
+    
+    return c.json({
+      success: true,
+      gameId,
+      message: `Game ${gameId} marked as failed`,
+    });
+  } catch (error) {
+    return c.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      },
+      { status: 500 }
+    );
+  }
+});
+
+// =============================================================================
+// DEAD LETTER QUEUE MANAGEMENT
+// =============================================================================
+
+/**
+ * GET /api/admin/dlq - List failed messages in DLQ.
+ */
+admin.get('/dlq', async (c) => {
+  const url = new URL(c.req.url);
+  const status = url.searchParams.get('status') || 'pending';
+  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 100);
+  const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+
+  const countResult = await c.env.DB.prepare(`
+    SELECT COUNT(*) as count FROM dlq_entries WHERE status = ?
+  `).bind(status).first<{ count: number }>();
+
+  const entries = await c.env.DB.prepare(`
+    SELECT id, queue_name, message_body, error_message, attempts, status, created_at, retried_at
+    FROM dlq_entries
+    WHERE status = ?
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `).bind(status, limit, offset).all();
+
+  return c.json({
+    entries: entries.results.map((e: Record<string, unknown>) => ({
+      id: e.id,
+      queueName: e.queue_name,
+      messageBody: JSON.parse(e.message_body as string),
+      errorMessage: e.error_message,
+      attempts: e.attempts,
+      status: e.status,
+      createdAt: e.created_at,
+      retriedAt: e.retried_at,
+    })),
+    total: countResult?.count ?? 0,
+    hasMore: offset + limit < (countResult?.count ?? 0),
+  });
+});
+
+/**
+ * POST /api/admin/dlq/:id/retry - Re-queue a failed message.
+ */
+admin.post('/dlq/:id/retry', async (c) => {
+  const dlqId = c.req.param('id');
+
+  // Get the DLQ entry
+  const entry = await c.env.DB.prepare(`
+    SELECT * FROM dlq_entries WHERE id = ? AND status = 'pending'
+  `).bind(dlqId).first<{
+    id: string;
+    queue_name: string;
+    message_body: string;
+  }>();
+
+  if (!entry) {
+    throw Errors.NotFound('DLQ entry');
+  }
+
+  const messageBody = JSON.parse(entry.message_body);
+
+  // Re-queue based on queue type
+  if (entry.queue_name === 'game-queue') {
+    await c.env.GAME_QUEUE.send(messageBody);
+  } else if (entry.queue_name === 'batch-queue') {
+    await c.env.BATCH_QUEUE.send(messageBody);
+  } else {
+    throw Errors.BadRequest(`Unknown queue: ${entry.queue_name}`);
+  }
+
+  // Mark as retried
+  await c.env.DB.prepare(`
+    UPDATE dlq_entries SET status = 'retried', retried_at = ? WHERE id = ?
+  `).bind(Math.floor(Date.now() / 1000), dlqId).run();
+
+  return c.json({
+    success: true,
+    message: `Message ${dlqId} re-queued to ${entry.queue_name}`,
+  });
+});
+
+/**
+ * POST /api/admin/dlq/:id/discard - Mark a failed message as discarded.
+ */
+admin.post('/dlq/:id/discard', async (c) => {
+  const dlqId = c.req.param('id');
+
+  const result = await c.env.DB.prepare(`
+    UPDATE dlq_entries SET status = 'discarded' WHERE id = ? AND status = 'pending'
+  `).bind(dlqId).run();
+
+  if (result.meta.changes === 0) {
+    throw Errors.NotFound('DLQ entry');
+  }
+
+  return c.json({
+    success: true,
+    message: `Message ${dlqId} discarded`,
+  });
+});
+
+/**
+ * GET /api/admin/dlq/stats - Get DLQ statistics.
+ */
+admin.get('/dlq/stats', async (c) => {
+  const stats = await c.env.DB.prepare(`
+    SELECT 
+      status,
+      COUNT(*) as count,
+      queue_name
+    FROM dlq_entries
+    GROUP BY status, queue_name
+  `).all<{ status: string; count: number; queue_name: string }>();
+
+  const byStatus: Record<string, number> = {};
+  const byQueue: Record<string, number> = {};
+
+  for (const row of stats.results) {
+    byStatus[row.status] = (byStatus[row.status] || 0) + row.count;
+    byQueue[row.queue_name] = (byQueue[row.queue_name] || 0) + row.count;
+  }
+
+  return c.json({
+    byStatus,
+    byQueue,
+    total: Object.values(byStatus).reduce((a, b) => a + b, 0),
   });
 });
 
