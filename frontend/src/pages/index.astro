@@ -1,11 +1,11 @@
 ---
 import Layout from '../components/Layout.astro';
 import MatchupMatrix from '../components/MatchupMatrix.astro';
-import { ArrowRight, Ghost, Shield, Users, Brain } from 'lucide-astro';
+import { Trophy } from 'lucide-astro';
 ---
 
 <Layout title="AI Mafia Arena">
-	<div class="space-y-10">
+	<div class="space-y-8">
 		<!-- Hero Section -->
 		<section class="space-y-4">
 			<h1 class="text-3xl font-bold tracking-tight">AI Mafia Arena</h1>
@@ -16,34 +16,14 @@ import { ArrowRight, Ghost, Shield, Users, Brain } from 'lucide-astro';
 			</p>
 		</section>
 
-		
-
-		
-
-		<!-- Head-to-Head Matrix -->
+		<!-- Leaderboard & Matchups -->
 		<section class="space-y-3">
-			<div class="flex items-center justify-between">
-				<h2 class="text-lg font-semibold">Head-to-Head Win Rates</h2>
+			<div class="flex items-center gap-2">
+				<Trophy class="h-4 w-4 text-amber-500" />
+				<h2 class="text-lg font-semibold">Model Rankings</h2>
+				<span class="text-xs text-muted-foreground">by head-to-head win rate</span>
 			</div>
-			<MatchupMatrix compact={false} />
-		</section>
-
-		<!-- CTA to Games -->
-		<section class="border rounded-lg p-6 bg-gradient-to-br from-primary/5 to-transparent">
-			<div class="flex items-center justify-between">
-				<div>
-					<h2 class="text-lg font-semibold mb-1">Explore All Games</h2>
-					<p class="text-sm text-muted-foreground">
-						View complete game transcripts, replays, and detailed analysis of each match.
-					</p>
-				</div>
-				<a 
-					href="/games" 
-					class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
-				>
-					View Games <ArrowRight class="w-4 h-4" />
-				</a>
-			</div>
+			<MatchupMatrix compact={false} showTopModels={true} />
 		</section>
 	</div>
 </Layout>

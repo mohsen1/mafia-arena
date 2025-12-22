@@ -1,15 +1,17 @@
 ---
 /**
- * Compact Head-to-Head Matrix component for homepage.
+ * Head-to-Head Matrix component with model rankings.
+ * Models are ranked by their average win rate against other models.
  */
 import { getMatchups } from '../lib/api';
 import { getProviderColor } from '../lib/providers';
 
 interface Props {
   compact?: boolean;
+  showTopModels?: boolean;
 }
 
-const { compact = false } = Astro.props;
+const { compact = false, showTopModels = true } = Astro.props;
 
 const data = await getMatchups();
 
@@ -54,21 +56,76 @@ for (const rowModel of uniqueModels) {
   }
 }
 
-// Sort models by total games played (descending)
-uniqueModels.sort((a, b) => {
-  const aGames = Object.values(matrix[a.display_name] || {}).reduce((sum, cell) => sum + cell.games, 0);
-  const bGames = Object.values(matrix[b.display_name] || {}).reduce((sum, cell) => sum + cell.games, 0);
-  return bGames - aGames;
+// Calculate ranking score: average win rate against other models (weighted by games played)
+interface ModelRanking {
+  model: typeof uniqueModels[0];
+  avgWinRate: number;
+  totalGames: number;
+  totalWins: number;
+  opponents: number;
+}
+
+const rankings: ModelRanking[] = uniqueModels.map(model => {
+  const matchups = matrix[model.display_name] || {};
+  let totalGames = 0;
+  let totalWins = 0;
+  let opponents = 0;
+  
+  for (const [opponent, cell] of Object.entries(matchups)) {
+    if (opponent !== model.display_name && cell.games > 0) {
+      totalGames += cell.games;
+      totalWins += cell.wins;
+      opponents++;
+    }
+  }
+  
+  return {
+    model,
+    avgWinRate: totalGames > 0 ? totalWins / totalGames : 0,
+    totalGames,
+    totalWins,
+    opponents,
+  };
 });
 
+// Sort by average win rate (best performers first), with min games threshold
+rankings.sort((a, b) => {
+  // Require at least 3 games to be ranked highly
+  const aQualified = a.totalGames >= 3;
+  const bQualified = b.totalGames >= 3;
+  
+  if (aQualified && !bQualified) return -1;
+  if (!aQualified && bQualified) return 1;
+  
+  // If both qualified or both not, sort by win rate
+  if (b.avgWinRate !== a.avgWinRate) {
+    return b.avgWinRate - a.avgWinRate;
+  }
+  // Tie-breaker: more games played
+  return b.totalGames - a.totalGames;
+});
+
+// Apply ranking order to uniqueModels
+const sortedModels = rankings.map(r => r.model);
+
 // Limit to top N models for compact view
-const displayModels = compact ? uniqueModels.slice(0, 6) : uniqueModels;
+const displayModels = compact ? sortedModels.slice(0, 6) : sortedModels;
+
+// Top 10 for the leaderboard display
+const top10 = rankings.filter(r => r.totalGames >= 3).slice(0, 10);
 
 function getHeatColor(rate: number): string {
   const hue = Math.round(rate * 120);
   const sat = 70 + Math.abs(rate - 0.5) * 40;
   const light = 45;
   return `hsl(${hue}, ${sat}%, ${light}%)`;
+}
+
+function getRankIcon(index: number): string {
+  if (index === 0) return '🥇';
+  if (index === 1) return '🥈';
+  if (index === 2) return '🥉';
+  return `${index + 1}`;
 }
 ---
 
@@ -77,7 +134,47 @@ function getHeatColor(rate: number): string {
     No matchup data available
   </div>
 ) : (
-  <div class="rounded border bg-card overflow-hidden">
+  <div class="space-y-4">
+    {/* Top 10 Models Table */}
+    {showTopModels && top10.length > 0 && (
+      <div class="rounded border bg-card overflow-hidden">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="border-b bg-muted/40">
+              <th class="px-2 py-1.5 text-left font-medium text-muted-foreground w-8">#</th>
+              <th class="px-2 py-1.5 text-left font-medium text-muted-foreground">Model</th>
+              <th class="px-2 py-1.5 text-right font-medium text-muted-foreground w-16">Win%</th>
+              <th class="px-2 py-1.5 text-right font-medium text-muted-foreground w-16">W-L</th>
+            </tr>
+          </thead>
+          <tbody>
+            {top10.map((entry, i) => (
+              <tr class="border-b last:border-0 hover:bg-muted/20">
+                <td class="px-2 py-1 font-medium tabular-nums">{getRankIcon(i)}</td>
+                <td class="px-2 py-1">
+                  <div class="flex items-center gap-1.5">
+                    <span 
+                      class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
+                      style={`background: ${getProviderColor(entry.model.provider)}`}
+                    ></span>
+                    <span class="font-medium truncate">{entry.model.display_name}</span>
+                  </div>
+                </td>
+                <td class="px-2 py-1 text-right font-bold tabular-nums">
+                  {(entry.avgWinRate * 100).toFixed(0)}%
+                </td>
+                <td class="px-2 py-1 text-right tabular-nums text-muted-foreground">
+                  {entry.totalWins}-{entry.totalGames - entry.totalWins}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    {/* Head-to-Head Matrix */}
+    <div class="rounded border bg-card overflow-hidden">
     <!-- Mobile: Hidden matrix, show message -->
     <div class="md:hidden p-4 text-center text-sm text-muted-foreground">
       <p>Matrix view available on larger screens</p>
@@ -147,6 +244,7 @@ function getHeatColor(rate: number): string {
         </tbody>
       </table>
     </div>
+  </div>
   </div>
 )}
 
