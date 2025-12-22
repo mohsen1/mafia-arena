@@ -266,19 +266,28 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   }
 
   async function init() {
-    const credentials = sessionStorage.getItem('adminCredentials');
-    if (!credentials) {
-      window.location.href = `/admin/login?redirect=/admin/batches/${batchId}`;
-      return;
-    }
-
-    const headers = { 'Authorization': `Basic ${credentials}` };
-    const requestUrl = `${apiUrl}/api/admin/batches/${batchId}`;
-    
     let res, responseBody;
-
+    let requestUrl = '';
+    
     try {
-      res = await fetch(requestUrl, { headers });
+      const credentials = sessionStorage.getItem('adminCredentials');
+      if (!credentials) {
+        window.location.href = `/admin/login?redirect=/admin/batches/${batchId}`;
+        return;
+      }
+
+      const headers = { 'Authorization': `Basic ${credentials}` };
+      requestUrl = `${apiUrl}/api/admin/batches/${batchId}`;
+      
+      // Add timeout to prevent hanging forever
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
+      try {
+        res = await fetch(requestUrl, { headers, signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       const contentType = res.headers.get('content-type') || '';
       responseBody = contentType.includes('application/json') ? await res.json() : await res.text();
 
@@ -303,7 +312,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       document.getElementById('content')?.classList.remove('hidden');
 
       const statusConfig = STATUS_CONFIG[batch.status] || STATUS_CONFIG.queued;
-      const sortedGames = [...batch.recentGames].sort((a, b) => {
+      const recentGames = batch.recentGames || [];
+      const sortedGames = [...recentGames].sort((a, b) => {
         if (a.status === 'running' && b.status !== 'running') return -1;
         if (b.status === 'running' && a.status !== 'running') return 1;
         return (b.created_at || 0) - (a.created_at || 0);
@@ -313,7 +323,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       const completedTown = sortedGames.filter(g => g.status === 'completed' && g.winner === 'town').length;
       const completedMafia = sortedGames.filter(g => g.status === 'completed' && g.winner === 'mafia').length;
       const failedGames = sortedGames.filter(g => g.status === 'failed' || g.status === 'error');
-      const queuedCount = Math.max(0, batch.totalGames - batch.completedGames - batch.failedGames - runningGames.length);
+      const queuedCount = Math.max(0, (batch.totalGames || 0) - (batch.completedGames || 0) - (batch.failedGames || 0) - runningGames.length);
 
       const contentEl = document.getElementById('content');
       if (contentEl) contentEl.innerHTML = `
