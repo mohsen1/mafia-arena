@@ -269,22 +269,32 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     let res, responseBody;
     let requestUrl = '';
     
+    console.log('[BatchDetails] init() called', { batchId, apiUrl });
+    
     try {
       const credentials = sessionStorage.getItem('adminCredentials');
+      console.log('[BatchDetails] credentials:', credentials ? 'present' : 'missing');
+      
       if (!credentials) {
+        console.log('[BatchDetails] redirecting to login');
         window.location.href = `/admin/login?redirect=/admin/batches/${batchId}`;
         return;
       }
 
       const headers = { 'Authorization': `Basic ${credentials}` };
       requestUrl = `${apiUrl}/api/admin/batches/${batchId}`;
+      console.log('[BatchDetails] fetching:', requestUrl);
       
       // Add timeout to prevent hanging forever
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => {
+        console.log('[BatchDetails] aborting due to timeout');
+        controller.abort();
+      }, 15000);
       
       try {
         res = await fetch(requestUrl, { headers, signal: controller.signal });
+        console.log('[BatchDetails] fetch response:', res.status);
       } finally {
         clearTimeout(timeoutId);
       }
@@ -626,7 +636,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     init();
   });
 
+    console.log('[BatchDetails] Script loaded, calling init()');
     init().catch(err => {
+      console.error('[BatchDetails] init() failed:', err);
       showError('Initialization Error', err.message || 'Failed to initialize page', { stack: err.stack });
     });
 </script>
