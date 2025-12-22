@@ -372,7 +372,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         const batchNameInput = String(formData.get('name') || '').trim();
         
         // Auto-generate batch name from model display names if not provided
-        let batchName: string | undefined = batchNameInput || undefined;
+        let batchName = batchNameInput || undefined;
         if (!batchName && modelA && modelB) {
           const mafiaName = modelMap.get(modelA) || 'Mafia';
           const townName = modelMap.get(modelB) || 'Town';
