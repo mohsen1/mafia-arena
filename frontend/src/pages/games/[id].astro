@@ -5,7 +5,8 @@ import { calculateCost, formatCost, calculateTotalCost } from '../../lib/costs';
 import { getProviderColorFromModel } from '../../lib/providers';
 import { 
   Trophy, Clock, Zap, Users, ChevronDown, ChevronRight,
-  Moon, MessageSquare, Vote, Skull, User, Sparkles, ArrowLeft
+  Moon, Sun, MessageSquare, Vote, Skull, User, Sparkles, ArrowLeft,
+  Swords, MessagesSquare, Target, Hash, DollarSign, Timer, Castle, Crosshair
 } from 'lucide-astro';
 
 const { id } = Astro.params;
@@ -79,12 +80,25 @@ const players = Object.values(playerMap);
 const mafiaPlayers = players.filter(p => p.team === 'mafia');
 const townPlayers = players.filter(p => p.team === 'town');
 
-// Group events by round and phase
+// Get unique models per team (short names)
+function getShortModelName(modelId: string): string {
+  const name = modelId.split('/').pop() || modelId;
+  return name.replace(/-\d{4}-\d{2}-\d{2}$/, '').replace(/@.*$/, '');
+}
+const mafiaModels = [...new Set(mafiaPlayers.map(p => getShortModelName(p.modelId)))];
+const townModels = [...new Set(townPlayers.map(p => getShortModelName(p.modelId)))];
+
+// Group events by round and phase, excluding non-game events
 function groupEvents(events: any[]) {
   const grouped: Record<number, Record<string, any[]>> = {};
   for (const event of events) {
+    // Skip events that shouldn't appear in chat
+    if (event.type === 'persona_generation') continue;
+    if (event.type === 'game_end') continue; // Handled separately
+    if (!event.phase || event.phase === 'other') continue; // Skip events with no proper phase
+    
     const round = event.round || 1;
-    const phase = event.phase || 'other';
+    const phase = event.phase;
     if (!grouped[round]) grouped[round] = {};
     if (!grouped[round][phase]) grouped[round][phase] = [];
     grouped[round][phase].push(event);
@@ -93,6 +107,7 @@ function groupEvents(events: any[]) {
 }
 
 const groupedEvents = groupEvents(events);
+const gameEndEvent = events.find((e: any) => e.type === 'game_end');
 const rounds = Object.keys(groupedEvents).map(Number).sort((a, b) => a - b);
 
 // Format date
@@ -105,45 +120,25 @@ const date = game ? new Date(timestamp).toLocaleString(undefined, {
   minute: '2-digit'
 }) : '';
 
-// Theme styles with atmospheric colors
-const THEME_CONFIG: Record<string, { label: string; emoji: string; gradient: string; accent: string }> = {
-  noir: { 
-    label: 'Noir', 
-    emoji: '🎬', 
-    gradient: 'from-slate-900/20 via-zinc-800/10 to-transparent',
-    accent: 'slate'
-  },
-  victorian: { 
-    label: 'Victorian', 
-    emoji: '🎩', 
-    gradient: 'from-amber-900/20 via-stone-800/10 to-transparent',
-    accent: 'amber'
-  },
-  modern: { 
-    label: 'Modern', 
-    emoji: '💻', 
-    gradient: 'from-cyan-900/20 via-slate-800/10 to-transparent',
-    accent: 'cyan'
-  },
-  fantasy: { 
-    label: 'Fantasy', 
-    emoji: '⚔️', 
-    gradient: 'from-purple-900/20 via-indigo-800/10 to-transparent',
-    accent: 'purple'
-  },
+// Theme config (simplified, no gradients)
+const THEME_CONFIG: Record<string, { label: string }> = {
+  noir: { label: 'Noir' },
+  victorian: { label: 'Victorian' },
+  modern: { label: 'Modern' },
+  fantasy: { label: 'Fantasy' },
 };
 const theme = THEME_CONFIG[game?.persona_theme || 'noir'] || THEME_CONFIG.noir;
 
-// Get phase info
+// Get phase info with Lucide icon components
 function getPhaseConfig(phase: string) {
-  const configs: Record<string, { label: string; icon: string; bg: string }> = {
-    introduction: { label: 'Introduction', icon: '💬', bg: 'bg-zinc-500/10' },
-    night: { label: 'Night Phase', icon: '🌙', bg: 'bg-rose-500/10' },
-    mafia_chat: { label: 'Mafia Strategy', icon: '🔪', bg: 'bg-rose-500/15' },
-    day_discussion: { label: 'Day Discussion', icon: '☀️', bg: 'bg-amber-500/10' },
-    day_vote: { label: 'Voting', icon: '🗳️', bg: 'bg-indigo-500/10' },
+  const configs: Record<string, { label: string; iconType: string }> = {
+    introduction: { label: 'Intro', iconType: 'message' },
+    night: { label: 'Night', iconType: 'moon' },
+    mafia_chat: { label: 'Mafia', iconType: 'swords' },
+    day_discussion: { label: 'Discussion', iconType: 'sun' },
+    day_vote: { label: 'Vote', iconType: 'vote' },
   };
-  return configs[phase] || { label: phase, icon: '📝', bg: 'bg-zinc-500/10' };
+  return configs[phase] || { label: phase, iconType: 'message' };
 }
 
 // Parse AI response
@@ -169,122 +164,102 @@ function getPersonaName(playerId: string): string {
 <Layout title={game ? `Game ${game.id.slice(-8)}` : 'Game Not Found'}>
   {error || !game ? (
     <div class="min-h-[60vh] flex items-center justify-center">
-      <div class="text-center space-y-4">
-        <div class="text-6xl opacity-50">🎭</div>
-        <p class="text-muted-foreground">Game not found</p>
-        <a href="/games" class="text-sm font-medium hover:underline inline-flex items-center gap-1">
-          <ArrowLeft size={14} /> Back to games
+      <div class="text-center space-y-3">
+        <Skull size={40} class="mx-auto text-muted-foreground/50" />
+        <p class="text-muted-foreground text-sm">Game not found</p>
+        <a href="/games" class="text-xs font-medium hover:underline inline-flex items-center gap-1">
+          <ArrowLeft size={12} /> Back to games
         </a>
       </div>
     </div>
   ) : (
-    <div class="space-y-8 pb-12">
+    <div class="space-y-5 pb-8">
       <!-- Back Link -->
-      <div class="flex items-center gap-2 text-sm text-muted-foreground">
+      <div class="flex items-center gap-2 text-xs text-muted-foreground">
         <a href="/games" class="hover:text-foreground inline-flex items-center gap-1 transition-colors">
-          <ArrowLeft size={14} /> Games
+          <ArrowLeft size={12} /> Games
         </a>
-        <span class="opacity-40">/</span>
-        <code class="text-xs font-mono opacity-60">{game.id.slice(-12)}</code>
+        <span class="opacity-30">/</span>
+        <code class="font-mono opacity-50">{game.id.slice(-12)}</code>
       </div>
 
-      <!-- Hero Section: Winner Announcement -->
-      <div class={`relative overflow-hidden rounded-2xl border-2 ${
-        game.winner === 'mafia' 
-          ? 'border-rose-500/30 bg-gradient-to-br from-rose-950/30 via-rose-900/10 to-transparent dark:from-rose-950/50 dark:via-rose-900/20' 
-          : 'border-indigo-500/30 bg-gradient-to-br from-indigo-950/30 via-indigo-900/10 to-transparent dark:from-indigo-950/50 dark:via-indigo-900/20'
-      }`}>
-        <!-- Atmospheric Pattern -->
-        <div class="absolute inset-0 opacity-5">
-          <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-                <path d="M 32 0 L 0 0 0 32" fill="none" stroke="currentColor" stroke-width="0.5"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
-        
-        <div class="relative p-8">
-          <div class="absolute top-4 right-4 text-xs font-medium px-3 py-1.5 rounded-full bg-background/80 backdrop-blur border shadow-sm">
-            {theme.emoji} {theme.label}
+      <!-- Header: Teams + Winner -->
+      <div class="rounded-lg border bg-card p-4 space-y-3">
+        <!-- Teams Matchup -->
+        <div class="flex items-center gap-3 text-sm">
+          <div class={`flex items-center gap-1.5 ${game.winner === 'mafia' ? 'font-semibold' : ''}`}>
+            {game.winner === 'mafia' && <Trophy size={14} class="text-amber-500" />}
+            <span class="text-rose-500 font-medium">Mafia</span>
+            <span class="text-muted-foreground">(</span>
+            <span class="font-mono text-xs">{mafiaModels.join(', ')}</span>
+            <span class="text-muted-foreground">)</span>
           </div>
-          
-          <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div class="space-y-4">
-              <div class="flex items-center gap-4">
-                <div class={`p-3 rounded-2xl ${game.winner === 'mafia' ? 'bg-rose-500/20 shadow-lg shadow-rose-500/20' : 'bg-indigo-500/20 shadow-lg shadow-indigo-500/20'}`}>
-                  <Trophy size={32} class={game.winner === 'mafia' ? 'text-rose-500' : 'text-indigo-500'} />
-                </div>
-                <div>
-                  <div class="text-xs text-muted-foreground uppercase tracking-widest font-medium mb-1">Victory</div>
-                  <div class={`text-4xl font-black tracking-tight ${game.winner === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                    {game.winner === 'mafia' ? 'Mafia' : 'Town'}
+          <span class="text-muted-foreground font-bold">vs</span>
+          <div class={`flex items-center gap-1.5 ${game.winner === 'town' ? 'font-semibold' : ''}`}>
+            {game.winner === 'town' && <Trophy size={14} class="text-amber-500" />}
+            <span class="text-indigo-500 font-medium">Town</span>
+            <span class="text-muted-foreground">(</span>
+            <span class="font-mono text-xs">{townModels.join(', ')}</span>
+            <span class="text-muted-foreground">)</span>
+          </div>
         </div>
-        </div>
-              </div>
-              <p class="text-sm text-muted-foreground/80 font-medium">{date}</p>
-      </div>
 
-      <!-- Stats Grid -->
-            <div class="flex items-center gap-1 bg-background/50 backdrop-blur rounded-xl p-1 border">
-              <div class="text-center px-5 py-3">
-                <div class="text-2xl font-black font-mono tabular-nums">{game.rounds}</div>
-                <div class="text-[10px] text-muted-foreground uppercase tracking-wider">Rounds</div>
-          </div>
-              <div class="w-px h-12 bg-border/50"></div>
-              <div class="text-center px-5 py-3">
-                <div class="text-2xl font-black font-mono tabular-nums">{formatDuration(game.duration_ms || 0)}</div>
-                <div class="text-[10px] text-muted-foreground uppercase tracking-wider">Duration</div>
-        </div>
-              <div class="w-px h-12 bg-border/50"></div>
-              <div class="text-center px-5 py-3">
-                <div class="text-2xl font-black font-mono tabular-nums text-emerald-600 dark:text-emerald-400">{formatCost(totalCost)}</div>
-                <div class="text-[10px] text-muted-foreground uppercase tracking-wider">Cost</div>
-          </div>
-        </div>
+        <!-- Stats Row -->
+        <div class="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{date}</span>
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-1">
+              <Hash size={11} />
+              <span class="font-mono">{game.rounds}</span>
+              <span class="opacity-60">rounds</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <Timer size={11} />
+              <span class="font-mono">{formatDuration(game.duration_ms || 0)}</span>
+            </div>
+            <div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              <DollarSign size={11} />
+              <span class="font-mono">{formatCost(totalCost)}</span>
+            </div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted">{theme.label}</span>
           </div>
         </div>
       </div>
 
-      <!-- Players Section -->
-        <section class="space-y-4">
-          <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold flex items-center gap-2">
-            <Users size={18} />
+      <!-- Players Grid -->
+      <section class="space-y-2">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold flex items-center gap-1.5">
+            <Users size={14} />
             Players
           </h2>
-              <div class="flex items-center gap-4 text-xs">
-            <span class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-              <span class="text-muted-foreground">Mafia ({mafiaPlayers.length})</span>
-                  </span>
-            <span class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-              <span class="text-muted-foreground">Town ({townPlayers.length})</span>
-                </span>
-              </div>
+          <div class="flex items-center gap-3 text-[10px]">
+            <span class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+              Mafia ({mafiaPlayers.length})
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+              Town ({townPlayers.length})
+            </span>
           </div>
+        </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2">
           {players.map((player) => (
-            <div class={`relative group rounded-xl border p-3 transition-all duration-200 ${
+            <div class={`relative rounded-md border px-2 py-1.5 text-xs ${
               player.team === 'mafia' 
-                ? 'bg-gradient-to-br from-rose-500/10 to-rose-500/5 border-rose-500/20 hover:border-rose-500/50 hover:shadow-md hover:shadow-rose-500/10' 
-                : 'bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border-indigo-500/20 hover:border-indigo-500/50 hover:shadow-md hover:shadow-indigo-500/10'
-            } ${!player.isAlive ? 'opacity-40 grayscale' : ''}`}>
+                ? 'border-rose-500/20 bg-rose-500/5' 
+                : 'border-indigo-500/20 bg-indigo-500/5'
+            } ${!player.isAlive ? 'opacity-40' : ''}`}>
               {!player.isAlive && (
-                <div class="absolute -top-2 -right-2 text-sm bg-background rounded-full px-1 border">💀</div>
+                <Skull size={10} class="absolute -top-1 -right-1 text-muted-foreground" />
               )}
-              {player.team === 'mafia' && player.isAlive && game.winner === 'mafia' && (
-                <div class="absolute -top-2 -right-2 text-sm bg-background rounded-full px-1 border">🏆</div>
+              {player.team === game.winner && player.isAlive && (
+                <Trophy size={10} class="absolute -top-1 -right-1 text-amber-500" />
               )}
-              {player.team === 'town' && player.isAlive && game.winner === 'town' && (
-                <div class="absolute -top-2 -right-2 text-sm bg-background rounded-full px-1 border">🏆</div>
-              )}
-              <div class="flex items-start gap-2.5">
-                <div class={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
+              <div class="flex items-center gap-1.5">
+                <div class={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${
                   player.team === 'mafia' 
                     ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' 
                     : 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
@@ -292,16 +267,11 @@ function getPersonaName(playerId: string): string {
                   {player.personaName.charAt(0)}
                 </div>
                 <div class="min-w-0 flex-1">
-                  <div class="font-semibold text-sm truncate">{player.personaName}</div>
-                  <div class="text-[10px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style={`background: ${getProviderColorFromModel(player.modelId)}`}></span>
+                  <div class="font-medium truncate">{player.personaName}</div>
+                  <div class="text-[9px] text-muted-foreground truncate flex items-center gap-0.5">
+                    <span class="w-1 h-1 rounded-full flex-shrink-0" style={`background: ${getProviderColorFromModel(player.modelId)}`}></span>
                     {player.modelId.split('/').pop() || player.modelId}
                   </div>
-                  {player.persona?.personality && (
-                    <div class="text-[10px] text-muted-foreground/60 truncate mt-1 italic leading-tight">
-                      {player.persona.personality}
-              </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -310,41 +280,42 @@ function getPersonaName(playerId: string): string {
       </section>
 
       <!-- Game Transcript -->
-      <section class="space-y-4">
-        <h2 class="text-lg font-semibold flex items-center gap-2">
-          <MessageSquare size={18} />
-          Game Transcript
+      <section class="space-y-2">
+        <h2 class="text-sm font-semibold flex items-center gap-1.5">
+          <MessageSquare size={14} />
+          Transcript
         </h2>
 
         {rounds.length === 0 ? (
-          <div class="border rounded-xl p-12 text-center text-muted-foreground bg-muted/30">
-            <div class="text-4xl mb-3 opacity-50">📜</div>
-            <p class="text-sm">No events recorded</p>
+          <div class="border rounded-md p-6 text-center text-muted-foreground text-sm">
+            No events recorded
           </div>
         ) : (
-          <div class="space-y-3" id="transcript">
+          <div class="space-y-1.5" id="transcript">
             {rounds.map((round, roundIdx) => (
-              <details class="group border rounded-xl overflow-hidden bg-card shadow-sm" open={roundIdx === rounds.length - 1}>
-                <summary class="flex items-center justify-between p-4 bg-gradient-to-r from-muted/50 to-transparent cursor-pointer hover:from-muted/70 transition-all">
-                  <div class="flex items-center gap-3">
-                    <span class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-black">
+              <details class="group border rounded-md overflow-hidden" open={roundIdx === rounds.length - 1}>
+                <summary class="flex items-center justify-between px-3 py-2 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors text-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded bg-primary/10 flex items-center justify-center text-[10px] font-bold">
                       {round}
                     </span>
-                    <span class="text-sm font-semibold text-muted-foreground">
-                      Round {round}
-                    </span>
-                    <div class="flex items-center gap-1 ml-2">
+                    <span class="font-medium">Round {round}</span>
+                    <div class="flex items-center gap-0.5 ml-1">
                       {Object.keys(groupedEvents[round] || {}).map(phase => {
                         const config = getPhaseConfig(phase);
                         return (
-                          <span class={`text-xs px-2 py-0.5 rounded-full ${config.bg}`} title={config.label}>
-                            {config.icon}
-                        </span>
+                          <span class="text-muted-foreground" title={config.label}>
+                            {config.iconType === 'moon' && <Moon size={12} />}
+                            {config.iconType === 'sun' && <Sun size={12} />}
+                            {config.iconType === 'swords' && <Swords size={12} />}
+                            {config.iconType === 'vote' && <Vote size={12} />}
+                            {config.iconType === 'message' && <MessagesSquare size={12} />}
+                          </span>
                         );
                       })}
                     </div>
                   </div>
-                  <ChevronDown size={18} class="text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+                  <ChevronDown size={14} class="text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
                 </summary>
                 
                 <div class="divide-y divide-border/50">
@@ -352,138 +323,114 @@ function getPersonaName(playerId: string): string {
                     const phaseConfig = getPhaseConfig(phase);
                     const isNightPhase = phase === 'night' || phase === 'mafia_chat';
                     return (
-                      <div class={`p-4 space-y-4 ${isNightPhase ? 'bg-rose-950/5 dark:bg-rose-950/10' : ''}`}>
-                        <div class="flex items-center gap-3">
-                          <div class={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm ${phaseConfig.bg}`}>
-                            <span>{phaseConfig.icon}</span>
-                            <span>{phaseConfig.label}</span>
-                          </div>
-                          <div class="h-px flex-1 bg-border/30"></div>
-                          <span class="text-[10px] text-muted-foreground/50">{(phaseEvents as any[]).length} events</span>
+                      <div class={`px-3 py-2 space-y-1.5 ${isNightPhase ? 'bg-rose-500/3' : ''}`}>
+                        <div class="flex items-center gap-2 text-[10px] text-muted-foreground">
+                          {phaseConfig.iconType === 'moon' && <Moon size={10} />}
+                          {phaseConfig.iconType === 'sun' && <Sun size={10} />}
+                          {phaseConfig.iconType === 'swords' && <Swords size={10} />}
+                          {phaseConfig.iconType === 'vote' && <Vote size={10} />}
+                          {phaseConfig.iconType === 'message' && <MessagesSquare size={10} />}
+                          <span class="font-medium uppercase tracking-wide">{phaseConfig.label}</span>
+                          <span class="opacity-50">·</span>
+                          <span class="opacity-50">{(phaseEvents as any[]).length}</span>
                         </div>
                         
                         <div class="space-y-1">
                           {(phaseEvents as any[]).map((event, idx) => {
                             const player = playerMap[event.playerId];
                             const team = event.team || player?.team || 'town';
-                            const isMailia = team === 'mafia';
+                            const isMafia = team === 'mafia';
                             
                             if (event.type === 'ai_call') {
                               const parsed = parseResponse(event.response?.raw);
+                              
+                              // Skip persona type responses in chat
+                              if (parsed.type === 'persona') return null;
+                              
                               return (
-                                <div class="group flex gap-3 py-2">
-                                  <!-- Avatar -->
-                                  <div class={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-                                    isMailia ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                                <div class="group/msg flex gap-2 py-1">
+                                  <div class={`w-5 h-5 rounded flex items-center justify-center shrink-0 text-[10px] font-bold ${
+                                    isMafia ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
                                   }`}>
                                     {event.playerName?.charAt(0) || '?'}
                                   </div>
                                   
-                                  <!-- Message Bubble -->
                                   <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                      <span class={`font-semibold text-sm ${isMailia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                    <div class="flex items-baseline gap-1.5">
+                                      <span class={`font-medium text-xs ${isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
                                         {event.playerName}
                                       </span>
-                                      <span class="text-[10px] text-muted-foreground/50 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <span class="w-1.5 h-1.5 rounded-full" style={`background: ${getProviderColorFromModel(event.modelId)}`}></span>
+                                      <span class="text-[9px] text-muted-foreground/40 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
+                                        <span class="w-1 h-1 rounded-full" style={`background: ${getProviderColorFromModel(event.modelId)}`}></span>
                                         {event.modelId.split('/').pop()}
                                       </span>
-                      </div>
+                                    </div>
                                     
-                                    <div class={`rounded-2xl rounded-tl-sm px-4 py-2.5 inline-block max-w-[90%] ${
-                                      isMailia 
-                                        ? 'bg-rose-500/10 dark:bg-rose-500/15' 
-                                        : 'bg-indigo-500/10 dark:bg-indigo-500/15'
-                                    }`}>
-                                      {parsed.type === 'message' ? (
-                                        <p class="text-sm leading-relaxed whitespace-pre-wrap">{parsed.content}</p>
-                                      ) : parsed.type === 'vote' ? (
-                                        <div class="text-sm">
-                                          <span class="text-muted-foreground">🗳️ Voted for </span>
-                                          <span class="font-semibold">{getPersonaName(parsed.content.vote)}</span>
-                                          {parsed.content.reasoning && (
-                                            <p class="text-xs text-muted-foreground/80 mt-1.5 italic border-t border-current/10 pt-1.5">"{parsed.content.reasoning}"</p>
-                                          )}
-                    </div>
-                                      ) : parsed.type === 'action' ? (
-                                        <div class="text-sm">
-                                          <span class={`${parsed.content.action === 'kill' ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
-                                            {parsed.content.action === 'kill' ? '🔪' : '🎯'} {parsed.content.action}
+                                    {parsed.type === 'message' ? (
+                                      <p class="text-xs text-foreground/90 leading-relaxed mt-0.5">{parsed.content}</p>
+                                    ) : parsed.type === 'vote' ? (
+                                      <div class="text-xs mt-0.5">
+                                        <span class="inline-flex items-center gap-1 text-muted-foreground">
+                                          <Vote size={10} />
+                                          <span>Voted for</span>
+                                          <span class={`font-semibold ${playerMap[parsed.content.vote]?.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`}>
+                                            {getPersonaName(parsed.content.vote)}
                                           </span>
-                                          <span class="font-semibold ml-1">{getPersonaName(parsed.content.target)}</span>
-                                          {parsed.content.reasoning && (
-                                            <p class="text-xs text-muted-foreground/80 mt-1.5 italic border-t border-current/10 pt-1.5">"{parsed.content.reasoning}"</p>
-                  )}
-                </div>
-                                      ) : parsed.type === 'persona' ? (
-                                        <div class="text-sm space-y-1">
-                                          <p class="italic text-muted-foreground">
-                                            {parsed.content.occupation && <span class="font-medium not-italic">🎭 {parsed.content.occupation}. </span>}
-                                            {parsed.content.personality}
-                                          </p>
-                                          <p class="text-foreground/80 text-xs border-t border-current/10 pt-1.5 mt-1.5">{parsed.content.background}</p>
-                                        </div>
-                                      ) : (
-                                        <p class="text-sm leading-relaxed">{parsed.content}</p>
-                                      )}
-                  </div>
-                  </div>
-                </div>
+                                        </span>
+                                        {parsed.content.reasoning && (
+                                          <details class="mt-0.5 text-[10px] text-muted-foreground">
+                                            <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
+                                              <ChevronRight size={10} class="transition-transform [details[open]_&]:rotate-90" />
+                                              reason
+                                            </summary>
+                                            <p class="mt-0.5 pl-3 italic opacity-70">"{parsed.content.reasoning}"</p>
+                                          </details>
+                                        )}
+                                      </div>
+                                    ) : parsed.type === 'action' ? (
+                                      <div class="text-xs mt-0.5">
+                                        <span class="inline-flex items-center gap-1">
+                                          <Crosshair size={10} class={parsed.content.action === 'kill' ? 'text-rose-500' : 'text-muted-foreground'} />
+                                          <span class="text-muted-foreground">{parsed.content.action}</span>
+                                          <span class={`font-semibold ${playerMap[parsed.content.target]?.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`}>
+                                            {getPersonaName(parsed.content.target)}
+                                          </span>
+                                        </span>
+                                        {parsed.content.reasoning && (
+                                          <details class="mt-0.5 text-[10px] text-muted-foreground">
+                                            <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
+                                              <ChevronRight size={10} class="transition-transform [details[open]_&]:rotate-90" />
+                                              reason
+                                            </summary>
+                                            <p class="mt-0.5 pl-3 italic opacity-70">"{parsed.content.reasoning}"</p>
+                                          </details>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p class="text-xs text-foreground/90 leading-relaxed mt-0.5">{parsed.content}</p>
+                                    )}
+                                  </div>
+                                </div>
                               );
                             }
                             
                             if (event.type === 'elimination') {
                               return (
-                                <div class={`flex items-center gap-3 py-3 px-4 rounded-lg my-2 ${
+                                <div class={`flex items-center gap-2 py-1.5 px-2 rounded text-xs ${
                                   event.team === 'mafia' 
-                                    ? 'bg-rose-500/10 border border-rose-500/30' 
-                                    : 'bg-indigo-500/10 border border-indigo-500/30'
+                                    ? 'bg-rose-500/10 border border-rose-500/20' 
+                                    : 'bg-indigo-500/10 border border-indigo-500/20'
                                 }`}>
-                                  <Skull size={18} class={event.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'} />
-                                  <div>
-                                    <span class={`font-semibold ${
-                                      event.team === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
-                                    }`}>{event.playerName || getPersonaName(event.playerId)}</span>
-                                    <span class="text-muted-foreground ml-2">was eliminated</span>
-                                  </div>
-                                  <span class={`ml-auto text-xs px-2 py-1 rounded font-medium ${
+                                  <Skull size={12} class={event.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'} />
+                                  <span class={`font-medium ${
+                                    event.team === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
+                                  }`}>{event.playerName || getPersonaName(event.playerId)}</span>
+                                  <span class="text-muted-foreground">eliminated</span>
+                                  <span class={`ml-auto text-[10px] px-1.5 py-0.5 rounded font-medium ${
                                     event.team === 'mafia' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                                   }`}>
                                     {event.team}
                                   </span>
-                  </div>
-                              );
-                            }
-                            
-                            if (event.type === 'vote') {
-                              const voterTeam = playerMap[event.voterId]?.team || 'town';
-                              return (
-                                <div class="flex items-center gap-2 py-1 text-sm text-muted-foreground">
-                                  <span class={voterTeam === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}>
-                                    {event.voterName || getPersonaName(event.voterId)}
-                                  </span>
-                                  <span>→</span>
-                                  {event.targetId ? (
-                                    <span class="font-medium text-foreground">{getPersonaName(event.targetId)}</span>
-                                  ) : (
-                                    <span class="italic">abstain</span>
-                )}
-              </div>
-                              );
-                            }
-                            
-                            if (event.type === 'game_end') {
-                              return (
-                                <div class={`text-center py-6 rounded-lg ${
-                                  event.winner === 'mafia' ? 'bg-rose-500/10' : 'bg-indigo-500/10'
-                                }`}>
-                                  <div class="text-4xl mb-2">🎉</div>
-                                  <div class={`text-xl font-bold ${
-                                    event.winner === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
-                                  }`}>
-                                    {event.winner === 'mafia' ? 'Mafia' : 'Town'} Wins!
-                                  </div>
                                 </div>
                               );
                             }
@@ -497,14 +444,30 @@ function getPersonaName(playerId: string): string {
                 </div>
               </details>
             ))}
+            
+            {/* Game End - Always at the bottom */}
+            {gameEndEvent && (
+              <div class={`text-center py-4 rounded-md border ${
+                gameEndEvent.winner === 'mafia' 
+                  ? 'bg-rose-500/10 border-rose-500/30' 
+                  : 'bg-indigo-500/10 border-indigo-500/30'
+              }`}>
+                <Trophy size={20} class={`mx-auto mb-1 ${gameEndEvent.winner === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`} />
+                <div class={`text-sm font-bold ${
+                  gameEndEvent.winner === 'mafia' ? 'text-rose-500' : 'text-indigo-500'
+                }`}>
+                  {gameEndEvent.winner === 'mafia' ? 'Mafia' : 'Town'} Wins
+                </div>
+              </div>
+            )}
           </div>
         )}
-        </section>
+      </section>
 
-      <!-- Token Stats Footer -->
-      <div class="flex items-center justify-between text-xs text-muted-foreground border-t pt-4">
-        <span>{game.total_tokens?.toLocaleString() || 0} tokens used</span>
-        <span>{events.length} events</span>
+      <!-- Footer Stats -->
+      <div class="flex items-center justify-between text-[10px] text-muted-foreground border-t pt-3">
+        <span>{game.total_tokens?.toLocaleString() || 0} tokens</span>
+        <span>{events.filter((e: any) => e.type !== 'persona_generation').length} events</span>
       </div>
     </div>
   )}
