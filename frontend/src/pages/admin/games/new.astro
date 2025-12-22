@@ -1,7 +1,7 @@
 ---
 import Layout from '../../../components/Layout.astro';
 import { getModels } from '../../../lib/api';
-import { ArrowLeft, Play, Radio, Users, Shield, Sword, MessageSquare, Clock, Sparkles } from 'lucide-astro';
+import { ArrowLeft, Play, Radio, Users, Shield, Sword } from 'lucide-astro';
 
 let models = [];
 let error = null;
@@ -64,8 +64,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
               name="playerCount"
               class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              {[5, 6, 7, 8, 9, 10].map(n => (
-                <option value={n} selected={n === 7}>{n} players</option>
+              {[5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                <option value={n} selected={n === 11}>{n} players</option>
               ))}
             </select>
           </div>
@@ -125,70 +125,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         </div>
       </section>
 
-      <section class="border rounded-lg p-4 space-y-4 bg-muted/30">
-        <div class="flex items-center gap-2 text-sm font-medium">
-          <Sparkles size={16} class="text-muted-foreground" />
-          Game Options
-        </div>
-
-        <div class="space-y-3">
-          <label class="flex items-center gap-3 cursor-pointer p-2 rounded-md hover:bg-muted/50 transition-colors">
-            <input type="checkbox" id="discussionEnabled" name="discussionEnabled" checked class="rounded border-muted-foreground/50" />
-            <div>
-              <span class="text-sm font-medium flex items-center gap-1.5">
-                <MessageSquare size={14} />
-                Enable Discussion Phase
-              </span>
-              <span class="text-xs text-muted-foreground block">Players discuss before voting</span>
-            </div>
-          </label>
-
-          <div class="space-y-2">
-            <label for="maxRounds" class="text-sm text-muted-foreground flex items-center gap-1.5">
-              <Clock size={14} />
-              Max Rounds
-            </label>
-            <select 
-              id="maxRounds" 
-              name="maxRounds"
-              class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {[5, 7, 10, 15, 20].map(n => (
-                <option value={n} selected={n === 10}>{n} rounds</option>
-              ))}
-            </select>
-          </div>
-
-          <div class="space-y-2">
-            <label for="contextLevel" class="text-sm text-muted-foreground">Context Level</label>
-            <select 
-              id="contextLevel" 
-              name="contextLevel"
-              class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="summary">Summary (fastest, lowest cost)</option>
-              <option value="windowed" selected>Windowed (balanced)</option>
-              <option value="full">Full History (best quality, higher cost)</option>
-            </select>
-            <p class="text-xs text-muted-foreground">
-              How much game history each AI player receives
-            </p>
-          </div>
-
-          <div class="space-y-2">
-            <label for="personaConstraints" class="text-sm text-muted-foreground">Persona Constraints</label>
-            <select 
-              id="personaConstraints" 
-              name="personaConstraints"
-              class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="strict">Strict (must stay in character)</option>
-              <option value="moderate" selected>Moderate (balanced)</option>
-              <option value="free">Free (minimal restrictions)</option>
-            </select>
-          </div>
-        </div>
-      </section>
 
       <div id="launch-status" class="hidden border rounded-lg p-4 bg-muted/30">
         <div class="flex items-center gap-3">
@@ -278,14 +214,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
       try {
         const formData = new FormData(form);
-        const playerCount = parseInt(String(formData.get('playerCount') || '7'));
+        const playerCount = parseInt(String(formData.get('playerCount') || '11'));
         const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
         const modelA = String(formData.get('modelA') || '');
         const modelB = String(formData.get('modelB') || '');
-        const maxRounds = parseInt(String(formData.get('maxRounds') || '10'));
-        const discussionEnabled = formData.get('discussionEnabled') === 'on';
-        const contextLevel = String(formData.get('contextLevel') || 'windowed');
-        const personaConstraints = String(formData.get('personaConstraints') || 'moderate');
 
         if (statusText) {
           statusText.textContent = 'Contacting server...';
@@ -302,10 +234,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
                 { modelId: modelA, team: 'mafia', count: mafiaCount },
                 { modelId: modelB, team: 'town', count: playerCount - mafiaCount },
               ],
-              maxRounds,
-              discussionEnabled,
-              contextLevel,
-              personaConstraints,
+              maxRounds: 10,
+              discussionEnabled: true,
+              contextLevel: 'full',
+              personaConstraints: 'moderate',
             },
           }),
         });
