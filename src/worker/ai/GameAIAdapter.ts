@@ -47,7 +47,7 @@ export class GameAIAdapter implements AIProvider {
 
   constructor(private readonly providers: Map<string, AIProviderInterface>) {
     this.log = createLogger('GameAIAdapter');
-    this.log.debug('Adapter created', { providerCount: providers.size, models: Array.from(providers.keys()) });
+    this.log.debug('Adapter created', { providerCount: providers.size, models: Array.from(providers.keys()).join(', ') });
   }
 
   async getAction(context: AIContext, prompt: ActionPrompt): Promise<AIResponse> {
@@ -59,7 +59,7 @@ export class GameAIAdapter implements AIProvider {
 
     const provider = this.providers.get(context.modelId);
     if (!provider) {
-      callLog.error('Provider not found for model', { availableModels: Array.from(this.providers.keys()) });
+      callLog.error('Provider not found for model', { availableModels: Array.from(this.providers.keys()).join(', ') });
       throw AIErrors.unsupportedModel(context.modelId);
     }
 

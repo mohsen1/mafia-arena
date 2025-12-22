@@ -15,14 +15,23 @@ const models = new Hono<{ Bindings: Env }>();
  */
 models.get('/', async (c) => {
   const env = c.env;
-  const result = await env.DB.prepare('SELECT * FROM models ORDER BY display_name').all();
+  
+  interface ModelRow {
+    id: string;
+    display_name: string;
+    provider: string;
+    description: string | null;
+    created_at: number;
+  }
+  
+  const result = await env.DB.prepare('SELECT * FROM models ORDER BY display_name').all<ModelRow>();
 
   // Filter to only include currently supported models and add pricing
   const filteredModels = result.results
     .filter((model) => model.id in SUPPORTED_MODELS)
     .map((model) => ({
       ...model,
-      pricing: MODEL_PRICING[model.id as string] || null,
+      pricing: MODEL_PRICING[model.id] || null,
     }));
 
   return c.json({ models: filteredModels });

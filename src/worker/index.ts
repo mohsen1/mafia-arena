@@ -131,21 +131,24 @@ export default {
     batch: MessageBatch<GameQueueMessage | BatchQueueMessage>,
     env: Env
   ): Promise<void> {
-    for (const message of batch.messages) {
-      const body = message.body;
+    // Process all messages in parallel for maximum throughput
+    await Promise.all(
+      batch.messages.map(async (message) => {
+        const body = message.body;
 
-      // Check if this is a game message (has gameId) or batch message (has config.totalGames)
-      if ('gameId' in body && body.gameId) {
-        // Game queue message
-        await handleGameMessage(message as Message<GameQueueMessage>, env);
-      } else if ('config' in body && body.config && 'totalGames' in body.config) {
-        // Batch queue message
-        await handleBatchMessage(message as Message<BatchQueueMessage>, env);
-      } else {
-        console.error('Unknown message type:', body);
-        message.ack(); // Acknowledge to prevent infinite retries
-      }
-    }
+        // Check if this is a game message (has gameId) or batch message (has config.totalGames)
+        if ('gameId' in body && body.gameId) {
+          // Game queue message
+          await handleGameMessage(message as Message<GameQueueMessage>, env);
+        } else if ('config' in body && body.config && 'totalGames' in body.config) {
+          // Batch queue message
+          await handleBatchMessage(message as Message<BatchQueueMessage>, env);
+        } else {
+          console.error('Unknown message type:', body);
+          message.ack(); // Acknowledge to prevent infinite retries
+        }
+      })
+    );
   },
 };
 
