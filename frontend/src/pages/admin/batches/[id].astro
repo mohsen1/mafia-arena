@@ -1,198 +1,304 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { Clock, CheckCircle, XCircle, AlertTriangle, Activity, DollarSign, RefreshCw, Bug } from 'lucide-astro';
+import { ArrowLeft, Play, Pause, XCircle, AlertTriangle, Terminal, Cpu, Clock, DollarSign, Users, Zap, ExternalLink, RotateCcw } from 'lucide-astro';
 
 const { id } = Astro.params;
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
 <Layout title="Batch Details">
-  <div id="container" class="space-y-6">
-    <!-- Breadcrumb (always visible) -->
-    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-      <a href="/admin" class="hover:underline">Admin</a>
-      <span>/</span>
-      <a href="/admin/batches" class="hover:underline">Batches</a>
-      <span>/</span>
-      <span class="font-mono">{id}</span>
+  <div id="batch-container" class="min-h-[70vh]">
+    <!-- Header with breadcrumb -->
+    <div class="flex items-center gap-2 text-xs mb-6">
+      <a href="/admin" class="text-muted-foreground hover:text-foreground transition-colors">Admin</a>
+      <span class="text-muted-foreground/40">/</span>
+      <a href="/admin/batches" class="text-muted-foreground hover:text-foreground transition-colors">Batches</a>
+      <span class="text-muted-foreground/40">/</span>
+      <code class="font-mono text-[10px] px-1.5 py-0.5 bg-muted/50 rounded">{id}</code>
     </div>
 
-    <!-- Loading -->
-    <div id="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-      <span class="ml-3 text-muted-foreground">Loading batch data...</span>
-    </div>
-
-    <!-- Error -->
-    <div id="error" class="hidden space-y-4">
-      <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4 space-y-3">
-        <div class="flex items-start gap-3">
-          <AlertTriangle class="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-          <div class="space-y-1">
-            <p id="error-title" class="font-medium text-destructive">Failed to load batch</p>
-            <p id="error-text" class="text-sm text-muted-foreground"></p>
-          </div>
-        </div>
+    <!-- Loading State -->
+    <div id="loading" class="flex flex-col items-center justify-center py-24 gap-4">
+      <div class="relative">
+        <div class="w-12 h-12 border-2 border-muted rounded-full"></div>
+        <div class="absolute inset-0 w-12 h-12 border-2 border-t-primary rounded-full animate-spin"></div>
       </div>
-      
-      <!-- Debug Details (collapsible) -->
-      <details class="border rounded-lg" open>
-        <summary class="px-4 py-3 cursor-pointer font-medium flex items-center gap-2 hover:bg-muted/30 transition-colors">
-          <Bug class="w-4 h-4" />
-          Debug Information
-        </summary>
-        <div class="px-4 pb-4 space-y-3 text-sm">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <p class="text-muted-foreground mb-1">Batch ID:</p>
-              <code class="block bg-muted/50 p-2 rounded font-mono text-xs break-all">{id}</code>
+      <span class="text-sm text-muted-foreground font-mono">Loading batch data...</span>
+    </div>
+
+    <!-- Error State -->
+    <div id="error" class="hidden">
+      <div class="space-y-6">
+        <!-- Error Banner -->
+        <div class="relative overflow-hidden rounded-lg border border-destructive/30 bg-destructive/5">
+          <div class="absolute inset-0 bg-gradient-to-r from-destructive/10 via-transparent to-transparent"></div>
+          <div class="relative p-6 flex items-start gap-4">
+            <div class="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle class="w-5 h-5 text-destructive" />
             </div>
-            <div>
-              <p class="text-muted-foreground mb-1">Timestamp:</p>
-              <code id="debug-timestamp" class="block bg-muted/50 p-2 rounded font-mono text-xs"></code>
+            <div class="space-y-1 min-w-0 flex-1">
+              <p id="error-title" class="font-semibold text-destructive">Failed to load batch</p>
+              <p id="error-text" class="text-sm text-muted-foreground"></p>
             </div>
-          </div>
-          <div>
-            <p class="text-muted-foreground mb-1">Request URL:</p>
-            <code id="debug-url" class="block bg-muted/50 p-2 rounded font-mono text-xs break-all"></code>
-          </div>
-          <div>
-            <p class="text-muted-foreground mb-1">Response Status:</p>
-            <code id="debug-status" class="block bg-muted/50 p-2 rounded font-mono text-xs"></code>
-          </div>
-          <div>
-            <p class="text-muted-foreground mb-1">Response Body:</p>
-            <pre id="debug-body" class="bg-muted/50 p-2 rounded font-mono text-xs overflow-x-auto max-h-60"></pre>
-          </div>
-          <div>
-            <p class="text-muted-foreground mb-1">Error Stack:</p>
-            <pre id="debug-stack" class="bg-muted/50 p-2 rounded font-mono text-xs overflow-x-auto max-h-48 whitespace-pre-wrap"></pre>
           </div>
         </div>
-      </details>
 
-      <div class="flex gap-3">
-        <a href="/admin/batches" class="px-4 py-2 border rounded-md hover:bg-muted/30 transition-colors">← Back to batches</a>
-        <button id="retry-btn" class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">Retry</button>
+        <!-- Debug Panel -->
+        <details class="group" open>
+          <summary class="flex items-center gap-2 text-xs font-mono text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+            <Terminal class="w-3.5 h-3.5" />
+            <span>Debug Output</span>
+            <span class="ml-auto text-[10px] opacity-50 group-open:hidden">[expand]</span>
+          </summary>
+          
+          <div class="mt-4 space-y-3 font-mono text-xs">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wider">Batch ID</span>
+                <div class="p-2 bg-muted/30 rounded border border-border/50 break-all">{id}</div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wider">Timestamp</span>
+                <div id="debug-timestamp" class="p-2 bg-muted/30 rounded border border-border/50"></div>
+              </div>
+            </div>
+            
+            <div class="space-y-1">
+              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wider">Request URL</span>
+              <div id="debug-url" class="p-2 bg-muted/30 rounded border border-border/50 break-all"></div>
+            </div>
+            
+            <div class="space-y-1">
+              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wider">Response Status</span>
+              <div id="debug-status" class="p-2 bg-muted/30 rounded border border-border/50"></div>
+            </div>
+            
+            <div class="space-y-1">
+              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wider">Response Body</span>
+              <pre id="debug-body" class="p-3 bg-muted/30 rounded border border-border/50 overflow-x-auto max-h-48 whitespace-pre-wrap text-[10px]"></pre>
+            </div>
+            
+            <div class="space-y-1">
+              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wider">Stack Trace</span>
+              <pre id="debug-stack" class="p-3 bg-muted/30 rounded border border-border/50 overflow-x-auto max-h-40 whitespace-pre-wrap text-[10px] text-destructive/70"></pre>
+            </div>
+          </div>
+        </details>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-3 pt-2">
+          <a href="/admin/batches" class="inline-flex items-center gap-2 px-4 py-2 text-sm border rounded-md hover:bg-muted/30 transition-colors">
+            <ArrowLeft class="w-4 h-4" />
+            Back
+          </a>
+          <button id="retry-btn" class="inline-flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
+            <RotateCcw class="w-4 h-4" />
+            Retry
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Content (filled by JS) -->
-    <div id="content" class="hidden space-y-6"></div>
+    <div id="content" class="hidden"></div>
   </div>
 </Layout>
 
+<style>
+  /* Staggered animation for cards */
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-slide-in {
+    animation: slideIn 0.4s ease-out forwards;
+  }
+  
+  .animate-delay-1 { animation-delay: 0.05s; opacity: 0; }
+  .animate-delay-2 { animation-delay: 0.1s; opacity: 0; }
+  .animate-delay-3 { animation-delay: 0.15s; opacity: 0; }
+  .animate-delay-4 { animation-delay: 0.2s; opacity: 0; }
+  .animate-delay-5 { animation-delay: 0.25s; opacity: 0; }
+  
+  /* Progress bar glow */
+  .progress-glow {
+    box-shadow: 0 0 20px var(--primary), 0 0 40px color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+  
+  /* Grid cell hover */
+  .game-cell {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  
+  .game-cell:hover {
+    transform: scale(1.15);
+    z-index: 10;
+  }
+  
+  /* Status badge pulse for processing */
+  @keyframes statusPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+  
+  .status-processing {
+    animation: statusPulse 2s ease-in-out infinite;
+  }
+  
+  /* Subtle noise texture */
+  .noise-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.015;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  
+  /* Scanline effect for terminal feel */
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  
+  .dark .scanlines::after {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.01) 2px,
+      rgba(255, 255, 255, 0.01) 4px
+    );
+  }
+</style>
+
 <script define:vars={{ batchId: id, apiUrl }}>
-  const statusColors = {
-    queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-    paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  const STATUS_CONFIG = {
+    queued: { 
+      bg: 'bg-amber-500/10', 
+      text: 'text-amber-600 dark:text-amber-400',
+      border: 'border-amber-500/30',
+      dot: 'bg-amber-500'
+    },
+    processing: { 
+      bg: 'bg-blue-500/10', 
+      text: 'text-blue-600 dark:text-blue-400',
+      border: 'border-blue-500/30',
+      dot: 'bg-blue-500'
+    },
+    completed: { 
+      bg: 'bg-emerald-500/10', 
+      text: 'text-emerald-600 dark:text-emerald-400',
+      border: 'border-emerald-500/30',
+      dot: 'bg-emerald-500'
+    },
+    cancelled: { 
+      bg: 'bg-muted', 
+      text: 'text-muted-foreground',
+      border: 'border-border',
+      dot: 'bg-muted-foreground'
+    },
+    paused: { 
+      bg: 'bg-orange-500/10', 
+      text: 'text-orange-600 dark:text-orange-400',
+      border: 'border-orange-500/30',
+      dot: 'bg-orange-500'
+    },
   };
 
   function formatDuration(ms) {
-    if (ms < 1000) return `${ms}ms`;
+    if (!ms || ms < 1000) return '< 1s';
     const seconds = Math.floor(ms / 1000);
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
+    if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
+  function escapeHtml(val) {
+    if (val === null || val === undefined) return '';
+    const str = typeof val === 'string' ? val : String(val);
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function showError(title, message, debug = {}) {
+    const loadingEl = document.getElementById('loading');
+    const contentEl = document.getElementById('content');
+    const errorEl = document.getElementById('error');
+    
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (contentEl) contentEl.classList.add('hidden');
+    if (errorEl) errorEl.classList.remove('hidden');
+    
+    document.getElementById('error-title').textContent = title || 'Error';
+    document.getElementById('error-text').textContent = message || 'An unknown error occurred';
+    document.getElementById('debug-timestamp').textContent = new Date().toISOString();
+    document.getElementById('debug-url').textContent = debug.url || '—';
+    document.getElementById('debug-status').textContent = debug.status !== undefined ? `${debug.status} ${debug.statusText || ''}` : '—';
+    document.getElementById('debug-body').textContent = debug.body ? (typeof debug.body === 'string' ? debug.body : JSON.stringify(debug.body, null, 2)) : '—';
+    document.getElementById('debug-stack').textContent = debug.stack || '—';
   }
 
   function renderErrorLogs(errorLogs) {
     if (!errorLogs || errorLogs.length === 0) return '';
     
     const logsHtml = errorLogs.map(log => {
-      const levelClass = log.level === 'error' 
-        ? 'bg-destructive/20 text-destructive' 
-        : 'bg-amber-500/20 text-amber-600 dark:text-amber-400';
-      const contextHtml = log.context 
-        ? '<pre class="text-xs bg-muted/50 p-2 rounded overflow-x-auto">' + escapeHtml(log.context) + '</pre>' 
-        : '';
-      const stackHtml = log.stack 
-        ? '<details class="text-xs"><summary class="cursor-pointer text-muted-foreground hover:text-foreground">Stack trace</summary><pre class="bg-muted/50 p-2 rounded mt-1 overflow-x-auto whitespace-pre-wrap">' + escapeHtml(log.stack) + '</pre></details>' 
-        : '';
-      
-      return '<div class="p-4 border-b border-amber-500/20 last:border-b-0 space-y-2">' +
-        '<div class="flex items-center justify-between">' +
-        '<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium ' + levelClass + '">' + log.level + '</span>' +
-        '<span class="text-xs text-muted-foreground">' + new Date(log.created_at).toLocaleString() + '</span>' +
-        '</div>' +
-        '<p class="text-sm font-medium">' + escapeHtml(log.message) + '</p>' +
-        contextHtml +
-        stackHtml +
-        '</div>';
+      const levelClass = log.level === 'error' ? 'text-destructive' : 'text-amber-600 dark:text-amber-400';
+      const bgClass = log.level === 'error' ? 'bg-destructive/5' : 'bg-amber-500/5';
+      return `
+        <div class="p-4 ${bgClass} border-b border-border/30 last:border-b-0">
+          <div class="flex items-center justify-between mb-2">
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium ${levelClass}">
+              <span class="w-1.5 h-1.5 rounded-full ${log.level === 'error' ? 'bg-destructive' : 'bg-amber-500'}"></span>
+              ${log.level.toUpperCase()}
+            </span>
+            <span class="text-[10px] text-muted-foreground font-mono">${new Date(log.created_at).toLocaleString()}</span>
+          </div>
+          <p class="text-sm">${escapeHtml(log.message)}</p>
+          ${log.context ? `<pre class="mt-2 text-[10px] bg-muted/50 p-2 rounded overflow-x-auto font-mono">${escapeHtml(log.context)}</pre>` : ''}
+          ${log.stack ? `
+            <details class="mt-2">
+              <summary class="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">Stack trace</summary>
+              <pre class="mt-1 text-[10px] bg-muted/50 p-2 rounded overflow-x-auto font-mono whitespace-pre-wrap">${escapeHtml(log.stack)}</pre>
+            </details>
+          ` : ''}
+        </div>
+      `;
     }).join('');
     
-    return '<details class="border border-amber-500/30 rounded-lg">' +
-      '<summary class="px-4 py-3 cursor-pointer font-medium flex items-center gap-2 hover:bg-amber-500/5 transition-colors text-amber-600 dark:text-amber-400">' +
-      '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
-      'Error Logs (' + errorLogs.length + ')' +
-      '</summary>' +
-      '<div class="border-t border-amber-500/30">' + logsHtml + '</div>' +
-      '</details>';
-  }
-
-  function escapeHtml(val) {
-    if (val === null || val === undefined) return '';
-    const str = typeof val === 'string' ? val : String(val);
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function showError(title, message, debug = {}) {
-    try {
-      // Hide other states
-      const loadingEl = document.getElementById('loading');
-      const contentEl = document.getElementById('content');
-      const errorEl = document.getElementById('error');
-      
-      if (loadingEl) loadingEl.style.display = 'none';
-      if (contentEl) contentEl.style.display = 'none';
-      if (errorEl) {
-        errorEl.classList.remove('hidden');
-        errorEl.style.display = 'block';
-      }
-      
-      // Set error message
-      const errorTitle = document.getElementById('error-title');
-      const errorText = document.getElementById('error-text');
-      if (errorTitle) errorTitle.textContent = title || 'Error';
-      if (errorText) errorText.textContent = message || 'An unknown error occurred';
-
-      // Fill debug info with defaults for empty values
-      const debugTimestamp = document.getElementById('debug-timestamp');
-      const debugUrl = document.getElementById('debug-url');
-      const debugStatus = document.getElementById('debug-status');
-      const debugBody = document.getElementById('debug-body');
-      const debugStack = document.getElementById('debug-stack');
-
-      if (debugTimestamp) debugTimestamp.textContent = new Date().toISOString();
-      if (debugUrl) debugUrl.textContent = debug.url || '(not available)';
-      if (debugStatus) debugStatus.textContent = debug.status !== undefined 
-        ? `${debug.status} ${debug.statusText || ''}` 
-        : '(not available)';
-      if (debugBody) {
-        if (debug.body) {
-          debugBody.textContent = typeof debug.body === 'string' 
-            ? debug.body 
-            : JSON.stringify(debug.body, null, 2);
-        } else {
-          debugBody.textContent = '(no response body)';
-        }
-      }
-      if (debugStack) debugStack.textContent = debug.stack || '(no stack trace)';
-
-      console.error('[Batch Detail Error]', { title, message, debug });
-    } catch (e) {
-      console.error('[showError failed]', e);
-      alert(`Error: ${title}\n\n${message}`);
-    }
+    return `
+      <details class="border rounded-lg border-amber-500/30 overflow-hidden animate-slide-in animate-delay-5">
+        <summary class="flex items-center gap-2 px-4 py-3 bg-amber-500/5 cursor-pointer hover:bg-amber-500/10 transition-colors">
+          <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <span class="text-sm font-medium text-amber-600 dark:text-amber-400">Error Logs</span>
+          <span class="ml-auto text-xs text-amber-600/60 dark:text-amber-400/60">${errorLogs.length}</span>
+        </summary>
+        <div class="divide-y divide-border/30">${logsHtml}</div>
+      </details>
+    `;
   }
 
   async function init() {
@@ -205,19 +311,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     const headers = { 'Authorization': `Basic ${credentials}` };
     const requestUrl = `${apiUrl}/api/admin/batches/${batchId}`;
     
-    let res;
-    let responseBody;
+    let res, responseBody;
 
     try {
       res = await fetch(requestUrl, { headers });
-      
-      // Try to parse response body for debugging
       const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        responseBody = await res.json();
-      } else {
-        responseBody = await res.text();
-      }
+      responseBody = contentType.includes('application/json') ? await res.json() : await res.text();
 
       if (res.status === 401) {
         sessionStorage.removeItem('adminCredentials');
@@ -226,76 +325,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       }
 
       if (res.status === 404) {
-        showError(
-          'Batch Not Found',
-          `No batch found with ID "${batchId}". It may have been deleted or the ID is incorrect.`,
-          { url: requestUrl, status: res.status, statusText: res.statusText, body: responseBody }
-        );
+        showError('Batch Not Found', `No batch found with ID "${batchId}".`, { url: requestUrl, status: res.status, statusText: res.statusText, body: responseBody });
         return;
       }
 
       if (!res.ok) {
-        const errorMessage = responseBody?.message || responseBody?.error || `HTTP ${res.status}`;
-        showError(
-          'Failed to Load Batch',
-          errorMessage,
-          { url: requestUrl, status: res.status, statusText: res.statusText, body: responseBody }
-        );
+        showError('Failed to Load Batch', responseBody?.message || responseBody?.error || `HTTP ${res.status}`, { url: requestUrl, status: res.status, statusText: res.statusText, body: responseBody });
         return;
       }
 
       const batch = responseBody;
-
       document.getElementById('loading')?.classList.add('hidden');
       document.getElementById('content')?.classList.remove('hidden');
 
-      // Separate failed games for debugging
-      const failedGames = batch.recentGames.filter(g => g.status === 'failed' || g.status === 'error');
-      const otherGames = batch.recentGames.filter(g => g.status !== 'failed' && g.status !== 'error');
-
-      const failedGamesHtml = failedGames.length > 0 ? `
-        <div class="space-y-3">
-          <h3 class="font-medium text-destructive flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            Failed Games (${failedGames.length})
-          </h3>
-          <div class="border border-destructive/30 rounded-lg overflow-hidden">
-            <table class="w-full text-sm">
-              <thead class="bg-destructive/10 border-b border-destructive/30">
-                <tr>
-                  <th class="text-left p-3 font-medium">Game ID</th>
-                  <th class="text-left p-3 font-medium">Status</th>
-                  <th class="text-left p-3 font-medium">Error</th>
-                  <th class="text-right p-3 font-medium">Created</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-destructive/20">
-                ${failedGames.map(game => `
-                  <tr class="hover:bg-destructive/5 transition-colors">
-                    <td class="p-3">
-                      <a href="/games/${game.id}" class="font-mono text-xs hover:underline">${game.id}</a>
-                    </td>
-                    <td class="p-3">
-                      <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/20 text-destructive">
-                        ${game.status}
-                      </span>
-                    </td>
-                    <td class="p-3 text-sm text-muted-foreground max-w-xs truncate" title="${game.error_message || 'No error message'}">
-                      ${game.error_message || '—'}
-                    </td>
-                    <td class="p-3 text-right text-xs text-muted-foreground">
-                      ${new Date(game.created_at * 1000).toLocaleString()}
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ` : '';
-
-      // Game status grid - visual overview of all games
-      // Sort games: running first (to show live), then by created_at desc
+      const statusConfig = STATUS_CONFIG[batch.status] || STATUS_CONFIG.queued;
       const sortedGames = [...batch.recentGames].sort((a, b) => {
         if (a.status === 'running' && b.status !== 'running') return -1;
         if (b.status === 'running' && a.status !== 'running') return 1;
@@ -303,205 +346,255 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       });
       
       const runningGames = sortedGames.filter(g => g.status === 'running');
-      const completedGamesCount = batch.completedGames;
-      const failedGamesCount = batch.failedGames;
-      const queuedCount = Math.max(0, batch.totalGames - completedGamesCount - failedGamesCount - runningGames.length);
-      
-      // Build grid items: first show actual games from DB, then fill remaining with "queued" placeholders
+      const completedTown = sortedGames.filter(g => g.status === 'completed' && g.winner === 'town').length;
+      const completedMafia = sortedGames.filter(g => g.status === 'completed' && g.winner === 'mafia').length;
+      const failedGames = sortedGames.filter(g => g.status === 'failed' || g.status === 'error');
+      const queuedCount = Math.max(0, batch.totalGames - batch.completedGames - batch.failedGames - runningGames.length);
+
+      // Build game grid
       const gridItems = [];
-      
-      // Add all games we have data for
       for (const game of sortedGames) {
-        let colorClass = 'bg-gray-300 dark:bg-gray-600';
         const href = game.status === 'running' ? `/games/${game.id}/live` : `/games/${game.id}`;
-        const title = `${game.id.slice(-8)} (${game.status}${game.winner ? ' - ' + game.winner : ''})`;
+        let colorClass = 'bg-muted-foreground/20';
+        let glowClass = '';
         
         if (game.status === 'completed') {
-          colorClass = game.winner === 'mafia' 
-            ? 'bg-red-400 dark:bg-red-500 hover:bg-red-500 dark:hover:bg-red-400' 
-            : 'bg-blue-400 dark:bg-blue-500 hover:bg-blue-500 dark:hover:bg-blue-400';
+          colorClass = game.winner === 'mafia' ? 'bg-rose-500 hover:bg-rose-400' : 'bg-indigo-500 hover:bg-indigo-400';
         } else if (game.status === 'running') {
-          colorClass = 'bg-emerald-500 animate-pulse hover:bg-emerald-600';
-        } else if (game.status === 'failed') {
-          colorClass = 'bg-red-600 dark:bg-red-700 hover:bg-red-700';
+          colorClass = 'bg-emerald-500 animate-pulse';
+          glowClass = 'shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+        } else if (game.status === 'failed' || game.status === 'error') {
+          colorClass = 'bg-destructive/70 hover:bg-destructive';
         }
         
-        gridItems.push(`<a href="${href}" class="w-full aspect-square rounded ${colorClass} transition-colors cursor-pointer" title="${title}"></a>`);
+        gridItems.push(`<a href="${href}" class="game-cell aspect-square rounded-sm ${colorClass} ${glowClass}" title="${game.id.slice(-8)} (${game.status}${game.winner ? ' - ' + game.winner : ''})"></a>`);
       }
       
-      // Fill remaining with queued placeholders
       for (let i = 0; i < queuedCount; i++) {
-        gridItems.push(`<div class="w-full aspect-square rounded bg-gray-300 dark:bg-gray-600" title="Queued (waiting to start)"></div>`);
+        gridItems.push(`<div class="aspect-square rounded-sm bg-muted-foreground/10" title="Queued"></div>`);
       }
-      
-      const gameStatusGridHtml = `
-        <div class="space-y-3">
-          <div class="flex items-center justify-between flex-wrap gap-2">
-            <h3 class="font-medium">Game Status Overview</h3>
-            <div class="flex items-center gap-4 text-xs flex-wrap">
-              <span class="flex items-center gap-1.5">
-                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
-                Running (${runningGames.length})
+
+      const contentEl = document.getElementById('content');
+      if (contentEl) contentEl.innerHTML = `
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-4 mb-8 animate-slide-in">
+          <div class="min-w-0">
+            <div class="flex items-center gap-3 mb-2">
+              <h1 class="text-xl font-bold tracking-tight truncate">${batch.name || 'Unnamed Batch'}</h1>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border ${batch.status === 'processing' ? 'status-processing' : ''}">
+                <span class="w-1.5 h-1.5 rounded-full ${statusConfig.dot}"></span>
+                ${batch.status}
               </span>
+            </div>
+            <code class="text-[10px] text-muted-foreground font-mono">${batch.id}</code>
+          </div>
+          ${batch.status === 'processing' ? `
+            <button id="cancelBtn" class="flex-shrink-0 inline-flex items-center gap-2 px-3 py-1.5 text-xs border border-destructive/50 text-destructive rounded hover:bg-destructive/10 transition-colors">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              Cancel
+            </button>
+          ` : ''}
+        </div>
+
+        <!-- Progress Section -->
+        <div class="relative mb-8 p-6 rounded-lg border bg-card overflow-hidden noise-bg animate-slide-in animate-delay-1">
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-sm font-medium text-muted-foreground">Progress</span>
+              <div class="flex items-baseline gap-1">
+                <span class="text-3xl font-bold tabular-nums">${batch.progress}</span>
+                <span class="text-lg text-muted-foreground">%</span>
+              </div>
+            </div>
+            
+            <div class="h-2 bg-muted rounded-full overflow-hidden mb-4">
+              <div class="h-full bg-primary rounded-full transition-all duration-700 ${batch.status === 'processing' ? 'progress-glow' : ''}" style="width: ${batch.progress}%"></div>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div class="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">${batch.completedGames}</div>
+                <div class="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Completed</div>
+              </div>
+              <div>
+                <div class="text-2xl font-bold tabular-nums text-destructive">${batch.failedGames}</div>
+                <div class="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Failed</div>
+              </div>
+              <div>
+                <div class="text-2xl font-bold tabular-nums">${batch.totalGames}</div>
+                <div class="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Total</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <div class="p-4 rounded-lg border bg-card animate-slide-in animate-delay-1">
+            <div class="flex items-center gap-2 text-muted-foreground mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="text-[10px] uppercase tracking-wider">Cost</span>
+            </div>
+            <div class="text-lg font-bold tabular-nums">$${batch.actualCostUsd.toFixed(4)}</div>
+            ${batch.estimatedCostUsd ? `<div class="text-[10px] text-muted-foreground mt-1">Est: $${batch.estimatedCostUsd.toFixed(2)}</div>` : ''}
+          </div>
+          
+          <div class="p-4 rounded-lg border bg-card animate-slide-in animate-delay-2">
+            <div class="flex items-center gap-2 text-muted-foreground mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="text-[10px] uppercase tracking-wider">Created</span>
+            </div>
+            <div class="text-sm font-medium">${new Date(batch.createdAt * 1000).toLocaleDateString()}</div>
+            <div class="text-[10px] text-muted-foreground mt-1">${new Date(batch.createdAt * 1000).toLocaleTimeString()}</div>
+          </div>
+          
+          <div class="p-4 rounded-lg border bg-card animate-slide-in animate-delay-3">
+            <div class="flex items-center gap-2 text-muted-foreground mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="text-[10px] uppercase tracking-wider">Started</span>
+            </div>
+            <div class="text-sm font-medium">${batch.startedAt ? new Date(batch.startedAt * 1000).toLocaleDateString() : '—'}</div>
+            <div class="text-[10px] text-muted-foreground mt-1">${batch.startedAt ? new Date(batch.startedAt * 1000).toLocaleTimeString() : 'Not started'}</div>
+          </div>
+          
+          <div class="p-4 rounded-lg border bg-card animate-slide-in animate-delay-4">
+            <div class="flex items-center gap-2 text-muted-foreground mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="text-[10px] uppercase tracking-wider">Completed</span>
+            </div>
+            <div class="text-sm font-medium">${batch.completedAt ? new Date(batch.completedAt * 1000).toLocaleDateString() : batch.status === 'processing' ? 'In progress' : '—'}</div>
+            ${batch.startedAt && batch.completedAt ? `<div class="text-[10px] text-muted-foreground mt-1">${formatDuration((batch.completedAt - batch.startedAt) * 1000)}</div>` : '<div class="text-[10px] text-muted-foreground mt-1">—</div>'}
+          </div>
+        </div>
+
+        ${batch.errorMessage ? `
+          <div class="mb-8 p-4 rounded-lg border border-destructive/30 bg-destructive/5 animate-slide-in">
+            <div class="flex items-center gap-2 text-destructive mb-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="font-medium text-sm">Error</span>
+            </div>
+            <p class="text-sm text-muted-foreground">${escapeHtml(batch.errorMessage)}</p>
+          </div>
+        ` : ''}
+
+        <!-- Game Status Grid -->
+        <div class="mb-8 animate-slide-in animate-delay-3">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold">Game Status</h2>
+            <div class="flex items-center gap-4 text-[10px]">
+              ${runningGames.length > 0 ? `
+                <span class="flex items-center gap-1.5">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span class="text-emerald-600 dark:text-emerald-400">Running (${runningGames.length})</span>
+                </span>
+              ` : ''}
               <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+                <span class="w-2 h-2 rounded-full bg-muted-foreground/30"></span>
                 Queued (${queuedCount})
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                Town Won (${sortedGames.filter(g => g.status === 'completed' && g.winner === 'town').length})
+                <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                Town (${completedTown})
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                Mafia Won (${sortedGames.filter(g => g.status === 'completed' && g.winner === 'mafia').length})
+                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                Mafia (${completedMafia})
               </span>
-              <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
-                Failed (${failedGamesCount})
-              </span>
+              ${batch.failedGames > 0 ? `
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-destructive"></span>
+                  Failed (${batch.failedGames})
+                </span>
+              ` : ''}
             </div>
           </div>
+
           ${runningGames.length > 0 ? `
-            <div class="border border-emerald-500/30 rounded-lg p-3 bg-emerald-500/10">
+            <div class="mb-4 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5">
               <div class="flex items-center gap-2 mb-2">
-                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
-                <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400">Games Running Now</span>
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Live Games</span>
               </div>
               <div class="flex flex-wrap gap-2">
                 ${runningGames.map(g => `
-                  <a href="/games/${g.id}/live" class="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 rounded text-xs font-mono transition-colors">
-                    <span class="relative flex h-1.5 w-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span></span>
+                  <a href="/games/${g.id}/live" class="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 rounded text-xs font-mono transition-colors">
                     ${g.id.slice(-8)}
-                    <span class="text-emerald-600 dark:text-emerald-400">Watch Live →</span>
+                    <svg class="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                   </a>
                 `).join('')}
               </div>
             </div>
           ` : ''}
-          <div class="border rounded-lg p-4 bg-muted/20">
-            <div class="grid grid-cols-10 gap-1.5">
+
+          <div class="p-4 rounded-lg border bg-muted/20 relative scanlines overflow-hidden">
+            <div class="grid gap-1 relative z-10" style="grid-template-columns: repeat(auto-fill, minmax(12px, 1fr));">
               ${gridItems.join('')}
             </div>
-            <div class="mt-3 text-xs text-muted-foreground text-center">
-              Click on a game to view details. Running games (green pulsing) can be watched live.
+            <div class="mt-3 text-[10px] text-muted-foreground text-center">
+              Click any game to view details
             </div>
           </div>
         </div>
-      `;
-
-      const recentGamesHtml = otherGames.length > 0 ? `
-        <div class="space-y-3">
-          <h3 class="font-medium">Recent Games</h3>
-          <div class="border rounded-lg overflow-hidden">
-            <table class="w-full text-sm">
-              <thead class="bg-muted/50 border-b">
-                <tr>
-                  <th class="text-left p-3 font-medium">Game ID</th>
-                  <th class="text-left p-3 font-medium">Status</th>
-                  <th class="text-left p-3 font-medium">Winner</th>
-                  <th class="text-right p-3 font-medium">Rounds</th>
-                  <th class="text-right p-3 font-medium">Duration</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y">
-                ${otherGames.map(game => `
-                  <tr class="hover:bg-muted/30 transition-colors">
-                    <td class="p-3">
-                      <a href="${game.status === 'running' ? `/games/${game.id}/live` : `/games/${game.id}`}" class="font-mono text-xs hover:underline flex items-center gap-2">
-                        ${game.id}
-                        ${game.status === 'running' ? '<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span>' : ''}
-                      </a>
-                    </td>
-                    <td class="p-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                      game.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
-                      game.status === 'running' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-                      'bg-gray-100 text-gray-800'
-                    }">${game.status}</span></td>
-                    <td class="p-3">${game.winner ? `<span class="${game.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'}">${game.winner}</span>` : '—'}</td>
-                    <td class="p-3 text-right tabular-nums">${game.rounds || '—'}</td>
-                    <td class="p-3 text-right tabular-nums">${game.duration_ms ? formatDuration(game.duration_ms) : '—'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ` : '';
-
-      const contentEl = document.getElementById('content');
-      if (contentEl) contentEl.innerHTML = `
-        <!-- Header -->
-        <div class="flex items-start justify-between">
-          <div>
-            <h1 class="text-2xl font-bold tracking-tight">${batch.name || 'Unnamed Batch'}</h1>
-            <p class="text-sm text-muted-foreground font-mono mt-1">${batch.id}</p>
-          </div>
-          <div class="flex items-center gap-2">
-            ${batch.status === 'processing' ? '<button id="cancelBtn" class="px-3 py-1.5 text-sm border border-destructive text-destructive rounded-md hover:bg-destructive/10 transition-colors">Cancel Batch</button>' : ''}
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${statusColors[batch.status]}">
-              ${batch.status === 'processing' ? '<svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>' : ''}
-              ${batch.status}
-            </span>
-          </div>
-        </div>
-
-        <!-- Progress -->
-        <div class="border rounded-lg p-4 space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="font-medium">Progress</span>
-            <span class="text-2xl font-bold tabular-nums">${batch.progress}%</span>
-          </div>
-          <div class="h-3 bg-muted rounded-full overflow-hidden">
-            <div class="h-full bg-primary transition-all duration-500" style="width: ${batch.progress}%"></div>
-          </div>
-          <div class="grid grid-cols-3 gap-4 text-sm">
-            <div><div class="text-muted-foreground">Completed</div><div class="font-medium text-green-600 dark:text-green-400 tabular-nums">${batch.completedGames.toLocaleString()}</div></div>
-            <div><div class="text-muted-foreground">Failed</div><div class="font-medium text-destructive tabular-nums">${batch.failedGames.toLocaleString()}</div></div>
-            <div><div class="text-muted-foreground">Total</div><div class="font-medium tabular-nums">${batch.totalGames.toLocaleString()}</div></div>
-          </div>
-        </div>
-
-        <!-- Stats Grid -->
-        <div class="grid gap-4 md:grid-cols-4">
-          <div class="border rounded-lg p-4 space-y-1">
-            <div class="text-sm text-muted-foreground">Actual Cost</div>
-            <div class="text-xl font-bold tabular-nums">$${batch.actualCostUsd.toFixed(4)}</div>
-            ${batch.estimatedCostUsd ? `<div class="text-xs text-muted-foreground">Est: $${batch.estimatedCostUsd.toFixed(2)}</div>` : ''}
-          </div>
-          <div class="border rounded-lg p-4 space-y-1">
-            <div class="text-sm text-muted-foreground">Created</div>
-            <div class="text-sm font-medium">${new Date(batch.createdAt * 1000).toLocaleString()}</div>
-            <div class="text-xs text-muted-foreground">by ${batch.createdBy}</div>
-          </div>
-          <div class="border rounded-lg p-4 space-y-1">
-            <div class="text-sm text-muted-foreground">Started</div>
-            <div class="text-sm font-medium">${batch.startedAt ? new Date(batch.startedAt * 1000).toLocaleString() : '—'}</div>
-          </div>
-          <div class="border rounded-lg p-4 space-y-1">
-            <div class="text-sm text-muted-foreground">Completed</div>
-            <div class="text-sm font-medium">${batch.completedAt ? new Date(batch.completedAt * 1000).toLocaleString() : batch.status === 'processing' ? 'In progress...' : '—'}</div>
-            ${batch.startedAt && batch.completedAt ? `<div class="text-xs text-muted-foreground">Duration: ${formatDuration((batch.completedAt - batch.startedAt) * 1000)}</div>` : ''}
-          </div>
-        </div>
-
-        ${batch.errorMessage ? `
-          <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4">
-            <p class="font-medium text-destructive">Error</p>
-            <p class="text-sm">${batch.errorMessage}</p>
-          </div>
-        ` : ''}
 
         <!-- Configuration -->
-        <div class="border rounded-lg p-4 space-y-3">
-          <h3 class="font-medium">Configuration</h3>
-          <pre class="text-sm bg-muted/50 p-3 rounded-md overflow-x-auto"><code>${JSON.stringify(batch.config, null, 2)}</code></pre>
-        </div>
+        <details class="mb-8 border rounded-lg overflow-hidden animate-slide-in animate-delay-4">
+          <summary class="flex items-center gap-2 px-4 py-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors text-sm">
+            <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="font-medium">Configuration</span>
+          </summary>
+          <div class="p-4 bg-muted/10">
+            <pre class="text-xs font-mono overflow-x-auto whitespace-pre-wrap p-3 bg-background rounded border"><code>${JSON.stringify(batch.config, null, 2)}</code></pre>
+          </div>
+        </details>
 
-        ${gameStatusGridHtml}
-
-        ${failedGamesHtml}
-
-        ${recentGamesHtml}
+        <!-- Failed Games Table -->
+        ${failedGames.length > 0 ? `
+          <details class="mb-8 border border-destructive/30 rounded-lg overflow-hidden animate-slide-in animate-delay-5" open>
+            <summary class="flex items-center gap-2 px-4 py-3 bg-destructive/5 cursor-pointer hover:bg-destructive/10 transition-colors text-sm">
+              <svg class="w-4 h-4 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <span class="font-medium text-destructive">Failed Games</span>
+              <span class="ml-auto text-xs text-destructive/60">${failedGames.length}</span>
+            </summary>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead class="bg-destructive/5 border-b border-destructive/20">
+                  <tr>
+                    <th class="text-left p-3 font-medium text-muted-foreground">Game ID</th>
+                    <th class="text-left p-3 font-medium text-muted-foreground">Status</th>
+                    <th class="text-left p-3 font-medium text-muted-foreground">Error</th>
+                    <th class="text-right p-3 font-medium text-muted-foreground">Created</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-destructive/10">
+                  ${failedGames.map(game => `
+                    <tr class="hover:bg-destructive/5 transition-colors">
+                      <td class="p-3">
+                        <a href="/games/${game.id}" class="font-mono hover:underline">${game.id.slice(-12)}</a>
+                      </td>
+                      <td class="p-3">
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/10 text-destructive">
+                          ${game.status}
+                        </span>
+                      </td>
+                      <td class="p-3 text-muted-foreground max-w-xs truncate" title="${escapeHtml(game.error_message || '')}">
+                        ${game.error_message || '—'}
+                      </td>
+                      <td class="p-3 text-right text-muted-foreground font-mono">
+                        ${new Date(game.created_at * 1000).toLocaleString()}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ` : ''}
 
         ${renderErrorLogs(batch.errorLogs)}
       `;
@@ -524,43 +617,23 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       }
 
     } catch (err) {
-      showError(
-        'Network or Parse Error',
-        err.message || 'An unexpected error occurred',
-        { 
-          url: requestUrl, 
-          status: res?.status, 
-          statusText: res?.statusText,
-          body: responseBody,
-          stack: err.stack 
-        }
-      );
+      showError('Network or Parse Error', err.message || 'An unexpected error occurred', { 
+        url: requestUrl, 
+        status: res?.status, 
+        statusText: res?.statusText,
+        body: responseBody,
+        stack: err.stack 
+      });
     }
   }
 
-  // Retry button handler
   document.getElementById('retry-btn')?.addEventListener('click', () => {
-    const errorEl = document.getElementById('error');
-    const loadingEl = document.getElementById('loading');
-    if (errorEl) {
-      errorEl.classList.add('hidden');
-      errorEl.style.display = '';
-    }
-    if (loadingEl) {
-      loadingEl.classList.remove('hidden');
-      loadingEl.style.display = '';
-    }
+    document.getElementById('error')?.classList.add('hidden');
+    document.getElementById('loading')?.classList.remove('hidden');
     init();
   });
 
-  // Run init with top-level error handling
-  try {
-    init().catch(err => {
-      console.error('[init promise rejected]', err);
-      showError('Initialization Error', err.message || 'Failed to initialize page', { stack: err.stack });
-    });
-  } catch (err) {
-    console.error('[init threw]', err);
-    showError('Script Error', err.message || 'Script failed to execute', { stack: err.stack });
-  }
+  init().catch(err => {
+    showError('Initialization Error', err.message || 'Failed to initialize page', { stack: err.stack });
+  });
 </script>
