@@ -64,19 +64,14 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       <div class="space-y-2">
         <label for="totalGames" class="text-sm font-medium">Number of Games</label>
         <input 
-          type="range" 
+          type="number" 
           id="totalGames" 
           name="totalGames"
           min="1" 
-          max="1000" 
+          max="10000" 
           value="10"
-          class="w-full"
+          class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
         />
-        <div class="flex justify-between text-sm">
-          <span class="text-muted-foreground">1</span>
-          <span id="gameCount" class="font-medium tabular-nums">10 games</span>
-          <span class="text-muted-foreground">1,000</span>
-        </div>
       </div>
 
       <!-- Team Configuration -->
@@ -92,8 +87,8 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
               name="playerCount"
               class="w-full px-3 py-2 border rounded-md bg-background"
             >
-              {[5, 6, 7, 8, 9, 10].map(n => (
-                <option value={n} selected={n === 7}>{n} players</option>
+              {[5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                <option value={n} selected={n === 11}>{n} players</option>
               ))}
             </select>
           </div>
@@ -157,26 +152,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
       <!-- Options -->
       <div class="space-y-3">
         <h3 class="text-sm font-medium">Options</h3>
-        
-        <div class="space-y-2">
-          <label for="personaTheme" class="text-sm text-muted-foreground">Persona Theme</label>
-          <select 
-            id="personaTheme" 
-            name="personaTheme"
-            class="w-full px-3 py-2 border rounded-md bg-background"
-          >
-            <option value="noir">1940s Noir - Gritty & Secretive</option>
-            <option value="victorian">Victorian London - Formal & Precise</option>
-            <option value="modern">Modern Tech Hub - Casual & Analytical</option>
-            <option value="fantasy">High Fantasy - Mystical & Diverse</option>
-          </select>
-          <p class="text-xs text-muted-foreground">Pre-assigned names and archetypes ensure unique, diverse personalities</p>
-        </div>
-        
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" id="discussionEnabled" name="discussionEnabled" checked class="rounded" />
-          <span class="text-sm">Enable Discussion Phase</span>
-        </label>
 
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" id="useBatchAPI" name="useBatchAPI" class="rounded" />
@@ -270,12 +245,17 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
   } : { 'Content-Type': 'application/json' };
 
   const form = document.getElementById('batchForm');
-  const gameCountSlider = document.getElementById('totalGames');
-  const gameCountDisplay = document.getElementById('gameCount');
+  const totalGamesInput = document.getElementById('totalGames');
   const estimatedCostEl = document.getElementById('estimatedCost');
   const tokensPerGameEl = document.getElementById('tokensPerGame');
   const totalTokensEl = document.getElementById('totalTokens');
   const timeEstimateEl = document.getElementById('timeEstimate');
+  
+  // Create a map of model IDs to display names for batch name generation
+  const modelMap = new Map();
+  Object.values(modelsByProvider).flat().forEach(m => {
+    modelMap.set(m.id, m.display_name);
+  });
 
   // Randomly select models from different providers on page load
   const providers = Object.keys(modelsByProvider);
@@ -301,31 +281,32 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
     }
   }
 
-  // Update game count display
-  if (gameCountSlider) {
-    gameCountSlider.addEventListener('input', () => {
-      if (gameCountDisplay) gameCountDisplay.textContent = `${parseInt(gameCountSlider.value).toLocaleString()} games`;
-      updateEstimate();
+  // Update estimate on any change
+  const updateTriggers = ['totalGames', 'playerCount', 'mafiaCount', 'modelA', 'modelB', 'useBatchAPI'];
+  updateTriggers.forEach(id => {
+    document.getElementById(id)?.addEventListener('change', updateEstimate);
+    document.getElementById(id)?.addEventListener('input', updateEstimate);
+  });
+  
+  // Update receipt games count when totalGames changes
+  if (totalGamesInput) {
+    totalGamesInput.addEventListener('input', () => {
+      const receiptGames = document.getElementById('receipt-games');
+      if (receiptGames) {
+        receiptGames.textContent = totalGamesInput.value || '10';
+      }
     });
   }
 
-  // Update estimate on any change
-  const updateTriggers = ['playerCount', 'mafiaCount', 'discussionEnabled', 'useBatchAPI'];
-  updateTriggers.forEach(id => {
-    document.getElementById(id)?.addEventListener('change', updateEstimate);
-  });
-
   async function updateEstimate() {
-    if (!gameCountSlider) return;
-    const totalGames = parseInt(gameCountSlider.value);
+    if (!totalGamesInput) return;
+    const totalGames = parseInt(totalGamesInput.value) || 10;
     const playerCountEl = document.getElementById('playerCount');
     const mafiaCountEl = document.getElementById('mafiaCount');
-    const discussionEnabledEl = document.getElementById('discussionEnabled');
     const useBatchAPIEl = document.getElementById('useBatchAPI');
 
-    const playerCount = playerCountEl ? parseInt(playerCountEl.value) : 7;
+    const playerCount = playerCountEl ? parseInt(playerCountEl.value) : 11;
     const mafiaCount = mafiaCountEl ? parseInt(mafiaCountEl.value) : 2;
-    const discussionEnabled = discussionEnabledEl ? discussionEnabledEl.checked : true;
     const useBatchAPI = useBatchAPIEl ? useBatchAPIEl.checked : false;
 
     try {
@@ -341,7 +322,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
               { modelId: 'estimate', team: 'mafia', count: mafiaCount },
               { modelId: 'estimate', team: 'town', count: playerCount - mafiaCount },
             ],
-            discussionEnabled,
+            discussionEnabled: true,
             contextLevel: 'full',
           },
           useBatchAPI,
@@ -352,10 +333,17 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
 
       const estimate = await res.json();
       
-      if (estimatedCostEl) estimatedCostEl.textContent = `$${estimate.estimatedCostUsd.toFixed(2)}`;
-      if (tokensPerGameEl) tokensPerGameEl.textContent = `~${estimate.tokensPerGame.toLocaleString()}`;
-      if (totalTokensEl) totalTokensEl.textContent = `~${estimate.totalTokens.toLocaleString()}`;
-      if (timeEstimateEl) timeEstimateEl.textContent = `~${estimate.timeEstimateMinutes} min`;
+      const receiptGames = document.getElementById('receipt-games');
+      const receiptTokensPer = document.getElementById('receipt-tokens-per');
+      const receiptTotalTokens = document.getElementById('receipt-total-tokens');
+      const receiptTime = document.getElementById('receipt-time');
+      const receiptCost = document.getElementById('receipt-cost');
+      
+      if (receiptGames) receiptGames.textContent = totalGames.toString();
+      if (receiptTokensPer) receiptTokensPer.textContent = `~${estimate.tokensPerGame.toLocaleString()}`;
+      if (receiptTotalTokens) receiptTotalTokens.textContent = `~${estimate.totalTokens.toLocaleString()}`;
+      if (receiptTime) receiptTime.textContent = `~${estimate.timeEstimateMinutes} min`;
+      if (receiptCost) receiptCost.textContent = `$${estimate.estimatedCostUsd.toFixed(2)}`;
     } catch (err) {
       console.error('Failed to update estimate:', err);
     }
@@ -377,17 +365,25 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
 
       try {
         const formData = new FormData(form);
-        const playerCount = parseInt(String(formData.get('playerCount') || '7'));
+        const playerCount = parseInt(String(formData.get('playerCount') || '11'));
         const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
         const modelA = String(formData.get('modelA') || '');
         const modelB = String(formData.get('modelB') || '');
-        const personaTheme = String(formData.get('personaTheme') || 'noir');
+        const batchNameInput = String(formData.get('name') || '').trim();
+        
+        // Auto-generate batch name from model display names if not provided
+        let batchName: string | undefined = batchNameInput || undefined;
+        if (!batchName && modelA && modelB) {
+          const mafiaName = modelMap.get(modelA) || 'Mafia';
+          const townName = modelMap.get(modelB) || 'Town';
+          batchName = `${mafiaName} vs ${townName}`;
+        }
 
         const res = await fetch(`${apiUrl}/api/admin/batches`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            name: formData.get('name') || undefined,
+            name: batchName,
             totalGames: parseInt(String(formData.get('totalGames') || '10')),
             config: {
               playerCount,
@@ -396,9 +392,10 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
                 { modelId: modelA, team: 'mafia', count: mafiaCount },
                 { modelId: modelB, team: 'town', count: playerCount - mafiaCount },
               ],
-              discussionEnabled: formData.get('discussionEnabled') === 'on',
+              discussionEnabled: true,
               contextLevel: 'full',
-              personaTheme: personaTheme,
+              maxRounds: 10,
+              personaConstraints: 'moderate',
             },
             useBatchAPI: formData.get('useBatchAPI') === 'on',
           }),
