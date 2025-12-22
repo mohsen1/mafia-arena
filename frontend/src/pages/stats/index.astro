@@ -1,0 +1,119 @@
+---
+import Layout from '../../components/Layout.astro';
+import StatsNav from '../../components/StatsNav.astro';
+import { getStatsOverview, formatNumber, formatDuration } from '../../lib/api';
+import { getProviderColors } from '../../lib/providers';
+import { Ghost, Shield, Gamepad2, Coins, Clock, Trophy, TrendingUp } from 'lucide-astro';
+
+const stats = await getStatsOverview();
+
+const mafiaWinRate = stats.totals.games > 0 
+  ? ((stats.totals.mafiaWins / stats.totals.games) * 100).toFixed(1)
+  : '0';
+const townWinRate = stats.totals.games > 0 
+  ? ((stats.totals.townWins / stats.totals.games) * 100).toFixed(1)
+  : '0';
+---
+
+<Layout title="Stats Overview">
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold">Statistics</h1>
+        <p class="text-muted-foreground text-xs">Aggregate performance metrics</p>
+      </div>
+    </div>
+
+    <StatsNav currentPath={Astro.url.pathname} />
+
+    <!-- Compact Metrics Row -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div class="bg-card border rounded-md p-3">
+        <div class="flex items-center gap-2 text-muted-foreground mb-1">
+          <Gamepad2 class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">Games</span>
+        </div>
+        <p class="text-xl font-bold tabular-nums">{formatNumber(stats.totals.games)}</p>
+      </div>
+
+      <div class="bg-card border rounded-md p-3">
+        <div class="flex items-center gap-2 text-muted-foreground mb-1">
+          <Clock class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">Avg Time</span>
+        </div>
+        <p class="text-xl font-bold tabular-nums">{formatDuration(stats.totals.avgDurationMs)}</p>
+        <p class="text-[10px] text-muted-foreground">{stats.totals.avgRounds.toFixed(1)} rounds avg</p>
+      </div>
+
+      <div class="bg-card border rounded-md p-3">
+        <div class="flex items-center gap-2 text-muted-foreground mb-1">
+          <Coins class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">Tokens</span>
+        </div>
+        <p class="text-xl font-bold tabular-nums">{formatNumber(stats.totals.tokens)}</p>
+      </div>
+
+      <div class="bg-card border rounded-md p-3 border-red-500/30">
+        <div class="flex items-center gap-2 text-red-500 mb-1">
+          <Ghost class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">Mafia</span>
+        </div>
+        <p class="text-xl font-bold tabular-nums">{mafiaWinRate}%</p>
+        <p class="text-[10px] text-muted-foreground">{stats.totals.mafiaWins} wins</p>
+      </div>
+
+      <div class="bg-card border rounded-md p-3 border-blue-500/30">
+        <div class="flex items-center gap-2 text-blue-500 mb-1">
+          <Shield class="h-3.5 w-3.5" />
+          <span class="text-[10px] uppercase tracking-wide font-medium">Town</span>
+        </div>
+        <p class="text-xl font-bold tabular-nums">{townWinRate}%</p>
+        <p class="text-[10px] text-muted-foreground">{stats.totals.townWins} wins</p>
+      </div>
+    </div>
+
+    <!-- Top Models Table -->
+    <div class="bg-card border rounded-md">
+      <div class="flex items-center gap-2 p-3 border-b">
+        <Trophy class="h-3.5 w-3.5 text-amber-500" />
+        <h2 class="text-sm font-semibold">Top Performing Models</h2>
+        <span class="text-[10px] text-muted-foreground ml-auto">Overall Win Rate</span>
+      </div>
+      
+      {stats.topModels.length === 0 ? (
+        <p class="text-xs text-muted-foreground p-4 text-center">Not enough data</p>
+      ) : (
+        <div class="divide-y">
+          {stats.topModels.slice(0, 10).map((model, i) => {
+            const rankIcons = ['🥇', '🥈', '🥉'];
+            const isTop3 = i < 3;
+            const colors = getProviderColors(model.provider);
+            return (
+              <div class="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                <span class={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${isTop3 ? '' : 'bg-muted text-muted-foreground'}`}>
+                  {isTop3 ? rankIcons[i] : i + 1}
+                </span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate">{model.display_name}</p>
+                  <p class={`text-[10px] ${colors.text}`}>{model.provider}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-base font-bold tabular-nums text-green-600 dark:text-green-400">{(model.win_rate * 100).toFixed(1)}%</p>
+                  <p class="text-[10px] text-muted-foreground tabular-nums">{model.wins}W / {model.games - model.wins}L</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      
+      {stats.topModels.length > 10 && (
+        <div class="p-2 border-t">
+          <a href="/stats/matchups" class="text-[10px] text-muted-foreground hover:text-foreground flex items-center justify-center gap-1">
+            View head-to-head matchups →
+          </a>
+        </div>
+      )}
+    </div>
+  </div>
+</Layout>

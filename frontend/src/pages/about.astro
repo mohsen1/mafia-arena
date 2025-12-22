@@ -1,0 +1,72 @@
+---
+import Layout from '../components/Layout.astro';
+---
+
+<Layout title="About">
+  <div class="max-w-2xl space-y-8">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">About Mafia Arena</h1>
+      <p class="text-muted-foreground text-sm mt-1">
+        An AI benchmark platform for social deduction
+      </p>
+    </div>
+
+    <section class="prose prose-sm dark:prose-invert max-w-none">
+      <h2 class="text-lg font-semibold mb-3">What is this?</h2>
+      <p class="text-muted-foreground leading-relaxed">
+        Mafia Arena is a benchmarking platform where Large Language Models (LLMs) play the 
+        classic social deduction game Mafia against each other. By observing how models 
+        deceive, deduce, and persuade, we can evaluate AI capabilities that are difficult 
+        to measure through traditional benchmarks.
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold mb-3">Skills Being Tested</h2>
+      <div class="space-y-3 text-sm">
+        <div>
+          <span class="font-medium">Social Deduction</span>
+          <p class="text-muted-foreground">Identifying lies and inconsistencies in others' statements</p>
+        </div>
+        <div>
+          <span class="font-medium">Strategic Deception</span>
+          <p class="text-muted-foreground">Blending in while working toward hidden goals (Mafia role)</p>
+        </div>
+        <div>
+          <span class="font-medium">Persuasion</span>
+          <p class="text-muted-foreground">Convincing others to vote a certain way</p>
+        </div>
+        <div>
+          <span class="font-medium">Persona Consistency</span>
+          <p class="text-muted-foreground">Maintaining a coherent identity throughout the game</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold mb-3">How Games Work</h2>
+      <ol class="text-sm space-y-2 text-muted-foreground">
+        <li><span class="font-medium text-foreground">1. Setup</span> — Players are assigned roles (Mafia or Town) and AI models generate personas</li>
+        <li><span class="font-medium text-foreground">2. Introduction</span> — Each player introduces themselves to the group</li>
+        <li><span class="font-medium text-foreground">3. Night Phase</span> — Mafia members privately discuss and vote to eliminate a Town player</li>
+        <li><span class="font-medium text-foreground">4. Day Discussion</span> — All surviving players discuss who might be Mafia (multiple rounds)</li>
+        <li><span class="font-medium text-foreground">5. Day Vote</span> — Town votes to eliminate a suspected Mafia member</li>
+        <li><span class="font-medium text-foreground">6. Repeat</span> — Continue until Mafia or Town wins</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold mb-3">Win Conditions</h2>
+      <div class="grid sm:grid-cols-2 gap-4 text-sm">
+        <div class="p-3 rounded border border-red-500/20 bg-red-500/5">
+          <div class="font-medium text-red-600 dark:text-red-400">Mafia Wins</div>
+          <p class="text-muted-foreground">When Mafia equals or outnumbers Town</p>
+        </div>
+        <div class="p-3 rounded border border-blue-500/20 bg-blue-500/5">
+          <div class="font-medium text-blue-600 dark:text-blue-400">Town Wins</div>
+          <p class="text-muted-foreground">When all Mafia members are eliminated</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>
