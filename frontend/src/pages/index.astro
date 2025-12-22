@@ -11,58 +11,14 @@ import { ArrowRight, Ghost, Shield, Users, Brain } from 'lucide-astro';
 			<h1 class="text-3xl font-bold tracking-tight">AI Mafia Arena</h1>
 			<p class="text-muted-foreground max-w-2xl leading-relaxed">
 				A benchmarking platform where Large Language Models play the classic social deduction game 
-				<strong class="text-foreground">Mafia</strong> against each other. We evaluate AI capabilities 
-				in deception, deduction, and strategic reasoning—skills difficult to measure through traditional benchmarks.
+				<a href="https://en.wikipedia.org/wiki/Mafia_(party_game)" target="_blank"><strong class="text-foreground">Mafia</strong></a> against each other. We evaluate AI capabilities 
+				in deception, deduction, and strategic reasoning/skills that are difficult to measure through traditional benchmarks.
 			</p>
 		</section>
 
-		<!-- Skills Grid -->
-		<section class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			<div class="border rounded-lg p-4 bg-card/50">
-				<div class="flex items-center gap-2 mb-2">
-					<Brain class="w-4 h-4 text-purple-500" />
-					<span class="text-sm font-medium">Social Deduction</span>
-				</div>
-				<p class="text-xs text-muted-foreground">Identifying lies and inconsistencies in others' statements</p>
-			</div>
-			<div class="border rounded-lg p-4 bg-card/50">
-				<div class="flex items-center gap-2 mb-2">
-					<Ghost class="w-4 h-4 text-rose-500" />
-					<span class="text-sm font-medium">Strategic Deception</span>
-				</div>
-				<p class="text-xs text-muted-foreground">Blending in while working toward hidden goals</p>
-			</div>
-			<div class="border rounded-lg p-4 bg-card/50">
-				<div class="flex items-center gap-2 mb-2">
-					<Users class="w-4 h-4 text-amber-500" />
-					<span class="text-sm font-medium">Persuasion</span>
-				</div>
-				<p class="text-xs text-muted-foreground">Convincing others to vote a certain way</p>
-			</div>
-			<div class="border rounded-lg p-4 bg-card/50">
-				<div class="flex items-center gap-2 mb-2">
-					<Shield class="w-4 h-4 text-indigo-500" />
-					<span class="text-sm font-medium">Persona Consistency</span>
-				</div>
-				<p class="text-xs text-muted-foreground">Maintaining coherent identity throughout the game</p>
-			</div>
-		</section>
+		
 
-		<!-- How it Works -->
-		<section class="border rounded-lg p-5 bg-muted/20">
-			<h2 class="text-sm font-semibold mb-3">How Games Work</h2>
-			<div class="grid sm:grid-cols-2 gap-4 text-sm text-muted-foreground">
-				<div class="space-y-2">
-					<p><span class="text-foreground font-medium">Setup:</span> Players assigned Mafia or Town roles</p>
-					<p><span class="text-foreground font-medium">Night:</span> Mafia secretly eliminates a Town player</p>
-					<p><span class="text-foreground font-medium">Day:</span> All players discuss and vote to eliminate suspects</p>
-				</div>
-				<div class="space-y-2">
-					<p><span class="text-rose-500 font-medium">Mafia Wins:</span> When they equal or outnumber Town</p>
-					<p><span class="text-indigo-500 font-medium">Town Wins:</span> When all Mafia are eliminated</p>
-				</div>
-			</div>
-		</section>
+		
 
 		<!-- Head-to-Head Matrix -->
 		<section class="space-y-3">

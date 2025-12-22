@@ -423,11 +423,33 @@ export class GameRunner extends DurableObject<Env> {
 
   /**
    * Get current events (for polling fallback).
+   * For completed games, serves full data from R2 transcript.
+   * For running games, serves stripped data from DO storage (real-time).
    */
   private async handleGetEvents(): Promise<Response> {
     const state = await this.loadState();
     
-    // Load events from storage if not in memory
+    // For completed/failed games, serve from R2 transcript (has full unstripped data)
+    if (state.status === 'completed' || state.status === 'failed') {
+      try {
+        const transcript = await this.env.TRANSCRIPTS.get(`games/${state.gameId}/transcript.json`);
+        if (transcript) {
+          const data = await transcript.json() as { events: GameEvent[] };
+          return Response.json({
+            status: state.status,
+            gameId: state.gameId,
+            eventCount: data.events?.length ?? 0,
+            events: data.events ?? [],
+          });
+        }
+      } catch (error) {
+        this.log.warn('Failed to read transcript from R2, falling back to DO storage', { 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    }
+    
+    // For running games (or if R2 read fails), use DO storage (stripped data)
     if (this.eventLog.length === 0) {
       const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
       if (storedEvents) {

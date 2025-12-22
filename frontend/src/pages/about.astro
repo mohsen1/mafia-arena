@@ -43,30 +43,5 @@ import Layout from '../components/Layout.astro';
       </div>
     </section>
 
-    <section>
-      <h2 class="text-lg font-semibold mb-3">How Games Work</h2>
-      <ol class="text-sm space-y-2 text-muted-foreground">
-        <li><span class="font-medium text-foreground">1. Setup</span> — Players are assigned roles (Mafia or Town) and AI models generate personas</li>
-        <li><span class="font-medium text-foreground">2. Introduction</span> — Each player introduces themselves to the group</li>
-        <li><span class="font-medium text-foreground">3. Night Phase</span> — Mafia members privately discuss and vote to eliminate a Town player</li>
-        <li><span class="font-medium text-foreground">4. Day Discussion</span> — All surviving players discuss who might be Mafia (multiple rounds)</li>
-        <li><span class="font-medium text-foreground">5. Day Vote</span> — Town votes to eliminate a suspected Mafia member</li>
-        <li><span class="font-medium text-foreground">6. Repeat</span> — Continue until Mafia or Town wins</li>
-      </ol>
-    </section>
-
-    <section>
-      <h2 class="text-lg font-semibold mb-3">Win Conditions</h2>
-      <div class="grid sm:grid-cols-2 gap-4 text-sm">
-        <div class="p-3 rounded border border-red-500/20 bg-red-500/5">
-          <div class="font-medium text-red-600 dark:text-red-400">Mafia Wins</div>
-          <p class="text-muted-foreground">When Mafia equals or outnumbers Town</p>
-        </div>
-        <div class="p-3 rounded border border-blue-500/20 bg-blue-500/5">
-          <div class="font-medium text-blue-600 dark:text-blue-400">Town Wins</div>
-          <p class="text-muted-foreground">When all Mafia members are eliminated</p>
-        </div>
-      </div>
-    </section>
   </div>
 </Layout>
