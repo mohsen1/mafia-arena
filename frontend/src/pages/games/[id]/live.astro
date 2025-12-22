@@ -120,6 +120,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   let durationInterval = null;
   const MAX_RECONNECT_ATTEMPTS = 5;
 
+  function escapeHtml(val) {
+    if (val === null || val === undefined) return '';
+    const str = typeof val === 'string' ? val : String(val);
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/`/g, '&#96;');
+  }
+
   // Icons as inline SVG (matching Lucide style)
   const ICONS = {
     moon: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
@@ -329,21 +335,21 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
       let content = '';
       if (parsed.type === 'message') {
-        content = `<p class="text-xs text-foreground/90 leading-relaxed mt-0.5">${parsed.content}</p>`;
+        content = `<p class="text-xs text-foreground/90 leading-relaxed mt-0.5">${escapeHtml(parsed.content)}</p>`;
       } else if (parsed.type === 'vote') {
         const targetTeam = playerMap[parsed.content.vote]?.team || 'town';
         const targetClass = targetTeam === 'mafia' ? 'text-rose-500' : 'text-indigo-500';
         content = `
           <div class="text-xs mt-0.5">
             <span class="inline-flex items-center gap-1 text-muted-foreground">
-              ${ICONS.vote} Voted for <span class="font-semibold ${targetClass}">${getPersonaName(parsed.content.vote)}</span>
+              ${ICONS.vote} Voted for <span class="font-semibold ${targetClass}">${escapeHtml(getPersonaName(parsed.content.vote))}</span>
             </span>
             ${parsed.content.reasoning ? `
               <details class="mt-0.5 text-[10px] text-muted-foreground">
                 <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
                   ${ICONS.chevronRight} reason
                 </summary>
-                <p class="mt-0.5 pl-3 italic opacity-70">"${parsed.content.reasoning}"</p>
+                <p class="mt-0.5 pl-3 italic opacity-70">"${escapeHtml(parsed.content.reasoning)}"</p>
               </details>
             ` : ''}
           </div>
@@ -355,21 +361,21 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           <div class="text-xs mt-0.5">
             <span class="inline-flex items-center gap-1">
               <span class="${parsed.content.action === 'kill' ? 'text-rose-500' : 'text-muted-foreground'}">${ICONS.crosshair}</span>
-              <span class="text-muted-foreground">${parsed.content.action}</span>
-              <span class="font-semibold ${targetClass}">${getPersonaName(parsed.content.target)}</span>
+              <span class="text-muted-foreground">${escapeHtml(parsed.content.action)}</span>
+              <span class="font-semibold ${targetClass}">${escapeHtml(getPersonaName(parsed.content.target))}</span>
             </span>
             ${parsed.content.reasoning ? `
               <details class="mt-0.5 text-[10px] text-muted-foreground">
                 <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
                   ${ICONS.chevronRight} reason
                 </summary>
-                <p class="mt-0.5 pl-3 italic opacity-70">"${parsed.content.reasoning}"</p>
+                <p class="mt-0.5 pl-3 italic opacity-70">"${escapeHtml(parsed.content.reasoning)}"</p>
               </details>
             ` : ''}
           </div>
         `;
       } else {
-        content = `<p class="text-xs text-foreground/90 leading-relaxed mt-0.5">${parsed.content}</p>`;
+        content = `<p class="text-xs text-foreground/90 leading-relaxed mt-0.5">${escapeHtml(parsed.content)}</p>`;
       }
 
       return `

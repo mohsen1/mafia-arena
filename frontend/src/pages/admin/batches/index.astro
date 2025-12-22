@@ -108,6 +108,12 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
     paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
   };
 
+  function escapeHtml(val) {
+    if (val === null || val === undefined) return '';
+    const str = typeof val === 'string' ? val : String(val);
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/`/g, '&#96;');
+  }
+
   async function init() {
     const credentials = sessionStorage.getItem('adminCredentials');
     if (!credentials) {
@@ -156,9 +162,9 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
           return `
             <tr class="hover:bg-muted/30 transition-colors">
               <td class="p-3">
-                <a href="/admin/batches/${batch.id}" class="hover:underline">
-                  <div class="font-medium">${batch.name || batch.id}</div>
-                  <div class="text-xs text-muted-foreground font-mono">${batch.id}</div>
+                <a href="/admin/batches/${escapeHtml(batch.id)}" class="hover:underline">
+                  <div class="font-medium">${escapeHtml(batch.name || batch.id)}</div>
+                  <div class="text-xs text-muted-foreground font-mono">${escapeHtml(batch.id)}</div>
                 </a>
               </td>
               <td class="p-3">
