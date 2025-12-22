@@ -557,12 +557,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         </details>
 
         <!-- Failed Games Table -->
-        ${failedGames.length > 0 ? `
+        ${failedGames.length > 0 ? \`
           <details class="mb-8 border border-destructive/30 rounded-lg overflow-hidden animate-slide-in animate-delay-5" open>
             <summary class="flex items-center gap-2 px-4 py-3 bg-destructive/5 cursor-pointer hover:bg-destructive/10 transition-colors text-sm">
               <svg class="w-4 h-4 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
               <span class="font-medium text-destructive">Failed Games</span>
-              <span class="ml-auto text-xs text-destructive/60">${failedGames.length}</span>
+              <span class="ml-auto text-xs text-destructive/60">\${failedGames.length}</span>
             </summary>
             <div class="overflow-x-auto">
               <table class="w-full text-xs">
@@ -575,29 +575,29 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-destructive/10">
-                  ${failedGames.map(game => `
+                  \${failedGames.map(game => \`
                     <tr class="hover:bg-destructive/5 transition-colors">
                       <td class="p-3">
-                        <a href="/games/${escapeHtml(game.id)}" class="font-mono hover:underline">${escapeHtml(game.id.slice(-12))}</a>
+                        <a href="/games/\${escapeHtml(game.id)}" class="font-mono hover:underline">\${escapeHtml(game.id.slice(-12))}</a>
                       </td>
                       <td class="p-3">
                         <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/10 text-destructive">
-                          ${escapeHtml(game.status)}
+                          \${escapeHtml(game.status)}
                         </span>
                       </td>
-                      <td class="p-3 text-muted-foreground max-w-xs truncate" title="${escapeHtml(game.error_message || '')}">
-                        ${escapeHtml(game.error_message || '—')}
+                      <td class="p-3 text-muted-foreground max-w-xs truncate" title="\${escapeHtml(game.error_message || '')}">
+                        \${escapeHtml(game.error_message || '—')}
                       </td>
                       <td class="p-3 text-right text-muted-foreground font-mono">
-                        ${new Date(game.created_at * 1000).toLocaleString()}
+                        \${new Date(game.created_at * 1000).toLocaleString()}
                       </td>
                     </tr>
-                  `).join('')}
+                  \`).join('')}
                 </tbody>
               </table>
             </div>
           </details>
-        ` : ''}
+        \` : ''}
 
         ${renderErrorLogs(batch.errorLogs)}
       `;
