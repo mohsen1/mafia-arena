@@ -59,7 +59,7 @@ binding = "GAME_QUEUE"
 
 [[queues.consumers]]
 queue = "mafia-arena-games"
-max_batch_size = 10
+max_batch_size = 25
 max_batch_timeout = 30
 max_retries = 3
 max_concurrency = 50

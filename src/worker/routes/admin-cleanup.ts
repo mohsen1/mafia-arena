@@ -24,13 +24,20 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
     // Find all games that have been "running" for too long
     // A game is stuck if it's been in "running" status for >10 minutes
     // This includes games that never actually started properly
+    interface StaleGame {
+      id: string;
+      created_at: number;
+      rounds: number;
+      batch_id: string | null;
+    }
+    
     const staleGames = await c.env.DB.prepare(`
       SELECT id, created_at, rounds, batch_id
       FROM games
       WHERE status = 'running'
         AND created_at < ?
       ORDER BY created_at ASC
-    `).bind(staleTimestamp).all();
+    `).bind(staleTimestamp).all<StaleGame>();
 
     if (!staleGames.results || staleGames.results.length === 0) {
       log.info('No hanging games found');
@@ -44,17 +51,17 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
     log.info('Found stale games', { count: staleGames.results.length });
 
     // Update all stale games to failed status
-    const gameIds = staleGames.results.map((g: { id: string }) => g.id);
+    const gameIds = staleGames.results.map((g) => g.id);
     
     // Categorize games for better error messages
     // Games with 0 rounds likely never started properly
-    const neverStarted = staleGames.results.filter((g: { rounds: number }) => g.rounds === 0);
-    const hung = staleGames.results.filter((g: { rounds: number }) => g.rounds > 0);
+    const neverStarted = staleGames.results.filter((g) => g.rounds === 0);
+    const hung = staleGames.results.filter((g) => g.rounds > 0);
     
     // Build batch update with appropriate error messages
     const updates = gameIds.map(gameId => {
-      const game = staleGames.results.find((g: { id: string }) => g.id === gameId);
-      const errorMsg = game && (game as { rounds: number }).rounds === 0
+      const game = staleGames.results.find((g) => g.id === gameId);
+      const errorMsg = game && game.rounds === 0
         ? 'Killed by admin: Game never started (stuck in running state with 0 rounds)'
         : 'Killed by admin: Game hung for >10 minutes';
       
@@ -83,7 +90,7 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
       count: gameIds.length,
       neverStarted: neverStarted.length,
       hung: hung.length,
-      gameIds: gameIds.slice(0, 5), // Log first 5
+      gameIds: gameIds.slice(0, 5).join(', '), // Log first 5
     });
 
     return c.json({
@@ -98,7 +105,7 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
     });
 
   } catch (error) {
-    log.error('Failed to kill hanging games', { error });
+    log.error('Failed to kill hanging games', { error: error instanceof Error ? error.message : String(error) });
     return c.json(
       { 
         success: false, 
