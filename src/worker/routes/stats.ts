@@ -243,3 +243,4 @@ stats.get('/trends', async (c) => {
 
 export default stats;
 
+

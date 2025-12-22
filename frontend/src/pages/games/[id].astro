@@ -1,35 +1,101 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { getGame, getGamePersonas, formatDuration, type GameDetail, type GamePersona } from '../../lib/api';
-import { calculateCostFromTotal, formatCost } from '../../lib/costs';
-import { Play, ArrowLeft, Trophy, X, User, Sparkles, Radio } from 'lucide-astro';
+import { getGame, getTranscript, getGamePersonas, formatDuration, type GameDetail, type GamePersona } from '../../lib/api';
+import { calculateCost, formatCost, calculateTotalCost } from '../../lib/costs';
+import { getProviderColorFromModel } from '../../lib/providers';
+import { 
+  Trophy, Clock, Zap, Users, ChevronDown, ChevronRight,
+  Moon, MessageSquare, Vote, Skull, User, Sparkles, ArrowLeft
+} from 'lucide-astro';
 
 const { id } = Astro.params;
 
 let game: GameDetail | null = null;
-let personasData: { personaEnabled: boolean; personas: GamePersona[]; analysis: { averageScore: number; mafiaAvgConsistency: number; townAvgConsistency: number } | null } | null = null;
+let transcript: any = null;
+let personasData: { personaEnabled: boolean; personas: GamePersona[]; analysis: any } | null = null;
 let error: string | null = null;
 
 try {
   game = await getGame(id!);
-  // Try to fetch personas (might not exist for older games)
+  transcript = await getTranscript(id!);
   try {
     personasData = await getGamePersonas(id!);
   } catch {
     personasData = null;
   }
 } catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load game details';
+  error = e instanceof Error ? e.message : 'Failed to load game';
 }
 
-type Participant = GameDetail['participants'][number];
+// Process transcript
+const events = (transcript as any)?.events || [];
+const aiCallEvents = events.filter((e: any) => e.type === 'ai_call');
+const totalCost = calculateTotalCost(aiCallEvents);
 
-const participants: Participant[] = game?.participants || [];
-const personas: GamePersona[] = personasData?.personas || [];
-const personaAnalysis = personasData?.analysis;
-const personaEnabled = personasData?.personaEnabled ?? false;
+// Build player map from events
+interface PlayerInfo {
+  playerId: string;
+  personaName: string;
+  team: 'mafia' | 'town';
+  modelId: string;
+  persona?: {
+    name: string;
+    background: string;
+    personality: string;
+    occupation?: string;
+  };
+  isAlive: boolean;
+}
 
-// Handle both unix timestamp (seconds) and milliseconds
+const playerMap: Record<string, PlayerInfo> = {};
+const eliminatedPlayers = new Set<string>();
+
+// First pass: get team and model info from ai_call events
+for (const event of events) {
+  if (event.type === 'ai_call' && event.playerId && !playerMap[event.playerId]) {
+    playerMap[event.playerId] = {
+      playerId: event.playerId,
+      personaName: event.playerName || event.playerId,
+      team: event.team || 'town',
+      modelId: event.modelId || '',
+      isAlive: true,
+    };
+  }
+  if (event.type === 'persona_generation' && event.playerId) {
+    if (playerMap[event.playerId]) {
+      playerMap[event.playerId].persona = event.persona;
+      playerMap[event.playerId].personaName = event.persona?.name || event.playerName;
+    }
+  }
+  if (event.type === 'elimination' && event.playerId) {
+    eliminatedPlayers.add(event.playerId);
+    if (playerMap[event.playerId]) {
+      playerMap[event.playerId].isAlive = false;
+    }
+  }
+}
+
+const players = Object.values(playerMap);
+const mafiaPlayers = players.filter(p => p.team === 'mafia');
+const townPlayers = players.filter(p => p.team === 'town');
+
+// Group events by round and phase
+function groupEvents(events: any[]) {
+  const grouped: Record<number, Record<string, any[]>> = {};
+  for (const event of events) {
+    const round = event.round || 1;
+    const phase = event.phase || 'other';
+    if (!grouped[round]) grouped[round] = {};
+    if (!grouped[round][phase]) grouped[round][phase] = [];
+    grouped[round][phase].push(event);
+  }
+  return grouped;
+}
+
+const groupedEvents = groupEvents(events);
+const rounds = Object.keys(groupedEvents).map(Number).sort((a, b) => a - b);
+
+// Format date
 const timestamp = game?.created_at && game.created_at > 9999999999 ? game.created_at : (game?.created_at || 0) * 1000;
 const date = game ? new Date(timestamp).toLocaleString(undefined, {
   month: 'short',
@@ -39,322 +105,421 @@ const date = game ? new Date(timestamp).toLocaleString(undefined, {
   minute: '2-digit'
 }) : '';
 
-// Calculate costs
-const totalCost = game ? calculateCostFromTotal('gemini-2.0-flash', game.total_tokens) : 0;
-
-// Get mafia and town counts
-const mafiaParticipants = participants.filter((p) => p.team === 'mafia');
-const townParticipants = participants.filter((p) => p.team === 'town');
-const mafiaCount = mafiaParticipants.reduce((sum, p) => sum + (p.player_count || 1), 0);
-const townCount = townParticipants.reduce((sum, p) => sum + (p.player_count || 1), 0);
-
-// Determine winner/loser models
-const winnerTeam = game?.winner;
-const winnerParticipants = participants.filter((p) => p.team === winnerTeam);
-const loserParticipants = participants.filter((p) => p.team !== winnerTeam);
-
-// Group personas by team
-const mafiaPersonas = personas.filter((p) => p.team === 'mafia');
-const townPersonas = personas.filter((p) => p.team === 'town');
-
-// Theme styles
-const THEME_STYLES: Record<string, { label: string; emoji: string; class: string }> = {
-  noir: { label: 'Noir', emoji: '🎬', class: 'bg-slate-500/20 text-slate-700 dark:text-slate-300' },
-  victorian: { label: 'Victorian', emoji: '🎩', class: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
-  modern: { label: 'Modern', emoji: '💻', class: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' },
-  fantasy: { label: 'Fantasy', emoji: '⚔️', class: 'bg-purple-500/20 text-purple-700 dark:text-purple-300' },
+// Theme styles with atmospheric colors
+const THEME_CONFIG: Record<string, { label: string; emoji: string; gradient: string; accent: string }> = {
+  noir: { 
+    label: 'Noir', 
+    emoji: '🎬', 
+    gradient: 'from-slate-900/20 via-zinc-800/10 to-transparent',
+    accent: 'slate'
+  },
+  victorian: { 
+    label: 'Victorian', 
+    emoji: '🎩', 
+    gradient: 'from-amber-900/20 via-stone-800/10 to-transparent',
+    accent: 'amber'
+  },
+  modern: { 
+    label: 'Modern', 
+    emoji: '💻', 
+    gradient: 'from-cyan-900/20 via-slate-800/10 to-transparent',
+    accent: 'cyan'
+  },
+  fantasy: { 
+    label: 'Fantasy', 
+    emoji: '⚔️', 
+    gradient: 'from-purple-900/20 via-indigo-800/10 to-transparent',
+    accent: 'purple'
+  },
 };
-const gameTheme = game?.persona_theme || 'noir';
-const themeStyle = THEME_STYLES[gameTheme] || THEME_STYLES.noir;
+const theme = THEME_CONFIG[game?.persona_theme || 'noir'] || THEME_CONFIG.noir;
+
+// Get phase info
+function getPhaseConfig(phase: string) {
+  const configs: Record<string, { label: string; icon: string; bg: string }> = {
+    introduction: { label: 'Introduction', icon: '💬', bg: 'bg-zinc-500/10' },
+    night: { label: 'Night Phase', icon: '🌙', bg: 'bg-rose-500/10' },
+    mafia_chat: { label: 'Mafia Strategy', icon: '🔪', bg: 'bg-rose-500/15' },
+    day_discussion: { label: 'Day Discussion', icon: '☀️', bg: 'bg-amber-500/10' },
+    day_vote: { label: 'Voting', icon: '🗳️', bg: 'bg-indigo-500/10' },
+  };
+  return configs[phase] || { label: phase, icon: '📝', bg: 'bg-zinc-500/10' };
+}
+
+// Parse AI response
+function parseResponse(raw: string): { type: string; content: any } {
+  if (!raw) return { type: 'raw', content: '' };
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed.message) return { type: 'message', content: parsed.message };
+    if (parsed.vote !== undefined) return { type: 'vote', content: parsed };
+    if (parsed.action && parsed.target) return { type: 'action', content: parsed };
+    if (parsed.name && parsed.background) return { type: 'persona', content: parsed };
+    return { type: 'raw', content: raw };
+  } catch {
+    return { type: 'raw', content: raw?.replace(/^["']|["']$/g, '').trim() || '' };
+  }
+}
+
+function getPersonaName(playerId: string): string {
+  return playerMap[playerId]?.personaName || playerId;
+}
 ---
 
 <Layout title={game ? `Game ${game.id.slice(-8)}` : 'Game Not Found'}>
   {error || !game ? (
-    <div class="border rounded-md p-8 text-center text-muted-foreground">
-      <p class="text-sm mb-4">Game not found</p>
-      <a href="/games" class="text-sm font-medium hover:underline">← Back to games</a>
+    <div class="min-h-[60vh] flex items-center justify-center">
+      <div class="text-center space-y-4">
+        <div class="text-6xl opacity-50">🎭</div>
+        <p class="text-muted-foreground">Game not found</p>
+        <a href="/games" class="text-sm font-medium hover:underline inline-flex items-center gap-1">
+          <ArrowLeft size={14} /> Back to games
+        </a>
+      </div>
     </div>
   ) : (
-    <div class="space-y-6 max-w-3xl">
+    <div class="space-y-8 pb-12">
+      <!-- Back Link -->
       <div class="flex items-center gap-2 text-sm text-muted-foreground">
-        <a href="/games" class="hover:text-foreground inline-flex items-center gap-1">
+        <a href="/games" class="hover:text-foreground inline-flex items-center gap-1 transition-colors">
           <ArrowLeft size={14} /> Games
         </a>
-        <span>/</span>
-        <code class="text-xs">{game.id.slice(-12)}</code>
+        <span class="opacity-40">/</span>
+        <code class="text-xs font-mono opacity-60">{game.id.slice(-12)}</code>
       </div>
 
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold tracking-tight">
-              {game.status === 'running' ? 'Game in Progress' : 'Game Result'}
-            </h1>
-            {game.status === 'running' && (
-              <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                </span>
-                LIVE
-              </span>
-            )}
+      <!-- Hero Section: Winner Announcement -->
+      <div class={`relative overflow-hidden rounded-2xl border-2 ${
+        game.winner === 'mafia' 
+          ? 'border-rose-500/30 bg-gradient-to-br from-rose-950/30 via-rose-900/10 to-transparent dark:from-rose-950/50 dark:via-rose-900/20' 
+          : 'border-indigo-500/30 bg-gradient-to-br from-indigo-950/30 via-indigo-900/10 to-transparent dark:from-indigo-950/50 dark:via-indigo-900/20'
+      }`}>
+        <!-- Atmospheric Pattern -->
+        <div class="absolute inset-0 opacity-5">
+          <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+                <path d="M 32 0 L 0 0 0 32" fill="none" stroke="currentColor" stroke-width="0.5"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
+        </div>
+        
+        <div class="relative p-8">
+          <div class="absolute top-4 right-4 text-xs font-medium px-3 py-1.5 rounded-full bg-background/80 backdrop-blur border shadow-sm">
+            {theme.emoji} {theme.label}
           </div>
-          <p class="text-muted-foreground text-sm">{date}</p>
+          
+          <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div class="space-y-4">
+              <div class="flex items-center gap-4">
+                <div class={`p-3 rounded-2xl ${game.winner === 'mafia' ? 'bg-rose-500/20 shadow-lg shadow-rose-500/20' : 'bg-indigo-500/20 shadow-lg shadow-indigo-500/20'}`}>
+                  <Trophy size={32} class={game.winner === 'mafia' ? 'text-rose-500' : 'text-indigo-500'} />
+                </div>
+                <div>
+                  <div class="text-xs text-muted-foreground uppercase tracking-widest font-medium mb-1">Victory</div>
+                  <div class={`text-4xl font-black tracking-tight ${game.winner === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                    {game.winner === 'mafia' ? 'Mafia' : 'Town'}
         </div>
-        <div class="flex items-center gap-2">
-          {game.status === 'running' ? (
-            <a 
-              href={`/games/${game.id}/live`} 
-              class="inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-            >
-              <Radio size={14} /> Watch Live
-            </a>
-          ) : (
-            <a 
-              href={`/games/${game.id}/replay`} 
-              class="inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-            >
-              <Play size={14} /> Replay
-            </a>
-          )}
         </div>
+              </div>
+              <p class="text-sm text-muted-foreground/80 font-medium">{date}</p>
       </div>
 
       <!-- Stats Grid -->
-      <div class="grid grid-cols-5 gap-3">
-        <div class="border rounded-md p-3">
-          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Winner</div>
-          <div class={`font-bold ${game.winner === 'mafia' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
-            {game.winner === 'mafia' ? 'Mafia' : 'Town'}
+            <div class="flex items-center gap-1 bg-background/50 backdrop-blur rounded-xl p-1 border">
+              <div class="text-center px-5 py-3">
+                <div class="text-2xl font-black font-mono tabular-nums">{game.rounds}</div>
+                <div class="text-[10px] text-muted-foreground uppercase tracking-wider">Rounds</div>
+          </div>
+              <div class="w-px h-12 bg-border/50"></div>
+              <div class="text-center px-5 py-3">
+                <div class="text-2xl font-black font-mono tabular-nums">{formatDuration(game.duration_ms || 0)}</div>
+                <div class="text-[10px] text-muted-foreground uppercase tracking-wider">Duration</div>
+        </div>
+              <div class="w-px h-12 bg-border/50"></div>
+              <div class="text-center px-5 py-3">
+                <div class="text-2xl font-black font-mono tabular-nums text-emerald-600 dark:text-emerald-400">{formatCost(totalCost)}</div>
+                <div class="text-[10px] text-muted-foreground uppercase tracking-wider">Cost</div>
           </div>
         </div>
-        <div class="border rounded-md p-3">
-          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Players</div>
-          <div class="font-bold font-mono tabular-nums">
-            <span class="text-red-600 dark:text-red-400">{mafiaCount}</span>
-            <span class="text-muted-foreground mx-1">vs</span>
-            <span class="text-blue-600 dark:text-blue-400">{townCount}</span>
           </div>
-        </div>
-        <div class="border rounded-md p-3">
-          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Rounds</div>
-          <div class="font-bold font-mono tabular-nums">{game.rounds}</div>
-        </div>
-        <div class="border rounded-md p-3">
-          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Theme</div>
-          <div class={`font-bold text-sm ${themeStyle.class} px-2 py-0.5 rounded inline-block`}>
-            {themeStyle.emoji} {themeStyle.label}
-          </div>
-        </div>
-        <div class="border rounded-md p-3">
-          <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Est. Cost</div>
-          <div class="font-bold font-mono tabular-nums text-green-600 dark:text-green-400">{formatCost(totalCost)}</div>
         </div>
       </div>
 
-      <!-- Winner Section -->
-      <section class="space-y-3">
-        <div class="flex items-center gap-2">
-          <Trophy size={16} class={game.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'} />
-          <h2 class="font-semibold">Winner</h2>
-        </div>
-        <div class="border rounded-md overflow-hidden">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b bg-muted/50">
-                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Model</th>
-                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Team</th>
-                <th class="h-9 px-3 text-right font-medium text-muted-foreground"># Players</th>
-              </tr>
-            </thead>
-            <tbody>
-              {winnerParticipants.map((p) => (
-                <tr class={`border-b last:border-0 ${game.winner === 'mafia' ? 'bg-red-500/5' : 'bg-blue-500/5'}`}>
-                  <td class="h-10 px-3">
-                    <span class="font-semibold">{p.model_name || p.model_id}</span>
-                  </td>
-                  <td class="h-10 px-3">
-                    <span class={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-                      p.team === 'mafia' 
-                        ? 'text-red-600 dark:text-red-400' 
-                        : 'text-blue-600 dark:text-blue-400'
-                    }`}>
-                      <span class={`w-2 h-2 rounded-full ${
-                        p.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
-                      }`}></span>
-                      {p.team}
-                    </span>
-                  </td>
-                  <td class="h-10 px-3 text-right font-mono tabular-nums">
-                    {p.player_count || 1}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- Loser Section -->
-      <section class="space-y-3">
-        <div class="flex items-center gap-2">
-          <X size={16} class="text-muted-foreground" />
-          <h2 class="font-semibold text-muted-foreground">Defeated</h2>
-        </div>
-        <div class="border rounded-md overflow-hidden opacity-75">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b bg-muted/50">
-                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Model</th>
-                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Team</th>
-                <th class="h-9 px-3 text-right font-medium text-muted-foreground"># Players</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loserParticipants.map((p) => (
-                <tr class="border-b last:border-0">
-                  <td class="h-10 px-3">
-                    <span class="font-medium text-muted-foreground">{p.model_name || p.model_id}</span>
-                  </td>
-                  <td class="h-10 px-3">
-                    <span class={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                      p.team === 'mafia' 
-                        ? 'text-red-500/60' 
-                        : 'text-blue-500/60'
-                    }`}>
-                      <span class={`w-2 h-2 rounded-full opacity-50 ${
-                        p.team === 'mafia' ? 'bg-red-500' : 'bg-blue-500'
-                      }`}></span>
-                      {p.team}
-                    </span>
-                  </td>
-                  <td class="h-10 px-3 text-right font-mono tabular-nums text-muted-foreground">
-                    {p.player_count || 1}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- Token Usage -->
-      <section class="border rounded-md p-4 bg-muted/30">
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-muted-foreground">Total tokens used</span>
-          <span class="font-mono tabular-nums">{game.total_tokens?.toLocaleString() || 0}</span>
-        </div>
-        <div class="flex items-center justify-between text-sm mt-2">
-          <span class="text-muted-foreground">Duration</span>
-          <span class="font-mono tabular-nums">{formatDuration(game.duration_ms || 0)}</span>
-        </div>
-      </section>
-
-      <!-- Personas Section (if enabled) -->
-      {personaEnabled && personas.length > 0 && (
+      <!-- Players Section -->
         <section class="space-y-4">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <Sparkles size={16} class="text-amber-500" />
-              <h2 class="font-semibold">AI-Generated Personas</h2>
-            </div>
-            {personaAnalysis && (
+          <h2 class="text-lg font-semibold flex items-center gap-2">
+            <Users size={18} />
+            Players
+          </h2>
               <div class="flex items-center gap-4 text-xs">
-                <span class="text-muted-foreground">
-                  Avg Consistency: 
-                  <span class="font-mono font-medium text-foreground ml-1">
-                    {(personaAnalysis.averageScore * 100).toFixed(0)}%
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+              <span class="text-muted-foreground">Mafia ({mafiaPlayers.length})</span>
                   </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+              <span class="text-muted-foreground">Town ({townPlayers.length})</span>
                 </span>
               </div>
-            )}
           </div>
 
-          {personaAnalysis && (
-            <div class="grid grid-cols-2 gap-3">
-              <div class="border rounded-md p-3 bg-red-500/5">
-                <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Mafia Consistency</div>
-                <div class="font-bold font-mono tabular-nums text-red-600 dark:text-red-400">
-                  {(personaAnalysis.mafiaAvgConsistency * 100).toFixed(0)}%
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {players.map((player) => (
+            <div class={`relative group rounded-xl border p-3 transition-all duration-200 ${
+              player.team === 'mafia' 
+                ? 'bg-gradient-to-br from-rose-500/10 to-rose-500/5 border-rose-500/20 hover:border-rose-500/50 hover:shadow-md hover:shadow-rose-500/10' 
+                : 'bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border-indigo-500/20 hover:border-indigo-500/50 hover:shadow-md hover:shadow-indigo-500/10'
+            } ${!player.isAlive ? 'opacity-40 grayscale' : ''}`}>
+              {!player.isAlive && (
+                <div class="absolute -top-2 -right-2 text-sm bg-background rounded-full px-1 border">💀</div>
+              )}
+              {player.team === 'mafia' && player.isAlive && game.winner === 'mafia' && (
+                <div class="absolute -top-2 -right-2 text-sm bg-background rounded-full px-1 border">🏆</div>
+              )}
+              {player.team === 'town' && player.isAlive && game.winner === 'town' && (
+                <div class="absolute -top-2 -right-2 text-sm bg-background rounded-full px-1 border">🏆</div>
+              )}
+              <div class="flex items-start gap-2.5">
+                <div class={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
+                  player.team === 'mafia' 
+                    ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' 
+                    : 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                }`}>
+                  {player.personaName.charAt(0)}
                 </div>
+                <div class="min-w-0 flex-1">
+                  <div class="font-semibold text-sm truncate">{player.personaName}</div>
+                  <div class="text-[10px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style={`background: ${getProviderColorFromModel(player.modelId)}`}></span>
+                    {player.modelId.split('/').pop() || player.modelId}
+                  </div>
+                  {player.persona?.personality && (
+                    <div class="text-[10px] text-muted-foreground/60 truncate mt-1 italic leading-tight">
+                      {player.persona.personality}
               </div>
-              <div class="border rounded-md p-3 bg-blue-500/5">
-                <div class="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Town Consistency</div>
-                <div class="font-bold font-mono tabular-nums text-blue-600 dark:text-blue-400">
-                  {(personaAnalysis.townAvgConsistency * 100).toFixed(0)}%
+                  )}
                 </div>
               </div>
             </div>
-          )}
+          ))}
+        </div>
+      </section>
 
-          <!-- Persona Cards -->
-          <div class="space-y-3">
-            {personas.map((p) => (
-              <div class={`border rounded-md p-4 ${
-                p.team === 'mafia' 
-                  ? 'border-red-500/30 bg-red-500/5' 
-                  : 'border-blue-500/30 bg-blue-500/5'
-              }`}>
-                <div class="flex items-start justify-between gap-4">
+      <!-- Game Transcript -->
+      <section class="space-y-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2">
+          <MessageSquare size={18} />
+          Game Transcript
+        </h2>
+
+        {rounds.length === 0 ? (
+          <div class="border rounded-xl p-12 text-center text-muted-foreground bg-muted/30">
+            <div class="text-4xl mb-3 opacity-50">📜</div>
+            <p class="text-sm">No events recorded</p>
+          </div>
+        ) : (
+          <div class="space-y-3" id="transcript">
+            {rounds.map((round, roundIdx) => (
+              <details class="group border rounded-xl overflow-hidden bg-card shadow-sm" open={roundIdx === rounds.length - 1}>
+                <summary class="flex items-center justify-between p-4 bg-gradient-to-r from-muted/50 to-transparent cursor-pointer hover:from-muted/70 transition-all">
                   <div class="flex items-center gap-3">
-                    <div class={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      p.team === 'mafia' ? 'bg-red-500/20' : 'bg-blue-500/20'
-                    }`}>
-                      <User size={16} class={p.team === 'mafia' ? 'text-red-500' : 'text-blue-500'} />
-                    </div>
-                    <div>
-                      <div class="font-semibold">{p.persona.name}</div>
-                      <div class="text-xs text-muted-foreground">
-                        {p.modelName} • 
-                        <span class={p.team === 'mafia' ? 'text-red-500' : 'text-blue-500'}>
-                          {p.team}
+                    <span class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-black">
+                      {round}
+                    </span>
+                    <span class="text-sm font-semibold text-muted-foreground">
+                      Round {round}
+                    </span>
+                    <div class="flex items-center gap-1 ml-2">
+                      {Object.keys(groupedEvents[round] || {}).map(phase => {
+                        const config = getPhaseConfig(phase);
+                        return (
+                          <span class={`text-xs px-2 py-0.5 rounded-full ${config.bg}`} title={config.label}>
+                            {config.icon}
                         </span>
-                      </div>
+                        );
+                      })}
                     </div>
                   </div>
-                  {p.consistency.score !== null && (
-                    <div class="text-right">
-                      <div class="text-xs text-muted-foreground">Consistency</div>
-                      <div class={`font-mono font-semibold ${
-                        p.consistency.score >= 0.7 ? 'text-green-600 dark:text-green-400' :
-                        p.consistency.score >= 0.4 ? 'text-amber-600 dark:text-amber-400' :
-                        'text-red-600 dark:text-red-400'
-                      }`}>
-                        {(p.consistency.score * 100).toFixed(0)}%
+                  <ChevronDown size={18} class="text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+                </summary>
+                
+                <div class="divide-y divide-border/50">
+                  {Object.entries(groupedEvents[round] || {}).map(([phase, phaseEvents]) => {
+                    const phaseConfig = getPhaseConfig(phase);
+                    const isNightPhase = phase === 'night' || phase === 'mafia_chat';
+                    return (
+                      <div class={`p-4 space-y-4 ${isNightPhase ? 'bg-rose-950/5 dark:bg-rose-950/10' : ''}`}>
+                        <div class="flex items-center gap-3">
+                          <div class={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm ${phaseConfig.bg}`}>
+                            <span>{phaseConfig.icon}</span>
+                            <span>{phaseConfig.label}</span>
+                          </div>
+                          <div class="h-px flex-1 bg-border/30"></div>
+                          <span class="text-[10px] text-muted-foreground/50">{(phaseEvents as any[]).length} events</span>
+                        </div>
+                        
+                        <div class="space-y-1">
+                          {(phaseEvents as any[]).map((event, idx) => {
+                            const player = playerMap[event.playerId];
+                            const team = event.team || player?.team || 'town';
+                            const isMailia = team === 'mafia';
+                            
+                            if (event.type === 'ai_call') {
+                              const parsed = parseResponse(event.response?.raw);
+                              return (
+                                <div class="group flex gap-3 py-2">
+                                  <!-- Avatar -->
+                                  <div class={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
+                                    isMailia ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                                  }`}>
+                                    {event.playerName?.charAt(0) || '?'}
+                                  </div>
+                                  
+                                  <!-- Message Bubble -->
+                                  <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                      <span class={`font-semibold text-sm ${isMailia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                        {event.playerName}
+                                      </span>
+                                      <span class="text-[10px] text-muted-foreground/50 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span class="w-1.5 h-1.5 rounded-full" style={`background: ${getProviderColorFromModel(event.modelId)}`}></span>
+                                        {event.modelId.split('/').pop()}
+                                      </span>
                       </div>
+                                    
+                                    <div class={`rounded-2xl rounded-tl-sm px-4 py-2.5 inline-block max-w-[90%] ${
+                                      isMailia 
+                                        ? 'bg-rose-500/10 dark:bg-rose-500/15' 
+                                        : 'bg-indigo-500/10 dark:bg-indigo-500/15'
+                                    }`}>
+                                      {parsed.type === 'message' ? (
+                                        <p class="text-sm leading-relaxed whitespace-pre-wrap">{parsed.content}</p>
+                                      ) : parsed.type === 'vote' ? (
+                                        <div class="text-sm">
+                                          <span class="text-muted-foreground">🗳️ Voted for </span>
+                                          <span class="font-semibold">{getPersonaName(parsed.content.vote)}</span>
+                                          {parsed.content.reasoning && (
+                                            <p class="text-xs text-muted-foreground/80 mt-1.5 italic border-t border-current/10 pt-1.5">"{parsed.content.reasoning}"</p>
+                                          )}
                     </div>
+                                      ) : parsed.type === 'action' ? (
+                                        <div class="text-sm">
+                                          <span class={`${parsed.content.action === 'kill' ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
+                                            {parsed.content.action === 'kill' ? '🔪' : '🎯'} {parsed.content.action}
+                                          </span>
+                                          <span class="font-semibold ml-1">{getPersonaName(parsed.content.target)}</span>
+                                          {parsed.content.reasoning && (
+                                            <p class="text-xs text-muted-foreground/80 mt-1.5 italic border-t border-current/10 pt-1.5">"{parsed.content.reasoning}"</p>
                   )}
                 </div>
-                
-                <div class="mt-3 space-y-2 text-sm">
-                  <div>
-                    <span class="text-muted-foreground">Personality:</span>
-                    <span class="ml-2 font-medium">{p.persona.personality}</span>
+                                      ) : parsed.type === 'persona' ? (
+                                        <div class="text-sm space-y-1">
+                                          <p class="italic text-muted-foreground">
+                                            {parsed.content.occupation && <span class="font-medium not-italic">🎭 {parsed.content.occupation}. </span>}
+                                            {parsed.content.personality}
+                                          </p>
+                                          <p class="text-foreground/80 text-xs border-t border-current/10 pt-1.5 mt-1.5">{parsed.content.background}</p>
+                                        </div>
+                                      ) : (
+                                        <p class="text-sm leading-relaxed">{parsed.content}</p>
+                                      )}
                   </div>
-                  <div class="text-muted-foreground italic">
-                    "{p.persona.background}"
                   </div>
                 </div>
-
-                {p.consistency.inconsistencies && p.consistency.inconsistencies.length > 0 && (
-                  <div class="mt-3 pt-3 border-t border-dashed">
-                    <div class="text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">Inconsistencies detected:</div>
-                    <ul class="text-xs text-muted-foreground space-y-0.5">
-                      {p.consistency.inconsistencies.map((issue) => (
-                        <li class="flex items-start gap-1">
-                          <span class="text-amber-500">•</span>
-                          {issue}
-                        </li>
-                      ))}
-                    </ul>
+                              );
+                            }
+                            
+                            if (event.type === 'elimination') {
+                              return (
+                                <div class={`flex items-center gap-3 py-3 px-4 rounded-lg my-2 ${
+                                  event.team === 'mafia' 
+                                    ? 'bg-rose-500/10 border border-rose-500/30' 
+                                    : 'bg-indigo-500/10 border border-indigo-500/30'
+                                }`}>
+                                  <Skull size={18} class={event.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'} />
+                                  <div>
+                                    <span class={`font-semibold ${
+                                      event.team === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
+                                    }`}>{event.playerName || getPersonaName(event.playerId)}</span>
+                                    <span class="text-muted-foreground ml-2">was eliminated</span>
+                                  </div>
+                                  <span class={`ml-auto text-xs px-2 py-1 rounded font-medium ${
+                                    event.team === 'mafia' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                                  }`}>
+                                    {event.team}
+                                  </span>
                   </div>
+                              );
+                            }
+                            
+                            if (event.type === 'vote') {
+                              const voterTeam = playerMap[event.voterId]?.team || 'town';
+                              return (
+                                <div class="flex items-center gap-2 py-1 text-sm text-muted-foreground">
+                                  <span class={voterTeam === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}>
+                                    {event.voterName || getPersonaName(event.voterId)}
+                                  </span>
+                                  <span>→</span>
+                                  {event.targetId ? (
+                                    <span class="font-medium text-foreground">{getPersonaName(event.targetId)}</span>
+                                  ) : (
+                                    <span class="italic">abstain</span>
                 )}
               </div>
+                              );
+                            }
+                            
+                            if (event.type === 'game_end') {
+                              return (
+                                <div class={`text-center py-6 rounded-lg ${
+                                  event.winner === 'mafia' ? 'bg-rose-500/10' : 'bg-indigo-500/10'
+                                }`}>
+                                  <div class="text-4xl mb-2">🎉</div>
+                                  <div class={`text-xl font-bold ${
+                                    event.winner === 'mafia' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
+                                  }`}>
+                                    {event.winner === 'mafia' ? 'Mafia' : 'Town'} Wins!
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
+                            return null;
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
             ))}
           </div>
+        )}
         </section>
-      )}
+
+      <!-- Token Stats Footer -->
+      <div class="flex items-center justify-between text-xs text-muted-foreground border-t pt-4">
+        <span>{game.total_tokens?.toLocaleString() || 0} tokens used</span>
+        <span>{events.length} events</span>
+      </div>
     </div>
   )}
 </Layout>
+
+<style>
+  details[open] > summary {
+    border-bottom: 1px solid var(--border);
+  }
+  
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+  
+  details > summary {
+    list-style: none;
+  }
+</style>
