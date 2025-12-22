@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { ArrowLeft, Radio, Loader2 } from 'lucide-astro';
+import { ArrowLeft, Radio, Loader2, Trophy, Users, Moon, Sun, Swords, Vote, MessageSquare, Skull, ChevronDown, ChevronRight, Crosshair, Hash, Timer } from 'lucide-astro';
 
 const { id } = Astro.params;
 const gameId = id!;
@@ -9,100 +9,140 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 ---
 
 <Layout title={`Live: ${gameId.slice(-8)}`}>
-  <div class="space-y-6 max-w-4xl">
-    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-      <a href="/games" class="hover:text-foreground inline-flex items-center gap-1">
-        <ArrowLeft size={14} /> Games
+  <div class="space-y-5 pb-8">
+    <!-- Back Link -->
+    <div class="flex items-center gap-2 text-xs text-muted-foreground">
+      <a href="/games" class="hover:text-foreground inline-flex items-center gap-1 transition-colors">
+        <ArrowLeft size={12} /> Games
       </a>
-      <span>/</span>
-      <a href={`/games/${gameId}`} class="hover:text-foreground">
-        <code class="text-xs">{gameId.slice(-12)}</code>
-      </a>
-      <span>/</span>
+      <span class="opacity-30">/</span>
+      <code class="font-mono opacity-50">{gameId.slice(-12)}</code>
+      <span class="opacity-30">/</span>
       <span>Live</span>
     </div>
 
-    <div class="flex items-start justify-between gap-4 flex-wrap">
-      <div>
+    <!-- Header -->
+    <div class="rounded-lg border bg-card p-4 space-y-3">
+      <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <h1 class="text-2xl font-bold tracking-tight">Live Game</h1>
-          <span id="live-badge" class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+          <div id="live-badge" class="flex items-center gap-1.5 text-xs font-medium text-rose-500">
+            <span class="relative flex h-1.5 w-1.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
             </span>
             LIVE
+          </div>
+          <span id="status-text" class="text-xs text-muted-foreground">Connecting...</span>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-muted-foreground">
+          <div id="round-display" class="flex items-center gap-1 hidden">
+            <Hash size={11} />
+            <span class="font-mono">-</span>
+          </div>
+          <div id="duration-display" class="flex items-center gap-1 hidden">
+            <Timer size={11} />
+            <span class="font-mono">0s</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Teams display (populated by JS) -->
+      <div id="teams-display" class="hidden text-sm">
+        <div class="flex items-center gap-3">
+          <span class="text-rose-500 font-medium">Mafia</span>
+          <span class="text-muted-foreground">(</span>
+          <span id="mafia-models" class="font-mono text-xs text-muted-foreground">-</span>
+          <span class="text-muted-foreground">)</span>
+          <span class="text-muted-foreground font-bold">vs</span>
+          <span class="text-indigo-500 font-medium">Town</span>
+          <span class="text-muted-foreground">(</span>
+          <span id="town-models" class="font-mono text-xs text-muted-foreground">-</span>
+          <span class="text-muted-foreground">)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div id="connection-status" class="border rounded-md px-3 py-2 text-xs">
+      <div class="flex items-center gap-2 text-muted-foreground">
+        <Loader2 size={12} class="animate-spin" />
+        <span>Connecting to live stream...</span>
+      </div>
+    </div>
+
+    <!-- Players Grid -->
+    <section id="players-section" class="space-y-2 hidden">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold flex items-center gap-1.5">
+          <Users size={14} />
+          Players
+        </h2>
+        <div class="flex items-center gap-3 text-[10px]">
+          <span class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            Mafia (<span id="mafia-count">0</span>)
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+            Town (<span id="town-count">0</span>)
           </span>
         </div>
-        <div id="game-status" class="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-          <span id="status-text">Connecting...</span>
+      </div>
+      <div id="players-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2">
+      </div>
+    </section>
+
+    <!-- Transcript -->
+    <section class="space-y-2">
+      <h2 class="text-sm font-semibold flex items-center gap-1.5">
+        <MessageSquare size={14} />
+        Transcript
+      </h2>
+      <div id="transcript-container" class="border rounded-md text-xs">
+        <div class="px-3 py-6 text-center text-muted-foreground">
+          Waiting for events...
         </div>
       </div>
-      <a 
-        href={`/games/${gameId}/replay`} 
-        id="replay-link"
-        class="hidden inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-      >
-        View Full Replay
-      </a>
-    </div>
+    </section>
 
-    {/* Connection Status */}
-    <div id="connection-status" class="border rounded-md p-4 bg-muted/30">
-      <div class="flex items-center gap-3">
-        <div class="animate-spin">
-          <Loader2 size={20} class="text-muted-foreground" />
-        </div>
-        <span class="text-sm text-muted-foreground">Connecting to live stream...</span>
-      </div>
-    </div>
-
-    {/* Player Roster (populated by JS) */}
-    <div id="player-roster" class="hidden border rounded-md p-4 bg-muted/30">
-      <h3 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Player Roster</h3>
-      <div id="roster-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-      </div>
-    </div>
-
-    {/* Events Container */}
-    <div id="events-container" class="space-y-6">
-      <div class="text-center text-muted-foreground text-sm py-8">
-        Waiting for events...
-      </div>
-    </div>
-
-    {/* Game End Banner (hidden initially) */}
-    <div id="game-end-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
-      <div class="bg-background border-2 rounded-lg shadow-xl p-4 flex items-center gap-4">
-        <div id="winner-indicator" class="text-lg font-bold"></div>
-        <a 
-          href={`/games/${gameId}/replay`}
-          class="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          View Full Replay
-        </a>
-      </div>
-    </div>
+    <!-- Game End (shown when complete) -->
+    <div id="game-end" class="hidden"></div>
   </div>
 </Layout>
 
 <script define:vars={{ gameId, apiUrl }}>
-  // WebSocket connection for live streaming
   let ws = null;
   let events = [];
   let playerMap = {};
+  let eliminatedPlayers = new Set();
   let reconnectAttempts = 0;
+  let startTime = Date.now();
+  let durationInterval = null;
   const MAX_RECONNECT_ATTEMPTS = 5;
 
-  function getPhaseLabel(phase) {
-    switch (phase) {
-      case 'introduction': return 'Introduction';
-      case 'night': return 'Night Phase';
-      case 'day_discussion': return 'Day Discussion';
-      case 'day_vote': return 'Day Vote';
-      case 'mafia_chat': return 'Mafia Strategy';
-      default: return phase;
-    }
+  // Icons as inline SVG (matching Lucide style)
+  const ICONS = {
+    moon: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+    sun: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+    swords: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></svg>',
+    vote: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><path d="M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5V7Z"/><path d="M22 19H2"/></svg>',
+    message: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>',
+    skull: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/></svg>',
+    trophy: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>',
+    chevronRight: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+    chevronDown: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+    crosshair: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></svg>',
+  };
+
+  function getPhaseConfig(phase) {
+    const configs = {
+      introduction: { label: 'Intro', icon: ICONS.message },
+      night: { label: 'Night', icon: ICONS.moon },
+      mafia_chat: { label: 'Mafia', icon: ICONS.swords },
+      day_discussion: { label: 'Discussion', icon: ICONS.sun },
+      day_vote: { label: 'Vote', icon: ICONS.vote },
+    };
+    return configs[phase] || { label: phase, icon: ICONS.message };
   }
 
   function getProviderColor(modelId) {
@@ -114,89 +154,70 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     return '#888';
   }
 
-  function updateConnectionStatus(connected, message) {
-    const statusEl = document.getElementById('connection-status');
-    if (!statusEl) return;
+  function getShortModelName(modelId) {
+    if (!modelId) return '?';
+    const name = modelId.split('/').pop() || modelId;
+    return name.replace(/-\d{4}-\d{2}-\d{2}$/, '').replace(/@.*$/, '');
+  }
 
+  function formatDuration(ms) {
+    const seconds = Math.floor(ms / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  function updateConnectionStatus(connected, message) {
+    const el = document.getElementById('connection-status');
+    if (!el) return;
+    
     if (connected) {
-      statusEl.innerHTML = `
-        <div class="flex items-center gap-3">
-          <div class="w-2 h-2 rounded-full bg-green-500"></div>
-          <span class="text-sm text-green-600 dark:text-green-400">${message || 'Connected'}</span>
-        </div>
-      `;
+      el.innerHTML = `<div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${message || 'Connected'}</div>`;
     } else {
-      statusEl.innerHTML = `
-        <div class="flex items-center gap-3">
-          <div class="animate-spin">
-            <svg class="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-          <span class="text-sm text-muted-foreground">${message || 'Connecting...'}</span>
-        </div>
-      `;
+      el.innerHTML = `<div class="flex items-center gap-2 text-muted-foreground"><span class="w-3 h-3 animate-spin">${ICONS.message}</span>${message || 'Connecting...'}</div>`;
     }
   }
 
   function updateLiveBadge(status) {
     const badge = document.getElementById('live-badge');
     const statusText = document.getElementById('status-text');
-    const replayLink = document.getElementById('replay-link');
-
     if (!badge) return;
 
     if (status === 'running') {
-      // Keep the animated LIVE badge
-      badge.className = 'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20';
-      badge.innerHTML = `
-        <span class="relative flex h-2 w-2">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-        </span>
-        LIVE
-      `;
+      badge.className = 'flex items-center gap-1.5 text-xs font-medium text-rose-500';
+      badge.innerHTML = `<span class="relative flex h-1.5 w-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span></span>LIVE`;
     } else if (status === 'completed') {
-      badge.className = 'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-500 border border-green-500/20';
-      badge.innerHTML = `
-        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-        </svg>
-        COMPLETED
-      `;
-      if (replayLink) replayLink.classList.remove('hidden');
+      badge.className = 'flex items-center gap-1.5 text-xs font-medium text-emerald-500';
+      badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>COMPLETED`;
     } else if (status === 'failed') {
-      badge.className = 'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20';
-      badge.innerHTML = `
-        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-        </svg>
-        FAILED
-      `;
-    } else if (status === 'idle') {
-      badge.className = 'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
-      badge.innerHTML = `
-        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-        </svg>
-        STARTING
-      `;
+      badge.className = 'flex items-center gap-1.5 text-xs font-medium text-rose-500';
+      badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>FAILED`;
+    } else {
+      badge.className = 'flex items-center gap-1.5 text-xs font-medium text-amber-500';
+      badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>STARTING`;
     }
-    
+
     if (statusText) {
-      const eventCount = events.length;
-      if (status === 'completed' || status === 'failed') {
-        statusText.textContent = status === 'completed' ? 'Game complete' : 'Game failed';
-      } else if (status === 'running') {
-        const lastEvent = events[events.length - 1];
-        const phase = lastEvent?.phase || 'introduction';
-        const round = lastEvent?.round || 1;
-        statusText.textContent = `Round ${round} - ${getPhaseLabel(phase)} (${eventCount} events)`;
+      const lastEvent = events[events.length - 1];
+      if (status === 'completed') {
+        statusText.textContent = 'Game complete';
+      } else if (status === 'failed') {
+        statusText.textContent = 'Game failed';
+      } else if (lastEvent?.round) {
+        statusText.textContent = `Round ${lastEvent.round} · ${getPhaseConfig(lastEvent.phase).label}`;
       } else {
-        statusText.textContent = eventCount > 0 ? `${eventCount} events` : 'Waiting for game to start...';
+        statusText.textContent = events.length > 0 ? `${events.length} events` : 'Waiting...';
       }
     }
+  }
+
+  function updateDuration() {
+    const el = document.getElementById('duration-display');
+    if (!el) return;
+    el.classList.remove('hidden');
+    const duration = Date.now() - startTime;
+    el.querySelector('span:last-child').textContent = formatDuration(duration);
   }
 
   function buildPlayerFromEvent(event) {
@@ -206,134 +227,183 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         playerName: event.playerName,
         modelId: event.modelId,
         team: event.team,
+        isAlive: true,
       };
     }
     if (event.type === 'persona_generation' && event.playerId) {
       if (!playerMap[event.playerId]) {
-        playerMap[event.playerId] = {
-          playerId: event.playerId,
-          playerName: event.playerName,
-          team: 'town',
-          modelId: '',
-        };
+        playerMap[event.playerId] = { playerId: event.playerId, playerName: event.playerName, team: 'town', modelId: '', isAlive: true };
       }
       playerMap[event.playerId].persona = event.persona;
       playerMap[event.playerId].playerName = event.persona?.name || event.playerName;
     }
+    if (event.type === 'elimination' && event.playerId) {
+      eliminatedPlayers.add(event.playerId);
+      if (playerMap[event.playerId]) {
+        playerMap[event.playerId].isAlive = false;
+      }
+    }
   }
 
-  function updatePlayerRoster() {
-    const rosterEl = document.getElementById('player-roster');
-    const gridEl = document.getElementById('roster-grid');
-    if (!rosterEl || !gridEl) return;
+  function updateTeamsDisplay() {
+    const players = Object.values(playerMap);
+    if (players.length === 0) return;
+
+    const mafiaPlayers = players.filter(p => p.team === 'mafia');
+    const townPlayers = players.filter(p => p.team === 'town');
+    
+    const mafiaModels = [...new Set(mafiaPlayers.map(p => getShortModelName(p.modelId)))];
+    const townModels = [...new Set(townPlayers.map(p => getShortModelName(p.modelId)))];
+
+    document.getElementById('teams-display')?.classList.remove('hidden');
+    document.getElementById('mafia-models').textContent = mafiaModels.join(', ') || '-';
+    document.getElementById('town-models').textContent = townModels.join(', ') || '-';
+    document.getElementById('mafia-count').textContent = mafiaPlayers.length;
+    document.getElementById('town-count').textContent = townPlayers.length;
+  }
+
+  function updatePlayersGrid() {
+    const section = document.getElementById('players-section');
+    const grid = document.getElementById('players-grid');
+    if (!section || !grid) return;
 
     const players = Object.values(playerMap);
     if (players.length === 0) return;
 
-    rosterEl.classList.remove('hidden');
-    gridEl.innerHTML = players.map(player => {
-      const teamColor = player.team === 'mafia' ? 'red' : 'blue';
-      const bgClass = player.team === 'mafia' ? 'bg-red-500/5 border-red-500/20' : 'bg-blue-500/5 border-blue-500/20';
+    section.classList.remove('hidden');
+    grid.innerHTML = players.map(player => {
+      const isMafia = player.team === 'mafia';
+      const teamClass = isMafia ? 'border-rose-500/20 bg-rose-500/5' : 'border-indigo-500/20 bg-indigo-500/5';
+      const avatarClass = isMafia ? 'bg-rose-500/20 text-rose-600' : 'bg-indigo-500/20 text-indigo-600';
+      const opacity = player.isAlive ? '' : 'opacity-40';
       
       return `
-        <div class="flex items-start gap-2 px-2 py-2 rounded border text-sm ${bgClass}">
-          <div class="w-2 h-2 rounded-full shrink-0 mt-1.5 bg-${teamColor}-500"></div>
-          <div class="min-w-0 flex-1">
-            <div class="font-medium truncate">${player.playerName}</div>
-            <div class="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background: ${getProviderColor(player.modelId)}"></span>
-              ${player.modelId || 'Unknown'}
+        <div class="relative rounded-md border px-2 py-1.5 text-xs ${teamClass} ${opacity}">
+          ${!player.isAlive ? `<span class="absolute -top-1 -right-1 text-muted-foreground">${ICONS.skull}</span>` : ''}
+          <div class="flex items-center gap-1.5">
+            <div class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${avatarClass}">
+              ${player.playerName?.charAt(0) || '?'}
             </div>
-            <div class="text-[10px] text-${teamColor}-500">${player.team}</div>
+            <div class="min-w-0 flex-1">
+              <div class="font-medium truncate">${player.playerName}</div>
+              <div class="text-[9px] text-muted-foreground truncate flex items-center gap-0.5">
+                <span class="w-1 h-1 rounded-full flex-shrink-0" style="background: ${getProviderColor(player.modelId)}"></span>
+                ${getShortModelName(player.modelId)}
+              </div>
+            </div>
           </div>
         </div>
       `;
     }).join('');
   }
 
-  function groupEventsByRoundAndPhase() {
-    const grouped = {};
-    for (const event of events) {
-      const round = event.round || 1;
-      const phase = event.phase || 'introduction';
-      if (!grouped[round]) grouped[round] = {};
-      if (!grouped[round][phase]) grouped[round][phase] = [];
-      grouped[round][phase].push(event);
+  function parseResponse(raw) {
+    if (!raw) return { type: 'raw', content: '' };
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.message) return { type: 'message', content: parsed.message };
+      if (parsed.vote !== undefined) return { type: 'vote', content: parsed };
+      if (parsed.action && parsed.target) return { type: 'action', content: parsed };
+      if (parsed.name && parsed.background) return { type: 'persona', content: parsed };
+      return { type: 'raw', content: raw };
+    } catch {
+      return { type: 'raw', content: raw?.replace(/^["']|["']$/g, '').trim() || '' };
     }
-    return grouped;
+  }
+
+  function getPersonaName(playerId) {
+    return playerMap[playerId]?.playerName || playerId;
   }
 
   function renderEvent(event) {
-    const team = event.team || playerMap[event.playerId]?.team || 'town';
-    const teamColor = team === 'mafia' ? 'red' : 'blue';
+    const player = playerMap[event.playerId];
+    const team = event.team || player?.team || 'town';
+    const isMafia = team === 'mafia';
 
     if (event.type === 'ai_call') {
+      const parsed = parseResponse(event.response?.raw);
+      if (parsed.type === 'persona') return ''; // Skip persona generation
+
+      const nameClass = isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400';
+      const avatarClass = isMafia ? 'bg-rose-500/15 text-rose-600' : 'bg-indigo-500/15 text-indigo-600';
+
       let content = '';
-      try {
-        const parsed = JSON.parse(event.response?.raw || '{}');
-        if (parsed.message) {
-          content = parsed.message;
-        } else if (parsed.vote) {
-          const targetName = playerMap[parsed.vote]?.playerName || parsed.vote;
-          content = `<span class="text-muted-foreground">Voted for:</span> <strong>${targetName}</strong>`;
-        } else if (parsed.action && parsed.target) {
-          const targetName = playerMap[parsed.target]?.playerName || parsed.target;
-          content = `<span class="text-muted-foreground">${parsed.action}:</span> <strong>${targetName}</strong>`;
-        } else if (parsed.name && parsed.background) {
-          content = `<em class="text-muted-foreground">${parsed.occupation || 'Mysterious'}. ${parsed.personality}</em><br>${parsed.background}`;
-        } else {
-          content = event.response?.raw?.slice(0, 200) || '';
-        }
-      } catch {
-        content = event.response?.raw?.slice(0, 200) || '';
+      if (parsed.type === 'message') {
+        content = `<p class="text-xs text-foreground/90 leading-relaxed mt-0.5">${parsed.content}</p>`;
+      } else if (parsed.type === 'vote') {
+        const targetTeam = playerMap[parsed.content.vote]?.team || 'town';
+        const targetClass = targetTeam === 'mafia' ? 'text-rose-500' : 'text-indigo-500';
+        content = `
+          <div class="text-xs mt-0.5">
+            <span class="inline-flex items-center gap-1 text-muted-foreground">
+              ${ICONS.vote} Voted for <span class="font-semibold ${targetClass}">${getPersonaName(parsed.content.vote)}</span>
+            </span>
+            ${parsed.content.reasoning ? `
+              <details class="mt-0.5 text-[10px] text-muted-foreground">
+                <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
+                  ${ICONS.chevronRight} reason
+                </summary>
+                <p class="mt-0.5 pl-3 italic opacity-70">"${parsed.content.reasoning}"</p>
+              </details>
+            ` : ''}
+          </div>
+        `;
+      } else if (parsed.type === 'action') {
+        const targetTeam = playerMap[parsed.content.target]?.team || 'town';
+        const targetClass = targetTeam === 'mafia' ? 'text-rose-500' : 'text-indigo-500';
+        content = `
+          <div class="text-xs mt-0.5">
+            <span class="inline-flex items-center gap-1">
+              <span class="${parsed.content.action === 'kill' ? 'text-rose-500' : 'text-muted-foreground'}">${ICONS.crosshair}</span>
+              <span class="text-muted-foreground">${parsed.content.action}</span>
+              <span class="font-semibold ${targetClass}">${getPersonaName(parsed.content.target)}</span>
+            </span>
+            ${parsed.content.reasoning ? `
+              <details class="mt-0.5 text-[10px] text-muted-foreground">
+                <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
+                  ${ICONS.chevronRight} reason
+                </summary>
+                <p class="mt-0.5 pl-3 italic opacity-70">"${parsed.content.reasoning}"</p>
+              </details>
+            ` : ''}
+          </div>
+        `;
+      } else {
+        content = `<p class="text-xs text-foreground/90 leading-relaxed mt-0.5">${parsed.content}</p>`;
       }
 
       return `
-        <div class="flex gap-3 py-2 hover:bg-muted/30 rounded px-2 -mx-2 transition-colors">
-          <div class="w-1 rounded-full shrink-0 bg-${teamColor}-500"></div>
+        <div class="group/msg flex gap-2 py-1">
+          <div class="w-5 h-5 rounded flex items-center justify-center shrink-0 text-[10px] font-bold ${avatarClass}">
+            ${event.playerName?.charAt(0) || '?'}
+          </div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-medium text-${teamColor}-600 dark:text-${teamColor}-400">${event.playerName}</span>
-              <span class="text-[10px] text-muted-foreground flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full" style="background: ${getProviderColor(event.modelId)}"></span>
-                ${event.modelId}
+            <div class="flex items-baseline gap-1.5">
+              <span class="font-medium text-xs ${nameClass}">${event.playerName}</span>
+              <span class="text-[9px] text-muted-foreground/40 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
+                <span class="w-1 h-1 rounded-full" style="background: ${getProviderColor(event.modelId)}"></span>
+                ${getShortModelName(event.modelId)}
               </span>
             </div>
-            <div class="text-sm mt-1 leading-relaxed">${content}</div>
+            ${content}
           </div>
         </div>
       `;
     }
 
     if (event.type === 'elimination') {
+      const elimTeam = event.team || playerMap[event.playerId]?.team || 'town';
+      const isElimMafia = elimTeam === 'mafia';
+      const bgClass = isElimMafia ? 'bg-rose-500/10 border-rose-500/20' : 'bg-indigo-500/10 border-indigo-500/20';
+      const textClass = isElimMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400';
+      const badgeClass = isElimMafia ? 'bg-rose-500/20 text-rose-600' : 'bg-indigo-500/20 text-indigo-600';
+      
       return `
-        <div class="flex items-center gap-2 py-2 text-sm">
-          <span class="text-red-500">💀</span>
-          <span><strong>${event.playerName}</strong> was eliminated</span>
-          <span class="text-xs text-muted-foreground">(${event.team})</span>
-        </div>
-      `;
-    }
-
-    if (event.type === 'vote') {
-      const targetName = playerMap[event.targetId]?.playerName || event.targetId || 'abstain';
-      return `
-        <div class="flex items-center gap-2 py-1 text-xs text-muted-foreground">
-          <span>🗳️</span>
-          <span>${event.voterName} voted for ${targetName}</span>
-        </div>
-      `;
-    }
-
-    if (event.type === 'game_end') {
-      return `
-        <div class="border-2 rounded-lg p-4 text-center ${event.winner === 'mafia' ? 'border-red-500/50 bg-red-500/10' : 'border-blue-500/50 bg-blue-500/10'}">
-          <div class="text-lg font-bold ${event.winner === 'mafia' ? 'text-red-500' : 'text-blue-500'}">
-            🎉 ${event.winner === 'mafia' ? 'Mafia' : 'Town'} Wins!
-          </div>
-          <div class="text-sm text-muted-foreground mt-1">
-            Final: ${event.finalState?.mafiaAlive || 0} mafia, ${event.finalState?.townAlive || 0} town alive
-          </div>
+        <div class="flex items-center gap-2 py-1.5 px-2 rounded text-xs ${bgClass} border">
+          <span class="${textClass}">${ICONS.skull}</span>
+          <span class="font-medium ${textClass}">${event.playerName || getPersonaName(event.playerId)}</span>
+          <span class="text-muted-foreground">eliminated</span>
+          <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded font-medium ${badgeClass}">${elimTeam}</span>
         </div>
       `;
     }
@@ -341,144 +411,151 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     return '';
   }
 
-  function renderAllEvents() {
-    const container = document.getElementById('events-container');
+  function renderTranscript() {
+    const container = document.getElementById('transcript-container');
     if (!container) return;
 
-    if (events.length === 0) {
-      container.innerHTML = `
-        <div class="text-center text-muted-foreground text-sm py-8">
-          Waiting for events...
-        </div>
-      `;
+    // Filter out persona_generation and events without phase
+    const validEvents = events.filter(e => e.type !== 'persona_generation' && e.phase && e.phase !== 'other');
+    
+    if (validEvents.length === 0) {
+      container.innerHTML = '<div class="px-3 py-6 text-center text-muted-foreground">Waiting for events...</div>';
       return;
     }
 
-    const grouped = groupEventsByRoundAndPhase();
-    const rounds = Object.keys(grouped).map(Number).sort((a, b) => a - b);
+    // Group by round and phase
+    const grouped = {};
+    for (const event of validEvents) {
+      if (event.type === 'game_end') continue;
+      const round = event.round || 1;
+      const phase = event.phase;
+      if (!grouped[round]) grouped[round] = {};
+      if (!grouped[round][phase]) grouped[round][phase] = [];
+      grouped[round][phase].push(event);
+    }
 
-    let html = '';
+    const rounds = Object.keys(grouped).map(Number).sort((a, b) => a - b);
+    const lastRound = rounds[rounds.length - 1];
+
+    // Update round display
+    const roundDisplay = document.getElementById('round-display');
+    if (roundDisplay && lastRound) {
+      roundDisplay.classList.remove('hidden');
+      roundDisplay.querySelector('span:last-child').textContent = lastRound;
+    }
+
+    let html = '<div class="space-y-1.5">';
+    
     for (const round of rounds) {
+      const isLastRound = round === lastRound;
       html += `
-        <div class="space-y-4">
-          <div class="flex items-center gap-3 text-sm font-semibold">
-            <span class="uppercase tracking-wider text-muted-foreground">Round ${round}</span>
-            <div class="h-px flex-1 bg-border"></div>
-          </div>
+        <details class="group border-b last:border-0" ${isLastRound ? 'open' : ''}>
+          <summary class="flex items-center justify-between px-3 py-2 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors">
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded bg-primary/10 flex items-center justify-center text-[10px] font-bold">${round}</span>
+              <span class="font-medium">Round ${round}</span>
+              <div class="flex items-center gap-0.5 ml-1 text-muted-foreground">
+                ${Object.keys(grouped[round]).map(phase => `<span title="${getPhaseConfig(phase).label}">${getPhaseConfig(phase).icon}</span>`).join('')}
+              </div>
+            </div>
+            <span class="transition-transform duration-200 group-open:rotate-180">${ICONS.chevronDown}</span>
+          </summary>
+          <div class="divide-y divide-border/50">
       `;
 
-      const phases = grouped[round];
-      for (const [phase, phaseEvents] of Object.entries(phases)) {
-        const isNightPhase = phase === 'night' || phase === 'mafia_chat';
-        const phaseClass = isNightPhase 
-          ? 'bg-red-500/10 text-red-600 dark:text-red-400' 
-          : 'bg-muted text-muted-foreground';
-
+      for (const [phase, phaseEvents] of Object.entries(grouped[round])) {
+        const config = getPhaseConfig(phase);
+        const isNight = phase === 'night' || phase === 'mafia_chat';
+        
         html += `
-          <div class="space-y-2">
-            <div class="flex items-center gap-2 text-xs font-medium px-2 py-1 rounded ${phaseClass}">
-              ${phase === 'night' ? '🌙' : phase === 'day_vote' ? '🗳️' : '💬'}
-              <span>${getPhaseLabel(phase)}</span>
+          <div class="px-3 py-2 space-y-1.5 ${isNight ? 'bg-rose-500/3' : ''}">
+            <div class="flex items-center gap-2 text-[10px] text-muted-foreground">
+              ${config.icon}
+              <span class="font-medium uppercase tracking-wide">${config.label}</span>
+              <span class="opacity-50">·</span>
+              <span class="opacity-50">${phaseEvents.length}</span>
             </div>
-            <div class="space-y-1 pl-2">
+            <div class="space-y-1">
               ${phaseEvents.map(e => renderEvent(e)).join('')}
             </div>
           </div>
         `;
       }
 
-      html += '</div>';
+      html += '</div></details>';
     }
 
+    html += '</div>';
     container.innerHTML = html;
-    
-    // Scroll to bottom for new events
+
+    // Scroll to show latest
     container.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
-  function showGameEndBanner(winner) {
-    const banner = document.getElementById('game-end-banner');
-    const indicator = document.getElementById('winner-indicator');
-    if (!banner || !indicator) return;
+  function showGameEnd(winner) {
+    const el = document.getElementById('game-end');
+    if (!el) return;
 
-    indicator.className = `text-lg font-bold ${winner === 'mafia' ? 'text-red-500' : 'text-blue-500'}`;
-    indicator.innerHTML = `🎉 ${winner === 'mafia' ? 'Mafia' : 'Town'} Wins!`;
-    banner.classList.remove('hidden');
+    const winnerClass = winner === 'mafia' ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-500';
+    
+    el.className = `text-center py-4 rounded-md border ${winnerClass}`;
+    el.innerHTML = `
+      <span class="inline-block mb-1">${ICONS.trophy}</span>
+      <div class="text-sm font-bold">${winner === 'mafia' ? 'Mafia' : 'Town'} Wins</div>
+    `;
+    el.classList.remove('hidden');
   }
 
   function handleMessage(data) {
     if (data.type === 'SYNC') {
-      // Initial sync - load all events
       events = data.events || [];
       events.forEach(buildPlayerFromEvent);
-      updatePlayerRoster();
-      renderAllEvents();
+      updateTeamsDisplay();
+      updatePlayersGrid();
+      renderTranscript();
       updateConnectionStatus(true, `Synced ${events.length} events`);
       
       if (data.status === 'completed' || data.status === 'failed') {
         updateLiveBadge(data.status);
+        if (data.status === 'completed') {
+          const gameEnd = events.find(e => e.type === 'game_end');
+          if (gameEnd) showGameEnd(gameEnd.winner);
+        }
       } else if (data.status === 'idle') {
         updateLiveBadge('idle');
       }
     } else if (data.type === 'EVENT') {
-      // New event
       const event = data.event;
       events.push(event);
       buildPlayerFromEvent(event);
-      updatePlayerRoster();
-      renderAllEvents();
+      updateTeamsDisplay();
+      updatePlayersGrid();
+      renderTranscript();
       updateLiveBadge('running');
 
       if (event.type === 'game_end') {
-        showGameEndBanner(event.winner);
+        showGameEnd(event.winner);
         updateLiveBadge('completed');
+        if (durationInterval) clearInterval(durationInterval);
       }
     } else if (data.type === 'STATUS') {
       updateLiveBadge(data.status);
-      if (data.status === 'completed') {
-        updateConnectionStatus(true, 'Game completed');
-      }
     } else if (data.type === 'ERROR') {
       updateLiveBadge('failed');
-      showErrorBanner(data.error || 'Game failed');
+      updateConnectionStatus(false, data.error || 'Game failed');
     }
-  }
-
-  function showErrorBanner(errorMessage) {
-    const container = document.getElementById('events-container');
-    if (!container) return;
-
-    // Show error at the top of events
-    const errorHtml = `
-      <div class="border-2 border-red-500/50 bg-red-500/10 rounded-lg p-4">
-        <div class="flex items-start gap-3">
-          <span class="text-red-500 text-xl">⚠️</span>
-          <div class="flex-1">
-            <div class="font-bold text-red-500">Game Failed</div>
-            <div class="text-sm text-muted-foreground mt-1">${errorMessage}</div>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    const existingContent = container.innerHTML;
-    if (!existingContent.includes('Game Failed')) {
-      container.innerHTML = errorHtml + existingContent;
-    }
-    
-    updateConnectionStatus(false, 'Game failed - See error above');
   }
 
   function connect() {
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      updateConnectionStatus(false, 'Connection failed. Try refreshing the page.');
+      updateConnectionStatus(false, 'Connection failed. Refresh to retry.');
       return;
     }
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = apiUrl.replace(/^https?/, wsProtocol) + `/api/games/${gameId}/live`;
     
-    updateConnectionStatus(false, `Connecting... (attempt ${reconnectAttempts + 1})`);
+    updateConnectionStatus(false, `Connecting (${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})...`);
     
     try {
       ws = new WebSocket(wsUrl);
@@ -486,32 +563,30 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       ws.onopen = () => {
         reconnectAttempts = 0;
         updateConnectionStatus(true, 'Connected');
+        startTime = Date.now();
+        durationInterval = setInterval(updateDuration, 1000);
       };
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          handleMessage(data);
+          handleMessage(JSON.parse(event.data));
         } catch (e) {
-          console.error('Failed to parse message:', e);
+          console.error('Parse error:', e);
         }
       };
 
       ws.onclose = (event) => {
         if (event.code !== 1000) {
           reconnectAttempts++;
-          updateConnectionStatus(false, 'Disconnected. Reconnecting...');
+          updateConnectionStatus(false, 'Reconnecting...');
           setTimeout(connect, Math.min(1000 * Math.pow(2, reconnectAttempts), 30000));
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        // Fallback to polling
+      ws.onerror = () => {
         fallbackToPolling();
       };
-    } catch (e) {
-      console.error('Failed to create WebSocket:', e);
+    } catch {
       fallbackToPolling();
     }
   }
@@ -519,80 +594,56 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   let pollInterval = null;
   
   function fallbackToPolling() {
-    updateConnectionStatus(true, 'Using polling (WebSocket unavailable)');
+    updateConnectionStatus(true, 'Polling mode');
+    startTime = Date.now();
+    durationInterval = setInterval(updateDuration, 1000);
     
     async function poll() {
       try {
         const res = await fetch(`${apiUrl}/api/games/${gameId}/events`);
-        if (!res.ok) throw new Error('Failed to fetch');
+        if (!res.ok) throw new Error('Failed');
         
         const data = await res.json();
         
         if (data.events && data.events.length > events.length) {
-          const newEvents = data.events.slice(events.length);
           events = data.events;
-          
-          newEvents.forEach(buildPlayerFromEvent);
-          updatePlayerRoster();
-          renderAllEvents();
+          events.forEach(buildPlayerFromEvent);
+          updateTeamsDisplay();
+          updatePlayersGrid();
+          renderTranscript();
         }
         
         if (data.status === 'completed' || data.status === 'failed') {
           updateLiveBadge(data.status);
           if (data.status === 'completed') {
-            const lastEvent = events[events.length - 1];
-            if (lastEvent?.type === 'game_end') {
-              showGameEndBanner(lastEvent.winner);
-            }
-          } else if (data.status === 'failed') {
-            // Check for ai_parse_error events to show specific error
-            const parseError = events.find(e => e.type === 'ai_parse_error');
-            const errorMsg = parseError 
-              ? `AI Parse Error from ${parseError.modelId}: ${parseError.error}`
-              : 'Game encountered an error and could not complete';
-            showErrorBanner(errorMsg);
+            const gameEnd = events.find(e => e.type === 'game_end');
+            if (gameEnd) showGameEnd(gameEnd.winner);
           }
           clearInterval(pollInterval);
+          clearInterval(durationInterval);
         }
       } catch (e) {
-        console.error('Polling error:', e);
+        console.error('Poll error:', e);
       }
     }
 
     poll();
-    pollInterval = setInterval(poll, 1000); // Poll every 1 second for faster updates
+    pollInterval = setInterval(poll, 1000);
   }
 
-  // Start connection
   connect();
 
-  // Cleanup on page unload
   window.addEventListener('beforeunload', () => {
     if (ws) ws.close(1000);
     if (pollInterval) clearInterval(pollInterval);
+    if (durationInterval) clearInterval(durationInterval);
   });
 </script>
 
 <style>
-  .bg-red-500 { background-color: rgb(239, 68, 68); }
-  .bg-blue-500 { background-color: rgb(59, 130, 246); }
-  .text-red-500 { color: rgb(239, 68, 68); }
-  .text-blue-500 { color: rgb(59, 130, 246); }
-  .text-red-600 { color: rgb(220, 38, 38); }
-  .text-blue-600 { color: rgb(37, 99, 235); }
-  .border-red-500\/20 { border-color: rgba(239, 68, 68, 0.2); }
-  .border-blue-500\/20 { border-color: rgba(59, 130, 246, 0.2); }
-  .bg-red-500\/5 { background-color: rgba(239, 68, 68, 0.05); }
-  .bg-blue-500\/5 { background-color: rgba(59, 130, 246, 0.05); }
-  .bg-red-500\/10 { background-color: rgba(239, 68, 68, 0.1); }
-  .bg-blue-500\/10 { background-color: rgba(59, 130, 246, 0.1); }
-  .border-red-500\/50 { border-color: rgba(239, 68, 68, 0.5); }
-  .border-blue-500\/50 { border-color: rgba(59, 130, 246, 0.5); }
-  
-  @media (prefers-color-scheme: dark) {
-    .text-red-400 { color: rgb(248, 113, 113); }
-    .text-blue-400 { color: rgb(96, 165, 250); }
-    .dark\:text-red-400 { color: rgb(248, 113, 113); }
-    .dark\:text-blue-400 { color: rgb(96, 165, 250); }
+  details[open] > summary {
+    border-bottom: 1px solid var(--border);
   }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary { list-style: none; }
 </style>
