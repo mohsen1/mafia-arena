@@ -4,8 +4,14 @@
   "description": "AI benchmark platform - LLMs playing Mafia against each other",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "concurrently -n worker,frontend -c blue,magenta \"pnpm dev:worker\" \"pnpm dev:frontend\"",
+    "dev:worker": "wrangler dev",
+    "dev:frontend": "pnpm --dir frontend dev",
     "build": "tsc",
+    "build:frontend": "pnpm --dir frontend build",
+    "deploy": "pnpm deploy:worker && pnpm deploy:frontend",
+    "deploy:worker": "wrangler deploy",
+    "deploy:frontend": "pnpm --dir frontend build && wrangler pages deploy frontend/dist --project-name=mafia-arena-frontend",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -25,6 +31,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241205.0",
     "@types/node": "^22.10.2",
+    "concurrently": "^9.2.1",
     "eslint": "^9.16.0",
     "prettier": "^3.4.2",
     "puppeteer": "^24.34.0",

@@ -1,0 +1,522 @@
+---
+description: "Multi-phase implementation workflow for complex features. Use command: /implement"
+globs: []
+alwaysApply: false
+---
+
+# Implement Command - Long-Horizon Feature Implementation
+
+This rule defines a structured, multi-phase workflow for implementing complex features or refactors. Designed for 200+ tool call tasks that require careful planning, execution, and verification.
+
+## Workflow Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        IMPLEMENT WORKFLOW                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  [1. RESEARCH]    Load context by exploring current functionality        │
+│       ↓                                                                  │
+│  [2. PLAN]        Brainstorm best practices → Write implementation plan  │
+│       ↓                                                                  │
+│  [3. CLEAR]       Instruct user to clear context (new chat)              │
+│       ↓                                                                  │
+│  [4. EXECUTE]     Load plan → Implement step-by-step                     │
+│       ↓                                                                  │
+│  [5. REVIEW]      Clear context → Verify implementation → Test           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## CRITICAL: Shell Command Timeouts
+
+**ALWAYS use timeouts for shell commands to prevent hanging:**
+
+```bash
+# ✅ CORRECT - Use timeout for all commands
+timeout 30s pnpm test
+timeout 60s pnpm typecheck
+timeout 30s pnpm lint
+timeout 120s pnpm build
+timeout 10s curl http://localhost:8787/api/health
+
+# ❌ WRONG - Commands without timeout can hang indefinitely
+pnpm test          # Could hang on stuck test
+pnpm dev           # Runs forever (use background mode instead)
+curl http://...    # Could hang on network issues
+```
+
+**Timeout Guidelines:**
+| Command Type | Timeout | Example |
+|---|---|---|
+| Unit tests | 30-60s | `timeout 30s pnpm test` |
+| Type checking | 60s | `timeout 60s pnpm typecheck` |
+| Linting | 30s | `timeout 30s pnpm lint` |
+| Build | 120s | `timeout 120s pnpm build` |
+| API calls | 10-15s | `timeout 10s curl ...` |
+| File operations | 10s | `timeout 10s cat large-file.txt` |
+| Long-running servers | Use background mode | `is_background: true` |
+
+**For interactive or long-running processes:**
+- Always run dev servers in background mode (`is_background: true`)
+- Never run `pnpm dev` or `wrangler dev` without background mode
+
+---
+
+## Phase 1: RESEARCH
+
+**Goal:** Load relevant context by exploring and explaining current functionality.
+
+### Instructions
+
+When starting an implementation task, first **deeply explore the codebase** to understand:
+
+1. **Current implementation** - How does the existing code work?
+2. **Related files** - What files will be affected?
+3. **Patterns used** - What conventions does this codebase follow?
+4. **Dependencies** - What does this feature depend on?
+5. **Integration points** - Where does this connect to other systems?
+
+### Research Checklist
+
+```markdown
+## Research Summary for: [FEATURE_NAME]
+
+### Current State
+- [ ] Explored relevant source files
+- [ ] Understood existing patterns
+- [ ] Identified all affected components
+- [ ] Found related tests (if any)
+- [ ] Reviewed similar implementations
+
+### Files Explored
+1. `path/to/file1.ts` - Purpose
+2. `path/to/file2.ts` - Purpose
+
+### Key Findings
+- Finding 1
+- Finding 2
+
+### Dependencies
+- External: [list]
+- Internal: [list]
+
+### Open Questions
+- Question 1?
+- Question 2?
+```
+
+### Mafia Arena Specific Research Areas
+
+| Area | Key Files | What to Look For |
+|------|-----------|------------------|
+| Game Engine | `src/engine/` | Pure TS logic, phases, state |
+| API Routes | `src/worker/routes/` | Hono handlers, validation |
+| Durable Objects | `src/worker/GameRunner.ts` | Game orchestration |
+| AI Providers | `src/worker/ai/` | Provider interfaces, retry logic |
+| Database | `src/worker/db/service.ts` | D1 queries, data models |
+| Frontend | `frontend/src/` | Astro pages, components |
+| Types | `src/engine/types.ts`, `src/worker/types.ts` | Type definitions |
+
+---
+
+## Phase 2: PLAN
+
+**Goal:** Brainstorm best practices and write a detailed implementation plan.
+
+### Instructions
+
+Use the keyword **"brainstorm"** to trigger deeper thinking. Ask clarifying questions before finalizing the plan.
+
+### Planning Process
+
+1. **Brainstorm approaches** - Consider multiple implementation strategies
+2. **Evaluate trade-offs** - Document pros/cons of each approach
+3. **Select approach** - Choose with clear reasoning
+4. **Break into steps** - Create atomic, testable tasks
+5. **Write plan file** - Save to `_plans/` directory
+
+### Plan Document Template
+
+Create file: `_plans/[feature-name].md`
+
+```markdown
+# Implementation Plan: [Feature Name]
+
+## Overview
+One-paragraph summary of what we're building and why.
+
+## Research Summary
+Key findings from the research phase.
+
+## Approach Selection
+
+### Option A: [Name]
+- **Pros:** 
+- **Cons:** 
+- **Effort:** 
+
+### Option B: [Name]
+- **Pros:** 
+- **Cons:** 
+- **Effort:** 
+
+### Chosen Approach: [Option X]
+**Reasoning:** Why this approach was selected.
+
+## Implementation Steps
+
+### Step 1: [Title]
+**File(s):** `path/to/file.ts`
+**Description:** What to do
+**Acceptance Criteria:**
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+### Step 2: [Title]
+...
+
+## Testing Strategy
+- Unit tests for: [list]
+- Integration tests for: [list]
+- Manual testing: [steps]
+
+## Rollback Plan
+How to undo if something goes wrong.
+
+## Open Questions
+Questions that need answers during implementation.
+
+## Dependencies
+- Must be done first: [list]
+- Can be parallelized: [list]
+```
+
+### Planning Questions to Ask
+
+Before writing the plan, consider asking:
+- "What existing patterns should I follow?"
+- "Are there any performance concerns?"
+- "What edge cases should I handle?"
+- "How will this affect existing tests?"
+- "What's the migration strategy for existing data?"
+
+---
+
+## Phase 3: CLEAR CONTEXT
+
+**Goal:** Start fresh with only the plan in context.
+
+### Instructions
+
+After completing the plan, tell the user:
+
+```
+📋 IMPLEMENTATION PLAN COMPLETE
+
+I've saved the detailed plan to: `_plans/[feature-name].md`
+
+**Next Steps:**
+1. Review the plan and let me know if you have any changes
+2. Once approved, start a **new chat** (clear context completely)
+3. In the new chat, say: "Implement the plan in `_plans/[feature-name].md`"
+
+This context clearing ensures:
+- Fresh context for better implementation
+- Only relevant information loaded
+- Reduced risk of context confusion
+```
+
+---
+
+## Phase 4: EXECUTE PLAN
+
+**Goal:** Implement the plan step-by-step with verification at each step.
+
+### Instructions
+
+When executing a plan:
+
+1. **Read the plan file first** - Load the full plan into context
+2. **Create a todo list** - Track progress through implementation
+3. **Implement step by step** - One step at a time with verification
+4. **Verify each step** - Run relevant tests/checks after each step
+5. **Document any deviations** - If you deviate from the plan, document why
+
+### Execution Checklist Per Step
+
+```markdown
+## Step [N]: [Title]
+- [ ] Read relevant source files
+- [ ] Implement the change
+- [ ] Run related tests: `timeout 30s pnpm test -- [pattern]`
+- [ ] Run type check: `timeout 60s pnpm typecheck`
+- [ ] Verify no lint errors: `timeout 30s pnpm lint`
+- [ ] Mark step complete
+```
+
+### Shell Commands with Timeouts
+
+```bash
+# Always use these timeout versions:
+
+# Run all tests
+timeout 60s pnpm test
+
+# Run specific test file
+timeout 30s pnpm test src/engine/__tests__/Game.test.ts
+
+# Run tests matching pattern
+timeout 30s pnpm test -- -t "vote resolution"
+
+# Type checking
+timeout 60s pnpm typecheck
+
+# Linting
+timeout 30s pnpm lint
+
+# Format code
+timeout 30s pnpm format
+
+# Build project
+timeout 120s pnpm build
+
+# Dev server (ALWAYS background)
+# Use is_background: true, never run in foreground
+
+# Wrangler commands
+timeout 30s wrangler d1 migrations list --local
+timeout 60s wrangler d1 migrations apply --local
+```
+
+### Progress Tracking
+
+Use the todo_write tool to track implementation progress:
+
+```
+1. [completed] Read and understand the plan
+2. [completed] Implement Step 1: Add types
+3. [in_progress] Implement Step 2: Add service
+4. [pending] Implement Step 3: Add route
+5. [pending] Run test suite
+6. [pending] Final review
+```
+
+---
+
+## Phase 5: REVIEW & TEST
+
+**Goal:** Verify implementation completeness and run comprehensive tests.
+
+### Instructions
+
+After implementation:
+
+1. **Tell user to clear context again**
+2. **Re-read the plan** - Fresh perspective on requirements
+3. **Review implementation** - Check each acceptance criterion
+4. **Run comprehensive tests** - Full test suite, types, lint
+5. **Add missing tests** - Unit and integration tests as needed
+6. **Document any issues** - Note anything that needs follow-up
+
+### Review Checklist
+
+```markdown
+## Implementation Review: [Feature Name]
+
+### Acceptance Criteria Check
+- [ ] Criterion 1 - PASS/FAIL
+- [ ] Criterion 2 - PASS/FAIL
+
+### Code Quality
+- [ ] Type check passes: `timeout 60s pnpm typecheck`
+- [ ] Lint passes: `timeout 30s pnpm lint`
+- [ ] Tests pass: `timeout 60s pnpm test`
+- [ ] No console.log/debug statements left
+- [ ] Error handling in place
+- [ ] Edge cases handled
+
+### Test Coverage
+- [ ] Unit tests added/updated
+- [ ] Integration tests added/updated
+- [ ] Manual testing completed
+
+### Documentation
+- [ ] Code comments where needed
+- [ ] JSDoc for public APIs
+- [ ] README updated (if needed)
+
+### Final Verification
+- [ ] Feature works as expected
+- [ ] No regressions introduced
+- [ ] Ready for commit
+```
+
+### Comprehensive Test Commands
+
+```bash
+# Full verification suite (run in sequence)
+timeout 60s pnpm typecheck && \
+timeout 30s pnpm lint && \
+timeout 60s pnpm test
+
+# With coverage
+timeout 120s pnpm test:coverage
+
+# Run specific test suites
+timeout 30s pnpm test src/engine/        # Engine tests
+timeout 30s pnpm test src/worker/        # Worker tests
+```
+
+---
+
+## Repo-Specific Context
+
+### Architecture
+```
+Trigger (CLI/API) → CF Worker → CF Queue → Durable Objects → AI Providers
+                                                  ↓
+                                          D1 (Stats) + R2 (Transcripts)
+                                                  ↓
+                                          CF Pages (Astro Frontend)
+```
+
+### Key Files Reference
+
+| Purpose | Location |
+|---------|----------|
+| Game types | `src/engine/types.ts` |
+| Worker types | `src/worker/types.ts` |
+| Game logic | `src/engine/Game.ts` |
+| Game state | `src/engine/GameState.ts` |
+| Phase handlers | `src/engine/phases/` |
+| API routes | `src/worker/routes/` |
+| Durable Object | `src/worker/GameRunner.ts` |
+| AI providers | `src/worker/ai/` |
+| Database service | `src/worker/db/service.ts` |
+| Frontend pages | `frontend/src/pages/` |
+| Frontend components | `frontend/src/components/` |
+| Migrations | `migrations/` |
+
+### Testing Setup
+- **Framework:** Vitest
+- **Test location:** Co-located `*.test.ts` or `__tests__/` folders
+- **Mocks:** `src/engine/__tests__/mocks/`
+- **Config:** `vitest.config.ts`
+
+### Common Commands
+```bash
+# Development
+timeout 30s pnpm build
+# pnpm dev - run in background mode
+
+# Testing
+timeout 60s pnpm test
+timeout 120s pnpm test:coverage
+timeout 60s pnpm typecheck
+
+# Database
+timeout 30s wrangler d1 migrations list --local
+timeout 60s wrangler d1 migrations apply --local
+
+# Frontend
+cd frontend && timeout 60s pnpm build
+# cd frontend && pnpm dev - run in background mode
+```
+
+---
+
+## Example Usage
+
+### Starting an Implementation
+
+User: `/implement Add a new AI provider for Mistral`
+
+Agent response:
+```
+I'll follow the implement workflow for this feature.
+
+## Phase 1: RESEARCH
+
+Let me explore the existing AI provider implementations to understand 
+the patterns and integration points...
+
+[Explores files, explains current functionality]
+
+## Research Summary
+- Found existing providers in `src/worker/ai/`
+- Common interface: `AIProvider` from `src/engine/types.ts`
+- Retry logic in `src/worker/ai/retry.ts`
+- Provider factory in `src/worker/ai/factory.ts`
+
+Ready to move to Phase 2: PLAN. Should I proceed with brainstorming 
+implementation approaches?
+```
+
+### Executing a Plan
+
+User: `Implement the plan in _plans/mistral-provider.md`
+
+Agent response:
+```
+I'll execute the implementation plan step by step.
+
+[Reads plan file]
+
+## Execution Tracker
+
+Using todo list to track progress:
+1. [in_progress] Add Mistral types
+2. [pending] Implement MistralProvider class
+3. [pending] Add to provider factory
+4. [pending] Add configuration
+5. [pending] Write tests
+6. [pending] Run verification suite
+
+Starting with Step 1...
+```
+
+---
+
+## Error Recovery
+
+### If Tests Fail
+```bash
+# Get detailed output
+timeout 60s pnpm test -- --reporter=verbose
+
+# Run single failing test
+timeout 30s pnpm test -- -t "exact test name"
+
+# Debug mode
+timeout 120s pnpm test -- --inspect-brk
+```
+
+### If Build Fails
+```bash
+# Check TypeScript errors
+timeout 60s pnpm typecheck 2>&1 | head -50
+
+# Check for circular dependencies
+timeout 30s npx madge --circular src/
+```
+
+### If Command Hangs
+If a command times out:
+1. Check if there's a dev server that needs to be stopped
+2. Look for interactive prompts that need `--yes` flags
+3. Consider if the operation is genuinely long-running
+4. Increase timeout if justified
+
+---
+
+## Best Practices
+
+1. **One step at a time** - Don't rush through implementation
+2. **Verify constantly** - Run tests after each significant change
+3. **Document deviations** - If you change the plan, say why
+4. **Use timeouts** - Never run commands without timeout
+5. **Clear context** - Start fresh between major phases
+6. **Ask questions** - Clarify ambiguity before implementing
+7. **Test edge cases** - Think about what could go wrong
+8. **Keep commits atomic** - One logical change per commit
