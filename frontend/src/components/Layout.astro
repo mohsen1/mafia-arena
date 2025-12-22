@@ -41,15 +41,6 @@ const currentPath = Astro.url.pathname;
 						</a>
 						<nav class="flex items-center gap-4 text-sm">
 							<a 
-								href="/" 
-								class:list={[
-									"transition-colors hover:text-foreground",
-									currentPath === "/" ? "text-foreground font-medium" : "text-muted-foreground"
-								]}
-							>
-								Leaderboard
-							</a>
-							<a 
 								href="/games" 
 								class:list={[
 									"transition-colors hover:text-foreground",
@@ -57,33 +48,6 @@ const currentPath = Astro.url.pathname;
 								]}
 							>
 								Games
-							</a>
-							<a 
-								href="/stats" 
-								class:list={[
-									"transition-colors hover:text-foreground",
-									currentPath.startsWith("/stats") ? "text-foreground font-medium" : "text-muted-foreground"
-								]}
-							>
-								Stats
-							</a>
-							<a 
-								href="/about" 
-								class:list={[
-									"transition-colors hover:text-foreground",
-									currentPath === "/about" ? "text-foreground font-medium" : "text-muted-foreground"
-								]}
-							>
-								About
-							</a>
-							<a 
-								href="/admin" 
-								class:list={[
-									"transition-colors hover:text-foreground",
-									currentPath.startsWith("/admin") ? "text-foreground font-medium" : "text-muted-foreground"
-								]}
-							>
-								Admin
 							</a>
 						</nav>
 					</div>

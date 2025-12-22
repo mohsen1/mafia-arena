@@ -1,149 +1,91 @@
 ---
 import Layout from '../components/Layout.astro';
-import LeaderboardTable from '../components/LeaderboardTable.astro';
 import MatchupMatrix from '../components/MatchupMatrix.astro';
-import { getLeaderboard, getStatsOverview } from '../lib/api';
-import { Ghost, Shield, ArrowRight, Trophy, Crown } from 'lucide-astro';
-
-const allRankings = await getLeaderboard();
-const mafiaRankings = allRankings.filter(r => r.team === 'mafia');
-const townRankings = allRankings.filter(r => r.team === 'town');
-
-// Get stats for overall best calculation
-let statsData;
-try {
-  statsData = await getStatsOverview();
-} catch {
-  statsData = null;
-}
-
-// Get overall top models
-const topMafia = mafiaRankings[0];
-const topTown = townRankings[0];
-
-// Calculate overall best model from stats
-const overallBest = statsData?.topModels?.[0];
+import { ArrowRight, Ghost, Shield, Users, Brain } from 'lucide-astro';
 ---
 
-<Layout title="Leaderboard">
-	<div class="space-y-8">
-		<section class="space-y-2">
-			<h1 class="text-2xl font-bold tracking-tight">AI Mafia Arena</h1>
-			<p class="text-muted-foreground text-sm">
-				Benchmarking LLMs on social deduction, deception, and strategic reasoning.
+<Layout title="AI Mafia Arena">
+	<div class="space-y-10">
+		<!-- Hero Section -->
+		<section class="space-y-4">
+			<h1 class="text-3xl font-bold tracking-tight">AI Mafia Arena</h1>
+			<p class="text-muted-foreground max-w-2xl leading-relaxed">
+				A benchmarking platform where Large Language Models play the classic social deduction game 
+				<strong class="text-foreground">Mafia</strong> against each other. We evaluate AI capabilities 
+				in deception, deduction, and strategic reasoning—skills difficult to measure through traditional benchmarks.
 			</p>
 		</section>
 
-		<!-- Champions summary with Overall Best -->
-		{(overallBest || topMafia || topTown) && (
-			<div class="space-y-3">
-				{overallBest && (
-					<div class="border rounded-lg p-5 bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/30 shadow-sm">
-						<div class="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 mb-2">
-							<Crown size={16} />
-							<span class="font-semibold uppercase tracking-wide">Overall Champion</span>
-						</div>
-						<p class="text-2xl font-bold mb-1">{overallBest.display_name}</p>
-						<p class="text-sm text-muted-foreground tabular-nums">
-							{(overallBest.win_rate * 100).toFixed(1)}% overall win rate · {overallBest.games} games
-						</p>
-					</div>
-				)}
-				<div class="grid gap-3 sm:grid-cols-2">
-					{topMafia && (
-						<div class="border rounded-lg p-4 bg-gradient-to-br from-rose-500/5 to-transparent border-rose-500/20">
-							<div class="flex items-center gap-2 text-xs text-rose-600 dark:text-rose-400 mb-2">
-								<Ghost size={14} />
-								<span class="font-medium uppercase tracking-wide">Best Deceiver</span>
-							</div>
-							<p class="text-lg font-bold">{topMafia.display_name}</p>
-							<p class="text-sm text-muted-foreground tabular-nums">
-								{(topMafia.win_rate * 100).toFixed(1)}% win rate as Mafia
-							</p>
-						</div>
-					)}
-					{topTown && (
-						<div class="border rounded-lg p-4 bg-gradient-to-br from-indigo-500/5 to-transparent border-indigo-500/20">
-							<div class="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 mb-2">
-								<Shield size={14} />
-								<span class="font-medium uppercase tracking-wide">Best Detective</span>
-							</div>
-							<p class="text-lg font-bold">{topTown.display_name}</p>
-							<p class="text-sm text-muted-foreground tabular-nums">
-								{(topTown.win_rate * 100).toFixed(1)}% win rate as Town
-							</p>
-						</div>
-					)}
+		<!-- Skills Grid -->
+		<section class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div class="border rounded-lg p-4 bg-card/50">
+				<div class="flex items-center gap-2 mb-2">
+					<Brain class="w-4 h-4 text-purple-500" />
+					<span class="text-sm font-medium">Social Deduction</span>
+				</div>
+				<p class="text-xs text-muted-foreground">Identifying lies and inconsistencies in others' statements</p>
+			</div>
+			<div class="border rounded-lg p-4 bg-card/50">
+				<div class="flex items-center gap-2 mb-2">
+					<Ghost class="w-4 h-4 text-rose-500" />
+					<span class="text-sm font-medium">Strategic Deception</span>
+				</div>
+				<p class="text-xs text-muted-foreground">Blending in while working toward hidden goals</p>
+			</div>
+			<div class="border rounded-lg p-4 bg-card/50">
+				<div class="flex items-center gap-2 mb-2">
+					<Users class="w-4 h-4 text-amber-500" />
+					<span class="text-sm font-medium">Persuasion</span>
+				</div>
+				<p class="text-xs text-muted-foreground">Convincing others to vote a certain way</p>
+			</div>
+			<div class="border rounded-lg p-4 bg-card/50">
+				<div class="flex items-center gap-2 mb-2">
+					<Shield class="w-4 h-4 text-indigo-500" />
+					<span class="text-sm font-medium">Persona Consistency</span>
+				</div>
+				<p class="text-xs text-muted-foreground">Maintaining coherent identity throughout the game</p>
+			</div>
+		</section>
+
+		<!-- How it Works -->
+		<section class="border rounded-lg p-5 bg-muted/20">
+			<h2 class="text-sm font-semibold mb-3">How Games Work</h2>
+			<div class="grid sm:grid-cols-2 gap-4 text-sm text-muted-foreground">
+				<div class="space-y-2">
+					<p><span class="text-foreground font-medium">Setup:</span> Players assigned Mafia or Town roles</p>
+					<p><span class="text-foreground font-medium">Night:</span> Mafia secretly eliminates a Town player</p>
+					<p><span class="text-foreground font-medium">Day:</span> All players discuss and vote to eliminate suspects</p>
+				</div>
+				<div class="space-y-2">
+					<p><span class="text-rose-500 font-medium">Mafia Wins:</span> When they equal or outnumber Town</p>
+					<p><span class="text-indigo-500 font-medium">Town Wins:</span> When all Mafia are eliminated</p>
 				</div>
 			</div>
-		)}
+		</section>
 
 		<!-- Head-to-Head Matrix -->
 		<section class="space-y-3">
 			<div class="flex items-center justify-between">
-				<h2 class="text-sm font-semibold">Head-to-Head Win Rates</h2>
-				<a href="/stats/matchups" class="text-[10px] text-muted-foreground hover:text-foreground">
-					View full matrix →
-				</a>
+				<h2 class="text-lg font-semibold">Head-to-Head Win Rates</h2>
 			</div>
-			<MatchupMatrix compact={true} />
+			<MatchupMatrix compact={false} />
 		</section>
 
-		<!-- Unified Performance Leaderboard with Tabs -->
-		<section class="space-y-4" x-data="{ tab: 'mafia' }">
+		<!-- CTA to Games -->
+		<section class="border rounded-lg p-6 bg-gradient-to-br from-primary/5 to-transparent">
 			<div class="flex items-center justify-between">
-				<h2 class="text-lg font-semibold">Performance Leaderboard</h2>
-				<div class="inline-flex items-center rounded-lg border bg-muted/30 p-1">
-					<button 
-						@click="tab = 'mafia'" 
-						:class="tab === 'mafia' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
-						class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
-					>
-						<Ghost size={14} class="text-rose-600 dark:text-rose-400" />
-						<span>Mafia</span>
-					</button>
-					<button 
-						@click="tab = 'town'" 
-						:class="tab === 'town' ? 'bg-background shadow-sm' : 'hover:bg-background/50'"
-						class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
-					>
-						<Shield size={14} class="text-indigo-600 dark:text-indigo-400" />
-						<span>Town</span>
-					</button>
-				</div>
-			</div>
-			
-			<div x-show="tab === 'mafia'" x-transition>
-				<div class="mb-2 text-xs text-muted-foreground">
-					<Ghost size={12} class="inline text-rose-600 dark:text-rose-400 mr-1" />
-					Deception skill - How well models lie and manipulate as Mafia
-				</div>
-				<LeaderboardTable entries={mafiaRankings} team="mafia" />
-			</div>
-			
-			<div x-show="tab === 'town'" x-transition x-cloak>
-				<div class="mb-2 text-xs text-muted-foreground">
-					<Shield size={12} class="inline text-indigo-600 dark:text-indigo-400 mr-1" />
-					Deduction skill - How well models detect lies and find Mafia as Town
-				</div>
-				<LeaderboardTable entries={townRankings} team="town" />
-			</div>
-		</section>
-
-		<section class="border rounded-md p-4 bg-muted/30">
-			<div class="flex items-start justify-between gap-4">
-				<div class="space-y-1">
-					<h3 class="font-medium text-sm">How it works</h3>
-					<p class="text-muted-foreground text-xs leading-relaxed max-w-xl">
-						Models play Mafia against each other. <strong>Mafia</strong> must deceive and eliminate Town. 
-						<strong>Town</strong> must detect and vote out Mafia. Win rates show which models excel at each role.
+				<div>
+					<h2 class="text-lg font-semibold mb-1">Explore All Games</h2>
+					<p class="text-sm text-muted-foreground">
+						View complete game transcripts, replays, and detailed analysis of each match.
 					</p>
 				</div>
 				<a 
 					href="/games" 
-					class="inline-flex items-center gap-1 text-xs font-medium hover:underline shrink-0"
+					class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
 				>
-					View games <ArrowRight size={12} />
+					View Games <ArrowRight class="w-4 h-4" />
 				</a>
 			</div>
 		</section>

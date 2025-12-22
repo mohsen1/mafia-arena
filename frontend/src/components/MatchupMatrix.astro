@@ -78,12 +78,9 @@ function getHeatColor(rate: number): string {
   </div>
 ) : (
   <div class="rounded border bg-card overflow-hidden">
-    <!-- Mobile: Hidden matrix, show link to full page -->
+    <!-- Mobile: Hidden matrix, show message -->
     <div class="md:hidden p-4 text-center text-sm text-muted-foreground">
-      <p class="mb-2">Matrix view available on larger screens</p>
-      <a href="/stats/matchups" class="text-primary hover:underline font-medium">
-        View full matchup matrix →
-      </a>
+      <p>Matrix view available on larger screens</p>
     </div>
     
     <!-- Desktop: Full matrix -->
@@ -150,13 +147,6 @@ function getHeatColor(rate: number): string {
         </tbody>
       </table>
     </div>
-    {compact && uniqueModels.length > displayModels.length && (
-      <div class="p-2 border-t text-center hidden md:block">
-        <a href="/stats/matchups" class="text-[10px] text-muted-foreground hover:text-foreground">
-          View full matrix ({uniqueModels.length} models) →
-        </a>
-      </div>
-    )}
   </div>
 )}
 

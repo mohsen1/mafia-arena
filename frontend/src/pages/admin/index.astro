@@ -1,6 +1,6 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { Activity, PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut, Radio } from 'lucide-astro';
+import { PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut, Radio } from 'lucide-astro';
 
 const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.workers.dev';
 ---
@@ -53,11 +53,6 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         <a href="/admin/batches" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
           <Layers size={16} />
           <span>Manage Batches</span>
-        </a>
-
-        <a href="/stats" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
-          <Activity size={16} />
-          <span>View Stats</span>
         </a>
 
         <button 
