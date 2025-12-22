@@ -1,14 +1,14 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { getGames, getLiveGames } from '../../lib/api';
+import { getGames, getLiveGames, formatDuration } from '../../lib/api';
 import { getProviderColorFromModel } from '../../lib/providers';
-import { ChevronLeft, ChevronRight, Trophy, Radio } from 'lucide-astro';
+import { calculateCostFromTotal, formatCost } from '../../lib/costs';
+import { ChevronLeft, ChevronRight, Trophy, Radio, Hash } from 'lucide-astro';
 
-const LIMIT = 20;
+const LIMIT = 25;
 const page = parseInt(Astro.url.searchParams.get('page') || '1', 10);
 const offset = (page - 1) * LIMIT;
 
-// Fetch both live games and completed games
 const [liveGamesResult, completedGamesResult] = await Promise.all([
   getLiveGames(),
   getGames(LIMIT, offset, 'completed'),
@@ -33,6 +33,11 @@ function formatDate(timestamp: number) {
   });
 }
 
+function getShortModelName(modelId: string): string {
+  const name = modelId.split('/').pop() || modelId;
+  return name.replace(/-\d{4}-\d{2}-\d{2}$/, '').replace(/@.*$/, '');
+}
+
 function getMatchup(game: any) {
   const participants = game.participants || [];
   const mafia = participants.find((p: any) => p.team === 'mafia');
@@ -41,82 +46,133 @@ function getMatchup(game: any) {
   const townModel = town?.model_name || town?.model_id || '?';
   const mafiaWon = game.winner === 'mafia';
   return {
-    mafia: mafiaModel,
-    town: townModel,
+    mafia: getShortModelName(mafiaModel),
+    town: getShortModelName(townModel),
     mafiaColor: getProviderColorFromModel(mafiaModel),
     townColor: getProviderColorFromModel(townModel),
-    winner: mafiaWon ? mafiaModel : townModel,
-    winnerTeam: game.winner,
+    mafiaWon,
+    winnerModel: mafiaWon ? getShortModelName(mafiaModel) : getShortModelName(townModel),
+    winnerModelFull: mafiaWon ? mafiaModel : townModel,
   };
 }
 
-const THEME_STYLES: Record<string, { label: string; class: string }> = {
-  noir: { label: '🎬 Noir', class: 'bg-slate-500/20 text-slate-700 dark:text-slate-300' },
-  victorian: { label: '🎩 Victorian', class: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
-  modern: { label: '💻 Modern', class: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' },
-  fantasy: { label: '⚔️ Fantasy', class: 'bg-purple-500/20 text-purple-700 dark:text-purple-300' },
-};
-
-function getThemeStyle(theme: string | null) {
-  return THEME_STYLES[theme || 'noir'] || THEME_STYLES.noir;
+function estimateCost(game: any): number {
+  const participants = game.participants || [];
+  const models = participants.map((p: any) => p.model_id || p.model_name);
+  const primaryModel = models[0] || 'unknown';
+  return calculateCostFromTotal(primaryModel, game.total_tokens || 0);
 }
+
+const THEMES: Record<string, string> = {
+  noir: 'Noir',
+  victorian: 'Victorian',
+  modern: 'Modern',
+  fantasy: 'Fantasy',
+};
 ---
 
 <Layout title="Games">
-  <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">Games</h1>
-        <p class="text-muted-foreground text-sm">
-          {total} completed{liveGames.length > 0 ? ` • ${liveGames.length} live` : ''}
-        </p>
-      </div>
+  <div class="space-y-4">
+    <!-- Header -->
+    <div class="flex items-baseline justify-between">
+      <h1 class="text-lg font-semibold">Games</h1>
+      <span class="text-xs text-muted-foreground">
+        {total} completed{liveGames.length > 0 ? ` · ${liveGames.length} live` : ''}
+      </span>
     </div>
 
-    {/* Live Games Section */}
+    <!-- Live Games -->
     {liveGames.length > 0 && (
-      <div class="space-y-3">
-        <div class="flex items-center gap-2">
-          <span class="relative flex h-2.5 w-2.5">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wide">
+          <span class="relative flex h-1.5 w-1.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
           </span>
-          <h2 class="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">Live Games</h2>
+          Live
         </div>
-        <div class="grid gap-3">
-          {liveGames.map(game => {
-            const matchup = getMatchup(game);
+        {liveGames.map(game => {
+          const m = getMatchup(game);
+          return (
+            <a 
+              href={`/games/${game.id}/live`} 
+              class="flex items-center justify-between border rounded px-3 py-1.5 hover:bg-muted/20 transition-colors text-xs"
+            >
+              <span class="text-muted-foreground">
+                {m.mafia} <span class="opacity-50">vs</span> {m.town}
+                {game.rounds > 0 && <span class="opacity-50"> · R{game.rounds}</span>}
+              </span>
+              <span class="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                <Radio size={10} />
+                Watch
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    )}
+
+    <!-- Games List -->
+    {games.length === 0 ? (
+      <div class="border rounded py-8 text-center text-sm text-muted-foreground">
+        No games yet
+      </div>
+    ) : (
+      <div class="border rounded overflow-hidden text-xs">
+        <!-- Header -->
+        <div class="flex items-center px-3 py-1.5 bg-muted/30 border-b text-[10px] text-muted-foreground uppercase tracking-wide">
+          <div class="w-[280px]">Matchup</div>
+          <div class="w-[160px]">Winner</div>
+          <div class="w-10 text-center">Rnd</div>
+          <div class="w-14 text-right">Time</div>
+          <div class="w-14 text-right">Cost</div>
+          <div class="w-14 text-center">Theme</div>
+          <div class="flex-1 text-right">Date</div>
+        </div>
+        <!-- Rows -->
+        <div class="divide-y divide-border/50">
+          {games.map(game => {
+            const m = getMatchup(game);
+            const theme = THEMES[game.persona_theme] || 'Noir';
+            const cost = estimateCost(game);
             return (
               <a 
-                href={`/games/${game.id}/live`} 
-                class="border border-red-500/30 bg-red-500/5 rounded-lg p-4 hover:bg-red-500/10 transition-colors group"
+                href={`/games/${game.id}`} 
+                class="flex items-center px-3 py-1.5 hover:bg-muted/20 transition-colors"
               >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2">
-                      <span class="font-semibold px-2 py-1 rounded inline-flex items-center gap-1.5 bg-rose-500/15 text-rose-700 dark:text-rose-400">
-                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style={`background: ${matchup.mafiaColor}`}></span>
-                        {matchup.mafia}
-                      </span>
-                      <span class="text-muted-foreground font-bold">vs</span>
-                      <span class="font-semibold px-2 py-1 rounded inline-flex items-center gap-1.5 bg-indigo-500/15 text-indigo-700 dark:text-indigo-400">
-                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style={`background: ${matchup.townColor}`}></span>
-                        {matchup.town}
-                      </span>
-                    </div>
-                    <span class={`text-xs px-2 py-1 rounded font-medium ${getThemeStyle(game.persona_theme).class}`}>
-                      {getThemeStyle(game.persona_theme).label}
-                    </span>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    {game.rounds > 0 && (
-                      <span class="text-sm text-muted-foreground font-mono">Round {game.rounds}</span>
-                    )}
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500 text-white group-hover:bg-red-600 transition-colors">
-                      <Radio size={12} /> Watch Live
-                    </span>
-                  </div>
+                <!-- Matchup -->
+                <div class="w-[280px] truncate text-muted-foreground">
+                  {m.mafia} <span class="opacity-50">vs</span> {m.town}
                 </div>
+
+                <!-- Winner -->
+                <div class="w-[160px] flex items-center gap-1.5">
+                  <span class="truncate">{m.winnerModel}</span>
+                  <span class={`shrink-0 text-[9px] px-1 rounded ${
+                    m.mafiaWon ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                  }`}>
+                    {m.mafiaWon ? 'M' : 'T'}
+                  </span>
+                </div>
+
+                <!-- Rounds -->
+                <div class="w-10 text-center font-mono text-muted-foreground">{game.rounds}</div>
+
+                <!-- Duration -->
+                <div class="w-14 text-right font-mono text-muted-foreground">
+                  {formatDuration(game.duration_ms || 0)}
+                </div>
+
+                <!-- Cost -->
+                <div class="w-14 text-right font-mono text-muted-foreground">
+                  {formatCost(cost)}
+                </div>
+
+                <!-- Theme -->
+                <div class="w-14 text-center text-muted-foreground">{theme}</div>
+
+                <!-- Date -->
+                <div class="flex-1 text-right text-muted-foreground">{formatDate(game.created_at)}</div>
               </a>
             );
           })}
@@ -124,116 +180,38 @@ function getThemeStyle(theme: string | null) {
       </div>
     )}
 
-    {/* Completed Games Section */}
-    {games.length === 0 && liveGames.length === 0 ? (
-      <div class="border rounded-md p-8 text-center text-muted-foreground">
-        <p class="text-sm">No games yet</p>
-      </div>
-    ) : games.length === 0 ? (
-      <div class="border rounded-md p-8 text-center text-muted-foreground">
-        <p class="text-sm">No completed games yet</p>
-      </div>
-    ) : (
-      <div class="space-y-4">
-        {liveGames.length > 0 && (
-          <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Completed Games</h2>
-        )}
-        <div class="border rounded-md overflow-hidden">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b bg-muted/50">
-                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Matchup</th>
-                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Winner</th>
-                <th class="h-9 px-3 text-left font-medium text-muted-foreground">Theme</th>
-                <th class="h-9 px-3 text-right font-medium text-muted-foreground">Rounds</th>
-                <th class="h-9 px-3 text-right font-medium text-muted-foreground">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {games.map(game => {
-                const matchup = getMatchup(game);
-                const mafiaWon = game.winner === 'mafia';
-                return (
-                  <tr class="border-b last:border-0 hover:bg-muted/50 transition-colors group">
-                    <td class="h-12 p-0">
-                      <a href={`/games/${game.id}`} class="flex items-center gap-2 text-sm px-3 h-full">
-                        <span class={`font-semibold px-2 py-1 rounded inline-flex items-center gap-1.5 transition-all ${mafiaWon ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 ring-1 ring-rose-500/30' : 'text-muted-foreground opacity-60'}`}>
-                          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style={`background: ${matchup.mafiaColor}`}></span>
-                          {matchup.mafia}
-                        </span>
-                        <span class="text-muted-foreground font-bold">vs</span>
-                        <span class={`font-semibold px-2 py-1 rounded inline-flex items-center gap-1.5 transition-all ${!mafiaWon ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 ring-1 ring-indigo-500/30' : 'text-muted-foreground opacity-60'}`}>
-                          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style={`background: ${matchup.townColor}`}></span>
-                          {matchup.town}
-                        </span>
-                      </a>
-                    </td>
-                    <td class="h-12 p-0">
-                      <a href={`/games/${game.id}`} class="flex items-center gap-2 px-3 h-full">
-                        <Trophy size={16} class={mafiaWon ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'} />
-                        <div>
-                          <span class={`text-sm font-bold ${mafiaWon ? 'text-rose-700 dark:text-rose-400' : 'text-indigo-700 dark:text-indigo-400'}`}>
-                            {matchup.winner}
-                          </span>
-                          <span class={`ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide ${mafiaWon ? 'bg-rose-500/20 text-rose-700 dark:text-rose-400' : 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-400'}`}>
-                            {mafiaWon ? 'Mafia' : 'Town'}
-                          </span>
-                        </div>
-                      </a>
-                    </td>
-                    <td class="h-12 p-0">
-                      <a href={`/games/${game.id}`} class="flex items-center px-3 h-full">
-                        <span class={`text-xs px-2 py-1 rounded font-medium ${getThemeStyle(game.persona_theme).class}`}>
-                          {getThemeStyle(game.persona_theme).label}
-                        </span>
-                      </a>
-                    </td>
-                    <td class="h-12 p-0 text-right font-mono tabular-nums text-muted-foreground">
-                      <a href={`/games/${game.id}`} class="flex items-center justify-end px-3 h-full">{game.rounds}</a>
-                    </td>
-                    <td class="h-12 p-0 text-right text-muted-foreground text-xs">
-                      <a href={`/games/${game.id}`} class="flex items-center justify-end px-3 h-full">{formatDate(game.created_at)}</a>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {totalPages > 1 && (
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">
-              Page {page} of {totalPages}
+    <!-- Pagination -->
+    {totalPages > 1 && (
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-muted-foreground">
+          {page}/{totalPages}
+        </span>
+        <div class="flex items-center gap-1">
+          {hasPrev ? (
+            <a 
+              href={`/games?page=${page - 1}`}
+              class="inline-flex items-center gap-0.5 px-2 py-1 border rounded hover:bg-muted transition-colors"
+            >
+              <ChevronLeft size={12} /> Prev
+            </a>
+          ) : (
+            <span class="inline-flex items-center gap-0.5 px-2 py-1 border rounded text-muted-foreground/50 cursor-not-allowed">
+              <ChevronLeft size={12} /> Prev
             </span>
-            <div class="flex items-center gap-2">
-              {hasPrev ? (
-                <a 
-                  href={`/games?page=${page - 1}`}
-                  class="inline-flex items-center gap-1 px-2 h-8 border rounded hover:bg-muted transition-colors"
-                >
-                  <ChevronLeft size={14} /> Prev
-                </a>
-              ) : (
-                <span class="inline-flex items-center gap-1 px-2 h-8 border rounded text-muted-foreground opacity-50 cursor-not-allowed">
-                  <ChevronLeft size={14} /> Prev
-                </span>
-              )}
-              {hasNext ? (
-                <a 
-                  href={`/games?page=${page + 1}`}
-                  class="inline-flex items-center gap-1 px-2 h-8 border rounded hover:bg-muted transition-colors"
-                >
-                  Next <ChevronRight size={14} />
-                </a>
-              ) : (
-                <span class="inline-flex items-center gap-1 px-2 h-8 border rounded text-muted-foreground opacity-50 cursor-not-allowed">
-                  Next <ChevronRight size={14} />
-                </span>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+          {hasNext ? (
+            <a 
+              href={`/games?page=${page + 1}`}
+              class="inline-flex items-center gap-0.5 px-2 py-1 border rounded hover:bg-muted transition-colors"
+            >
+              Next <ChevronRight size={12} />
+            </a>
+          ) : (
+            <span class="inline-flex items-center gap-0.5 px-2 py-1 border rounded text-muted-foreground/50 cursor-not-allowed">
+              Next <ChevronRight size={12} />
+            </span>
+          )}
+        </div>
       </div>
     )}
   </div>

@@ -122,7 +122,7 @@ export function calculateCostFromTotal(modelId: string, totalTokens: number): nu
  */
 export function formatCost(cost: number): string {
   if (cost < 0.0001) {
-    return '<$0.0001';
+    return 'FREE';
   }
   if (cost < 0.01) {
     return `$${cost.toFixed(4)}`;
