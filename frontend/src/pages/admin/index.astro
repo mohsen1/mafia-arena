@@ -166,6 +166,12 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
     paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
   };
 
+  function escapeHtml(val) {
+    if (val === null || val === undefined) return '';
+    const str = typeof val === 'string' ? val : String(val);
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/`/g, '&#96;');
+  }
+
   async function init() {
     // Check for auth
     const credentials = sessionStorage.getItem('adminCredentials');
@@ -270,7 +276,7 @@ const apiUrl = import.meta.env.PUBLIC_apiUrl || 'https://mafia-arena.me-f9a.work
         tbody.innerHTML = batches.batches.map((batch) => `
           <tr class="hover:bg-muted/30 transition-colors">
             <td class="p-3">
-              <a href="/admin/batches/${batch.id}" class="hover:underline font-medium">${batch.name || batch.id}</a>
+              <a href="/admin/batches/${escapeHtml(batch.id)}" class="hover:underline font-medium">${escapeHtml(batch.name || batch.id)}</a>
             </td>
             <td class="p-3">
               <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[batch.status]}">${batch.status}</span>
