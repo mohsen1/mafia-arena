@@ -344,10 +344,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
               <h1 class="text-xl font-bold tracking-tight truncate">${escapeHtml(batch.name || 'Unnamed Batch')}</h1>
               <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border ${batch.status === 'processing' ? 'status-processing' : ''}">
                 <span class="w-1.5 h-1.5 rounded-full ${statusConfig.dot}"></span>
-                ${batch.status}
+                ${escapeHtml(batch.status)}
               </span>
             </div>
-            <code class="text-[10px] text-muted-foreground font-mono">${batch.id}</code>
+            <code class="text-[10px] text-muted-foreground font-mono">${escapeHtml(batch.id)}</code>
           </div>
           ${batch.status === 'processing' ? `
             <button id="cancelBtn" class="flex-shrink-0 inline-flex items-center gap-2 px-3 py-1.5 text-xs border border-destructive/50 text-destructive rounded hover:bg-destructive/10 transition-colors">
@@ -494,9 +494,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
                     } else if (isCompleted) {
                       statusBadge = \`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">completed</span>\`;
                     } else if (isFailed) {
-                      statusBadge = \`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive">\${game.status}</span>\`;
+                      statusBadge = \`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive">\${escapeHtml(game.status)}</span>\`;
                     } else {
-                      statusBadge = \`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">\${game.status || 'queued'}</span>\`;
+                      statusBadge = \`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">\${escapeHtml(game.status || 'queued')}</span>\`;
                     }
                     
                     let winnerBadge = '—';
@@ -510,7 +510,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
                       <tr class="hover:bg-muted/30 transition-colors group \${isRunning ? 'bg-emerald-500/5' : ''} \${isFailed ? 'bg-destructive/5' : ''}">
                         <td class="px-4 py-3 text-muted-foreground tabular-nums">\${idx + 1}</td>
                         <td class="px-4 py-3">
-                          <a href="\${href}" class="font-mono hover:underline">\${game.id.slice(-12)}</a>
+                          <a href="\${href}" class="font-mono hover:underline">\${escapeHtml(game.id.slice(-12))}</a>
                         </td>
                         <td class="px-4 py-3">\${statusBadge}</td>
                         <td class="px-4 py-3 font-medium">\${winnerBadge}</td>
@@ -552,7 +552,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
             <span class="font-medium">Configuration</span>
           </summary>
           <div class="p-4 bg-muted/10">
-            <pre class="text-xs font-mono overflow-x-auto whitespace-pre-wrap p-3 bg-background rounded border"><code>${JSON.stringify(batch.config, null, 2)}</code></pre>
+            <pre class="text-xs font-mono overflow-x-auto whitespace-pre-wrap p-3 bg-background rounded border"><code>${escapeHtml(JSON.stringify(batch.config, null, 2))}</code></pre>
         </div>
         </details>
 
@@ -578,11 +578,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
                   ${failedGames.map(game => `
                     <tr class="hover:bg-destructive/5 transition-colors">
                       <td class="p-3">
-                        <a href="/games/${game.id}" class="font-mono hover:underline">${game.id.slice(-12)}</a>
+                        <a href="/games/${escapeHtml(game.id)}" class="font-mono hover:underline">${escapeHtml(game.id.slice(-12))}</a>
                       </td>
                       <td class="p-3">
                         <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/10 text-destructive">
-                          ${game.status}
+                          ${escapeHtml(game.status)}
                         </span>
                       </td>
                       <td class="p-3 text-muted-foreground max-w-xs truncate" title="${escapeHtml(game.error_message || '')}">
