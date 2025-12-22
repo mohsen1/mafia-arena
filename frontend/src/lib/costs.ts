@@ -7,6 +7,7 @@
  */
 
 // Cost per 1K tokens by model (USD)
+// MUST match src/worker/ai/models.ts MODEL_PRICING
 const PRICING: Record<string, { input: number; output: number }> = {
   // Amazon Nova
   'amazon/nova-2-lite-v1': { input: 0.00006, output: 0.00024 },
@@ -14,8 +15,10 @@ const PRICING: Record<string, { input: number; output: number }> = {
   'amazon/nova-premier-v1': { input: 0.003, output: 0.012 },
   'amazon/nova-pro-v1': { input: 0.0008, output: 0.0032 },
 
-  // Anthropic Claude
-  'anthropic/claude-sonnet-4.5': { input: 0.015, output: 0.075 },
+  // Anthropic Claude (4.5 series) - Corrected pricing per OpenRouter
+  'anthropic/claude-haiku-4.5': { input: 0.001, output: 0.005 },
+  'anthropic/claude-opus-4.5': { input: 0.005, output: 0.025 },
+  'anthropic/claude-sonnet-4.5': { input: 0.003, output: 0.015 },
 
   // Google Gemini
   'google/gemini-2.5-flash-lite-preview-09-2025': { input: 0.000075, output: 0.0003 },
