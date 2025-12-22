@@ -1,0 +1,303 @@
+---
+import Layout from '../../components/Layout.astro';
+import StatsNav from '../../components/StatsNav.astro';
+import { getMatchups } from '../../lib/api';
+
+const team = Astro.url.searchParams.get('team') as 'mafia' | 'town' | null;
+const data = await getMatchups(team || undefined);
+
+// Deduplicate models by display_name (merge variants)
+const modelMap = new Map<string, { id: string; display_name: string; provider: string; ids: string[] }>();
+for (const m of data.models) {
+  const existing = modelMap.get(m.display_name);
+  if (existing) {
+    existing.ids.push(m.id);
+  } else {
+    modelMap.set(m.display_name, { ...m, ids: [m.id] });
+  }
+}
+const uniqueModels = Array.from(modelMap.values());
+
+// Build matchup matrix with deduplication
+const matrix: Record<string, Record<string, { games: number; wins: number; rate: number }>> = {};
+
+for (const rowModel of uniqueModels) {
+  matrix[rowModel.display_name] = {};
+  for (const colModel of uniqueModels) {
+    let totalGames = 0;
+    let totalWins = 0;
+    
+    for (const rowId of rowModel.ids) {
+      for (const colId of colModel.ids) {
+        const matchup = data.matchups.find(m => m.model_a === rowId && m.model_b === colId);
+        if (matchup) {
+          totalGames += matchup.games;
+          totalWins += matchup.model_a_wins;
+        }
+      }
+    }
+    
+    if (totalGames > 0) {
+      matrix[rowModel.display_name][colModel.display_name] = {
+        games: totalGames,
+        wins: totalWins,
+        rate: totalWins / totalGames,
+      };
+    }
+  }
+}
+
+// Build self-play map with deduplication
+const selfPlayMap: Record<string, { games: number; mafiaWins: number; townWins: number; mafiaRate: number; townRate: number }> = {};
+for (const model of uniqueModels) {
+  let totalGames = 0;
+  let totalMafiaWins = 0;
+  let totalTownWins = 0;
+  
+  for (const id of model.ids) {
+    const sp = data.selfPlay?.find(s => s.model_id === id);
+    if (sp) {
+      totalGames += sp.games;
+      totalMafiaWins += sp.mafia_wins;
+      totalTownWins += sp.town_wins;
+    }
+  }
+  
+  if (totalGames > 0) {
+    selfPlayMap[model.display_name] = {
+      games: totalGames,
+      mafiaWins: totalMafiaWins,
+      townWins: totalTownWins,
+      mafiaRate: totalMafiaWins / totalGames,
+      townRate: totalTownWins / totalGames,
+    };
+  }
+}
+
+// Sort models by total games played (descending)
+uniqueModels.sort((a, b) => {
+  const aGames = Object.values(matrix[a.display_name] || {}).reduce((sum, cell) => sum + cell.games, 0);
+  const bGames = Object.values(matrix[b.display_name] || {}).reduce((sum, cell) => sum + cell.games, 0);
+  return bGames - aGames;
+});
+
+function getProviderColor(provider: string): string {
+  switch (provider.toLowerCase()) {
+    case 'anthropic': return '#f59e0b';
+    case 'openai': return '#10b981';
+    case 'google': return '#3b82f6';
+    default: return '#71717a';
+  }
+}
+---
+
+<Layout title="Model Matchups">
+  <div class="space-y-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold">Head-to-Head Matrix</h1>
+        <p class="text-muted-foreground text-xs">Win rates when models face each other</p>
+      </div>
+      <div class="flex items-center gap-3 text-[10px]">
+        <div class="flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full" style="background: #f59e0b"></span>
+          <span class="text-muted-foreground">Anthropic</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full" style="background: #10b981"></span>
+          <span class="text-muted-foreground">OpenAI</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full" style="background: #3b82f6"></span>
+          <span class="text-muted-foreground">Google</span>
+        </div>
+      </div>
+    </div>
+
+    <StatsNav currentPath={Astro.url.pathname} />
+
+    <!-- Filters -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-1">
+        <span class="text-[10px] text-muted-foreground uppercase tracking-wide mr-1">Filter:</span>
+        <a
+          href="/stats/matchups"
+          class:list={[
+            "px-2 py-1 text-[11px] rounded border transition-colors",
+            !team ? "bg-foreground text-background" : "hover:bg-muted text-muted-foreground"
+          ]}
+        >All</a>
+        <a
+          href="/stats/matchups?team=mafia"
+          class:list={[
+            "px-2 py-1 text-[11px] rounded border transition-colors",
+            team === 'mafia' ? "bg-red-600 text-white border-red-600" : "hover:bg-muted text-muted-foreground"
+          ]}
+        >Mafia</a>
+        <a
+          href="/stats/matchups?team=town"
+          class:list={[
+            "px-2 py-1 text-[11px] rounded border transition-colors",
+            team === 'town' ? "bg-blue-600 text-white border-blue-600" : "hover:bg-muted text-muted-foreground"
+          ]}
+        >Town</a>
+      </div>
+      
+      <div class="flex items-center gap-2 text-[10px] text-muted-foreground">
+        {!team && <span class="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-600 dark:text-violet-400">Diagonal = self-play</span>}
+        <div class="flex items-center gap-1">
+          <span>0%</span>
+          <div class="flex h-3 rounded overflow-hidden">
+            <div class="w-4 bg-red-500"></div>
+            <div class="w-4 bg-orange-400"></div>
+            <div class="w-4 bg-yellow-400"></div>
+            <div class="w-4 bg-lime-400"></div>
+            <div class="w-4 bg-green-500"></div>
+          </div>
+          <span>100%</span>
+        </div>
+      </div>
+    </div>
+
+    {uniqueModels.length === 0 ? (
+      <div class="rounded border p-8 text-center text-sm text-muted-foreground">
+        No matchup data available
+      </div>
+    ) : (
+      <div class="rounded border bg-card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-[11px]" id="matchup-matrix">
+            <thead>
+              <tr>
+                <th class="sticky left-0 z-20 bg-card border-b border-r p-0">
+                  <div class="w-32 h-32 flex items-end justify-end p-1.5">
+                    <span class="text-[9px] text-muted-foreground uppercase tracking-wide">vs</span>
+                  </div>
+                </th>
+                {uniqueModels.map(m => (
+                  <th class="border-b p-0 min-w-[36px] h-32 align-bottom">
+                    <div class="h-full flex flex-col items-center justify-end pb-1.5">
+                      <div class="writing-vertical flex items-center gap-1">
+                        <span 
+                          class="w-1.5 h-1.5 rounded-full shrink-0" 
+                          style={`background: ${getProviderColor(m.provider)}`}
+                        ></span>
+                        <span class="font-medium whitespace-nowrap">{m.display_name}</span>
+                      </div>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {uniqueModels.map((rowModel) => {
+                return (
+                  <tr class="group">
+                    <td class="sticky left-0 z-10 bg-card border-r p-0">
+                      <div class="w-32 h-9 flex items-center gap-1.5 px-1.5 group-hover:bg-muted/50 transition-colors">
+                        <span 
+                          class="w-1.5 h-1.5 rounded-full shrink-0" 
+                          style={`background: ${getProviderColor(rowModel.provider)}`}
+                        ></span>
+                        <span class="font-medium truncate">{rowModel.display_name}</span>
+                      </div>
+                    </td>
+                    {uniqueModels.map((colModel) => {
+                      const cell = matrix[rowModel.display_name]?.[colModel.display_name];
+                      const isSelf = rowModel.display_name === colModel.display_name;
+                      const selfPlay = isSelf && !team ? selfPlayMap[rowModel.display_name] : null;
+                      
+                      const getHeatColor = (rate: number): string => {
+                        const hue = Math.round(rate * 120);
+                        const sat = 70 + Math.abs(rate - 0.5) * 40;
+                        const light = 45;
+                        return `hsl(${hue}, ${sat}%, ${light}%)`;
+                      };
+                      
+                      return (
+                        <td class="p-px">
+                          {isSelf ? (
+                            selfPlay ? (
+                              <div 
+                                class="cell w-full h-9 flex flex-col items-center justify-center text-white text-[10px] bg-violet-500 hover:ring-1 hover:ring-violet-300"
+                                data-tooltip={`Self-play: ${rowModel.display_name}\nMafia: ${selfPlay.mafiaWins}/${selfPlay.games} (${(selfPlay.mafiaRate * 100).toFixed(0)}%)\nTown: ${selfPlay.townWins}/${selfPlay.games} (${(selfPlay.townRate * 100).toFixed(0)}%)`}
+                              >
+                                <span class="font-semibold leading-none">
+                                  {selfPlay.mafiaRate > selfPlay.townRate ? 'M' : 'T'}{(Math.max(selfPlay.mafiaRate, selfPlay.townRate) * 100).toFixed(0)}%
+                                </span>
+                                <span class="text-[8px] opacity-70">{selfPlay.games}</span>
+                              </div>
+                            ) : (
+                              <div class="w-full h-9 bg-muted/30 flex items-center justify-center text-muted-foreground">-</div>
+                            )
+                          ) : cell ? (
+                            <div 
+                              class="cell w-full h-9 flex flex-col items-center justify-center text-white text-[10px] hover:ring-1 hover:ring-white/50"
+                              style={`background: ${getHeatColor(cell.rate)}`}
+                              data-tooltip={`${rowModel.display_name} vs ${colModel.display_name}\n${cell.wins}/${cell.games} wins (${(cell.rate * 100).toFixed(1)}%)`}
+                            >
+                              <span class="font-semibold leading-none">{(cell.rate * 100).toFixed(0)}%</span>
+                              <span class="text-[8px] opacity-70">{cell.games}</span>
+                            </div>
+                          ) : (
+                            <div class="w-full h-9 bg-muted/10 flex items-center justify-center text-[9px] text-muted-foreground/50">-</div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+  </div>
+</Layout>
+
+<style>
+  .writing-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+  }
+  
+  .cell {
+    position: relative;
+    cursor: default;
+  }
+  
+  .cell::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    line-height: 1.4;
+    white-space: pre-line;
+    min-width: 140px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.1s;
+    z-index: 50;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    pointer-events: none;
+  }
+  
+  .cell:hover::after {
+    opacity: 1;
+    visibility: visible;
+  }
+  
+  #matchup-matrix {
+    border-spacing: 1px;
+  }
+</style>
