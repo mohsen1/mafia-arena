@@ -465,6 +465,62 @@ admin.post('/games/:id/fail', async (c) => {
   }
 });
 
+/**
+ * POST /api/admin/games/:id/complete - Mark a specific game as completed.
+ * Useful for manually fixing games that finished but weren't persisted.
+ */
+admin.post('/games/:id/complete', async (c) => {
+  const gameId = c.req.param('id');
+  const { winner, rounds } = await c.req.json<{ winner: 'town' | 'mafia'; rounds: number }>();
+  
+  if (!winner || !['town', 'mafia'].includes(winner)) {
+    return c.json({ success: false, error: 'Invalid winner. Must be "town" or "mafia"' }, { status: 400 });
+  }
+  if (!rounds || rounds < 1) {
+    return c.json({ success: false, error: 'Invalid rounds. Must be >= 1' }, { status: 400 });
+  }
+  
+  const now = Date.now();
+  
+  try {
+    await c.env.DB.prepare(`
+      UPDATE games 
+      SET status = 'completed', 
+          winner = ?,
+          rounds = ?,
+          completed_at = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).bind(winner, rounds, now, now, gameId).run();
+    
+    // Also update daily stats
+    const today = new Date().toISOString().slice(0, 10);
+    await c.env.DB.prepare(`
+      INSERT INTO daily_stats (date, games_completed)
+      VALUES (?, 1)
+      ON CONFLICT (date) DO UPDATE SET
+        games_completed = games_completed + 1,
+        updated_at = unixepoch()
+    `).bind(today).run();
+    
+    return c.json({
+      success: true,
+      gameId,
+      winner,
+      rounds,
+      message: `Game ${gameId} marked as completed (${winner} won in ${rounds} rounds)`,
+    });
+  } catch (error) {
+    return c.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      },
+      { status: 500 }
+    );
+  }
+});
+
 // =============================================================================
 // DEAD LETTER QUEUE MANAGEMENT
 // =============================================================================
