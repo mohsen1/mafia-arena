@@ -8,8 +8,39 @@ import { SUPPORTED_MODELS, MODEL_PRICING } from '../ai/models.js';
 
 const models = new Hono<{ Bindings: Env }>();
 
+// Cache key for OpenRouter models
+const OPENROUTER_CACHE_KEY = 'openrouter:models';
+const OPENROUTER_CACHE_TTL = 3600; // 1 hour
+
 /**
- * GET /api/models - List available models.
+ * OpenRouter model response type.
+ */
+interface OpenRouterModel {
+  id: string;
+  name: string;
+  description?: string;
+  pricing: {
+    prompt: string;
+    completion: string;
+  };
+  context_length: number;
+  architecture?: {
+    modality: string;
+    tokenizer?: string;
+    instruct_type?: string;
+  };
+  top_provider?: {
+    context_length: number;
+    max_completion_tokens?: number;
+  };
+}
+
+interface OpenRouterResponse {
+  data: OpenRouterModel[];
+}
+
+/**
+ * GET /api/models - List available models from DB.
  * Only returns models that are currently supported (in SUPPORTED_MODELS).
  * Includes pricing information.
  */
@@ -35,6 +66,88 @@ models.get('/', async (c) => {
     }));
 
   return c.json({ models: filteredModels });
+});
+
+/**
+ * GET /api/models/openrouter - Fetch all models from OpenRouter API.
+ * Caches response for 1 hour to avoid rate limits.
+ * Returns models grouped by provider with pricing info.
+ */
+models.get('/openrouter', async (c) => {
+  const env = c.env;
+
+  // Check cache first
+  const cached = await env.RATE_LIMIT.get(OPENROUTER_CACHE_KEY);
+  if (cached) {
+    return c.json(JSON.parse(cached));
+  }
+
+  // Fetch from OpenRouter
+  const response = await fetch('https://openrouter.ai/api/v1/models', {
+    headers: {
+      'Authorization': `Bearer ${env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    console.error('OpenRouter API error:', response.status, await response.text());
+    return c.json({ error: 'Failed to fetch models from OpenRouter' }, 500);
+  }
+
+  const data = await response.json() as OpenRouterResponse;
+
+  // Transform and group by provider
+  const modelsByProvider: Record<string, Array<{
+    id: string;
+    name: string;
+    description?: string;
+    contextLength: number;
+    pricing: {
+      inputPer1M: number;
+      outputPer1M: number;
+    };
+  }>> = {};
+
+  for (const model of data.data) {
+    // Extract provider from model ID (e.g., "google/gemini-2.5-pro" -> "google")
+    const provider = model.id.split('/')[0] || 'unknown';
+    
+    if (!modelsByProvider[provider]) {
+      modelsByProvider[provider] = [];
+    }
+
+    modelsByProvider[provider].push({
+      id: model.id,
+      name: model.name,
+      ...(model.description && { description: model.description }),
+      contextLength: model.context_length,
+      pricing: {
+        // Convert from per-token to per-1M tokens for readability
+        inputPer1M: parseFloat(model.pricing.prompt) * 1_000_000,
+        outputPer1M: parseFloat(model.pricing.completion) * 1_000_000,
+      },
+    });
+  }
+
+  // Sort models within each provider by name
+  for (const provider of Object.keys(modelsByProvider)) {
+    modelsByProvider[provider]!.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const result = {
+    providers: Object.keys(modelsByProvider).sort(),
+    modelsByProvider,
+    totalModels: data.data.length,
+    cachedAt: Date.now(),
+  };
+
+  // Cache the result
+  await env.RATE_LIMIT.put(OPENROUTER_CACHE_KEY, JSON.stringify(result), {
+    expirationTtl: OPENROUTER_CACHE_TTL,
+  });
+
+  return c.json(result);
 });
 
 export default models;

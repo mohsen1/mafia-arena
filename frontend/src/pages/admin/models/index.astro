@@ -1,0 +1,312 @@
+---
+import Layout from '../../../components/Layout.astro';
+import { ArrowLeft, RefreshCw, Database, Cloud, Check, AlertCircle } from 'lucide-astro';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+---
+
+<Layout title="Model Management">
+  <div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+      <a href="/admin" class="hover:underline inline-flex items-center gap-1">
+        <ArrowLeft size={14} /> Admin
+      </a>
+      <span>/</span>
+      <span>Models</span>
+    </div>
+
+    <div class="flex items-start justify-between">
+      <div class="flex items-start gap-4">
+        <div class="p-3 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-xl border border-purple-500/20">
+          <Database size={24} class="text-purple-500" />
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Model Management</h1>
+          <p class="text-sm text-muted-foreground mt-1">
+            Sync models from OpenRouter to your database
+          </p>
+        </div>
+      </div>
+      
+      <button 
+        id="syncBtn"
+        class="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50"
+      >
+        <RefreshCw size={16} id="syncIcon" />
+        Sync from OpenRouter
+      </button>
+    </div>
+
+    <!-- Sync Status -->
+    <div id="syncStatus" class="hidden border rounded-lg p-4 bg-muted/30">
+      <div class="flex items-center gap-3">
+        <div id="syncSpinner" class="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+        <span id="syncStatusText" class="text-sm">Syncing models from OpenRouter...</span>
+      </div>
+    </div>
+
+    <!-- Sync Results -->
+    <div id="syncResults" class="hidden border border-emerald-500/30 bg-emerald-500/10 rounded-lg p-4">
+      <div class="flex items-start gap-3">
+        <Check size={20} class="text-emerald-500 shrink-0 mt-0.5" />
+        <div>
+          <p class="font-medium text-emerald-600 dark:text-emerald-400">Sync Complete</p>
+          <p id="syncResultsText" class="text-sm text-muted-foreground mt-1"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="border rounded-lg p-4 bg-card">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <Database size={14} />
+          DB Models
+        </div>
+        <div id="dbModelCount" class="text-2xl font-bold tabular-nums">-</div>
+      </div>
+      <div class="border rounded-lg p-4 bg-card">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <Cloud size={14} />
+          OpenRouter Models
+        </div>
+        <div id="orModelCount" class="text-2xl font-bold tabular-nums">-</div>
+      </div>
+      <div class="border rounded-lg p-4 bg-card">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          Providers
+        </div>
+        <div id="providerCount" class="text-2xl font-bold tabular-nums">-</div>
+      </div>
+      <div class="border rounded-lg p-4 bg-card">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          Last Sync
+        </div>
+        <div id="lastSync" class="text-sm font-medium">Never</div>
+      </div>
+    </div>
+
+    <!-- Models by Provider -->
+    <div class="border rounded-lg overflow-hidden">
+      <div class="bg-muted/50 px-4 py-3 border-b">
+        <h2 class="font-semibold">OpenRouter Models by Provider</h2>
+      </div>
+      <div id="modelsList" class="divide-y">
+        <div class="p-8 text-center text-muted-foreground">
+          <p>Loading models from OpenRouter...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- DB Models Table -->
+    <div class="border rounded-lg overflow-hidden">
+      <div class="bg-muted/50 px-4 py-3 border-b">
+        <h2 class="font-semibold">Models in Database</h2>
+      </div>
+      <div id="dbModelsList" class="overflow-x-auto">
+        <table class="w-full table-dense">
+          <thead class="bg-muted/30">
+            <tr>
+              <th class="text-left px-4 py-2 text-sm font-medium">Model ID</th>
+              <th class="text-left px-4 py-2 text-sm font-medium">Display Name</th>
+              <th class="text-left px-4 py-2 text-sm font-medium">Provider</th>
+              <th class="text-left px-4 py-2 text-sm font-medium">Added</th>
+            </tr>
+          </thead>
+          <tbody id="dbModelsTable">
+            <tr>
+              <td colspan="4" class="px-4 py-8 text-center text-muted-foreground">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script define:vars={{ apiUrl }}>
+  // Auth check
+  const credentials = sessionStorage.getItem('adminCredentials');
+  if (!credentials) {
+    window.location.href = '/admin/login?redirect=/admin/models';
+  }
+
+  const headers = credentials ? { 
+    'Authorization': `Basic ${credentials}`,
+    'Content-Type': 'application/json'
+  } : { 'Content-Type': 'application/json' };
+
+  const PROVIDER_COLORS = {
+    anthropic: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30',
+    openai: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    google: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+    meta: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
+    mistralai: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
+    qwen: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30',
+    amazon: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  };
+  const DEFAULT_COLORS = 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30';
+
+  function getProviderColors(provider) {
+    return PROVIDER_COLORS[provider.toLowerCase()] || DEFAULT_COLORS;
+  }
+
+  async function loadOpenRouterModels() {
+    try {
+      const res = await fetch(`${apiUrl}/api/models/openrouter`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      
+      const data = await res.json();
+      
+      document.getElementById('orModelCount').textContent = data.totalModels.toString();
+      document.getElementById('providerCount').textContent = data.providers.length.toString();
+      
+      if (data.cachedAt) {
+        const date = new Date(data.cachedAt);
+        document.getElementById('lastSync').textContent = date.toLocaleString();
+      }
+      
+      const listEl = document.getElementById('modelsList');
+      listEl.innerHTML = data.providers.map(provider => {
+        const models = data.modelsByProvider[provider] || [];
+        const colors = getProviderColors(provider);
+        return `
+          <details class="group">
+            <summary class="px-4 py-3 cursor-pointer hover:bg-muted/50 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${colors}">
+                  ${provider}
+                </span>
+                <span class="text-sm text-muted-foreground">${models.length} models</span>
+              </div>
+              <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div class="px-4 pb-3 space-y-1">
+              ${models.map(m => `
+                <div class="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-sm">
+                  <span class="font-mono text-xs text-muted-foreground truncate mr-4">${m.id}</span>
+                  <div class="flex items-center gap-3 shrink-0">
+                    <span class="text-muted-foreground">${m.name}</span>
+                    <span class="text-xs text-muted-foreground">${formatContext(m.contextLength)}</span>
+                    <span class="font-mono text-xs">${formatPrice(m.pricing.inputPer1M)}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </details>
+        `;
+      }).join('');
+      
+    } catch (err) {
+      console.error('Failed to load OpenRouter models:', err);
+      document.getElementById('modelsList').innerHTML = `
+        <div class="p-8 text-center text-destructive">
+          <p>Failed to load models from OpenRouter</p>
+        </div>
+      `;
+    }
+  }
+
+  async function loadDbModels() {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/models`, { headers });
+      if (!res.ok) throw new Error('Failed to fetch');
+      
+      const data = await res.json();
+      
+      document.getElementById('dbModelCount').textContent = data.total.toString();
+      
+      const tableEl = document.getElementById('dbModelsTable');
+      if (data.models.length === 0) {
+        tableEl.innerHTML = `
+          <tr>
+            <td colspan="4" class="px-4 py-8 text-center text-muted-foreground">
+              No models in database. Click "Sync from OpenRouter" to import models.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      tableEl.innerHTML = data.models.map(m => {
+        const colors = getProviderColors(m.provider);
+        const date = new Date(m.created_at * 1000);
+        return `
+          <tr class="hover:bg-muted/30">
+            <td class="px-4 py-2 font-mono text-xs">${m.id}</td>
+            <td class="px-4 py-2 text-sm">${m.display_name}</td>
+            <td class="px-4 py-2">
+              <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${colors}">
+                ${m.provider}
+              </span>
+            </td>
+            <td class="px-4 py-2 text-sm text-muted-foreground">${date.toLocaleDateString()}</td>
+          </tr>
+        `;
+      }).join('');
+      
+    } catch (err) {
+      console.error('Failed to load DB models:', err);
+    }
+  }
+
+  function formatContext(length) {
+    if (length >= 1000000) return `${(length / 1000000).toFixed(0)}M`;
+    if (length >= 1000) return `${(length / 1000).toFixed(0)}K`;
+    return String(length);
+  }
+
+  function formatPrice(price) {
+    if (price === 0) return 'Free';
+    if (price < 0.01) return `$${(price * 1000).toFixed(2)}/B`;
+    if (price < 1) return `$${price.toFixed(2)}/M`;
+    return `$${price.toFixed(0)}/M`;
+  }
+
+  // Sync button
+  const syncBtn = document.getElementById('syncBtn');
+  const syncStatus = document.getElementById('syncStatus');
+  const syncResults = document.getElementById('syncResults');
+  const syncResultsText = document.getElementById('syncResultsText');
+  const syncIcon = document.getElementById('syncIcon');
+
+  syncBtn.addEventListener('click', async () => {
+    syncBtn.disabled = true;
+    syncIcon.classList.add('animate-spin');
+    syncStatus.classList.remove('hidden');
+    syncResults.classList.add('hidden');
+
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/models/sync`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!res.ok) throw new Error('Sync failed');
+
+      const result = await res.json();
+      
+      syncStatus.classList.add('hidden');
+      syncResults.classList.remove('hidden');
+      syncResultsText.textContent = `Added ${result.added} new models, updated ${result.updated} existing models. Total: ${result.total} models.`;
+      
+      // Reload the data
+      await loadOpenRouterModels();
+      await loadDbModels();
+      
+    } catch (err) {
+      console.error('Sync failed:', err);
+      alert('Failed to sync models');
+    } finally {
+      syncBtn.disabled = false;
+      syncIcon.classList.remove('animate-spin');
+    }
+  });
+
+  // Initial load
+  loadOpenRouterModels();
+  loadDbModels();
+</script>
+

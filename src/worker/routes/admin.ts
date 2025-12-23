@@ -595,5 +595,152 @@ admin.get('/dlq/stats', async (c) => {
   });
 });
 
+// =============================================================================
+// MODEL SYNC FROM OPENROUTER
+// =============================================================================
+
+/**
+ * OpenRouter model response type.
+ */
+interface OpenRouterModel {
+  id: string;
+  name: string;
+  description?: string;
+  pricing: {
+    prompt: string;
+    completion: string;
+  };
+  context_length: number;
+}
+
+interface OpenRouterResponse {
+  data: OpenRouterModel[];
+}
+
+/**
+ * GET /api/admin/models - List models in DB with sync status.
+ */
+admin.get('/models', async (c) => {
+  const env = c.env;
+
+  const result = await env.DB.prepare(`
+    SELECT id, provider, display_name, config, created_at
+    FROM models
+    ORDER BY provider, display_name
+  `).all<{
+    id: string;
+    provider: string;
+    display_name: string;
+    config: string | null;
+    created_at: number;
+  }>();
+
+  return c.json({
+    models: result.results,
+    total: result.results.length,
+  });
+});
+
+/**
+ * POST /api/admin/models/sync - Sync models from OpenRouter to DB.
+ * Fetches all models from OpenRouter and upserts them into the database.
+ */
+admin.post('/models/sync', async (c) => {
+  const env = c.env;
+
+  // Fetch from OpenRouter
+  const response = await fetch('https://openrouter.ai/api/v1/models', {
+    headers: {
+      'Authorization': `Bearer ${env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('OpenRouter API error:', response.status, errorText);
+    throw Errors.Internal('Failed to fetch models from OpenRouter');
+  }
+
+  const data = await response.json() as OpenRouterResponse;
+
+  // Get existing models from DB
+  const existing = await env.DB.prepare('SELECT id FROM models').all<{ id: string }>();
+  const existingIds = new Set(existing.results.map(m => m.id));
+
+  // Track sync results
+  const added: string[] = [];
+  const updated: string[] = [];
+  const skipped: string[] = [];
+
+  // Upsert each model
+  for (const model of data.data) {
+    // Extract provider from model ID (e.g., "google/gemini-2.5-pro" -> "google")
+    const provider = model.id.split('/')[0] || 'unknown';
+    
+    // Store pricing in config JSON
+    const config = JSON.stringify({
+      contextLength: model.context_length,
+      pricing: {
+        inputPer1K: parseFloat(model.pricing.prompt) * 1000,
+        outputPer1K: parseFloat(model.pricing.completion) * 1000,
+      },
+    });
+
+    if (existingIds.has(model.id)) {
+      // Update existing model
+      await env.DB.prepare(`
+        UPDATE models 
+        SET display_name = ?, provider = ?, config = ?
+        WHERE id = ?
+      `).bind(model.name, provider, config, model.id).run();
+      updated.push(model.id);
+    } else {
+      // Insert new model
+      await env.DB.prepare(`
+        INSERT INTO models (id, provider, display_name, config)
+        VALUES (?, ?, ?, ?)
+      `).bind(model.id, provider, model.name, config).run();
+      added.push(model.id);
+    }
+  }
+
+  // Clear OpenRouter cache so next fetch gets fresh data
+  await env.RATE_LIMIT.delete('openrouter:models');
+
+  return c.json({
+    success: true,
+    added: added.length,
+    updated: updated.length,
+    skipped: skipped.length,
+    total: data.data.length,
+    addedModels: added.slice(0, 20), // Return first 20 for display
+    message: `Synced ${data.data.length} models from OpenRouter`,
+  });
+});
+
+/**
+ * DELETE /api/admin/models/:id - Remove a model from DB.
+ */
+admin.delete('/models/:id', async (c) => {
+  const modelId = c.req.param('id');
+
+  // Check if model has any game participation
+  const participations = await c.env.DB.prepare(`
+    SELECT COUNT(*) as count FROM game_participants WHERE model_id = ?
+  `).bind(modelId).first<{ count: number }>();
+
+  if (participations && participations.count > 0) {
+    throw Errors.BadRequest(`Cannot delete model with ${participations.count} game participations`);
+  }
+
+  await c.env.DB.prepare('DELETE FROM models WHERE id = ?').bind(modelId).run();
+
+  return c.json({
+    success: true,
+    message: `Model ${modelId} deleted`,
+  });
+});
+
 export default admin;
 

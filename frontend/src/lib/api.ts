@@ -291,7 +291,7 @@ export async function getGame(id: string): Promise<GameDetail> {
 }
 
 /**
- * Fetch available models.
+ * Fetch available models from DB.
  */
 export async function getModels(): Promise<Model[]> {
   const res = await fetch(`${API_URL}/api/models`);
@@ -299,6 +299,80 @@ export async function getModels(): Promise<Model[]> {
 
   const data = await res.json();
   return data.models;
+}
+
+// =============================================================================
+// OPENROUTER MODELS
+// =============================================================================
+
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  description?: string;
+  contextLength: number;
+  pricing: {
+    inputPer1M: number;
+    outputPer1M: number;
+  };
+}
+
+export interface OpenRouterModelsResponse {
+  providers: string[];
+  modelsByProvider: Record<string, OpenRouterModel[]>;
+  totalModels: number;
+  cachedAt: number;
+}
+
+/**
+ * Fetch available models from OpenRouter API.
+ */
+export async function getOpenRouterModels(): Promise<OpenRouterModelsResponse> {
+  const res = await fetch(`${API_URL}/api/models/openrouter`);
+  if (!res.ok) throw new Error('Failed to fetch OpenRouter models');
+
+  return res.json();
+}
+
+/**
+ * Sync models from OpenRouter to database.
+ */
+export async function syncModels(): Promise<{
+  success: boolean;
+  added: number;
+  updated: number;
+  total: number;
+  message: string;
+}> {
+  const res = await fetch(`${API_URL}/api/admin/models/sync`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+  });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
+  if (!res.ok) throw new Error('Failed to sync models');
+
+  return res.json();
+}
+
+/**
+ * Get models in database (admin).
+ */
+export async function getDbModels(): Promise<{
+  models: Array<{
+    id: string;
+    provider: string;
+    display_name: string;
+    config: string | null;
+    created_at: number;
+  }>;
+  total: number;
+}> {
+  const res = await fetch(`${API_URL}/api/admin/models`, {
+    headers: getAdminHeaders(),
+  });
+  if (res.status === 401) throw new Error('AUTH_REQUIRED');
+  if (!res.ok) throw new Error('Failed to fetch DB models');
+
+  return res.json();
 }
 
 /**

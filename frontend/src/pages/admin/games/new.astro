@@ -1,22 +1,7 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { getModels } from '../../../lib/api';
 import { ArrowLeft, Play, Radio, Users, Shield, Sword } from 'lucide-astro';
-
-let models = [];
-let error = null;
-
-try {
-  models = await getModels();
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load models';
-}
-
-const modelsByProvider = models.reduce((acc, m) => {
-  if (!acc[m.provider]) acc[m.provider] = [];
-  acc[m.provider].push(m);
-  return acc;
-}, {} as Record<string, typeof models>);
+import ModelSelector from '../../../components/ui/ModelSelector';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
@@ -42,12 +27,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         </p>
       </div>
     </div>
-
-    {error && (
-      <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4">
-        <p class="text-destructive">{error}</p>
-      </div>
-    )}
 
     <form id="liveGameForm" class="space-y-6">
       <section class="border rounded-lg p-4 space-y-4 bg-muted/30">
@@ -85,46 +64,33 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <label for="modelA" class="text-sm text-muted-foreground flex items-center gap-1.5">
+            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
               <Sword size={14} class="text-red-500" />
               Mafia Model
-            </label>
-            <select 
-              id="modelA" 
-              name="modelA"
-              class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {Object.entries(modelsByProvider).map(([provider, providerModels]) => (
-                <optgroup label={provider}>
-                  {providerModels.map(m => (
-                    <option value={m.id}>{m.display_name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            </div>
+            <ModelSelector 
+              client:load 
+              team="mafia"
+              placeholder="Select mafia model..."
+              inputId="modelA"
+            />
+            <input type="hidden" id="modelA" name="modelA" value="" />
           </div>
           <div class="space-y-2">
-            <label for="modelB" class="text-sm text-muted-foreground flex items-center gap-1.5">
+            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
               <Shield size={14} class="text-blue-500" />
               Town Model
-            </label>
-            <select 
-              id="modelB" 
-              name="modelB"
-              class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {Object.entries(modelsByProvider).map(([provider, providerModels]) => (
-                <optgroup label={provider}>
-                  {providerModels.map(m => (
-                    <option value={m.id}>{m.display_name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            </div>
+            <ModelSelector 
+              client:load 
+              team="town"
+              placeholder="Select town model..."
+              inputId="modelB"
+            />
+            <input type="hidden" id="modelB" name="modelB" value="" />
           </div>
         </div>
       </section>
-
 
       <div id="launch-status" class="hidden border rounded-lg p-4 bg-muted/30">
         <div class="flex items-center gap-3">
@@ -152,7 +118,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   </div>
 </Layout>
 
-<script define:vars={{ apiUrl, modelsByProvider }}>
+<script define:vars={{ apiUrl }}>
   const credentials = sessionStorage.getItem('adminCredentials');
   if (!credentials) {
     window.location.href = '/admin/login?redirect=/admin/games/new';
@@ -165,27 +131,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
   const form = document.getElementById('liveGameForm');
 
-  const providers = Object.keys(modelsByProvider);
-  if (providers.length > 0) {
-    const shuffled = providers.sort(() => Math.random() - 0.5);
-    const modelA = document.getElementById('modelA');
-    const modelB = document.getElementById('modelB');
-    
-    const mafiaProvider = shuffled[0];
-    const mafiaModels = modelsByProvider[mafiaProvider];
-    if (mafiaModels && mafiaModels.length > 0 && modelA) {
-      const randomMafia = mafiaModels[Math.floor(Math.random() * mafiaModels.length)];
-      modelA.value = randomMafia.id;
-    }
-    
-    const townProvider = shuffled.length > 1 ? shuffled[1] : shuffled[0];
-    const townModels = modelsByProvider[townProvider];
-    if (townModels && townModels.length > 0 && modelB) {
-      const randomTown = townModels[Math.floor(Math.random() * townModels.length)];
-      modelB.value = randomTown.id;
-    }
-  }
-
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -193,6 +138,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       const submitBtn = form.querySelector('button[type="submit"]');
       const statusDiv = document.getElementById('launch-status');
       const statusText = document.getElementById('launch-status-text');
+      
+      const modelA = document.getElementById('modelA').value;
+      const modelB = document.getElementById('modelB').value;
+      
+      if (!modelA || !modelB) {
+        alert('Please select both mafia and town models');
+        return;
+      }
       
       if (submitBtn) {
         submitBtn.disabled = true;
@@ -216,8 +169,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         const formData = new FormData(form);
         const playerCount = parseInt(String(formData.get('playerCount') || '11'));
         const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
-        const modelA = String(formData.get('modelA') || '');
-        const modelB = String(formData.get('modelB') || '');
 
         if (statusText) {
           statusText.textContent = 'Contacting server...';
@@ -281,4 +232,3 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     });
   }
 </script>
-

@@ -23,6 +23,7 @@ import {
   incrementBatchProgress,
   updateDailyStats,
 } from './batch/index.js';
+import { cleanupStaleGames } from './scheduled/index.js';
 
 // Re-export the Durable Object
 export { GameRunner } from './GameRunner.js';
@@ -148,6 +149,32 @@ export default {
           message.ack(); // Acknowledge to prevent infinite retries
         }
       })
+    );
+  },
+
+  /**
+   * Handle scheduled cron triggers.
+   * 
+   * Current schedule:
+   * - Every 10 minutes: Clean up stale/hanging games
+   *   - Standard games: Stale after 1 hour of inactivity
+   *   - Discount pricing games: Stale after 24 hours (batch APIs can take up to 24h)
+   */
+  async scheduled(
+    event: ScheduledEvent,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    console.log(`Cron triggered: ${event.cron} at ${new Date(event.scheduledTime).toISOString()}`);
+    
+    ctx.waitUntil(
+      cleanupStaleGames(env)
+        .then((result) => {
+          console.log(`Scheduled cleanup completed: killed ${result.killedCount} games (${result.standardKilled} standard, ${result.discountKilled} discount)`);
+        })
+        .catch((error) => {
+          console.error('Scheduled cleanup failed:', error);
+        })
     );
   },
 };
