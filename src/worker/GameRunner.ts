@@ -123,8 +123,11 @@ export class GameRunner extends DurableObject<Env> {
   /** Connected WebSocket clients for live streaming */
   private sessions: WebSocket[] = [];
   
-  /** In-memory event log for live streaming */
+  /** In-memory event log for live streaming (full events with prompts for R2 transcript) */
   private eventLog: GameEvent[] = [];
+  
+  /** Stripped event log for DO storage persistence (avoids SQLITE_TOOBIG) */
+  private strippedEventLog: GameEvent[] = [];
   
   /** Index of last event streamed to R2 (for incremental streaming) */
   private lastR2StreamIndex: number = 0;
@@ -341,10 +344,11 @@ export class GameRunner extends DurableObject<Env> {
     if (this.eventLog.length === 0) {
       const state = await this.loadState();
       if (state.gameId && state.status === 'running') {
-        // Try DO storage first (persisted on every event)
+        // Try DO storage first (persisted on every event, stripped to avoid size limits)
         const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
         if (storedEvents && storedEvents.length > 0) {
           this.eventLog = storedEvents;
+          this.strippedEventLog = storedEvents;
           this.lastR2StreamIndex = storedEvents.length;
           this.log.debug('Loaded events from DO storage', { eventCount: this.eventLog.length });
         } else {
@@ -352,6 +356,7 @@ export class GameRunner extends DurableObject<Env> {
           const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
           if (streamedEvents.length > 0) {
             this.eventLog = streamedEvents;
+            this.strippedEventLog = streamedEvents.map(stripEventForStorage);
             this.lastR2StreamIndex = streamedEvents.length;
             this.log.debug('Loaded events from R2 stream', { eventCount: this.eventLog.length });
           }
@@ -475,11 +480,13 @@ export class GameRunner extends DurableObject<Env> {
       const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
       if (storedEvents && storedEvents.length > 0) {
         this.eventLog = storedEvents;
+        this.strippedEventLog = storedEvents;
         this.lastR2StreamIndex = storedEvents.length;
       } else {
         const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
         if (streamedEvents.length > 0) {
           this.eventLog = streamedEvents;
+          this.strippedEventLog = streamedEvents.map(stripEventForStorage);
           this.lastR2StreamIndex = streamedEvents.length;
         }
       }
@@ -601,8 +608,9 @@ export class GameRunner extends DurableObject<Env> {
       
       gameLog.info('Game starting', { seed, background, discountPricing });
 
-      // Reset event log (memory only - no DO storage)
+      // Reset event logs (memory only - no DO storage)
       this.eventLog = [];
+      this.strippedEventLog = [];
       this.lastR2StreamIndex = 0;
 
       // Insert 'running' record into D1 immediately so game appears in lists
@@ -843,12 +851,14 @@ export class GameRunner extends DurableObject<Env> {
       const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
       if (storedEvents) {
         this.eventLog = storedEvents;
+        this.strippedEventLog = storedEvents;
         this.lastR2StreamIndex = storedEvents.length;
         gameLog.info('Loaded event log from DO storage', { eventCount: this.eventLog.length });
       }
     } else {
-      // Reset event log for new game
+      // Reset event logs for new game
       this.eventLog = [];
+      this.strippedEventLog = [];
     }
 
     // Get discountPricing from config for activity tracking and provider configuration
@@ -930,9 +940,12 @@ export class GameRunner extends DurableObject<Env> {
       // Add to in-memory log (full events for R2 transcript)
       this.eventLog.push(event);
       
-      // Persist to DO storage on every event (fast, designed for this use case)
-      // This ensures we don't lose events on DO eviction
-      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog);
+      // Add stripped event to DO storage log (avoids SQLITE_TOOBIG with large prompts)
+      const strippedEvent = stripEventForStorage(event);
+      this.strippedEventLog.push(strippedEvent);
+      
+      // Persist stripped events to DO storage (fast, survives eviction)
+      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.strippedEventLog);
 
       // Stream to R2 incrementally (every 10 events or on important events)
       // Reduced from 30 to 10 for better persistence
@@ -965,15 +978,21 @@ export class GameRunner extends DurableObject<Env> {
       });
     };
 
-    // Phase checkpoint callback - saves full game state after each phase
+    // Phase checkpoint callback - saves game state after each phase (with stripped events)
     // This allows resumption from the last completed phase after DO eviction
+    // Events are stripped to avoid SQLITE_TOOBIG errors (full events are in R2 stream)
     const onPhaseComplete = async (serializedState: SerializedGameState) => {
       gameLog.debug('Phase checkpoint', { 
         phase: serializedState.phase, 
         round: serializedState.round,
         eventCount: serializedState.events.length,
       });
-      await this.ctx.storage.put(STORAGE_KEYS.GAME_STATE, serializedState);
+      // Strip events to avoid SQLITE_TOOBIG on large prompts/responses
+      const strippedState: SerializedGameState = {
+        ...serializedState,
+        events: serializedState.events.map(stripEventForStorage),
+      };
+      await this.ctx.storage.put(STORAGE_KEYS.GAME_STATE, strippedState);
     };
 
     // Create and run the game with live streaming and checkpointing

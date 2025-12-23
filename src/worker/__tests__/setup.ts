@@ -196,7 +196,7 @@ export async function waitForGameCompletion(
  */
 export async function getGameFromDb(
   db: D1Database,
-  gameId: string
+  gameId: string | undefined
 ): Promise<{
   id: string;
   status: string;
@@ -206,6 +206,10 @@ export async function getGameFromDb(
   duration_ms: number;
   seed: number | null;
 } | null> {
+  if (!gameId) {
+    console.error('getGameFromDb called with undefined gameId');
+    return null;
+  }
   return db
     .prepare(
       'SELECT id, status, winner, rounds, total_tokens, duration_ms, seed FROM games WHERE id = ?'
@@ -239,8 +243,12 @@ export async function getLeaderboardEntry(
  */
 export async function getGameParticipants(
   db: D1Database,
-  gameId: string
+  gameId: string | undefined
 ): Promise<Array<{ model_id: string; team: string; player_count: number; won: number }>> {
+  if (!gameId) {
+    console.error('getGameParticipants called with undefined gameId');
+    return [];
+  }
   const result = await db
     .prepare(
       'SELECT model_id, team, player_count, won FROM game_participants WHERE game_id = ?'

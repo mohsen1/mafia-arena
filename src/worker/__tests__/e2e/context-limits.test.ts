@@ -66,7 +66,10 @@ describe('Context Window E2E', () => {
       const response = await worker.fetch(request, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      const result = await response.json() as { success: boolean; gameId: string };
+      const result = await response.json() as { success: boolean; gameId: string; error?: { message?: string } };
+      if (!result.success) {
+        console.error('Game failed:', result.error);
+      }
       expect(result.success).toBe(true);
 
       // Verify game completed
