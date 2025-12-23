@@ -90,14 +90,17 @@ export class Game {
       if (this.config.discussionEnabled) {
         const discussionResult = await executeDiscussionPhase(
           this.state,
-          this.aiProvider
+          this.aiProvider,
+          this.onEvent // Pass callback for real-time streaming
         );
-        await this.updateStateAndEmitEvents(discussionResult.state);
+        // Only sync state (events already emitted by phase)
+        this.state = discussionResult.state;
       }
 
       // Day Vote Phase - Town votes to eliminate a suspect
-      const voteResult = await executeVotePhase(this.state, this.aiProvider);
-      await this.updateStateAndEmitEvents(voteResult.state);
+      const voteResult = await executeVotePhase(this.state, this.aiProvider, this.onEvent);
+      // Only sync state (events already emitted by phase)
+      this.state = voteResult.state;
 
       // Check win condition after vote
       const winnerAfterVote = checkWinCondition(this.state);
@@ -106,8 +109,9 @@ export class Game {
       }
 
       // Night Phase - Mafia kills a town member
-      const nightResult = await executeNightPhase(this.state, this.aiProvider);
-      await this.updateStateAndEmitEvents(nightResult.state);
+      const nightResult = await executeNightPhase(this.state, this.aiProvider, this.onEvent);
+      // Only sync state (events already emitted by phase)
+      this.state = nightResult.state;
 
       // Check win condition after night
       const winnerAfterNight = checkWinCondition(this.state);

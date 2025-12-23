@@ -14,6 +14,7 @@ import type {
   PhaseEndEvent,
   ConversationMessage,
   DiscussionEvent,
+  GameEvent,
 } from '../types.js';
 import { resolveVotes } from '../utils/votes.js';
 import { getVisibleState, getValidKillTargets, formatPlayerListShuffled } from '../utils/visibility.js';
@@ -27,6 +28,9 @@ export interface NightPhaseResult {
   readonly killed: Player | null;
 }
 
+/** Optional callback for streaming events during phase execution */
+export type PhaseEventCallback = (event: GameEvent) => void | Promise<void>;
+
 /**
  * Execute the mafia private discussion sub-phase.
  * Mafia members discuss strategy before voting.
@@ -34,7 +38,8 @@ export interface NightPhaseResult {
 async function executeMafiaDiscussion(
   initialState: GameState,
   aiProvider: AIProvider,
-  numRounds: number
+  numRounds: number,
+  emitEvent: (event: GameEvent) => Promise<void>
 ): Promise<GameState> {
   let state = initialState;
   const mafiaPlayers = state.aliveMafia;
@@ -105,6 +110,7 @@ async function executeMafiaDiscussion(
         timestamp: Date.now(),
       };
       state = state.withEvent(aiCallEvent);
+      await emitEvent(aiCallEvent);
 
       // Record the discussion message (mafia channel)
       if (response.action.type === 'mafia_discussion' || response.action.type === 'discussion') {
@@ -134,6 +140,7 @@ async function executeMafiaDiscussion(
           discussionRound,
         };
         state = state.withEvent(discussionEvent);
+        await emitEvent(discussionEvent);
       }
     }
   }
@@ -144,14 +151,24 @@ async function executeMafiaDiscussion(
 /**
  * Execute the night phase.
  * Mafia members discuss strategy privately, then vote to kill a Town member.
+ * @param onEvent Optional callback to stream events in real-time
  */
 export async function executeNightPhase(
   initialState: GameState,
-  aiProvider: AIProvider
+  aiProvider: AIProvider,
+  onEvent?: PhaseEventCallback
 ): Promise<NightPhaseResult> {
   let state = initialState;
   const mafiaPlayers = state.aliveMafia;
   const votes = new Map<string, string>();
+
+  // Helper to add event to state and optionally emit it
+  const emitEvent = async (event: GameEvent): Promise<void> => {
+    state = state.withEvent(event);
+    if (onEvent) {
+      await onEvent(event);
+    }
+  };
 
   // Add phase start event
   const phaseStartEvent: PhaseStartEvent = {
@@ -160,7 +177,7 @@ export async function executeNightPhase(
     round: state.round,
     timestamp: Date.now(),
   };
-  state = state.withEvent(phaseStartEvent);
+  await emitEvent(phaseStartEvent);
 
   // Get valid targets (alive town members)
   const validTargets = getValidKillTargets(state);
@@ -173,13 +190,17 @@ export async function executeNightPhase(
       round: state.round,
       timestamp: Date.now(),
     };
-    return { state: state.withEvent(phaseEndEvent), killed: null };
+    await emitEvent(phaseEndEvent);
+    return { state, killed: null };
   }
 
   // === MAFIA DISCUSSION SUB-PHASE ===
   const numDiscussionRounds = state.config.nightDiscussionRounds ?? DEFAULT_NIGHT_DISCUSSION_ROUNDS;
   if (numDiscussionRounds > 0 && mafiaPlayers.length > 1) {
-    state = await executeMafiaDiscussion(state, aiProvider, numDiscussionRounds);
+    // Note: executeMafiaDiscussion manages its own state, we pass emitEvent for streaming
+    state = await executeMafiaDiscussion(state, aiProvider, numDiscussionRounds, async (event) => {
+      if (onEvent) await onEvent(event);
+    });
   }
 
   // Get the mafia discussion history for the kill vote context
@@ -247,7 +268,7 @@ export async function executeNightPhase(
       latencyMs: response.latencyMs,
       timestamp: Date.now(),
     };
-    state = state.withEvent(aiCallEvent);
+    await emitEvent(aiCallEvent);
 
     // Record the vote
     if (response.action.type === 'kill_vote') {
@@ -266,7 +287,7 @@ export async function executeNightPhase(
           targetId,
           timestamp: Date.now(),
         };
-        state = state.withEvent(voteEvent);
+        await emitEvent(voteEvent);
       }
     }
   }
@@ -286,7 +307,7 @@ export async function executeNightPhase(
       team: killed.team,
       timestamp: Date.now(),
     };
-    state = state.withEvent(eliminationEvent);
+    await emitEvent(eliminationEvent);
   }
 
   // Add phase end event
@@ -296,7 +317,7 @@ export async function executeNightPhase(
     round: state.round,
     timestamp: Date.now(),
   };
-  state = state.withEvent(phaseEndEvent);
+  await emitEvent(phaseEndEvent);
 
   return { state, killed };
 }
