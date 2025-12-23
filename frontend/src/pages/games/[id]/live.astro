@@ -70,6 +70,19 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       </div>
     </div>
 
+    <!-- Error Banner (shown when game fails) -->
+    <div id="error-banner" class="hidden rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 space-y-2">
+      <div class="flex items-start gap-3">
+        <div class="shrink-0 text-rose-500">
+          <Skull size={20} />
+        </div>
+        <div class="space-y-1 min-w-0 flex-1">
+          <div class="text-sm font-semibold text-rose-600 dark:text-rose-400">Game Failed</div>
+          <div id="error-message" class="text-xs text-rose-600/80 dark:text-rose-400/80 break-words font-mono"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Players Grid -->
     <section id="players-section" class="space-y-2 hidden">
       <div class="flex items-center justify-between">
@@ -512,6 +525,21 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     el.classList.remove('hidden');
   }
 
+  function showError(errorMessage) {
+    const banner = document.getElementById('error-banner');
+    const messageEl = document.getElementById('error-message');
+    if (!banner || !messageEl) return;
+
+    messageEl.textContent = errorMessage || 'An unknown error occurred';
+    banner.classList.remove('hidden');
+    
+    // Hide connection status since we're showing a more prominent error
+    const connectionStatus = document.getElementById('connection-status');
+    if (connectionStatus) {
+      connectionStatus.classList.add('hidden');
+    }
+  }
+
   function handleMessage(data) {
     if (data.type === 'SYNC') {
       events = data.events || [];
@@ -523,9 +551,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       
       if (data.status === 'completed' || data.status === 'failed') {
         updateLiveBadge(data.status);
+        if (durationInterval) clearInterval(durationInterval);
+        
         if (data.status === 'completed') {
           const gameEnd = events.find(e => e.type === 'game_end');
           if (gameEnd) showGameEnd(gameEnd.winner);
+        } else if (data.status === 'failed') {
+          // Show prominent error banner for failed games
+          showError(data.error);
         }
       } else if (data.status === 'idle') {
         updateLiveBadge('idle');
@@ -546,9 +579,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       }
     } else if (data.type === 'STATUS') {
       updateLiveBadge(data.status);
+      if (data.status === 'failed' && data.error) {
+        showError(data.error);
+        if (durationInterval) clearInterval(durationInterval);
+      }
     } else if (data.type === 'ERROR') {
       updateLiveBadge('failed');
-      updateConnectionStatus(false, data.error || 'Game failed');
+      showError(data.error);
+      if (durationInterval) clearInterval(durationInterval);
     }
   }
 
@@ -624,6 +662,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           if (data.status === 'completed') {
             const gameEnd = events.find(e => e.type === 'game_end');
             if (gameEnd) showGameEnd(gameEnd.winner);
+          } else if (data.status === 'failed') {
+            // Show prominent error banner for failed games
+            showError(data.error);
           }
           clearInterval(pollInterval);
           clearInterval(durationInterval);

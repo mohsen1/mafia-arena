@@ -130,6 +130,8 @@ interface WsMessage {
   status?: GameRunnerState['status'] | undefined;
   error?: string | undefined;
   gameId?: string | undefined;
+  /** Duration in ms for failed/completed games */
+  durationMs?: number | undefined;
 }
 
 export class GameRunner extends DurableObject<Env> {
@@ -364,12 +366,18 @@ export class GameRunner extends DurableObject<Env> {
       events: this.eventLog,
       status: state.status,
       gameId: state.gameId ?? undefined,
+      // Include error and duration for failed/completed games
+      error: state.error ?? undefined,
+      durationMs: state.startedAt && state.completedAt 
+        ? state.completedAt - state.startedAt 
+        : undefined,
     };
     server.send(JSON.stringify(syncMessage));
     this.log.info('Sent SYNC message', { 
       eventCount: this.eventLog.length, 
       status: state.status,
-      gameId: state.gameId 
+      gameId: state.gameId,
+      hasError: !!state.error,
     });
 
     return new Response(null, { status: 101, webSocket: client });
@@ -468,6 +476,12 @@ export class GameRunner extends DurableObject<Env> {
       gameId: state.gameId,
       eventCount: this.eventLog.length,
       events: this.eventLog,
+      // Include error for failed games
+      error: state.error ?? undefined,
+      // Include duration for completed/failed games
+      durationMs: state.startedAt && state.completedAt 
+        ? state.completedAt - state.startedAt 
+        : undefined,
     });
   }
 
