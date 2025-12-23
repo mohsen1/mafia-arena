@@ -1,9 +1,9 @@
 /**
  * Supported AI models and their pricing.
  * 
- * Models are accessed through their respective providers:
- * - Google Gemini models use native Gemini API
- * - Other models use OpenRouter
+ * All models are accessed through OpenRouter's unified API.
+ * OpenRouter routes to the appropriate provider (Google, Anthropic, OpenAI, etc.)
+ * based on the model ID prefix (e.g., "google/gemini-*" routes to Google).
  * 
  * Updated: December 2025
  */
@@ -25,13 +25,13 @@ export const SUPPORTED_MODELS: Record<string, ModelConfig> = {
   'anthropic/claude-opus-4.5': { provider: 'openrouter', displayName: 'Claude Opus 4.5', structuredOutput: 'tool' },
   'anthropic/claude-sonnet-4.5': { provider: 'openrouter', displayName: 'Claude Sonnet 4.5', structuredOutput: 'tool' },
 
-  // Google Gemini family (using native Gemini API)
-  'google/gemini-2.5-flash-lite-preview-09-2025': { provider: 'google', displayName: 'Gemini 2.5 Flash Lite', structuredOutput: 'schema' },
-  'google/gemini-2.5-flash-preview-09-2025': { provider: 'google', displayName: 'Gemini 2.5 Flash', structuredOutput: 'schema' },
-  'google/gemini-2.5-pro': { provider: 'google', displayName: 'Gemini 2.5 Pro', structuredOutput: 'schema' },
-  'google/gemini-2.5-pro-preview-05-06': { provider: 'google', displayName: 'Gemini 2.5 Pro Preview', structuredOutput: 'schema' },
-  'google/gemini-3-flash-preview': { provider: 'google', displayName: 'Gemini 3 Flash', structuredOutput: 'schema' },
-  'google/gemini-3-pro-preview': { provider: 'google', displayName: 'Gemini 3 Pro', structuredOutput: 'schema' },
+  // Google Gemini family (via OpenRouter)
+  'google/gemini-2.5-flash-lite-preview-09-2025': { provider: 'openrouter', displayName: 'Gemini 2.5 Flash Lite', structuredOutput: 'tool' },
+  'google/gemini-2.5-flash-preview-09-2025': { provider: 'openrouter', displayName: 'Gemini 2.5 Flash', structuredOutput: 'tool' },
+  'google/gemini-2.5-pro': { provider: 'openrouter', displayName: 'Gemini 2.5 Pro', structuredOutput: 'tool' },
+  'google/gemini-2.5-pro-preview-05-06': { provider: 'openrouter', displayName: 'Gemini 2.5 Pro Preview', structuredOutput: 'tool' },
+  'google/gemini-3-flash-preview': { provider: 'openrouter', displayName: 'Gemini 3 Flash', structuredOutput: 'tool' },
+  'google/gemini-3-pro-preview': { provider: 'openrouter', displayName: 'Gemini 3 Pro', structuredOutput: 'tool' },
 
   // Meta Llama 4 family
   'meta-llama/llama-4-maverick': { provider: 'openrouter', displayName: 'Llama 4 Maverick', structuredOutput: 'json_mode' },
@@ -81,7 +81,7 @@ export const SUPPORTED_MODELS: Record<string, ModelConfig> = {
 
 /**
  * Model pricing per 1K tokens (USD).
- * Pricing from respective provider APIs (Google, OpenRouter).
+ * Pricing from OpenRouter API.
  */
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   // Amazon Nova

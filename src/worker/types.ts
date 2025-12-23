@@ -26,17 +26,8 @@ export interface Env {
   ENVIRONMENT: string;
 
   // API Keys (secrets)
-  OPENAI_API_KEY: string;
-  ANTHROPIC_API_KEY: string;
-  /** Google API key - used for native Gemini models */
-  GOOGLE_API_KEY: string;
-  /** OpenRouter API key - when set, used for OpenAI and Anthropic models */
-  OPENROUTER_API_KEY?: string;
-  
-  // Azure OpenAI (optional - when set, OpenAI models route through Azure)
-  AZURE_OPENAI_API_KEY?: string;
-  AZURE_OPENAI_ENDPOINT?: string;
-  AZURE_OPENAI_API_VERSION?: string;
+  /** OpenRouter API key - used for all AI model requests */
+  OPENROUTER_API_KEY: string;
 
   // Admin authentication (secrets)
   ADMIN_USERNAME: string;
