@@ -155,6 +155,22 @@ export async function executeVotePhase(
     }
   }
 
+  // SAFETY CHECK: Detect when ALL alive players voted null (abstained)
+  // This typically indicates a systemic AI failure (e.g., context overflow causing
+  // all models to produce invalid responses that fall back to null votes).
+  // A single intentional abstention is valid, but ALL players abstaining is suspicious.
+  const nullVoteCount = votes.size - validVotes.size;
+  const allPlayersAbstained = votes.size > 0 && validVotes.size === 0;
+  
+  if (allPlayersAbstained) {
+    // All alive players voted null - this is almost certainly an AI failure
+    throw new Error(
+      `All ${nullVoteCount} alive players abstained (voted null). ` +
+      `This typically indicates AI provider failures (context overflow, rate limits, etc.). ` +
+      `Round ${state.round}, Phase ${state.phase}.`
+    );
+  }
+
   const eliminated = resolveVotes(validVotes, [...alivePlayers]);
 
   if (eliminated) {

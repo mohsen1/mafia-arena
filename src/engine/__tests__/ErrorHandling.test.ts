@@ -264,7 +264,7 @@ describe('Error Handling', () => {
       expect(result.killed).toBeNull();
     });
 
-    it('should handle all players abstaining', async () => {
+    it('should throw error when all players abstain (indicates AI failures)', async () => {
       const config = createTestConfig();
       let state = GameState.create('test-game', config).withPhase('day_vote');
 
@@ -280,10 +280,10 @@ describe('Error Handling', () => {
         return createValidResponse(prompt.type, prompt.validTargets);
       });
 
-      const result = await executeVotePhase(state, abstainProvider);
-
-      // No one should be eliminated if everyone abstains
-      expect(result.eliminated).toBeNull();
+      // All players abstaining now throws an error (indicates AI provider failures)
+      await expect(executeVotePhase(state, abstainProvider)).rejects.toThrow(
+        /All \d+ alive players abstained/
+      );
     });
 
     it('should handle mafia voting for fellow mafia members (invalid in kill vote)', async () => {
