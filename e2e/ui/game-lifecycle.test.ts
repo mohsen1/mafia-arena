@@ -246,7 +246,11 @@ test.describe('Game Scenarios', () => {
       },
     });
 
-    expect(response.ok()).toBe(true);
+    if (!response.ok()) {
+      const errorBody = await response.text();
+      console.error(`mafia-wins game creation failed: ${response.status()} - ${errorBody}`);
+    }
+    expect(response.ok(), `Expected 200 OK but got ${response.status()}`).toBe(true);
     const result = await response.json();
     expect(result.success).toBe(true);
     expect(result.gameId).toBeTruthy();

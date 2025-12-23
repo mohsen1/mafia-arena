@@ -17,10 +17,12 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4321';
 
 export default defineConfig({
   testDir: './e2e/ui',
-  fullyParallel: true,
+  // Limit parallelism to avoid overwhelming the local worker with game creation tests
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Limit workers to prevent overwhelming the worker with concurrent game requests
+  workers: process.env.CI ? 1 : 3,
   reporter: [['html', { open: 'never' }], ['list']],
 
   use: {
