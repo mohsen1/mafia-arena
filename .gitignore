@@ -7,6 +7,8 @@ dist/
 
 # Test outputs
 coverage/
+playwright-report/
+test-results/
 
 # IDE
 .idea/
