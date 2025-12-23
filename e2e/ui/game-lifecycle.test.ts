@@ -4,14 +4,34 @@
  * These tests create actual games via the API using test models
  * (test/mock-fast) which use MockE2EProvider instead of calling LLMs.
  * 
+ * PREREQUISITES:
+ * 1. Worker must be running: pnpm dev (starts wrangler on port 8787)
+ * 2. Frontend dev server is started automatically by Playwright
+ * 
  * ZERO COST: No API calls to OpenRouter or any LLM provider.
  * Games complete in seconds with deterministic responses.
  */
 
 import { test, expect } from '@playwright/test';
 
-// API base URL (worker running on same origin in dev)
-const API_BASE = process.env.API_BASE_URL || '';
+// Worker API URL (where game creation requests go)
+const WORKER_URL = process.env.WORKER_URL || 'http://localhost:8787';
+
+// Skip game lifecycle tests if worker is not running
+test.beforeAll(async ({ request }) => {
+  try {
+    const health = await request.get(`${WORKER_URL}/api/health`, { timeout: 5000 });
+    if (!health.ok()) {
+      console.warn(`⚠️  Worker not responding at ${WORKER_URL}. Game lifecycle tests will be skipped.`);
+      console.warn('   Start the worker with: pnpm dev');
+      test.skip();
+    }
+  } catch {
+    console.warn(`⚠️  Worker not available at ${WORKER_URL}. Game lifecycle tests will be skipped.`);
+    console.warn('   Start the worker with: pnpm dev');
+    test.skip();
+  }
+});
 
 test.describe('Game Lifecycle', () => {
   // Games can take some time to complete
@@ -19,7 +39,7 @@ test.describe('Game Lifecycle', () => {
 
   test('creates and runs a complete game with mock models', async ({ request, page }) => {
     // 1. Create a game via the run-direct API
-    const createResponse = await request.post(`${API_BASE}/api/games/run-direct`, {
+    const createResponse = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
         teams: [
           { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
@@ -57,7 +77,7 @@ test.describe('Game Lifecycle', () => {
 
   test('game appears in games list after completion', async ({ request, page }) => {
     // 1. Create and run a game
-    const createResponse = await request.post(`${API_BASE}/api/games/run-direct`, {
+    const createResponse = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
         teams: [
           { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
@@ -78,7 +98,7 @@ test.describe('Game Lifecycle', () => {
     let attempts = 0;
     while (status === 'running' && attempts < 30) {
       await page.waitForTimeout(1000);
-      const statusResponse = await request.get(`${API_BASE}/api/games/${gameId}`);
+      const statusResponse = await request.get(`${WORKER_URL}/api/games/${gameId}`);
       if (statusResponse.ok()) {
         const gameData = await statusResponse.json();
         status = gameData.status || gameData.game?.status || 'unknown';
@@ -106,7 +126,7 @@ test.describe('Game Lifecycle', () => {
 
   test('can view game transcript after completion', async ({ request, page }) => {
     // 1. Create and run a game
-    const createResponse = await request.post(`${API_BASE}/api/games/run-direct`, {
+    const createResponse = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
         teams: [
           { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
@@ -126,7 +146,7 @@ test.describe('Game Lifecycle', () => {
     let completed = false;
     for (let i = 0; i < 30; i++) {
       await page.waitForTimeout(1000);
-      const response = await request.get(`${API_BASE}/api/games/${gameId}`);
+      const response = await request.get(`${WORKER_URL}/api/games/${gameId}`);
       if (response.ok()) {
         const data = await response.json();
         if (data.status === 'completed' || data.game?.status === 'completed') {
@@ -150,7 +170,7 @@ test.describe('Game Scenarios', () => {
   test.setTimeout(120000);
 
   test('test/town-wins scenario completes successfully', async ({ request }) => {
-    const response = await request.post(`${API_BASE}/api/games/run-direct`, {
+    const response = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
         teams: [
           { modelId: 'test/town-wins', team: 'mafia', count: 2 },
@@ -171,7 +191,7 @@ test.describe('Game Scenarios', () => {
   });
 
   test('test/mafia-wins scenario completes successfully', async ({ request }) => {
-    const response = await request.post(`${API_BASE}/api/games/run-direct`, {
+    const response = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
         teams: [
           { modelId: 'test/mafia-wins', team: 'mafia', count: 2 },
@@ -191,7 +211,7 @@ test.describe('Game Scenarios', () => {
 
 test.describe('Game API Validation', () => {
   test('rejects invalid team configuration', async ({ request }) => {
-    const response = await request.post(`${API_BASE}/api/games/run-direct`, {
+    const response = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
         teams: [
           // Invalid: 0 mafia
@@ -206,7 +226,7 @@ test.describe('Game API Validation', () => {
   });
 
   test('handles missing teams gracefully', async ({ request }) => {
-    const response = await request.post(`${API_BASE}/api/games/run-direct`, {
+    const response = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
         // Missing teams
         maxRounds: 5,
