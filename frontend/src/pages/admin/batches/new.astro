@@ -9,145 +9,160 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   <div class="space-y-6">
     <!-- Header -->
     <div>
-      <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-        <a href="/admin" class="hover:underline">Admin</a>
+      <div class="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-2">
+        <a href="/admin" class="hover:text-foreground transition-colors">admin</a>
         <span>/</span>
-        <a href="/admin/batches" class="hover:underline">Batches</a>
+        <a href="/admin/batches" class="hover:text-foreground transition-colors">batches</a>
         <span>/</span>
-        <span>New</span>
+        <span>new</span>
       </div>
-      <h1 class="text-2xl font-bold tracking-tight">Launch New Batch</h1>
+      <h1 class="text-2xl font-bold tracking-tight">Create Batch</h1>
       <p class="text-sm text-muted-foreground mt-1">
-        Configure and launch a batch of games (up to 10,000)
+        Launch a batch of games (up to 10,000)
       </p>
     </div>
 
     <!-- Split Screen Layout -->
-    <div class="grid lg:grid-cols-[1fr,400px] gap-6">
+    <div class="grid lg:grid-cols-[1fr,360px] gap-8">
       <!-- Left: Form -->
-      <form id="batchForm" class="space-y-6">
-      <!-- Batch Name -->
-      <div class="space-y-2">
-        <label for="name" class="text-sm font-medium">Batch Name (optional)</label>
-        <input 
-          type="text" 
-          id="name" 
-          name="name"
-          placeholder="e.g., GPT-4o vs Claude Sonnet"
-          class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-      </div>
-
-      <!-- Game Count -->
-      <div class="space-y-2">
-        <label for="totalGames" class="text-sm font-medium">Number of Games</label>
-        <input 
-          type="number" 
-          id="totalGames" 
-          name="totalGames"
-          min="1" 
-          max="10000" 
-          value="10"
-          class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-      </div>
-
-      <!-- Team Configuration -->
-      <div class="space-y-4">
-        <h3 class="text-sm font-medium">Team Configuration</h3>
-        
-        <!-- Player Count -->
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <label for="playerCount" class="text-sm text-muted-foreground">Total Players</label>
-            <select 
-              id="playerCount" 
-              name="playerCount"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-            >
-              {[5, 6, 7, 8, 9, 10, 11, 12].map(n => (
-                <option value={n} selected={n === 11}>{n} players</option>
-              ))}
-            </select>
-          </div>
-          <div class="space-y-2">
-            <label for="mafiaCount" class="text-sm text-muted-foreground">Mafia Count</label>
-            <select 
-              id="mafiaCount" 
-              name="mafiaCount"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-            >
-              {[1, 2, 3].map(n => (
-                <option value={n} selected={n === 2}>{n} mafia</option>
-              ))}
-            </select>
-          </div>
+      <form id="batchForm" class="space-y-8">
+        <!-- Batch Name -->
+        <div class="space-y-2">
+          <label for="name" class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Batch Name</label>
+          <input 
+            type="text" 
+            id="name" 
+            name="name"
+            placeholder="e.g., GPT-4o vs Claude Sonnet"
+            class="w-full px-3 py-2.5 border rounded-md bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground focus:border-foreground transition-colors"
+          />
         </div>
 
-        <!-- Model Selection -->
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
-              <span class="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
-              Mafia Model
-            </div>
-            <ModelSelector 
-              client:load 
-              team="mafia"
-              placeholder="Select mafia model..."
-              inputId="modelA"
-            />
-            <input type="hidden" id="modelA" name="modelA" value="" />
-          </div>
-          <div class="space-y-2">
-            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
-              <span class="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-              Town Model
-            </div>
-            <ModelSelector 
-              client:load 
-              team="town"
-              placeholder="Select town model..."
-              inputId="modelB"
-            />
-            <input type="hidden" id="modelB" name="modelB" value="" />
-          </div>
+        <!-- Game Count -->
+        <div class="space-y-2">
+          <label for="totalGames" class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Number of Games</label>
+          <input 
+            type="number" 
+            id="totalGames" 
+            name="totalGames"
+            min="1" 
+            max="10000" 
+            value="10"
+            class="w-full px-3 py-2.5 border rounded-md bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground focus:border-foreground transition-colors tabular-nums"
+          />
         </div>
-      </div>
 
-      <!-- Options -->
-      <div class="space-y-3">
-        <h3 class="text-sm font-medium">Options</h3>
+        <!-- Team Configuration -->
+        <div class="space-y-4">
+          <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Team Configuration</h3>
+          
+          <!-- Player Count -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label for="playerCount" class="text-xs text-muted-foreground">Total Players</label>
+              <select 
+                id="playerCount" 
+                name="playerCount"
+                class="w-full px-3 py-2.5 border rounded-md bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+              >
+                {[5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                  <option value={n} selected={n === 11}>{n} players</option>
+                ))}
+              </select>
+            </div>
+            <div class="space-y-2">
+              <label for="mafiaCount" class="text-xs text-muted-foreground">Mafia Count</label>
+              <select 
+                id="mafiaCount" 
+                name="mafiaCount"
+                class="w-full px-3 py-2.5 border rounded-md bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+              >
+                {[1, 2, 3].map(n => (
+                  <option value={n} selected={n === 2}>{n} mafia</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" id="useBatchAPI" name="useBatchAPI" class="rounded" />
-          <span class="text-sm">Use Batch API (50% cheaper, 24h delay)</span>
-        </label>
-      </div>
+          <!-- Model Selection -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span class="inline-block w-2 h-2 bg-rose-500 rounded-full"></span>
+                Mafia Model
+              </div>
+              <ModelSelector 
+                client:load 
+                team="mafia"
+                placeholder="Select model..."
+                inputId="modelA"
+              />
+              <input type="hidden" id="modelA" name="modelA" value="" />
+            </div>
+            <div class="space-y-2">
+              <div class="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span class="inline-block w-2 h-2 bg-indigo-500 rounded-full"></span>
+                Town Model
+              </div>
+              <ModelSelector 
+                client:load 
+                team="town"
+                placeholder="Select model..."
+                inputId="modelB"
+              />
+              <input type="hidden" id="modelB" name="modelB" value="" />
+            </div>
+          </div>
 
-      <!-- Submit -->
-      <div class="flex gap-3 lg:hidden">
-        <button 
-          type="submit"
-          class="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-        >
-          Launch Batch
-        </button>
-        <a 
-          href="/admin/batches"
-          class="px-4 py-2 border rounded-md hover:bg-muted transition-colors"
-        >
-          Cancel
-        </a>
-      </div>
-    </form>
+          <button 
+            type="button"
+            id="randomFreeBtn"
+            class="w-full px-3 py-2.5 text-sm border border-dashed rounded-md hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"></path>
+              <path d="m18 2 4 4-4 4"></path>
+              <path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"></path>
+              <path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"></path>
+              <path d="m18 14 4 4-4 4"></path>
+            </svg>
+            Random Free Models
+          </button>
+        </div>
+
+        <!-- Options -->
+        <div class="space-y-3">
+          <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Options</h3>
+
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" id="useBatchAPI" name="useBatchAPI" class="rounded border-muted-foreground/50" />
+            <span class="text-sm">Batch API (50% cheaper, 24h delay)</span>
+          </label>
+        </div>
+
+        <!-- Submit (Mobile) -->
+        <div class="flex gap-3 lg:hidden">
+          <button 
+            type="submit"
+            class="flex-1 px-4 py-2.5 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            Launch Batch
+          </button>
+          <a 
+            href="/admin/batches"
+            class="px-4 py-2.5 border rounded-md text-sm hover:bg-muted transition-colors"
+          >
+            Cancel
+          </a>
+        </div>
+      </form>
 
       <!-- Right: Sticky Cost Receipt -->
       <div class="hidden lg:block">
         <div class="sticky top-20 space-y-4">
           <!-- Receipt Panel -->
-          <div class="border-2 rounded-lg p-6 bg-gradient-to-br from-primary/5 to-transparent space-y-4">
-            <h3 class="font-bold text-lg">Cost Estimate</h3>
+          <div class="border rounded-lg p-6 space-y-5 bg-card">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Cost Estimate</h3>
             
             <div class="space-y-3">
               <div class="flex items-center justify-between text-sm">
@@ -171,10 +186,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
             <div class="h-px bg-border"></div>
 
             <div class="flex items-baseline justify-between">
-              <span class="font-semibold">Total Cost</span>
-              <div class="text-right">
-                <div id="receipt-cost" class="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">$0.00</div>
-              </div>
+              <span class="text-sm text-muted-foreground">Total</span>
+              <div id="receipt-cost" class="text-3xl font-bold tabular-nums">$0.00</div>
             </div>
           </div>
 
@@ -182,13 +195,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           <button 
             type="submit"
             form="batchForm"
-            class="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-sm"
+            class="w-full px-4 py-3 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             Launch Batch
           </button>
           <a 
             href="/admin/batches"
-            class="block text-center px-4 py-2 border rounded-lg text-sm hover:bg-muted transition-colors"
+            class="block text-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancel
           </a>
@@ -199,7 +212,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 </Layout>
 
 <script define:vars={{ apiUrl }}>
-  // Auth check
   const credentials = sessionStorage.getItem('adminCredentials');
   if (!credentials) {
     window.location.href = '/admin/login?redirect=/admin/batches/new';
@@ -210,17 +222,78 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     'Content-Type': 'application/json'
   } : { 'Content-Type': 'application/json' };
 
+  const randomFreeBtn = document.getElementById('randomFreeBtn');
+  if (randomFreeBtn) {
+    randomFreeBtn.addEventListener('click', async () => {
+      randomFreeBtn.disabled = true;
+      randomFreeBtn.innerHTML = `
+        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        Picking...
+      `;
+
+      try {
+        const res = await fetch(`${apiUrl}/api/models/openrouter`);
+        if (!res.ok) throw new Error('Failed to fetch models');
+        
+        const data = await res.json();
+        
+        const freeModels = [];
+        for (const provider of data.providers) {
+          const models = data.modelsByProvider[provider] || [];
+          for (const model of models) {
+            if (model.pricing.inputPer1M === 0 && model.pricing.outputPer1M === 0) {
+              freeModels.push(model);
+            }
+          }
+        }
+
+        if (freeModels.length < 2) {
+          alert('Not enough free models available');
+          return;
+        }
+
+        const shuffled = freeModels.sort(() => Math.random() - 0.5);
+        const modelA = shuffled[0];
+        const modelB = shuffled[1];
+
+        window.dispatchEvent(new CustomEvent('selectModel', { 
+          detail: { inputId: 'modelA', modelId: modelA.id } 
+        }));
+        window.dispatchEvent(new CustomEvent('selectModel', { 
+          detail: { inputId: 'modelB', modelId: modelB.id } 
+        }));
+
+      } catch (err) {
+        console.error('Failed to fetch free models:', err);
+        alert('Failed to fetch models');
+      } finally {
+        randomFreeBtn.disabled = false;
+        randomFreeBtn.innerHTML = `
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"></path>
+            <path d="m18 2 4 4-4 4"></path>
+            <path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"></path>
+            <path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"></path>
+            <path d="m18 14 4 4-4 4"></path>
+          </svg>
+          Random Free Models
+        `;
+      }
+    });
+  }
+
   const form = document.getElementById('batchForm');
   const totalGamesInput = document.getElementById('totalGames');
 
-  // Update estimate on any change
   const updateTriggers = ['totalGames', 'playerCount', 'mafiaCount', 'useBatchAPI'];
   updateTriggers.forEach(id => {
     document.getElementById(id)?.addEventListener('change', updateEstimate);
     document.getElementById(id)?.addEventListener('input', updateEstimate);
   });
   
-  // Update receipt games count when totalGames changes
   if (totalGamesInput) {
     totalGamesInput.addEventListener('input', () => {
       const receiptGames = document.getElementById('receipt-games');
@@ -281,10 +354,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     }
   }
 
-  // Initial estimate
   updateEstimate();
 
-  // Form submission
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -295,7 +366,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       const modelB = document.getElementById('modelB').value;
       
       if (!modelA || !modelB) {
-        alert('Please select both mafia and town models');
+        alert('Please select both models');
         return;
       }
       
@@ -310,7 +381,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
         const batchNameInput = String(formData.get('name') || '').trim();
         
-        // Auto-generate batch name if not provided
         let batchName = batchNameInput || `Mafia vs Town ${new Date().toLocaleDateString()}`;
 
         const res = await fetch(`${apiUrl}/api/admin/batches`, {

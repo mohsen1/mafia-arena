@@ -504,6 +504,9 @@ export class GameRunner extends DurableObject<Env> {
    *   Useful for live watching where frontend connects via WebSocket
    */
   private async handleStart(request: Request): Promise<Response> {
+    // #region agent log
+    console.log('[DEBUG-A] handleStart called', { timestamp: Date.now() });
+    // #endregion
     const currentState = await this.loadState();
     
     // Check if game is stuck in "running" state - use appropriate threshold
@@ -608,6 +611,9 @@ export class GameRunner extends DurableObject<Env> {
       // Background mode: Return immediately, run game via waitUntil
       // This is used for live watching where frontend connects via WebSocket
       if (background) {
+        // #region agent log
+        console.log('[DEBUG-A] Starting background game', { gameId, batchId, discountPricing });
+        // #endregion
         this.ctx.waitUntil(this.runGameWithErrorHandling(gameId, batchId, gameConfig));
         return Response.json({ 
           success: true, 
@@ -673,14 +679,23 @@ export class GameRunner extends DurableObject<Env> {
     batchId: string, 
     gameConfig: GameConfig
   ): Promise<void> {
+    // #region agent log
+    console.log('[DEBUG-A] runGameWithErrorHandling started', { gameId, batchId });
+    // #endregion
     const gameLog = this.log.child({ gameId, batchId });
     
     try {
       gameLog.info('Starting background game execution');
       await this.runGame(gameId, batchId, gameConfig);
+      // #region agent log
+      console.log('[DEBUG-A] runGame completed successfully', { gameId });
+      // #endregion
       gameLog.info('Background game execution completed successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      // #region agent log
+      console.log('[DEBUG-A] Background game FAILED', { gameId, errorMessage, eventCount: this.eventLog.length });
+      // #endregion
       logErrorWithStack(gameLog, 'Background game failed', error, {
         eventCount: this.eventLog.length,
       });
@@ -957,10 +972,19 @@ export class GameRunner extends DurableObject<Env> {
 
     // Create and run the game with live streaming
     gameLog.info('Creating game instance');
+    // #region agent log
+    console.log('[DEBUG-B] Creating Game instance', { gameId, playerCount: config.playerCount, mafiaCount: config.mafiaCount });
+    // #endregion
     const game = new Game(config, aiAdapter, { gameId, onEvent });
     
     gameLog.info('Running game loop');
+    // #region agent log
+    console.log('[DEBUG-B] About to call game.run()', { gameId });
+    // #endregion
     const result = await game.run();
+    // #region agent log
+    console.log('[DEBUG-B] game.run() completed', { gameId, winner: result.winner, rounds: result.rounds });
+    // #endregion
 
     const durationMs = Date.now() - startTime;
     gameLog.info('Game completed', { 
