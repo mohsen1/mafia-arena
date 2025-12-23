@@ -269,14 +269,13 @@ export class GameAIAdapter implements AIProvider {
           message: '*signals agreement with a subtle nod*',
         };
       case 'kill_vote':
-        // Pick a random target if available
+        // Pick a random target if available, or use empty string (will be handled by game engine)
         const killTarget = validTargets && validTargets.length > 0
-          ? validTargets[Math.floor(Math.random() * validTargets.length)]
+          ? validTargets[Math.floor(Math.random() * validTargets.length)]!
           : '';
         return {
           type: 'kill_vote',
           target: killTarget,
-          reasoning: 'Strategic elimination.',
         };
       case 'elimination_vote':
         // Abstain rather than vote randomly
