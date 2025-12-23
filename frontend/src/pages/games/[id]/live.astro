@@ -193,7 +193,18 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     if (!el) return;
     
     if (connected) {
-      if (options.polling) {
+      if (options.warning) {
+        // Warning state - amber color for stuck/slow games
+        el.innerHTML = `
+          <div class="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <span id="poll-heartbeat" class="relative flex h-2 w-2">
+              <span class="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 heartbeat-ping"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            <span>${message || 'Warning'}</span>
+            <span id="poll-event-flash" class="hidden text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 font-medium transition-all duration-300">+1</span>
+          </div>`;
+      } else if (options.polling) {
         el.innerHTML = `
           <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
             <span id="poll-heartbeat" class="relative flex h-2 w-2">
@@ -716,10 +727,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   let lastPollEventCount = 0;
   
   // Polling backoff configuration
-  const BASE_POLL_DELAY = 2000;      // Start at 2 seconds
-  const MAX_POLL_DELAY = 30000;      // Cap at 30 seconds
+  const BASE_POLL_DELAY = 1500;      // Start at 1.5 seconds (faster initial)
+  const MAX_POLL_DELAY = 15000;      // Cap at 15 seconds (faster recovery)
   let currentPollDelay = BASE_POLL_DELAY;
   let consecutivePollErrors = 0;
+  
+  // Health check configuration - detect stuck games
+  let lastHealthCheck = 0;
+  const HEALTH_CHECK_INTERVAL = 30000; // Check health every 30 seconds
+  let gameHealthy = true;
   
   function fallbackToPolling() {
     updateConnectionStatus(true, 'Polling mode', { polling: true });
@@ -789,6 +805,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           return; // Stop polling
         }
         
+        // Periodic health check for running games
+        if (data.status === 'running' && Date.now() - lastHealthCheck > HEALTH_CHECK_INTERVAL) {
+          checkGameHealth();
+        }
+        
         // Schedule next poll (may have different delay after backoff reset)
         scheduleNextPoll();
         
@@ -818,6 +839,37 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
     // Start first poll immediately
     poll();
+  }
+  
+  // Check game health to detect stuck games
+  async function checkGameHealth() {
+    lastHealthCheck = Date.now();
+    try {
+      const res = await fetch(`${apiUrl}/api/games/${gameId}/health`);
+      const data = await res.json();
+      
+      if (data.healthStatus === 'critical') {
+        gameHealthy = false;
+        updateConnectionStatus(true, `Game may be stuck: ${data.healthMessage}`, { polling: true, warning: true });
+        console.warn('Game health check failed:', data);
+      } else if (data.healthStatus === 'warning') {
+        updateConnectionStatus(true, `${data.healthMessage}`, { polling: true, warning: true });
+      } else if (!gameHealthy) {
+        // Was unhealthy, now healthy - reset status
+        gameHealthy = true;
+        updateConnectionStatus(true, 'Polling mode', { polling: true });
+      }
+      
+      // Update current phase/round display if available
+      if (data.execution?.currentPhase && data.execution?.currentRound) {
+        const statusText = document.getElementById('status-text');
+        if (statusText) {
+          statusText.textContent = `Round ${data.execution.currentRound} · ${getPhaseConfig(data.execution.currentPhase).label}`;
+        }
+      }
+    } catch (e) {
+      console.warn('Health check error:', e);
+    }
   }
 
   connect();
