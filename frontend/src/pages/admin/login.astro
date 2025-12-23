@@ -92,8 +92,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         throw new Error('Failed to verify credentials');
       }
 
-      // Store credentials and redirect
+      // Store credentials and mark admin as unlocked
       sessionStorage.setItem('adminCredentials', credentials);
+      localStorage.setItem('adminUnlocked', 'true');
       window.location.href = redirect;
     } catch (err) {
       errorEl.textContent = err.message;
