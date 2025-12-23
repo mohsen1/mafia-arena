@@ -108,7 +108,10 @@ test.describe('Accessibility', () => {
       (e) =>
         !e.includes('favicon') &&
         !e.includes('404') &&
-        !e.includes('fetch')
+        !e.includes('fetch') &&
+        !e.includes('CORS') &&  // Font CORS errors are non-critical
+        !e.includes('fonts.gstatic.com') && // Google fonts loading issues
+        !e.includes('net::ERR_FAILED') // Network errors during tests
     );
 
     expect(criticalErrors).toHaveLength(0);

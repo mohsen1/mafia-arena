@@ -161,8 +161,12 @@ describe('AI Fallback Detection', () => {
       
       const response = await adapter.getAction(context, prompt);
       
-      // The raw response should indicate fallback was used
-      expect(response.rawResponse).toContain('fallback');
+      // Fallback is indicated by: null vote target (abstention)
+      // This happens because all parse retries were exhausted
+      expect(response.action.type).toBe('elimination_vote');
+      expect(response.action.target).toBeNull();
+      // Raw response should still contain the original (invalid) response from the provider
+      expect(response.rawResponse).toContain('Invalid response');
     });
   });
 
@@ -243,8 +247,12 @@ describe('AI Fallback Detection', () => {
         },
       };
       
+      // Use a small context limit so our test prompt exceeds the threshold
+      // Token counting: ~4 chars per token, so 1200 chars ≈ 300 tokens
+      // With a 400 token limit and 50% threshold, safe limit = 200 tokens
+      // 300 > 200, so this should exceed
       const contextLimits = new Map<string, number>([
-        ['test/model', 2000], // Very small limit for testing
+        ['test/model', 400], // Small limit so our test exceeds it
       ]);
       
       const adapter = new GameAIAdapter(
@@ -269,17 +277,20 @@ describe('AI Fallback Detection', () => {
         },
       };
       
-      // Create a large prompt that exceeds 50% of context
+      // Create a prompt that exceeds 50% of the small context limit
+      // 500 + 700 = 1200 chars ≈ 300 tokens (with ~4 chars per token estimate)
       const prompt: ActionPrompt = {
         type: 'introduction',
-        systemPrompt: 'A'.repeat(500), // ~500 tokens
-        userPrompt: 'B'.repeat(700),   // ~700 tokens  
+        systemPrompt: 'A'.repeat(500),
+        userPrompt: 'B'.repeat(700),
         validTargets: [],
       };
       
       // The context usage check should happen and log a warning
       const usage = adapter.checkContextUsage('test/model', prompt.systemPrompt, prompt.userPrompt);
       
+      // 300 tokens / 400 limit = 75%, safe limit = 200 tokens
+      // 300 > 200, so exceeds = true
       expect(usage.exceeds).toBe(true);
       expect(usage.percentUsed).toBeGreaterThan(50);
       
