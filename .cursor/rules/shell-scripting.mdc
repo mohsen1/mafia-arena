@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+
+
+Do not get stuck. always use a `timeout` to ensure commands you run exit at some time eventually 
