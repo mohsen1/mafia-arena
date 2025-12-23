@@ -316,7 +316,8 @@ export type GameEvent =
   | VoteEvent
   | EliminationEvent
   | GameEndEvent
-  | AIParseErrorEvent;
+  | AIParseErrorEvent
+  | SummarizationEvent;
 
 export interface AIParseErrorEvent {
   readonly type: 'ai_parse_error';
@@ -430,6 +431,26 @@ export interface GameEndEvent {
     readonly mafiaAlive: number;
     readonly townAlive: number;
   };
+  readonly timestamp: number;
+}
+
+/**
+ * Event emitted when conversation history is summarized to fit within model context limits.
+ * This allows the frontend to indicate which rounds were summarized.
+ */
+export interface SummarizationEvent {
+  readonly type: 'summarization';
+  readonly round: number;
+  /** The range of rounds that were summarized [start, end] */
+  readonly roundRangeSummarized: readonly [number, number];
+  /** The model that triggered the summarization */
+  readonly modelId: string;
+  /** Estimated tokens saved by summarization */
+  readonly tokensSaved: number;
+  /** Token count of the summary */
+  readonly summaryTokens: number;
+  /** Original token count before summarization */
+  readonly originalTokens: number;
   readonly timestamp: number;
 }
 

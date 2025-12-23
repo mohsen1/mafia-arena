@@ -47,7 +47,7 @@ export { OpenRouterProvider } from './providers/OpenRouterProvider.js';
 export { createProvider, createProvidersForGame, type CreateProviderOptions } from './factory.js';
 
 // Game adapter
-export { GameAIAdapter } from './GameAIAdapter.js';
+export { GameAIAdapter, type GameAIAdapterOptions } from './GameAIAdapter.js';
 
 // Zod schemas for action validation
 export {
@@ -67,4 +67,22 @@ export type {
   MafiaDiscussionInput,
   EliminationVoteInput,
 } from './schemas.js';
+
+// Context limits
+export {
+  getModelContextLimit,
+  getModelContextLimits,
+  isSmallContextModel,
+  getSafePromptLimit,
+  getSummarizationThreshold,
+} from './contextLimits.js';
+
+// Summarization service
+export {
+  SummarizationService,
+  createSummarizationService,
+  type GameSummary,
+  type SummarizationCheck,
+  type ContextBuildResult,
+} from './SummarizationService.js';
 
