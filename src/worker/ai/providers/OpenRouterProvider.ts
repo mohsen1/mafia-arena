@@ -108,7 +108,10 @@ export class OpenRouterProvider extends BaseProvider {
 
     let data = await response.json();
 
-    // Fallback: If model doesn't support tool_choice, retry without it
+    // Fallback chain for models with limited feature support
+    // Level 1: If tool_choice fails, try response_format: json_object
+    // Level 2: If response_format fails, rely on prompt instructions only
+    
     if (!response.ok && useStructuredOutput) {
       const error = data as { error?: { message?: string; code?: number } };
       const isToolChoiceError = 
@@ -117,9 +120,9 @@ export class OpenRouterProvider extends BaseProvider {
         error.error?.code === 404;
       
       if (isToolChoiceError) {
-        console.warn(`Model ${this.openRouterModelId} doesn't support tool_choice, retrying without structured output`);
+        console.warn(`Model ${this.openRouterModelId} doesn't support tool_choice, retrying with response_format`);
         
-        // Retry without tool_choice - just use JSON mode prompt
+        // Retry without tool_choice - try JSON mode
         delete body.tools;
         delete body.tool_choice;
         body.response_format = { type: 'json_object' };
@@ -143,6 +146,33 @@ export class OpenRouterProvider extends BaseProvider {
         
         data = await response.json();
         useStructuredOutput = false; // Don't try to extract from tool_calls
+        
+        // Level 2: If response_format also fails, retry without it
+        if (!response.ok) {
+          const formatError = data as { error?: { message?: string; code?: number; metadata?: { raw?: string } } };
+          const isResponseFormatError = 
+            formatError.error?.message?.includes('response_format') ||
+            formatError.error?.metadata?.raw?.includes('response_format');
+          
+          if (isResponseFormatError) {
+            console.warn(`Model ${this.openRouterModelId} doesn't support response_format either, retrying with prompt instructions only`);
+            
+            delete body.response_format;
+            
+            response = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+                'HTTP-Referer': 'https://mafia-arena.me-f9a.workers.dev',
+                'X-Title': 'Mafia Arena',
+              },
+              body: JSON.stringify(body),
+            });
+            
+            data = await response.json();
+          }
+        }
       }
     }
 
