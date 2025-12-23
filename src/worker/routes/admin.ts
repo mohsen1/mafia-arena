@@ -488,10 +488,9 @@ admin.post('/games/:id/complete', async (c) => {
       SET status = 'completed', 
           winner = ?,
           rounds = ?,
-          completed_at = ?,
           updated_at = ?
       WHERE id = ?
-    `).bind(winner, rounds, now, now, gameId).run();
+    `).bind(winner, rounds, now, gameId).run();
     
     // Also update daily stats
     const today = new Date().toISOString().slice(0, 10);
