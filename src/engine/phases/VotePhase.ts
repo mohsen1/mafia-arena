@@ -12,6 +12,7 @@ import type {
   EliminationEvent,
   PhaseStartEvent,
   PhaseEndEvent,
+  GameEvent,
 } from '../types.js';
 import { resolveVotes } from '../utils/votes.js';
 import { getVisibleState, getValidEliminationTargets, formatPlayerListShuffled } from '../utils/visibility.js';
@@ -23,17 +24,30 @@ export interface VotePhaseResult {
   readonly votes: ReadonlyMap<string, string | null>;
 }
 
+/** Optional callback for streaming events during phase execution */
+export type PhaseEventCallback = (event: GameEvent) => void | Promise<void>;
+
 /**
  * Execute the voting phase.
  * Each alive player votes to eliminate someone.
+ * @param onEvent Optional callback to stream events in real-time
  */
 export async function executeVotePhase(
   initialState: GameState,
-  aiProvider: AIProvider
+  aiProvider: AIProvider,
+  onEvent?: PhaseEventCallback
 ): Promise<VotePhaseResult> {
   let state = initialState.withPhase('day_vote');
   const alivePlayers = state.alivePlayers;
   const votes = new Map<string, string | null>();
+
+  // Helper to add event to state and optionally emit it
+  const emitEvent = async (event: GameEvent): Promise<void> => {
+    state = state.withEvent(event);
+    if (onEvent) {
+      await onEvent(event);
+    }
+  };
 
   // Add phase start event
   const phaseStartEvent: PhaseStartEvent = {
@@ -42,7 +56,7 @@ export async function executeVotePhase(
     round: state.round,
     timestamp: Date.now(),
   };
-  state = state.withEvent(phaseStartEvent);
+  await emitEvent(phaseStartEvent);
 
   // Collect votes from each player
   for (const player of alivePlayers) {
@@ -108,7 +122,7 @@ export async function executeVotePhase(
       latencyMs: response.latencyMs,
       timestamp: Date.now(),
     };
-    state = state.withEvent(aiCallEvent);
+    await emitEvent(aiCallEvent);
 
     // Record the vote
     if (response.action.type === 'elimination_vote') {
@@ -127,7 +141,7 @@ export async function executeVotePhase(
           targetId,
           timestamp: Date.now(),
         };
-        state = state.withEvent(voteEvent);
+        await emitEvent(voteEvent);
       }
     }
   }
@@ -155,7 +169,7 @@ export async function executeVotePhase(
       team: eliminated.team,
       timestamp: Date.now(),
     };
-    state = state.withEvent(eliminationEvent);
+    await emitEvent(eliminationEvent);
   }
 
   // Add phase end event
@@ -165,7 +179,7 @@ export async function executeVotePhase(
     round: state.round,
     timestamp: Date.now(),
   };
-  state = state.withEvent(phaseEndEvent);
+  await emitEvent(phaseEndEvent);
 
   return { state, eliminated, votes };
 }

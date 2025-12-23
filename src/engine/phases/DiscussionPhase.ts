@@ -11,6 +11,7 @@ import type {
   PhaseStartEvent,
   PhaseEndEvent,
   ConversationMessage,
+  GameEvent,
 } from '../types.js';
 import { getVisibleState } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS } from '../utils/prompts.js';
@@ -23,16 +24,29 @@ export interface DiscussionPhaseResult {
   readonly messages: readonly ConversationMessage[];
 }
 
+/** Optional callback for streaming events during phase execution */
+export type PhaseEventCallback = (event: GameEvent) => void | Promise<void>;
+
 /**
  * Execute the discussion phase.
  * Each alive player shares their thoughts across multiple discussion rounds.
+ * @param onEvent Optional callback to stream events in real-time
  */
 export async function executeDiscussionPhase(
   initialState: GameState,
-  aiProvider: AIProvider
+  aiProvider: AIProvider,
+  onEvent?: PhaseEventCallback
 ): Promise<DiscussionPhaseResult> {
   let state = initialState.withPhase('day_discussion');
   const messages: ConversationMessage[] = [];
+
+  // Helper to add event to state and optionally emit it
+  const emitEvent = async (event: GameEvent): Promise<void> => {
+    state = state.withEvent(event);
+    if (onEvent) {
+      await onEvent(event);
+    }
+  };
 
   // Get the number of discussion rounds from config
   const numRounds = state.config.dayDiscussionRounds ?? DEFAULT_DAY_DISCUSSION_ROUNDS;
@@ -44,7 +58,7 @@ export async function executeDiscussionPhase(
     round: state.round,
     timestamp: Date.now(),
   };
-  state = state.withEvent(phaseStartEvent);
+  await emitEvent(phaseStartEvent);
 
   // Execute multiple discussion rounds
   for (let discussionRound = 1; discussionRound <= numRounds; discussionRound++) {
@@ -109,7 +123,7 @@ export async function executeDiscussionPhase(
         latencyMs: response.latencyMs,
         timestamp: Date.now(),
       };
-      state = state.withEvent(aiCallEvent);
+      await emitEvent(aiCallEvent);
 
       // Extract and record the discussion message
       if (response.action.type === 'discussion') {
@@ -135,7 +149,7 @@ export async function executeDiscussionPhase(
           channel: 'public',
           discussionRound,
         };
-        state = state.withEvent(discussionEvent);
+        await emitEvent(discussionEvent);
       }
     }
   }
@@ -147,7 +161,7 @@ export async function executeDiscussionPhase(
     round: state.round,
     timestamp: Date.now(),
   };
-  state = state.withEvent(phaseEndEvent);
+  await emitEvent(phaseEndEvent);
 
   return { state, messages };
 }
