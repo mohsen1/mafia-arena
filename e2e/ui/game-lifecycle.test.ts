@@ -29,6 +29,9 @@ async function isWorkerRunning(request: any): Promise<boolean> {
 }
 
 test.describe('Game Lifecycle', () => {
+  // Run tests serially to avoid overwhelming the worker
+  test.describe.configure({ mode: 'serial' });
+  
   // Games can take some time to complete
   test.setTimeout(120000);
 
@@ -100,7 +103,11 @@ test.describe('Game Lifecycle', () => {
       },
     });
 
-    expect(createResponse.ok()).toBe(true);
+    if (!createResponse.ok()) {
+      const errorBody = await createResponse.text();
+      console.error(`Game creation failed: ${createResponse.status()} - ${errorBody}`);
+    }
+    expect(createResponse.ok(), `Expected 200 OK but got ${createResponse.status()}`).toBe(true);
     const result = await createResponse.json();
     const gameId = result.gameId;
 
@@ -152,7 +159,11 @@ test.describe('Game Lifecycle', () => {
       },
     });
 
-    expect(createResponse.ok()).toBe(true);
+    if (!createResponse.ok()) {
+      const errorBody = await createResponse.text();
+      console.error(`Game creation failed: ${createResponse.status()} - ${errorBody}`);
+    }
+    expect(createResponse.ok(), `Expected 200 OK but got ${createResponse.status()}`).toBe(true);
     const result = await createResponse.json();
     const gameId = result.gameId;
 
@@ -190,6 +201,8 @@ test.describe('Game Lifecycle', () => {
 });
 
 test.describe('Game Scenarios', () => {
+  // Run tests serially to avoid overwhelming the worker
+  test.describe.configure({ mode: 'serial' });
   test.setTimeout(120000);
 
   test('test/town-wins scenario completes successfully', async ({ request }) => {
