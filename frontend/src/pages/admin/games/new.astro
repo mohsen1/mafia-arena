@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { ArrowLeft, Play, Radio, Users, Shield, Sword } from 'lucide-astro';
+import { ArrowLeft, Play, Radio, Users, Shield, Sword, Shuffle } from 'lucide-astro';
 import ModelSelector from '../../../components/ui/ModelSelector';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
@@ -90,6 +90,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
             <input type="hidden" id="modelB" name="modelB" value="" />
           </div>
         </div>
+
+        <button 
+          type="button"
+          id="randomFreeBtn"
+          class="w-full px-3 py-2 text-sm border border-dashed rounded-lg hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <Shuffle size={14} />
+          Pick Two Random Free Models
+        </button>
       </section>
 
       <div id="launch-status" class="hidden border rounded-lg p-4 bg-muted/30">
@@ -128,6 +137,73 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     'Authorization': `Basic ${credentials}`,
     'Content-Type': 'application/json'
   } : { 'Content-Type': 'application/json' };
+
+  // Random free models button handler
+  const randomFreeBtn = document.getElementById('randomFreeBtn');
+  if (randomFreeBtn) {
+    randomFreeBtn.addEventListener('click', async () => {
+      randomFreeBtn.disabled = true;
+      randomFreeBtn.innerHTML = `
+        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        Picking...
+      `;
+
+      try {
+        const res = await fetch(`${apiUrl}/api/models/openrouter`);
+        if (!res.ok) throw new Error('Failed to fetch models');
+        
+        const data = await res.json();
+        
+        // Collect all free models
+        const freeModels = [];
+        for (const provider of data.providers) {
+          const models = data.modelsByProvider[provider] || [];
+          for (const model of models) {
+            if (model.pricing.inputPer1M === 0 && model.pricing.outputPer1M === 0) {
+              freeModels.push(model);
+            }
+          }
+        }
+
+        if (freeModels.length < 2) {
+          alert('Not enough free models available');
+          return;
+        }
+
+        // Shuffle and pick two different models
+        const shuffled = freeModels.sort(() => Math.random() - 0.5);
+        const modelA = shuffled[0];
+        const modelB = shuffled[1];
+
+        // Dispatch custom events to update the ModelSelector components
+        window.dispatchEvent(new CustomEvent('selectModel', { 
+          detail: { inputId: 'modelA', modelId: modelA.id } 
+        }));
+        window.dispatchEvent(new CustomEvent('selectModel', { 
+          detail: { inputId: 'modelB', modelId: modelB.id } 
+        }));
+
+      } catch (err) {
+        console.error('Failed to fetch free models:', err);
+        alert('Failed to fetch models. Please try again.');
+      } finally {
+        randomFreeBtn.disabled = false;
+        randomFreeBtn.innerHTML = `
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"></path>
+            <path d="m18 2 4 4-4 4"></path>
+            <path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"></path>
+            <path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"></path>
+            <path d="m18 14 4 4-4 4"></path>
+          </svg>
+          Pick Two Random Free Models
+        `;
+      }
+    });
+  }
 
   const form = document.getElementById('liveGameForm');
 

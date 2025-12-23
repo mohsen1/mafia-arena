@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { Plus, ChevronLeft, ChevronRight, Filter } from 'lucide-astro';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-astro';
 
 const url = Astro.url;
 const status = url.searchParams.get('status') || '';
@@ -17,50 +17,53 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <div class="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-          <a href="/admin" class="hover:underline">Admin</a>
+        <div class="flex items-center gap-2 text-xs text-muted-foreground font-mono mb-2">
+          <a href="/admin" class="hover:text-foreground transition-colors">admin</a>
           <span>/</span>
-          <span>Batches</span>
+          <span>batches</span>
         </div>
-        <h1 class="text-2xl font-bold tracking-tight">Batch Jobs</h1>
+        <h1 class="text-2xl font-bold tracking-tight">Batch Operations</h1>
       </div>
       <a 
         href="/admin/batches/new" 
-        class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:bg-muted transition-colors"
       >
-        <Plus size={16} />
+        <Plus size={14} class="text-muted-foreground" />
         New Batch
       </a>
     </div>
 
     <!-- Filters -->
-    <div class="flex items-center gap-2">
-      <Filter size={16} class="text-muted-foreground" />
+    <div class="flex items-center gap-3 pb-4 border-b">
+      <span class="text-xs uppercase tracking-wider text-muted-foreground font-medium">Filter</span>
       <div class="flex gap-1">
         {statuses.map(s => (
           <a 
             href={`/admin/batches${s ? `?status=${s}` : ''}`}
             class:list={[
-              "px-3 py-1.5 text-sm rounded-md transition-colors",
+              "px-3 py-1.5 text-sm rounded transition-colors",
               (status === s || (!status && !s)) 
-                ? "bg-primary text-primary-foreground" 
-                : "hover:bg-muted"
+                ? "bg-foreground text-background font-medium" 
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
             ]}
           >
-            {s || 'All'}
+            {s || 'all'}
           </a>
         ))}
       </div>
     </div>
 
     <!-- Loading -->
-    <div id="loading" class="flex items-center justify-center py-10">
-      <div class="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
+    <div id="loading" class="flex items-center justify-center py-16">
+      <div class="flex flex-col items-center gap-3">
+        <div class="w-6 h-6 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin"></div>
+        <span class="text-sm text-muted-foreground font-mono">Loading...</span>
+      </div>
     </div>
 
     <!-- Error -->
-    <div id="error" class="hidden border border-destructive/50 bg-destructive/10 rounded-lg p-4">
-      <p id="error-text" class="text-destructive"></p>
+    <div id="error" class="hidden border border-red-500/30 bg-red-500/5 rounded-lg p-4">
+      <p id="error-text" class="text-red-600 dark:text-red-400"></p>
     </div>
 
     <!-- Content -->
@@ -68,17 +71,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       <!-- Table -->
       <div class="border rounded-lg overflow-hidden">
         <table class="w-full text-sm">
-          <thead class="bg-muted/50 border-b">
+          <thead class="border-b bg-muted/30">
             <tr>
-              <th class="text-left p-3 font-medium">Batch</th>
-              <th class="text-left p-3 font-medium">Status</th>
-              <th class="text-right p-3 font-medium">Progress</th>
-              <th class="text-right p-3 font-medium">Cost</th>
-              <th class="text-right p-3 font-medium">Created</th>
-              <th class="text-right p-3 font-medium">Duration</th>
+              <th class="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Batch</th>
+              <th class="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+              <th class="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Progress</th>
+              <th class="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Cost</th>
+              <th class="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Created</th>
+              <th class="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Duration</th>
             </tr>
           </thead>
-          <tbody id="tbody" class="divide-y"></tbody>
+          <tbody id="tbody" class="divide-y divide-border/50"></tbody>
         </table>
       </div>
 
@@ -86,11 +89,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       <div id="pagination" class="hidden flex items-center justify-between">
         <p id="pagination-info" class="text-sm text-muted-foreground"></p>
         <div class="flex items-center gap-1">
-          <a id="prev-link" href="#" class="p-2 rounded-md transition-colors hover:bg-muted">
+          <a id="prev-link" href="#" class="p-2 rounded transition-colors hover:bg-muted text-muted-foreground hover:text-foreground">
             <ChevronLeft size={16} />
           </a>
-          <span id="page-info" class="px-3 text-sm tabular-nums"></span>
-          <a id="next-link" href="#" class="p-2 rounded-md transition-colors hover:bg-muted">
+          <span id="page-info" class="px-3 text-sm tabular-nums text-muted-foreground"></span>
+          <a id="next-link" href="#" class="p-2 rounded transition-colors hover:bg-muted text-muted-foreground hover:text-foreground">
             <ChevronRight size={16} />
           </a>
         </div>
@@ -100,18 +103,24 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 </Layout>
 
 <script define:vars={{ status, page, limit, offset, apiUrl }}>
-  const statusColors = {
-    queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-    paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  const STATUS_COLORS = {
+    queued: { text: 'color: rgb(217 119 6)', darkText: 'color: rgb(251 191 36)' },
+    processing: { text: 'color: rgb(37 99 235)', darkText: 'color: rgb(96 165 250)' },
+    completed: { text: 'color: rgb(5 150 105)', darkText: 'color: rgb(52 211 153)' },
+    cancelled: { text: 'color: var(--muted-foreground)', darkText: 'color: var(--muted-foreground)' },
+    paused: { text: 'color: rgb(217 119 6)', darkText: 'color: rgb(251 191 36)' },
   };
 
   function escapeHtml(val) {
     if (val === null || val === undefined) return '';
     const str = typeof val === 'string' ? val : String(val);
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/`/g, '&#96;');
+  }
+
+  function getStatusStyle(status) {
+    const isDark = document.documentElement.classList.contains('dark');
+    const colors = STATUS_COLORS[status] || STATUS_COLORS.cancelled;
+    return isDark ? colors.darkText : colors.text;
   }
 
   async function init() {
@@ -146,7 +155,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
       const tbody = document.getElementById('tbody');
       if (data.batches.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-muted-foreground">No batches found</td></tr>`;
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-12 text-center">
+              <div class="flex flex-col items-center gap-2">
+                <span class="text-muted-foreground">No batches found</span>
+                <a href="/admin/batches/new" class="text-sm text-foreground hover:underline">Create a batch →</a>
+              </div>
+            </td>
+          </tr>`;
       } else {
         tbody.innerHTML = data.batches.map(batch => {
           const duration = batch.completedAt && batch.startedAt 
@@ -161,32 +178,32 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
           return `
             <tr class="hover:bg-muted/30 transition-colors">
-              <td class="p-3">
+              <td class="py-3 px-4">
                 <a href="/admin/batches/${escapeHtml(batch.id)}" class="hover:underline">
                   <div class="font-medium">${escapeHtml(batch.name || batch.id)}</div>
                   <div class="text-xs text-muted-foreground font-mono">${escapeHtml(batch.id)}</div>
                 </a>
               </td>
-              <td class="p-3">
-                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[batch.status]}">${batch.status}</span>
+              <td class="py-3 px-4">
+                <span class="text-xs font-medium uppercase tracking-wide" style="${getStatusStyle(batch.status)}">${batch.status}</span>
               </td>
-              <td class="p-3 text-right">
-                <div class="flex items-center justify-end gap-2">
-                  <span class="tabular-nums text-xs">
+              <td class="py-3 px-4 text-right">
+                <div class="flex items-center justify-end gap-3">
+                  <span class="tabular-nums text-muted-foreground">
                     ${batch.completedGames}/${batch.totalGames}
-                    ${batch.failedGames > 0 ? `<span class="text-destructive"> (${batch.failedGames} failed)</span>` : ''}
+                    ${batch.failedGames > 0 ? `<span class="text-red-500"> (${batch.failedGames})</span>` : ''}
                   </span>
-                  <div class="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div class="h-full bg-primary" style="width: ${batch.progress}%"></div>
+                  <div class="w-20 h-1 rounded-full overflow-hidden bg-muted">
+                    <div class="h-full bg-foreground/60 transition-all" style="width: ${batch.progress}%"></div>
                   </div>
                 </div>
               </td>
-              <td class="p-3 text-right tabular-nums">
+              <td class="py-3 px-4 text-right tabular-nums text-muted-foreground">
                 <div>$${batch.actualCostUsd.toFixed(4)}</div>
-                ${batch.estimatedCostUsd ? `<div class="text-xs text-muted-foreground">/ $${batch.estimatedCostUsd.toFixed(2)} est</div>` : ''}
+                ${batch.estimatedCostUsd ? `<div class="text-xs opacity-60">/ $${batch.estimatedCostUsd.toFixed(2)}</div>` : ''}
               </td>
-              <td class="p-3 text-right text-muted-foreground tabular-nums">${new Date(batch.createdAt * 1000).toLocaleString()}</td>
-              <td class="p-3 text-right tabular-nums">${durationStr}</td>
+              <td class="py-3 px-4 text-right text-muted-foreground tabular-nums">${new Date(batch.createdAt * 1000).toLocaleString()}</td>
+              <td class="py-3 px-4 text-right tabular-nums text-muted-foreground">${durationStr}</td>
             </tr>
           `;
         }).join('');
@@ -196,20 +213,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       const totalPages = Math.ceil(data.total / limit);
       if (totalPages > 1) {
         document.getElementById('pagination').classList.remove('hidden');
-        document.getElementById('pagination-info').textContent = `Showing ${offset + 1}-${Math.min(offset + limit, data.total)} of ${data.total}`;
+        document.getElementById('pagination-info').textContent = `${offset + 1}–${Math.min(offset + limit, data.total)} of ${data.total}`;
         document.getElementById('page-info').textContent = `${page} / ${totalPages}`;
 
         const prevLink = document.getElementById('prev-link');
         const nextLink = document.getElementById('next-link');
         
         if (page <= 1) {
-          prevLink.classList.add('pointer-events-none', 'opacity-50');
+          prevLink.classList.add('pointer-events-none', 'opacity-30');
         } else {
           prevLink.href = `/admin/batches?page=${page - 1}${status ? `&status=${status}` : ''}`;
         }
 
         if (page >= totalPages) {
-          nextLink.classList.add('pointer-events-none', 'opacity-50');
+          nextLink.classList.add('pointer-events-none', 'opacity-30');
         } else {
           nextLink.href = `/admin/batches?page=${page + 1}${status ? `&status=${status}` : ''}`;
         }

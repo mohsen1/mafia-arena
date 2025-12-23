@@ -56,6 +56,9 @@ export class OpenRouterProvider extends BaseProvider {
   }
 
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
+    // #region agent log
+    console.log('[DEBUG-B] AI complete() called', { modelId: this.modelId, promptLen: request.systemPrompt.length + request.userPrompt.length });
+    // #endregion
     const startTime = Date.now();
 
     const messages = [
@@ -144,10 +147,16 @@ export class OpenRouterProvider extends BaseProvider {
     }
 
     if (!response.ok) {
+      // #region agent log
+      console.log('[DEBUG-B] OpenRouter HTTP error', { modelId: this.modelId, status: response.status, error: JSON.stringify(data).slice(0, 500) });
+      // #endregion
       console.error(`OpenRouter error for ${this.openRouterModelId}:`, JSON.stringify(data));
       this.handleHttpError(response, data);
     }
 
+    // #region agent log
+    console.log('[DEBUG-B] OpenRouter API success', { modelId: this.modelId, latencyMs: Date.now() - startTime });
+    // #endregion
     const typedData = data as OpenRouterResponse;
     const latencyMs = Date.now() - startTime;
 

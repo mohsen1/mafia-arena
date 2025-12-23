@@ -1,167 +1,183 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut, Radio, Database, RefreshCw } from 'lucide-astro';
+import { Plus, AlertTriangle, LogOut, Radio, Database, RefreshCw, Layers, Activity, Zap, ChevronRight } from 'lucide-astro';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
-<Layout title="Admin Dashboard">
-  <div id="admin-content" class="space-y-6">
+<Layout title="Admin">
+  <div id="admin-content">
     <!-- Loading state -->
-    <div id="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    <div id="loading" class="flex items-center justify-center py-32">
+      <div class="flex flex-col items-center gap-4">
+        <div class="relative">
+          <div class="w-10 h-10 border-2 border-foreground/20 rounded-full"></div>
+          <div class="absolute inset-0 w-10 h-10 border-2 border-foreground border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <span class="text-sm text-muted-foreground font-mono">Loading...</span>
+      </div>
     </div>
 
     <!-- Error state (hidden initially) -->
-    <div id="error-container" class="hidden border border-destructive/50 bg-destructive/10 rounded-lg p-4 flex items-start gap-3">
-      <AlertTriangle class="text-destructive shrink-0 mt-0.5" size={18} />
-      <div>
-        <p class="font-medium text-destructive">Failed to load dashboard</p>
-        <p id="error-message" class="text-sm text-muted-foreground"></p>
+    <div id="error-container" class="hidden max-w-md mx-auto mt-20">
+      <div class="border border-red-500/30 bg-red-500/5 rounded-lg p-6">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+            <AlertTriangle class="text-red-500" size={20} />
+          </div>
+          <div>
+            <p class="font-semibold text-foreground">Connection Failed</p>
+            <p id="error-message" class="text-sm text-muted-foreground mt-1"></p>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Dashboard content (hidden initially) -->
-    <div id="dashboard" class="hidden space-y-6">
-      <!-- Header -->
-      <div class="flex items-center justify-between">
+    <div id="dashboard" class="hidden">
+      <!-- Header Section -->
+      <header class="flex items-start justify-between gap-4 mb-8">
         <div>
-          <h1 class="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p class="text-sm text-muted-foreground">Manage batch jobs and monitor system health</p>
+          <div class="flex items-center gap-3 mb-1">
+            <h1 class="text-2xl font-bold tracking-tight">Control Panel</h1>
+            <span id="live-badge" class="hidden items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span class="relative flex h-1.5 w-1.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              </span>
+              LIVE
+            </span>
+          </div>
+          <p class="text-muted-foreground text-sm">Manage game operations and monitor system health</p>
         </div>
         <button 
           id="logoutBtn"
-          class="inline-flex items-center gap-2 px-3 py-2 border rounded-md text-sm hover:bg-muted transition-colors"
+          class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <LogOut size={16} />
-          Logout
+          <LogOut size={14} />
+          <span>Exit</span>
         </button>
-      </div>
+      </header>
 
-      <!-- Quick Actions - At the top -->
-      <section class="flex flex-wrap gap-3">
-        <a href="/admin/games/new" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
-          <Radio size={16} />
-          <span>Run Live Game</span>
-        </a>
-
-        <a href="/admin/batches/new" class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus size={16} />
-          <span>New Batch</span>
-        </a>
-
-        <a href="/admin/batches" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
-          <Layers size={16} />
-          <span>Manage Batches</span>
-        </a>
-
-        <a href="/admin/models" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
-          <Database size={16} />
-          <span>Manage Models</span>
-        </a>
-
-        <button 
-          id="syncModelsBtn"
-          class="inline-flex items-center gap-2 px-4 py-2 border border-purple-500/50 text-purple-600 dark:text-purple-400 rounded-md text-sm font-medium hover:bg-purple-500/10 transition-colors"
-          title="Sync models from OpenRouter"
-        >
-          <RefreshCw size={16} id="syncIcon" />
-          <span id="sync-btn-text">Sync Models</span>
-        </button>
-
-        <button 
-          id="killHangingBtn"
-          class="inline-flex items-center gap-2 px-4 py-2 border border-red-500/50 text-red-600 dark:text-red-400 rounded-md text-sm font-medium hover:bg-red-500/10 transition-colors"
-          title="Kill games running >10 minutes"
-        >
-          <AlertTriangle size={16} />
-          <span id="kill-btn-text">Kill Hanging Games</span>
-          <span id="hanging-count" class="hidden px-1.5 py-0.5 rounded-full bg-red-500/20 text-xs font-bold tabular-nums"></span>
-        </button>
-      </section>
-
-      <!-- Mission Control HUD -->
-      <div class="border-2 rounded-lg p-6 bg-gradient-to-br from-primary/5 to-transparent space-y-4">
+      <!-- System Status Banner -->
+      <div id="system-banner" class="mb-8 rounded-lg border-l-4 p-4 transition-all border-muted bg-muted/30">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div id="status-pulse" class="relative w-4 h-4">
-              <span class="absolute inline-flex h-full w-full rounded-full opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-4 w-4"></span>
-            </div>
+          <div class="flex items-center gap-4">
+            <div id="status-indicator" class="w-3 h-3 rounded-full bg-muted-foreground"></div>
             <div>
-              <h2 class="text-lg font-bold">System Control</h2>
-              <p id="status-subtitle" class="text-xs text-muted-foreground">Initializing...</p>
+              <span id="status-label" class="font-semibold text-sm uppercase tracking-wide"></span>
+              <p id="status-description" class="text-sm text-muted-foreground"></p>
             </div>
           </div>
           <button 
             id="toggleSystem"
-            class="px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm"
+            class="px-4 py-2 rounded text-sm font-medium transition-all bg-muted text-muted-foreground"
           >
             <span id="toggle-text">Toggle</span>
           </button>
         </div>
       </div>
 
-      <!-- Stats Grid -->
-      <div class="grid gap-4 md:grid-cols-2">
-        <!-- Active Operations -->
-        <div class="border rounded-lg p-5 space-y-3 bg-gradient-to-br from-indigo-500/5 to-transparent">
-          <div class="flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400">
-            <Layers size={18} />
-            <span>Active Operations</span>
+      <!-- Quick Actions -->
+      <nav class="flex flex-wrap items-center gap-2 mb-8 pb-8 border-b">
+        <a href="/admin/games/new" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors">
+          <Radio size={14} class="text-muted-foreground" />
+          <span>New Game</span>
+        </a>
+        <a href="/admin/batches/new" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors">
+          <Plus size={14} class="text-muted-foreground" />
+          <span>New Batch</span>
+        </a>
+        <a href="/admin/batches" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors">
+          <Layers size={14} class="text-muted-foreground" />
+          <span>Batches</span>
+        </a>
+        <a href="/admin/models" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors">
+          <Database size={14} class="text-muted-foreground" />
+          <span>Models</span>
+        </a>
+        
+        <div class="flex-1"></div>
+        
+        <button 
+          id="syncModelsBtn"
+          class="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          title="Sync models from OpenRouter"
+        >
+          <RefreshCw size={14} id="syncIcon" />
+          <span id="sync-btn-text">Sync</span>
+        </button>
+
+        <button 
+          id="killHangingBtn"
+          class="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
+          title="Kill games running >10 minutes"
+        >
+          <AlertTriangle size={14} />
+          <span id="kill-btn-text">Kill Stale</span>
+          <span id="hanging-count" class="hidden px-1.5 py-0.5 rounded text-xs font-bold tabular-nums bg-red-500 text-white"></span>
+        </button>
+      </nav>
+
+      <!-- Metrics Grid -->
+      <div class="grid gap-6 md:grid-cols-3 mb-8">
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <Layers size={12} />
+            <span>Active Batches</span>
           </div>
-          <div>
-            <div id="batches-active" class="text-3xl font-bold tabular-nums">—</div>
-            <div class="text-xs text-muted-foreground">active batches</div>
+          <div id="batches-active" class="text-4xl font-bold tabular-nums tracking-tight">—</div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <Activity size={12} />
+            <span>Games Running</span>
           </div>
-          <div class="space-y-1">
-            <p id="games-running" class="text-sm font-medium text-emerald-600 dark:text-emerald-400 hidden">
-              <span class="relative inline-flex h-2 w-2 mr-1.5">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>— running now</span>
-            </p>
-            <p id="games-queued" class="text-sm text-muted-foreground">— games queued</p>
+          <div class="flex items-baseline gap-3">
+            <div id="games-running-count" class="text-4xl font-bold tabular-nums tracking-tight">—</div>
+            <span id="games-queued-label" class="text-sm text-muted-foreground">— queued</span>
           </div>
         </div>
 
-        <!-- Cost Tracking -->
-        <div class="border rounded-lg p-5 space-y-3 bg-gradient-to-br from-emerald-500/5 to-transparent">
-          <div class="flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-            <DollarSign size={18} />
-            <span>Cost Today</span>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <Zap size={12} />
+            <span>Spent Today</span>
           </div>
-          <div>
-            <div id="cost-today" class="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">$—</div>
-            <div class="text-xs text-muted-foreground">spent today</div>
-          </div>
+          <div id="cost-today" class="text-4xl font-bold tabular-nums tracking-tight">$—</div>
         </div>
       </div>
 
       <!-- Recent Batches -->
-      <section class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="font-semibold">Recent Batches</h2>
-          <a href="/admin/batches" class="text-sm text-muted-foreground hover:text-foreground">
-            View all →
+      <section>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent Batches</h2>
+          <a href="/admin/batches" class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <span>View all</span>
+            <ChevronRight size={14} />
           </a>
         </div>
 
         <div class="border rounded-lg overflow-hidden">
           <table class="w-full text-sm">
-            <thead class="bg-muted/50 border-b">
+            <thead class="border-b bg-muted/30">
               <tr>
-                <th class="text-left p-3 font-medium">Name</th>
-                <th class="text-left p-3 font-medium">Status</th>
-                <th class="text-right p-3 font-medium">Progress</th>
-                <th class="text-right p-3 font-medium">Cost</th>
-                <th class="text-right p-3 font-medium">Created</th>
+                <th class="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Name</th>
+                <th class="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                <th class="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Progress</th>
+                <th class="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Cost</th>
+                <th class="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Created</th>
               </tr>
             </thead>
-            <tbody id="batches-table" class="divide-y">
+            <tbody id="batches-table" class="divide-y divide-border/50">
               <tr>
-                <td colspan="5" class="p-8 text-center text-muted-foreground">Loading...</td>
+                <td colspan="5" class="py-12 text-center text-muted-foreground">
+                  <div class="flex flex-col items-center gap-2">
+                    <div class="w-6 h-6 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin"></div>
+                    <span class="text-sm">Loading batches...</span>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -172,12 +188,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 </Layout>
 
 <script define:vars={{ apiUrl }}>
-  const statusColors = {
-    queued: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-    paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  const STATUS_COLORS = {
+    queued: { text: 'color: rgb(217 119 6)', darkText: 'color: rgb(251 191 36)' },
+    processing: { text: 'color: rgb(37 99 235)', darkText: 'color: rgb(96 165 250)' },
+    completed: { text: 'color: rgb(5 150 105)', darkText: 'color: rgb(52 211 153)' },
+    cancelled: { text: 'color: var(--muted-foreground)', darkText: 'color: var(--muted-foreground)' },
+    paused: { text: 'color: rgb(217 119 6)', darkText: 'color: rgb(251 191 36)' },
   };
 
   function escapeHtml(val) {
@@ -186,8 +202,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/`/g, '&#96;');
   }
 
+  function getStatusStyle(status) {
+    const isDark = document.documentElement.classList.contains('dark');
+    const colors = STATUS_COLORS[status] || STATUS_COLORS.cancelled;
+    return isDark ? colors.darkText : colors.text;
+  }
+
   async function init() {
-    // Check for auth
     const credentials = sessionStorage.getItem('adminCredentials');
     if (!credentials) {
       window.location.href = '/admin/login?redirect=/admin';
@@ -197,7 +218,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     const headers = { 'Authorization': `Basic ${credentials}` };
 
     try {
-      // Load stats and batches
       const [statsRes, batchesRes] = await Promise.all([
         fetch(`${apiUrl}/api/admin/stats/live`, { headers }),
         fetch(`${apiUrl}/api/admin/batches?limit=5`, { headers }),
@@ -216,105 +236,112 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       const stats = await statsRes.json();
       const batches = await batchesRes.json();
 
-      // Hide loading, show dashboard
       document.getElementById('loading')?.classList.add('hidden');
       document.getElementById('dashboard')?.classList.remove('hidden');
 
-      // Populate stats
-      const statusPulse = document.getElementById('status-pulse');
-      const statusSubtitle = document.getElementById('status-subtitle');
+      // System status banner - using inline styles for dynamic colors
+      const banner = document.getElementById('system-banner');
+      const indicator = document.getElementById('status-indicator');
+      const statusLabel = document.getElementById('status-label');
+      const statusDescription = document.getElementById('status-description');
       const toggleBtn = document.getElementById('toggleSystem');
       const toggleText = document.getElementById('toggle-text');
-      
-      if (statusPulse) {
-        if (stats.systemPaused) {
-          statusPulse.innerHTML = `
-            <span class="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-pulse-slow"></span>
-            <span class="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
-          `;
-        } else {
-          statusPulse.innerHTML = `
-            <span class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping"></span>
-            <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
-          `;
-        }
-      }
-      
-      if (statusSubtitle) {
-        statusSubtitle.textContent = stats.systemPaused 
-          ? 'Circuit breaker active - System paused' 
-          : 'System operational - Processing games';
-      }
-      
-      if (toggleBtn && toggleText) {
-        if (stats.systemPaused) {
-          toggleBtn.className = 'px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm bg-emerald-500 hover:bg-emerald-600 text-white';
-          toggleText.textContent = 'Resume System';
-        } else {
-          toggleBtn.className = 'px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm bg-amber-500 hover:bg-amber-600 text-white';
-          toggleText.textContent = 'Pause System';
-        }
-        toggleBtn.dataset.paused = String(stats.systemPaused);
-      }
+      const liveBadge = document.getElementById('live-badge');
 
+      if (stats.systemPaused) {
+        if (banner) {
+          banner.style.borderLeftColor = 'rgb(245 158 11)';
+          banner.style.backgroundColor = 'rgb(245 158 11 / 0.05)';
+        }
+        if (indicator) {
+          indicator.style.backgroundColor = 'rgb(245 158 11)';
+        }
+        if (statusLabel) statusLabel.textContent = 'Paused';
+        if (statusDescription) statusDescription.textContent = 'System is paused. New games will not be processed.';
+        if (toggleBtn) {
+          toggleBtn.style.backgroundColor = 'rgb(16 185 129 / 0.1)';
+          toggleBtn.style.color = document.documentElement.classList.contains('dark') ? 'rgb(52 211 153)' : 'rgb(5 150 105)';
+        }
+        if (toggleText) toggleText.textContent = 'Resume';
+      } else {
+        if (banner) {
+          banner.style.borderLeftColor = 'rgb(16 185 129)';
+          banner.style.backgroundColor = 'rgb(16 185 129 / 0.05)';
+        }
+        if (indicator) {
+          indicator.style.backgroundColor = 'rgb(16 185 129)';
+          indicator.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.6)';
+        }
+        if (statusLabel) statusLabel.textContent = 'Operational';
+        if (statusDescription) statusDescription.textContent = 'System is running. Processing games normally.';
+        if (toggleBtn) {
+          toggleBtn.style.backgroundColor = 'rgb(245 158 11 / 0.1)';
+          toggleBtn.style.color = document.documentElement.classList.contains('dark') ? 'rgb(251 191 36)' : 'rgb(217 119 6)';
+        }
+        if (toggleText) toggleText.textContent = 'Pause';
+        
+        if (stats.gamesRunning > 0 && liveBadge) {
+          liveBadge.classList.remove('hidden');
+          liveBadge.classList.add('inline-flex');
+        }
+      }
+      
+      if (toggleBtn) toggleBtn.dataset.paused = String(stats.systemPaused);
+
+      // Metrics
       const batchesActive = document.getElementById('batches-active');
       if (batchesActive) batchesActive.textContent = String(stats.batchesActive);
       
-      const gamesRunning = document.getElementById('games-running');
-      if (gamesRunning) {
-        if (stats.gamesRunning > 0) {
-          gamesRunning.classList.remove('hidden');
-          gamesRunning.innerHTML = `
-            <span class="relative inline-flex h-2 w-2 mr-1">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            ${stats.gamesRunning} running now
-          `;
-        } else {
-          gamesRunning.classList.add('hidden');
-        }
-      }
+      const gamesRunningCount = document.getElementById('games-running-count');
+      if (gamesRunningCount) gamesRunningCount.textContent = String(stats.gamesRunning);
       
-      const gamesQueued = document.getElementById('games-queued');
-      if (gamesQueued) gamesQueued.textContent = `${stats.gamesQueued.toLocaleString()} games in queue`;
+      const gamesQueuedLabel = document.getElementById('games-queued-label');
+      if (gamesQueuedLabel) gamesQueuedLabel.textContent = `${stats.gamesQueued.toLocaleString()} queued`;
       
       const costToday = document.getElementById('cost-today');
       if (costToday) costToday.textContent = `$${stats.costToday.toFixed(2)}`;
 
-      // Populate batches table
+      // Batches table
       const tbody = document.getElementById('batches-table');
       if (batches.batches.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-muted-foreground">No batches yet. <a href="/admin/batches/new" class="underline">Create one</a></td></tr>`;
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="py-12 text-center">
+              <div class="flex flex-col items-center gap-2">
+                <span class="text-muted-foreground">No batches yet</span>
+                <a href="/admin/batches/new" class="text-sm text-foreground hover:underline">Create your first batch →</a>
+              </div>
+            </td>
+          </tr>`;
       } else {
         tbody.innerHTML = batches.batches.map((batch) => `
           <tr class="hover:bg-muted/30 transition-colors">
-            <td class="p-3">
-              <a href="/admin/batches/${escapeHtml(batch.id)}" class="hover:underline font-medium">${escapeHtml(batch.name || batch.id)}</a>
+            <td class="py-3 px-4">
+              <a href="/admin/batches/${escapeHtml(batch.id)}" class="font-medium hover:underline">${escapeHtml(batch.name || batch.id)}</a>
             </td>
-            <td class="p-3">
-              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[batch.status]}">${batch.status}</span>
+            <td class="py-3 px-4">
+              <span class="text-xs font-medium uppercase tracking-wide" style="${getStatusStyle(batch.status)}">${batch.status}</span>
             </td>
-            <td class="p-3 text-right tabular-nums">
-              <div class="flex items-center justify-end gap-2">
-                <span>${batch.completedGames}/${batch.totalGames}</span>
-                <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div class="h-full bg-primary" style="width: ${batch.progress}%"></div>
+            <td class="py-3 px-4 text-right">
+              <div class="flex items-center justify-end gap-3">
+                <span class="tabular-nums text-muted-foreground">${batch.completedGames}/${batch.totalGames}</span>
+                <div class="w-16 h-1 rounded-full overflow-hidden bg-muted">
+                  <div class="h-full bg-foreground/60 transition-all" style="width: ${batch.progress}%"></div>
                 </div>
               </div>
             </td>
-            <td class="p-3 text-right tabular-nums">$${batch.actualCostUsd.toFixed(4)}</td>
-            <td class="p-3 text-right text-muted-foreground tabular-nums">${new Date(batch.createdAt * 1000).toLocaleDateString()}</td>
+            <td class="py-3 px-4 text-right tabular-nums text-muted-foreground">$${batch.actualCostUsd.toFixed(4)}</td>
+            <td class="py-3 px-4 text-right tabular-nums text-muted-foreground">${new Date(batch.createdAt * 1000).toLocaleDateString()}</td>
           </tr>
         `).join('');
       }
 
-      // Setup event handlers
+      // Event handlers
       if (toggleBtn && toggleText) {
         toggleBtn.addEventListener('click', async () => {
           const isPaused = toggleBtn.dataset.paused === 'true';
           toggleBtn.disabled = true;
-          toggleText.textContent = 'Processing...';
+          toggleText.textContent = '...';
 
           try {
             const endpoint = isPaused ? 'resume' : 'pause';
@@ -327,7 +354,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           } catch {
             alert('Failed to update system state');
             toggleBtn.disabled = false;
-            toggleText.textContent = isPaused ? 'Resume System' : 'Pause System';
+            toggleText.textContent = isPaused ? 'Resume' : 'Pause';
           }
         });
       }
@@ -337,10 +364,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         window.location.href = '/admin/login';
       });
 
-      // Load running games count
       loadRunningGamesCount(headers);
 
-      // Setup sync models button
       document.getElementById('syncModelsBtn')?.addEventListener('click', async () => {
         const btn = document.getElementById('syncModelsBtn');
         const btnText = document.getElementById('sync-btn-text');
@@ -348,7 +373,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         if (!btn || !btnText) return;
 
         btn.disabled = true;
-        btnText.textContent = 'Syncing...';
+        btnText.textContent = '...';
         syncIcon?.classList.add('animate-spin');
 
         try {
@@ -360,29 +385,28 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           if (!res.ok) throw new Error('Failed to sync models');
 
           const result = await res.json();
-          alert(`✅ Synced ${result.total} models from OpenRouter\n\nAdded: ${result.added}\nUpdated: ${result.updated}`);
+          alert(`Synced ${result.total} models\n\nAdded: ${result.added}\nUpdated: ${result.updated}`);
           
         } catch (err) {
-          alert(`❌ Failed to sync models: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          alert(`Failed to sync: ${err instanceof Error ? err.message : 'Unknown error'}`);
         } finally {
           btn.disabled = false;
-          btnText.textContent = 'Sync Models';
+          btnText.textContent = 'Sync';
           syncIcon?.classList.remove('animate-spin');
         }
       });
 
-      // Setup kill hanging games button
       document.getElementById('killHangingBtn')?.addEventListener('click', async () => {
         const btn = document.getElementById('killHangingBtn');
         const btnText = document.getElementById('kill-btn-text');
         if (!btn || !btnText) return;
 
-        if (!confirm('Kill all games that have been running for >10 minutes?\n\nThis will mark them as failed. This action cannot be undone.')) {
+        if (!confirm('Kill all games running >10 minutes?\n\nThis action cannot be undone.')) {
           return;
         }
 
         btn.disabled = true;
-        btnText.textContent = 'Killing...';
+        btnText.textContent = '...';
 
         try {
           const res = await fetch(`${apiUrl}/api/admin/games/kill-hanging`, {
@@ -390,17 +414,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
             headers,
           });
 
-          if (!res.ok) throw new Error('Failed to kill hanging games');
+          if (!res.ok) throw new Error('Failed');
 
           const result = await res.json();
-          alert(`✅ Killed ${result.killedCount} hanging game(s)`);
-          
-          // Reload page to refresh stats
+          alert(`Killed ${result.killedCount} stale game(s)`);
           window.location.reload();
         } catch (err) {
-          alert(`❌ Failed to kill hanging games: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          alert(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
           btn.disabled = false;
-          btnText.textContent = 'Kill Hanging Games';
+          btnText.textContent = 'Kill Stale';
         }
       });
 
@@ -423,7 +445,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       if (data.stale > 0 && hangingCount) {
         hangingCount.textContent = String(data.stale);
         hangingCount.classList.remove('hidden');
-        hangingCount.classList.add('animate-pulse');
       }
     } catch (err) {
       console.error('Failed to load running games count:', err);

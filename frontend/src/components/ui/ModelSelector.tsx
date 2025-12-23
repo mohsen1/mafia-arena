@@ -101,6 +101,20 @@ export function ModelSelector({
   // Use controlled value if provided, otherwise use internal state
   const value = controlledValue !== undefined ? controlledValue : internalValue
 
+  // Define handleChange before effects that use it
+  const handleChange = React.useCallback((newValue: string) => {
+    setInternalValue(newValue)
+    onChange?.(newValue)
+    
+    // Also sync with hidden input immediately
+    if (inputId && typeof document !== 'undefined') {
+      const input = document.getElementById(inputId) as HTMLInputElement | null
+      if (input) {
+        input.value = newValue
+      }
+    }
+  }, [onChange, inputId])
+
   // Sync with hidden input if inputId is provided
   React.useEffect(() => {
     if (inputId && typeof document !== 'undefined') {
@@ -110,6 +124,20 @@ export function ModelSelector({
       }
     }
   }, [inputId, value])
+
+  // Listen for external model selection events
+  React.useEffect(() => {
+    if (!inputId || typeof window === 'undefined') return
+    
+    const handleExternalSelect = (e: CustomEvent<{ inputId: string; modelId: string }>) => {
+      if (e.detail.inputId === inputId) {
+        handleChange(e.detail.modelId)
+      }
+    }
+    
+    window.addEventListener('selectModel', handleExternalSelect as EventListener)
+    return () => window.removeEventListener('selectModel', handleExternalSelect as EventListener)
+  }, [inputId, handleChange])
 
   // Fetch models from OpenRouter API
   React.useEffect(() => {
@@ -141,19 +169,6 @@ export function ModelSelector({
         setLoading(false)
       })
   }, [])
-
-  const handleChange = React.useCallback((newValue: string) => {
-    setInternalValue(newValue)
-    onChange?.(newValue)
-    
-    // Also sync with hidden input immediately
-    if (inputId && typeof document !== 'undefined') {
-      const input = document.getElementById(inputId) as HTMLInputElement | null
-      if (input) {
-        input.value = newValue
-      }
-    }
-  }, [onChange, inputId])
 
   // Find selected model details
   const selectedModel = React.useMemo(() => {

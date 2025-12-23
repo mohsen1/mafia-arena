@@ -148,56 +148,144 @@ export class GameAIAdapter implements AIProvider {
     // Get the appropriate JSON schema for this action type
     const structuredOutput = getSchemaForAction(prompt.type);
 
-    try {
-      const response = await provider.complete({
-        systemPrompt: prompt.systemPrompt,
-        userPrompt: prompt.userPrompt,
-        structuredOutput,
-        temperature: 0.7,
-        maxTokens: 4000,
-      });
+    const MAX_PARSE_RETRIES = 2;
+    let lastParseError: AIParseError | null = null;
+    let totalTokensUsed = { input: 0, output: 0 };
+    let rawResponse = '';
 
-      const latencyMs = Date.now() - startTime;
-      callLog.debug('AI response received', { 
-        latencyMs, 
-        inputTokens: response.tokensUsed.input,
-        outputTokens: response.tokensUsed.output,
-        contentLength: response.content.length,
-      });
+    for (let attempt = 0; attempt <= MAX_PARSE_RETRIES; attempt++) {
+      try {
+        // On retries, add a JSON reminder to the prompt
+        let userPrompt = prompt.userPrompt;
+        if (attempt > 0) {
+          userPrompt = `${prompt.userPrompt}\n\nIMPORTANT: You MUST respond with ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
+          callLog.info('Retrying AI call after parse error', { attempt, previousError: lastParseError?.parseError });
+        }
 
-      // Parse the response into a PlayerAction - throws AIParseError on failure
-      const action = this.parseAction(
-        response.content, 
-        prompt.type, 
-        prompt.validTargets,
-        context.modelId
-      );
-
-      callLog.debug('Action parsed successfully', { actionType: action.type });
-
-      return {
-        action,
-        rawResponse: response.content,
-        tokensUsed: {
-          input: response.tokensUsed.input,
-          output: response.tokensUsed.output,
-        },
-        latencyMs,
-      };
-    } catch (error) {
-      const latencyMs = Date.now() - startTime;
-      
-      if (error instanceof AIParseError) {
-        callLog.warn('AI parse error', { 
-          latencyMs,
-          parseError: error.parseError,
-          rawResponseLength: error.rawResponse.length,
+        const response = await provider.complete({
+          systemPrompt: prompt.systemPrompt,
+          userPrompt,
+          structuredOutput,
+          temperature: 0.7,
+          maxTokens: 4000,
         });
-      } else {
-        logErrorWithStack(callLog, 'AI call failed', error, { latencyMs });
+
+        const latencyMs = Date.now() - startTime;
+        totalTokensUsed.input += response.tokensUsed.input;
+        totalTokensUsed.output += response.tokensUsed.output;
+        rawResponse = response.content;
+
+        callLog.debug('AI response received', { 
+          latencyMs, 
+          attempt,
+          inputTokens: response.tokensUsed.input,
+          outputTokens: response.tokensUsed.output,
+          contentLength: response.content.length,
+        });
+
+        // Parse the response into a PlayerAction
+        const action = this.parseAction(
+          response.content, 
+          prompt.type, 
+          prompt.validTargets,
+          context.modelId
+        );
+
+        callLog.debug('Action parsed successfully', { actionType: action.type, attempt });
+
+        return {
+          action,
+          rawResponse: response.content,
+          tokensUsed: totalTokensUsed,
+          latencyMs,
+        };
+      } catch (error) {
+        const latencyMs = Date.now() - startTime;
+        
+        if (error instanceof AIParseError) {
+          lastParseError = error;
+          callLog.warn('AI parse error', { 
+            latencyMs,
+            attempt,
+            parseError: error.parseError,
+            rawResponseLength: error.rawResponse.length,
+          });
+          // Continue to retry
+        } else {
+          // Non-parse errors are fatal
+          logErrorWithStack(callLog, 'AI call failed', error, { latencyMs });
+          throw error;
+        }
       }
-      
-      throw error;
+    }
+
+    // All retries exhausted - generate a fallback response
+    callLog.warn('All parse retries exhausted, using fallback response', {
+      actionType: prompt.type,
+      attempts: MAX_PARSE_RETRIES + 1,
+    });
+
+    const fallbackAction = this.generateFallbackAction(prompt.type, prompt.validTargets);
+    const latencyMs = Date.now() - startTime;
+
+    return {
+      action: fallbackAction,
+      rawResponse: rawResponse || '[fallback - no valid response]',
+      tokensUsed: totalTokensUsed,
+      latencyMs,
+    };
+  }
+
+  /**
+   * Generate a fallback action when AI parsing fails after all retries.
+   */
+  private generateFallbackAction(
+    actionType: ActionPrompt['type'],
+    validTargets?: readonly string[]
+  ): PlayerAction {
+    switch (actionType) {
+      case 'persona_generation':
+        return {
+          type: 'persona_generation',
+          persona: {
+            name: 'Unknown Stranger',
+            background: 'A mysterious figure who keeps to themselves.',
+            personality: 'Reserved and cautious',
+          },
+        };
+      case 'introduction':
+        return {
+          type: 'introduction',
+          message: '*nods quietly* Good evening, everyone.',
+        };
+      case 'discussion':
+        return {
+          type: 'discussion',
+          message: '*remains silent, observing the others carefully*',
+        };
+      case 'mafia_discussion':
+        return {
+          type: 'mafia_discussion',
+          message: '*signals agreement with a subtle nod*',
+        };
+      case 'kill_vote':
+        // Pick a random target if available
+        const killTarget = validTargets && validTargets.length > 0
+          ? validTargets[Math.floor(Math.random() * validTargets.length)]
+          : '';
+        return {
+          type: 'kill_vote',
+          target: killTarget,
+          reasoning: 'Strategic elimination.',
+        };
+      case 'elimination_vote':
+        // Abstain rather than vote randomly
+        return {
+          type: 'elimination_vote',
+          target: null,
+        };
+      default:
+        throw new Error(`No fallback available for action type: ${actionType}`);
     }
   }
 
