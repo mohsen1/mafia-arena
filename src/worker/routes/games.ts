@@ -373,6 +373,32 @@ games.get('/:id/events', async (c) => {
 });
 
 /**
+ * GET /api/games/:id/health - Get detailed health status for a running game.
+ * Useful for monitoring and detecting stuck/crashed games.
+ * 
+ * Returns:
+ * - healthStatus: 'healthy' | 'warning' | 'critical' | 'idle' | 'completed'
+ * - heartbeat: When game last proved it's alive
+ * - activity: When game last made progress
+ * - execution: Current phase/round being executed
+ */
+games.get('/:id/health', async (c) => {
+  const env = c.env;
+  const gameId = c.req.param('id');
+
+  // Get the Durable Object instance for this game
+  const doId = env.GAME_RUNNER.idFromName(gameId);
+  const stub = env.GAME_RUNNER.get(doId);
+
+  // Forward the request to the Durable Object
+  const response = await stub.fetch(new Request('http://internal/health'));
+  const data = await response.json();
+
+  // Preserve HTTP status from DO (503 for critical health)
+  return c.json(data, response.status as 200 | 503);
+});
+
+/**
  * GET /api/games/:id/personas - Get personas for a specific game.
  */
 games.get('/:id/personas', async (c) => {

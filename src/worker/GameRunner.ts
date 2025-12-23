@@ -39,6 +39,12 @@ const STORAGE_KEYS = {
   GAME_STATE: 'gameState',
   /** Event log for WebSocket sync (persisted to survive eviction) */
   EVENT_LOG: 'eventLog',
+  /** Active heartbeat timestamp - proves game is actively running */
+  HEARTBEAT: 'heartbeat',
+  /** Current phase being executed (for debugging stuck games) */
+  CURRENT_PHASE: 'currentPhase',
+  /** Current round being executed */
+  CURRENT_ROUND: 'currentRound',
 } as const;
 
 /** 
@@ -101,6 +107,12 @@ interface GameRunnerState {
   discountPricing: boolean;
   /** Timestamp of last activity (AI call, event, etc.) */
   lastActivity: number | null;
+  /** Active heartbeat timestamp - proves game is actively running, not stuck */
+  heartbeat: number | null;
+  /** Current phase being executed (for debugging) */
+  currentPhase: string | null;
+  /** Current round being executed */
+  currentRound: number | null;
 }
 
 /** WebSocket message types for live streaming */
@@ -143,6 +155,12 @@ export class GameRunner extends DurableObject<Env> {
   
   /** Throttle interval for D1 activity updates (5 minutes) */
   private static readonly D1_ACTIVITY_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
+  
+  /** Heartbeat interval handle (for cleanup on game end) */
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  
+  /** Heartbeat interval in milliseconds (15 seconds) */
+  private static readonly HEARTBEAT_INTERVAL_MS = 15_000;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -205,7 +223,7 @@ export class GameRunner extends DurableObject<Env> {
 
     const storage = this.ctx.storage;
     
-    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId, discountPricing, lastActivity] = await Promise.all([
+    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId, discountPricing, lastActivity, heartbeat, currentPhase, currentRound] = await Promise.all([
       storage.get<GameRunnerState['status']>(STORAGE_KEYS.STATUS),
       storage.get<string>(STORAGE_KEYS.GAME_ID),
       storage.get<string>(STORAGE_KEYS.BATCH_ID),
@@ -216,6 +234,9 @@ export class GameRunner extends DurableObject<Env> {
       storage.get<string>(STORAGE_KEYS.TRACE_ID),
       storage.get<boolean>(STORAGE_KEYS.DISCOUNT_PRICING),
       storage.get<number>(STORAGE_KEYS.LAST_ACTIVITY),
+      storage.get<number>(STORAGE_KEYS.HEARTBEAT),
+      storage.get<string>(STORAGE_KEYS.CURRENT_PHASE),
+      storage.get<number>(STORAGE_KEYS.CURRENT_ROUND),
     ]);
 
     this.stateCache = {
@@ -229,6 +250,9 @@ export class GameRunner extends DurableObject<Env> {
       traceId: traceId ?? null,
       discountPricing: discountPricing ?? false,
       lastActivity: lastActivity ?? null,
+      heartbeat: heartbeat ?? null,
+      currentPhase: currentPhase ?? null,
+      currentRound: currentRound ?? null,
     };
 
     return this.stateCache;
@@ -284,6 +308,18 @@ export class GameRunner extends DurableObject<Env> {
     if (state.config !== undefined) {
       updates.push(storage.put(STORAGE_KEYS.CONFIG, state.config));
     }
+    if (state.heartbeat !== undefined) {
+      updates.push(storage.put(STORAGE_KEYS.HEARTBEAT, state.heartbeat));
+      if (this.stateCache) this.stateCache.heartbeat = state.heartbeat;
+    }
+    if (state.currentPhase !== undefined) {
+      updates.push(storage.put(STORAGE_KEYS.CURRENT_PHASE, state.currentPhase));
+      if (this.stateCache) this.stateCache.currentPhase = state.currentPhase;
+    }
+    if (state.currentRound !== undefined) {
+      updates.push(storage.put(STORAGE_KEYS.CURRENT_ROUND, state.currentRound));
+      if (this.stateCache) this.stateCache.currentRound = state.currentRound;
+    }
 
     await Promise.all(updates);
   }
@@ -308,6 +344,9 @@ export class GameRunner extends DurableObject<Env> {
 
         case '/events':
           return await this.handleGetEvents();
+
+        case '/health':
+          return await this.handleHealth();
 
         default:
           this.log.warn('Unknown path', { path: url.pathname });
@@ -422,6 +461,50 @@ export class GameRunner extends DurableObject<Env> {
       sessionCount: this.sessions.length 
     });
     this.sessions = this.sessions.filter(s => s !== ws);
+  }
+
+  /**
+   * Start the heartbeat interval.
+   * Heartbeat proves the game is actively running (not stuck waiting on AI).
+   * External health checks can use this to detect truly stuck games.
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat(); // Clear any existing interval
+    
+    const updateHeartbeat = async () => {
+      const now = Date.now();
+      try {
+        await this.ctx.storage.put(STORAGE_KEYS.HEARTBEAT, now);
+        if (this.stateCache) this.stateCache.heartbeat = now;
+        this.log.debug('Heartbeat updated', { timestamp: now });
+      } catch (error) {
+        this.log.warn('Failed to update heartbeat', { 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    };
+    
+    // Initial heartbeat
+    updateHeartbeat();
+    
+    // Periodic heartbeat (every 15 seconds)
+    this.heartbeatInterval = setInterval(() => {
+      updateHeartbeat();
+    }, GameRunner.HEARTBEAT_INTERVAL_MS);
+    
+    this.log.info('Heartbeat started', { intervalMs: GameRunner.HEARTBEAT_INTERVAL_MS });
+  }
+  
+  /**
+   * Stop the heartbeat interval.
+   * Called when game completes or fails.
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+      this.log.debug('Heartbeat stopped');
+    }
   }
 
   /**
@@ -694,6 +777,9 @@ export class GameRunner extends DurableObject<Env> {
       await this.runGame(gameId, batchId, gameConfig);
       gameLog.info('Background game execution completed successfully');
     } catch (error) {
+      // Ensure heartbeat is stopped on error
+      this.stopHeartbeat();
+      
       const errorMessage = error instanceof Error ? error.message : String(error);
       logErrorWithStack(gameLog, 'Background game failed', error, {
         eventCount: this.eventLog.length,
@@ -703,6 +789,8 @@ export class GameRunner extends DurableObject<Env> {
         status: 'failed',
         error: errorMessage,
         completedAt: Date.now(),
+        currentPhase: null,
+        currentRound: null,
       });
       gameLog.info('State saved as failed');
 
@@ -828,12 +916,99 @@ export class GameRunner extends DurableObject<Env> {
   }
 
   /**
+   * Get detailed health status for monitoring.
+   * This endpoint helps distinguish between:
+   * - Game actively running (heartbeat recent)
+   * - Game stuck/crashed (heartbeat stale)
+   * - Game waiting on slow AI (activity recent, heartbeat recent)
+   */
+  private async handleHealth(): Promise<Response> {
+    const state = await this.loadState();
+    const now = Date.now();
+    
+    // Calculate time since last heartbeat
+    const heartbeatAge = state.heartbeat ? now - state.heartbeat : null;
+    const activityAge = state.lastActivity ? now - state.lastActivity : null;
+    
+    // Health thresholds
+    const HEARTBEAT_STALE_THRESHOLD = 60_000;  // 1 minute without heartbeat = stale
+    const ACTIVITY_WARN_THRESHOLD = 5 * 60_000; // 5 min without activity = warning
+    
+    // Determine health status
+    let healthStatus: 'healthy' | 'warning' | 'critical' | 'idle' | 'completed';
+    let healthMessage: string;
+    
+    if (state.status === 'completed') {
+      healthStatus = 'completed';
+      healthMessage = 'Game completed successfully';
+    } else if (state.status === 'failed') {
+      healthStatus = 'critical';
+      healthMessage = `Game failed: ${state.error || 'Unknown error'}`;
+    } else if (state.status === 'idle') {
+      healthStatus = 'idle';
+      healthMessage = 'No game running';
+    } else if (state.status === 'running') {
+      // Game is supposed to be running - check heartbeat
+      if (heartbeatAge === null) {
+        // No heartbeat yet - might be just starting
+        healthStatus = 'warning';
+        healthMessage = 'Game starting, no heartbeat yet';
+      } else if (heartbeatAge > HEARTBEAT_STALE_THRESHOLD) {
+        // Heartbeat is stale - game might be stuck
+        healthStatus = 'critical';
+        healthMessage = `Heartbeat stale (${Math.round(heartbeatAge / 1000)}s ago), game may be stuck`;
+      } else if (activityAge && activityAge > ACTIVITY_WARN_THRESHOLD) {
+        // Heartbeat ok but no recent activity - slow AI or stuck in phase
+        healthStatus = 'warning';
+        healthMessage = `Waiting on AI (last activity ${Math.round(activityAge / 1000)}s ago)`;
+      } else {
+        healthStatus = 'healthy';
+        healthMessage = 'Game running normally';
+      }
+    } else {
+      healthStatus = 'warning';
+      healthMessage = `Unknown status: ${state.status}`;
+    }
+    
+    const response = {
+      status: state.status,
+      healthStatus,
+      healthMessage,
+      gameId: state.gameId,
+      heartbeat: {
+        timestamp: state.heartbeat,
+        ageMs: heartbeatAge,
+        isStale: heartbeatAge !== null && heartbeatAge > HEARTBEAT_STALE_THRESHOLD,
+      },
+      activity: {
+        timestamp: state.lastActivity,
+        ageMs: activityAge,
+      },
+      execution: {
+        currentPhase: state.currentPhase,
+        currentRound: state.currentRound,
+        startedAt: state.startedAt,
+        durationMs: state.startedAt ? now - state.startedAt : null,
+      },
+      eventCount: this.eventLog.length,
+      sessionCount: this.sessions.length,
+    };
+    
+    // Return 200 for healthy/warning, 503 for critical
+    const httpStatus = healthStatus === 'critical' ? 503 : 200;
+    return Response.json(response, { status: httpStatus });
+  }
+
+  /**
    * Run the game to completion.
    * Supports resumption from saved state after DO eviction.
    */
   private async runGame(gameId: string, batchId: string, config: GameConfig): Promise<void> {
     const gameLog = this.log.child({ gameId, batchId });
     const startTime = Date.now();
+    
+    // Start heartbeat to prove game is actively running
+    this.startHeartbeat();
     
     // Check if we have a saved game state to resume from
     const savedGameState = await this.ctx.storage.get<SerializedGameState>(STORAGE_KEYS.GAME_STATE);
@@ -899,13 +1074,18 @@ export class GameRunner extends DurableObject<Env> {
         }
       }
       
-      // Log phase transitions
+      // Log phase transitions and update current phase/round tracking
       if (event.type === 'phase_start') {
         gameLog.info('Phase started', { 
           phase: event.phase, 
           round: event.round,
           eventCount,
           discountPricing,
+        });
+        // Track current phase/round for health monitoring
+        await this.saveState({
+          currentPhase: event.phase,
+          currentRound: event.round,
         });
       }
 
@@ -1022,40 +1202,47 @@ export class GameRunner extends DurableObject<Env> {
       ...(savedGameState && { resumeFrom: savedGameState }),
     });
     
-    gameLog.info('Running game loop');
-    const result = await game.run();
+    try {
+      gameLog.info('Running game loop');
+      const result = await game.run();
 
-    const durationMs = Date.now() - startTime;
-    gameLog.info('Game completed', { 
-      winner: result.winner,
-      rounds: result.rounds,
-      eventCount,
-      durationMs,
-      totalTokens: result.tokenUsage.total,
-    });
+      const durationMs = Date.now() - startTime;
+      gameLog.info('Game completed', { 
+        winner: result.winner,
+        rounds: result.rounds,
+        eventCount,
+        durationMs,
+        totalTokens: result.tokenUsage.total,
+      });
 
-    // Persist results to D1/R2 (R2 transcript replaces streaming file)
-    gameLog.debug('Persisting results to D1/R2');
-    await this.persistResults(result, batchId);
+      // Persist results to D1/R2 (R2 transcript replaces streaming file)
+      gameLog.debug('Persisting results to D1/R2');
+      await this.persistResults(result, batchId);
 
-    // Update state
-    await this.saveState({
-      status: 'completed',
-      completedAt: Date.now(),
-    });
-    gameLog.info('State saved as completed');
+      // Update state
+      await this.saveState({
+        status: 'completed',
+        completedAt: Date.now(),
+        currentPhase: null,
+        currentRound: null,
+      });
+      gameLog.info('State saved as completed');
 
-    // Clean up checkpoint data (no longer needed after completion)
-    // Keep event log for WebSocket clients that may still be connected
-    await this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE);
-    gameLog.debug('Cleaned up game state checkpoint');
+      // Clean up checkpoint data (no longer needed after completion)
+      // Keep event log for WebSocket clients that may still be connected
+      await this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE);
+      gameLog.debug('Cleaned up game state checkpoint');
 
-    // Broadcast completion status
-    this.broadcast({
-      type: 'STATUS',
-      status: 'completed',
-      gameId,
-    });
+      // Broadcast completion status
+      this.broadcast({
+        type: 'STATUS',
+        status: 'completed',
+        gameId,
+      });
+    } finally {
+      // Always stop heartbeat when game ends (success or failure)
+      this.stopHeartbeat();
+    }
   }
 
   /**
