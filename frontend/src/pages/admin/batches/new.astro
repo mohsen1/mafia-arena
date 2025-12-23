@@ -1,22 +1,6 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { getModels } from '../../../lib/api';
-
-let models = [];
-let error = null;
-
-try {
-  models = await getModels();
-} catch (e) {
-  error = e instanceof Error ? e.message : 'Failed to load models';
-}
-
-// Group by provider
-const modelsByProvider = models.reduce((acc, m) => {
-  if (!acc[m.provider]) acc[m.provider] = [];
-  acc[m.provider].push(m);
-  return acc;
-}, {} as Record<string, typeof models>);
+import ModelSelector from '../../../components/ui/ModelSelector';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
@@ -37,12 +21,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         Configure and launch a batch of games (up to 10,000)
       </p>
     </div>
-
-    {error && (
-      <div class="border border-destructive/50 bg-destructive/10 rounded-lg p-4">
-        <p class="text-destructive">{error}</p>
-      </div>
-    )}
 
     <!-- Split Screen Layout -->
     <div class="grid lg:grid-cols-[1fr,400px] gap-6">
@@ -109,42 +87,30 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         <!-- Model Selection -->
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <label for="modelA" class="text-sm text-muted-foreground">
-              <span class="inline-block w-2 h-2 bg-red-500 rounded-full mr-1"></span>
+            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
+              <span class="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
               Mafia Model
-            </label>
-            <select 
-              id="modelA" 
-              name="modelA"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-            >
-              {Object.entries(modelsByProvider).map(([provider, providerModels]) => (
-                <optgroup label={provider}>
-                  {providerModels.map(m => (
-                    <option value={m.id}>{m.display_name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            </div>
+            <ModelSelector 
+              client:load 
+              team="mafia"
+              placeholder="Select mafia model..."
+              inputId="modelA"
+            />
+            <input type="hidden" id="modelA" name="modelA" value="" />
           </div>
           <div class="space-y-2">
-            <label for="modelB" class="text-sm text-muted-foreground">
-              <span class="inline-block w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+            <div class="text-sm text-muted-foreground flex items-center gap-1.5">
+              <span class="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
               Town Model
-            </label>
-            <select 
-              id="modelB" 
-              name="modelB"
-              class="w-full px-3 py-2 border rounded-md bg-background"
-            >
-              {Object.entries(modelsByProvider).map(([provider, providerModels]) => (
-                <optgroup label={provider}>
-                  {providerModels.map(m => (
-                    <option value={m.id}>{m.display_name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            </div>
+            <ModelSelector 
+              client:load 
+              team="town"
+              placeholder="Select town model..."
+              inputId="modelB"
+            />
+            <input type="hidden" id="modelB" name="modelB" value="" />
           </div>
         </div>
       </div>
@@ -232,7 +198,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   </div>
 </Layout>
 
-<script define:vars={{ apiUrl, modelsByProvider }}>
+<script define:vars={{ apiUrl }}>
   // Auth check
   const credentials = sessionStorage.getItem('adminCredentials');
   if (!credentials) {
@@ -246,43 +212,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
   const form = document.getElementById('batchForm');
   const totalGamesInput = document.getElementById('totalGames');
-  const estimatedCostEl = document.getElementById('estimatedCost');
-  const tokensPerGameEl = document.getElementById('tokensPerGame');
-  const totalTokensEl = document.getElementById('totalTokens');
-  const timeEstimateEl = document.getElementById('timeEstimate');
-  
-  // Create a map of model IDs to display names for batch name generation
-  const modelMap = new Map();
-  Object.values(modelsByProvider).flat().forEach(m => {
-    modelMap.set(m.id, m.display_name);
-  });
-
-  // Randomly select models from different providers on page load
-  const providers = Object.keys(modelsByProvider);
-  if (providers.length > 0) {
-    const shuffled = providers.sort(() => Math.random() - 0.5);
-    const modelA = document.getElementById('modelA');
-    const modelB = document.getElementById('modelB');
-    
-    // Select random model from first provider for Mafia
-    const mafiaProvider = shuffled[0];
-    const mafiaModels = modelsByProvider[mafiaProvider];
-    if (mafiaModels && mafiaModels.length > 0 && modelA) {
-      const randomMafia = mafiaModels[Math.floor(Math.random() * mafiaModels.length)];
-      modelA.value = randomMafia.id;
-    }
-    
-    // Select random model from different provider for Town (or same if only one provider)
-    const townProvider = shuffled.length > 1 ? shuffled[1] : shuffled[0];
-    const townModels = modelsByProvider[townProvider];
-    if (townModels && townModels.length > 0 && modelB) {
-      const randomTown = townModels[Math.floor(Math.random() * townModels.length)];
-      modelB.value = randomTown.id;
-    }
-  }
 
   // Update estimate on any change
-  const updateTriggers = ['totalGames', 'playerCount', 'mafiaCount', 'modelA', 'modelB', 'useBatchAPI'];
+  const updateTriggers = ['totalGames', 'playerCount', 'mafiaCount', 'useBatchAPI'];
   updateTriggers.forEach(id => {
     document.getElementById(id)?.addEventListener('change', updateEstimate);
     document.getElementById(id)?.addEventListener('input', updateEstimate);
@@ -358,6 +290,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       e.preventDefault();
       
       const submitBtn = form.querySelector('button[type="submit"]');
+      
+      const modelA = document.getElementById('modelA').value;
+      const modelB = document.getElementById('modelB').value;
+      
+      if (!modelA || !modelB) {
+        alert('Please select both mafia and town models');
+        return;
+      }
+      
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Launching...';
@@ -367,17 +308,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         const formData = new FormData(form);
         const playerCount = parseInt(String(formData.get('playerCount') || '11'));
         const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
-        const modelA = String(formData.get('modelA') || '');
-        const modelB = String(formData.get('modelB') || '');
         const batchNameInput = String(formData.get('name') || '').trim();
         
-        // Auto-generate batch name from model display names if not provided
-        let batchName = batchNameInput || undefined;
-        if (!batchName && modelA && modelB) {
-          const mafiaName = modelMap.get(modelA) || 'Mafia';
-          const townName = modelMap.get(modelB) || 'Town';
-          batchName = `${mafiaName} vs ${townName}`;
-        }
+        // Auto-generate batch name if not provided
+        let batchName = batchNameInput || `Mafia vs Town ${new Date().toLocaleDateString()}`;
 
         const res = await fetch(`${apiUrl}/api/admin/batches`, {
           method: 'POST',
@@ -418,4 +352,3 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     });
   }
 </script>
-

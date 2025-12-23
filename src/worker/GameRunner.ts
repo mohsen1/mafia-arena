@@ -144,6 +144,12 @@ export class GameRunner extends DurableObject<Env> {
   /** Logger instance for this DO */
   private log: Logger;
 
+  /** Timestamp of last D1 activity update (for throttling - update every 5 min) */
+  private lastD1ActivityUpdate = 0;
+  
+  /** Throttle interval for D1 activity updates (5 minutes) */
+  private static readonly D1_ACTIVITY_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.log = createLogger('GameRunner', { doId: ctx.id.toString().slice(-8) });
@@ -685,20 +691,21 @@ export class GameRunner extends DurableObject<Env> {
     batchId: string,
     config: GameConfig,
     startedAt: number,
-    traceId?: string
+    traceId?: string,
+    discountPricing = false
   ): Promise<void> {
     try {
-      this.log.debug('Inserting running game record', { gameId, batchId, traceId });
+      this.log.debug('Inserting running game record', { gameId, batchId, traceId, discountPricing });
       
       // Build batch of statements for game and participants
       const statements: D1PreparedStatement[] = [];
       
-      // Insert game record
+      // Insert game record with discount_pricing and last_activity for smart stale detection
       statements.push(
         this.env.DB.prepare(
-          `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, persona_theme, trace_id, created_at)
-           VALUES (?, ?, ?, ?, ?, NULL, 0, 0, 0, 'running', ?, ?, ?, ?)
-           ON CONFLICT (id) DO UPDATE SET status = 'running', trace_id = excluded.trace_id, created_at = excluded.created_at`
+          `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, persona_theme, trace_id, discount_pricing, last_activity, created_at)
+           VALUES (?, ?, ?, ?, ?, NULL, 0, 0, 0, 'running', ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (id) DO UPDATE SET status = 'running', trace_id = excluded.trace_id, discount_pricing = excluded.discount_pricing, last_activity = excluded.last_activity, created_at = excluded.created_at`
         ).bind(
           gameId,
           batchId,
@@ -708,6 +715,8 @@ export class GameRunner extends DurableObject<Env> {
           config.seed ?? null,
           config.personaTheme ?? 'noir',
           traceId ?? null,
+          discountPricing ? 1 : 0,
+          startedAt, // last_activity starts as startedAt
           startedAt
         )
       );
@@ -749,6 +758,26 @@ export class GameRunner extends DurableObject<Env> {
       this.log.debug('Game status updated', { gameId, status });
     } catch (error) {
       logErrorWithStack(this.log, 'Failed to update game status', error, { gameId, status });
+    }
+  }
+
+  /**
+   * Update last_activity in D1 for smart stale detection.
+   * Called periodically during game execution to signal the game is still alive.
+   */
+  private async updateLastActivityInD1(gameId: string): Promise<void> {
+    try {
+      const now = Date.now();
+      await this.env.DB.prepare(
+        `UPDATE games SET last_activity = ? WHERE id = ?`
+      ).bind(now, gameId).run();
+      this.log.debug('D1 last_activity updated', { gameId });
+    } catch (error) {
+      // Non-fatal - log but don't throw
+      this.log.warn('Failed to update last_activity in D1', { 
+        gameId, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 
@@ -795,12 +824,21 @@ export class GameRunner extends DurableObject<Env> {
     // Event callback for live streaming
     const onEvent = async (event: GameEvent) => {
       eventCount++;
+      const now = Date.now();
       
       // Update lastActivity on significant events (especially AI calls)
       // This is crucial for discount pricing games to avoid being marked stale
       if (event.type === 'ai_call' || event.type === 'phase_start' || event.type === 'elimination') {
-        await this.ctx.storage.put(STORAGE_KEYS.LAST_ACTIVITY, Date.now());
-        if (this.stateCache) this.stateCache.lastActivity = Date.now();
+        await this.ctx.storage.put(STORAGE_KEYS.LAST_ACTIVITY, now);
+        if (this.stateCache) this.stateCache.lastActivity = now;
+        
+        // Also update D1 periodically (throttled to every 5 minutes)
+        // This allows the scheduled cleanup job to detect active games
+        if (now - this.lastD1ActivityUpdate >= GameRunner.D1_ACTIVITY_UPDATE_INTERVAL_MS) {
+          this.lastD1ActivityUpdate = now;
+          // Fire and forget - don't await to avoid blocking game execution
+          this.updateLastActivityInD1(gameId).catch(() => {});
+        }
       }
       
       // Log phase transitions

@@ -73,6 +73,16 @@ dead_letter_queue = "mafia-arena-dlq"
 binding = "ANALYTICS"
 dataset = "mafia_events"
 
+# =============================================================================
+# CRON TRIGGERS - Scheduled jobs
+# =============================================================================
+
+[triggers]
+# Run cleanup every 10 minutes to detect and kill stale games
+# - Standard games: stale after 1 hour of inactivity
+# - Discount pricing games: stale after 24 hours (batch APIs can take up to 24h)
+crons = ["*/10 * * * *"]
+
 # Environment Variables
 [vars]
 ENVIRONMENT = "development"
