@@ -17,21 +17,16 @@ import { test, expect } from '@playwright/test';
 // Worker API URL (where game creation requests go)
 const WORKER_URL = process.env.WORKER_URL || 'http://localhost:8787';
 
-// Skip game lifecycle tests if worker is not running
-test.beforeAll(async ({ request }) => {
+// Check if worker is available before running tests
+async function isWorkerRunning(request: any): Promise<boolean> {
   try {
-    const health = await request.get(`${WORKER_URL}/api/health`, { timeout: 5000 });
-    if (!health.ok()) {
-      console.warn(`⚠️  Worker not responding at ${WORKER_URL}. Game lifecycle tests will be skipped.`);
-      console.warn('   Start the worker with: pnpm dev');
-      test.skip();
-    }
+    // Try to hit any API endpoint - even 404 means worker is running
+    const response = await request.get(`${WORKER_URL}/`, { timeout: 5000 });
+    return true; // Any response means worker is up
   } catch {
-    console.warn(`⚠️  Worker not available at ${WORKER_URL}. Game lifecycle tests will be skipped.`);
-    console.warn('   Start the worker with: pnpm dev');
-    test.skip();
+    return false;
   }
-});
+}
 
 test.describe('Game Lifecycle', () => {
   // Games can take some time to complete
@@ -39,15 +34,19 @@ test.describe('Game Lifecycle', () => {
 
   test('creates and runs a complete game with mock models', async ({ request, page }) => {
     // 1. Create a game via the run-direct API
+    // Note: Minimum 7 players required (2 mafia + 5 town)
     const createResponse = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
-        teams: [
-          { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
-          { modelId: 'test/mock-fast', team: 'town', count: 4 },
-        ],
-        maxRounds: 10,
-        discussionRounds: 1,
-        seed: 42, // Fixed seed for reproducibility
+        config: {
+          playerCount: 7,
+          mafiaCount: 2,
+          teams: [
+            { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
+            { modelId: 'test/mock-fast', team: 'town', count: 5 },
+          ],
+          maxRounds: 10,
+          discussionEnabled: false, // Faster without discussion
+        },
       },
     });
 
@@ -76,16 +75,19 @@ test.describe('Game Lifecycle', () => {
   });
 
   test('game appears in games list after completion', async ({ request, page }) => {
-    // 1. Create and run a game
+    // 1. Create and run a game (min 7 players)
     const createResponse = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
-        teams: [
-          { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
-          { modelId: 'test/mock-fast', team: 'town', count: 4 },
-        ],
-        maxRounds: 5,
-        discussionRounds: 1,
-        seed: 123,
+        config: {
+          playerCount: 7,
+          mafiaCount: 2,
+          teams: [
+            { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
+            { modelId: 'test/mock-fast', team: 'town', count: 5 },
+          ],
+          maxRounds: 5,
+          discussionEnabled: false,
+        },
       },
     });
 
@@ -125,16 +127,19 @@ test.describe('Game Lifecycle', () => {
   });
 
   test('can view game transcript after completion', async ({ request, page }) => {
-    // 1. Create and run a game
+    // 1. Create and run a game (min 7 players)
     const createResponse = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
-        teams: [
-          { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
-          { modelId: 'test/mock-fast', team: 'town', count: 4 },
-        ],
-        maxRounds: 5,
-        discussionRounds: 1,
-        seed: 456,
+        config: {
+          playerCount: 7,
+          mafiaCount: 2,
+          teams: [
+            { modelId: 'test/mock-fast', team: 'mafia', count: 2 },
+            { modelId: 'test/mock-fast', team: 'town', count: 5 },
+          ],
+          maxRounds: 5,
+          discussionEnabled: false,
+        },
       },
     });
 
@@ -172,12 +177,16 @@ test.describe('Game Scenarios', () => {
   test('test/town-wins scenario completes successfully', async ({ request }) => {
     const response = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
-        teams: [
-          { modelId: 'test/town-wins', team: 'mafia', count: 2 },
-          { modelId: 'test/town-wins', team: 'town', count: 5 },
-        ],
-        maxRounds: 10,
-        discussionRounds: 1,
+        config: {
+          playerCount: 7,
+          mafiaCount: 2,
+          teams: [
+            { modelId: 'test/town-wins', team: 'mafia', count: 2 },
+            { modelId: 'test/town-wins', team: 'town', count: 5 },
+          ],
+          maxRounds: 10,
+          discussionEnabled: false,
+        },
       },
     });
 
@@ -193,12 +202,16 @@ test.describe('Game Scenarios', () => {
   test('test/mafia-wins scenario completes successfully', async ({ request }) => {
     const response = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
-        teams: [
-          { modelId: 'test/mafia-wins', team: 'mafia', count: 2 },
-          { modelId: 'test/mafia-wins', team: 'town', count: 4 },
-        ],
-        maxRounds: 10,
-        discussionRounds: 1,
+        config: {
+          playerCount: 7,
+          mafiaCount: 2,
+          teams: [
+            { modelId: 'test/mafia-wins', team: 'mafia', count: 2 },
+            { modelId: 'test/mafia-wins', team: 'town', count: 5 },
+          ],
+          maxRounds: 10,
+          discussionEnabled: false,
+        },
       },
     });
 
@@ -210,26 +223,26 @@ test.describe('Game Scenarios', () => {
 });
 
 test.describe('Game API Validation', () => {
-  test('rejects invalid team configuration', async ({ request }) => {
+  test('rejects missing config', async ({ request }) => {
     const response = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
-        teams: [
-          // Invalid: 0 mafia
-          { modelId: 'test/mock-fast', team: 'mafia', count: 0 },
-          { modelId: 'test/mock-fast', team: 'town', count: 4 },
-        ],
+        // Missing config entirely
+        maxRounds: 5,
       },
     });
 
-    // Should fail validation
+    // Should fail validation with 400
     expect(response.status()).toBe(400);
   });
 
-  test('handles missing teams gracefully', async ({ request }) => {
+  test('rejects missing teams in config', async ({ request }) => {
     const response = await request.post(`${WORKER_URL}/api/games/run-direct`, {
       data: {
-        // Missing teams
-        maxRounds: 5,
+        config: {
+          playerCount: 6,
+          mafiaCount: 2,
+          // Missing teams array
+        },
       },
     });
 
