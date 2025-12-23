@@ -129,6 +129,9 @@ export class GameRunner extends DurableObject<Env> {
   /** Stripped event log for DO storage persistence (avoids SQLITE_TOOBIG) */
   private strippedEventLog: GameEvent[] = [];
   
+  /** Maximum events to store in DO storage (to avoid 128KB SQLite limit) */
+  private static readonly MAX_DO_STORAGE_EVENTS = 30;
+  
   /** Index of last event streamed to R2 (for incremental streaming) */
   private lastR2StreamIndex: number = 0;
 
@@ -944,8 +947,11 @@ export class GameRunner extends DurableObject<Env> {
       const strippedEvent = stripEventForStorage(event);
       this.strippedEventLog.push(strippedEvent);
       
-      // Persist stripped events to DO storage (fast, survives eviction)
-      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.strippedEventLog);
+      // Persist ONLY the last N events to DO storage to avoid 128KB SQLite limit
+      // Full event history is preserved in R2 stream (see streamEventsToR2)
+      // This is sufficient for WebSocket sync of late-joining clients
+      const eventsToStore = this.strippedEventLog.slice(-GameRunner.MAX_DO_STORAGE_EVENTS);
+      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
 
       // Stream to R2 incrementally (every 10 events or on important events)
       // Reduced from 30 to 10 for better persistence
@@ -978,19 +984,30 @@ export class GameRunner extends DurableObject<Env> {
       });
     };
 
-    // Phase checkpoint callback - saves game state after each phase (with stripped events)
+    // Phase checkpoint callback - saves game state after each phase
     // This allows resumption from the last completed phase after DO eviction
-    // Events are stripped to avoid SQLITE_TOOBIG errors (full events are in R2 stream)
+    // IMPORTANT: Only store last N events to avoid 128KB DO storage limit
+    // Full events are preserved in R2 stream (see streamEventsToR2)
+    // IMPORTANT: Also limit conversationHistory to avoid 128KB DO storage limit
+    const MAX_CONVERSATION_HISTORY = 50; // ~50 messages should be enough for resumption
     const onPhaseComplete = async (serializedState: SerializedGameState) => {
       gameLog.debug('Phase checkpoint', { 
         phase: serializedState.phase, 
         round: serializedState.round,
         eventCount: serializedState.events.length,
+        conversationCount: serializedState.conversationHistory.length,
       });
-      // Strip events to avoid SQLITE_TOOBIG on large prompts/responses
+      // Strip events AND limit to last N to avoid SQLITE_TOOBIG on large prompts/responses
+      const strippedEvents = serializedState.events
+        .map(stripEventForStorage)
+        .slice(-GameRunner.MAX_DO_STORAGE_EVENTS);
+      // Also limit conversation history - only need recent messages for resumption context
+      const limitedConversation = serializedState.conversationHistory
+        .slice(-MAX_CONVERSATION_HISTORY);
       const strippedState: SerializedGameState = {
         ...serializedState,
-        events: serializedState.events.map(stripEventForStorage),
+        events: strippedEvents,
+        conversationHistory: limitedConversation,
       };
       await this.ctx.storage.put(STORAGE_KEYS.GAME_STATE, strippedState);
     };

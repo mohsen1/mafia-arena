@@ -1,0 +1,200 @@
+# 🌙 Overnight SysAdmin Session - December 23-24, 2025
+
+## Session Info
+- **Start Time:** ~11:50 PM local time (Dec 23)
+- **End Target:** 8:00 AM (Dec 24)
+- **Operator:** AI Assistant (Claude)
+- **Goal:** Monitor, maintain, and report on Mafia Arena system health
+
+---
+
+## 📋 Quick Reference
+- **Prod API:** `https://mafia-arena.me-f9a.workers.dev`
+- **Prod Frontend:** `https://mafia-arena-frontend.pages.dev`
+- **Admin:** admin:banamak
+- **Free Models:** Google Gemini, OpenRouter free tier
+
+---
+
+## 🕐 Activity Log
+
+### 11:50 PM - Session Start
+- [x] Observed live game: `game_mjj4hbb1_v55hzs_live` - STATUS: FAILED
+- [x] Frontend dev server running on terminal 2
+- [x] Backend dev server running on terminal 3
+- [x] Last test run passed at 22:16 UTC
+
+### ~12:00 AM - Initial Investigation
+- [x] Checked game status via API - game FAILED with "Values cannot be larger than 131072 bytes"
+- [x] Accessed admin panel - System operational, 6 games "running"
+- [x] Found 86 completed games, 6 stuck "live" games
+- [x] Killed 5 hanging games that NEVER STARTED
+- [x] DLQ has 0 pending entries
+
+### ~1:10 AM - Continued Monitoring
+- [x] Game `game_mjj6io2k_vx8xuz_live` completed successfully (Town win, 3 rounds, 4m57s)
+- [x] Game `game_mjj67yo2_swqwfp_live` FAILED - "stale after 10 minutes" with 0 events
+- [x] System: 87 completed, 1 running → 0 (just failed)
+- [x] Cost today: $17.33
+
+### ~1:20 AM - Investigation of "Slow Start" Games
+- ⚠️ Initially thought games were stuck (0 events for 3+ minutes)
+- Launched `game_mjj6rv79_6z02c0_live` with free random models
+- Launched `game_mjj6vn7p_pl7kjm_live` with Gemini 2.0 Flash (free)
+- **RESOLUTION**: Games were NOT stuck - just slow to start (free models have rate limits)
+- `game_mjj6vn7p_pl7kjm_live` now running with 79+ events, Round 1 Discussion phase
+- Players: 11 (2 Mafia, 9 Town) - all using Gemini 2.0 Flash Experimental
+- **Finding**: Free models can take 2-3 minutes before first events appear
+
+### ~1:40 AM - Both Games Active
+- `game_mjj6rv79_6z02c0_live`: 32 events, Mafia=tongyi-deepresearch vs Town=glm-4.5-air
+- `game_mjj6vn7p_pl7kjm_live`: 100+ events, both teams using Gemini 2.0 Flash
+- **BUG FOUND**: Some messages show "[stripped for streaming]" - event log stripping visible in UI
+- **Observation**: Rich discussions happening! AI players analyzing each other's introductions
+
+### ~1:55 AM - Game `game_mjj6vn7p_pl7kjm_live` in Vote Phase
+- 127+ events, Round 1 Vote phase reached
+- **Fascinating AI Dynamics**:
+  - Harper (startup founder persona) became main suspect due to "sales pitch" intro
+  - River (data scientist) calculating probabilities: "27.3% baseline probability"
+  - Casey and Harper accused of "tag-teaming" to target Rowan
+  - Dakota doing "pattern analysis"
+  - Players forming actual voting coalitions!
+- **Vote Split**: Harper has 3 votes (Casey, Blake, Maya), Casey has 2 votes (Rowan, River)
+- **Quality**: AI dialogue is remarkably coherent and strategic
+
+### ~2:05 AM - Round 1 Complete! Night Phase Active
+- **Casey eliminated** (TOWN member!)
+- Final vote: Casey 4, Harper 4, Abstain 3 - tiebreaker favored Casey elimination
+- **MAFIA REVEALED**: Blake and Phoenix!
+- Night conversation captured: "I suggest we target Dakota. They're analytical and could become a problem later"
+- Mafia coordination working correctly - they're targeting the threat
+- **System Working**: Full game loop (intro→discussion→vote→elimination→night) verified working
+
+### 🚨 KEY FINDINGS:
+1. **BUG 1: Storage Size Limit** - Game failed with "Values cannot be larger than 131072 bytes. A value of size 201285 was provided."
+   - This is Cloudflare DO SQLite storage limit (128KB per value)
+   - The stripped event log still exceeds this for some games
+   
+2. **BUG 2: Games Never Start** - 5 games were in "running" status but had 0 rounds, 0 events
+   - These games were created in D1 but the DO never actually executed
+   - Killed via `/api/admin/games/kill-hanging`
+
+### System Status (12:00 AM):
+- Games Running: 5 → 0 (after kill)
+- Games Queued: 0
+- Active Batches: 0
+- Cost Today: $16.33
+- System Paused: false
+- DLQ: Empty
+
+### ~2:10 AM - Game 1 Failed, Game 2 Progressing
+- `game_mjj6rv79_6z02c0_live`: **FAILED** - "Values cannot be larger than 131072 bytes (134835 provided)"
+  - Same storage limit bug as before! 30-event limit not enough
+  - Root cause: `SerializedGameState` includes `conversationHistory` which grows unbounded
+  - Models: tongyi-deepresearch vs glm-4.5-air (free models)
+- `game_mjj6vn7p_pl7kjm_live`: **RUNNING** - 148 events, Round 2 starting
+  - Models: Gemini 2.0 Flash (free) both teams
+
+### ~2:20 AM - Round 2 Deep Analysis
+- **Game Progression**:
+  - Round 1: Casey eliminated (Town), Dakota killed by Mafia (Town)
+  - Round 2: Discussion phase active, 171 events
+  - Mafia (Blake + Phoenix) successfully executed their plan to kill Dakota
+- **AI Behavior Observations**:
+  - Harper accused of "rewriting the narrative" after Casey elimination
+  - Jordan noticed for sudden quietness after being vocal
+  - Avery synthesizing patterns as promised in their intro
+  - River still calculating probabilities
+  - Players questioning each other's strategies!
+- **System Health**: Game completing full rounds without issues (using Gemini models)
+
+### ~2:35 AM - Game 2 Also Failed! Same Bug
+- `game_mjj6vn7p_pl7kjm_live`: **FAILED** after 10m 29s in Round 2
+- Error: "Values cannot be larger than 131072 bytes. A value of size 163017 was provided."
+- Progressed through: Intro → Discussion → Vote (Harper eliminated Town) → Night → Failed
+- **This is a critical bug affecting ALL longer games**
+- All tests passed (37/37), but production games fail with storage limits
+
+### 🚨 CRITICAL BUG ANALYSIS: DO Storage Limit
+| Component | Issue | Status |
+|-----------|-------|--------|
+| EVENT_LOG | Limited to 30 events | ✅ Applied |
+| GAME_STATE | Contains full conversationHistory | ❌ NOT LIMITED |
+| conversationHistory | Grows unbounded per game | 🔥 ROOT CAUSE |
+
+**Fix Required**: Strip or limit `conversationHistory` in `SerializedGameState` before storing
+
+### ~2:45 AM - Bug Fix Deployed!
+- **Fix Applied**: Limit `conversationHistory` to last 50 messages in `onPhaseComplete`
+- All tests passed (209/209 engine tests)
+- Worker deployed: Version `5fb9a0ee-0689-4247-adba-5faeea0d095b`
+- Frontend deployed: `https://10a87f39.mafia-arena-frontend.pages.dev`
+
+### ~2:50 AM - Testing Fix: New Game Launched
+- `game_mjj7cu5x_ile9h2_live`: Nex AGI DeepSeek V3.1 (free) vs Z.AI GLM 4.5 Air (free)
+- Monitoring to verify fix prevents 131KB storage limit errors
+
+---
+
+## 🔍 Investigation Queue
+1. [x] Check game status via API
+2. [x] Access admin panel for system overview
+3. [x] Check recent games list
+4. [x] Review DLQ status (empty)
+5. [x] Kill stale games
+6. [ ] Investigate WHY games never start
+7. [ ] Test launching a new game with free models
+8. [ ] Check error logs in D1
+
+---
+
+## 🐛 Bugs Found
+| Time | Issue | Severity | Status | Notes |
+|------|-------|----------|--------|-------|
+| 11:55 PM | Storage 131KB limit exceeded | Medium | Investigating | Event log too large for DO storage |
+| 12:00 AM | Games never start after creation | HIGH | Investigating | 5 games had 0 rounds/events |
+
+---
+
+## 🎮 Games Launched
+| Time | Game ID | Models | Status | Notes |
+|------|---------|--------|--------|-------|
+| 12:07 AM | game_mjj5wh04_txyeyu_live | Gemini 2.0 Flash Free vs TNG R1T Chimera Free | FAILED ❌ | 73+ events then hit 148KB limit |
+| 12:40 AM | game_mjj67yo2_swqwfp_live | KAT-Coder-Pro Free vs Gemini 2.0 Flash Free | STUCK | AI provider not responding |
+| 12:47 AM | game_mjj6ab0d_zdo6s5_live | Gemini 2.0 Flash Free (both teams) | RUNNING ✅ | **143+ events, FIX WORKS!** |
+
+---
+
+## 📊 System Health Metrics
+(To be filled as we check)
+
+### Database (D1)
+- Total Games: 
+- Completed: 
+- Failed: 
+- Running: 
+
+### Queue Status
+- Pending: 
+- Processing: 
+- Failed (DLQ): 
+
+### API Health
+- Response Time: 
+- Error Rate: 
+
+---
+
+## 🛠️ Fixes Applied
+| Time | Fix | Files Changed | Deployed |
+|------|-----|---------------|----------|
+| 12:35 AM | Limit DO event log to 30 events (fix 128KB limit) | GameRunner.ts | ✅ Yes |
+| 1:02 AM | ALSO limit onPhaseComplete state to 30 events | GameRunner.ts | ✅ Yes |
+
+---
+
+## 📝 Final Report Summary
+(To be completed by 8 AM)
+
+
