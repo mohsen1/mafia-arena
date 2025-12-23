@@ -1,7 +1,6 @@
 ---
 import Layout from '../../components/Layout.astro';
 import { getGames, getLiveGames, formatDuration } from '../../lib/api';
-import { getProviderColorFromModel } from '../../lib/providers';
 import { calculateCostFromTotal, formatCost } from '../../lib/costs';
 import { ChevronLeft, ChevronRight, Trophy, Radio, Hash } from 'lucide-astro';
 
@@ -23,14 +22,21 @@ const totalPages = Math.ceil(total / LIMIT);
 const hasPrev = page > 1;
 const hasNext = hasMore;
 
-function formatDate(timestamp: number) {
+function formatRelativeTime(timestamp: number): string {
   const ts = timestamp > 9999999999 ? timestamp : timestamp * 1000;
-  return new Date(ts).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const now = Date.now();
+  const diffMs = now - ts;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  
+  if (diffDay > 0) return rtf.format(-diffDay, 'day');
+  if (diffHour > 0) return rtf.format(-diffHour, 'hour');
+  if (diffMin > 0) return rtf.format(-diffMin, 'minute');
+  return rtf.format(-diffSec, 'second');
 }
 
 function getShortModelName(modelId: string): string {
@@ -48,11 +54,8 @@ function getMatchup(game: any) {
   return {
     mafia: getShortModelName(mafiaModel),
     town: getShortModelName(townModel),
-    mafiaColor: getProviderColorFromModel(mafiaModel),
-    townColor: getProviderColorFromModel(townModel),
     mafiaWon,
     winnerModel: mafiaWon ? getShortModelName(mafiaModel) : getShortModelName(townModel),
-    winnerModelFull: mafiaWon ? mafiaModel : townModel,
   };
 }
 
@@ -119,64 +122,50 @@ const THEMES: Record<string, string> = {
       </div>
     ) : (
       <div class="border rounded overflow-hidden text-xs">
-        <!-- Header -->
-        <div class="flex items-center px-3 py-1.5 bg-muted/30 border-b text-[10px] text-muted-foreground uppercase tracking-wide">
-          <div class="w-[280px]">Matchup</div>
-          <div class="w-[160px]">Winner</div>
-          <div class="w-10 text-center">Rnd</div>
-          <div class="w-14 text-right">Time</div>
-          <div class="w-14 text-right">Cost</div>
-          <div class="w-14 text-center">Theme</div>
-          <div class="flex-1 text-right">Date</div>
-        </div>
-        <!-- Rows -->
-        <div class="divide-y divide-border/50">
-          {games.map(game => {
-            const m = getMatchup(game);
-            const theme = THEMES[game.persona_theme] || 'Noir';
-            const cost = estimateCost(game);
-            return (
-              <a 
-                href={`/games/${game.id}`} 
-                class="flex items-center px-3 py-1.5 hover:bg-muted/20 transition-colors"
-              >
-                <!-- Matchup -->
-                <div class="w-[280px] truncate text-muted-foreground">
-                  {m.mafia} <span class="opacity-50">vs</span> {m.town}
-                </div>
-
-                <!-- Winner -->
-                <div class="w-[160px] flex items-center gap-1.5">
-                  <span class="truncate">{m.winnerModel}</span>
-                  <span class={`shrink-0 text-[9px] px-1 rounded ${
-                    m.mafiaWon ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                  }`}>
-                    {m.mafiaWon ? 'M' : 'T'}
-                  </span>
-                </div>
-
-                <!-- Rounds -->
-                <div class="w-10 text-center font-mono text-muted-foreground">{game.rounds}</div>
-
-                <!-- Duration -->
-                <div class="w-14 text-right font-mono text-muted-foreground">
-                  {formatDuration(game.duration_ms || 0)}
-                </div>
-
-                <!-- Cost -->
-                <div class="w-14 text-right font-mono text-muted-foreground">
-                  {formatCost(cost)}
-                </div>
-
-                <!-- Theme -->
-                <div class="w-14 text-center text-muted-foreground">{theme}</div>
-
-                <!-- Date -->
-                <div class="flex-1 text-right text-muted-foreground">{formatDate(game.created_at)}</div>
-              </a>
-            );
-          })}
-        </div>
+        <table class="w-full">
+          <thead>
+            <tr class="bg-muted/30 border-b text-[10px] text-muted-foreground uppercase tracking-wide">
+              <th class="text-left font-normal px-3 py-1.5 w-[40%]">Matchup <span class="lowercase font-light opacity-70">(mafia vs town)</span></th>
+              <th class="text-left font-normal px-3 py-1.5 w-[20%]">Winner</th>
+              <th class="text-center font-normal px-2 py-1.5 w-14">Rounds</th>
+              <th class="text-right font-normal px-2 py-1.5 w-16">Time</th>
+              <th class="text-right font-normal px-2 py-1.5 w-14">Cost</th>
+              <th class="text-center font-normal px-2 py-1.5 w-20">Theme</th>
+              <th class="text-right font-normal px-3 py-1.5">Date</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border/50">
+            {games.map(game => {
+              const m = getMatchup(game);
+              const theme = THEMES[game.persona_theme] || 'Noir';
+              const cost = estimateCost(game);
+              return (
+                <tr class="hover:bg-muted/20 transition-colors cursor-pointer group" onclick={`window.location='/games/${game.id}'`}>
+                  <td class="px-3 py-1.5 truncate text-muted-foreground max-w-0">
+                    <a href={`/games/${game.id}`} class="block truncate">
+                      {m.mafia} <span class="opacity-50">vs</span> {m.town}
+                    </a>
+                  </td>
+                  <td class="px-3 py-1.5">
+                    <div class="flex items-center gap-1.5">
+                      <span class="truncate">{m.winnerModel}</span>
+                      <span class={`shrink-0 text-[9px] px-1 rounded ${
+                        m.mafiaWon ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                      }`}>
+                        {m.mafiaWon ? 'M' : 'T'}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-2 py-1.5 text-center font-mono text-muted-foreground">{game.rounds}</td>
+                  <td class="px-2 py-1.5 text-right font-mono text-muted-foreground whitespace-nowrap">{formatDuration(game.duration_ms || 0)}</td>
+                  <td class="px-2 py-1.5 text-right font-mono text-muted-foreground">{formatCost(cost)}</td>
+                  <td class="px-2 py-1.5 text-center text-muted-foreground">{theme}</td>
+                  <td class="px-3 py-1.5 text-right text-muted-foreground whitespace-nowrap">{formatRelativeTime(game.created_at)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     )}
 
