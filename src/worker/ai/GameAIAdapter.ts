@@ -5,6 +5,10 @@
  * BENCHMARK INTEGRITY: This adapter does NOT use fallback actions.
  * If a model produces invalid output, it is recorded as a parse error.
  * This is critical for benchmark validity - model failures must be tracked.
+ * 
+ * CONTEXT WINDOW MANAGEMENT:
+ * This adapter now supports context limit checking for models with smaller context windows.
+ * When context limits are provided, it will track token usage and log warnings.
  */
 
 import type { AIProvider, AIContext, ActionPrompt, AIResponse, PlayerAction } from '../../engine/types.js';
@@ -12,6 +16,7 @@ import type { AIProviderInterface } from './types.js';
 import { AIErrors } from './errors.js';
 import { getSchemaForAction } from './types.js';
 import { createLogger, logErrorWithStack, type Logger } from '../utils/logger.js';
+import { countPromptTokens } from '../../engine/utils/tokens.js';
 import {
   PersonaSchema,
   IntroductionSchema,
@@ -40,14 +45,68 @@ export class AIParseError extends Error {
 }
 
 /**
+ * Options for creating a GameAIAdapter with context limit awareness.
+ */
+export interface GameAIAdapterOptions {
+  /** Map of model ID to context limit in tokens */
+  contextLimits?: Map<string, number>;
+  /** Threshold at which to warn about context usage (default 0.8 = 80%) */
+  warningThreshold?: number;
+}
+
+/**
  * Adapts the worker AI providers to the game engine's AIProvider interface.
  */
 export class GameAIAdapter implements AIProvider {
   private log: Logger;
+  private readonly contextLimits: Map<string, number>;
+  private readonly warningThreshold: number;
 
-  constructor(private readonly providers: Map<string, AIProviderInterface>) {
+  constructor(
+    private readonly providers: Map<string, AIProviderInterface>,
+    options: GameAIAdapterOptions = {}
+  ) {
     this.log = createLogger('GameAIAdapter');
-    this.log.debug('Adapter created', { providerCount: providers.size, models: Array.from(providers.keys()).join(', ') });
+    this.contextLimits = options.contextLimits ?? new Map();
+    this.warningThreshold = options.warningThreshold ?? 0.8;
+    this.log.debug('Adapter created', { 
+      providerCount: providers.size, 
+      models: Array.from(providers.keys()).join(', '),
+      hasContextLimits: this.contextLimits.size > 0,
+    });
+  }
+
+  /**
+   * Get the context limit for a model, if known.
+   */
+  getContextLimit(modelId: string): number | undefined {
+    return this.contextLimits.get(modelId);
+  }
+
+  /**
+   * Check if a prompt would exceed the context limit for a model.
+   */
+  checkContextUsage(
+    modelId: string,
+    systemPrompt: string,
+    userPrompt: string
+  ): { exceeds: boolean; tokenCount: number; limit?: number; percentUsed?: number } {
+    const limit = this.contextLimits.get(modelId);
+    const tokenCount = countPromptTokens(systemPrompt, userPrompt);
+    
+    if (!limit) {
+      return { exceeds: false, tokenCount };
+    }
+    
+    const percentUsed = (tokenCount / limit) * 100;
+    const safeLimit = Math.floor(limit * this.warningThreshold);
+    
+    return {
+      exceeds: tokenCount > safeLimit,
+      tokenCount,
+      limit,
+      percentUsed: Math.round(percentUsed * 10) / 10,
+    };
   }
 
   async getAction(context: AIContext, prompt: ActionPrompt): Promise<AIResponse> {
@@ -64,7 +123,27 @@ export class GameAIAdapter implements AIProvider {
     }
 
     const startTime = Date.now();
-    callLog.debug('Starting AI call');
+    
+    // Check context usage before making the call
+    const contextUsage = this.checkContextUsage(
+      context.modelId,
+      prompt.systemPrompt,
+      prompt.userPrompt
+    );
+    
+    if (contextUsage.exceeds && contextUsage.limit) {
+      callLog.warn('Context usage exceeds safe threshold', {
+        tokenCount: contextUsage.tokenCount,
+        limit: contextUsage.limit,
+        percentUsed: contextUsage.percentUsed,
+        threshold: this.warningThreshold * 100,
+      });
+    } else {
+      callLog.debug('Starting AI call', {
+        tokenCount: contextUsage.tokenCount,
+        ...(contextUsage.limit && { percentUsed: contextUsage.percentUsed }),
+      });
+    }
 
     // Get the appropriate JSON schema for this action type
     const structuredOutput = getSchemaForAction(prompt.type);

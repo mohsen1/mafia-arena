@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "hono": "^4.11.1",
+    "js-tiktoken": "^1.0.21",
     "zod": "^3.24.1"
   },
   "engines": {

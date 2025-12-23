@@ -61,11 +61,26 @@ export {
   formatPlayersPersonas,
   formatFullGameHistory,
   formatVoteAnalysis,
-  hasFullHistoryContext
+  hasFullHistoryContext,
+  buildDiscussionPromptTokenAware,
+  estimatePromptTokenCount,
+  getGameHistoryTokenCount,
+  type TokenAwarePromptResult,
+  type TokenAwarePromptOptions
 } from './utils/prompts.js';
 export { analyzePersonaConsistency, getModelConsistencyScore } from './utils/consistency.js';
 export { createSeededRandom, createRandomGenerator, createDefaultRandomGenerator, generateSeed, type RandomGenerator } from './utils/random.js';
 export { sanitizePersona, sanitizePersonaName, sanitizePersonaBackground, sanitizePersonaPersonality, containsDangerousPatterns } from './utils/sanitize.js';
+export { 
+  countTokens,
+  countPromptTokens,
+  estimateTokens, 
+  estimatePromptTokens, 
+  checkContextLimit, 
+  tokensToSave, 
+  estimateSummarySavings,
+  truncateToTokenLimit
+} from './utils/tokens.js';
 export { 
   getUniqueAssignments, 
   getThemeNames, 
@@ -135,5 +150,6 @@ export type {
   EliminationEvent,
   GameEndEvent,
   AIParseErrorEvent,
+  SummarizationEvent,
 } from './types.js';
 

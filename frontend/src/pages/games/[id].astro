@@ -95,6 +95,16 @@ function groupEvents(events: any[]) {
     // Skip events that shouldn't appear in chat
     if (event.type === 'persona_generation') continue;
     if (event.type === 'game_end') continue; // Handled separately
+    
+    // Handle summarization events (show in the round they occurred)
+    if (event.type === 'summarization') {
+      const round = event.round || 1;
+      if (!grouped[round]) grouped[round] = {};
+      if (!grouped[round]['system']) grouped[round]['system'] = [];
+      grouped[round]['system'].push(event);
+      continue;
+    }
+    
     if (!event.phase || event.phase === 'other') continue; // Skip events with no proper phase
     
     const round = event.round || 1;
@@ -105,6 +115,9 @@ function groupEvents(events: any[]) {
   }
   return grouped;
 }
+
+// Extract summarization events for display
+const summarizationEvents = events.filter((e: any) => e.type === 'summarization');
 
 const groupedEvents = groupEvents(events);
 const gameEndEvent = events.find((e: any) => e.type === 'game_end');
@@ -137,6 +150,7 @@ function getPhaseConfig(phase: string) {
     mafia_chat: { label: 'Mafia', iconType: 'swords' },
     day_discussion: { label: 'Discussion', iconType: 'sun' },
     day_vote: { label: 'Vote', iconType: 'vote' },
+    system: { label: 'System', iconType: 'zap' },
   };
   return configs[phase] || { label: phase, iconType: 'message' };
 }
@@ -430,6 +444,24 @@ function getPersonaName(playerId: string): string {
                                     event.team === 'mafia' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                                   }`}>
                                     {event.team}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            
+                            if (event.type === 'summarization') {
+                              const [roundStart, roundEnd] = event.roundRangeSummarized || [1, 1];
+                              return (
+                                <div class="flex items-center gap-2 py-1.5 px-2 rounded text-xs bg-amber-500/10 border border-amber-500/20">
+                                  <Zap size={12} class="text-amber-500" />
+                                  <span class="text-amber-600 dark:text-amber-400">
+                                    Rounds {roundStart}-{roundEnd} summarized
+                                  </span>
+                                  <span class="text-muted-foreground text-[10px]">
+                                    ({event.tokensSaved?.toLocaleString() || 0} tokens saved)
+                                  </span>
+                                  <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                                    context optimization
                                   </span>
                                 </div>
                               );

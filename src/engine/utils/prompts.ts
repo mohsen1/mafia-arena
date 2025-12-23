@@ -776,3 +776,228 @@ export function hasFullHistoryContext(state: VisibleGameState): boolean {
   return !!(state.fullConversationHistory && state.fullConversationHistory.length > 0);
 }
 
+// =============================================================================
+// Token-Aware Prompt Building
+// =============================================================================
+
+import { countTokens, countPromptTokens, checkContextLimit } from './tokens.js';
+
+/**
+ * Result of building a prompt with token awareness.
+ */
+export interface TokenAwarePromptResult {
+  /** The system prompt */
+  systemPrompt: string;
+  /** The user prompt (may include summary if context was too large) */
+  userPrompt: string;
+  /** Total token count */
+  tokenCount: number;
+  /** Whether context was summarized */
+  summarized: boolean;
+  /** Rounds that were summarized [start, end], if any */
+  summaryRounds?: readonly [number, number];
+  /** Tokens saved by summarization */
+  tokensSaved?: number;
+}
+
+/**
+ * Options for building token-aware prompts.
+ */
+export interface TokenAwarePromptOptions {
+  /** Model context limit in tokens */
+  contextLimit: number;
+  /** Existing summary text, if available */
+  existingSummary?: string;
+  /** Rounds covered by existing summary [start, end] */
+  existingSummaryRounds?: readonly [number, number];
+}
+
+/**
+ * Build a discussion prompt with token awareness.
+ * If the full context exceeds the model's limits, it will use summary + recent rounds.
+ */
+export function buildDiscussionPromptTokenAware(
+  state: VisibleGameState,
+  ownPersona: Persona | undefined,
+  options: TokenAwarePromptOptions
+): TokenAwarePromptResult {
+  // First try building with full context
+  const fullUserPrompt = ACTION_PROMPTS.discussion(state, ownPersona);
+  const systemPrompt = ownPersona 
+    ? SYSTEM_PROMPTS.town() // We don't know the team at this level
+    : SYSTEM_PROMPTS.town();
+  
+  const check = checkContextLimit(systemPrompt, fullUserPrompt, options.contextLimit, 0.8);
+  
+  if (!check.exceeds) {
+    // Full context fits
+    return {
+      systemPrompt,
+      userPrompt: fullUserPrompt,
+      tokenCount: check.tokenCount,
+      summarized: false,
+    };
+  }
+  
+  // Need to use summary
+  if (options.existingSummary && options.existingSummaryRounds) {
+    const summarizedPrompt = buildDiscussionPromptWithSummary(
+      state,
+      ownPersona,
+      options.existingSummary,
+      options.existingSummaryRounds
+    );
+    
+    const newTokens = countPromptTokens(systemPrompt, summarizedPrompt);
+    
+    return {
+      systemPrompt,
+      userPrompt: summarizedPrompt,
+      tokenCount: newTokens,
+      summarized: true,
+      summaryRounds: options.existingSummaryRounds,
+      tokensSaved: check.tokenCount - newTokens,
+    };
+  }
+  
+  // No summary available, return full anyway (let caller handle)
+  return {
+    systemPrompt,
+    userPrompt: fullUserPrompt,
+    tokenCount: check.tokenCount,
+    summarized: false,
+  };
+}
+
+/**
+ * Build a discussion prompt using a summary for older rounds.
+ */
+function buildDiscussionPromptWithSummary(
+  state: VisibleGameState,
+  ownPersona: Persona | undefined,
+  summary: string,
+  summaryRounds: readonly [number, number]
+): string {
+  const currentRound = state.currentDiscussionRound ?? 1;
+  const totalRounds = state.totalDiscussionRounds ?? 1;
+  const isMultiRound = totalRounds > 1;
+  
+  const aliveCount = state.alivePlayers.length;
+  const deadCount = state.deadPlayers.length;
+  
+  const personaContext = ownPersona 
+    ? `YOUR PERSONA:\n${formatPersona(ownPersona)}\n\nSTAY IN CHARACTER: Speak as ${ownPersona.name} with your ${ownPersona.personality} personality.\n\n`
+    : '';
+  
+  const otherPersonas = formatPlayersPersonas(state.alivePlayers);
+  const otherPersonasContext = otherPersonas 
+    ? `OTHER PLAYERS:\n${otherPersonas}\n\n`
+    : '';
+
+  let roundInstructions = '';
+  if (isMultiRound) {
+    if (currentRound === 1) {
+      roundInstructions = 'This is the opening round. Share your initial observations.';
+    } else if (currentRound === totalRounds) {
+      roundInstructions = 'This is the FINAL discussion round before voting. Make your closing arguments.';
+    } else {
+      roundInstructions = 'Respond to what others have said.';
+    }
+  }
+
+  const roundHeader = isMultiRound 
+    ? `DAY PHASE - Discussion (Round ${currentRound} of ${totalRounds})\n\n${roundInstructions}\n\n`
+    : 'DAY PHASE - Discussion\n\n';
+
+  // Format recent conversation only (after summary)
+  const recentHistory = state.conversationHistory;
+  const historyText = isMultiRound 
+    ? formatConversationHistoryWithRounds(recentHistory)
+    : formatConversationHistory(recentHistory);
+
+  return `${roundHeader}${personaContext}${otherPersonasContext}═══════════════════════════════════════════════════════════════
+                  SUMMARY OF ROUNDS ${summaryRounds[0]}-${summaryRounds[1]}
+═══════════════════════════════════════════════════════════════
+
+${summary}
+
+═══════════════════════════════════════════════════════════════
+                  CURRENT DISCUSSION
+═══════════════════════════════════════════════════════════════
+
+There are ${aliveCount} players alive${deadCount > 0 ? ` and ${deadCount} eliminated` : ''}.
+
+${historyText ? `Discussion this round:\n${historyText}\n\n` : ''}${
+    state.deadPlayers.length > 0
+      ? `Eliminated players: ${state.deadPlayers.map((p) => `${p.name} (${p.team})`).join(', ')}\n\n`
+      : ''
+  }Provide your discussion message - share thoughts, accusations, or defend yourself (stay in character).`;
+}
+
+/**
+ * Format conversation history for internal use.
+ */
+function formatConversationHistory(
+  messages: readonly ConversationMessage[]
+): string {
+  if (messages.length === 0) {
+    return '(No discussion yet this round)';
+  }
+
+  return messages
+    .map((m) => `${m.playerName}: "${m.message}"`)
+    .join('\n');
+}
+
+/**
+ * Format conversation history with discussion round markers.
+ */
+function formatConversationHistoryWithRounds(
+  messages: readonly ConversationMessage[]
+): string {
+  if (messages.length === 0) {
+    return '(No discussion yet)';
+  }
+
+  let currentRound = 0;
+  const lines: string[] = [];
+
+  for (const m of messages) {
+    const round = m.discussionRound ?? 1;
+    if (round !== currentRound) {
+      if (currentRound > 0) {
+        lines.push('');
+      }
+      lines.push(`--- Discussion Round ${round} ---`);
+      currentRound = round;
+    }
+    lines.push(`${m.playerName}: "${m.message}"`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Estimate token count for a prompt.
+ * Useful for pre-checking before building full prompts.
+ */
+export function estimatePromptTokenCount(
+  systemPrompt: string,
+  userPrompt: string
+): number {
+  return countPromptTokens(systemPrompt, userPrompt);
+}
+
+/**
+ * Get the token count of formatted game history.
+ */
+export function getGameHistoryTokenCount(
+  messages: readonly ConversationMessage[],
+  votes: readonly VoteRecord[],
+  logs: readonly GameLogEntry[],
+  currentRound: number
+): number {
+  const formattedHistory = formatFullGameHistory(messages, votes, logs, currentRound);
+  return countTokens(formattedHistory);
+}
+
