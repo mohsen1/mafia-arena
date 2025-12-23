@@ -454,3 +454,22 @@ export interface SummarizationEvent {
   readonly timestamp: number;
 }
 
+// =============================================================================
+// Serialization (for DO state persistence)
+// =============================================================================
+
+/**
+ * Serialized form of GameState for persistence to Durable Object storage.
+ * Used to survive DO evictions during long-running games (discount pricing mode).
+ */
+export interface SerializedGameState {
+  readonly players: readonly Player[];
+  readonly phase: Phase;
+  readonly round: number;
+  readonly events: readonly GameEvent[];
+  readonly conversationHistory: readonly ConversationMessage[];
+  readonly gameId: string;
+  readonly config: GameConfig;
+  readonly seed: number;
+}
+

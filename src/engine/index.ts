@@ -33,7 +33,7 @@
  */
 
 // Main game class
-export { Game, validateConfig, type GameOptions, type GameEventCallback } from './Game.js';
+export { Game, validateConfig, type GameOptions, type GameEventCallback, type PhaseCheckpointCallback } from './Game.js';
 
 // State management
 export { GameState } from './GameState.js';
@@ -70,7 +70,7 @@ export {
 } from './utils/prompts.js';
 export { analyzePersonaConsistency, getModelConsistencyScore } from './utils/consistency.js';
 export { createSeededRandom, createRandomGenerator, createDefaultRandomGenerator, generateSeed, type RandomGenerator } from './utils/random.js';
-export { sanitizePersona, sanitizePersonaName, sanitizePersonaBackground, sanitizePersonaPersonality, containsDangerousPatterns } from './utils/sanitize.js';
+export { sanitizePersona, sanitizePersonaName, sanitizePersonaBackground, sanitizePersonaPersonality, containsDangerousPatterns, sanitizeAIOutput, hasSuspiciousPatterns } from './utils/sanitize.js';
 export { 
   countTokens,
   countPromptTokens,
@@ -151,5 +151,8 @@ export type {
   GameEndEvent,
   AIParseErrorEvent,
   SummarizationEvent,
+
+  // Serialization
+  SerializedGameState,
 } from './types.js';
 

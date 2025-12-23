@@ -20,15 +20,23 @@ import type {
   Team,
   PersonaAnalysis,
   GameEvent,
+  SerializedGameState,
 } from './types.js';
 
 /** Callback invoked when a game event occurs (for live streaming) */
 export type GameEventCallback = (event: GameEvent) => void | Promise<void>;
 
+/** Callback invoked after each phase completes (for checkpointing) */
+export type PhaseCheckpointCallback = (state: SerializedGameState) => void | Promise<void>;
+
 export interface GameOptions {
   readonly gameId?: string;
   /** Optional callback invoked for each game event (enables live streaming) */
   readonly onEvent?: GameEventCallback;
+  /** Optional callback invoked after each phase completes (for DO state persistence) */
+  readonly onPhaseComplete?: PhaseCheckpointCallback;
+  /** Optional serialized state to resume from (for DO eviction recovery) */
+  readonly resumeFrom?: SerializedGameState;
 }
 
 /**
@@ -36,14 +44,19 @@ export interface GameOptions {
  * 
  * This is a pure TypeScript implementation with no external dependencies.
  * The AI provider is injected, making the engine fully testable.
+ * 
+ * Supports resumption from saved state for DO eviction recovery.
  */
 export class Game {
   private readonly config: GameConfig;
   private readonly aiProvider: AIProvider;
   private readonly gameId: string;
   private readonly onEvent: GameEventCallback | undefined;
+  private readonly onPhaseComplete: PhaseCheckpointCallback | undefined;
   private state: GameState;
   private startTime: number = 0;
+  /** Whether this game is resuming from a saved state */
+  private readonly isResuming: boolean;
 
   constructor(
     config: GameConfig,
@@ -54,7 +67,16 @@ export class Game {
     this.aiProvider = aiProvider;
     this.gameId = options.gameId ?? generateGameId();
     this.onEvent = options.onEvent;
-    this.state = GameState.create(this.gameId, config);
+    this.onPhaseComplete = options.onPhaseComplete;
+    
+    // Resume from saved state if provided
+    if (options.resumeFrom) {
+      this.state = GameState.deserialize(options.resumeFrom);
+      this.isResuming = true;
+    } else {
+      this.state = GameState.create(this.gameId, config);
+      this.isResuming = false;
+    }
   }
 
   /**
@@ -74,20 +96,29 @@ export class Game {
    * Game loop order: Day Discussion → Day Vote → Night (kills)
    * This ensures Town always gets a chance to discuss before anyone dies,
    * creating a proper social deduction benchmark.
+   * 
+   * Supports resumption from saved state - skips already-completed phases.
    */
   async run(): Promise<GameResult> {
     this.startTime = Date.now();
 
     // Introduction Phase - Players introduce themselves (runs once)
-    const introResult = await executeIntroductionPhase(this.state, this.aiProvider);
-    await this.updateStateAndEmitEvents(introResult.state);
+    // Skip if resuming and introduction already completed
+    if (!this.isResuming || !this.hasCompletedIntroduction()) {
+      const introResult = await executeIntroductionPhase(this.state, this.aiProvider);
+      await this.updateStateAndEmitEvents(introResult.state);
+      await this.checkpoint();
+    }
 
     // Main game loop: Day → Night order
     // This ensures discussion happens BEFORE any kills
     while (this.state.round <= this.config.maxRounds) {
+      // Determine starting phase for this round (for resumption)
+      const startPhase = this.determineResumePhase();
+      
       // Day Discussion Phase (if enabled)
       // Town discusses and analyzes behavior before voting
-      if (this.config.discussionEnabled) {
+      if (this.config.discussionEnabled && startPhase !== 'day_vote' && startPhase !== 'night') {
         const discussionResult = await executeDiscussionPhase(
           this.state,
           this.aiProvider,
@@ -95,23 +126,28 @@ export class Game {
         );
         // Only sync state (events already emitted by phase)
         this.state = discussionResult.state;
+        await this.checkpoint();
       }
 
       // Day Vote Phase - Town votes to eliminate a suspect
-      const voteResult = await executeVotePhase(this.state, this.aiProvider, this.onEvent);
-      // Only sync state (events already emitted by phase)
-      this.state = voteResult.state;
+      if (startPhase !== 'night') {
+        const voteResult = await executeVotePhase(this.state, this.aiProvider, this.onEvent);
+        // Only sync state (events already emitted by phase)
+        this.state = voteResult.state;
+        await this.checkpoint();
 
-      // Check win condition after vote
-      const winnerAfterVote = checkWinCondition(this.state);
-      if (winnerAfterVote) {
-        return await this.createResult(winnerAfterVote);
+        // Check win condition after vote
+        const winnerAfterVote = checkWinCondition(this.state);
+        if (winnerAfterVote) {
+          return await this.createResult(winnerAfterVote);
+        }
       }
 
       // Night Phase - Mafia kills a town member
       const nightResult = await executeNightPhase(this.state, this.aiProvider, this.onEvent);
       // Only sync state (events already emitted by phase)
       this.state = nightResult.state;
+      await this.checkpoint();
 
       // Check win condition after night
       const winnerAfterNight = checkWinCondition(this.state);
@@ -121,11 +157,69 @@ export class Game {
 
       // Advance to next round
       this.state = this.state.withNextRound();
+      await this.checkpoint();
     }
 
     // Max rounds reached - determine winner by surviving counts
     const winner = this.determineWinnerByCount();
     return await this.createResult(winner);
+  }
+
+  /**
+   * Check if introduction phase has already been completed.
+   * Used for resumption logic.
+   */
+  private hasCompletedIntroduction(): boolean {
+    // Introduction is complete if we have persona_generation events
+    return this.state.events.some(e => e.type === 'persona_generation');
+  }
+
+  /**
+   * Determine which phase to resume from based on current state.
+   * Returns the phase to START from (phases before this are skipped).
+   */
+  private determineResumePhase(): 'day_discussion' | 'day_vote' | 'night' {
+    if (!this.isResuming) {
+      return 'day_discussion';
+    }
+    
+    // Check events for this round to see what's completed
+    const roundEvents = this.state.events.filter(e => 'round' in e && e.round === this.state.round);
+    
+    // Check which phases have started (for detecting partial phases)
+    const hasVotePhase = roundEvents.some(e => e.type === 'phase_start' && e.phase === 'day_vote');
+    const hasDiscussionPhase = roundEvents.some(e => e.type === 'phase_start' && e.phase === 'day_discussion');
+    
+    // Check which phases have completed (for skipping)
+    const nightCompleted = roundEvents.some(e => e.type === 'phase_end' && e.phase === 'night');
+    const voteCompleted = roundEvents.some(e => e.type === 'phase_end' && e.phase === 'day_vote');
+    const discussionCompleted = roundEvents.some(e => e.type === 'phase_end' && e.phase === 'day_discussion');
+    
+    if (nightCompleted) {
+      // This round is done, let the loop advance
+      return 'day_discussion';
+    }
+    if (voteCompleted) {
+      return 'night';
+    }
+    if (discussionCompleted || hasVotePhase) {
+      return 'day_vote';
+    }
+    if (hasDiscussionPhase) {
+      // Discussion started but not completed - restart it
+      return 'day_discussion';
+    }
+    
+    return 'day_discussion';
+  }
+
+  /**
+   * Save checkpoint after each phase for DO state persistence.
+   */
+  private async checkpoint(): Promise<void> {
+    if (this.onPhaseComplete) {
+      await this.onPhaseComplete(this.state.serialize());
+    }
   }
 
   /**
