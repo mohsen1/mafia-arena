@@ -1,6 +1,6 @@
 /**
  * AI Provider factory.
- * Routes models to their respective providers (OpenRouter, Google Gemini, etc.)
+ * All models are routed through OpenRouter's unified API.
  */
 
 import type { Env } from '../types.js';
@@ -9,7 +9,6 @@ import { SUPPORTED_MODELS } from './models.js';
 import { AIErrors } from './errors.js';
 import { RetryingProvider } from './RetryingProvider.js';
 import { OpenRouterProvider } from './providers/OpenRouterProvider.js';
-import { GoogleProvider } from './providers/GoogleProvider.js';
 
 export interface CreateProviderOptions {
   enableRetry?: boolean;
@@ -42,7 +41,7 @@ const PRICING_MODE_DEFAULTS = {
 
 /**
  * Create an AI provider for the given model.
- * Routes to the appropriate provider based on model configuration.
+ * All models are routed through OpenRouter.
  */
 export function createProvider(
   modelId: string,
@@ -65,30 +64,15 @@ export function createProvider(
     timeoutMs = defaults.timeoutMs,
   } = options;
 
-  let provider: AIProviderInterface;
-
-  // Route to the appropriate provider
-  if (modelConfig.provider === 'google') {
-    if (!env.GOOGLE_API_KEY) {
-      throw new Error('GOOGLE_API_KEY is required for Google models');
-    }
-    provider = new GoogleProvider({
-      apiKey: env.GOOGLE_API_KEY,
-      modelId,
-      timeoutMs,
-    });
-  } else if (modelConfig.provider === 'openrouter') {
-    if (!env.OPENROUTER_API_KEY) {
-      throw new Error('OPENROUTER_API_KEY is required for OpenRouter models');
-    }
-    provider = new OpenRouterProvider({
-      apiKey: env.OPENROUTER_API_KEY,
-      modelId,
-      timeoutMs,
-    });
-  } else {
-    throw new Error(`Unknown provider: ${modelConfig.provider}`);
+  if (!env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is required');
   }
+
+  const provider = new OpenRouterProvider({
+    apiKey: env.OPENROUTER_API_KEY,
+    modelId,
+    timeoutMs,
+  });
 
   if (enableRetry) {
     return new RetryingProvider(provider, { 
