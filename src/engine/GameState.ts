@@ -10,6 +10,7 @@ import type {
   GameEvent,
   ConversationMessage,
   Persona,
+  SerializedGameState,
 } from './types.js';
 import { 
   createRandomGenerator, 
@@ -236,6 +237,51 @@ export class GameState {
   getCurrentRoundMafiaConversation(): readonly ConversationMessage[] {
     return this.conversationHistory.filter(
       (m) => m.round === this.round && m.channel === 'mafia'
+    );
+  }
+
+  // ===========================================================================
+  // Serialization (for DO state persistence)
+  // ===========================================================================
+
+  /**
+   * Serialize state for persistence to Durable Object storage.
+   * Used to survive DO evictions during long-running games (discount pricing mode).
+   */
+  serialize(): SerializedGameState {
+    return {
+      players: this.players,
+      phase: this.phase,
+      round: this.round,
+      events: this.events,
+      conversationHistory: this.conversationHistory,
+      gameId: this.gameId,
+      config: this.config,
+      seed: this.seed,
+    };
+  }
+
+  /**
+   * Deserialize state from Durable Object storage.
+   * Recreates the RNG from seed for any future random operations.
+   * Note: RNG position is not preserved, but this is acceptable because:
+   * - Player shuffle already happened (stored in players array)
+   * - Future operations will be deterministic from seed
+   */
+  static deserialize(data: SerializedGameState): GameState {
+    // Recreate RNG from seed for any future random operations
+    const rng = createRandomGenerator(data.seed);
+    
+    return new GameState(
+      data.players,
+      data.phase,
+      data.round,
+      data.events,
+      data.conversationHistory,
+      data.gameId,
+      data.config,
+      rng,
+      data.seed
     );
   }
 }

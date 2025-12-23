@@ -12,7 +12,7 @@
  * ZERO COST: No API calls are made. Games complete in seconds.
  */
 
-import type { AIProviderInterface, CompletionRequest, CompletionResponse, StructuredOutputConfig } from '../types.js';
+import type { AIProviderInterface, CompletionRequest, CompletionResponse } from '../types.js';
 
 type TestScenario = 'random' | 'town-wins' | 'mafia-wins';
 
@@ -206,7 +206,7 @@ export class MockE2EProvider implements AIProviderInterface {
   /**
    * Generate mafia private discussion message.
    */
-  private generateMafiaDiscussion(index: number, targets: string[]): Record<string, unknown> {
+  private generateMafiaDiscussion(_index: number, targets: string[]): Record<string, unknown> {
     if (targets.length > 0) {
       return { message: `I think we should target ${targets[0]}. They seem like a threat.` };
     }

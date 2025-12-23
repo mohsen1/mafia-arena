@@ -16,7 +16,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import type { Env, GameQueueConfig } from './types.js';
-import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent } from '../engine/index.js';
+import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent, type SerializedGameState } from '../engine/index.js';
 import { createProvidersForGame, GameAIAdapter } from './ai/index.js';
 import { generateSeed } from '../engine/utils/random.js';
 import { calculateGameCost } from './utils/budget.js';
@@ -35,6 +35,10 @@ const STORAGE_KEYS = {
   TRACE_ID: 'traceId',
   DISCOUNT_PRICING: 'discountPricing',
   LAST_ACTIVITY: 'lastActivity',
+  /** Full serialized GameState for resumption after DO eviction */
+  GAME_STATE: 'gameState',
+  /** Event log for WebSocket sync (persisted to survive eviction) */
+  EVENT_LOG: 'eventLog',
 } as const;
 
 /** 
@@ -332,15 +336,25 @@ export class GameRunner extends DurableObject<Env> {
     this.sessions.push(server);
     this.log.info('WebSocket connected', { sessionCount: this.sessions.length });
 
-    // Load event log from R2 stream if not already loaded (for DO hibernation recovery)
+    // Load event log if not already loaded (for DO hibernation recovery)
+    // Try DO storage first (faster), then fall back to R2 stream
     if (this.eventLog.length === 0) {
       const state = await this.loadState();
       if (state.gameId && state.status === 'running') {
-        const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
-        if (streamedEvents.length > 0) {
-          this.eventLog = streamedEvents;
-          this.lastR2StreamIndex = streamedEvents.length;
-          this.log.debug('Loaded events from R2 stream', { eventCount: this.eventLog.length });
+        // Try DO storage first (persisted on every event)
+        const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
+        if (storedEvents && storedEvents.length > 0) {
+          this.eventLog = storedEvents;
+          this.lastR2StreamIndex = storedEvents.length;
+          this.log.debug('Loaded events from DO storage', { eventCount: this.eventLog.length });
+        } else {
+          // Fall back to R2 stream
+          const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
+          if (streamedEvents.length > 0) {
+            this.eventLog = streamedEvents;
+            this.lastR2StreamIndex = streamedEvents.length;
+            this.log.debug('Loaded events from R2 stream', { eventCount: this.eventLog.length });
+          }
         }
       }
     }
@@ -426,7 +440,7 @@ export class GameRunner extends DurableObject<Env> {
   /**
    * Get current events (for polling fallback).
    * For completed games, serves full data from R2 transcript.
-   * For running games, serves from memory or R2 stream (no DO storage).
+   * For running games, serves from DO storage, then R2 stream fallback.
    */
   private async handleGetEvents(): Promise<Response> {
     const state = await this.loadState();
@@ -455,12 +469,19 @@ export class GameRunner extends DurableObject<Env> {
       }
     }
     
-    // For running games, use in-memory events or load from R2 stream
+    // For running games, use in-memory events or load from storage
+    // Try DO storage first (persisted on every event), then R2 stream
     if (this.eventLog.length === 0 && state.gameId && state.status === 'running') {
-      const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
-      if (streamedEvents.length > 0) {
-        this.eventLog = streamedEvents;
-        this.lastR2StreamIndex = streamedEvents.length;
+      const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
+      if (storedEvents && storedEvents.length > 0) {
+        this.eventLog = storedEvents;
+        this.lastR2StreamIndex = storedEvents.length;
+      } else {
+        const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
+        if (streamedEvents.length > 0) {
+          this.eventLog = streamedEvents;
+          this.lastR2StreamIndex = streamedEvents.length;
+        }
       }
     }
 
@@ -797,20 +818,38 @@ export class GameRunner extends DurableObject<Env> {
 
   /**
    * Run the game to completion.
+   * Supports resumption from saved state after DO eviction.
    */
   private async runGame(gameId: string, batchId: string, config: GameConfig): Promise<void> {
     const gameLog = this.log.child({ gameId, batchId });
     const startTime = Date.now();
+    
+    // Check if we have a saved game state to resume from
+    const savedGameState = await this.ctx.storage.get<SerializedGameState>(STORAGE_KEYS.GAME_STATE);
+    const isResuming = savedGameState !== undefined;
     
     gameLog.info('Game starting', { 
       seed: config.seed,
       playerCount: config.playerCount,
       mafiaCount: config.mafiaCount,
       models: config.teams.map(t => t.modelId).join(','),
+      isResuming,
+      resumeRound: savedGameState?.round,
+      resumePhase: savedGameState?.phase,
     });
 
-    // Reset event log for this game
-    this.eventLog = [];
+    // Load event log from DO storage if resuming (faster than R2)
+    if (isResuming) {
+      const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
+      if (storedEvents) {
+        this.eventLog = storedEvents;
+        this.lastR2StreamIndex = storedEvents.length;
+        gameLog.info('Loaded event log from DO storage', { eventCount: this.eventLog.length });
+      }
+    } else {
+      // Reset event log for new game
+      this.eventLog = [];
+    }
 
     // Get discountPricing from config for activity tracking and provider configuration
     const discountPricing = (await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG))?.discountPricing ?? false;
@@ -825,7 +864,7 @@ export class GameRunner extends DurableObject<Env> {
     const aiAdapter = new GameAIAdapter(providers);
 
     // Track event counts for logging
-    let eventCount = 0;
+    let eventCount = this.eventLog.length;
 
     // Event callback for live streaming
     const onEvent = async (event: GameEvent) => {
@@ -890,11 +929,15 @@ export class GameRunner extends DurableObject<Env> {
 
       // Add to in-memory log (full events for R2 transcript)
       this.eventLog.push(event);
+      
+      // Persist to DO storage on every event (fast, designed for this use case)
+      // This ensures we don't lose events on DO eviction
+      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, this.eventLog);
 
-      // Stream to R2 incrementally (every 30 events or on important events)
-      // This provides persistence without DO storage limits (R2 has no size limit)
+      // Stream to R2 incrementally (every 10 events or on important events)
+      // Reduced from 30 to 10 for better persistence
       const shouldStream = 
-        this.eventLog.length - this.lastR2StreamIndex >= 30 ||
+        this.eventLog.length - this.lastR2StreamIndex >= 10 ||
         event.type === 'elimination' ||
         event.type === 'game_end';
       
@@ -907,7 +950,7 @@ export class GameRunner extends DurableObject<Env> {
           });
         } catch (error) {
           // R2 stream failed - log but don't fail the game
-          // Events are still in memory and will be written on completion
+          // Events are still in memory and DO storage
           logErrorWithStack(gameLog, 'Failed to stream events to R2', error, {
             eventCount: this.eventLog.length,
           });
@@ -922,9 +965,26 @@ export class GameRunner extends DurableObject<Env> {
       });
     };
 
-    // Create and run the game with live streaming
-    gameLog.info('Creating game instance');
-    const game = new Game(config, aiAdapter, { gameId, onEvent });
+    // Phase checkpoint callback - saves full game state after each phase
+    // This allows resumption from the last completed phase after DO eviction
+    const onPhaseComplete = async (serializedState: SerializedGameState) => {
+      gameLog.debug('Phase checkpoint', { 
+        phase: serializedState.phase, 
+        round: serializedState.round,
+        eventCount: serializedState.events.length,
+      });
+      await this.ctx.storage.put(STORAGE_KEYS.GAME_STATE, serializedState);
+    };
+
+    // Create and run the game with live streaming and checkpointing
+    gameLog.info('Creating game instance', { isResuming });
+    const game = new Game(config, aiAdapter, {
+      gameId,
+      onEvent,
+      onPhaseComplete,
+      // Only include resumeFrom if we have saved state (exactOptionalPropertyTypes compliance)
+      ...(savedGameState && { resumeFrom: savedGameState }),
+    });
     
     gameLog.info('Running game loop');
     const result = await game.run();
@@ -948,6 +1008,11 @@ export class GameRunner extends DurableObject<Env> {
       completedAt: Date.now(),
     });
     gameLog.info('State saved as completed');
+
+    // Clean up checkpoint data (no longer needed after completion)
+    // Keep event log for WebSocket clients that may still be connected
+    await this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE);
+    gameLog.debug('Cleaned up game state checkpoint');
 
     // Broadcast completion status
     this.broadcast({
@@ -1003,7 +1068,7 @@ export class GameRunner extends DurableObject<Env> {
 
   /**
    * Persist game results to D1 and R2.
-   * IDEMPOTENT: Checks if game already exists before inserting.
+   * IDEMPOTENT: Uses atomic INSERT ... ON CONFLICT with WHERE clause to prevent double-counting.
    * Uses db.batch() for atomic D1 operations to prevent partial data states.
    * R2 write happens BEFORE D1 to ensure transcript exists if game record exists.
    */
@@ -1014,18 +1079,6 @@ export class GameRunner extends DurableObject<Env> {
     // Get current state to retrieve traceId
     const state = await this.loadState();
     const traceId = state.traceId;
-
-    // Check if this game was already completed (idempotency check)
-    // Note: Record might exist with status 'running' from insertRunningGame()
-    const existingGame = await db
-      .prepare('SELECT status FROM games WHERE id = ?')
-      .bind(result.id)
-      .first<{ status: string }>();
-
-    if (existingGame?.status === 'completed') {
-      console.log(`[${traceId || 'no-trace'}] Game ${result.id} already completed, skipping to avoid double-counting`);
-      return;
-    }
 
     // Calculate cost using per-model pricing
     const modelIds = result.participants.map(p => p.modelId);
@@ -1072,22 +1125,44 @@ export class GameRunner extends DurableObject<Env> {
       // Ignore cleanup errors - stream file may not exist
     }
 
-    // 2. Build all D1 statements for atomic batch execution
+    // 2. ATOMIC idempotency check: Update game to 'completed' only if not already completed
+    // This prevents race conditions where two processes might try to complete the same game
+    const updateResult = await db.prepare(`
+      UPDATE games 
+      SET winner = ?, rounds = ?, duration_ms = ?, total_tokens = ?, status = 'completed',
+          persona_theme = ?, trace_id = COALESCE(?, trace_id)
+      WHERE id = ? AND status != 'completed'
+    `).bind(
+      result.winner,
+      result.rounds,
+      result.durationMs,
+      result.tokenUsage.total,
+      result.config.personaTheme ?? 'noir',
+      traceId ?? null,
+      result.id
+    ).run();
+
+    // If no rows were updated, the game was already completed - skip leaderboard updates
+    if (updateResult.meta.changes === 0) {
+      // Check if game exists but was already completed, or doesn't exist at all
+      const existing = await db.prepare('SELECT status FROM games WHERE id = ?').bind(result.id).first<{ status: string }>();
+      if (existing?.status === 'completed') {
+        console.log(`[${traceId || 'no-trace'}] Game ${result.id} already completed, skipping to avoid double-counting`);
+        return;
+      }
+      // Game doesn't exist - insert it fresh (shouldn't happen in normal flow but handle gracefully)
+    }
+
+    // 3. Build remaining D1 statements for batch execution
     const statements: D1PreparedStatement[] = [];
 
-    // Insert or update game record (may already exist from insertRunningGame)
+    // Insert game record if it doesn't exist (for edge case where UPDATE didn't find a row)
+    // This is a no-op if the row already exists from insertRunningGame or the UPDATE above
     statements.push(
       db.prepare(
         `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, persona_theme, trace_id, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT (id) DO UPDATE SET
-           winner = excluded.winner,
-           rounds = excluded.rounds,
-           duration_ms = excluded.duration_ms,
-           total_tokens = excluded.total_tokens,
-           status = excluded.status,
-           persona_theme = excluded.persona_theme,
-           trace_id = COALESCE(excluded.trace_id, trace_id)`
+         ON CONFLICT (id) DO NOTHING`
       ).bind(
         result.id,
         batchId,
@@ -1124,7 +1199,7 @@ export class GameRunner extends DurableObject<Env> {
       );
     }
 
-    // Update leaderboard for each participant
+    // Update leaderboard for each participant (only reached if game wasn't already completed)
     for (const participant of result.participants) {
       statements.push(
         db.prepare(

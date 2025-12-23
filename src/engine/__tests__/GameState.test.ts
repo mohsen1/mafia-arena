@@ -213,5 +213,141 @@ describe('GameState', () => {
       expect(foundPlayer).toBeUndefined();
     });
   });
+
+  describe('serialization', () => {
+    it('should serialize and deserialize preserving all state', () => {
+      const config: GameConfig = {
+        ...createTestConfig(),
+        seed: 12345, // Use a fixed seed for reproducibility
+      };
+      let state = GameState.create('test-game', config);
+
+      // Add some state changes
+      state = state.withPhase('day_discussion');
+      state = state.withEvent({
+        type: 'phase_start',
+        phase: 'day_discussion',
+        round: 1,
+        timestamp: Date.now(),
+      });
+      state = state.withConversationMessage({
+        playerId: 'player_1',
+        playerName: 'Player 1',
+        message: 'Hello everyone!',
+        round: 1,
+      });
+      state = state.withPlayerEliminated(state.players[0]!.id);
+
+      // Serialize
+      const serialized = state.serialize();
+
+      // Deserialize
+      const restored = GameState.deserialize(serialized);
+
+      // Verify all state is preserved
+      expect(restored.gameId).toBe(state.gameId);
+      expect(restored.phase).toBe(state.phase);
+      expect(restored.round).toBe(state.round);
+      expect(restored.seed).toBe(state.seed);
+      expect(restored.players.length).toBe(state.players.length);
+      expect(restored.events.length).toBe(state.events.length);
+      expect(restored.conversationHistory.length).toBe(state.conversationHistory.length);
+      expect(restored.alivePlayers.length).toBe(state.alivePlayers.length);
+      expect(restored.deadPlayers.length).toBe(state.deadPlayers.length);
+    });
+
+    it('should serialize to JSON-compatible format', () => {
+      const config: GameConfig = {
+        ...createTestConfig(),
+        seed: 12345,
+      };
+      const state = GameState.create('test-game', config);
+
+      const serialized = state.serialize();
+
+      // Should be JSON-serializable
+      const json = JSON.stringify(serialized);
+      expect(json).toBeTruthy();
+
+      // Should roundtrip through JSON
+      const parsed = JSON.parse(json);
+      const restored = GameState.deserialize(parsed);
+
+      expect(restored.gameId).toBe(state.gameId);
+      expect(restored.seed).toBe(state.seed);
+    });
+
+    it('should preserve player personas after deserialization', () => {
+      const config: GameConfig = {
+        ...createTestConfig(),
+        seed: 12345,
+      };
+      let state = GameState.create('test-game', config);
+
+      // Add a persona
+      const player = state.players[0]!;
+      state = state.withPlayerPersona(player.id, {
+        name: 'Detective Smith',
+        background: 'A seasoned investigator',
+        personality: 'Analytical and cautious',
+      });
+
+      const serialized = state.serialize();
+      const restored = GameState.deserialize(serialized);
+
+      const restoredPlayer = restored.getPlayer(player.id);
+      expect(restoredPlayer?.persona).toBeDefined();
+      expect(restoredPlayer?.persona?.name).toBe('Detective Smith');
+      expect(restoredPlayer?.name).toBe('Detective Smith');
+    });
+
+    it('should recreate RNG from seed', () => {
+      const config: GameConfig = {
+        ...createTestConfig(),
+        seed: 12345,
+      };
+      const state = GameState.create('test-game', config);
+
+      const serialized = state.serialize();
+      const restored = GameState.deserialize(serialized);
+
+      // RNG should be recreated
+      expect(restored.rng).toBeDefined();
+      expect(restored.seed).toBe(12345);
+    });
+
+    it('should handle complex conversation history', () => {
+      const config: GameConfig = {
+        ...createTestConfig(),
+        seed: 12345,
+      };
+      let state = GameState.create('test-game', config);
+
+      // Add messages with different channels
+      state = state.withConversationMessage({
+        playerId: 'player_1',
+        playerName: 'Player 1',
+        message: 'Public message',
+        round: 1,
+        channel: 'public',
+        discussionRound: 1,
+      });
+      state = state.withConversationMessage({
+        playerId: 'player_2',
+        playerName: 'Player 2',
+        message: 'Mafia message',
+        round: 1,
+        channel: 'mafia',
+        discussionRound: 1,
+      });
+
+      const serialized = state.serialize();
+      const restored = GameState.deserialize(serialized);
+
+      expect(restored.conversationHistory.length).toBe(2);
+      expect(restored.conversationHistory[0]?.channel).toBe('public');
+      expect(restored.conversationHistory[1]?.channel).toBe('mafia');
+    });
+  });
 });
 

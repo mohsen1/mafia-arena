@@ -715,12 +715,22 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   let pollInterval = null;
   let lastPollEventCount = 0;
   
+  // Polling backoff configuration
+  const BASE_POLL_DELAY = 2000;      // Start at 2 seconds
+  const MAX_POLL_DELAY = 30000;      // Cap at 30 seconds
+  let currentPollDelay = BASE_POLL_DELAY;
+  let consecutivePollErrors = 0;
+  
   function fallbackToPolling() {
     updateConnectionStatus(true, 'Polling mode', { polling: true });
     // Don't set startTime here - will be set from first poll response
     if (!durationInterval) {
       durationInterval = setInterval(updateDuration, 1000);
     }
+    
+    // Reset backoff state when starting polling
+    currentPollDelay = BASE_POLL_DELAY;
+    consecutivePollErrors = 0;
     
     async function poll() {
       triggerHeartbeat();
@@ -730,6 +740,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         if (!res.ok) throw new Error('Failed');
         
         const data = await res.json();
+        
+        // Reset backoff on successful poll
+        consecutivePollErrors = 0;
+        currentPollDelay = BASE_POLL_DELAY;
         
         // Use actual game start time if available
         if (data.startedAt && !startTime) {
@@ -772,21 +786,45 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           }
           clearInterval(pollInterval);
           clearInterval(durationInterval);
+          return; // Stop polling
         }
+        
+        // Schedule next poll (may have different delay after backoff reset)
+        scheduleNextPoll();
+        
       } catch (e) {
         console.error('Poll error:', e);
+        
+        // Exponential backoff on error (1.5x multiplier, capped at MAX)
+        consecutivePollErrors++;
+        currentPollDelay = Math.min(currentPollDelay * 1.5, MAX_POLL_DELAY);
+        
+        updateConnectionStatus(true, `Polling (retry in ${Math.round(currentPollDelay / 1000)}s)`, { polling: true });
+        
+        // Schedule next poll with backoff
+        scheduleNextPoll();
       }
     }
+    
+    function scheduleNextPoll() {
+      // Clear existing interval and set new one with potentially different delay
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+      pollInterval = setTimeout(() => {
+        poll();
+      }, currentPollDelay);
+    }
 
+    // Start first poll immediately
     poll();
-    pollInterval = setInterval(poll, 2000);
   }
 
   connect();
 
   window.addEventListener('beforeunload', () => {
     if (ws) ws.close(1000);
-    if (pollInterval) clearInterval(pollInterval);
+    if (pollInterval) clearTimeout(pollInterval);
     if (durationInterval) clearInterval(durationInterval);
   });
 </script>
