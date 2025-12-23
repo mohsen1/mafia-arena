@@ -32,7 +32,6 @@ const STORAGE_KEYS = {
   ERROR: 'error',
   CONFIG: 'config',
   SEED: 'seed',
-  EVENT_LOG: 'eventLog',
   TRACE_ID: 'traceId',
   DISCOUNT_PRICING: 'discountPricing',
   LAST_ACTIVITY: 'lastActivity',
@@ -48,11 +47,8 @@ const STALE_THRESHOLD_MS = {
   DISCOUNT_PRICING: 48 * 60 * 60 * 1000, // 48 hours for discount pricing games
 } as const;
 
-/** DO storage limit is 128KB - use 100KB to leave headroom */
-const MAX_STORAGE_BYTES = 100_000;
-
 /**
- * Strip large fields from events for DO storage.
+ * Strip large fields from events for WebSocket streaming.
  * AICallEvent contains full prompts and raw responses which can be huge.
  * For live streaming, viewers only need to see the parsed action, not the prompts.
  * Full data is preserved in the R2 transcript.
@@ -62,11 +58,11 @@ function stripEventForStorage(event: GameEvent): GameEvent {
     return {
       ...event,
       prompt: {
-        system: '[stripped for storage]',
-        user: '[stripped for storage]',
+        system: '[stripped for streaming]',
+        user: '[stripped for streaming]',
       },
       response: {
-        raw: '[stripped for storage]',
+        raw: '[stripped for streaming]',
         parsed: event.response.parsed,
       },
     };
@@ -74,37 +70,10 @@ function stripEventForStorage(event: GameEvent): GameEvent {
   if (event.type === 'ai_parse_error') {
     return {
       ...event,
-      rawResponse: '[stripped for storage]',
+      rawResponse: '[stripped for streaming]',
     };
   }
   return event;
-}
-
-/**
- * Prepare events for DO storage by stripping large fields and truncating if needed.
- * Returns stripped events that fit within DO storage limits.
- */
-function prepareEventsForStorage(events: GameEvent[]): GameEvent[] {
-  // Strip large fields from all events
-  let stripped = events.map(stripEventForStorage);
-  
-  // Check size and truncate if still too large
-  let serialized = JSON.stringify(stripped);
-  
-  // Progressively truncate if needed
-  while (serialized.length > MAX_STORAGE_BYTES && stripped.length > 10) {
-    // Keep last half of events, minimum 10
-    const keepCount = Math.max(10, Math.floor(stripped.length / 2));
-    stripped = stripped.slice(-keepCount);
-    serialized = JSON.stringify(stripped);
-  }
-  
-  // Final safety check - if still too large, keep only last 10 events
-  if (serialized.length > MAX_STORAGE_BYTES) {
-    stripped = stripped.slice(-10);
-  }
-  
-  return stripped;
 }
 
 interface GameRunnerState {
@@ -142,8 +111,11 @@ export class GameRunner extends DurableObject<Env> {
   /** Connected WebSocket clients for live streaming */
   private sessions: WebSocket[] = [];
   
-  /** In-memory event log for live streaming (persisted to storage periodically) */
+  /** In-memory event log for live streaming */
   private eventLog: GameEvent[] = [];
+  
+  /** Index of last event streamed to R2 (for incremental streaming) */
+  private lastR2StreamIndex: number = 0;
 
   /** Logger instance for this DO */
   private log: Logger;
@@ -352,12 +324,16 @@ export class GameRunner extends DurableObject<Env> {
     this.sessions.push(server);
     this.log.info('WebSocket connected', { sessionCount: this.sessions.length });
 
-    // Load event log from storage if not already loaded
+    // Load event log from R2 stream if not already loaded (for DO hibernation recovery)
     if (this.eventLog.length === 0) {
-      const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
-      if (storedEvents) {
-        this.eventLog = storedEvents;
-        this.log.debug('Loaded events from storage', { eventCount: this.eventLog.length });
+      const state = await this.loadState();
+      if (state.gameId && state.status === 'running') {
+        const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
+        if (streamedEvents.length > 0) {
+          this.eventLog = streamedEvents;
+          this.lastR2StreamIndex = streamedEvents.length;
+          this.log.debug('Loaded events from R2 stream', { eventCount: this.eventLog.length });
+        }
       }
     }
 
@@ -442,7 +418,7 @@ export class GameRunner extends DurableObject<Env> {
   /**
    * Get current events (for polling fallback).
    * For completed games, serves full data from R2 transcript.
-   * For running games, serves stripped data from DO storage (real-time).
+   * For running games, serves from memory or R2 stream (no DO storage).
    */
   private async handleGetEvents(): Promise<Response> {
     const state = await this.loadState();
@@ -465,17 +441,18 @@ export class GameRunner extends DurableObject<Env> {
           });
         }
       } catch (error) {
-        this.log.warn('Failed to read transcript from R2, falling back to DO storage', { 
+        this.log.warn('Failed to read transcript from R2', { 
           error: error instanceof Error ? error.message : String(error) 
         });
       }
     }
     
-    // For running games (or if R2 read fails), use DO storage (stripped data)
-    if (this.eventLog.length === 0) {
-      const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
-      if (storedEvents) {
-        this.eventLog = storedEvents;
+    // For running games, use in-memory events or load from R2 stream
+    if (this.eventLog.length === 0 && state.gameId && state.status === 'running') {
+      const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
+      if (streamedEvents.length > 0) {
+        this.eventLog = streamedEvents;
+        this.lastR2StreamIndex = streamedEvents.length;
       }
     }
 
@@ -484,11 +461,8 @@ export class GameRunner extends DurableObject<Env> {
       gameId: state.gameId,
       eventCount: this.eventLog.length,
       events: this.eventLog,
-      // Include startedAt for timer calculation
       startedAt: state.startedAt ?? undefined,
-      // Include error for failed games
       error: state.error ?? undefined,
-      // Include duration for completed/failed games
       durationMs: state.startedAt && state.completedAt 
         ? state.completedAt - state.startedAt 
         : undefined,
@@ -504,9 +478,6 @@ export class GameRunner extends DurableObject<Env> {
    *   Useful for live watching where frontend connects via WebSocket
    */
   private async handleStart(request: Request): Promise<Response> {
-    // #region agent log
-    console.log('[DEBUG-A] handleStart called', { timestamp: Date.now() });
-    // #endregion
     const currentState = await this.loadState();
     
     // Check if game is stuck in "running" state - use appropriate threshold
@@ -601,9 +572,9 @@ export class GameRunner extends DurableObject<Env> {
       
       gameLog.info('Game starting', { seed, background, discountPricing });
 
-      // Reset event log
+      // Reset event log (memory only - no DO storage)
       this.eventLog = [];
-      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, []);
+      this.lastR2StreamIndex = 0;
 
       // Insert 'running' record into D1 immediately so game appears in lists
       await this.insertRunningGame(gameId, batchId, gameConfig, startedAt, traceId);
@@ -611,9 +582,6 @@ export class GameRunner extends DurableObject<Env> {
       // Background mode: Return immediately, run game via waitUntil
       // This is used for live watching where frontend connects via WebSocket
       if (background) {
-        // #region agent log
-        console.log('[DEBUG-A] Starting background game', { gameId, batchId, discountPricing });
-        // #endregion
         this.ctx.waitUntil(this.runGameWithErrorHandling(gameId, batchId, gameConfig));
         return Response.json({ 
           success: true, 
@@ -679,23 +647,14 @@ export class GameRunner extends DurableObject<Env> {
     batchId: string, 
     gameConfig: GameConfig
   ): Promise<void> {
-    // #region agent log
-    console.log('[DEBUG-A] runGameWithErrorHandling started', { gameId, batchId });
-    // #endregion
     const gameLog = this.log.child({ gameId, batchId });
     
     try {
       gameLog.info('Starting background game execution');
       await this.runGame(gameId, batchId, gameConfig);
-      // #region agent log
-      console.log('[DEBUG-A] runGame completed successfully', { gameId });
-      // #endregion
       gameLog.info('Background game execution completed successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      // #region agent log
-      console.log('[DEBUG-A] Background game FAILED', { gameId, errorMessage, eventCount: this.eventLog.length });
-      // #endregion
       logErrorWithStack(gameLog, 'Background game failed', error, {
         eventCount: this.eventLog.length,
       });
@@ -924,41 +883,26 @@ export class GameRunner extends DurableObject<Env> {
       // Add to in-memory log (full events for R2 transcript)
       this.eventLog.push(event);
 
-      // Persist periodically (every 10 events or on important events)
-      // DO storage has 128KB limit, so we strip large fields and truncate if needed
-      if (
-        this.eventLog.length % 10 === 0 ||
+      // Stream to R2 incrementally (every 30 events or on important events)
+      // This provides persistence without DO storage limits (R2 has no size limit)
+      const shouldStream = 
+        this.eventLog.length - this.lastR2StreamIndex >= 30 ||
         event.type === 'elimination' ||
-        event.type === 'game_end' ||
-        event.type === 'phase_start'
-      ) {
+        event.type === 'game_end';
+      
+      if (shouldStream) {
         try {
-          const eventsToStore = prepareEventsForStorage(this.eventLog);
-          const serializedSize = JSON.stringify(eventsToStore).length;
-          
-          if (serializedSize > MAX_STORAGE_BYTES) {
-            gameLog.warn('Events still too large after stripping, keeping last 10 only', {
-              size: serializedSize,
-              eventCount: eventsToStore.length,
-            });
-            // Emergency truncation - keep only last 10 events with all fields stripped
-            const emergency = eventsToStore.slice(-10);
-            await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, emergency);
-            gameLog.debug('Emergency event truncation applied', { storedCount: emergency.length });
-          } else {
-            await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
-            gameLog.debug('Events persisted to storage', { 
-              storedCount: eventsToStore.length,
-              sizeBytes: serializedSize 
-            });
-          }
+          await this.streamEventsToR2(gameId);
+          gameLog.debug('Events streamed to R2', { 
+            eventCount: this.eventLog.length,
+            streamedFrom: this.lastR2StreamIndex,
+          });
         } catch (error) {
-          // Storage failed - likely size issue. Log but don't fail the game.
-          // Full events are still preserved in R2 transcript.
-          logErrorWithStack(gameLog, 'Failed to persist events to DO storage', error, {
+          // R2 stream failed - log but don't fail the game
+          // Events are still in memory and will be written on completion
+          logErrorWithStack(gameLog, 'Failed to stream events to R2', error, {
             eventCount: this.eventLog.length,
           });
-          gameLog.warn('Continuing game without DO event storage (R2 transcript unaffected)');
         }
       }
 
@@ -972,19 +916,10 @@ export class GameRunner extends DurableObject<Env> {
 
     // Create and run the game with live streaming
     gameLog.info('Creating game instance');
-    // #region agent log
-    console.log('[DEBUG-B] Creating Game instance', { gameId, playerCount: config.playerCount, mafiaCount: config.mafiaCount });
-    // #endregion
     const game = new Game(config, aiAdapter, { gameId, onEvent });
     
     gameLog.info('Running game loop');
-    // #region agent log
-    console.log('[DEBUG-B] About to call game.run()', { gameId });
-    // #endregion
     const result = await game.run();
-    // #region agent log
-    console.log('[DEBUG-B] game.run() completed', { gameId, winner: result.winner, rounds: result.rounds });
-    // #endregion
 
     const durationMs = Date.now() - startTime;
     gameLog.info('Game completed', { 
@@ -995,27 +930,7 @@ export class GameRunner extends DurableObject<Env> {
       totalTokens: result.tokenUsage.total,
     });
 
-    // Final persist of stripped events for DO storage
-    try {
-      const eventsToStore = prepareEventsForStorage(this.eventLog);
-      const serializedSize = JSON.stringify(eventsToStore).length;
-      
-      if (serializedSize > MAX_STORAGE_BYTES) {
-        gameLog.warn('Final events too large, keeping last 10 only', {
-          size: serializedSize,
-          eventCount: eventsToStore.length,
-        });
-        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore.slice(-10));
-      } else {
-        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
-      }
-    } catch (error) {
-      // Storage failed but game completed - R2 transcript has full data
-      logErrorWithStack(gameLog, 'Failed to persist final events to DO storage', error);
-      gameLog.warn('Game completed successfully, but DO event storage failed (R2 transcript has full data)');
-    }
-
-    // Persist results (idempotent)
+    // Persist results to D1/R2 (R2 transcript replaces streaming file)
     gameLog.debug('Persisting results to D1/R2');
     await this.persistResults(result, batchId);
 
@@ -1032,6 +947,50 @@ export class GameRunner extends DurableObject<Env> {
       status: 'completed',
       gameId,
     });
+  }
+
+  /**
+   * Stream events to R2 incrementally for running games.
+   * This provides persistence without DO storage limits.
+   * Uses a separate file from the final transcript to avoid conflicts.
+   */
+  private async streamEventsToR2(gameId: string): Promise<void> {
+    const transcripts = this.env.TRANSCRIPTS;
+    const streamKey = `games/${gameId}/events-stream.json`;
+    
+    // Write all events accumulated so far
+    const streamData = {
+      gameId,
+      eventCount: this.eventLog.length,
+      events: this.eventLog,
+      streamedAt: Date.now(),
+    };
+    
+    await transcripts.put(streamKey, JSON.stringify(streamData), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    
+    this.lastR2StreamIndex = this.eventLog.length;
+  }
+
+  /**
+   * Load events from R2 stream for running games that resumed after DO hibernation.
+   */
+  private async loadEventsFromR2Stream(gameId: string): Promise<GameEvent[]> {
+    try {
+      const streamKey = `games/${gameId}/events-stream.json`;
+      const streamObj = await this.env.TRANSCRIPTS.get(streamKey);
+      if (streamObj) {
+        const data = await streamObj.json() as { events: GameEvent[] };
+        return data.events ?? [];
+      }
+    } catch (error) {
+      this.log.warn('Failed to load events from R2 stream', { 
+        error: error instanceof Error ? error.message : String(error),
+        gameId,
+      });
+    }
+    return [];
   }
 
   /**
@@ -1097,6 +1056,13 @@ export class GameRunner extends DurableObject<Env> {
         httpMetadata: { contentType: 'application/json' },
       }
     );
+
+    // Clean up the incremental stream file (no longer needed after final transcript)
+    try {
+      await transcripts.delete(`games/${result.id}/events-stream.json`);
+    } catch {
+      // Ignore cleanup errors - stream file may not exist
+    }
 
     // 2. Build all D1 statements for atomic batch execution
     const statements: D1PreparedStatement[] = [];
