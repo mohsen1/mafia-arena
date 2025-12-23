@@ -187,15 +187,56 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     return `${minutes}m ${remainingSeconds}s`;
   }
 
-  function updateConnectionStatus(connected, message) {
+  function updateConnectionStatus(connected, message, options = {}) {
     const el = document.getElementById('connection-status');
     if (!el) return;
     
     if (connected) {
-      el.innerHTML = `<div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${message || 'Connected'}</div>`;
+      if (options.polling) {
+        el.innerHTML = `
+          <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+            <span id="poll-heartbeat" class="relative flex h-2 w-2">
+              <span class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 heartbeat-ping"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>${message || 'Polling mode'}</span>
+            <span id="poll-event-flash" class="hidden text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-500 font-medium transition-all duration-300">+1</span>
+          </div>`;
+      } else {
+        el.innerHTML = `<div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${message || 'Connected'}</div>`;
+      }
     } else {
       el.innerHTML = `<div class="flex items-center gap-2 text-muted-foreground"><span class="w-3 h-3 animate-spin">${ICONS.message}</span>${message || 'Connecting...'}</div>`;
     }
+  }
+
+  function triggerHeartbeat() {
+    const heartbeat = document.getElementById('poll-heartbeat');
+    if (!heartbeat) return;
+    
+    const ping = heartbeat.querySelector('.heartbeat-ping');
+    if (ping) {
+      ping.classList.remove('heartbeat-ping');
+      void ping.offsetWidth; // Force reflow
+      ping.classList.add('heartbeat-ping');
+    }
+  }
+
+  function showEventFlash(count) {
+    const flash = document.getElementById('poll-event-flash');
+    if (!flash) return;
+    
+    flash.textContent = `+${count}`;
+    flash.classList.remove('hidden');
+    flash.classList.add('scale-110');
+    
+    setTimeout(() => {
+      flash.classList.remove('scale-110');
+    }, 100);
+    
+    setTimeout(() => {
+      flash.classList.add('hidden');
+    }, 1500);
   }
 
   function updateLiveBadge(status) {
@@ -636,13 +677,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   }
 
   let pollInterval = null;
+  let lastPollEventCount = 0;
   
   function fallbackToPolling() {
-    updateConnectionStatus(true, 'Polling mode');
+    updateConnectionStatus(true, 'Polling mode', { polling: true });
     startTime = Date.now();
     durationInterval = setInterval(updateDuration, 1000);
     
     async function poll() {
+      triggerHeartbeat();
+      
       try {
         const res = await fetch(`${apiUrl}/api/games/${gameId}/events`);
         if (!res.ok) throw new Error('Failed');
@@ -650,11 +694,18 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         const data = await res.json();
         
         if (data.events && data.events.length > events.length) {
+          const newEventCount = data.events.length - events.length;
           events = data.events;
           events.forEach(buildPlayerFromEvent);
           updateTeamsDisplay();
           updatePlayersGrid();
           renderTranscript();
+          updateLiveBadge('running');
+          
+          if (newEventCount > 0 && lastPollEventCount !== events.length) {
+            showEventFlash(newEventCount);
+            lastPollEventCount = events.length;
+          }
         }
         
         if (data.status === 'completed' || data.status === 'failed') {
@@ -663,7 +714,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
             const gameEnd = events.find(e => e.type === 'game_end');
             if (gameEnd) showGameEnd(gameEnd.winner);
           } else if (data.status === 'failed') {
-            // Show prominent error banner for failed games
             showError(data.error);
           }
           clearInterval(pollInterval);
@@ -675,7 +725,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     }
 
     poll();
-    pollInterval = setInterval(poll, 1000);
+    pollInterval = setInterval(poll, 2000);
   }
 
   connect();
@@ -693,4 +743,23 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   }
   details > summary::-webkit-details-marker { display: none; }
   details > summary { list-style: none; }
+  
+  @keyframes heartbeat-pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.75;
+    }
+    50% {
+      transform: scale(2);
+      opacity: 0;
+    }
+  }
+  
+  .heartbeat-ping {
+    animation: heartbeat-pulse 1s ease-out;
+  }
+  
+  #poll-event-flash {
+    transition: transform 0.1s ease-out, opacity 0.3s ease-out;
+  }
 </style>

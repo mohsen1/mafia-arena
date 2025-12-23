@@ -1,13 +1,15 @@
 /**
  * Utilities for random game configuration generation.
- * Used when starting games to ensure variety in themes and model matchups.
+ * Used when starting games to ensure variety in themes.
  */
 
-import { SUPPORTED_MODELS } from '../ai/models.js';
 import type { ThemeName } from '../../engine/utils/game-presets.js';
 
 /** All available theme names */
 const THEME_NAMES: ThemeName[] = ['noir', 'victorian', 'modern', 'fantasy'];
+
+/** Default fallback model if none provided */
+const DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
 
 /**
  * Get a random theme from available themes.
@@ -18,30 +20,24 @@ export function getRandomTheme(): ThemeName {
 }
 
 /**
- * Get list of all available model IDs from SUPPORTED_MODELS.
+ * Get random model IDs from a provided list.
+ * Returns the default model if no list provided.
  */
-export function getAvailableModelIds(): string[] {
-  return Object.keys(SUPPORTED_MODELS);
-}
-
-/**
- * Pick a random model from available models.
- */
-export function getRandomModelId(): string {
-  const modelIds = getAvailableModelIds();
+export function getRandomModelFromList(modelIds: string[]): string {
+  if (modelIds.length === 0) {
+    return DEFAULT_MODEL;
+  }
   const index = Math.floor(Math.random() * modelIds.length);
   return modelIds[index]!;
 }
 
 /**
- * Pick two different random models for a game.
+ * Pick two different models from a provided list.
  * Returns an object with mafia and town model IDs.
  */
-export function getRandomModelPair(): { mafiaModelId: string; townModelId: string } {
-  const modelIds = getAvailableModelIds();
-  
+export function getRandomModelPairFromList(modelIds: string[]): { mafiaModelId: string; townModelId: string } {
   if (modelIds.length < 2) {
-    const singleModel = modelIds[0] ?? 'google/gemini-2.5-flash-preview-09-2025';
+    const singleModel = modelIds[0] ?? DEFAULT_MODEL;
     return { mafiaModelId: singleModel, townModelId: singleModel };
   }
   
@@ -58,27 +54,3 @@ export function getRandomModelPair(): { mafiaModelId: string; townModelId: strin
     townModelId: modelIds[townIndex]!,
   };
 }
-
-/**
- * Generate a complete random game configuration.
- * Used for quick game starts with randomized settings.
- */
-export function generateRandomGameConfig(): {
-  personaTheme: ThemeName;
-  mafiaModelId: string;
-  townModelId: string;
-  playerCount: number;
-  mafiaCount: number;
-} {
-  const { mafiaModelId, townModelId } = getRandomModelPair();
-  
-  return {
-    personaTheme: getRandomTheme(),
-    mafiaModelId,
-    townModelId,
-    playerCount: 6,
-    mafiaCount: 2,
-  };
-}
-
-

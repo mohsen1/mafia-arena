@@ -1,10 +1,11 @@
 /**
  * Models API routes.
+ * Models are stored in the database and synced from OpenRouter.
  */
 
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
-import { SUPPORTED_MODELS, MODEL_PRICING } from '../ai/models.js';
+import { parsePricingFromConfig } from '../ai/models.js';
 
 const models = new Hono<{ Bindings: Env }>();
 
@@ -40,9 +41,8 @@ interface OpenRouterResponse {
 }
 
 /**
- * GET /api/models - List available models from DB.
- * Only returns models that are currently supported (in SUPPORTED_MODELS).
- * Includes pricing information.
+ * GET /api/models - List all models from database.
+ * Returns models with pricing parsed from config JSON.
  */
 models.get('/', async (c) => {
   const env = c.env;
@@ -51,21 +51,25 @@ models.get('/', async (c) => {
     id: string;
     display_name: string;
     provider: string;
-    description: string | null;
+    config: string | null;
     created_at: number;
   }
   
-  const result = await env.DB.prepare('SELECT * FROM models ORDER BY display_name').all<ModelRow>();
+  const result = await env.DB.prepare('SELECT * FROM models ORDER BY provider, display_name').all<ModelRow>();
 
-  // Filter to only include currently supported models and add pricing
-  const filteredModels = result.results
-    .filter((model) => model.id in SUPPORTED_MODELS)
-    .map((model) => ({
-      ...model,
-      pricing: MODEL_PRICING[model.id] || null,
-    }));
+  // Add pricing from config JSON
+  const modelsWithPricing = result.results.map((model) => ({
+    id: model.id,
+    displayName: model.display_name,
+    provider: model.provider,
+    pricing: parsePricingFromConfig(model.config),
+    createdAt: model.created_at,
+  }));
 
-  return c.json({ models: filteredModels });
+  return c.json({ 
+    models: modelsWithPricing,
+    total: modelsWithPricing.length,
+  });
 });
 
 /**
@@ -151,4 +155,3 @@ models.get('/openrouter', async (c) => {
 });
 
 export default models;
-
