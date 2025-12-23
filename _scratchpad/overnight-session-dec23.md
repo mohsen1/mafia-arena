@@ -310,10 +310,75 @@ The fix was validated by launching `game_mjj7cu5x_ile9h2_live`:
 - Full architectural analysis document: `_scratchpad/architecture-review-dec24.md`
 - Identified 5 critical architectural issues beyond tonight's fix
 - Documented 6 architectural recommendations with priority matrix
-- **P0 Recommendations**:
-  1. Move large state to R2 (eliminate storage limit class of bugs)
-  2. Add heartbeat mechanism (detect stuck games)
+
+### ~4:30 AM - P0 Fixes Implemented! 🔧
+
+#### 1. Heartbeat Mechanism (P0)
+**Files Changed**: `src/worker/GameRunner.ts`
+- Added `HEARTBEAT` storage key updated every 15 seconds
+- Added `currentPhase` and `currentRound` tracking
+- Heartbeat starts when game runs, stops when done/failed
+- Now can distinguish between:
+  - Game waiting on slow AI (heartbeat recent, activity old)
+  - Game truly stuck/crashed (heartbeat stale >60s)
+
+#### 2. Health Check API (P0)
+**Files Changed**: `src/worker/routes/games.ts`, `src/worker/GameRunner.ts`
+- New endpoint: `GET /api/games/:id/health`
+- Returns detailed health status:
+  - `healthStatus`: 'healthy' | 'warning' | 'critical' | 'idle' | 'completed'
+  - `heartbeat.timestamp`, `heartbeat.ageMs`, `heartbeat.isStale`
+  - `activity.timestamp`, `activity.ageMs`
+  - `execution.currentPhase`, `execution.currentRound`
+
+#### 3. Frontend Polling Improvements (P1)
+**Files Changed**: `frontend/src/pages/games/[id]/live.astro`
+- Faster base poll: 1.5s (was 2s)
+- Lower max poll: 15s (was 30s)
+- Added periodic health check (every 30s)
+- Warning state UI (amber) for slow/stuck games
+- Better status messages based on health endpoint
+
+#### 4. Test Model Fix (Bug)
+**Files Changed**: `migrations/0020_add_test_models.sql`
+- Added `test/mock-fast`, `test/town-wins`, `test/mafia-wins` to models table
+- Fixed FK constraint error when E2E tests persisted to D1
+- Test game `game_mjj8dd64_5i4iwq_live` completed successfully (mafia won, 6 rounds, 21s)
+
+### ~4:45 AM - All Fixes Deployed & Tested! ✅
+- Worker deployed: Version `37aeca45-eb8c-40cf-a13c-29e6ea284b53`
+- Frontend deployed to Cloudflare Pages
+- Migration applied: Test models added to D1
+- Git pushed: `df39885`
+
+### Test Results
+| Test | Status | Notes |
+|------|--------|-------|
+| Health endpoint | ✅ | Returns detailed health with heartbeat |
+| Heartbeat updates | ✅ | Updates every 15s during game |
+| Test model game | ✅ | Completed in 21s, 422 events, mafia won |
+| FK constraint | ✅ | Fixed with migration |
 
 ---
-*Report generated: ~4:15 AM Dec 24, 2025*
+
+## 🛠️ All Fixes Applied Tonight
+| Time | Fix | Files Changed | Deployed |
+|------|-----|---------------|----------|
+| 12:35 AM | Limit DO event log to 30 events | GameRunner.ts | ✅ |
+| 1:02 AM | Limit conversationHistory to 50 messages | GameRunner.ts | ✅ |
+| 4:30 AM | Add heartbeat mechanism (15s interval) | GameRunner.ts | ✅ |
+| 4:30 AM | Add /health endpoint | GameRunner.ts, games.ts | ✅ |
+| 4:30 AM | Frontend health check polling | live.astro | ✅ |
+| 4:30 AM | Add test models to DB | 0020_add_test_models.sql | ✅ |
+
+---
+
+## 📊 Final System Status
+- **Total Commits**: 2 (`0ea1251`, `df39885`)
+- **Tests**: All passing
+- **Worker Version**: `37aeca45-eb8c-40cf-a13c-29e6ea284b53`
+- **System**: Fully operational with improved monitoring
+
+---
+*Report finalized: ~4:45 AM Dec 24, 2025*
 
