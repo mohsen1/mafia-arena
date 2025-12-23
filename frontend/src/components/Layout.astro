@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import ThemeToggle from './ThemeToggle.astro';
-import { Github } from 'lucide-astro';
+import { Github, Shield } from 'lucide-astro';
 
 interface Props {
 	title: string;
@@ -29,6 +29,17 @@ const currentPath = Astro.url.pathname;
 				(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 			if (theme === 'dark') document.documentElement.classList.add('dark');
 		</script>
+		<script is:inline>
+			if (localStorage.getItem('adminUnlocked') === 'true') {
+				document.addEventListener('DOMContentLoaded', () => {
+					const adminLink = document.getElementById('admin-nav-link');
+					if (adminLink) {
+						adminLink.classList.remove('hidden');
+						adminLink.classList.add('flex');
+					}
+				});
+			}
+		</script>
 	</head>
 	<body class="min-h-screen bg-background font-sans antialiased">
 		<div class="relative flex min-h-screen flex-col">
@@ -48,6 +59,17 @@ const currentPath = Astro.url.pathname;
 								]}
 							>
 								Games
+							</a>
+							<a 
+								id="admin-nav-link"
+								href="/admin" 
+								class:list={[
+									"hidden transition-colors hover:text-foreground items-center gap-1",
+									currentPath.startsWith("/admin") ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								<Shield class="h-3.5 w-3.5" />
+								Admin
 							</a>
 						</nav>
 					</div>

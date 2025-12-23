@@ -935,49 +935,6 @@ ${historyText ? `Discussion this round:\n${historyText}\n\n` : ''}${
 }
 
 /**
- * Format conversation history for internal use.
- */
-function formatConversationHistory(
-  messages: readonly ConversationMessage[]
-): string {
-  if (messages.length === 0) {
-    return '(No discussion yet this round)';
-  }
-
-  return messages
-    .map((m) => `${m.playerName}: "${m.message}"`)
-    .join('\n');
-}
-
-/**
- * Format conversation history with discussion round markers.
- */
-function formatConversationHistoryWithRounds(
-  messages: readonly ConversationMessage[]
-): string {
-  if (messages.length === 0) {
-    return '(No discussion yet)';
-  }
-
-  let currentRound = 0;
-  const lines: string[] = [];
-
-  for (const m of messages) {
-    const round = m.discussionRound ?? 1;
-    if (round !== currentRound) {
-      if (currentRound > 0) {
-        lines.push('');
-      }
-      lines.push(`--- Discussion Round ${round} ---`);
-      currentRound = round;
-    }
-    lines.push(`${m.playerName}: "${m.message}"`);
-  }
-
-  return lines.join('\n');
-}
-
-/**
  * Estimate token count for a prompt.
  * Useful for pre-checking before building full prompts.
  */
