@@ -130,6 +130,8 @@ interface WsMessage {
   status?: GameRunnerState['status'] | undefined;
   error?: string | undefined;
   gameId?: string | undefined;
+  /** Game start timestamp (ms since epoch) */
+  startedAt?: number | undefined;
   /** Duration in ms for failed/completed games */
   durationMs?: number | undefined;
 }
@@ -361,11 +363,16 @@ export class GameRunner extends DurableObject<Env> {
 
     // Send current state and event history to new client
     const state = await this.loadState();
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameRunner.ts:handleWebSocket:syncPrep',message:'Preparing SYNC message',data:{status:state.status,gameId:state.gameId,hasError:!!state.error,error:state.error,eventLogLen:this.eventLog.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+    // #endregion
     const syncMessage: WsMessage = {
       type: 'SYNC',
       events: this.eventLog,
       status: state.status,
       gameId: state.gameId ?? undefined,
+      // Include startedAt for timer calculation
+      startedAt: state.startedAt ?? undefined,
       // Include error and duration for failed/completed games
       error: state.error ?? undefined,
       durationMs: state.startedAt && state.completedAt 
@@ -454,6 +461,10 @@ export class GameRunner extends DurableObject<Env> {
             gameId: state.gameId,
             eventCount: data.events?.length ?? 0,
             events: data.events ?? [],
+            startedAt: state.startedAt ?? undefined,
+            durationMs: state.startedAt && state.completedAt 
+              ? state.completedAt - state.startedAt 
+              : undefined,
           });
         }
       } catch (error) {
@@ -476,6 +487,8 @@ export class GameRunner extends DurableObject<Env> {
       gameId: state.gameId,
       eventCount: this.eventLog.length,
       events: this.eventLog,
+      // Include startedAt for timer calculation
+      startedAt: state.startedAt ?? undefined,
       // Include error for failed games
       error: state.error ?? undefined,
       // Include duration for completed/failed games
@@ -494,6 +507,9 @@ export class GameRunner extends DurableObject<Env> {
    *   Useful for live watching where frontend connects via WebSocket
    */
   private async handleStart(request: Request): Promise<Response> {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameRunner.ts:handleStart:entry',message:'handleStart called',data:{doId:this.ctx.id.toString().slice(-8)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const currentState = await this.loadState();
     
     // Check if game is stuck in "running" state - use appropriate threshold
@@ -665,12 +681,18 @@ export class GameRunner extends DurableObject<Env> {
   ): Promise<void> {
     const gameLog = this.log.child({ gameId, batchId });
     
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameRunner.ts:runGameWithErrorHandling:entry',message:'Background game starting',data:{gameId,batchId,teams:gameConfig.teams.map(t=>t.modelId)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
+    // #endregion
     try {
       gameLog.info('Starting background game execution');
       await this.runGame(gameId, batchId, gameConfig);
       gameLog.info('Background game execution completed successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameRunner.ts:runGameWithErrorHandling:catch',message:'Background game FAILED',data:{gameId,errorMessage,eventCount:this.eventLog.length,stack:error instanceof Error ? error.stack : undefined},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       logErrorWithStack(gameLog, 'Background game failed', error, {
         eventCount: this.eventLog.length,
       });
@@ -708,6 +730,9 @@ export class GameRunner extends DurableObject<Env> {
     traceId?: string,
     discountPricing = false
   ): Promise<void> {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameRunner.ts:insertRunningGame:entry',message:'Inserting running game',data:{gameId,batchId,teams:config.teams.map(t=>({modelId:t.modelId,team:t.team,count:t.count}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     try {
       this.log.debug('Inserting running game record', { gameId, batchId, traceId, discountPricing });
       
@@ -829,6 +854,9 @@ export class GameRunner extends DurableObject<Env> {
     // Create AI providers for all models
     // Pass discountPricing to use longer timeouts and more retries
     gameLog.debug('Creating AI providers', { modelIds: modelIds.join(','), discountPricing });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameRunner.ts:runGame:createProviders',message:'Creating AI providers',data:{gameId,modelIds,discountPricing},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     const providers = createProvidersForGame(modelIds, this.env, { discountPricing });
     const aiAdapter = new GameAIAdapter(providers);
 
@@ -950,7 +978,13 @@ export class GameRunner extends DurableObject<Env> {
     const game = new Game(config, aiAdapter, { gameId, onEvent });
     
     gameLog.info('Running game loop');
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameRunner.ts:runGame:beforeRun',message:'About to call game.run()',data:{gameId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
+    // #endregion
     const result = await game.run();
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameRunner.ts:runGame:afterRun',message:'game.run() completed',data:{gameId,winner:result.winner,rounds:result.rounds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
 
     const durationMs = Date.now() - startTime;
     gameLog.info('Game completed', { 

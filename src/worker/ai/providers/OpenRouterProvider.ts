@@ -145,6 +145,9 @@ export class OpenRouterProvider extends BaseProvider {
 
     if (!response.ok) {
       console.error(`OpenRouter error for ${this.openRouterModelId}:`, JSON.stringify(data));
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/7a329efc-2a69-4367-83f3-59949ae46fb4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OpenRouterProvider.ts:complete:httpError',message:'OpenRouter API error',data:{modelId:this.openRouterModelId,status:response.status,error:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       this.handleHttpError(response, data);
     }
 

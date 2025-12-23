@@ -129,7 +129,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   let playerMap = {};
   let eliminatedPlayers = new Set();
   let reconnectAttempts = 0;
-  let startTime = Date.now();
+  let startTime = null;
   let durationInterval = null;
   const MAX_RECONNECT_ATTEMPTS = 5;
 
@@ -274,7 +274,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
   function updateDuration() {
     const el = document.getElementById('duration-display');
-    if (!el) return;
+    if (!el || !startTime) return;
     el.classList.remove('hidden');
     const duration = Date.now() - startTime;
     el.querySelector('span:last-child').textContent = formatDuration(duration);
@@ -590,15 +590,29 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       renderTranscript();
       updateConnectionStatus(true, `Synced ${events.length} events`);
       
+      // Use actual game start time if available
+      if (data.startedAt && !startTime) {
+        startTime = data.startedAt;
+        updateDuration();
+      }
+      
       if (data.status === 'completed' || data.status === 'failed') {
         updateLiveBadge(data.status);
         if (durationInterval) clearInterval(durationInterval);
+        
+        // Show final duration for completed/failed games
+        if (data.durationMs) {
+          const el = document.getElementById('duration-display');
+          if (el) {
+            el.classList.remove('hidden');
+            el.querySelector('span:last-child').textContent = formatDuration(data.durationMs);
+          }
+        }
         
         if (data.status === 'completed') {
           const gameEnd = events.find(e => e.type === 'game_end');
           if (gameEnd) showGameEnd(gameEnd.winner);
         } else if (data.status === 'failed') {
-          // Show prominent error banner for failed games
           showError(data.error);
         }
       } else if (data.status === 'idle') {
@@ -648,8 +662,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       ws.onopen = () => {
         reconnectAttempts = 0;
         updateConnectionStatus(true, 'Connected');
-        startTime = Date.now();
-        durationInterval = setInterval(updateDuration, 1000);
+        // startTime will be set from SYNC message with actual game start time
+        if (!durationInterval) {
+          durationInterval = setInterval(updateDuration, 1000);
+        }
       };
 
       ws.onmessage = (event) => {
@@ -681,8 +697,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   
   function fallbackToPolling() {
     updateConnectionStatus(true, 'Polling mode', { polling: true });
-    startTime = Date.now();
-    durationInterval = setInterval(updateDuration, 1000);
+    // Don't set startTime here - will be set from first poll response
+    if (!durationInterval) {
+      durationInterval = setInterval(updateDuration, 1000);
+    }
     
     async function poll() {
       triggerHeartbeat();
@@ -692,6 +710,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         if (!res.ok) throw new Error('Failed');
         
         const data = await res.json();
+        
+        // Use actual game start time if available
+        if (data.startedAt && !startTime) {
+          startTime = data.startedAt;
+          updateDuration();
+        }
         
         if (data.events && data.events.length > events.length) {
           const newEventCount = data.events.length - events.length;
@@ -710,6 +734,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         
         if (data.status === 'completed' || data.status === 'failed') {
           updateLiveBadge(data.status);
+          
+          // Show final duration for completed/failed games
+          if (data.durationMs) {
+            const el = document.getElementById('duration-display');
+            if (el) {
+              el.classList.remove('hidden');
+              el.querySelector('span:last-child').textContent = formatDuration(data.durationMs);
+            }
+          }
+          
           if (data.status === 'completed') {
             const gameEnd = events.find(e => e.type === 'game_end');
             if (gameEnd) showGameEnd(gameEnd.winner);
