@@ -5,7 +5,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
-import { parsePricingFromConfig } from '../ai/models.js';
+import { parsePricingFromConfig, DEFAULT_PRICING } from '../ai/models.js';
 
 const models = new Hono<{ Bindings: Env }>();
 
@@ -104,6 +104,11 @@ models.get('/', async (c) => {
   return c.json({ 
     models: modelsWithPricing,
     total: modelsWithPricing.length,
+    // Expose default pricing so frontend can use it for unknown models
+    // This is the single source of truth - frontend should NOT hardcode pricing
+    defaults: {
+      pricing: DEFAULT_PRICING,
+    },
   });
 });
 

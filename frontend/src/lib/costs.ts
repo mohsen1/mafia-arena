@@ -1,12 +1,21 @@
 /**
  * Cost calculation utilities for AI API calls.
  * 
- * Models and pricing are now stored in the database and synced from OpenRouter.
- * This file uses default pricing for quick estimates.
- * For accurate costs, fetch pricing from /api/models at runtime.
+ * CANONICAL PRICING SOURCE: /api/models endpoint (worker/routes/models.ts)
+ * 
+ * Models and pricing are stored in the database and synced from OpenRouter.
+ * This file provides FALLBACK defaults for quick client-side estimates only.
+ * 
+ * For accurate costs:
+ * 1. Fetch /api/models to get per-model pricing and defaults.pricing
+ * 2. Use the defaults.pricing from API response for unknown models
+ * 
+ * These hardcoded values should match worker/ai/models.ts DEFAULT_PRICING
+ * to ensure consistency when API is unavailable.
  */
 
 // Default pricing if model not found (per 1K tokens, USD)
+// Must match: src/worker/ai/models.ts DEFAULT_PRICING
 const DEFAULT_PRICING = { input: 0.001, output: 0.003 };
 
 // Default batch pricing (50% of standard default)
