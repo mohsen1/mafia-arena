@@ -4,9 +4,8 @@
  */
 
 import type { Env } from '../types.js';
-import type { AIProviderInterface } from './types.js';
+import type { AIProviderInterface, ModelConfig } from './types.js';
 import { SUPPORTED_MODELS } from './models.js';
-import { AIErrors } from './errors.js';
 import { RetryingProvider } from './RetryingProvider.js';
 import { OpenRouterProvider } from './providers/OpenRouterProvider.js';
 
@@ -19,6 +18,26 @@ export interface CreateProviderOptions {
    * AI providers may take up to 24 hours to respond in this mode.
    */
   discountPricing?: boolean;
+}
+
+/**
+ * Get model configuration.
+ * Returns known config if in SUPPORTED_MODELS, otherwise creates a default config.
+ * This allows any OpenRouter model to be used dynamically.
+ */
+function getModelConfig(modelId: string): ModelConfig {
+  // Check if we have explicit config for this model
+  if (SUPPORTED_MODELS[modelId]) {
+    return SUPPORTED_MODELS[modelId];
+  }
+
+  // For unknown models, create a default config
+  // Use 'json_mode' as it's the most widely supported structured output format
+  return {
+    provider: 'openrouter',
+    displayName: modelId.split('/').pop() || modelId,
+    structuredOutput: 'json_mode',
+  };
 }
 
 /**
@@ -42,15 +61,19 @@ const PRICING_MODE_DEFAULTS = {
 /**
  * Create an AI provider for the given model.
  * All models are routed through OpenRouter.
+ * Supports any model available on OpenRouter, not just those in SUPPORTED_MODELS.
  */
 export function createProvider(
   modelId: string,
   env: Env,
   options: CreateProviderOptions = {}
 ): AIProviderInterface {
-  const modelConfig = SUPPORTED_MODELS[modelId];
-  if (!modelConfig) {
-    throw AIErrors.unsupportedModel(modelId);
+  // Get config - works for both known and unknown models
+  const modelConfig = getModelConfig(modelId);
+  
+  // Log when using an unknown model for debugging
+  if (!SUPPORTED_MODELS[modelId]) {
+    console.log(`Using dynamic config for model: ${modelId} (display: ${modelConfig.displayName})`);
   }
 
   // Select defaults based on pricing mode
