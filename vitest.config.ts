@@ -4,7 +4,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // Engine tests only - worker E2E tests use vitest.workers.config.ts
+    include: ['src/engine/**/*.test.ts'],
+    exclude: ['src/worker/__tests__/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
