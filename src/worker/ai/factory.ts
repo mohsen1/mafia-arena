@@ -1,6 +1,11 @@
 /**
  * AI Provider factory.
  * All models are routed through OpenRouter's unified API.
+ * 
+ * TEST MODELS:
+ * Models with IDs starting with 'test/' use MockE2EProvider instead of OpenRouter.
+ * This enables zero-cost E2E testing without calling actual LLMs.
+ * Supported test models: test/mock-fast, test/town-wins, test/mafia-wins
  */
 
 import type { Env } from '../types.js';
@@ -8,6 +13,7 @@ import type { AIProviderInterface } from './types.js';
 import { getDefaultModelConfig } from './models.js';
 import { RetryingProvider } from './RetryingProvider.js';
 import { OpenRouterProvider } from './providers/OpenRouterProvider.js';
+import { MockE2EProvider, isTestModel } from './providers/MockE2EProvider.js';
 
 export interface CreateProviderOptions {
   enableRetry?: boolean;
@@ -40,14 +46,21 @@ const PRICING_MODE_DEFAULTS = {
 
 /**
  * Create an AI provider for the given model.
- * All models are routed through OpenRouter.
- * Any valid OpenRouter model ID is accepted.
+ * 
+ * - Test models (test/*): Use MockE2EProvider for zero-cost testing
+ * - All other models: Route through OpenRouter
  */
 export function createProvider(
   modelId: string,
   env: Env,
   options: CreateProviderOptions = {}
 ): AIProviderInterface {
+  // INTERCEPT: Test models use mock provider (zero cost, instant responses)
+  if (isTestModel(modelId)) {
+    console.log(`Creating MOCK provider for test model: ${modelId}`);
+    return new MockE2EProvider(modelId);
+  }
+
   // Get default config for logging/display purposes
   const modelConfig = getDefaultModelConfig(modelId);
   console.log(`Creating provider for model: ${modelId} (${modelConfig.displayName})`);
