@@ -14,6 +14,16 @@ const OPENROUTER_CACHE_KEY = 'openrouter:models';
 const OPENROUTER_CACHE_TTL = 3600; // 1 hour
 
 /**
+ * Model eligibility requirements for Mafia Arena.
+ * Models must meet these minimums to participate in games.
+ */
+const MODEL_REQUIREMENTS = {
+  MIN_CONTEXT_LENGTH: 65_536,      // 64K tokens minimum
+  MIN_OUTPUT_TOKENS: 1_024,        // 1K output tokens minimum
+  REQUIRED_MODALITY: 'text',       // Must support text modality
+} as const;
+
+/**
  * OpenRouter model response type.
  */
 interface OpenRouterModel {
@@ -38,6 +48,31 @@ interface OpenRouterModel {
 
 interface OpenRouterResponse {
   data: OpenRouterModel[];
+}
+
+/**
+ * Check if a model meets eligibility requirements for Mafia Arena.
+ * Filters out models with insufficient context, output limits, or wrong modality.
+ */
+function isModelEligible(model: OpenRouterModel): boolean {
+  // Check minimum context length
+  if (model.context_length < MODEL_REQUIREMENTS.MIN_CONTEXT_LENGTH) {
+    return false;
+  }
+
+  // Check minimum output tokens (if available)
+  const maxOutputTokens = model.top_provider?.max_completion_tokens;
+  if (maxOutputTokens !== undefined && maxOutputTokens < MODEL_REQUIREMENTS.MIN_OUTPUT_TOKENS) {
+    return false;
+  }
+
+  // Check modality includes text
+  const modality = model.architecture?.modality ?? '';
+  if (!modality.includes(MODEL_REQUIREMENTS.REQUIRED_MODALITY)) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -101,6 +136,10 @@ models.get('/openrouter', async (c) => {
 
   const data = await response.json() as OpenRouterResponse;
 
+  // Filter models by eligibility requirements
+  const eligibleModels = data.data.filter(isModelEligible);
+  console.log(`Model eligibility: ${eligibleModels.length}/${data.data.length} models meet requirements`);
+
   // Transform and group by provider
   const modelsByProvider: Record<string, Array<{
     id: string;
@@ -113,7 +152,7 @@ models.get('/openrouter', async (c) => {
     };
   }>> = {};
 
-  for (const model of data.data) {
+  for (const model of eligibleModels) {
     // Extract provider from model ID (e.g., "google/gemini-2.5-pro" -> "google")
     const provider = model.id.split('/')[0] || 'unknown';
     
@@ -142,7 +181,8 @@ models.get('/openrouter', async (c) => {
   const result = {
     providers: Object.keys(modelsByProvider).sort(),
     modelsByProvider,
-    totalModels: data.data.length,
+    totalModels: eligibleModels.length,
+    totalFetched: data.data.length,
     cachedAt: Date.now(),
   };
 
