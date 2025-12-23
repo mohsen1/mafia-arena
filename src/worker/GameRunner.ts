@@ -52,10 +52,15 @@ const STALE_THRESHOLD_MS = {
  * AICallEvent contains full prompts and raw responses which can be huge.
  * For live streaming, viewers only need to see the parsed action, not the prompts.
  * Full data is preserved in the R2 transcript.
+ * 
+ * Uses structuredClone for deep copy to prevent:
+ * - Mutation of original event objects
+ * - Reference leaks to nested data structures
  */
 function stripEventForStorage(event: GameEvent): GameEvent {
   if (event.type === 'ai_call') {
-    return {
+    // Deep copy with stripped fields - structuredClone ensures no reference leaks
+    return structuredClone({
       ...event,
       prompt: {
         system: '[stripped for streaming]',
@@ -65,15 +70,18 @@ function stripEventForStorage(event: GameEvent): GameEvent {
         raw: '[stripped for streaming]',
         parsed: event.response.parsed,
       },
-    };
+    });
   }
+  
   if (event.type === 'ai_parse_error') {
-    return {
+    return structuredClone({
       ...event,
       rawResponse: '[stripped for streaming]',
-    };
+    });
   }
-  return event;
+
+  // For other event types, deep copy to prevent reference leaks
+  return structuredClone(event);
 }
 
 interface GameRunnerState {
