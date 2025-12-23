@@ -18,6 +18,7 @@
     "test:ui": "playwright test",
     "test:ui:headed": "playwright test --headed",
     "test:ui:debug": "playwright test --debug",
+    "test:ui:games": "playwright test e2e/ui/game-lifecycle.test.ts",
     "test:all": "pnpm test && pnpm test:e2e && pnpm test:ui",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
