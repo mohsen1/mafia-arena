@@ -20,7 +20,7 @@ import type {
 // CONSTANTS
 // =============================================================================
 
-import { MODEL_PRICING, DEFAULT_PRICING } from '../ai/models.js';
+import { DEFAULT_PRICING } from '../ai/models.js';
 import { getRandomTheme } from '../utils/random-config.js';
 
 /** Maximum games per batch */
@@ -279,27 +279,12 @@ export function estimateCost(config: BatchConfig): CostEstimate {
   const tokensPerGame = Math.round(TOKENS_PER_GAME * tokensMultiplier);
   const totalTokens = tokensPerGame * totalGames;
 
-  // Calculate weighted average cost based on models in the config
-  const modelIds = gameConfig.teams.map(t => t.modelId);
-  const uniqueModels = [...new Set(modelIds)];
+  // Use default pricing - model-specific pricing is in DB
+  // For accurate estimates, pricing could be fetched from DB at runtime
+  const baseCostPer1k = (DEFAULT_PRICING.input * 0.7 + DEFAULT_PRICING.output * 0.3);
   
-  let avgCostPer1k = 0;
-  if (uniqueModels.length > 0) {
-    const totalWeight = gameConfig.teams.reduce((sum, t) => sum + t.count, 0);
-    avgCostPer1k = gameConfig.teams.reduce((sum, t) => {
-      const pricing = MODEL_PRICING[t.modelId] || DEFAULT_PRICING;
-      // Assume 70/30 input/output ratio
-      const weightedPrice = (pricing.input * 0.7 + pricing.output * 0.3);
-      return sum + (weightedPrice * (t.count / totalWeight));
-    }, 0);
-  } else {
-    avgCostPer1k = (DEFAULT_PRICING.input * 0.7 + DEFAULT_PRICING.output * 0.3);
-  }
-
-  // Apply batch discount if requested
-  if (useBatchAPI) {
-    avgCostPer1k *= 0.5;
-  }
+  // Apply batch discount if requested (50% off)
+  const avgCostPer1k = useBatchAPI ? baseCostPer1k * 0.5 : baseCostPer1k;
 
   const estimatedCostUsd = (totalTokens / 1000) * avgCostPer1k;
 

@@ -27,9 +27,11 @@ export {
 } from './types.js';
 
 export {
-  SUPPORTED_MODELS,
-  MODEL_PRICING,
-  getPricing,
+  DEFAULT_PRICING,
+  parsePricingFromConfig,
+  getDefaultModelConfig,
+  extractProvider,
+  extractDisplayName,
 } from './models.js';
 
 // Errors

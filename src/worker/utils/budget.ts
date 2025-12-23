@@ -1,18 +1,23 @@
 /**
  * Cost calculation utilities.
  * Calculates AI API costs based on token usage and model pricing.
+ * 
+ * Uses default pricing since model-specific pricing is now in the database.
+ * For accurate costs, pricing should be fetched from the DB at runtime.
  */
 
-import { MODEL_PRICING, DEFAULT_PRICING } from '../ai/models.js';
+import { DEFAULT_PRICING } from '../ai/models.js';
 
 /**
- * Calculate the cost of an AI call.
+ * Calculate the cost of an AI call using default pricing.
+ * For accurate per-model pricing, use database lookup.
  */
 export function calculateCost(
-  modelId: string,
+  _modelId: string,
   tokens: { input: number; output: number }
 ): number {
-  const costs = MODEL_PRICING[modelId] || DEFAULT_PRICING;
+  // Use default pricing - model-specific pricing is in DB
+  const costs = DEFAULT_PRICING;
   return (tokens.input / 1000) * costs.input + (tokens.output / 1000) * costs.output;
 }
 
@@ -20,8 +25,8 @@ export function calculateCost(
  * Calculate cost from total tokens (rough estimate).
  * Uses a 70/30 input/output ratio estimate.
  */
-export function calculateCostFromTotal(modelId: string, totalTokens: number): number {
-  const pricing = MODEL_PRICING[modelId] || DEFAULT_PRICING;
+export function calculateCostFromTotal(_modelId: string, totalTokens: number): number {
+  const pricing = DEFAULT_PRICING;
   // Assume 70% input, 30% output ratio
   const inputTokens = totalTokens * 0.7;
   const outputTokens = totalTokens * 0.3;
@@ -36,24 +41,14 @@ export function calculateGameCost(modelIds: string[], totalTokens: number): numb
     return calculateCostFromTotal('default', totalTokens);
   }
   
-  // If same model on both sides, use that model's pricing
-  const uniqueModels = [...new Set(modelIds)];
-  if (uniqueModels.length === 1) {
-    return calculateCostFromTotal(uniqueModels[0]!, totalTokens);
-  }
-  
-  // For different models, calculate weighted average
-  // Assume tokens are split evenly between models
-  const tokensPerModel = totalTokens / uniqueModels.length;
-  return uniqueModels.reduce((total, modelId) => {
-    return total + calculateCostFromTotal(modelId, tokensPerModel);
-  }, 0);
+  // All models use same default pricing now
+  return calculateCostFromTotal(modelIds[0]!, totalTokens);
 }
 
 /**
  * Get the pricing info for a model.
+ * Returns default pricing - model-specific pricing is in DB.
  */
-export function getModelPricing(modelId: string): { input: number; output: number } {
-  return MODEL_PRICING[modelId] || DEFAULT_PRICING;
+export function getModelPricing(_modelId: string): { input: number; output: number } {
+  return DEFAULT_PRICING;
 }
-
