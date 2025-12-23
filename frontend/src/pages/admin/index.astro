@@ -1,6 +1,6 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut, Radio } from 'lucide-astro';
+import { PauseCircle, PlayCircle, Plus, DollarSign, Layers, AlertTriangle, LogOut, Radio, Database, RefreshCw } from 'lucide-astro';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
@@ -54,6 +54,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           <Layers size={16} />
           <span>Manage Batches</span>
         </a>
+
+        <a href="/admin/models" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">
+          <Database size={16} />
+          <span>Manage Models</span>
+        </a>
+
+        <button 
+          id="syncModelsBtn"
+          class="inline-flex items-center gap-2 px-4 py-2 border border-purple-500/50 text-purple-600 dark:text-purple-400 rounded-md text-sm font-medium hover:bg-purple-500/10 transition-colors"
+          title="Sync models from OpenRouter"
+        >
+          <RefreshCw size={16} id="syncIcon" />
+          <span id="sync-btn-text">Sync Models</span>
+        </button>
 
         <button 
           id="killHangingBtn"
@@ -325,6 +339,37 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
       // Load running games count
       loadRunningGamesCount(headers);
+
+      // Setup sync models button
+      document.getElementById('syncModelsBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('syncModelsBtn');
+        const btnText = document.getElementById('sync-btn-text');
+        const syncIcon = document.getElementById('syncIcon');
+        if (!btn || !btnText) return;
+
+        btn.disabled = true;
+        btnText.textContent = 'Syncing...';
+        syncIcon?.classList.add('animate-spin');
+
+        try {
+          const res = await fetch(`${apiUrl}/api/admin/models/sync`, {
+            method: 'POST',
+            headers,
+          });
+
+          if (!res.ok) throw new Error('Failed to sync models');
+
+          const result = await res.json();
+          alert(`✅ Synced ${result.total} models from OpenRouter\n\nAdded: ${result.added}\nUpdated: ${result.updated}`);
+          
+        } catch (err) {
+          alert(`❌ Failed to sync models: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        } finally {
+          btn.disabled = false;
+          btnText.textContent = 'Sync Models';
+          syncIcon?.classList.remove('animate-spin');
+        }
+      });
 
       // Setup kill hanging games button
       document.getElementById('killHangingBtn')?.addEventListener('click', async () => {
