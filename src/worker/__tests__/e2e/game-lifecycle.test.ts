@@ -75,13 +75,17 @@ describe('Game Lifecycle E2E', () => {
       await waitOnExecutionContext(ctx);
 
       // Verify response
-      expect(response.status).toBe(200);
       const result = await response.json() as {
         success: boolean;
         gameId: string;
         seed: number;
         traceId: string;
+        error?: { message?: string };
       };
+      if (response.status !== 200 || !result.success) {
+        console.error('Game failed:', response.status, result.error);
+      }
+      expect(response.status).toBe(200);
       expect(result.success).toBe(true);
       expect(result.gameId).toBeDefined();
       expect(result.seed).toBeDefined();
