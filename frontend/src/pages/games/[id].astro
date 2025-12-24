@@ -6,7 +6,8 @@ import { getProviderColorFromModel } from '../../lib/providers';
 import { 
   Trophy, Clock, Zap, Users, ChevronDown, ChevronRight,
   Moon, Sun, MessageSquare, Vote, Skull, User, Sparkles, ArrowLeft,
-  Swords, MessagesSquare, Target, Hash, DollarSign, Timer, Castle, Crosshair
+  Swords, MessagesSquare, Target, Hash, DollarSign, Timer, Castle, Crosshair,
+  Feather, Scroll, Building2
 } from 'lucide-astro';
 
 const { id } = Astro.params;
@@ -133,12 +134,12 @@ const date = game ? new Date(timestamp).toLocaleString(undefined, {
   minute: '2-digit'
 }) : '';
 
-// Theme config (simplified, no gradients)
-const THEME_CONFIG: Record<string, { label: string }> = {
-  noir: { label: 'Noir' },
-  victorian: { label: 'Victorian' },
-  modern: { label: 'Modern' },
-  fantasy: { label: 'Fantasy' },
+// Theme config with icons and colors
+const THEME_CONFIG: Record<string, { label: string; iconType: string; classes: string }> = {
+  noir: { label: 'Noir', iconType: 'feather', classes: 'bg-zinc-500/10 border-zinc-500/20 text-zinc-700 dark:text-zinc-300' },
+  victorian: { label: 'Victorian', iconType: 'scroll', classes: 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400' },
+  modern: { label: 'Modern', iconType: 'building', classes: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-700 dark:text-cyan-400' },
+  fantasy: { label: 'Fantasy', iconType: 'sparkles', classes: 'bg-purple-500/10 border-purple-500/20 text-purple-700 dark:text-purple-400' },
 };
 const theme = THEME_CONFIG[game?.persona_theme || 'noir'] || THEME_CONFIG.noir;
 
@@ -197,50 +198,72 @@ function getPersonaName(playerId: string): string {
         <code class="font-mono opacity-50">{game.id.slice(-12)}</code>
       </div>
 
-      <!-- Header: Teams + Winner -->
-      <div class="rounded-lg border bg-card p-4 space-y-3">
-        <!-- Teams Matchup -->
-        <div class="flex items-center gap-3 text-sm">
-          <div class={`flex items-center gap-1.5 ${game.winner === 'mafia' ? 'font-semibold' : ''}`}>
-            {game.winner === 'mafia' && <Trophy size={14} class="text-amber-500" />}
-            <span class="text-rose-500 font-medium">Mafia</span>
-            <span class="text-muted-foreground">(</span>
-            <span class="font-mono text-xs">{mafiaModels.join(', ')}</span>
-            <span class="text-muted-foreground">)</span>
+      <!-- Broadcast HUD Header -->
+      <div class="space-y-3">
+        <!-- Top Deck: Status + Theme + Matchup -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <!-- Left: Badges -->
+          <div class="flex items-center gap-2">
+            <!-- Status Badge -->
+            <div class={`flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase ${
+              game.winner 
+                ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                : 'bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400'
+            }`}>
+              <span class={`w-2 h-2 rounded-full ${game.winner ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
+              {game.winner ? 'COMPLETED' : 'RUNNING'}
+            </div>
+            
+            <!-- Theme Badge -->
+            <div class={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium ${theme.classes}`}>
+              {theme.iconType === 'feather' && <Feather size={10} />}
+              {theme.iconType === 'scroll' && <Scroll size={10} />}
+              {theme.iconType === 'building' && <Building2 size={10} />}
+              {theme.iconType === 'sparkles' && <Sparkles size={10} />}
+              {theme.label}
+            </div>
           </div>
-          <span class="text-muted-foreground font-bold">vs</span>
-          <div class={`flex items-center gap-1.5 ${game.winner === 'town' ? 'font-semibold' : ''}`}>
-            {game.winner === 'town' && <Trophy size={14} class="text-amber-500" />}
-            <span class="text-indigo-500 font-medium">Town</span>
-            <span class="text-muted-foreground">(</span>
-            <span class="font-mono text-xs">{townModels.join(', ')}</span>
-            <span class="text-muted-foreground">)</span>
+          
+          <!-- Right: Teams Matchup -->
+          <div class="flex items-center gap-2 text-xs">
+            <div class={`flex items-center gap-1 ${game.winner === 'mafia' ? 'font-semibold' : ''}`}>
+              {game.winner === 'mafia' && <Trophy size={12} class="text-amber-500" />}
+              <span class="text-rose-600 dark:text-rose-400 font-bold">MAFIA</span>
+              <span class="text-muted-foreground/60 font-mono text-[10px]">{mafiaModels[0] || 'AI'}</span>
+            </div>
+            <span class="text-muted-foreground/40 text-[10px] font-bold">VS</span>
+            <div class={`flex items-center gap-1 ${game.winner === 'town' ? 'font-semibold' : ''}`}>
+              {game.winner === 'town' && <Trophy size={12} class="text-amber-500" />}
+              <span class="text-indigo-600 dark:text-indigo-400 font-bold">TOWN</span>
+              <span class="text-muted-foreground/60 font-mono text-[10px]">{townModels[0] || 'AI'}</span>
+            </div>
           </div>
         </div>
-
-        <!-- Stats Row -->
-        <div class="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{date}</span>
-          <div class="flex items-center gap-4">
-            <div class="flex items-center gap-1">
-              <Hash size={11} />
-              <span class="font-mono">{game.rounds}</span>
-              <span class="opacity-60">rounds</span>
+        
+        <!-- Telemetry Strip -->
+        <div class="flex items-center justify-between px-3 py-2 rounded-md border bg-muted/30 text-xs">
+          <div class="flex items-center gap-6">
+            <div class="flex items-center gap-1.5">
+              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wide">Round</span>
+              <span class="font-bold font-mono">{game.rounds}</span>
             </div>
-            <div class="flex items-center gap-1">
-              <Timer size={11} />
+            <div class="flex items-center gap-1.5">
+              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wide">Duration</span>
               <span class="font-mono">{formatDuration(game.duration_ms || 0)}</span>
             </div>
-            <div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-              <DollarSign size={11} />
-              <span class="font-mono">{formatCost(totalCost)}</span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wide">Tokens</span>
+              <span class="font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                <Zap size={10} />
+                {(game.total_tokens || 0).toLocaleString()}
+              </span>
             </div>
-            <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted">{theme.label}</span>
           </div>
+          <div class="text-muted-foreground/60 text-[10px]">{date}</div>
         </div>
       </div>
 
-      <!-- Players Grid -->
+      <!-- Players -->
       <section class="space-y-2">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-semibold flex items-center gap-1.5">
@@ -259,37 +282,26 @@ function getPersonaName(playerId: string): string {
           </div>
         </div>
 
-        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2">
-          {players.map((player) => (
-            <div class={`relative rounded-md border px-2 py-1.5 text-xs ${
-              player.team === 'mafia' 
-                ? 'border-rose-500/20 bg-rose-500/5' 
-                : 'border-indigo-500/20 bg-indigo-500/5'
-            } ${!player.isAlive ? 'opacity-40' : ''}`}>
-              {!player.isAlive && (
-                <Skull size={10} class="absolute -top-1 -right-1 text-muted-foreground" />
-              )}
-              {player.team === game.winner && player.isAlive && (
-                <Trophy size={10} class="absolute -top-1 -right-1 text-amber-500" />
-              )}
-              <div class="flex items-center gap-1.5">
-                <div class={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${
-                  player.team === 'mafia' 
-                    ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' 
-                    : 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
-                }`}>
-                  {player.personaName.charAt(0)}
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div class="font-medium truncate">{player.personaName}</div>
-                  <div class="text-[9px] text-muted-foreground truncate flex items-center gap-0.5">
-                    <span class="w-1 h-1 rounded-full flex-shrink-0" style={`background: ${getProviderColorFromModel(player.modelId)}`}></span>
-                    {player.modelId.split('/').pop() || player.modelId}
-                  </div>
-                </div>
+        <div class="flex flex-wrap gap-1.5">
+          {players.map((player) => {
+            const isMafia = player.team === 'mafia';
+            const shortModel = (player.modelId.split('/').pop() || player.modelId).split('-').slice(0, 2).join('-');
+            return (
+              <div class={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs ${
+                isMafia 
+                  ? 'border-rose-500/20 bg-rose-500/5' 
+                  : 'border-indigo-500/20 bg-indigo-500/5'
+              } ${!player.isAlive ? 'opacity-40' : ''}`}>
+                {!player.isAlive && <Skull size={10} class="text-muted-foreground" />}
+                {player.team === game.winner && player.isAlive && <Trophy size={10} class="text-amber-500" />}
+                <span class={`w-1.5 h-1.5 rounded-full ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}`}></span>
+                <span class={`font-medium ${isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                  {player.personaName}
+                </span>
+                <span class="text-muted-foreground/50 text-[9px]">{shortModel}</span>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -362,68 +374,59 @@ function getPersonaName(playerId: string): string {
                               if (parsed.type === 'persona') return null;
                               
                               return (
-                                <div class="group/msg flex gap-2 py-1">
-                                  <div class={`w-5 h-5 rounded flex items-center justify-center shrink-0 text-[10px] font-bold ${
-                                    isMafia ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
-                                  }`}>
-                                    {event.playerName?.charAt(0) || '?'}
+                                <div class="group/msg py-1.5">
+                                  <div class="flex items-center gap-1.5 mb-0.5">
+                                    <span class={`w-1.5 h-1.5 rounded-full shrink-0 ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}`}></span>
+                                    <span class={`font-medium text-xs ${isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                      {event.playerName}
+                                    </span>
+                                    <span class="text-[9px] text-muted-foreground/40">
+                                      {event.modelId.split('/').pop()}
+                                    </span>
                                   </div>
-                                  
-                                  <div class="flex-1 min-w-0">
-                                    <div class="flex items-baseline gap-1.5">
-                                      <span class={`font-medium text-xs ${isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                                        {event.playerName}
+                                  {parsed.type === 'message' ? (
+                                    <p class="text-xs text-foreground/90 leading-relaxed pl-3">{parsed.content}</p>
+                                  ) : parsed.type === 'vote' ? (
+                                    <div class="text-xs pl-3">
+                                      <span class="inline-flex items-center gap-1 text-muted-foreground">
+                                        <Vote size={10} />
+                                        <span>Voted for</span>
+                                        <span class={`font-semibold ${playerMap[parsed.content.vote]?.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`}>
+                                          {getPersonaName(parsed.content.vote)}
+                                        </span>
                                       </span>
-                                      <span class="text-[9px] text-muted-foreground/40 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
-                                        <span class="w-1 h-1 rounded-full" style={`background: ${getProviderColorFromModel(event.modelId)}`}></span>
-                                        {event.modelId.split('/').pop()}
-                                      </span>
+                                      {parsed.content.reasoning && (
+                                        <details class="mt-0.5 text-[10px] text-muted-foreground">
+                                          <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
+                                            <ChevronRight size={10} class="transition-transform [details[open]_&]:rotate-90" />
+                                            reason
+                                          </summary>
+                                          <p class="mt-0.5 pl-3 italic opacity-70">"{parsed.content.reasoning}"</p>
+                                        </details>
+                                      )}
                                     </div>
-                                    
-                                    {parsed.type === 'message' ? (
-                                      <p class="text-xs text-foreground/90 leading-relaxed mt-0.5">{parsed.content}</p>
-                                    ) : parsed.type === 'vote' ? (
-                                      <div class="text-xs mt-0.5">
-                                        <span class="inline-flex items-center gap-1 text-muted-foreground">
-                                          <Vote size={10} />
-                                          <span>Voted for</span>
-                                          <span class={`font-semibold ${playerMap[parsed.content.vote]?.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`}>
-                                            {getPersonaName(parsed.content.vote)}
-                                          </span>
+                                  ) : parsed.type === 'action' ? (
+                                    <div class="text-xs pl-3">
+                                      <span class="inline-flex items-center gap-1">
+                                        <Crosshair size={10} class={parsed.content.action === 'kill' ? 'text-rose-500' : 'text-muted-foreground'} />
+                                        <span class="text-muted-foreground">{parsed.content.action}</span>
+                                        <span class={`font-semibold ${playerMap[parsed.content.target]?.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`}>
+                                          {getPersonaName(parsed.content.target)}
                                         </span>
-                                        {parsed.content.reasoning && (
-                                          <details class="mt-0.5 text-[10px] text-muted-foreground">
-                                            <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
-                                              <ChevronRight size={10} class="transition-transform [details[open]_&]:rotate-90" />
-                                              reason
-                                            </summary>
-                                            <p class="mt-0.5 pl-3 italic opacity-70">"{parsed.content.reasoning}"</p>
-                                          </details>
-                                        )}
-                                      </div>
-                                    ) : parsed.type === 'action' ? (
-                                      <div class="text-xs mt-0.5">
-                                        <span class="inline-flex items-center gap-1">
-                                          <Crosshair size={10} class={parsed.content.action === 'kill' ? 'text-rose-500' : 'text-muted-foreground'} />
-                                          <span class="text-muted-foreground">{parsed.content.action}</span>
-                                          <span class={`font-semibold ${playerMap[parsed.content.target]?.team === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`}>
-                                            {getPersonaName(parsed.content.target)}
-                                          </span>
-                                        </span>
-                                        {parsed.content.reasoning && (
-                                          <details class="mt-0.5 text-[10px] text-muted-foreground">
-                                            <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
-                                              <ChevronRight size={10} class="transition-transform [details[open]_&]:rotate-90" />
-                                              reason
-                                            </summary>
-                                            <p class="mt-0.5 pl-3 italic opacity-70">"{parsed.content.reasoning}"</p>
-                                          </details>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <p class="text-xs text-foreground/90 leading-relaxed mt-0.5">{parsed.content}</p>
-                                    )}
-                                  </div>
+                                      </span>
+                                      {parsed.content.reasoning && (
+                                        <details class="mt-0.5 text-[10px] text-muted-foreground">
+                                          <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
+                                            <ChevronRight size={10} class="transition-transform [details[open]_&]:rotate-90" />
+                                            reason
+                                          </summary>
+                                          <p class="mt-0.5 pl-3 italic opacity-70">"{parsed.content.reasoning}"</p>
+                                        </details>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p class="text-xs text-foreground/90 leading-relaxed pl-3">{parsed.content}</p>
+                                  )}
                                 </div>
                               );
                             }

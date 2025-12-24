@@ -727,6 +727,7 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
   function handleMessage(data) {
     if (data.type === 'SYNC') {
       events = data.events || [];
+      lastPollEventCount = events.length; // Initialize counter to prevent false "new" notifications
       events.forEach(buildPlayerFromEvent);
       updateTeamsDisplay();
       updatePlayersGrid();
@@ -882,6 +883,8 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
         
         if (data.events && data.events.length > events.length) {
           const newEventCount = data.events.length - events.length;
+          const isInitialLoad = events.length === 0;
+          
           events = data.events;
           events.forEach(buildPlayerFromEvent);
           updateTeamsDisplay();
@@ -890,8 +893,12 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
           updateTelemetry();
           updateLiveBadge('running');
           
-          if (newEventCount > 0 && lastPollEventCount !== events.length) {
+          // Only show notification for genuinely new events (not initial load)
+          if (!isInitialLoad && newEventCount > 0 && lastPollEventCount !== events.length) {
             showEventFlash(newEventCount);
+            lastPollEventCount = events.length;
+          } else {
+            // Just update the counter without showing notification
             lastPollEventCount = events.length;
           }
         }
