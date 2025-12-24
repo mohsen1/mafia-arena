@@ -18,6 +18,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { Env, GameQueueConfig } from './types.js';
 import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent, type SerializedGameState } from '../engine/index.js';
 import { createProvidersForGame, GameAIAdapter } from './ai/index.js';
+import { isTestModel } from './ai/providers/MockE2EProvider.js';
 import { generateSeed } from '../engine/utils/random.js';
 import { calculateGameCost } from './utils/budget.js';
 import { createLogger, logErrorWithStack, type Logger } from './utils/logger.js';
@@ -835,7 +836,14 @@ export class GameRunner extends DurableObject<Env> {
       this.lastR2StreamIndex = 0;
 
       // Insert 'running' record into D1 immediately so game appears in lists
-      await this.insertRunningGame(gameId, batchId, gameConfig, startedAt, traceId);
+      // Skip for test games to avoid polluting production data
+      const modelIds = config.teams.map(t => t.modelId);
+      const isTestGame = modelIds.some(id => isTestModel(id));
+      if (!isTestGame) {
+        await this.insertRunningGame(gameId, batchId, gameConfig, startedAt, traceId);
+      } else {
+        gameLog.info('Skipping D1 insert for test game', { testModels: modelIds.filter(id => isTestModel(id)).join(',') });
+      }
 
       // Background mode: Return immediately, run game via waitUntil
       // This is used for live watching where frontend connects via WebSocket
@@ -1456,6 +1464,9 @@ export class GameRunner extends DurableObject<Env> {
    * IDEMPOTENT: Uses atomic INSERT ... ON CONFLICT with WHERE clause to prevent double-counting.
    * Uses db.batch() for atomic D1 operations to prevent partial data states.
    * R2 write happens BEFORE D1 to ensure transcript exists if game record exists.
+   * 
+   * TEST GAMES: Games using test/* models skip D1 persistence to avoid polluting
+   * production data. R2 transcript is still written for debugging.
    */
   private async persistResults(result: GameResult, batchId: string): Promise<void> {
     const db = this.env.DB;
@@ -1468,6 +1479,10 @@ export class GameRunner extends DurableObject<Env> {
     // Calculate cost using per-model pricing
     const modelIds = result.participants.map(p => p.modelId);
     const costUsd = calculateGameCost(modelIds, result.tokenUsage.total);
+    
+    // Check if this is a test game (using mock models)
+    // Skip D1 persistence for test games to avoid polluting leaderboard/stats
+    const isTestGame = modelIds.some(id => isTestModel(id));
     const createdAt = Date.now();
     const today = new Date().toISOString().slice(0, 10);
     const mafiaWon = result.winner === 'mafia' ? 1 : 0;
@@ -1508,6 +1523,16 @@ export class GameRunner extends DurableObject<Env> {
       await transcripts.delete(`games/${result.id}/events-stream.json`);
     } catch {
       // Ignore cleanup errors - stream file may not exist
+    }
+
+    // Skip D1 persistence for test games to avoid polluting production data
+    if (isTestGame) {
+      this.log.info('Skipping D1 persistence for test game', { 
+        gameId: result.id, 
+        testModels: modelIds.filter(id => isTestModel(id)).join(','),
+      });
+      console.log(`[${traceId || 'no-trace'}] Test game ${result.id} completed - skipping D1 persistence`);
+      return;
     }
 
     // 2. ATOMIC idempotency check: Update game to 'completed' only if not already completed
