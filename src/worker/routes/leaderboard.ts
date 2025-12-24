@@ -15,6 +15,7 @@ leaderboard.get('/', async (c) => {
   const url = new URL(c.req.url);
   const team = url.searchParams.get('team');
 
+  // Base query with test model exclusion
   let query = `
     SELECT 
       l.model_id,
@@ -30,10 +31,11 @@ leaderboard.get('/', async (c) => {
       m.provider
     FROM leaderboard l
     LEFT JOIN models m ON l.model_id = m.id
+    WHERE l.model_id NOT LIKE 'test/%'
   `;
 
   if (team && (team === 'mafia' || team === 'town')) {
-    query += ` WHERE l.team = '${team}'`;
+    query += ` AND l.team = '${team}'`;
   }
 
   query += ' ORDER BY win_rate DESC, games_played DESC';
