@@ -35,7 +35,7 @@ const STORAGE_KEYS = {
   TRACE_ID: 'traceId',
   DISCOUNT_PRICING: 'discountPricing',
   LAST_ACTIVITY: 'lastActivity',
-  /** Full serialized GameState for resumption after DO eviction */
+  /** @deprecated Use CHECKPOINT_META instead - kept for migration */
   GAME_STATE: 'gameState',
   /** Event log for WebSocket sync (persisted to survive eviction) */
   EVENT_LOG: 'eventLog',
@@ -45,7 +45,27 @@ const STORAGE_KEYS = {
   CURRENT_PHASE: 'currentPhase',
   /** Current round being executed */
   CURRENT_ROUND: 'currentRound',
+  /** R2 checkpoint pointer - replaces GAME_STATE to avoid 128KB limit */
+  CHECKPOINT_META: 'checkpointMeta',
 } as const;
+
+/**
+ * Metadata pointer to R2-stored game state checkpoint.
+ * This is tiny (~100 bytes) and stored in DO storage.
+ * The actual game state (unlimited size) is in R2.
+ */
+interface CheckpointMeta {
+  /** R2 key where full state is stored */
+  r2Key: string;
+  /** Timestamp when checkpoint was saved */
+  timestamp: number;
+  /** Round number for debugging */
+  round: number;
+  /** Phase for debugging */
+  phase: string;
+  /** Version for future migrations */
+  version: number;
+}
 
 /** 
  * Stale thresholds for game status checks.
@@ -57,10 +77,21 @@ const STALE_THRESHOLD_MS = {
   DISCOUNT_PRICING: 48 * 60 * 60 * 1000, // 48 hours for discount pricing games
 } as const;
 
+/** Max length for action messages in stripped events */
+const MAX_ACTION_MESSAGE_LENGTH = 200;
+
 /**
- * Strip large fields from events for WebSocket streaming.
+ * Truncate a string to max length, adding ellipsis if truncated.
+ */
+function truncateString(str: string, maxLength: number): string {
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength) + '...';
+}
+
+/**
+ * Strip large fields from events for WebSocket streaming and DO storage.
  * AICallEvent contains full prompts and raw responses which can be huge.
- * For live streaming, viewers only need to see the parsed action, not the prompts.
+ * For live streaming, viewers only need to see the parsed action (truncated).
  * Full data is preserved in the R2 transcript.
  * 
  * Uses structuredClone for deep copy to prevent:
@@ -69,16 +100,27 @@ const STALE_THRESHOLD_MS = {
  */
 function stripEventForStorage(event: GameEvent): GameEvent {
   if (event.type === 'ai_call') {
+    // Truncate the message in parsed action if it's a message-type action
+    const parsed = event.response.parsed;
+    let strippedParsed = parsed;
+    
+    if (parsed && typeof parsed === 'object' && 'message' in parsed && typeof parsed.message === 'string') {
+      strippedParsed = {
+        ...parsed,
+        message: truncateString(parsed.message, MAX_ACTION_MESSAGE_LENGTH),
+      };
+    }
+    
     // Deep copy with stripped fields - structuredClone ensures no reference leaks
     return structuredClone({
       ...event,
       prompt: {
-        system: '[stripped for streaming]',
-        user: '[stripped for streaming]',
+        system: '[stripped]',
+        user: '[stripped]',
       },
       response: {
-        raw: '[stripped for streaming]',
-        parsed: event.response.parsed,
+        raw: '[stripped]',
+        parsed: strippedParsed,
       },
     });
   }
@@ -86,7 +128,7 @@ function stripEventForStorage(event: GameEvent): GameEvent {
   if (event.type === 'ai_parse_error') {
     return structuredClone({
       ...event,
-      rawResponse: '[stripped for streaming]',
+      rawResponse: '[stripped]',
     });
   }
 
@@ -142,7 +184,7 @@ export class GameRunner extends DurableObject<Env> {
   private strippedEventLog: GameEvent[] = [];
   
   /** Maximum events to store in DO storage (to avoid 128KB SQLite limit) */
-  private static readonly MAX_DO_STORAGE_EVENTS = 30;
+  private static readonly MAX_DO_STORAGE_EVENTS = 20;
   
   /** Index of last event streamed to R2 (for incremental streaming) */
   private lastR2StreamIndex: number = 0;
@@ -322,6 +364,99 @@ export class GameRunner extends DurableObject<Env> {
     }
 
     await Promise.all(updates);
+  }
+
+  // ===========================================================================
+  // R2 Checkpoint System (Replaces 128KB-limited DO storage)
+  // ===========================================================================
+
+  /**
+   * Load serialized game state, handling migration from DO storage to R2.
+   * 
+   * This implements a hybrid approach:
+   * 1. First, check for the new R2 checkpoint pointer (CHECKPOINT_META)
+   * 2. If found, fetch full state from R2 (no size limits)
+   * 3. Fall back to legacy DO storage (GAME_STATE) for older games
+   * 
+   * The fallback ensures running games aren't broken during deployment.
+   */
+  private async loadSerializedGameState(): Promise<SerializedGameState | undefined> {
+    // 1. Try new R2-backed checkpoint system
+    const meta = await this.ctx.storage.get<CheckpointMeta>(STORAGE_KEYS.CHECKPOINT_META);
+    
+    if (meta) {
+      this.log.debug('Loading checkpoint from R2', { r2Key: meta.r2Key, round: meta.round });
+      try {
+        const object = await this.env.TRANSCRIPTS.get(meta.r2Key);
+        if (object) {
+          const state = await object.json<SerializedGameState>();
+          this.log.info('Loaded game state from R2 checkpoint', { 
+            r2Key: meta.r2Key,
+            round: state.round,
+            phase: state.phase,
+            eventCount: state.events.length,
+          });
+          return state;
+        }
+        // Checkpoint file missing - fall through to legacy
+        this.log.warn('R2 checkpoint file missing, trying legacy storage', { r2Key: meta.r2Key });
+      } catch (error) {
+        logErrorWithStack(this.log, 'Failed to load checkpoint from R2', error, { r2Key: meta.r2Key });
+        // Don't throw - try legacy fallback
+      }
+    }
+
+    // 2. Fallback: Legacy DO storage (for games started before this change)
+    const legacyState = await this.ctx.storage.get<SerializedGameState>(STORAGE_KEYS.GAME_STATE);
+    if (legacyState) {
+      this.log.info('Loaded legacy DO-stored state (will migrate to R2 on next save)', {
+        round: legacyState.round,
+        phase: legacyState.phase,
+      });
+      return legacyState;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Save game state checkpoint to R2 and update DO pointer.
+   * 
+   * This completely eliminates the 128KB DO storage limit by:
+   * 1. Writing the FULL state to R2 (unlimited size)
+   * 2. Storing only a tiny pointer in DO storage (~100 bytes)
+   * 
+   * Also cleans up legacy GAME_STATE key to free DO storage space.
+   */
+  private async saveCheckpoint(state: SerializedGameState): Promise<void> {
+    const r2Key = `games/${state.gameId}/checkpoints/round_${state.round}_${state.phase}.json`;
+    
+    // 1. Write FULL state to R2 (no size limits!)
+    // We no longer need to strip personas, truncate messages, etc.
+    await this.env.TRANSCRIPTS.put(r2Key, JSON.stringify(state), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    
+    // 2. Update pointer in DO storage (tiny ~100 bytes)
+    const meta: CheckpointMeta = {
+      r2Key,
+      timestamp: Date.now(),
+      round: state.round,
+      phase: state.phase,
+      version: 1,
+    };
+    await this.ctx.storage.put(STORAGE_KEYS.CHECKPOINT_META, meta);
+    
+    // 3. Delete legacy GAME_STATE key if it exists (migration cleanup)
+    // This frees up DO storage space
+    await this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE);
+    
+    this.log.debug('Checkpoint saved to R2', { 
+      r2Key, 
+      round: state.round, 
+      phase: state.phase,
+      estimatedBytes: JSON.stringify(state).length,
+    });
   }
 
   /**
@@ -1030,8 +1165,8 @@ export class GameRunner extends DurableObject<Env> {
     // Start heartbeat to prove game is actively running
     this.startHeartbeat();
     
-    // Check if we have a saved game state to resume from
-    const savedGameState = await this.ctx.storage.get<SerializedGameState>(STORAGE_KEYS.GAME_STATE);
+    // Check if we have a saved game state to resume from (R2 or legacy DO storage)
+    const savedGameState = await this.loadSerializedGameState();
     const isResuming = savedGameState !== undefined;
     
     gameLog.info('Game starting', { 
@@ -1184,12 +1319,9 @@ export class GameRunner extends DurableObject<Env> {
       });
     };
 
-    // Phase checkpoint callback - saves game state after each phase
+    // Phase checkpoint callback - saves game state to R2 after each phase
     // This allows resumption from the last completed phase after DO eviction
-    // IMPORTANT: Only store last N events to avoid 128KB DO storage limit
-    // Full events are preserved in R2 stream (see streamEventsToR2)
-    // IMPORTANT: Also limit conversationHistory to avoid 128KB DO storage limit
-    const MAX_CONVERSATION_HISTORY = 50; // ~50 messages should be enough for resumption
+    // Using R2 eliminates the 128KB DO storage limit - no more stripping needed!
     const onPhaseComplete = async (serializedState: SerializedGameState) => {
       gameLog.debug('Phase checkpoint', { 
         phase: serializedState.phase, 
@@ -1197,19 +1329,26 @@ export class GameRunner extends DurableObject<Env> {
         eventCount: serializedState.events.length,
         conversationCount: serializedState.conversationHistory.length,
       });
-      // Strip events AND limit to last N to avoid SQLITE_TOOBIG on large prompts/responses
-      const strippedEvents = serializedState.events
-        .map(stripEventForStorage)
-        .slice(-GameRunner.MAX_DO_STORAGE_EVENTS);
-      // Also limit conversation history - only need recent messages for resumption context
-      const limitedConversation = serializedState.conversationHistory
-        .slice(-MAX_CONVERSATION_HISTORY);
-      const strippedState: SerializedGameState = {
-        ...serializedState,
-        events: strippedEvents,
-        conversationHistory: limitedConversation,
-      };
-      await this.ctx.storage.put(STORAGE_KEYS.GAME_STATE, strippedState);
+      
+      try {
+        // Save FULL state to R2 (no size limits!)
+        // This replaces the old 128KB-limited DO storage approach
+        await this.saveCheckpoint(serializedState);
+        
+        // Update health tracking in DO (tiny data, no limit concerns)
+        await this.saveState({
+          currentPhase: serializedState.phase,
+          currentRound: serializedState.round,
+          lastActivity: Date.now(),
+        });
+      } catch (error) {
+        // Don't crash the game for a checkpoint save failure
+        // Game continues in memory and will be saved on next phase
+        logErrorWithStack(gameLog, 'Failed to save checkpoint to R2', error, {
+          phase: serializedState.phase,
+          round: serializedState.round,
+        });
+      }
     };
 
     // Create and run the game with live streaming and checkpointing
@@ -1250,8 +1389,11 @@ export class GameRunner extends DurableObject<Env> {
 
       // Clean up checkpoint data (no longer needed after completion)
       // Keep event log for WebSocket clients that may still be connected
-      await this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE);
-      gameLog.debug('Cleaned up game state checkpoint');
+      await Promise.all([
+        this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE), // Legacy key
+        this.ctx.storage.delete(STORAGE_KEYS.CHECKPOINT_META), // New R2 pointer
+      ]);
+      gameLog.debug('Cleaned up checkpoint data');
 
       // Broadcast completion status
       this.broadcast({
