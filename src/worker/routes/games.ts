@@ -309,6 +309,7 @@ games.get('/:id', async (c) => {
 
 /**
  * GET /api/games/:id/transcript - Get full game transcript from R2.
+ * Streams directly from R2 to reduce memory pressure.
  */
 games.get('/:id/transcript', async (c) => {
   const env = c.env;
@@ -320,8 +321,13 @@ games.get('/:id/transcript', async (c) => {
     throw Errors.NotFound('Transcript');
   }
 
-  const transcript = await object.json();
-  return c.json(transcript);
+  // Stream directly from R2 instead of loading into memory
+  return new Response(object.body, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=3600',
+    },
+  });
 });
 
 /**

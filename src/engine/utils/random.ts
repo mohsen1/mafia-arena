@@ -7,22 +7,6 @@
  */
 
 /**
- * Create a seeded random number generator.
- * Returns a function that produces deterministic random numbers [0, 1).
- */
-export function createSeededRandom(seed: number): () => number {
-  let state = seed;
-  
-  return function mulberry32(): number {
-    state |= 0;
-    state = (state + 0x6D2B79F5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/**
  * Random number generator interface for dependency injection.
  */
 export interface RandomGenerator {
@@ -37,10 +21,16 @@ export interface RandomGenerator {
 }
 
 /**
- * Create a random generator from a seed.
+ * Create a random number generator.
+ * 
+ * @param seed - Optional seed for deterministic output. If omitted, uses Math.random().
+ * @returns A RandomGenerator instance
  */
-export function createRandomGenerator(seed: number): RandomGenerator {
-  const random = createSeededRandom(seed);
+export function createRNG(seed?: number): RandomGenerator {
+  // Create the base random function
+  const random = seed !== undefined 
+    ? mulberry32(seed) 
+    : () => Math.random();
   
   return {
     random,
@@ -69,33 +59,18 @@ export function createRandomGenerator(seed: number): RandomGenerator {
 }
 
 /**
- * Create a random generator using Math.random() (non-deterministic).
- * Used when no seed is provided for backward compatibility.
+ * Create a seeded random number generator using mulberry32 algorithm.
+ * Returns a function that produces deterministic random numbers [0, 1).
  */
-export function createDefaultRandomGenerator(): RandomGenerator {
-  return {
-    random: () => Math.random(),
-    
-    randomInt(max: number): number {
-      return Math.floor(Math.random() * max);
-    },
-    
-    shuffle<T>(array: T[]): T[] {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j]!, array[i]!];
-      }
-      return array;
-    },
-    
-    shuffled<T>(array: readonly T[]): T[] {
-      const result = [...array];
-      for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [result[i], result[j]] = [result[j]!, result[i]!];
-      }
-      return result;
-    },
+function mulberry32(seed: number): () => number {
+  let state = seed;
+  
+  return function (): number {
+    state |= 0;
+    state = (state + 0x6D2B79F5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -106,3 +81,12 @@ export function generateSeed(): number {
   return Math.floor(Date.now() * Math.random()) | 0;
 }
 
+// Legacy exports for backward compatibility
+/** @deprecated Use createRNG(seed) instead */
+export const createSeededRandom = (seed: number) => createRNG(seed).random;
+
+/** @deprecated Use createRNG(seed) instead */
+export const createRandomGenerator = (seed: number) => createRNG(seed);
+
+/** @deprecated Use createRNG() instead */
+export const createDefaultRandomGenerator = () => createRNG();

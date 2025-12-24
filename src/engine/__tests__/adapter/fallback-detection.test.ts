@@ -82,7 +82,7 @@ class DegradingProvider implements AIProviderInterface {
 
 describe('AI Fallback Detection', () => {
   describe('GameAIAdapter fallback behavior', () => {
-    it('should return fallback action after MAX_PARSE_RETRIES exhausted', async () => {
+    it('should return fallback action when parse fails', async () => {
       const failingProvider = new FailingProvider();
       const providers = new Map<string, AIProviderInterface>([
         ['test/failing-model', failingProvider],
@@ -123,8 +123,8 @@ describe('AI Fallback Detection', () => {
       expect(response.action.type).toBe('elimination_vote');
       expect(response.action.target).toBeNull();
       
-      // Should have retried MAX_PARSE_RETRIES times (3 total calls)
-      expect(failingProvider.getCallCount()).toBe(3);
+      // Should have called provider once (no retries for parse errors)
+      expect(failingProvider.getCallCount()).toBe(1);
     });
 
     it('should return null target when fallback is used for elimination vote', async () => {

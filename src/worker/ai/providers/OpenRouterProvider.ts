@@ -7,8 +7,8 @@
  * API Docs: https://openrouter.ai/docs
  */
 
-import { BaseProvider } from '../BaseProvider.js';
-import type { AIProviderConfig, CompletionRequest, CompletionResponse } from '../types.js';
+import type { AIProviderInterface, AIProviderConfig, CompletionRequest, CompletionResponse } from '../types.js';
+import { AIErrors } from '../errors.js';
 
 interface OpenRouterResponse {
   id: string;
@@ -34,31 +34,21 @@ interface OpenRouterResponse {
   };
 }
 
-/**
- * Model IDs are now OpenRouter IDs directly (e.g., "openai/gpt-5.2").
- * This function ensures the ID is passed through correctly.
- */
-function getOpenRouterModelId(modelId: string): string {
-  return modelId;
-}
-
-export class OpenRouterProvider extends BaseProvider {
+export class OpenRouterProvider implements AIProviderInterface {
   readonly name = 'openrouter';
   readonly modelId: string;
-  private readonly openRouterModelId: string;
 
+  private readonly apiKey: string;
+  private readonly timeoutMs: number;
   private readonly baseUrl = 'https://openrouter.ai/api/v1';
 
   constructor(config: AIProviderConfig) {
-    super(config);
+    this.apiKey = config.apiKey;
     this.modelId = config.modelId;
-    this.openRouterModelId = getOpenRouterModelId(config.modelId);
+    this.timeoutMs = config.timeoutMs ?? 30000;
   }
 
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
-    // #region agent log
-    console.log('[DEBUG-B] AI complete() called', { modelId: this.modelId, promptLen: request.systemPrompt.length + request.userPrompt.length });
-    // #endregion
     const startTime = Date.now();
 
     const messages = [
@@ -67,7 +57,7 @@ export class OpenRouterProvider extends BaseProvider {
     ];
 
     const body: Record<string, unknown> = {
-      model: this.openRouterModelId,
+      model: this.modelId,
       messages,
       max_tokens: request.maxTokens ?? 4000,
       temperature: request.temperature ?? 0.7,
@@ -109,9 +99,6 @@ export class OpenRouterProvider extends BaseProvider {
     let data = await response.json();
 
     // Fallback chain for models with limited feature support
-    // Level 1: If tool_choice fails, try response_format: json_object
-    // Level 2: If response_format fails, rely on prompt instructions only
-    
     if (!response.ok && useStructuredOutput) {
       const error = data as { error?: { message?: string; code?: number } };
       const isToolChoiceError = 
@@ -120,14 +107,11 @@ export class OpenRouterProvider extends BaseProvider {
         error.error?.code === 404;
       
       if (isToolChoiceError) {
-        console.warn(`Model ${this.openRouterModelId} doesn't support tool_choice, retrying with response_format`);
-        
         // Retry without tool_choice - try JSON mode
         delete body.tools;
         delete body.tool_choice;
         body.response_format = { type: 'json_object' };
         
-        // Add JSON instructions to the user prompt
         const schemaInstructions = this.schemaToPrompt(request.structuredOutput!.schema);
         const enhancedUserPrompt = `${request.userPrompt}\n\n${schemaInstructions}`;
         (messages[1] as { content: string }).content = enhancedUserPrompt;
@@ -145,18 +129,16 @@ export class OpenRouterProvider extends BaseProvider {
         });
         
         data = await response.json();
-        useStructuredOutput = false; // Don't try to extract from tool_calls
+        useStructuredOutput = false;
         
         // Level 2: If response_format also fails, retry without it
         if (!response.ok) {
-          const formatError = data as { error?: { message?: string; code?: number; metadata?: { raw?: string } } };
+          const formatError = data as { error?: { message?: string; metadata?: { raw?: string } } };
           const isResponseFormatError = 
             formatError.error?.message?.includes('response_format') ||
             formatError.error?.metadata?.raw?.includes('response_format');
           
           if (isResponseFormatError) {
-            console.warn(`Model ${this.openRouterModelId} doesn't support response_format either, retrying with prompt instructions only`);
-            
             delete body.response_format;
             
             response = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
@@ -177,16 +159,9 @@ export class OpenRouterProvider extends BaseProvider {
     }
 
     if (!response.ok) {
-      // #region agent log
-      console.log('[DEBUG-B] OpenRouter HTTP error', { modelId: this.modelId, status: response.status, error: JSON.stringify(data).slice(0, 500) });
-      // #endregion
-      console.error(`OpenRouter error for ${this.openRouterModelId}:`, JSON.stringify(data));
       this.handleHttpError(response, data);
     }
 
-    // #region agent log
-    console.log('[DEBUG-B] OpenRouter API success', { modelId: this.modelId, latencyMs: Date.now() - startTime });
-    // #endregion
     const typedData = data as OpenRouterResponse;
     const latencyMs = Date.now() - startTime;
 
@@ -194,10 +169,8 @@ export class OpenRouterProvider extends BaseProvider {
     const choice = typedData.choices[0];
 
     if (useStructuredOutput && choice?.message.tool_calls?.[0]) {
-      // Extract tool call result (native structured output)
       content = choice.message.tool_calls[0].function.arguments;
     } else {
-      // Regular text response or fallback JSON mode
       content = choice?.message.content ?? '';
     }
 
@@ -214,7 +187,83 @@ export class OpenRouterProvider extends BaseProvider {
   }
 
   /**
-   * Convert JSON schema to prompt instructions for models that don't support structured outputs.
+   * Fetch with timeout support.
+   */
+  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      return response;
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw AIErrors.timeout(this.modelId, this.timeoutMs);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * Handle HTTP error responses.
+   */
+  private handleHttpError(response: Response, body: unknown): never {
+    const status = response.status;
+
+    const extractMessage = (b: unknown): string => {
+      if (typeof b === 'object' && b !== null) {
+        const obj = b as Record<string, unknown>;
+        if (obj.error && typeof obj.error === 'object') {
+          const err = obj.error as Record<string, unknown>;
+          if (err.message) return String(err.message);
+        }
+        if (obj.message) return String(obj.message);
+      }
+      return String(b);
+    };
+
+    const message = extractMessage(body);
+
+    // Check for rate limit errors
+    if (message.includes('rate limit') || 
+        message.includes('Rate limit') || 
+        message.includes('Resource has been exhausted') || 
+        message.includes('quota') ||
+        message.includes('too many requests') ||
+        message.includes('Too many requests')) {
+      throw AIErrors.rateLimited(this.modelId, 30);
+    }
+
+    if (status === 401 || status === 403) {
+      if (message.includes('model') || message.includes('access')) {
+        throw AIErrors.providerError(this.name, `${status}: ${message}`);
+      }
+      throw AIErrors.authError(this.name);
+    }
+
+    if (status === 429) {
+      const retryAfter = response.headers.get('retry-after');
+      throw AIErrors.rateLimited(this.modelId, retryAfter ? parseInt(retryAfter, 10) : undefined);
+    }
+
+    if (status === 503) {
+      throw AIErrors.rateLimited(this.modelId, 10);
+    }
+
+    if (status === 502) {
+      throw AIErrors.providerError(this.name, `502 Bad Gateway: ${message}`);
+    }
+
+    throw AIErrors.providerError(this.name, `${status}: ${message}`);
+  }
+
+  /**
+   * Convert JSON schema to prompt instructions.
    */
   private schemaToPrompt(schema: { properties: Record<string, unknown>; required: string[] }): string {
     const fields = Object.keys(schema.properties);

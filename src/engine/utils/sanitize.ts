@@ -245,29 +245,4 @@ export function sanitizeAIOutput(output: string): string {
   return sanitized.trim();
 }
 
-/**
- * Check if an AI output contains suspicious patterns that warrant extra scrutiny.
- * This is less strict than containsDangerousPatterns - it flags for logging/monitoring
- * rather than rejection.
- */
-export function hasSuspiciousPatterns(text: string): boolean {
-  const suspiciousPatterns = [
-    // Attempts to reference game mechanics directly
-    /\bmafia\b.*\bwin\b/i,
-    /\btown\b.*\blose\b/i,
-    /i\s+am\s+(the\s+)?mafia/i,
-    /trust\s+me.*vote/i,
-    
-    // Meta-game references
-    /this\s+is\s+(a|the)\s+game/i,
-    /as\s+an?\s+(ai|language\s+model)/i,
-    /my\s+programming/i,
-    
-    // Coordinate voting explicitly
-    /everyone\s+vote\s+for/i,
-    /all\s+vote\s+against/i,
-  ];
-  
-  return suspiciousPatterns.some(pattern => pattern.test(text));
-}
 
