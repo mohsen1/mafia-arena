@@ -933,6 +933,11 @@ export class GameRunner extends DurableObject<Env> {
     // Health thresholds
     const HEARTBEAT_STALE_THRESHOLD = 60_000;  // 1 minute without heartbeat = stale
     const ACTIVITY_WARN_THRESHOLD = 5 * 60_000; // 5 min without activity = warning
+    const ZERO_EVENTS_WARN_THRESHOLD = 2 * 60_000; // 2 min with 0 events = warning
+    const ZERO_EVENTS_CRITICAL_THRESHOLD = 5 * 60_000; // 5 min with 0 events = critical
+    
+    // Calculate game duration
+    const gameDuration = state.startedAt ? now - state.startedAt : 0;
     
     // Determine health status
     let healthStatus: 'healthy' | 'warning' | 'critical' | 'idle' | 'completed';
@@ -948,20 +953,35 @@ export class GameRunner extends DurableObject<Env> {
       healthStatus = 'idle';
       healthMessage = 'No game running';
     } else if (state.status === 'running') {
-      // Game is supposed to be running - check heartbeat
-      if (heartbeatAge === null) {
-        // No heartbeat yet - might be just starting
-        healthStatus = 'warning';
-        healthMessage = 'Game starting, no heartbeat yet';
-      } else if (heartbeatAge > HEARTBEAT_STALE_THRESHOLD) {
-        // Heartbeat is stale - game might be stuck
+      // Game is supposed to be running - check various conditions
+      
+      // Critical: 0 events after 5 minutes - likely stuck on first AI call
+      if (this.eventLog.length === 0 && gameDuration > ZERO_EVENTS_CRITICAL_THRESHOLD) {
+        healthStatus = 'critical';
+        healthMessage = `No events after ${Math.round(gameDuration / 1000)}s - AI provider may be down`;
+      }
+      // Critical: Heartbeat stale - game process crashed
+      else if (heartbeatAge !== null && heartbeatAge > HEARTBEAT_STALE_THRESHOLD) {
         healthStatus = 'critical';
         healthMessage = `Heartbeat stale (${Math.round(heartbeatAge / 1000)}s ago), game may be stuck`;
-      } else if (activityAge && activityAge > ACTIVITY_WARN_THRESHOLD) {
-        // Heartbeat ok but no recent activity - slow AI or stuck in phase
+      }
+      // Warning: 0 events after 2 minutes
+      else if (this.eventLog.length === 0 && gameDuration > ZERO_EVENTS_WARN_THRESHOLD) {
+        healthStatus = 'warning';
+        healthMessage = `Waiting for first event (${Math.round(gameDuration / 1000)}s elapsed)`;
+      }
+      // Warning: No heartbeat yet
+      else if (heartbeatAge === null) {
+        healthStatus = 'warning';
+        healthMessage = 'Game starting, no heartbeat yet';
+      }
+      // Warning: Long wait for AI
+      else if (activityAge && activityAge > ACTIVITY_WARN_THRESHOLD) {
         healthStatus = 'warning';
         healthMessage = `Waiting on AI (last activity ${Math.round(activityAge / 1000)}s ago)`;
-      } else {
+      }
+      // Healthy
+      else {
         healthStatus = 'healthy';
         healthMessage = 'Game running normally';
       }
