@@ -36,10 +36,8 @@ const STORAGE_KEYS = {
   TRACE_ID: 'traceId',
   DISCOUNT_PRICING: 'discountPricing',
   LAST_ACTIVITY: 'lastActivity',
-  /** @deprecated Use CHECKPOINT_META instead - kept for migration */
+  /** @deprecated Use CHECKPOINT_META instead - kept for migration cleanup */
   GAME_STATE: 'gameState',
-  /** Event log for WebSocket sync (persisted to survive eviction) */
-  EVENT_LOG: 'eventLog',
   /** Active heartbeat timestamp - proves game is actively running */
   HEARTBEAT: 'heartbeat',
   /** Current phase being executed (for debugging stuck games) */
@@ -180,16 +178,6 @@ export class GameRunner extends DurableObject<Env> {
   
   /** In-memory event log for live streaming (full events with prompts for R2 transcript) */
   private eventLog: GameEvent[] = [];
-  
-  /** Stripped event log for DO storage persistence (avoids SQLITE_TOOBIG) */
-  private strippedEventLog: GameEvent[] = [];
-  
-  /** 
-   * Maximum events to store in DO storage (to avoid 128KB SQLite limit).
-   * Set to 0 to disable DO storage for events entirely (Gemini's recommendation).
-   * Events are always streamed to R2 for persistence.
-   */
-  private static readonly MAX_DO_STORAGE_EVENTS = 0;
   
   /** Index of last event streamed to R2 (for incremental streaming) */
   private lastR2StreamIndex: number = 0;
@@ -521,27 +509,15 @@ export class GameRunner extends DurableObject<Env> {
     this.sessions.push(server);
     this.log.info('WebSocket connected', { sessionCount: this.sessions.length });
 
-    // Load event log if not already loaded (for DO hibernation recovery)
-    // Try DO storage first (faster), then fall back to R2 stream
+    // Load event log from R2 stream if not already loaded (for DO hibernation recovery)
     if (this.eventLog.length === 0) {
       const state = await this.loadState();
       if (state.gameId && state.status === 'running') {
-        // Try DO storage first (persisted on every event, stripped to avoid size limits)
-        const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
-        if (storedEvents && storedEvents.length > 0) {
-          this.eventLog = storedEvents;
-          this.strippedEventLog = storedEvents;
-          this.lastR2StreamIndex = storedEvents.length;
-          this.log.debug('Loaded events from DO storage', { eventCount: this.eventLog.length });
-        } else {
-          // Fall back to R2 stream
-          const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
-          if (streamedEvents.length > 0) {
-            this.eventLog = streamedEvents;
-            this.strippedEventLog = streamedEvents.map(stripEventForStorage);
-            this.lastR2StreamIndex = streamedEvents.length;
-            this.log.debug('Loaded events from R2 stream', { eventCount: this.eventLog.length });
-          }
+        const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
+        if (streamedEvents.length > 0) {
+          this.eventLog = streamedEvents;
+          this.lastR2StreamIndex = streamedEvents.length;
+          this.log.debug('Loaded events from R2 stream', { eventCount: this.eventLog.length });
         }
       }
     }
@@ -700,21 +676,12 @@ export class GameRunner extends DurableObject<Env> {
       }
     }
     
-    // For running games, use in-memory events or load from storage
-    // Try DO storage first (persisted on every event), then R2 stream
+    // For running games, load events from R2 stream if not already in memory
     if (this.eventLog.length === 0 && state.gameId && state.status === 'running') {
-      const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
-      if (storedEvents && storedEvents.length > 0) {
-        this.eventLog = storedEvents;
-        this.strippedEventLog = storedEvents;
-        this.lastR2StreamIndex = storedEvents.length;
-      } else {
-        const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
-        if (streamedEvents.length > 0) {
-          this.eventLog = streamedEvents;
-          this.strippedEventLog = streamedEvents.map(stripEventForStorage);
-          this.lastR2StreamIndex = streamedEvents.length;
-        }
+      const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
+      if (streamedEvents.length > 0) {
+        this.eventLog = streamedEvents;
+        this.lastR2StreamIndex = streamedEvents.length;
       }
     }
 
@@ -834,9 +801,8 @@ export class GameRunner extends DurableObject<Env> {
       
       gameLog.info('Game starting', { seed, background, discountPricing });
 
-      // Reset event logs (memory only - no DO storage)
+      // Reset event log (events are streamed to R2 for persistence)
       this.eventLog = [];
-      this.strippedEventLog = [];
       this.lastR2StreamIndex = 0;
 
       // Insert 'running' record into D1 immediately so game appears in lists
@@ -1191,19 +1157,17 @@ export class GameRunner extends DurableObject<Env> {
       resumePhase: savedGameState?.phase,
     });
 
-    // Load event log from DO storage if resuming (faster than R2)
+    // Load event log from R2 if resuming
     if (isResuming) {
-      const storedEvents = await this.ctx.storage.get<GameEvent[]>(STORAGE_KEYS.EVENT_LOG);
-      if (storedEvents) {
-        this.eventLog = storedEvents;
-        this.strippedEventLog = storedEvents;
-        this.lastR2StreamIndex = storedEvents.length;
-        gameLog.info('Loaded event log from DO storage', { eventCount: this.eventLog.length });
+      const streamedEvents = await this.loadEventsFromR2Stream(gameId);
+      if (streamedEvents.length > 0) {
+        this.eventLog = streamedEvents;
+        this.lastR2StreamIndex = streamedEvents.length;
+        gameLog.info('Loaded event log from R2 stream', { eventCount: this.eventLog.length });
       }
     } else {
-      // Reset event logs for new game
+      // Reset event log for new game
       this.eventLog = [];
-      this.strippedEventLog = [];
     }
 
     // Get discountPricing from config for activity tracking and provider configuration
@@ -1236,8 +1200,8 @@ export class GameRunner extends DurableObject<Env> {
         // This allows the scheduled cleanup job to detect active games
         if (now - this.lastD1ActivityUpdate >= GameRunner.D1_ACTIVITY_UPDATE_INTERVAL_MS) {
           this.lastD1ActivityUpdate = now;
-          // Fire and forget - don't await to avoid blocking game execution
-          this.updateLastActivityInD1(gameId).catch(() => {});
+          // Use waitUntil to ensure background update completes
+          this.ctx.waitUntil(this.updateLastActivityInD1(gameId));
         }
       }
       
@@ -1289,27 +1253,14 @@ export class GameRunner extends DurableObject<Env> {
 
       // Add to in-memory log (full events for R2 transcript)
       this.eventLog.push(event);
-      
-      // Add stripped event to DO storage log (avoids SQLITE_TOOBIG with large prompts)
-      const strippedEvent = stripEventForStorage(event);
-      this.strippedEventLog.push(strippedEvent);
-      
-      // Persist events to DO storage only if enabled (MAX_DO_STORAGE_EVENTS > 0)
-      // When disabled (= 0), we rely entirely on R2 for event persistence.
-      // This avoids the 128KB DO storage limit that was causing SQLITE_TOOBIG errors.
-      if (GameRunner.MAX_DO_STORAGE_EVENTS > 0) {
-        const eventsToStore = this.strippedEventLog.slice(-GameRunner.MAX_DO_STORAGE_EVENTS);
-        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
-      }
 
       // Stream to R2 incrementally (every 3 events or on important events)
-      // Since we no longer store events in DO storage, R2 is our only persistence layer.
-      // Stream frequently to minimize data loss on DO eviction.
+      // R2 is our persistence layer for events.
       const shouldStream = 
         this.eventLog.length - this.lastR2StreamIndex >= 3 ||
         event.type === 'elimination' ||
         event.type === 'game_end' ||
-        event.type === 'ai_call';  // Stream every AI call since they're expensive
+        event.type === 'ai_call';
       
       if (shouldStream) {
         try {
@@ -1319,8 +1270,6 @@ export class GameRunner extends DurableObject<Env> {
             streamedFrom: this.lastR2StreamIndex,
           });
         } catch (error) {
-          // R2 stream failed - log but don't fail the game
-          // Events are still in memory and DO storage
           logErrorWithStack(gameLog, 'Failed to stream events to R2', error, {
             eventCount: this.eventLog.length,
           });
@@ -1652,6 +1601,73 @@ export class GameRunner extends DurableObject<Env> {
           updated_at = unixepoch()
       `).bind(today, result.tokenUsage.total, costUsd, mafiaWon, townWon)
     );
+
+    // Update ELO ratings incrementally (only for non-self-play games)
+    const mafiaParticipant = result.participants.find(p => p.team === 'mafia');
+    const townParticipant = result.participants.find(p => p.team === 'town');
+    
+    if (mafiaParticipant && townParticipant && mafiaParticipant.modelId !== townParticipant.modelId) {
+      // Fetch current ELO ratings
+      const [mafiaModel, townModel] = await Promise.all([
+        db.prepare('SELECT elo_rating, elo_games_played FROM models WHERE id = ?')
+          .bind(mafiaParticipant.modelId)
+          .first<{ elo_rating: number | null; elo_games_played: number | null }>(),
+        db.prepare('SELECT elo_rating, elo_games_played FROM models WHERE id = ?')
+          .bind(townParticipant.modelId)
+          .first<{ elo_rating: number | null; elo_games_played: number | null }>(),
+      ]);
+
+      const INITIAL_RATING = 1500;
+      const mafiaElo = mafiaModel?.elo_rating ?? INITIAL_RATING;
+      const townElo = townModel?.elo_rating ?? INITIAL_RATING;
+      const mafiaGames = mafiaModel?.elo_games_played ?? 0;
+      const townGames = townModel?.elo_games_played ?? 0;
+
+      // K-factor: higher for newer players (more volatile ratings)
+      const getKFactor = (games: number): number => {
+        if (games < 30) return 32;
+        if (games < 100) return 24;
+        return 16;
+      };
+
+      const mafiaK = getKFactor(mafiaGames);
+      const townK = getKFactor(townGames);
+
+      // Expected scores based on current ELO
+      const mafiaExpected = 1 / (1 + Math.pow(10, (townElo - mafiaElo) / 400));
+      const townExpected = 1 - mafiaExpected;
+
+      // Actual scores (1 for win, 0 for loss)
+      const mafiaActual = result.winner === 'mafia' ? 1 : 0;
+      const townActual = result.winner === 'town' ? 1 : 0;
+
+      // New ELO ratings
+      const newMafiaElo = Math.round(mafiaElo + mafiaK * (mafiaActual - mafiaExpected));
+      const newTownElo = Math.round(townElo + townK * (townActual - townExpected));
+
+      // Update models table with new ELO ratings
+      statements.push(
+        db.prepare(`
+          UPDATE models SET 
+            elo_rating = ?,
+            elo_games_played = ?,
+            elo_peak = MAX(COALESCE(elo_peak, ?), ?),
+            elo_updated_at = ?
+          WHERE id = ?
+        `).bind(newMafiaElo, mafiaGames + 1, newMafiaElo, newMafiaElo, createdAt, mafiaParticipant.modelId)
+      );
+
+      statements.push(
+        db.prepare(`
+          UPDATE models SET 
+            elo_rating = ?,
+            elo_games_played = ?,
+            elo_peak = MAX(COALESCE(elo_peak, ?), ?),
+            elo_updated_at = ?
+          WHERE id = ?
+        `).bind(newTownElo, townGames + 1, newTownElo, newTownElo, createdAt, townParticipant.modelId)
+      );
+    }
 
     // Update batch progress (if part of a batch)
     if (batchId && !batchId.includes('direct')) {

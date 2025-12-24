@@ -1,12 +1,27 @@
 /**
- * API Error handling utilities.
+ * Unified API Error handling.
  * Provides structured error responses for the API.
  */
+
+export type ErrorCode =
+  | 'NOT_FOUND'
+  | 'BAD_REQUEST'
+  | 'RATE_LIMITED'
+  | 'INTERNAL_ERROR'
+  | 'UNAUTHORIZED'
+  | 'GAME_IN_PROGRESS'
+  | 'TIMEOUT'
+  | 'INVALID_RESPONSE'
+  | 'AUTH_ERROR'
+  | 'RETRY_EXHAUSTED'
+  | 'PROVIDER_ERROR'
+  | 'PARSE_ERROR'
+  | 'UNSUPPORTED_MODEL';
 
 export class APIError extends Error {
   constructor(
     public statusCode: number,
-    public code: string,
+    public code: ErrorCode,
     message: string,
     public details?: unknown
   ) {
@@ -25,6 +40,19 @@ export class APIError extends Error {
       },
       { status: this.statusCode }
     );
+  }
+
+  toJSON() {
+    const result: { error: { code: ErrorCode; message: string; details?: unknown } } = {
+      error: {
+        code: this.code,
+        message: this.message,
+      },
+    };
+    if (this.details !== undefined) {
+      result.error.details = this.details;
+    }
+    return result;
   }
 }
 
@@ -47,4 +75,3 @@ export const Errors = {
   GameInProgress: (gameId: string) =>
     new APIError(409, 'GAME_IN_PROGRESS', `Game ${gameId} is already running`),
 };
-

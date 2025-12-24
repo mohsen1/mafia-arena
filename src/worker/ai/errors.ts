@@ -3,32 +3,6 @@
  */
 
 /**
- * Base error class for AI-related errors.
- */
-export class AIError extends Error {
-  constructor(
-    public readonly code: AIErrorCode,
-    message: string,
-    public readonly cause?: Error
-  ) {
-    super(message);
-    this.name = 'AIError';
-  }
-
-  /**
-   * Create error response for API.
-   */
-  toJSON() {
-    return {
-      error: {
-        code: this.code,
-        message: this.message,
-      },
-    };
-  }
-}
-
-/**
  * Error codes for AI operations.
  */
 export type AIErrorCode =
@@ -43,7 +17,30 @@ export type AIErrorCode =
   | 'UNSUPPORTED_MODEL';
 
 /**
- * Factory functions for common errors.
+ * Error class for AI-related errors.
+ */
+export class AIError extends Error {
+  constructor(
+    public readonly code: AIErrorCode,
+    message: string,
+    public readonly cause?: Error
+  ) {
+    super(message);
+    this.name = 'AIError';
+  }
+
+  toJSON() {
+    return {
+      error: {
+        code: this.code,
+        message: this.message,
+      },
+    };
+  }
+}
+
+/**
+ * Factory functions for common AI errors.
  */
 export const AIErrors = {
   timeout: (modelId: string, timeoutMs: number) =>
@@ -62,11 +59,7 @@ export const AIErrors = {
     new AIError('AUTH_ERROR', `Authentication failed for ${provider}`),
 
   retryExhausted: (modelId: string, attempts: number, lastError?: Error) =>
-    new AIError(
-      'RETRY_EXHAUSTED',
-      `Failed after ${attempts} attempts to ${modelId}`,
-      lastError
-    ),
+    new AIError('RETRY_EXHAUSTED', `Failed after ${attempts} attempts to ${modelId}`, lastError),
 
   providerError: (provider: string, message: string, cause?: Error) =>
     new AIError('PROVIDER_ERROR', `${provider} error: ${message}`, cause),
@@ -83,12 +76,8 @@ export const AIErrors = {
  */
 export function isRetryableError(error: unknown): boolean {
   if (error instanceof AIError) {
-    // Only don't retry for unsupported models or clearly invalid requests
-    // Auth errors from OpenRouter might be temporary (rate limits disguised as 401)
     const nonRetryable: AIErrorCode[] = ['UNSUPPORTED_MODEL', 'INVALID_REQUEST'];
     return !nonRetryable.includes(error.code);
   }
-  // Retry unknown errors
   return true;
 }
-

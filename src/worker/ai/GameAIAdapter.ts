@@ -2,12 +2,13 @@
  * Adapter that bridges AI providers to the game engine's AIProvider interface.
  * This allows the pure game engine to use Cloudflare AI providers.
  * 
- * BENCHMARK INTEGRITY: This adapter does NOT use fallback actions.
- * If a model produces invalid output, it is recorded as a parse error.
- * This is critical for benchmark validity - model failures must be tracked.
+ * PARSE ERROR HANDLING:
+ * If a model produces invalid output that cannot be parsed, a fallback action
+ * is generated to keep the game running. Retry logic is handled by RetryingProvider
+ * at the network layer - this adapter does not add additional retry loops.
  * 
  * CONTEXT WINDOW MANAGEMENT:
- * This adapter now supports context limit checking for models with smaller context windows.
+ * This adapter supports context limit checking for models with smaller context windows.
  * When context limits are provided, it will track token usage and log warnings.
  */
 
@@ -149,42 +150,26 @@ export class GameAIAdapter implements AIProvider {
     // Get the appropriate JSON schema for this action type
     const structuredOutput = getSchemaForAction(prompt.type);
 
-    const MAX_PARSE_RETRIES = 2;
-    let lastParseError: AIParseError | null = null;
-    let totalTokensUsed = { input: 0, output: 0 };
-    let rawResponse = '';
+    try {
+      const response = await provider.complete({
+        systemPrompt: prompt.systemPrompt,
+        userPrompt: prompt.userPrompt,
+        structuredOutput,
+        temperature: 0.7,
+        maxTokens: 4000,
+      });
 
-    for (let attempt = 0; attempt <= MAX_PARSE_RETRIES; attempt++) {
+      const latencyMs = Date.now() - startTime;
+
+      callLog.debug('AI response received', { 
+        latencyMs, 
+        inputTokens: response.tokensUsed.input,
+        outputTokens: response.tokensUsed.output,
+        contentLength: response.content.length,
+      });
+
+      // Try to parse the response into a PlayerAction
       try {
-        // On retries, add a JSON reminder to the prompt
-        let userPrompt = prompt.userPrompt;
-        if (attempt > 0) {
-          userPrompt = `${prompt.userPrompt}\n\nIMPORTANT: You MUST respond with ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
-          callLog.info('Retrying AI call after parse error', { attempt, previousError: lastParseError?.parseError });
-        }
-
-        const response = await provider.complete({
-          systemPrompt: prompt.systemPrompt,
-          userPrompt,
-          structuredOutput,
-          temperature: 0.7,
-          maxTokens: 4000,
-        });
-
-        const latencyMs = Date.now() - startTime;
-        totalTokensUsed.input += response.tokensUsed.input;
-        totalTokensUsed.output += response.tokensUsed.output;
-        rawResponse = response.content;
-
-        callLog.debug('AI response received', { 
-          latencyMs, 
-          attempt,
-          inputTokens: response.tokensUsed.input,
-          outputTokens: response.tokensUsed.output,
-          contentLength: response.content.length,
-        });
-
-        // Parse the response into a PlayerAction
         const action = this.parseAction(
           response.content, 
           prompt.type, 
@@ -192,49 +177,36 @@ export class GameAIAdapter implements AIProvider {
           context.modelId
         );
 
-        callLog.debug('Action parsed successfully', { actionType: action.type, attempt });
+        callLog.debug('Action parsed successfully', { actionType: action.type });
 
         return {
           action,
           rawResponse: response.content,
-          tokensUsed: totalTokensUsed,
+          tokensUsed: response.tokensUsed,
           latencyMs,
         };
-      } catch (error) {
-        const latencyMs = Date.now() - startTime;
-        
-        if (error instanceof AIParseError) {
-          lastParseError = error;
-          callLog.warn('AI parse error', { 
-            latencyMs,
-            attempt,
-            parseError: error.parseError,
-            rawResponseLength: error.rawResponse.length,
-          });
-          // Continue to retry
-        } else {
-          // Non-parse errors are fatal
-          logErrorWithStack(callLog, 'AI call failed', error, { latencyMs });
-          throw error;
-        }
+      } catch (parseError) {
+        // Parse failed - use fallback action to keep game running
+        callLog.warn('Parse failed, using fallback action', {
+          actionType: prompt.type,
+          parseError: parseError instanceof AIParseError ? parseError.parseError : String(parseError),
+        });
+
+        const fallbackAction = this.generateFallbackAction(prompt.type, prompt.validTargets);
+
+        return {
+          action: fallbackAction,
+          rawResponse: response.content,
+          tokensUsed: response.tokensUsed,
+          latencyMs,
+        };
       }
+    } catch (error) {
+      // Network/provider errors are fatal - let them bubble up
+      const latencyMs = Date.now() - startTime;
+      logErrorWithStack(callLog, 'AI call failed', error, { latencyMs });
+      throw error;
     }
-
-    // All retries exhausted - generate a fallback response
-    callLog.warn('All parse retries exhausted, using fallback response', {
-      actionType: prompt.type,
-      attempts: MAX_PARSE_RETRIES + 1,
-    });
-
-    const fallbackAction = this.generateFallbackAction(prompt.type, prompt.validTargets);
-    const latencyMs = Date.now() - startTime;
-
-    return {
-      action: fallbackAction,
-      rawResponse: rawResponse || '[fallback - no valid response]',
-      tokensUsed: totalTokensUsed,
-      latencyMs,
-    };
   }
 
   /**
@@ -515,42 +487,24 @@ export class GameAIAdapter implements AIProvider {
   }
 
   /**
-   * Extract JSON from response that might be wrapped in markdown.
-   * Uses jsonrepair library to handle common LLM syntax errors like:
-   * - Trailing commas
-   * - Unquoted keys
-   * - Single quotes instead of double quotes
-   * - Unescaped control characters
+   * Extract JSON from response content.
+   * LLMs often wrap JSON in Markdown code blocks - strip those first.
+   * Uses jsonrepair library to handle common LLM syntax errors.
    */
   private extractJSON(content: string): unknown {
-    let candidate = content;
-
-    // 1. Try to extract from markdown code blocks first
-    const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (codeBlockMatch?.[1]) {
-      candidate = codeBlockMatch[1].trim();
-    } else {
-      // 2. If no code blocks, try to find the largest { } or [ ] block
-      const jsonMatch = content.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-      if (jsonMatch?.[1]) {
-        candidate = jsonMatch[1].trim();
-      } else {
-        candidate = content.trim();
-      }
-    }
-
-    // 3. Attempt parse, falling back to jsonrepair
+    // Strip Markdown code blocks (common LLM behavior)
+    const markdownMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const cleanContent = markdownMatch ? markdownMatch[1]! : content;
+    const trimmed = cleanContent.trim();
+    
     try {
-      // Try standard parse first (fastest/strictest)
-      return JSON.parse(candidate);
+      return JSON.parse(trimmed);
     } catch {
       try {
-        // Fallback: Use jsonrepair library for robust recovery
-        return JSON.parse(jsonrepair(candidate));
-      } catch (repairError) {
-        // If repair also fails, throw descriptive error
+        return JSON.parse(jsonrepair(trimmed));
+      } catch (error) {
         throw new Error(
-          `JSON parse failed: ${repairError instanceof Error ? repairError.message : String(repairError)}`
+          `JSON parse failed: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }

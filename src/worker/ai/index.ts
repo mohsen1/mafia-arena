@@ -18,7 +18,6 @@ export type {
 export {
   getSchemaForAction,
   schemaToPromptInstructions,
-  extractJSON,
   validateAgainstSchema,
   PERSONA_SCHEMA,
   MESSAGE_SCHEMA,
@@ -30,8 +29,6 @@ export {
   DEFAULT_PRICING,
   parsePricingFromConfig,
   getDefaultModelConfig,
-  extractProvider,
-  extractDisplayName,
 } from './models.js';
 
 // Errors
@@ -39,7 +36,6 @@ export { AIError, AIErrors, isRetryableError } from './errors.js';
 export type { AIErrorCode } from './errors.js';
 
 // Providers
-export { BaseProvider } from './BaseProvider.js';
 export { RetryingProvider, type RetryConfig } from './RetryingProvider.js';
 export { OpenRouterProvider } from './providers/OpenRouterProvider.js';
 
