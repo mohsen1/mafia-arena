@@ -797,5 +797,112 @@ admin.delete('/models/:id', async (c) => {
   });
 });
 
+/**
+ * POST /api/admin/elo/backfill - Backfill ELO ratings from historical games.
+ * Recalculates ELO for all models based on completed games in chronological order.
+ */
+admin.post('/elo/backfill', async (c) => {
+  const env = c.env;
+
+  // Get all completed games between different models, ordered chronologically
+  const gamesResult = await env.DB.prepare(`
+    SELECT 
+      g.id,
+      g.winner,
+      g.created_at,
+      mafia.model_id as mafia_model,
+      town.model_id as town_model
+    FROM games g
+    JOIN game_participants mafia ON g.id = mafia.game_id AND mafia.team = 'mafia'
+    JOIN game_participants town ON g.id = town.game_id AND town.team = 'town'
+    WHERE g.status = 'completed'
+      AND mafia.model_id != town.model_id
+      AND mafia.model_id NOT LIKE 'test/%'
+      AND town.model_id NOT LIKE 'test/%'
+    ORDER BY g.created_at ASC
+  `).all<{
+    id: string;
+    winner: 'mafia' | 'town';
+    created_at: number;
+    mafia_model: string;
+    town_model: string;
+  }>();
+
+  const INITIAL_RATING = 1500;
+  const ratings: Map<string, { rating: number; games: number; peak: number }> = new Map();
+
+  function getOrCreate(modelId: string) {
+    if (!ratings.has(modelId)) {
+      ratings.set(modelId, { rating: INITIAL_RATING, games: 0, peak: INITIAL_RATING });
+    }
+    return ratings.get(modelId)!;
+  }
+
+  function getKFactor(games: number): number {
+    if (games < 30) return 32;
+    if (games < 100) return 24;
+    return 16;
+  }
+
+  // Process each game chronologically
+  for (const game of gamesResult.results) {
+    const mafiaData = getOrCreate(game.mafia_model);
+    const townData = getOrCreate(game.town_model);
+
+    const mafiaK = getKFactor(mafiaData.games);
+    const townK = getKFactor(townData.games);
+
+    const mafiaExpected = 1 / (1 + Math.pow(10, (townData.rating - mafiaData.rating) / 400));
+    const townExpected = 1 - mafiaExpected;
+
+    const mafiaWon = game.winner === 'mafia';
+    const mafiaActual = mafiaWon ? 1 : 0;
+    const townActual = mafiaWon ? 0 : 1;
+
+    // Update ratings
+    mafiaData.rating = Math.round(mafiaData.rating + mafiaK * (mafiaActual - mafiaExpected));
+    townData.rating = Math.round(townData.rating + townK * (townActual - townExpected));
+
+    // Update games played
+    mafiaData.games++;
+    townData.games++;
+
+    // Track peak
+    mafiaData.peak = Math.max(mafiaData.peak, mafiaData.rating);
+    townData.peak = Math.max(townData.peak, townData.rating);
+  }
+
+  // Update all models in the database
+  const updates: D1PreparedStatement[] = [];
+  const now = Date.now();
+
+  for (const [modelId, data] of ratings) {
+    updates.push(
+      env.DB.prepare(`
+        UPDATE models SET 
+          elo_rating = ?,
+          elo_games_played = ?,
+          elo_peak = ?,
+          elo_updated_at = ?
+        WHERE id = ?
+      `).bind(data.rating, data.games, data.peak, now, modelId)
+    );
+  }
+
+  if (updates.length > 0) {
+    await env.DB.batch(updates);
+  }
+
+  return c.json({
+    success: true,
+    gamesProcessed: gamesResult.results.length,
+    modelsUpdated: ratings.size,
+    topRatings: Array.from(ratings.entries())
+      .sort((a, b) => b[1].rating - a[1].rating)
+      .slice(0, 10)
+      .map(([id, data]) => ({ id, ...data })),
+  });
+});
+
 export default admin;
 
