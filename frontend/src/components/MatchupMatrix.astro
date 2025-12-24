@@ -105,14 +105,22 @@ rankings.sort((a, b) => {
   return b.totalGames - a.totalGames;
 });
 
-// Apply ranking order to uniqueModels
-const sortedModels = rankings.map(r => r.model);
+// Filter out models with insufficient data (less than 3 games)
+// and test models before applying ranking order
+const qualifiedRankings = rankings.filter(r => 
+  r.totalGames >= 3 && 
+  !r.model.id.startsWith('test/')
+);
 
-// Limit to top N models for compact view
-const displayModels = compact ? sortedModels.slice(0, 6) : sortedModels;
+// Apply ranking order to qualified models only
+const sortedModels = qualifiedRankings.map(r => r.model);
 
 // Top 10 for the leaderboard display
-const top10 = rankings.filter(r => r.totalGames >= 3).slice(0, 10);
+const top10 = qualifiedRankings.slice(0, 10);
+
+// For the matrix, only show top 10 models (same as leaderboard) to keep it readable
+// In compact mode, show fewer
+const displayModels = compact ? sortedModels.slice(0, 6) : sortedModels.slice(0, 10);
 
 function getHeatColor(rate: number): string {
   const hue = Math.round(rate * 120);

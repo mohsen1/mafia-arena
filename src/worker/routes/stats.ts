@@ -45,7 +45,7 @@ stats.get('/overview', async (c) => {
     GROUP BY m.provider
   `).all();
 
-  // Top models by win rate (min 3 games)
+  // Top models by win rate (min 3 games, exclude test models)
   const topModels = await env.DB.prepare(`
     SELECT 
       l.model_id,
@@ -56,6 +56,7 @@ stats.get('/overview', async (c) => {
       CAST(SUM(l.games_won) AS REAL) / SUM(l.games_played) as win_rate
     FROM leaderboard l
     JOIN models m ON l.model_id = m.id
+    WHERE l.model_id NOT LIKE 'test/%'
     GROUP BY l.model_id
     HAVING SUM(l.games_played) >= 3
     ORDER BY win_rate DESC
@@ -84,7 +85,7 @@ stats.get('/matchups', async (c) => {
   const url = new URL(c.req.url);
   const team = url.searchParams.get('team') as 'mafia' | 'town' | null;
 
-  // Get all head-to-head matchups (excluding self-play)
+  // Get all head-to-head matchups (excluding self-play and test models)
   const query = `
     SELECT 
       gp1.model_id as model_a,
@@ -98,7 +99,8 @@ stats.get('/matchups', async (c) => {
       AND gp1.model_id != gp2.model_id
     JOIN models m1 ON gp1.model_id = m1.id
     JOIN models m2 ON gp2.model_id = m2.id
-    ${team ? 'WHERE gp1.team = ?' : ''}
+    WHERE m1.id NOT LIKE 'test/%' AND m2.id NOT LIKE 'test/%'
+    ${team ? 'AND gp1.team = ?' : ''}
     GROUP BY gp1.model_id, gp2.model_id
     HAVING games >= 1
   `;
@@ -129,11 +131,12 @@ stats.get('/matchups', async (c) => {
 
   const selfPlayResult = await env.DB.prepare(selfPlayQuery).all();
 
-  // Get unique models for matrix
+  // Get unique models for matrix (exclude test models)
   const models = await env.DB.prepare(`
     SELECT DISTINCT m.id, m.display_name, m.provider
     FROM models m
     JOIN game_participants gp ON m.id = gp.model_id
+    WHERE m.id NOT LIKE 'test/%'
     ORDER BY m.display_name
   `).all();
 
@@ -151,7 +154,7 @@ stats.get('/matchups', async (c) => {
 stats.get('/costs', async (c) => {
   const env = c.env;
 
-  // Token usage and games by model
+  // Token usage and games by model (exclude test models)
   const modelCosts = await env.DB.prepare(`
     SELECT 
       l.model_id,
@@ -164,11 +167,12 @@ stats.get('/costs', async (c) => {
       CAST(SUM(l.total_tokens) AS REAL) / NULLIF(SUM(l.games_played), 0) as tokens_per_game
     FROM leaderboard l
     JOIN models m ON l.model_id = m.id
+    WHERE l.model_id NOT LIKE 'test/%'
     GROUP BY l.model_id
     ORDER BY tokens DESC
   `).all();
 
-  // Aggregate by provider
+  // Aggregate by provider (exclude test models)
   const providerCosts = await env.DB.prepare(`
     SELECT 
       m.provider,
@@ -179,6 +183,7 @@ stats.get('/costs', async (c) => {
       CAST(SUM(l.total_tokens) AS REAL) / NULLIF(SUM(l.games_played), 0) as tokens_per_game
     FROM leaderboard l
     JOIN models m ON l.model_id = m.id
+    WHERE l.model_id NOT LIKE 'test/%'
     GROUP BY m.provider
     ORDER BY tokens DESC
   `).all();

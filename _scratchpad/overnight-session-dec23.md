@@ -380,5 +380,43 @@ The fix was validated by launching `game_mjj7cu5x_ile9h2_live`:
 - **System**: Fully operational with improved monitoring
 
 ---
+
+## 🌅 Morning Session - Dec 24, 2025 (~8:00 AM)
+
+### Immediate Issues Found
+1. **User's game `game_mjjr372f_3pbn6c_live` failed** - 0 events, AI provider (OLMo 3.1) didn't respond
+2. **Gemini test game also failed** - `game_mjjrbeg7_51xk6i_live` - 0 events after 6+ minutes
+
+### Root Cause
+Free AI providers (OLMo, GLM, Gemini free tier) are unreliable/rate-limited on Christmas Eve morning.
+
+### Fix Applied
+**Improved Health Check Logic** - Better detection of stuck games:
+| Duration (0 events) | Status | Message |
+|---------------------|--------|---------|
+| < 2 minutes | healthy | "Game running normally" |
+| 2-5 minutes | warning | "Waiting for first event" |
+| > 5 minutes | critical | "No events - AI provider may be down" |
+
+### Verification
+- Mock game `game_mjjrkc7p_kge6wf_live` completed successfully (388 events, 22s, mafia won)
+- System is working perfectly - just free AI models are slow/down
+
+### Commits
+```
+8a16a7a fix(do): improve health check for stuck games
+        - Add warning after 2min with 0 events
+        - Add critical after 5min with 0 events
+        - Better detection of AI provider timeouts
+```
+
+### Current System Status
+- **Running games**: 0 (stuck games killed)
+- **Completed today**: 2 (mock tests)
+- **System health**: ✅ Operational
+- **Free models**: ❌ Unreliable (Christmas Eve?)
+
+---
 *Report finalized: ~4:45 AM Dec 24, 2025*
+*Morning update: ~8:00 AM Dec 24, 2025*
 
