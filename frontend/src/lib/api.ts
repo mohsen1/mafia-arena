@@ -506,6 +506,41 @@ export async function getTrends(days = 30): Promise<TrendsData> {
 }
 
 /**
+ * ELO ranking entry.
+ */
+export interface EloRanking {
+  display_name: string;
+  model_ids: string[];
+  elo: number;
+  games: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  peak_elo: number;
+}
+
+/**
+ * ELO rankings response.
+ */
+export interface EloResponse {
+  rankings: EloRanking[];
+  metadata: {
+    initial_rating: number;
+    games_processed: number;
+    models_ranked: number;
+  };
+}
+
+/**
+ * Fetch ELO ratings.
+ */
+export async function getEloRatings(): Promise<EloResponse> {
+  const res = await fetch(`${API_URL}/api/stats/elo`);
+  if (!res.ok) throw new Error('Failed to fetch ELO ratings');
+  return res.json();
+}
+
+/**
  * Format duration in milliseconds to human-readable string.
  */
 export function formatDuration(ms: number): string {

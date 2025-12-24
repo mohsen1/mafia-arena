@@ -246,6 +246,149 @@ stats.get('/trends', async (c) => {
   });
 });
 
+/**
+ * GET /api/stats/elo - ELO ratings for all models.
+ * Calculates ELO from game history on-the-fly.
+ */
+stats.get('/elo', async (c) => {
+  const env = c.env;
+  
+  // Get all completed games between different models, ordered by time
+  const gamesResult = await env.DB.prepare(`
+    SELECT 
+      g.id,
+      g.winner,
+      g.created_at,
+      mafia.model_id as mafia_model,
+      town.model_id as town_model,
+      m_mafia.display_name as mafia_name,
+      m_town.display_name as town_name
+    FROM games g
+    JOIN game_participants mafia ON g.id = mafia.game_id AND mafia.team = 'mafia'
+    JOIN game_participants town ON g.id = town.game_id AND town.team = 'town'
+    JOIN models m_mafia ON mafia.model_id = m_mafia.id
+    JOIN models m_town ON town.model_id = m_town.id
+    WHERE g.status = 'completed'
+      AND mafia.model_id != town.model_id
+      AND mafia.model_id NOT LIKE 'test/%'
+      AND town.model_id NOT LIKE 'test/%'
+    ORDER BY g.created_at ASC
+  `).all<{
+    id: string;
+    winner: 'mafia' | 'town';
+    created_at: number;
+    mafia_model: string;
+    town_model: string;
+    mafia_name: string;
+    town_name: string;
+  }>();
+
+  // Calculate ELO ratings - keyed by display_name to consolidate model variants
+  const INITIAL_RATING = 1500;
+  const ratings: Map<string, { 
+    rating: number; 
+    games: number; 
+    peak: number;
+    name: string;
+    wins: number;
+    losses: number;
+    model_ids: string[];
+  }> = new Map();
+
+  // Use display_name as key to consolidate model variants
+  function getOrCreate(modelId: string, name: string) {
+    if (!ratings.has(name)) {
+      ratings.set(name, { 
+        rating: INITIAL_RATING, 
+        games: 0, 
+        peak: INITIAL_RATING,
+        name,
+        wins: 0,
+        losses: 0,
+        model_ids: [modelId],
+      });
+    } else {
+      const data = ratings.get(name)!;
+      if (!data.model_ids.includes(modelId)) {
+        data.model_ids.push(modelId);
+      }
+    }
+    return ratings.get(name)!;
+  }
+
+  function getKFactor(games: number): number {
+    if (games < 30) return 32;
+    if (games < 100) return 24;
+    return 16;
+  }
+
+  function expectedScore(ratingA: number, ratingB: number): number {
+    return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
+  }
+
+  // Process each game chronologically
+  for (const game of gamesResult.results) {
+    // Skip self-play (same display name = same consolidated model)
+    if (game.mafia_name === game.town_name) continue;
+    
+    const mafiaData = getOrCreate(game.mafia_model, game.mafia_name);
+    const townData = getOrCreate(game.town_model, game.town_name);
+    
+    const mafiaK = getKFactor(mafiaData.games);
+    const townK = getKFactor(townData.games);
+    
+    const mafiaExpected = expectedScore(mafiaData.rating, townData.rating);
+    const townExpected = expectedScore(townData.rating, mafiaData.rating);
+    
+    const mafiaWon = game.winner === 'mafia';
+    const mafiaActual = mafiaWon ? 1 : 0;
+    const townActual = mafiaWon ? 0 : 1;
+    
+    // Update ratings
+    mafiaData.rating = Math.round(mafiaData.rating + mafiaK * (mafiaActual - mafiaExpected));
+    townData.rating = Math.round(townData.rating + townK * (townActual - townExpected));
+    
+    // Update stats
+    mafiaData.games++;
+    townData.games++;
+    if (mafiaWon) {
+      mafiaData.wins++;
+      townData.losses++;
+    } else {
+      townData.wins++;
+      mafiaData.losses++;
+    }
+    
+    // Track peak rating
+    mafiaData.peak = Math.max(mafiaData.peak, mafiaData.rating);
+    townData.peak = Math.max(townData.peak, townData.rating);
+  }
+
+  // Convert to sorted array
+  const rankings = Array.from(ratings.entries())
+    .map(([displayName, data]) => ({
+      display_name: displayName,
+      model_ids: data.model_ids,
+      elo: data.rating,
+      games: data.games,
+      wins: data.wins,
+      losses: data.losses,
+      win_rate: data.games > 0 ? data.wins / data.games : 0,
+      peak_elo: data.peak,
+    }))
+    .filter(r => r.games >= 3)  // Minimum 3 games to be ranked
+    .sort((a, b) => b.elo - a.elo);
+
+  return c.json({
+    rankings,
+    metadata: {
+      initial_rating: INITIAL_RATING,
+      games_processed: gamesResult.results.length,
+      models_ranked: rankings.length,
+    },
+  });
+});
+
 export default stats;
 
 

@@ -1,9 +1,9 @@
 ---
 /**
  * Head-to-Head Matrix component with model rankings.
- * Models are ranked by their average win rate against other models.
+ * Models are ranked by ELO rating (accounts for opponent strength).
  */
-import { getMatchups } from '../lib/api';
+import { getMatchups, getEloRatings } from '../lib/api';
 import { getProviderColor } from '../lib/providers';
 
 interface Props {
@@ -13,7 +13,11 @@ interface Props {
 
 const { compact = false, showTopModels = true } = Astro.props;
 
-const data = await getMatchups();
+// Fetch both matchups and ELO data
+const [data, eloData] = await Promise.all([
+  getMatchups(),
+  getEloRatings(),
+]);
 
 // Deduplicate models by display_name
 const modelMap = new Map<string, { id: string; display_name: string; provider: string; ids: string[] }>();
@@ -112,11 +116,24 @@ const qualifiedRankings = rankings.filter(r =>
   !r.model.id.startsWith('test/')
 );
 
-// Apply ranking order to qualified models only
-const sortedModels = qualifiedRankings.map(r => r.model);
+// Use ELO rankings for the leaderboard (top 10)
+// ELO provides fairer rankings by accounting for opponent strength
+const eloTop10 = eloData.rankings.slice(0, 10);
 
-// Top 10 for the leaderboard display
-const top10 = qualifiedRankings.slice(0, 10);
+// Map ELO rankings to include model info for display
+const top10WithModels = eloTop10.map(elo => {
+  const modelInfo = uniqueModels.find(m => m.display_name === elo.display_name);
+  return {
+    ...elo,
+    model: modelInfo || { id: elo.model_ids?.[0] || '', display_name: elo.display_name, provider: '', ids: elo.model_ids || [] },
+  };
+});
+
+// For the matrix, use ELO order
+const eloModelNames = eloTop10.map(e => e.display_name);
+const sortedModels = eloModelNames
+  .map(name => uniqueModels.find(m => m.display_name === name))
+  .filter(Boolean) as typeof uniqueModels;
 
 // For the matrix, only show top 10 models (same as leaderboard) to keep it readable
 // In compact mode, show fewer
@@ -143,20 +160,21 @@ function getRankIcon(index: number): string {
   </div>
 ) : (
   <div class="space-y-4">
-    {/* Top 10 Models Table */}
-    {showTopModels && top10.length > 0 && (
+    {/* Top 10 Models Table - ELO Rankings */}
+    {showTopModels && top10WithModels.length > 0 && (
       <div class="rounded border bg-card overflow-hidden">
         <table class="w-full text-xs">
           <thead>
             <tr class="border-b bg-muted/40">
               <th class="px-2 py-1.5 text-left font-medium text-muted-foreground w-8">#</th>
               <th class="px-2 py-1.5 text-left font-medium text-muted-foreground">Model</th>
-              <th class="px-2 py-1.5 text-right font-medium text-muted-foreground w-16">Win%</th>
-              <th class="px-2 py-1.5 text-right font-medium text-muted-foreground w-16">W-L</th>
+              <th class="px-2 py-1.5 text-right font-medium text-muted-foreground w-14">ELO</th>
+              <th class="px-2 py-1.5 text-right font-medium text-muted-foreground w-14">Win%</th>
+              <th class="px-2 py-1.5 text-right font-medium text-muted-foreground w-14">W-L</th>
             </tr>
           </thead>
           <tbody>
-            {top10.map((entry, i) => (
+            {top10WithModels.map((entry, i) => (
               <tr class="border-b last:border-0 hover:bg-muted/20">
                 <td class="px-2 py-1 font-medium tabular-nums">{getRankIcon(i)}</td>
                 <td class="px-2 py-1">
@@ -165,19 +183,25 @@ function getRankIcon(index: number): string {
                       class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
                       style={`background: ${getProviderColor(entry.model.provider)}`}
                     ></span>
-                    <span class="font-medium truncate">{entry.model.display_name}</span>
+                    <span class="font-medium truncate">{entry.display_name}</span>
                   </div>
                 </td>
-                <td class="px-2 py-1 text-right font-bold tabular-nums">
-                  {(entry.avgWinRate * 100).toFixed(0)}%
+                <td class="px-2 py-1 text-right font-bold tabular-nums text-emerald-500">
+                  {entry.elo}
                 </td>
                 <td class="px-2 py-1 text-right tabular-nums text-muted-foreground">
-                  {entry.totalWins}-{entry.totalGames - entry.totalWins}
+                  {(entry.win_rate * 100).toFixed(0)}%
+                </td>
+                <td class="px-2 py-1 text-right tabular-nums text-muted-foreground">
+                  {entry.wins}-{entry.losses}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        <div class="px-2 py-1 text-[10px] text-muted-foreground border-t bg-muted/20">
+          ELO accounts for opponent strength — beating strong models earns more points
+        </div>
       </div>
     )}
 
