@@ -184,8 +184,12 @@ export class GameRunner extends DurableObject<Env> {
   /** Stripped event log for DO storage persistence (avoids SQLITE_TOOBIG) */
   private strippedEventLog: GameEvent[] = [];
   
-  /** Maximum events to store in DO storage (to avoid 128KB SQLite limit) */
-  private static readonly MAX_DO_STORAGE_EVENTS = 20;
+  /** 
+   * Maximum events to store in DO storage (to avoid 128KB SQLite limit).
+   * Set to 0 to disable DO storage for events entirely (Gemini's recommendation).
+   * Events are always streamed to R2 for persistence.
+   */
+  private static readonly MAX_DO_STORAGE_EVENTS = 0;
   
   /** Index of last event streamed to R2 (for incremental streaming) */
   private lastR2StreamIndex: number = 0;
@@ -1290,18 +1294,22 @@ export class GameRunner extends DurableObject<Env> {
       const strippedEvent = stripEventForStorage(event);
       this.strippedEventLog.push(strippedEvent);
       
-      // Persist ONLY the last N events to DO storage to avoid 128KB SQLite limit
-      // Full event history is preserved in R2 stream (see streamEventsToR2)
-      // This is sufficient for WebSocket sync of late-joining clients
-      const eventsToStore = this.strippedEventLog.slice(-GameRunner.MAX_DO_STORAGE_EVENTS);
-      await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
+      // Persist events to DO storage only if enabled (MAX_DO_STORAGE_EVENTS > 0)
+      // When disabled (= 0), we rely entirely on R2 for event persistence.
+      // This avoids the 128KB DO storage limit that was causing SQLITE_TOOBIG errors.
+      if (GameRunner.MAX_DO_STORAGE_EVENTS > 0) {
+        const eventsToStore = this.strippedEventLog.slice(-GameRunner.MAX_DO_STORAGE_EVENTS);
+        await this.ctx.storage.put(STORAGE_KEYS.EVENT_LOG, eventsToStore);
+      }
 
-      // Stream to R2 incrementally (every 10 events or on important events)
-      // Reduced from 30 to 10 for better persistence
+      // Stream to R2 incrementally (every 3 events or on important events)
+      // Since we no longer store events in DO storage, R2 is our only persistence layer.
+      // Stream frequently to minimize data loss on DO eviction.
       const shouldStream = 
-        this.eventLog.length - this.lastR2StreamIndex >= 10 ||
+        this.eventLog.length - this.lastR2StreamIndex >= 3 ||
         event.type === 'elimination' ||
-        event.type === 'game_end';
+        event.type === 'game_end' ||
+        event.type === 'ai_call';  // Stream every AI call since they're expensive
       
       if (shouldStream) {
         try {
