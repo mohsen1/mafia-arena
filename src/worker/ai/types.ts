@@ -40,12 +40,19 @@ export class SuspenseError extends Error {
  * Message payload for the AI Request Queue.
  * Contains everything needed for the queue worker to execute the AI call
  * and route the response back to the correct DO.
+ * 
+ * CLAIM CHECK PATTERN:
+ * If the request payload exceeds 128KB queue limit, it's offloaded to R2
+ * and only the reference (requestRef) is sent in the queue message.
  */
 export interface AIRequestMessage {
   requestId: string;
   gameId: string;
   modelId: string;
-  request: CompletionRequest;
+  /** The full request payload. Optional if offloaded to R2 via requestRef. */
+  request?: CompletionRequest;
+  /** R2 key for offloaded request payload (Claim Check pattern for large prompts) */
+  requestRef?: string;
   context: {
     round: number;
     phase: string;
