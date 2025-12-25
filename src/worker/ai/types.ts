@@ -2,6 +2,85 @@
  * AI Provider type definitions.
  */
 
+// =============================================================================
+// Suspense Pattern Types (for handling long AI calls without DO hibernation issues)
+// =============================================================================
+
+/**
+ * Error thrown when an AI result is not yet available.
+ * Signals the GameRunner to suspend execution and queue the request.
+ * 
+ * This implements the "Async Suspend-Resume" pattern:
+ * 1. GameAIAdapter checks DO storage for cached response
+ * 2. If not found, throws SuspenseError
+ * 3. GameRunner catches this, queues the AI request, saves state, hibernates
+ * 4. Queue worker executes AI call, POSTs result back to DO
+ * 5. DO resumes, adapter finds cached response, game continues
+ */
+export class SuspenseError extends Error {
+  readonly name = 'SuspenseError';
+  
+  constructor(
+    public readonly requestId: string,
+    public readonly request: CompletionRequest,
+    public readonly modelId: string,
+    public readonly context: {
+      gameId: string;
+      round: number;
+      phase: string;
+      playerId: string;
+      actionType: string;
+    }
+  ) {
+    super(`Suspended waiting for AI: ${requestId}`);
+  }
+}
+
+/**
+ * Message payload for the AI Request Queue.
+ * Contains everything needed for the queue worker to execute the AI call
+ * and route the response back to the correct DO.
+ */
+export interface AIRequestMessage {
+  requestId: string;
+  gameId: string;
+  modelId: string;
+  request: CompletionRequest;
+  context: {
+    round: number;
+    phase: string;
+    playerId: string;
+    actionType: string;
+  };
+  timestamp: number;
+  traceId?: string;
+}
+
+/**
+ * Structure stored in DO storage for cached AI responses.
+ * Keyed by requestId (deterministic based on game state).
+ */
+export interface CachedAIResponse {
+  response: CompletionResponse;
+  timestamp: number;
+}
+
+/**
+ * Function type for checking DO storage cache.
+ * Injected into GameAIAdapter by GameRunner.
+ */
+export type ResponseCacheFn = (requestId: string) => Promise<CachedAIResponse | undefined>;
+
+/**
+ * Function type for queueing AI requests.
+ * Injected into GameAIAdapter by GameRunner.
+ */
+export type QueueRequestFn = (message: AIRequestMessage) => Promise<void>;
+
+// =============================================================================
+// Core AI Provider Types
+// =============================================================================
+
 /**
  * Structured output capability levels for models.
  * 

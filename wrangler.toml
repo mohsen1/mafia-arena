@@ -65,6 +65,20 @@ max_retries = 3
 max_concurrency = 50
 dead_letter_queue = "mafia-arena-dlq"
 
+# AI Request Queue - offloaded AI calls that may take 60s+
+# This allows the DO to hibernate while waiting for AI responses
+[[queues.producers]]
+queue = "mafia-arena-ai-requests"
+binding = "AI_REQUEST_QUEUE"
+
+[[queues.consumers]]
+queue = "mafia-arena-ai-requests"
+max_batch_size = 5  # Keep low to avoid rate limits
+max_batch_timeout = 30
+max_retries = 5     # More retries for transient AI failures
+max_concurrency = 20
+dead_letter_queue = "mafia-arena-dlq"
+
 # =============================================================================
 # ANALYTICS ENGINE - Real-time metrics without D1 load
 # =============================================================================

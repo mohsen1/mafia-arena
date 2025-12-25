@@ -13,6 +13,11 @@ export type {
   StructuredOutputConfig,
   StructuredOutputLevel,
   ModelConfig,
+  // Suspense pattern types
+  AIRequestMessage,
+  CachedAIResponse,
+  ResponseCacheFn,
+  QueueRequestFn,
 } from './types.js';
 
 export {
@@ -23,6 +28,8 @@ export {
   MESSAGE_SCHEMA,
   KILL_VOTE_SCHEMA,
   ELIMINATION_VOTE_SCHEMA,
+  // Suspense error
+  SuspenseError,
 } from './types.js';
 
 export {

@@ -13,9 +13,9 @@
  */
 
 import type { AIProvider, AIContext, ActionPrompt, AIResponse, PlayerAction } from '../../engine/types.js';
-import type { AIProviderInterface } from './types.js';
+import type { AIProviderInterface, ResponseCacheFn, QueueRequestFn, AIRequestMessage } from './types.js';
+import { SuspenseError, getSchemaForAction } from './types.js';
 import { AIErrors } from './errors.js';
-import { getSchemaForAction } from './types.js';
 import { createLogger, logErrorWithStack, type Logger } from '../utils/logger.js';
 import { countPromptTokens } from '../../engine/utils/tokens.js';
 import { jsonrepair } from 'jsonrepair';
@@ -54,6 +54,20 @@ export interface GameAIAdapterOptions {
   contextLimits?: Map<string, number>;
   /** Threshold at which to warn about context usage (default 0.8 = 80%) */
   warningThreshold?: number;
+  /**
+   * Suspense mode: When enabled, adapter checks cache and throws SuspenseError
+   * instead of making direct AI calls. Required for DO hibernation safety.
+   */
+  suspenseMode?: {
+    /** Function to check if response is cached in DO storage */
+    checkCache: ResponseCacheFn;
+    /** Function to queue AI request for background processing */
+    queueRequest: QueueRequestFn;
+    /** Game ID for request context */
+    gameId: string;
+    /** Trace ID for distributed tracing */
+    traceId?: string;
+  };
 }
 
 /**
@@ -63,6 +77,7 @@ export class GameAIAdapter implements AIProvider {
   private log: Logger;
   private readonly contextLimits: Map<string, number>;
   private readonly warningThreshold: number;
+  private readonly suspenseMode: GameAIAdapterOptions['suspenseMode'];
 
   constructor(
     private readonly providers: Map<string, AIProviderInterface>,
@@ -71,11 +86,31 @@ export class GameAIAdapter implements AIProvider {
     this.log = createLogger('GameAIAdapter');
     this.contextLimits = options.contextLimits ?? new Map();
     this.warningThreshold = options.warningThreshold ?? 0.8;
+    this.suspenseMode = options.suspenseMode;
     this.log.debug('Adapter created', { 
       providerCount: providers.size, 
       models: Array.from(providers.keys()).join(', '),
       hasContextLimits: this.contextLimits.size > 0,
+      suspenseEnabled: !!this.suspenseMode,
     });
+  }
+
+  /**
+   * Generate a deterministic request ID based on game state.
+   * This ensures idempotency - the same AI call always gets the same ID,
+   * so resuming a game will find the cached response.
+   */
+  private generateRequestId(context: AIContext, prompt: ActionPrompt): string {
+    // Combine all relevant state that uniquely identifies this AI call
+    const data = `${context.gameId}:${context.round}:${context.phase}:${context.playerId}:${prompt.type}`;
+    
+    // Simple hash for ID (deterministic)
+    let hash = 0;
+    for (let i = 0; i < data.length; i++) {
+      const char = data.charCodeAt(i);
+      hash = ((hash << 5) - hash + char) | 0;
+    }
+    return `req_${Math.abs(hash).toString(16)}`;
   }
 
   /**
@@ -124,6 +159,100 @@ export class GameAIAdapter implements AIProvider {
       throw AIErrors.unsupportedModel(context.modelId);
     }
 
+    // ==========================================================================
+    // SUSPENSE MODE: Check cache first, queue + suspend if not found
+    // This prevents DO hibernation from killing in-flight AI calls
+    // ==========================================================================
+    if (this.suspenseMode) {
+      const requestId = this.generateRequestId(context, prompt);
+      
+      // 1. Check if we have a cached response
+      const cached = await this.suspenseMode.checkCache(requestId);
+      
+      if (cached) {
+        callLog.debug('Cache hit for AI request', { requestId });
+        
+        // Parse and return the cached response
+        try {
+          const action = this.parseAction(
+            cached.response.content,
+            prompt.type,
+            prompt.validTargets,
+            context.modelId
+          );
+          
+          return {
+            action,
+            rawResponse: cached.response.content,
+            tokensUsed: cached.response.tokensUsed,
+            latencyMs: cached.response.latencyMs,
+          };
+        } catch (parseError) {
+          // Cached response failed to parse - use fallback
+          callLog.warn('Cached response parse failed, using fallback', {
+            requestId,
+            parseError: parseError instanceof AIParseError ? parseError.parseError : String(parseError),
+          });
+          
+          const fallbackAction = this.generateFallbackAction(prompt.type, prompt.validTargets);
+          return {
+            action: fallbackAction,
+            rawResponse: cached.response.content,
+            tokensUsed: cached.response.tokensUsed,
+            latencyMs: cached.response.latencyMs,
+          };
+        }
+      }
+      
+      // 2. No cache - queue the request and suspend
+      callLog.info('Suspending game for AI request', { requestId, modelId: context.modelId });
+      
+      const structuredOutput = getSchemaForAction(prompt.type);
+      const request = {
+        systemPrompt: prompt.systemPrompt,
+        userPrompt: prompt.userPrompt,
+        structuredOutput,
+        temperature: 0.7,
+        maxTokens: 4000,
+      };
+      
+      const message: AIRequestMessage = {
+        requestId,
+        gameId: this.suspenseMode.gameId,
+        modelId: context.modelId,
+        request,
+        context: {
+          round: context.round,
+          phase: context.phase,
+          playerId: context.playerId,
+          actionType: prompt.type,
+        },
+        timestamp: Date.now(),
+        // Only include traceId if defined (exactOptionalPropertyTypes)
+        ...(this.suspenseMode.traceId && { traceId: this.suspenseMode.traceId }),
+      };
+      
+      // Queue the request
+      await this.suspenseMode.queueRequest(message);
+      
+      // Throw to halt game execution - GameRunner will catch this
+      throw new SuspenseError(
+        requestId,
+        request,
+        context.modelId,
+        {
+          gameId: this.suspenseMode.gameId,
+          round: context.round,
+          phase: context.phase,
+          playerId: context.playerId,
+          actionType: prompt.type,
+        }
+      );
+    }
+
+    // ==========================================================================
+    // DIRECT MODE: Execute AI call synchronously (for tests/local dev)
+    // ==========================================================================
     const startTime = Date.now();
     
     // Check context usage before making the call

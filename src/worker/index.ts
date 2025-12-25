@@ -7,6 +7,8 @@
 
 import { Hono } from 'hono';
 import type { Env, GameQueueMessage, BatchQueueMessage } from './types.js';
+import type { AIRequestMessage, CompletionResponse } from './ai/types.js';
+import { createProvider } from './ai/factory.js';
 import { APIError, Errors, logError } from './utils/index.js';
 import { corsMiddleware, rateLimitMiddleware } from './middleware/index.js';
 import {
@@ -125,11 +127,11 @@ export default {
 
   /**
    * Handle queue messages.
-   * This single handler processes both batch queue and game queue messages.
+   * This single handler processes batch queue, game queue, and AI request queue messages.
    * Cloudflare routes messages to this handler based on the queue configuration.
    */
   async queue(
-    batch: MessageBatch<GameQueueMessage | BatchQueueMessage>,
+    batch: MessageBatch<GameQueueMessage | BatchQueueMessage | AIRequestMessage>,
     env: Env
   ): Promise<void> {
     // Process all messages in parallel for maximum throughput
@@ -137,8 +139,11 @@ export default {
       batch.messages.map(async (message) => {
         const body = message.body;
 
-        // Check if this is a game message (has gameId) or batch message (has config.totalGames)
-        if ('gameId' in body && body.gameId) {
+        // Check message type based on fields
+        if ('requestId' in body && 'request' in body) {
+          // AI Request queue message (suspense pattern)
+          await handleAIRequestMessage(message as Message<AIRequestMessage>, env);
+        } else if ('gameId' in body && body.gameId) {
           // Game queue message
           await handleGameMessage(message as Message<GameQueueMessage>, env);
         } else if ('config' in body && body.config && 'totalGames' in body.config) {
@@ -296,6 +301,117 @@ async function handleBatchMessage(message: Message<BatchQueueMessage>, env: Env)
       message.ack();
     } else {
       message.retry();
+    }
+  }
+}
+
+/**
+ * Handle AI request queue messages (suspense pattern).
+ * 
+ * This worker:
+ * 1. Receives AI request from queue (sent when DO suspended)
+ * 2. Executes the AI call (can take 60s+, that's fine for queue workers)
+ * 3. POSTs the result back to the DO callback endpoint
+ * 4. DO resumes with cached response
+ */
+async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: Env): Promise<void> {
+  const { requestId, gameId, modelId, request, context, traceId } = message.body;
+  const MAX_RETRIES = 5;
+
+  try {
+    console.log(`[${traceId || 'no-trace'}] Processing AI request ${requestId} for game ${gameId} (attempt ${message.attempts})`);
+
+    // 1. Create provider for this model
+    const provider = createProvider(modelId, env, {
+      enableRetry: true,
+      maxRetries: 3, // Provider-level retries
+      timeoutMs: 120000, // 2 minutes timeout per attempt
+    });
+
+    // 2. Execute the AI call (this can take a while - that's the point!)
+    const startTime = Date.now();
+    const response = await provider.complete(request);
+    const latencyMs = Date.now() - startTime;
+
+    console.log(`[${traceId || 'no-trace'}] AI request ${requestId} completed in ${latencyMs}ms`);
+
+    // 3. Call back to the DO with the response
+    const id = env.GAME_RUNNER.idFromName(gameId);
+    const stub = env.GAME_RUNNER.get(id);
+
+    const callbackResponse = await stub.fetch('http://internal/internal/ai-callback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId,
+        response: {
+          content: response.content,
+          tokensUsed: response.tokensUsed,
+          latencyMs: response.latencyMs,
+          modelId: response.modelId,
+        } satisfies CompletionResponse,
+      }),
+    });
+
+    if (!callbackResponse.ok) {
+      const errorText = await callbackResponse.text();
+      throw new Error(`DO callback failed: ${callbackResponse.status} - ${errorText}`);
+    }
+
+    message.ack();
+    console.log(`[${traceId || 'no-trace'}] AI request ${requestId} callback succeeded`);
+  } catch (error) {
+    console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed (attempt ${message.attempts}):`, error);
+
+    // Log error
+    if (error instanceof Error) {
+      try {
+        await logError(env.DB, error, { 
+          requestId, 
+          gameId, 
+          modelId, 
+          round: context.round,
+          phase: context.phase,
+          playerId: context.playerId,
+          actionType: context.actionType,
+        });
+      } catch (dbError) {
+        console.error('Failed to log AI request error:', dbError);
+      }
+    }
+
+    // Retry with exponential backoff, or give up
+    if (message.attempts >= MAX_RETRIES) {
+      console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed after ${MAX_RETRIES} attempts`);
+      
+      // Try to notify DO of failure
+      try {
+        const id = env.GAME_RUNNER.idFromName(gameId);
+        const stub = env.GAME_RUNNER.get(id);
+        await stub.fetch('http://internal/internal/ai-callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }),
+        });
+      } catch {
+        // Best effort - DO will eventually timeout
+      }
+
+      // Log to DLQ
+      try {
+        await logToDlq(env.DB, 'ai-request-queue', message.body, error, message.attempts);
+      } catch (dlqError) {
+        console.error('Failed to log AI request to DLQ:', dlqError);
+      }
+
+      message.ack();
+    } else {
+      // Exponential backoff: 10s, 20s, 40s, 80s, 160s
+      const delaySeconds = 10 * Math.pow(2, message.attempts - 1);
+      message.retry({ delaySeconds });
     }
   }
 }

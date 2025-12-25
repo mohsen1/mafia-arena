@@ -17,7 +17,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env, GameQueueConfig } from './types.js';
 import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent, type SerializedGameState } from '../engine/index.js';
-import { createProvidersForGame, GameAIAdapter } from './ai/index.js';
+import { createProvidersForGame, GameAIAdapter, SuspenseError, type CachedAIResponse, type CompletionResponse } from './ai/index.js';
 import { isTestModel } from './ai/providers/MockE2EProvider.js';
 import { generateSeed } from '../engine/utils/random.js';
 import { calculateGameCost } from './utils/budget.js';
@@ -46,6 +46,8 @@ const STORAGE_KEYS = {
   CURRENT_ROUND: 'currentRound',
   /** R2 checkpoint pointer - replaces GAME_STATE to avoid 128KB limit */
   CHECKPOINT_META: 'checkpointMeta',
+  /** Cached AI responses from queue worker (for suspense pattern) */
+  AI_RESPONSES: 'aiResponses',
 } as const;
 
 /**
@@ -476,6 +478,10 @@ export class GameRunner extends DurableObject<Env> {
         case '/health':
           return await this.handleHealth();
 
+        // Internal callback from AI queue worker (suspense pattern)
+        case '/internal/ai-callback':
+          return await this.handleAICallback(request);
+
         default:
           this.log.warn('Unknown path', { path: url.pathname });
           return new Response('Not found', { status: 404 });
@@ -484,6 +490,84 @@ export class GameRunner extends DurableObject<Env> {
       logErrorWithStack(this.log, 'Request handler error', error, { path: url.pathname });
       throw error;
     }
+  }
+
+  /**
+   * Handle AI response callback from queue worker (suspense pattern).
+   * 
+   * This is called when the queue worker finishes an AI request.
+   * We store the response in DO storage, then resume the game.
+   */
+  private async handleAICallback(request: Request): Promise<Response> {
+    try {
+      const body = await request.json() as {
+        requestId: string;
+        response?: CompletionResponse;
+        error?: string;
+      };
+
+      const { requestId, response, error } = body;
+      this.log.info('Received AI callback', { requestId, hasResponse: !!response, hasError: !!error });
+
+      if (error) {
+        // AI call failed - store the error (game will fail on resume)
+        this.log.error('AI callback received error', { requestId, error });
+        // For now, we don't store errors - the game will just suspend again
+        // and hit max retries in the queue worker
+        return Response.json({ success: false, error });
+      }
+
+      if (!response) {
+        return Response.json({ success: false, error: 'Missing response' }, { status: 400 });
+      }
+
+      // 1. Store the response in DO storage
+      const responses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES) ?? new Map();
+      responses.set(requestId, { response, timestamp: Date.now() });
+      await this.ctx.storage.put(STORAGE_KEYS.AI_RESPONSES, responses);
+      this.log.debug('Cached AI response', { requestId, cacheSize: responses.size });
+
+      // 2. Update lastActivity to prevent stale detection
+      await this.saveState({ lastActivity: Date.now() });
+
+      // 3. Resume the game (in background)
+      const state = await this.loadState();
+      if (state.status === 'running' && state.gameId && state.batchId) {
+        const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
+        if (config) {
+          const gameConfig = this.toGameConfig(config, state.seed || 0);
+          // Resume game in background
+          this.ctx.waitUntil(this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig));
+          this.log.info('Game resume triggered', { gameId: state.gameId });
+        }
+      }
+
+      return Response.json({ success: true, requestId });
+    } catch (error) {
+      logErrorWithStack(this.log, 'Failed to handle AI callback', error);
+      return Response.json(
+        { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 500 }
+      );
+    }
+  }
+
+  /**
+   * Get cached AI response from DO storage (for suspense pattern).
+   * This is passed to GameAIAdapter as the checkCache function.
+   */
+  private async getCachedAIResponse(requestId: string): Promise<CachedAIResponse | undefined> {
+    const responses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES);
+    return responses?.get(requestId);
+  }
+
+  /**
+   * Queue an AI request to the AI_REQUEST_QUEUE (for suspense pattern).
+   * This is passed to GameAIAdapter as the queueRequest function.
+   */
+  private async queueAIRequest(message: import('./ai/index.js').AIRequestMessage): Promise<void> {
+    await this.env.AI_REQUEST_QUEUE.send(message);
+    this.log.debug('Queued AI request', { requestId: message.requestId, modelId: message.modelId });
   }
 
   /**
@@ -1180,7 +1264,21 @@ export class GameRunner extends DurableObject<Env> {
     // Pass discountPricing to use longer timeouts and more retries
     gameLog.debug('Creating AI providers', { modelIds: modelIds.join(','), discountPricing });
     const providers = createProvidersForGame(modelIds, this.env, { discountPricing });
-    const aiAdapter = new GameAIAdapter(providers);
+    
+    // Get traceId for request correlation
+    const traceId = this.stateCache?.traceId;
+    
+    // Create AI adapter with suspense mode enabled
+    // This allows the DO to hibernate while waiting for AI responses
+    const aiAdapter = new GameAIAdapter(providers, {
+      suspenseMode: {
+        checkCache: this.getCachedAIResponse.bind(this),
+        queueRequest: this.queueAIRequest.bind(this),
+        gameId,
+        // Only include traceId if it has a value (exactOptionalPropertyTypes)
+        ...(traceId && { traceId }),
+      },
+    });
 
     // Track event counts for logging
     let eventCount = this.eventLog.length;
@@ -1352,13 +1450,14 @@ export class GameRunner extends DurableObject<Env> {
       });
       gameLog.info('State saved as completed');
 
-      // Clean up checkpoint data (no longer needed after completion)
+      // Clean up checkpoint data and AI response cache (no longer needed after completion)
       // Keep event log for WebSocket clients that may still be connected
       await Promise.all([
         this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE), // Legacy key
         this.ctx.storage.delete(STORAGE_KEYS.CHECKPOINT_META), // New R2 pointer
+        this.ctx.storage.delete(STORAGE_KEYS.AI_RESPONSES), // Suspense pattern cache
       ]);
-      gameLog.debug('Cleaned up checkpoint data');
+      gameLog.debug('Cleaned up checkpoint and AI response cache');
 
       // Broadcast completion status
       this.broadcast({
@@ -1366,8 +1465,42 @@ export class GameRunner extends DurableObject<Env> {
         status: 'completed',
         gameId,
       });
+    } catch (error) {
+      // Handle SuspenseError - game is waiting for AI response
+      if (error instanceof SuspenseError) {
+        gameLog.info('Game suspended waiting for AI', {
+          requestId: error.requestId,
+          modelId: error.modelId,
+          round: error.context.round,
+          phase: error.context.phase,
+          playerId: error.context.playerId,
+          actionType: error.context.actionType,
+        });
+        
+        // Save checkpoint state (game will resume from here when callback arrives)
+        // The checkpoint was already saved in onPhaseComplete, so we just need
+        // to update activity timestamp
+        await this.saveState({ lastActivity: Date.now() });
+        
+        // Stop heartbeat - we're intentionally suspending
+        this.stopHeartbeat();
+        
+        // Broadcast status update to clients
+        this.broadcast({
+          type: 'STATUS',
+          status: 'running',
+          gameId,
+        });
+        
+        // Return - DO will hibernate, callback will wake it up
+        return;
+      }
+      
+      // Re-throw other errors to be handled by runGameWithErrorHandling
+      throw error;
     } finally {
       // Always stop heartbeat when game ends (success or failure)
+      // Note: For SuspenseError, we already stopped it above before returning
       this.stopHeartbeat();
     }
   }
