@@ -215,6 +215,9 @@ export class OpenRouterProvider implements AIProviderInterface {
   private handleHttpError(response: Response, body: unknown): never {
     const status = response.status;
 
+    // Log the full error response for debugging
+    console.error(`[OpenRouter] HTTP ${status} for model ${this.modelId}:`, JSON.stringify(body));
+
     const extractMessage = (b: unknown): string => {
       if (typeof b === 'object' && b !== null) {
         const obj = b as Record<string, unknown>;
@@ -239,11 +242,14 @@ export class OpenRouterProvider implements AIProviderInterface {
       throw AIErrors.rateLimited(this.modelId, 30);
     }
 
+    // Check for key/credit limit (non-retryable)
+    if (message.includes('Key limit exceeded') || message.includes('limit exceeded')) {
+      throw AIErrors.authError(this.name + ': ' + message);
+    }
+
     if (status === 401 || status === 403) {
-      if (message.includes('model') || message.includes('access')) {
-        throw AIErrors.providerError(this.name, `${status}: ${message}`);
-      }
-      throw AIErrors.authError(this.name);
+      // 403 is often "key limit exceeded" - don't retry
+      throw AIErrors.authError(this.name + ': ' + message);
     }
 
     if (status === 429) {
