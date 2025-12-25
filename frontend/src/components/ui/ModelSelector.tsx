@@ -102,7 +102,7 @@ export function ModelSelector({
   const value = controlledValue !== undefined ? controlledValue : internalValue
 
   // Define handleChange before effects that use it
-  const handleChange = React.useCallback((newValue: string) => {
+  const handleChange = React.useCallback((newValue: string, displayName?: string) => {
     setInternalValue(newValue)
     onChange?.(newValue)
     
@@ -111,6 +111,10 @@ export function ModelSelector({
       const input = document.getElementById(inputId) as HTMLInputElement | null
       if (input) {
         input.value = newValue
+        // Store display name as data attribute for form submission
+        if (displayName) {
+          input.dataset.displayName = displayName
+        }
       }
     }
   }, [onChange, inputId])
@@ -129,9 +133,9 @@ export function ModelSelector({
   React.useEffect(() => {
     if (!inputId || typeof window === 'undefined') return
     
-    const handleExternalSelect = (e: CustomEvent<{ inputId: string; modelId: string }>) => {
+    const handleExternalSelect = (e: CustomEvent<{ inputId: string; modelId: string; displayName?: string }>) => {
       if (e.detail.inputId === inputId) {
-        handleChange(e.detail.modelId)
+        handleChange(e.detail.modelId, e.detail.displayName)
       }
     }
     
@@ -159,7 +163,7 @@ export function ModelSelector({
           const providerModels = data.modelsByProvider[randomProvider]
           if (providerModels && providerModels.length > 0) {
             const randomModel = providerModels[Math.floor(Math.random() * providerModels.length)]
-            handleChange(randomModel.id)
+            handleChange(randomModel.id, randomModel.name)
           }
         }
       })
@@ -269,7 +273,7 @@ export function ModelSelector({
                       key={model.id}
                       value={`${provider} ${model.name} ${model.id}`}
                       onSelect={() => {
-                        handleChange(model.id)
+                        handleChange(model.id, model.name)
                         setOpen(false)
                       }}
                       className="flex items-center justify-between py-2"

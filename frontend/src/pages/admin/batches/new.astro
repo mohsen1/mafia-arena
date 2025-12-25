@@ -260,10 +260,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         const modelB = shuffled[1];
 
         window.dispatchEvent(new CustomEvent('selectModel', { 
-          detail: { inputId: 'modelA', modelId: modelA.id } 
+          detail: { inputId: 'modelA', modelId: modelA.id, displayName: modelA.name } 
         }));
         window.dispatchEvent(new CustomEvent('selectModel', { 
-          detail: { inputId: 'modelB', modelId: modelB.id } 
+          detail: { inputId: 'modelB', modelId: modelB.id, displayName: modelB.name } 
         }));
 
       } catch (err) {
@@ -362,8 +362,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
       
       const submitBtn = form.querySelector('button[type="submit"]');
       
-      const modelA = document.getElementById('modelA').value;
-      const modelB = document.getElementById('modelB').value;
+      const modelAInput = document.getElementById('modelA');
+      const modelBInput = document.getElementById('modelB');
+      const modelA = modelAInput.value;
+      const modelB = modelBInput.value;
       
       if (!modelA || !modelB) {
         alert('Please select both models');
@@ -375,35 +377,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         submitBtn.textContent = 'Launching...';
       }
 
-      // Helper to extract clean model name from ID (e.g., "google/gemini-2.0-flash-exp" -> "Gemini 2.0 Flash")
-      function getShortModelName(modelId) {
-        // Remove provider prefix (google/, openai/, etc.)
-        const name = modelId.split('/').pop() || modelId;
-        // Remove common suffixes
-        return name
-          .replace(/-exp$/, '')
-          .replace(/-preview$/, '')
-          .replace(/-pro$/, ' Pro')
-          .replace(/-mini$/, ' Mini')
-          .replace(/^gpt-/, 'GPT-')
-          .replace(/^gemini-/, 'Gemini ')
-          .replace(/^claude-/, 'Claude ')
-          .replace(/-/g, ' ')
-          .split(' ')
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ')
-          .trim();
-      }
-
       try {
         const formData = new FormData(form);
         const playerCount = parseInt(String(formData.get('playerCount') || '11'));
         const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
         const batchNameInput = String(formData.get('name') || '').trim();
         
-        // Generate default batch name from model names (e.g., "Gemini 2.0 Flash vs GPT-5.2")
-        const modelAName = getShortModelName(modelA);
-        const modelBName = getShortModelName(modelB);
+        // Get display names from data attributes (set by ModelSelector)
+        const modelAName = modelAInput.dataset.displayName || modelA.split('/').pop() || modelA;
+        const modelBName = modelBInput.dataset.displayName || modelB.split('/').pop() || modelB;
+        
+        // Generate default batch name from display names (e.g., "Gemini 2.0 Flash vs GPT-5.2")
         let batchName = batchNameInput || `${modelAName} vs ${modelBName}`;
 
         const res = await fetch(`${apiUrl}/api/admin/batches`, {
