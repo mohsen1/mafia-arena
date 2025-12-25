@@ -904,5 +904,227 @@ admin.post('/elo/backfill', async (c) => {
   });
 });
 
+// =============================================================================
+// Maintenance Routes (Data Cleanup)
+// =============================================================================
+
+/**
+ * POST /api/admin/maintenance/rebuild-leaderboard
+ * Truncates and regenerates the leaderboard from game_participants source of truth.
+ * This fixes data integrity issues like win% > 100%.
+ */
+admin.post('/maintenance/rebuild-leaderboard', async (c) => {
+  const env = c.env;
+  
+  try {
+    // Step 1: Clear the corrupted table
+    await env.DB.prepare('DELETE FROM leaderboard').run();
+    
+    // Step 2: Re-populate from source of truth (game_participants)
+    const result = await env.DB.prepare(`
+      INSERT INTO leaderboard (model_id, team, games_played, games_won, total_tokens, updated_at)
+      SELECT 
+          gp.model_id,
+          gp.team,
+          COUNT(DISTINCT gp.game_id) as games_played,
+          SUM(gp.won) as games_won,
+          0 as total_tokens,
+          unixepoch()
+      FROM game_participants gp
+      JOIN games g ON gp.game_id = g.id
+      WHERE g.status = 'completed'
+      GROUP BY gp.model_id, gp.team
+    `).run();
+
+    return c.json({ 
+      success: true, 
+      message: 'Leaderboard rebuilt from source of truth',
+      rowsInserted: result.meta?.changes ?? 0,
+    });
+  } catch (error) {
+    console.error('Failed to rebuild leaderboard:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }, 500);
+  }
+});
+
+/**
+ * POST /api/admin/maintenance/merge-model
+ * Merges one model ID into another (consolidates duplicates).
+ * Body: { fromId: string, toId: string }
+ */
+admin.post('/maintenance/merge-model', async (c) => {
+  const env = c.env;
+  
+  interface MergeRequest {
+    fromId: string;
+    toId: string;
+  }
+  
+  let body: MergeRequest;
+  try {
+    body = await c.req.json<MergeRequest>();
+  } catch {
+    throw Errors.BadRequest('Invalid JSON body');
+  }
+  
+  const { fromId, toId } = body;
+  
+  if (!fromId || !toId) {
+    return c.json({ error: 'Missing fromId or toId' }, 400);
+  }
+  
+  if (fromId === toId) {
+    return c.json({ error: 'fromId and toId cannot be the same' }, 400);
+  }
+
+  try {
+    // Verify target model exists
+    const targetModel = await env.DB.prepare('SELECT id FROM models WHERE id = ?')
+      .bind(toId).first();
+    
+    if (!targetModel) {
+      return c.json({ error: `Target model ${toId} does not exist` }, 404);
+    }
+    
+    // Get count of records to migrate
+    const participantCount = await env.DB.prepare(
+      'SELECT COUNT(*) as count FROM game_participants WHERE model_id = ?'
+    ).bind(fromId).first<{ count: number }>();
+    
+    // Execute the merge
+    const statements = [
+      // Move game participants to the new ID
+      env.DB.prepare('UPDATE game_participants SET model_id = ? WHERE model_id = ?')
+        .bind(toId, fromId),
+      // Delete old leaderboard entries (will be regenerated)
+      env.DB.prepare('DELETE FROM leaderboard WHERE model_id = ?')
+        .bind(fromId),
+      // Update ELO ratings table if exists
+      env.DB.prepare('DELETE FROM elo_ratings WHERE model_id = ?')
+        .bind(fromId),
+      // Delete old model metadata
+      env.DB.prepare('DELETE FROM models WHERE id = ?')
+        .bind(fromId),
+    ];
+    
+    await env.DB.batch(statements);
+
+    return c.json({ 
+      success: true, 
+      message: `Merged ${fromId} into ${toId}`,
+      recordsMigrated: participantCount?.count ?? 0,
+      note: 'Run rebuild-leaderboard and elo/backfill to update aggregates',
+    });
+  } catch (error) {
+    console.error('Failed to merge models:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/maintenance/find-duplicates
+ * Finds models with similar display names that might be duplicates.
+ */
+admin.get('/maintenance/find-duplicates', async (c) => {
+  const env = c.env;
+  
+  try {
+    // Get all models with their game counts
+    const models = await env.DB.prepare(`
+      SELECT 
+        m.id,
+        m.display_name,
+        m.provider,
+        COALESCE(SUM(l.games_played), 0) as total_games
+      FROM models m
+      LEFT JOIN leaderboard l ON m.id = l.model_id
+      WHERE m.provider != 'test'
+      GROUP BY m.id
+      ORDER BY m.display_name, total_games DESC
+    `).all<{ id: string; display_name: string; provider: string; total_games: number }>();
+    
+    // Group by display_name to find duplicates
+    const byName: Record<string, typeof models.results> = {};
+    for (const model of models.results) {
+      const normalizedName = model.display_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!byName[normalizedName]) {
+        byName[normalizedName] = [];
+      }
+      byName[normalizedName].push(model);
+    }
+    
+    // Filter to only show groups with duplicates
+    const duplicates = Object.entries(byName)
+      .filter(([, models]) => models.length > 1)
+      .map(([, models]) => {
+        const first = models[0]!; // Safe: filtered to length > 1
+        return {
+          displayName: first.display_name,
+          models: models.map(m => ({
+            id: m.id,
+            provider: m.provider,
+            games: m.total_games,
+          })),
+          suggestedKeep: models.reduce((a, b) => a.total_games > b.total_games ? a : b).id,
+        };
+      });
+
+    return c.json({ 
+      success: true, 
+      duplicateGroups: duplicates.length,
+      duplicates,
+    });
+  } catch (error) {
+    console.error('Failed to find duplicates:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/maintenance/low-sample-models
+ * Lists models with very few games (< 3) that could be hidden from leaderboard.
+ */
+admin.get('/maintenance/low-sample-models', async (c) => {
+  const env = c.env;
+  
+  try {
+    const models = await env.DB.prepare(`
+      SELECT 
+        m.id,
+        m.display_name,
+        m.provider,
+        COALESCE(SUM(l.games_played), 0) as total_games
+      FROM models m
+      LEFT JOIN leaderboard l ON m.id = l.model_id
+      WHERE m.provider != 'test'
+      GROUP BY m.id
+      HAVING total_games < 3 AND total_games > 0
+      ORDER BY total_games DESC
+    `).all<{ id: string; display_name: string; provider: string; total_games: number }>();
+
+    return c.json({ 
+      success: true, 
+      count: models.results.length,
+      models: models.results,
+      note: 'These models have too few games for statistical significance',
+    });
+  } catch (error) {
+    console.error('Failed to find low sample models:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }, 500);
+  }
+});
+
 export default admin;
 

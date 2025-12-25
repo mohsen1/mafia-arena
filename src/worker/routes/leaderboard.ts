@@ -15,7 +15,8 @@ leaderboard.get('/', async (c) => {
   const url = new URL(c.req.url);
   const team = url.searchParams.get('team');
 
-  // Base query with test model exclusion
+  // Base query with test model exclusion and minimum sample size
+  // Models need at least 3 games to appear on leaderboard for statistical significance
   let query = `
     SELECT 
       l.model_id,
@@ -32,6 +33,7 @@ leaderboard.get('/', async (c) => {
     FROM leaderboard l
     LEFT JOIN models m ON l.model_id = m.id
     WHERE l.model_id NOT LIKE 'test/%'
+      AND l.games_played >= 3
   `;
 
   if (team && (team === 'mafia' || team === 'town')) {
