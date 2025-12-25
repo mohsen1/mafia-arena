@@ -968,12 +968,22 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
       const res = await fetch(`${apiUrl}/api/games/${gameId}/health`);
       const data = await res.json();
       
+      // Build status message with AI progress if available
+      let statusMessage = data.healthMessage;
+      if (data.aiProgress && data.aiProgress.cachedResponses > 0) {
+        // Show AI progress: "Waiting on AI (3/7 responses)"
+        statusMessage = `${statusMessage} · ${data.aiProgress.progressText}`;
+      }
+      
       if (data.healthStatus === 'critical') {
         gameHealthy = false;
-        updateConnectionStatus(true, `Game may be stuck: ${data.healthMessage}`, { polling: true, warning: true });
+        updateConnectionStatus(true, `Game may be stuck: ${statusMessage}`, { polling: true, warning: true });
         console.warn('Game health check failed:', data);
       } else if (data.healthStatus === 'warning') {
-        updateConnectionStatus(true, `${data.healthMessage}`, { polling: true, warning: true });
+        updateConnectionStatus(true, statusMessage, { polling: true, warning: true });
+      } else if (data.aiProgress && data.aiProgress.cachedResponses > 0) {
+        // Show AI progress even when healthy (game is waiting for AI)
+        updateConnectionStatus(true, `Waiting for AI · ${data.aiProgress.progressText}`, { polling: true });
       } else if (!gameHealthy) {
         // Was unhealthy, now healthy - reset status
         gameHealthy = true;

@@ -183,6 +183,9 @@ export class GameRunner extends DurableObject<Env> {
   
   /** Index of last event streamed to R2 (for incremental streaming) */
   private lastR2StreamIndex: number = 0;
+  
+  /** Timestamp of last R2 stream (for throttling to prevent rate limits) */
+  private lastR2StreamTime: number = 0;
 
   /** Logger instance for this DO */
   private log: Logger;
@@ -422,6 +425,10 @@ export class GameRunner extends DurableObject<Env> {
    * 2. Storing only a tiny pointer in DO storage (~100 bytes)
    * 
    * Also cleans up legacy GAME_STATE key to free DO storage space.
+   * 
+   * OPTIMIZATION: Prunes old AI responses from the suspense cache.
+   * Once we checkpoint to R2, we don't need responses from previous rounds
+   * since resume will load from the R2 checkpoint, not replay from scratch.
    */
   private async saveCheckpoint(state: SerializedGameState): Promise<void> {
     const r2Key = `games/${state.gameId}/checkpoints/round_${state.round}_${state.phase}.json`;
@@ -446,12 +453,50 @@ export class GameRunner extends DurableObject<Env> {
     // This frees up DO storage space
     await this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE);
     
+    // 4. Prune old AI responses from suspense cache
+    // Since we checkpoint after each phase, we only need responses for the CURRENT phase.
+    // Old responses are no longer needed because resume will load from R2, not replay.
+    await this.pruneOldAIResponses(state.round, state.phase);
+    
     this.log.debug('Checkpoint saved to R2', { 
       r2Key, 
       round: state.round, 
       phase: state.phase,
       estimatedBytes: JSON.stringify(state).length,
     });
+  }
+  
+  /**
+   * Prune AI responses from previous rounds/phases.
+   * Request IDs are formatted as: {gameId}:{round}:{phase}:{playerId}:{actionType}
+   * We keep only responses matching the current round and phase.
+   */
+  private async pruneOldAIResponses(currentRound: number, currentPhase: string): Promise<void> {
+    const responses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES);
+    if (!responses || responses.size === 0) return;
+    
+    const originalSize = responses.size;
+    const currentPrefix = `:${currentRound}:${currentPhase}:`;
+    
+    // Keep only responses for current round:phase
+    const prunedResponses = new Map<string, CachedAIResponse>();
+    for (const [requestId, response] of responses.entries()) {
+      // requestId format: {gameId}:{round}:{phase}:{playerId}:{actionType}
+      if (requestId.includes(currentPrefix)) {
+        prunedResponses.set(requestId, response);
+      }
+    }
+    
+    if (prunedResponses.size < originalSize) {
+      await this.ctx.storage.put(STORAGE_KEYS.AI_RESPONSES, prunedResponses);
+      this.log.debug('Pruned old AI responses', {
+        originalSize,
+        newSize: prunedResponses.size,
+        pruned: originalSize - prunedResponses.size,
+        currentRound,
+        currentPhase,
+      });
+    }
   }
 
   /**
@@ -482,6 +527,10 @@ export class GameRunner extends DurableObject<Env> {
         case '/internal/ai-callback':
           return await this.handleAICallback(request);
 
+        // Internal punt endpoint for scheduled cleanup (re-trigger stuck games)
+        case '/punt':
+          return await this.handlePunt();
+
         default:
           this.log.warn('Unknown path', { path: url.pathname });
           return new Response('Not found', { status: 404 });
@@ -492,11 +541,26 @@ export class GameRunner extends DurableObject<Env> {
     }
   }
 
+  /** Tracks if a game resume is already in progress (prevents callback storms) */
+  private isResuming = false;
+  
+  /** Debounce interval for game resumes (ms) - prevents rapid-fire callbacks from creating storms */
+  private static readonly RESUME_DEBOUNCE_MS = 500;
+  
+  /** Last resume timestamp for debouncing */
+  private lastResumeTime = 0;
+
   /**
    * Handle AI response callback from queue worker (suspense pattern).
    * 
    * This is called when the queue worker finishes an AI request.
    * We store the response in DO storage, then resume the game.
+   * 
+   * IMPORTANT: Multiple callbacks may arrive simultaneously (7 players = 7 callbacks).
+   * We use debouncing to prevent callback storms that cause:
+   * - R2 rate limiting
+   * - DO memory overflow
+   * - Duplicated work
    */
   private async handleAICallback(request: Request): Promise<Response> {
     try {
@@ -521,7 +585,7 @@ export class GameRunner extends DurableObject<Env> {
         return Response.json({ success: false, error: 'Missing response' }, { status: 400 });
       }
 
-      // 1. Store the response in DO storage
+      // 1. Store the response in DO storage (always do this)
       const responses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES) ?? new Map();
       responses.set(requestId, { response, timestamp: Date.now() });
       await this.ctx.storage.put(STORAGE_KEYS.AI_RESPONSES, responses);
@@ -530,15 +594,37 @@ export class GameRunner extends DurableObject<Env> {
       // 2. Update lastActivity to prevent stale detection
       await this.saveState({ lastActivity: Date.now() });
 
-      // 3. Resume the game (in background)
+      // 3. DEBOUNCE: Only resume if we're not already resuming and enough time has passed
+      const now = Date.now();
+      const timeSinceLastResume = now - this.lastResumeTime;
+      
+      if (this.isResuming) {
+        this.log.debug('Skipping resume - already in progress', { requestId });
+        return Response.json({ success: true, requestId, skipped: 'already_resuming' });
+      }
+      
+      if (timeSinceLastResume < GameRunner.RESUME_DEBOUNCE_MS) {
+        this.log.debug('Skipping resume - debouncing', { requestId, timeSinceLastResume });
+        return Response.json({ success: true, requestId, skipped: 'debounced' });
+      }
+
+      // 4. Resume the game (in background) with mutex
       const state = await this.loadState();
       if (state.status === 'running' && state.gameId && state.batchId) {
         const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
         if (config) {
+          this.isResuming = true;
+          this.lastResumeTime = now;
+          
           const gameConfig = this.toGameConfig(config, state.seed || 0);
-          // Resume game in background
-          this.ctx.waitUntil(this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig));
-          this.log.info('Game resume triggered', { gameId: state.gameId });
+          // Resume game in background, clear mutex when done
+          this.ctx.waitUntil(
+            this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig)
+              .finally(() => {
+                this.isResuming = false;
+              })
+          );
+          this.log.info('Game resume triggered', { gameId: state.gameId, cacheSize: responses.size });
         }
       }
 
@@ -547,6 +633,88 @@ export class GameRunner extends DurableObject<Env> {
       logErrorWithStack(this.log, 'Failed to handle AI callback', error);
       return Response.json(
         { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 500 }
+      );
+    }
+  }
+
+  /**
+   * Handle punt request from scheduled cleanup (re-trigger stuck games).
+   * 
+   * This is the "Active Punt" mechanism recommended by Gemini:
+   * Instead of immediately killing stuck games, we try to resume them.
+   * If there are cached AI responses that weren't processed, we can recover.
+   */
+  private async handlePunt(): Promise<Response> {
+    try {
+      const state = await this.loadState();
+      
+      // Only punt running games
+      if (state.status !== 'running') {
+        return Response.json({ 
+          punted: false, 
+          reason: `Not running (status: ${state.status})` 
+        });
+      }
+      
+      // Check if there are cached AI responses
+      const responses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES);
+      const cachedCount = responses?.size ?? 0;
+      
+      this.log.info('Punt request received', { 
+        gameId: state.gameId, 
+        cachedResponses: cachedCount,
+        lastActivity: state.lastActivity,
+        currentPhase: state.currentPhase,
+      });
+      
+      // If already resuming, skip
+      if (this.isResuming) {
+        return Response.json({ 
+          punted: false, 
+          reason: 'Already resuming' 
+        });
+      }
+      
+      // Get config to attempt resume
+      const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
+      if (!config || !state.gameId || !state.batchId) {
+        return Response.json({ 
+          punted: false, 
+          reason: 'Missing config or game identifiers' 
+        });
+      }
+      
+      // Attempt to resume the game
+      const now = Date.now();
+      this.isResuming = true;
+      this.lastResumeTime = now;
+      
+      const gameConfig = this.toGameConfig(config, state.seed || 0);
+      
+      // Resume game in background
+      this.ctx.waitUntil(
+        this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig)
+          .finally(() => {
+            this.isResuming = false;
+          })
+      );
+      
+      this.log.info('Game punted - resume triggered', { 
+        gameId: state.gameId, 
+        cachedResponses: cachedCount 
+      });
+      
+      return Response.json({ 
+        punted: true, 
+        reason: `Resume triggered with ${cachedCount} cached responses`,
+        cachedResponses: cachedCount,
+      });
+      
+    } catch (error) {
+      logErrorWithStack(this.log, 'Failed to handle punt', error);
+      return Response.json(
+        { punted: false, reason: error instanceof Error ? error.message : 'Unknown error' },
         { status: 500 }
       );
     }
@@ -1187,6 +1355,14 @@ export class GameRunner extends DurableObject<Env> {
       healthMessage = `Unknown status: ${state.status}`;
     }
     
+    // Get AI response cache stats for "waiting for AI" visualization
+    const aiResponses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES);
+    const cachedResponseCount = aiResponses?.size ?? 0;
+    
+    // Get config to know expected player count
+    const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
+    const expectedPlayers = config?.playerCount ?? null;
+    
     const response = {
       status: state.status,
       healthStatus,
@@ -1209,6 +1385,16 @@ export class GameRunner extends DurableObject<Env> {
       },
       eventCount: this.eventLog.length,
       sessionCount: this.sessions.length,
+      // AI response progress for "Waiting for AI (3/7 responses)" visualization
+      aiProgress: {
+        cachedResponses: cachedResponseCount,
+        expectedPlayers,
+        // If we have a phase like 'discussion', each player needs 1 response
+        // This gives a rough progress indication
+        progressText: expectedPlayers 
+          ? `${cachedResponseCount}/${expectedPlayers} AI responses`
+          : `${cachedResponseCount} AI responses cached`,
+      },
     };
     
     // Return 200 for healthy/warning, 503 for critical
@@ -1352,25 +1538,37 @@ export class GameRunner extends DurableObject<Env> {
       // Add to in-memory log (full events for R2 transcript)
       this.eventLog.push(event);
 
-      // Stream to R2 incrementally (every 3 events or on important events)
+      // Stream to R2 incrementally (every 10 events or on important events)
       // R2 is our persistence layer for events.
+      // NOTE: We increased from 3 to 10 to reduce R2 rate limit issues
+      const eventsSinceLastStream = this.eventLog.length - this.lastR2StreamIndex;
       const shouldStream = 
-        this.eventLog.length - this.lastR2StreamIndex >= 3 ||
+        eventsSinceLastStream >= 10 ||
         event.type === 'elimination' ||
-        event.type === 'game_end' ||
-        event.type === 'ai_call';
+        event.type === 'game_end';
       
-      if (shouldStream) {
+      // Also throttle by time - don't stream more than once per second
+      const timeSinceLastStream = now - this.lastR2StreamTime;
+      const canStream = timeSinceLastStream >= 1000; // 1 second minimum between streams
+      
+      if (shouldStream && canStream) {
         try {
           await this.streamEventsToR2(gameId);
+          this.lastR2StreamTime = now;
           gameLog.debug('Events streamed to R2', { 
             eventCount: this.eventLog.length,
             streamedFrom: this.lastR2StreamIndex,
           });
         } catch (error) {
-          logErrorWithStack(gameLog, 'Failed to stream events to R2', error, {
-            eventCount: this.eventLog.length,
-          });
+          // R2 rate limit errors are non-fatal - events are in memory
+          // They'll be persisted on the next stream or final transcript
+          if (String(error).includes('10058')) {
+            gameLog.warn('R2 rate limited, will retry later', { eventCount: this.eventLog.length });
+          } else {
+            logErrorWithStack(gameLog, 'Failed to stream events to R2', error, {
+              eventCount: this.eventLog.length,
+            });
+          }
         }
       }
 

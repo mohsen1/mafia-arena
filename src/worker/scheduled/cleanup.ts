@@ -5,6 +5,10 @@
  * - Standard games: 1 hour
  * - Discount pricing games: 24 hours (batch APIs can take up to 24h)
  * 
+ * NEW: "Active Punt" - Before killing, try to re-trigger games that might
+ * just be stuck due to lost callbacks. Games with cached AI responses
+ * might be recoverable.
+ * 
  * Run via Cloudflare Cron Trigger every 10 minutes.
  */
 
@@ -23,6 +27,17 @@ const STALE_THRESHOLDS = {
   DISCOUNT_PRICING_MS: 24 * 60 * 60 * 1000,
 } as const;
 
+/**
+ * Warning thresholds - try punt before killing.
+ * Games older than WARNING but younger than STALE get a punt attempt.
+ */
+const PUNT_THRESHOLDS = {
+  /** Try to punt standard games after 10 minutes */
+  STANDARD_MS: 10 * 60 * 1000,
+  /** Try to punt discount games after 2 hours */
+  DISCOUNT_PRICING_MS: 2 * 60 * 60 * 1000,
+} as const;
+
 interface StaleGame {
   id: string;
   discount_pricing: number;
@@ -33,30 +48,104 @@ interface StaleGame {
 }
 
 /**
+ * Try to "punt" (re-trigger) a stuck game before killing it.
+ * 
+ * This sends a wakeup request to the Durable Object, which will:
+ * 1. Check if there are cached AI responses
+ * 2. If so, try to resume the game
+ * 
+ * Returns true if the punt was successful (game responded OK).
+ */
+async function tryPuntGame(env: Env, gameId: string): Promise<boolean> {
+  try {
+    const doId = env.GAME_RUNNER.idFromName(gameId);
+    const stub = env.GAME_RUNNER.get(doId);
+    
+    // Send a wakeup/punt request to the DO
+    const response = await stub.fetch(new Request('http://internal/punt', {
+      method: 'POST',
+    }));
+    
+    if (response.ok) {
+      const result = await response.json() as { punted: boolean; reason: string };
+      log.info('Punt attempt result', { gameId, ...result });
+      return result.punted;
+    }
+    
+    return false;
+  } catch (error) {
+    log.warn('Punt attempt failed', { 
+      gameId, 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+    return false;
+  }
+}
+
+/**
  * Clean up games that have been running for too long.
  * 
  * Uses smart thresholds:
  * - Standard games (discount_pricing = 0): Stale after 1 hour
  * - Discount pricing games (discount_pricing = 1): Stale after 24 hours
+ * 
+ * NEW: "Active Punt" - For games between PUNT and STALE thresholds,
+ * try to re-trigger them before giving up.
  */
 export async function cleanupStaleGames(env: Env): Promise<{
   killedCount: number;
   standardKilled: number;
   discountKilled: number;
+  puntedCount: number;
   gameIds: string[];
 }> {
   const now = Date.now();
-  const standardThreshold = now - STALE_THRESHOLDS.STANDARD_MS;
-  const discountThreshold = now - STALE_THRESHOLDS.DISCOUNT_PRICING_MS;
+  const standardStaleThreshold = now - STALE_THRESHOLDS.STANDARD_MS;
+  const discountStaleThreshold = now - STALE_THRESHOLDS.DISCOUNT_PRICING_MS;
+  const standardPuntThreshold = now - PUNT_THRESHOLDS.STANDARD_MS;
+  const discountPuntThreshold = now - PUNT_THRESHOLDS.DISCOUNT_PRICING_MS;
 
-  log.info('Starting scheduled cleanup', {
-    standardThresholdMinutes: STALE_THRESHOLDS.STANDARD_MS / 60 / 1000,
-    discountThresholdHours: STALE_THRESHOLDS.DISCOUNT_PRICING_MS / 60 / 60 / 1000,
+  log.info('Starting scheduled cleanup with punt', {
+    puntThresholdMinutes: PUNT_THRESHOLDS.STANDARD_MS / 60 / 1000,
+    staleThresholdMinutes: STALE_THRESHOLDS.STANDARD_MS / 60 / 1000,
+    discountPuntThresholdHours: PUNT_THRESHOLDS.DISCOUNT_PRICING_MS / 60 / 60 / 1000,
+    discountStaleThresholdHours: STALE_THRESHOLDS.DISCOUNT_PRICING_MS / 60 / 60 / 1000,
   });
 
   try {
-    // Find stale games with smart thresholds
-    // Use COALESCE to fall back to created_at if last_activity is NULL
+    // PHASE 1: Find games to PUNT (between punt and stale thresholds)
+    const puntCandidates = await env.DB.prepare(`
+      SELECT id, discount_pricing, last_activity, created_at, rounds, batch_id
+      FROM games
+      WHERE status = 'running'
+        AND (
+          (discount_pricing = 0 AND COALESCE(last_activity, created_at) < ? AND COALESCE(last_activity, created_at) >= ?)
+          OR (discount_pricing = 1 AND COALESCE(last_activity, created_at) < ? AND COALESCE(last_activity, created_at) >= ?)
+        )
+      ORDER BY created_at ASC
+      LIMIT 10
+    `).bind(standardPuntThreshold, standardStaleThreshold, discountPuntThreshold, discountStaleThreshold).all<StaleGame>();
+    
+    // Try to punt each candidate
+    let puntedCount = 0;
+    if (puntCandidates.results && puntCandidates.results.length > 0) {
+      log.info('Found games to punt', { count: puntCandidates.results.length });
+      
+      for (const game of puntCandidates.results) {
+        const punted = await tryPuntGame(env, game.id);
+        if (punted) {
+          puntedCount++;
+          // Update last_activity so we don't punt again immediately
+          await env.DB.prepare(`
+            UPDATE games SET last_activity = ? WHERE id = ?
+          `).bind(now, game.id).run();
+        }
+      }
+      
+      log.info('Punt phase complete', { attempted: puntCandidates.results.length, successful: puntedCount });
+    }
+
+    // PHASE 2: Find STALE games to kill (past stale threshold)
     const staleGames = await env.DB.prepare(`
       SELECT id, discount_pricing, last_activity, created_at, rounds, batch_id
       FROM games
@@ -66,19 +155,20 @@ export async function cleanupStaleGames(env: Env): Promise<{
           OR (discount_pricing = 1 AND COALESCE(last_activity, created_at) < ?)
         )
       ORDER BY created_at ASC
-    `).bind(standardThreshold, discountThreshold).all<StaleGame>();
+    `).bind(standardStaleThreshold, discountStaleThreshold).all<StaleGame>();
 
     if (!staleGames.results || staleGames.results.length === 0) {
-      log.info('No stale games found');
+      log.info('No stale games to kill');
       return {
         killedCount: 0,
         standardKilled: 0,
         discountKilled: 0,
+        puntedCount,
         gameIds: [],
       };
     }
 
-    log.info('Found stale games', { count: staleGames.results.length });
+    log.info('Found stale games to kill', { count: staleGames.results.length });
 
     // Categorize games
     const standardGames = staleGames.results.filter(g => g.discount_pricing === 0);
@@ -122,6 +212,7 @@ export async function cleanupStaleGames(env: Env): Promise<{
       total: gameIds.length,
       standardKilled: standardGames.length,
       discountKilled: discountGames.length,
+      puntedCount,
       sampleIds: gameIds.slice(0, 5).join(', '),
     });
 
@@ -129,6 +220,7 @@ export async function cleanupStaleGames(env: Env): Promise<{
       killedCount: gameIds.length,
       standardKilled: standardGames.length,
       discountKilled: discountGames.length,
+      puntedCount,
       gameIds,
     };
 
