@@ -253,7 +253,8 @@ stats.get('/trends', async (c) => {
 stats.get('/elo', async (c) => {
   const env = c.env;
   
-  // Read pre-calculated ELO ratings from models table
+  // Read pre-calculated ELO ratings with proper win/loss counts from leaderboard
+  // leaderboard has separate rows per team, so we aggregate them
   const modelsResult = await env.DB.prepare(`
     SELECT 
       m.id,
@@ -262,11 +263,14 @@ stats.get('/elo', async (c) => {
       m.elo_rating,
       m.elo_games_played,
       m.elo_peak,
-      l.games_won,
-      (SELECT COUNT(*) FROM game_participants gp WHERE gp.model_id = m.id) as total_games
+      COALESCE(l.total_games, 0) as total_games,
+      COALESCE(l.total_wins, 0) as total_wins
     FROM models m
     LEFT JOIN (
-      SELECT model_id, SUM(games_won) as games_won
+      SELECT 
+        model_id,
+        SUM(games_played) as total_games,
+        SUM(games_won) as total_wins
       FROM leaderboard
       GROUP BY model_id
     ) l ON m.id = l.model_id
@@ -280,26 +284,29 @@ stats.get('/elo', async (c) => {
     elo_rating: number | null;
     elo_games_played: number | null;
     elo_peak: number | null;
-    games_won: number | null;
     total_games: number;
+    total_wins: number;
   }>();
 
   const INITIAL_RATING = 1500;
   
   const rankings = modelsResult.results
     .filter(m => m.elo_games_played && m.elo_games_played >= 3)
-    .map(m => ({
-      display_name: m.display_name,
-      model_ids: [m.id],
-      elo: m.elo_rating ?? INITIAL_RATING,
-      games: m.elo_games_played ?? 0,
-      wins: m.games_won ?? 0,
-      losses: (m.elo_games_played ?? 0) - (m.games_won ?? 0),
-      win_rate: (m.elo_games_played ?? 0) > 0 
-        ? (m.games_won ?? 0) / (m.elo_games_played ?? 0) 
-        : 0,
-      peak_elo: m.elo_peak ?? INITIAL_RATING,
-    }));
+    .map(m => {
+      const games = m.total_games;
+      const wins = m.total_wins;
+      const losses = games - wins;
+      return {
+        display_name: m.display_name,
+        model_ids: [m.id],
+        elo: m.elo_rating ?? INITIAL_RATING,
+        games,
+        wins,
+        losses,
+        win_rate: games > 0 ? wins / games : 0,
+        peak_elo: m.elo_peak ?? INITIAL_RATING,
+      };
+    });
 
   return c.json({
     rankings,
