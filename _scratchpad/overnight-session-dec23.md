@@ -417,6 +417,76 @@ Free AI providers (OLMo, GLM, Gemini free tier) are unreliable/rate-limited on C
 - **Free models**: ❌ Unreliable (Christmas Eve?)
 
 ---
+
+## 🎄 Christmas Day Session - Dec 25, 2025
+
+### Critical Issues Discovered
+1. **SQLITE_TOOBIG recurring** - 128KB limit still being hit in some games
+2. **Durable Object hibernation** - DOs hibernating during long AI calls, losing in-flight promises
+3. **"Resuming interrupted game" infinite loop** - Games stuck in restart loop
+
+### Root Cause Analysis (via Gemini)
+- DOs have 30s execution limit before hibernation
+- AI API calls (especially Google) can take 10-60+ seconds
+- When DO hibernates, async promises are lost → game restarts → same AI call → loop
+
+### 🚀 MAJOR FIX: Async Suspend-Resume Pattern
+
+#### Architecture Changes
+1. **Cloudflare Queue** (`mafia-arena-ai-requests`) - Offloads long-running AI calls
+2. **DO Storage Cache** - Stores AI responses for idempotent replay
+3. **SuspenseError Pattern** - Game engine throws to signal "waiting for AI"
+4. **Callback Endpoint** - `/internal/ai-callback` receives completed AI responses
+
+#### Files Modified
+- `wrangler.toml` - Added queue bindings
+- `src/worker/ai/types.ts` - New types (SuspenseError, AIRequestMessage, etc.)
+- `src/worker/ai/GameAIAdapter.ts` - Cache checking, queue requests, throw SuspenseError
+- `src/worker/GameRunner.ts` - Handle callbacks, cache responses, debounce resume
+- `src/worker/index.ts` - Queue consumer for AI requests
+
+### 🐛 Bug Fix: Callback Storm
+
+**Problem**: Multiple AI responses arriving simultaneously caused:
+- R2 rate limiting: "put: Reduce your concurrent request rate" (10058)
+- DO memory exceeded: "Durable Object's isolate exceeded its memory limit"
+
+**Solution**:
+1. **Debounce game resume** - Only one `runGameWithErrorHandling` per 200ms
+2. **Throttle R2 writes** - 500ms minimum between writes, batch 5 events
+
+### ✅ VERIFICATION - IT WORKS!
+
+| Game | Events | Status | Notes |
+|------|--------|--------|-------|
+| `game_mjl5ikbo_zrdbtu_live` | **626** | ✅ Running | GPT-5-mini vs Gemini 3 Flash - THRIVING! |
+| `game_mjl5s9dg_ol5e92_live` | **13** | ✅ Running | New test game progressing |
+| `game_mjl4nebp_opuzi7_live` | **2,899** | ✅ Running | Massive game still going! |
+
+### Game Highlights
+`game_mjl5ikbo_zrdbtu_live`:
+- **Theme**: Modern tech startup drama
+- **Players**: 11 (2 Mafia gpt-5-mini, 9 Town gemini-3-flash)
+- **Round 1 Discussion**: Town analyzing suspicious behavior!
+- Jordan (Gemini) catching Dakota & Casey (GPT-5-mini Mafia) for "placeholder" intros
+- Avery calculating Bayesian probabilities: "Dakota 88% likelihood Mafia"
+- **AI deception detection working beautifully!**
+
+### Commits (Dec 25)
+```
+fix(do): implement async suspend-resume pattern for AI calls
+  - Add Cloudflare Queue for long-running AI requests
+  - Cache AI responses in DO storage for idempotent replay
+  - SuspenseError pattern to signal waiting for AI
+
+fix(do): debounce game resume to prevent callback storm
+  - Throttle R2 event streaming (500ms, batch 5)
+  - Debounce runGameWithErrorHandling calls (200ms)
+  - Prevent DO memory exhaustion
+```
+
+---
 *Report finalized: ~4:45 AM Dec 24, 2025*
 *Morning update: ~8:00 AM Dec 24, 2025*
+*Christmas update: Dec 25, 2025 - ASYNC SUSPEND-RESUME WORKING! 🎄🎉*
 
