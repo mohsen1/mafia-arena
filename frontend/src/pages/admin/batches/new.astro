@@ -375,13 +375,36 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         submitBtn.textContent = 'Launching...';
       }
 
+      // Helper to extract clean model name from ID (e.g., "google/gemini-2.0-flash-exp" -> "Gemini 2.0 Flash")
+      function getShortModelName(modelId) {
+        // Remove provider prefix (google/, openai/, etc.)
+        const name = modelId.split('/').pop() || modelId;
+        // Remove common suffixes
+        return name
+          .replace(/-exp$/, '')
+          .replace(/-preview$/, '')
+          .replace(/-pro$/, ' Pro')
+          .replace(/-mini$/, ' Mini')
+          .replace(/^gpt-/, 'GPT-')
+          .replace(/^gemini-/, 'Gemini ')
+          .replace(/^claude-/, 'Claude ')
+          .replace(/-/g, ' ')
+          .split(' ')
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ')
+          .trim();
+      }
+
       try {
         const formData = new FormData(form);
         const playerCount = parseInt(String(formData.get('playerCount') || '11'));
         const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
         const batchNameInput = String(formData.get('name') || '').trim();
         
-        let batchName = batchNameInput || `Mafia vs Town ${new Date().toLocaleDateString()}`;
+        // Generate default batch name from model names (e.g., "Gemini 2.0 Flash vs GPT-5.2")
+        const modelAName = getShortModelName(modelA);
+        const modelBName = getShortModelName(modelB);
+        let batchName = batchNameInput || `${modelAName} vs ${modelBName}`;
 
         const res = await fetch(`${apiUrl}/api/admin/batches`, {
           method: 'POST',
