@@ -315,9 +315,44 @@ async function handleBatchMessage(message: Message<BatchQueueMessage>, env: Env)
  * 3. POSTs the result back to the DO callback endpoint
  * 4. DO resumes with cached response
  */
+// Drop AI requests older than 10 minutes (games likely timed out or moved on)
+const AI_REQUEST_TTL_MS = 10 * 60 * 1000;
+
 async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: Env): Promise<void> {
   let body = message.body;
   const MAX_RETRIES = 5;
+  
+  // --- FIX 1: TTL Check (Clears Queue Backlog) ---
+  // Old messages from failed games will be dropped immediately, clearing the queue
+  const age = Date.now() - body.timestamp;
+  if (age > AI_REQUEST_TTL_MS) {
+    console.warn(`[${body.traceId || 'no-trace'}] Dropping stale AI request ${body.requestId} (Age: ${Math.round(age / 1000)}s, Game: ${body.gameId})`);
+    message.ack(); // Remove from queue immediately
+    return;
+  }
+  
+  // --- FIX 2: Game Liveness Check (Prevents processing dead games) ---
+  // Quick D1 check is much cheaper than an LLM call (~10ms vs ~10-60s)
+  try {
+    const game = await env.DB.prepare('SELECT status FROM games WHERE id = ?')
+      .bind(body.gameId)
+      .first<{ status: string }>();
+
+    if (!game) {
+      console.warn(`[${body.traceId || 'no-trace'}] Game ${body.gameId} not found in DB. Dropping request ${body.requestId}.`);
+      message.ack();
+      return;
+    }
+
+    if (game.status !== 'running') {
+      console.warn(`[${body.traceId || 'no-trace'}] Game ${body.gameId} is ${game.status}. Dropping request ${body.requestId}.`);
+      message.ack();
+      return;
+    }
+  } catch (error) {
+    // If DB check fails, log but continue (fail open) to not block valid games
+    console.warn(`[${body.traceId || 'no-trace'}] Failed to check game status for ${body.gameId}, proceeding:`, error);
+  }
   
   // CLAIM CHECK PATTERN: Rehydrate request from R2 if offloaded
   if (!body.request && body.requestRef) {
