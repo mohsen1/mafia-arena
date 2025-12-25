@@ -426,11 +426,15 @@ export class GameRunner extends DurableObject<Env> {
    * 
    * Also cleans up legacy GAME_STATE key to free DO storage space.
    * 
-   * OPTIMIZATION: Prunes old AI responses from the suspense cache.
+   * OPTIMIZATION: Optionally prunes old AI responses from the suspense cache.
    * Once we checkpoint to R2, we don't need responses from previous rounds
    * since resume will load from the R2 checkpoint, not replay from scratch.
+   * 
+   * @param pruneResponses - If true, prune AI responses from previous phases.
+   *                         Should only be true when called from onPhaseComplete,
+   *                         NOT when called from SuspenseError catch (we still need them!)
    */
-  private async saveCheckpoint(state: SerializedGameState): Promise<void> {
+  private async saveCheckpoint(state: SerializedGameState, pruneResponses = false): Promise<void> {
     const r2Key = `games/${state.gameId}/checkpoints/round_${state.round}_${state.phase}.json`;
     
     // 1. Write FULL state to R2 (no size limits!)
@@ -453,10 +457,11 @@ export class GameRunner extends DurableObject<Env> {
     // This frees up DO storage space
     await this.ctx.storage.delete(STORAGE_KEYS.GAME_STATE);
     
-    // 4. Prune old AI responses from suspense cache
-    // Since we checkpoint after each phase, we only need responses for the CURRENT phase.
-    // Old responses are no longer needed because resume will load from R2, not replay.
-    await this.pruneOldAIResponses(state.round, state.phase);
+    // 4. Optionally prune old AI responses from suspense cache
+    // Only prune when a phase COMPLETES (not on suspend, where we still need responses!)
+    if (pruneResponses) {
+      await this.pruneOldAIResponses(state.round, state.phase);
+    }
     
     this.log.debug('Checkpoint saved to R2', { 
       r2Key, 
@@ -467,36 +472,30 @@ export class GameRunner extends DurableObject<Env> {
   }
   
   /**
-   * Prune AI responses from previous rounds/phases.
-   * Request IDs are formatted as: {gameId}:{round}:{phase}:{playerId}:{actionType}
-   * We keep only responses matching the current round and phase.
+   * Clear ALL cached AI responses after a phase completes.
+   * 
+   * When a phase completes successfully, all AI responses for that phase
+   * have been consumed and are now part of the R2 checkpoint. We can
+   * safely clear the cache to free up DO storage space.
+   * 
+   * Note: Request IDs are hashes (req_HASH), not the raw format, so we
+   * can't selectively prune by round/phase. But that's fine - on phase
+   * complete, ALL responses are stale anyway.
    */
   private async pruneOldAIResponses(currentRound: number, currentPhase: string): Promise<void> {
     const responses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES);
     if (!responses || responses.size === 0) return;
     
     const originalSize = responses.size;
-    const currentPrefix = `:${currentRound}:${currentPhase}:`;
     
-    // Keep only responses for current round:phase
-    const prunedResponses = new Map<string, CachedAIResponse>();
-    for (const [requestId, response] of responses.entries()) {
-      // requestId format: {gameId}:{round}:{phase}:{playerId}:{actionType}
-      if (requestId.includes(currentPrefix)) {
-        prunedResponses.set(requestId, response);
-      }
-    }
+    // Clear ALL responses - they've been consumed for the completed phase
+    await this.ctx.storage.delete(STORAGE_KEYS.AI_RESPONSES);
     
-    if (prunedResponses.size < originalSize) {
-      await this.ctx.storage.put(STORAGE_KEYS.AI_RESPONSES, prunedResponses);
-      this.log.debug('Pruned old AI responses', {
-        originalSize,
-        newSize: prunedResponses.size,
-        pruned: originalSize - prunedResponses.size,
-        currentRound,
-        currentPhase,
-      });
-    }
+    this.log.debug('Cleared AI response cache after phase complete', {
+      clearedCount: originalSize,
+      completedRound: currentRound,
+      completedPhase: currentPhase,
+    });
   }
 
   /**
@@ -1639,7 +1638,8 @@ export class GameRunner extends DurableObject<Env> {
       try {
         // Save FULL state to R2 (no size limits!)
         // This replaces the old 128KB-limited DO storage approach
-        await this.saveCheckpoint(serializedState);
+        // Prune old AI responses since phase completed - they're now in the checkpoint
+        await this.saveCheckpoint(serializedState, true /* pruneResponses */);
         
         // Update health tracking in DO (tiny data, no limit concerns)
         await this.saveState({
