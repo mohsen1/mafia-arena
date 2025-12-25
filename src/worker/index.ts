@@ -325,20 +325,24 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
     try {
       const obj = await env.TRANSCRIPTS.get(body.requestRef);
       if (!obj) {
-        throw new Error(`Offloaded request not found in R2: ${body.requestRef}`);
+        // FIX: If object is missing, it's non-recoverable (already processed by another worker
+        // or expired via TTL). Ack/discard to prevent infinite retry loops.
+        console.warn(`[${body.traceId || 'no-trace'}] Offloaded request not found in R2 (likely already processed): ${body.requestRef}. Discarding duplicate message.`);
+        message.ack();
+        return;
       }
       const requestData = await obj.json() as CompletionRequest;
       // Merge back into body for processing
       body = { ...body, request: requestData };
     } catch (error) {
       console.error(`[${body.traceId || 'no-trace'}] Failed to rehydrate request ${body.requestId}:`, error);
-      // Retry - R2 read might be transiently failing
+      // Retry - R2 read might be transiently failing (network error)
       message.retry();
       return;
     }
   }
 
-  const { requestId, gameId, modelId, request, context, traceId, requestRef } = body;
+  const { requestId, gameId, modelId, request, context, traceId } = body;
 
   if (!request) {
     console.error(`[${traceId || 'no-trace'}] Invalid message: missing request data for ${requestId}`);
@@ -386,12 +390,10 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
       throw new Error(`DO callback failed: ${callbackResponse.status} - ${errorText}`);
     }
 
-    // Cleanup R2 object if it was offloaded (Claim Check cleanup)
-    if (requestRef) {
-      env.TRANSCRIPTS.delete(requestRef).catch(err => 
-        console.warn(`[${traceId || 'no-trace'}] Failed to cleanup offloaded request ${requestRef}:`, err)
-      );
-    }
+    // NOTE: We intentionally do NOT delete the R2 request payload here.
+    // This makes the Claim Check pattern idempotent if duplicate queue messages
+    // reference the same R2 object (e.g., from punt/resume logic).
+    // R2 objects will be cleaned up automatically via Bucket Lifecycle Rules (TTL).
 
     message.ack();
     console.log(`[${traceId || 'no-trace'}] AI request ${requestId} callback succeeded`);
