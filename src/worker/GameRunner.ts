@@ -733,9 +733,54 @@ export class GameRunner extends DurableObject<Env> {
    * Queue an AI request to the AI_REQUEST_QUEUE (for suspense pattern).
    * This is passed to GameAIAdapter as the queueRequest function.
    */
+  /** Size limit for queue messages (100KB safety buffer under 128KB max) */
+  private static readonly QUEUE_SIZE_LIMIT = 100 * 1024;
+
+  /**
+   * Queue an AI request to the AI_REQUEST_QUEUE (for suspense pattern).
+   * This is passed to GameAIAdapter as the queueRequest function.
+   * 
+   * IMPLEMENTS CLAIM CHECK PATTERN:
+   * If the message payload exceeds Cloudflare Queue limits (128KB),
+   * the request body is offloaded to R2 and a reference is sent instead.
+   */
   private async queueAIRequest(message: import('./ai/index.js').AIRequestMessage): Promise<void> {
-    await this.env.AI_REQUEST_QUEUE.send(message);
-    this.log.debug('Queued AI request', { requestId: message.requestId, modelId: message.modelId });
+    const json = JSON.stringify(message);
+    const size = new TextEncoder().encode(json).length;
+
+    if (size > GameRunner.QUEUE_SIZE_LIMIT && message.request) {
+      this.log.info('AI request payload too large, offloading to R2 (Claim Check)', { 
+        requestId: message.requestId, 
+        size, 
+        limit: GameRunner.QUEUE_SIZE_LIMIT 
+      });
+
+      const key = `games/${message.gameId}/requests/${message.requestId}.json`;
+      
+      // 1. Upload full request to R2
+      await this.env.TRANSCRIPTS.put(key, JSON.stringify(message.request), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+
+      // 2. Create lightweight message with reference (exclude 'request', add 'requestRef')
+      const { request: _omit, ...rest } = message;
+      const lightMessage: import('./ai/index.js').AIRequestMessage = {
+        ...rest,
+        requestRef: key,
+      };
+
+      // 3. Send lightweight message
+      await this.env.AI_REQUEST_QUEUE.send(lightMessage);
+      this.log.debug('Queued AI request (offloaded to R2)', { 
+        requestId: message.requestId, 
+        modelId: message.modelId,
+        r2Key: key,
+      });
+    } else {
+      // Send directly if within limits
+      await this.env.AI_REQUEST_QUEUE.send(message);
+      this.log.debug('Queued AI request', { requestId: message.requestId, modelId: message.modelId });
+    }
   }
 
   /**

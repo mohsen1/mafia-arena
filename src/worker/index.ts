@@ -7,7 +7,7 @@
 
 import { Hono } from 'hono';
 import type { Env, GameQueueMessage, BatchQueueMessage } from './types.js';
-import type { AIRequestMessage, CompletionResponse } from './ai/types.js';
+import type { AIRequestMessage, CompletionRequest, CompletionResponse } from './ai/types.js';
 import { createProvider } from './ai/factory.js';
 import { APIError, Errors, logError } from './utils/index.js';
 import { corsMiddleware, rateLimitMiddleware } from './middleware/index.js';
@@ -140,7 +140,8 @@ export default {
         const body = message.body;
 
         // Check message type based on fields
-        if ('requestId' in body && 'request' in body) {
+        // Note: AIRequestMessage may have 'request' OR 'requestRef' (Claim Check pattern)
+        if ('requestId' in body && ('request' in body || 'requestRef' in body)) {
           // AI Request queue message (suspense pattern)
           await handleAIRequestMessage(message as Message<AIRequestMessage>, env);
         } else if ('gameId' in body && body.gameId) {
@@ -315,8 +316,35 @@ async function handleBatchMessage(message: Message<BatchQueueMessage>, env: Env)
  * 4. DO resumes with cached response
  */
 async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: Env): Promise<void> {
-  const { requestId, gameId, modelId, request, context, traceId } = message.body;
+  let body = message.body;
   const MAX_RETRIES = 5;
+  
+  // CLAIM CHECK PATTERN: Rehydrate request from R2 if offloaded
+  if (!body.request && body.requestRef) {
+    console.log(`[${body.traceId || 'no-trace'}] Rehydrating large request from R2: ${body.requestRef}`);
+    try {
+      const obj = await env.TRANSCRIPTS.get(body.requestRef);
+      if (!obj) {
+        throw new Error(`Offloaded request not found in R2: ${body.requestRef}`);
+      }
+      const requestData = await obj.json() as CompletionRequest;
+      // Merge back into body for processing
+      body = { ...body, request: requestData };
+    } catch (error) {
+      console.error(`[${body.traceId || 'no-trace'}] Failed to rehydrate request ${body.requestId}:`, error);
+      // Retry - R2 read might be transiently failing
+      message.retry();
+      return;
+    }
+  }
+
+  const { requestId, gameId, modelId, request, context, traceId, requestRef } = body;
+
+  if (!request) {
+    console.error(`[${traceId || 'no-trace'}] Invalid message: missing request data for ${requestId}`);
+    message.ack();
+    return;
+  }
 
   try {
     console.log(`[${traceId || 'no-trace'}] Processing AI request ${requestId} for game ${gameId} (attempt ${message.attempts})`);
@@ -356,6 +384,13 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
     if (!callbackResponse.ok) {
       const errorText = await callbackResponse.text();
       throw new Error(`DO callback failed: ${callbackResponse.status} - ${errorText}`);
+    }
+
+    // Cleanup R2 object if it was offloaded (Claim Check cleanup)
+    if (requestRef) {
+      env.TRANSCRIPTS.delete(requestRef).catch(err => 
+        console.warn(`[${traceId || 'no-trace'}] Failed to cleanup offloaded request ${requestRef}:`, err)
+      );
     }
 
     message.ack();
