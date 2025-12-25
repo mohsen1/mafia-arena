@@ -219,14 +219,18 @@ Manages real-time clients.
 
 The AI layer abstracts model differences, handles rate limits, and enforces structured output (JSON) regardless of the underlying model's native capabilities.
 
+### Unified Gateway Architecture
+All production models (OpenAI, Anthropic, Google Gemini, Llama, etc.) are routed through **OpenRouter**. This simplifies authentication, rate limiting, and pricing logic into a single implementation. Direct provider APIs are not used.
+
 ### Factory Pattern (`ai/factory.ts`)
 The system routes requests based on the model ID:
 - **Test Models (`test/*`):** routed to `MockE2EProvider` (zero-cost, deterministic responses for CI/CD).
-- **Production Models:** routed to `OpenRouterProvider`.
+- **Production Models:** routed to `OpenRouterProvider` via the unified gateway.
 
 ### GameAIAdapter (`ai/GameAIAdapter.ts`)
 This adapter sits between the Game Engine (pure logic) and the Cloudflare Worker environment.
 - **Context Management:** Checks `contextLimits.ts` (cached in KV). If the prompt exceeds the model's limit, it triggers the `SummarizationService` to compress game history.
+- **Resilience:** The `RetryingProvider` wrapper handles exponential backoff and rate limit headers automatically.
 - **Suspense Mode:** Instead of `await fetch()`, it:
   1. Checks `checkCache(requestId)` in DO storage.
   2. If found, returns the response.
@@ -263,10 +267,14 @@ The platform uses three distinct Cloudflare Queues to handle asynchronous worklo
 - **Pattern:** **Claim Check Pattern**.
   - If the payload < 100KB: Sent directly in the queue message.
   - If the payload > 100KB: Payload stored in R2 (`requests/{requestId}.json`), queue message contains `requestRef`.
+- **Smart Consumer Logic:** Before executing expensive AI calls, the consumer performs validation:
+  - **TTL Check:** Messages older than 10 minutes (`AI_REQUEST_TTL_MS`) are immediately acknowledged and dropped to clear backlogs from failed games.
+  - **Liveness Check:** Queries D1 to ensure the target game is still in `running` status. If the game has failed or completed, the request is dropped.
 - **Consumer:** `handleAIRequestMessage`
-  1. Rehydrates request from R2 if needed.
-  2. Calls `OpenRouterProvider.complete()`.
-  3. POSTs result back to DO: `http://internal/internal/ai-callback`.
+  1. TTL and liveness validation (see above).
+  2. Rehydrates request from R2 if needed (Claim Check).
+  3. Calls `OpenRouterProvider.complete()`.
+  4. POSTs result back to DO: `http://internal/internal/ai-callback`.
 - **Retry Logic:** Exponential backoff (10s, 20s, 40s...) up to 5 attempts before DLQ.
 
 ### Dead Letter Queue (DLQ)
@@ -407,14 +415,15 @@ We implement an asynchronous **Suspend-Resume** cycle that allows the DO to hibe
 │       │                          │     │                       │           │
 │       │                          │     ▼                       │           │
 │       │                          │  GameRunner catches,        │           │
-│       │                          │  saves state to R2,         │           │
+│       │                          │  saves checkpoint to R2,    │           │
 │       │                          │  hibernates DO              │           │
 │       │                          │                       │           │
 │       │                          │     ┌───────────────────────┤           │
 │       │                          │     │ Queue Worker:         │           │
-│       │                          │     │ 1. Fetch from R2      │           │
-│       │                          │     │ 2. Call OpenRouter    │           │
-│       │                          │     │ 3. POST to DO callback│           │
+│       │                          │     │ 1. TTL/Liveness check │           │
+│       │                          │     │ 2. Fetch from R2      │           │
+│       │                          │     │ 3. Call OpenRouter    │           │
+│       │                          │     │ 4. POST to DO callback│           │
 │       │                          │     └───────────────────────┤           │
 │       │                          │                             │           │
 │       │                          │     DO wakes, stores        │           │
@@ -429,8 +438,16 @@ We implement an asynchronous **Suspend-Resume** cycle that allows the DO to hibe
 ### Key Components
 
 1. **SuspenseError**: A custom error thrown by `GameAIAdapter` when a response isn't cached. It halts the game engine execution stack immediately.
-2. **Claim Check Pattern**: Cloudflare Queues have a 128KB limit. If an AI prompt exceeds this, `GameRunner` offloads the payload to R2 and sends a reference (`requestRef`) to the queue.
-3. **Request ID Determinism**: Request IDs are generated deterministically (`hash(gameId + round + phase + playerId + actionType)`). This ensures that when the DO wakes up and replays the game loop, it finds the exact response it was waiting for.
+2. **Checkpoint on Suspend**: When `SuspenseError` is caught, the GameRunner saves the full game state to R2 **immediately** (not just on phase complete). This ensures `isResuming=true` works correctly if the DO is evicted during the wait.
+3. **Claim Check Pattern**: Cloudflare Queues have a 128KB limit. If an AI prompt exceeds this, `GameRunner` offloads the payload to R2 and sends a reference (`requestRef`) to the queue.
+4. **Request ID Determinism**: Request IDs are generated deterministically (`hash(gameId + round + phase + playerId + actionType)`). This ensures that when the DO wakes up and replays the game loop, it finds the exact response it was waiting for.
+
+### State Management & Pruning
+
+The system uses different pruning strategies depending on when checkpoints are saved:
+
+- **On Suspend**: State is saved to R2, but cached AI responses are **kept** (pruning = false) because they are needed for the replay/resume.
+- **On Phase Complete**: State is saved to R2, and cached AI responses are **pruned** (deleted). Since the phase is finalized, those responses are baked into the game history and no longer needed in the hot cache.
 
 ---
 
@@ -441,6 +458,7 @@ The system employs a multi-layered defense against failure, critical for long-ru
 ### Layer 1: Network & Provider (Transient)
 - **RetryingProvider**: Wraps AI calls with exponential backoff.
 - **Rate Limits**: Handles HTTP 429s by parsing `Retry-After` headers.
+- **Non-Retryable Errors**: HTTP 402 (Payment), 403 (Auth), 400/404 (Invalid Model) are not retried.
 - **Failover**: (Future) Can switch models if primary provider is down.
 
 ### Layer 2: Content & Parsing (Logic)
@@ -448,11 +466,17 @@ The system employs a multi-layered defense against failure, critical for long-ru
 - **Auto-Healing**: Uses `jsonrepair` to fix malformed JSON from LLMs.
 - **Fallbacks**: If parsing fails after max retries, `GameAIAdapter` generates a safe fallback action (e.g., "Abstain from voting") to prevent the game from crashing.
 
-### Layer 3: Infrastructure (System)
+### Layer 3: Smart Queue Consumer
+The AI queue consumer performs validation before making expensive AI calls:
+- **TTL Check**: Messages older than 10 minutes are dropped to clear queue backlogs from failed games.
+- **Liveness Check**: Queries D1 to verify game is still `running`. Non-running games have requests dropped.
+- **Claim Check Rehydration**: Large payloads are fetched from R2; missing R2 objects are gracefully handled.
+
+### Layer 4: Infrastructure (System)
 - **Dead Letter Queue (DLQ)**: Failed queue messages (Game or AI requests) are moved to the `dlq_entries` D1 table after max attempts. Admin APIs allow inspection and replay.
 - **Circuit Breaker**: Global `processing_paused` flag in KV/D1 stops all queue processing during outages.
 
-### Layer 4: Stale Game Recovery ("Active Punt")
+### Layer 5: Stale Game Recovery ("Active Punt")
 A scheduled cron job runs every 10 minutes to detect stuck games.
 1. **Detection**: Identifies games in `running` state with no `last_activity` for >10 mins (Standard) or >2 hours (Discount).
 2. **Active Punt**: Before killing a game, the cron sends a `/punt` request to the DO. This wakes the DO up to check if it has cached AI responses that were received but failed to trigger a resume (e.g., due to a callback race condition).
@@ -622,5 +646,5 @@ curl -X POST https://mafia-arena.me-f9a.workers.dev/api/admin/games/<game_id>/ki
 
 ---
 
-*Last updated: December 25, 2025*
+*Last updated: December 26, 2025 - Updated with TTL/Liveness checks, checkpoint-on-suspend, and pruning fixes*
 
