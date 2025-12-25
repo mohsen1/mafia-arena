@@ -76,7 +76,7 @@ export const AIErrors = {
  */
 export function isRetryableError(error: unknown): boolean {
   if (error instanceof AIError) {
-    const nonRetryable: AIErrorCode[] = ['UNSUPPORTED_MODEL', 'INVALID_REQUEST'];
+    const nonRetryable: AIErrorCode[] = ['UNSUPPORTED_MODEL', 'INVALID_REQUEST', 'AUTH_ERROR'];
     return !nonRetryable.includes(error.code);
   }
   return true;
