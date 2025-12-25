@@ -328,7 +328,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
               { modelId: 'estimate', team: 'town', count: playerCount - mafiaCount },
             ],
             discussionEnabled: true,
-            contextLevel: 'full',
+            contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
           },
           useBatchAPI,
         }),
@@ -404,7 +404,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
                 { modelId: modelB, team: 'town', count: playerCount - mafiaCount },
               ],
               discussionEnabled: true,
-              contextLevel: 'full',
+              contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
               maxRounds: 10,
               personaConstraints: 'moderate',
             },

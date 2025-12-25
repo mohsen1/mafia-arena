@@ -48,6 +48,8 @@ const STORAGE_KEYS = {
   CHECKPOINT_META: 'checkpointMeta',
   /** Cached AI responses from queue worker (for suspense pattern) */
   AI_RESPONSES: 'aiResponses',
+  /** Reason game is suspended (waiting for AI) - helps debug stuck games */
+  SUSPENSE_REASON: 'suspenseReason',
 } as const;
 
 /**
@@ -156,6 +158,8 @@ interface GameRunnerState {
   currentPhase: string | null;
   /** Current round being executed */
   currentRound: number | null;
+  /** Reason game is suspended - helps identify which model/player is blocking */
+  suspenseReason: string | null;
 }
 
 /** WebSocket message types for live streaming */
@@ -263,7 +267,7 @@ export class GameRunner extends DurableObject<Env> {
 
     const storage = this.ctx.storage;
     
-    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId, discountPricing, lastActivity, heartbeat, currentPhase, currentRound] = await Promise.all([
+    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId, discountPricing, lastActivity, heartbeat, currentPhase, currentRound, suspenseReason] = await Promise.all([
       storage.get<GameRunnerState['status']>(STORAGE_KEYS.STATUS),
       storage.get<string>(STORAGE_KEYS.GAME_ID),
       storage.get<string>(STORAGE_KEYS.BATCH_ID),
@@ -277,6 +281,7 @@ export class GameRunner extends DurableObject<Env> {
       storage.get<number>(STORAGE_KEYS.HEARTBEAT),
       storage.get<string>(STORAGE_KEYS.CURRENT_PHASE),
       storage.get<number>(STORAGE_KEYS.CURRENT_ROUND),
+      storage.get<string>(STORAGE_KEYS.SUSPENSE_REASON),
     ]);
 
     this.stateCache = {
@@ -293,6 +298,7 @@ export class GameRunner extends DurableObject<Env> {
       heartbeat: heartbeat ?? null,
       currentPhase: currentPhase ?? null,
       currentRound: currentRound ?? null,
+      suspenseReason: suspenseReason ?? null,
     };
 
     return this.stateCache;
@@ -359,6 +365,14 @@ export class GameRunner extends DurableObject<Env> {
     if (state.currentRound !== undefined) {
       updates.push(storage.put(STORAGE_KEYS.CURRENT_ROUND, state.currentRound));
       if (this.stateCache) this.stateCache.currentRound = state.currentRound;
+    }
+    if (state.suspenseReason !== undefined) {
+      if (state.suspenseReason === null) {
+        updates.push(storage.delete(STORAGE_KEYS.SUSPENSE_REASON).then(() => {}));
+      } else {
+        updates.push(storage.put(STORAGE_KEYS.SUSPENSE_REASON, state.suspenseReason));
+      }
+      if (this.stateCache) this.stateCache.suspenseReason = state.suspenseReason;
     }
 
     await Promise.all(updates);
@@ -543,6 +557,13 @@ export class GameRunner extends DurableObject<Env> {
   /** Tracks if a game resume is already in progress (prevents callback storms) */
   private isResuming = false;
   
+  /** 
+   * Dirty flag: Set when new AI responses arrive while a resume is in progress.
+   * When the current resume finishes, if dirty=true, we restart immediately.
+   * This ensures no callbacks are lost even if they arrive during an active resume.
+   */
+  private resumeDirty = false;
+  
   /** Debounce interval for game resumes (ms) - prevents rapid-fire callbacks from creating storms */
   private static readonly RESUME_DEBOUNCE_MS = 500;
   
@@ -593,34 +614,45 @@ export class GameRunner extends DurableObject<Env> {
       // 2. Update lastActivity to prevent stale detection
       await this.saveState({ lastActivity: Date.now() });
 
-      // 3. DEBOUNCE: Only resume if we're not already resuming and enough time has passed
+      // 3. DIRTY FLAG PATTERN: Ensure no callbacks are lost
+      // If already resuming, set dirty flag so we retry after current resume finishes
+      if (this.isResuming) {
+        this.resumeDirty = true;
+        this.log.debug('Set dirty flag - resume already in progress', { requestId });
+        return Response.json({ success: true, requestId, skipped: 'already_resuming', dirty: true });
+      }
+      
+      // Debounce rapid callbacks (but dirty flag will catch up)
       const now = Date.now();
       const timeSinceLastResume = now - this.lastResumeTime;
-      
-      if (this.isResuming) {
-        this.log.debug('Skipping resume - already in progress', { requestId });
-        return Response.json({ success: true, requestId, skipped: 'already_resuming' });
-      }
-      
       if (timeSinceLastResume < GameRunner.RESUME_DEBOUNCE_MS) {
-        this.log.debug('Skipping resume - debouncing', { requestId, timeSinceLastResume });
-        return Response.json({ success: true, requestId, skipped: 'debounced' });
+        this.resumeDirty = true;
+        this.log.debug('Set dirty flag - debouncing', { requestId, timeSinceLastResume });
+        return Response.json({ success: true, requestId, skipped: 'debounced', dirty: true });
       }
 
-      // 4. Resume the game (in background) with mutex
+      // 4. Resume the game (in background) with dirty flag check on completion
       const state = await this.loadState();
       if (state.status === 'running' && state.gameId && state.batchId) {
         const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
         if (config) {
           this.isResuming = true;
+          this.resumeDirty = false; // Clear dirty flag before starting
           this.lastResumeTime = now;
           
           const gameConfig = this.toGameConfig(config, state.seed || 0);
-          // Resume game in background, clear mutex when done
+          // Resume game in background, check dirty flag when done
           this.ctx.waitUntil(
             this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig)
               .finally(() => {
                 this.isResuming = false;
+                // If dirty flag was set during execution, trigger another resume
+                if (this.resumeDirty) {
+                  this.log.info('Dirty flag set - triggering follow-up resume');
+                  this.resumeDirty = false;
+                  // Re-trigger resume via waitUntil (async)
+                  this.ctx.waitUntil(this.triggerResumeIfNeeded());
+                }
               })
           );
           this.log.info('Game resume triggered', { gameId: state.gameId, cacheSize: responses.size });
@@ -634,6 +666,44 @@ export class GameRunner extends DurableObject<Env> {
         { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
         { status: 500 }
       );
+    }
+  }
+
+  /**
+   * Helper to trigger a resume if the game is still running.
+   * Used by the dirty flag pattern when callbacks arrive during an active resume.
+   */
+  private async triggerResumeIfNeeded(): Promise<void> {
+    if (this.isResuming) {
+      // Another resume started in the meantime, set dirty flag
+      this.resumeDirty = true;
+      return;
+    }
+    
+    const state = await this.loadState();
+    if (state.status !== 'running' || !state.gameId || !state.batchId) {
+      return;
+    }
+    
+    const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
+    if (!config) return;
+    
+    this.isResuming = true;
+    this.resumeDirty = false;
+    this.lastResumeTime = Date.now();
+    
+    const gameConfig = this.toGameConfig(config, state.seed || 0);
+    
+    try {
+      await this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig);
+    } finally {
+      this.isResuming = false;
+      // Check dirty flag again
+      if (this.resumeDirty) {
+        this.log.info('Dirty flag set again - triggering another resume');
+        this.resumeDirty = false;
+        this.ctx.waitUntil(this.triggerResumeIfNeeded());
+      }
     }
   }
 
@@ -1439,6 +1509,8 @@ export class GameRunner extends DurableObject<Env> {
           ? `${cachedResponseCount}/${expectedPlayers} AI responses`
           : `${cachedResponseCount} AI responses cached`,
       },
+      // Shows which model/player the game is waiting for (helps debug stuck games)
+      suspenseReason: state.suspenseReason,
     };
     
     // Return 200 for healthy/warning, 503 for critical
@@ -1690,6 +1762,7 @@ export class GameRunner extends DurableObject<Env> {
         completedAt: Date.now(),
         currentPhase: null,
         currentRound: null,
+        suspenseReason: null, // Clear suspense reason on completion
       });
       gameLog.info('State saved as completed');
 
@@ -1701,6 +1774,10 @@ export class GameRunner extends DurableObject<Env> {
         this.ctx.storage.delete(STORAGE_KEYS.AI_RESPONSES), // Suspense pattern cache
       ]);
       gameLog.debug('Cleaned up checkpoint and AI response cache');
+      
+      // Clean up R2 temporary files (Claim Check payloads, checkpoints, event streams)
+      // These are no longer needed after the final transcript is written
+      this.ctx.waitUntil(this.cleanupR2TempFiles(gameId, gameLog));
 
       // Broadcast completion status
       this.broadcast({
@@ -1711,6 +1788,9 @@ export class GameRunner extends DurableObject<Env> {
     } catch (error) {
       // Handle SuspenseError - game is waiting for AI response
       if (error instanceof SuspenseError) {
+        // Build suspense reason for debugging stuck games
+        const suspenseReason = `Waiting for ${error.modelId} (${error.context.playerId}, ${error.context.actionType}) in round ${error.context.round} ${error.context.phase}`;
+        
         gameLog.info('Game suspended waiting for AI', {
           requestId: error.requestId,
           modelId: error.modelId,
@@ -1718,7 +1798,11 @@ export class GameRunner extends DurableObject<Env> {
           phase: error.context.phase,
           playerId: error.context.playerId,
           actionType: error.context.actionType,
+          suspenseReason,
         });
+        
+        // Save suspense reason for monitoring/debugging
+        await this.saveState({ suspenseReason });
         
         // CRITICAL: Save checkpoint before suspending!
         // This ensures the game can resume from its current state.
@@ -1814,6 +1898,48 @@ export class GameRunner extends DurableObject<Env> {
       });
     }
     return [];
+  }
+
+  /**
+   * Clean up temporary R2 files after game completes.
+   * This includes Claim Check payloads, checkpoints, and event streams.
+   * The final transcript is preserved.
+   */
+  private async cleanupR2TempFiles(gameId: string, gameLog: Logger): Promise<void> {
+    try {
+      const prefix = `games/${gameId}/`;
+      const listed = await this.env.TRANSCRIPTS.list({ prefix });
+      
+      const filesToDelete: string[] = [];
+      for (const obj of listed.objects) {
+        // Keep the final transcript, delete everything else
+        if (!obj.key.endsWith('/transcript.json')) {
+          filesToDelete.push(obj.key);
+        }
+      }
+      
+      if (filesToDelete.length === 0) {
+        gameLog.debug('No R2 temp files to clean up');
+        return;
+      }
+      
+      // Delete files in parallel (up to 10 at a time to avoid rate limits)
+      const batchSize = 10;
+      for (let i = 0; i < filesToDelete.length; i += batchSize) {
+        const batch = filesToDelete.slice(i, i + batchSize);
+        await Promise.all(batch.map(key => this.env.TRANSCRIPTS.delete(key)));
+      }
+      
+      gameLog.info('Cleaned up R2 temp files', { 
+        deletedCount: filesToDelete.length,
+        files: filesToDelete.slice(0, 5).join(', ') + (filesToDelete.length > 5 ? '...' : ''),
+      });
+    } catch (error) {
+      // Don't fail the game for cleanup errors
+      gameLog.warn('Failed to clean up R2 temp files', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
   }
 
   /**

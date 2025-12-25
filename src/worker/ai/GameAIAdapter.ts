@@ -70,6 +70,14 @@ export interface GameAIAdapterOptions {
   };
 }
 
+/** Fallback stats for a single model */
+export interface FallbackStats {
+  modelId: string;
+  totalCalls: number;
+  fallbackCount: number;
+  fallbackRate: number;
+}
+
 /**
  * Adapts the worker AI providers to the game engine's AIProvider interface.
  */
@@ -78,6 +86,9 @@ export class GameAIAdapter implements AIProvider {
   private readonly contextLimits: Map<string, number>;
   private readonly warningThreshold: number;
   private readonly suspenseMode: GameAIAdapterOptions['suspenseMode'];
+  
+  /** Track fallback usage per model for quality metrics */
+  private fallbackCounts: Map<string, { total: number; fallbacks: number }> = new Map();
 
   constructor(
     private readonly providers: Map<string, AIProviderInterface>,
@@ -118,6 +129,43 @@ export class GameAIAdapter implements AIProvider {
    */
   getContextLimit(modelId: string): number | undefined {
     return this.contextLimits.get(modelId);
+  }
+  
+  /**
+   * Track a successful AI call (no fallback needed).
+   */
+  private trackCall(modelId: string, usedFallback: boolean): void {
+    const stats = this.fallbackCounts.get(modelId) ?? { total: 0, fallbacks: 0 };
+    stats.total++;
+    if (usedFallback) {
+      stats.fallbacks++;
+      this.log.warn('Fallback action used', { modelId, fallbackRate: (stats.fallbacks / stats.total * 100).toFixed(1) + '%' });
+    }
+    this.fallbackCounts.set(modelId, stats);
+  }
+  
+  /**
+   * Get fallback statistics for all models.
+   * This can be used to identify poorly performing models.
+   */
+  getFallbackStats(): FallbackStats[] {
+    const stats: FallbackStats[] = [];
+    for (const [modelId, counts] of this.fallbackCounts.entries()) {
+      stats.push({
+        modelId,
+        totalCalls: counts.total,
+        fallbackCount: counts.fallbacks,
+        fallbackRate: counts.total > 0 ? counts.fallbacks / counts.total : 0,
+      });
+    }
+    return stats;
+  }
+  
+  /**
+   * Reset fallback statistics (e.g., at start of a new game).
+   */
+  resetFallbackStats(): void {
+    this.fallbackCounts.clear();
   }
 
   /**
@@ -181,6 +229,7 @@ export class GameAIAdapter implements AIProvider {
             context.modelId
           );
           
+          this.trackCall(context.modelId, false); // Success, no fallback
           return {
             action,
             rawResponse: cached.response.content,
@@ -194,6 +243,7 @@ export class GameAIAdapter implements AIProvider {
             parseError: parseError instanceof AIParseError ? parseError.parseError : String(parseError),
           });
           
+          this.trackCall(context.modelId, true); // Used fallback
           const fallbackAction = this.generateFallbackAction(prompt.type, prompt.validTargets);
           return {
             action: fallbackAction,
@@ -307,6 +357,7 @@ export class GameAIAdapter implements AIProvider {
         );
 
         callLog.debug('Action parsed successfully', { actionType: action.type });
+        this.trackCall(context.modelId, false); // Success, no fallback
 
         return {
           action,
@@ -321,6 +372,7 @@ export class GameAIAdapter implements AIProvider {
           parseError: parseError instanceof AIParseError ? parseError.parseError : String(parseError),
         });
 
+        this.trackCall(context.modelId, true); // Used fallback
         const fallbackAction = this.generateFallbackAction(prompt.type, prompt.validTargets);
 
         return {
