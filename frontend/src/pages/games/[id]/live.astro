@@ -6,9 +6,15 @@ import { ArrowLeft, Radio, Loader2, Trophy, Users, Moon, Sun, Swords, Vote, Mess
 const { id } = Astro.params;
 const gameId = id!;
 
-// Fetch game metadata server-side for theme
+// Fetch game metadata server-side for theme and participants
 const game = await getGame(gameId).catch(() => null);
 const theme = game?.persona_theme || 'noir';
+
+// Extract model info for immediate display
+const participants = game?.participants || [];
+const mafiaModels = [...new Set(participants.filter(p => p.team === 'mafia').map(p => p.model_name.replace(/-\d{4}-\d{2}-\d{2}$/, '').replace(/@.*$/, '')))];
+const townModels = [...new Set(participants.filter(p => p.team === 'town').map(p => p.model_name.replace(/-\d{4}-\d{2}-\d{2}$/, '').replace(/@.*$/, '')))];
+const hasMatchupData = mafiaModels.length > 0 || townModels.length > 0;
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 
@@ -61,16 +67,16 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
         </div>
 
         <!-- Right: Matchup -->
-        <div id="teams-display" class="hidden">
+        <div id="teams-display" class={hasMatchupData ? '' : 'hidden'}>
           <div class="flex items-center gap-2.5 text-xs font-medium">
              <div class="flex items-center gap-1.5">
                 <span class="text-rose-500 font-bold tracking-tight">MAFIA</span>
-                <span id="mafia-models" class="font-mono text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">-</span>
+                <span id="mafia-models" class="font-mono text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{mafiaModels.join(', ') || '-'}</span>
              </div>
              <span class="text-muted-foreground/40 font-black text-[10px]">VS</span>
              <div class="flex items-center gap-1.5">
                 <span class="text-indigo-500 font-bold tracking-tight">TOWN</span>
-                <span id="town-models" class="font-mono text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">-</span>
+                <span id="town-models" class="font-mono text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{townModels.join(', ') || '-'}</span>
              </div>
           </div>
         </div>

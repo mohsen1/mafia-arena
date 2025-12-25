@@ -1720,9 +1720,33 @@ export class GameRunner extends DurableObject<Env> {
           actionType: error.context.actionType,
         });
         
-        // Save checkpoint state (game will resume from here when callback arrives)
-        // The checkpoint was already saved in onPhaseComplete, so we just need
-        // to update activity timestamp
+        // CRITICAL: Save checkpoint before suspending!
+        // This ensures the game can resume from its current state.
+        // SuspenseError can be thrown BEFORE onPhaseComplete fires,
+        // so we must save the checkpoint here.
+        try {
+          const currentState = game.getState();
+          const serializedState: SerializedGameState = {
+            players: currentState.players,
+            phase: currentState.phase,
+            round: currentState.round ?? 1,
+            seed: config.seed ?? 0,
+            conversationHistory: currentState.conversationHistory,
+            gameId,
+            events: currentState.events,
+            config,
+          };
+          await this.saveCheckpoint(serializedState);
+          gameLog.debug('Saved checkpoint on suspend', { 
+            round: serializedState.round, 
+            phase: serializedState.phase 
+          });
+        } catch (checkpointError) {
+          // Don't fail the suspend for checkpoint errors
+          logErrorWithStack(gameLog, 'Failed to save suspend checkpoint', checkpointError);
+        }
+        
+        // Update activity timestamp
         await this.saveState({ lastActivity: Date.now() });
         
         // Stop heartbeat - we're intentionally suspending
