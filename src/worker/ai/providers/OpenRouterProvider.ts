@@ -243,13 +243,28 @@ export class OpenRouterProvider implements AIProviderInterface {
     }
 
     // Check for key/credit limit (non-retryable)
-    if (message.includes('Key limit exceeded') || message.includes('limit exceeded')) {
+    if (message.includes('Key limit exceeded') || message.includes('limit exceeded') || message.includes('more credits')) {
       throw AIErrors.authError(this.name + ': ' + message);
+    }
+
+    // Invalid model ID (non-retryable)
+    if (status === 400 || message.includes('not a valid model') || message.includes('No endpoints found')) {
+      throw AIErrors.unsupportedModel(this.modelId + ': ' + message);
+    }
+
+    // 404 typically means model doesn't exist (non-retryable)
+    if (status === 404) {
+      throw AIErrors.unsupportedModel(this.modelId + ': ' + message);
     }
 
     if (status === 401 || status === 403) {
       // 403 is often "key limit exceeded" - don't retry
       throw AIErrors.authError(this.name + ': ' + message);
+    }
+
+    // 402 Payment Required (non-retryable)
+    if (status === 402) {
+      throw AIErrors.authError(this.name + ': Insufficient credits - ' + message);
     }
 
     if (status === 429) {
