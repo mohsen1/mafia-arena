@@ -263,7 +263,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
               ],
               maxRounds: 10,
               discussionEnabled: true,
-              contextLevel: 'full',
+              contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
               personaConstraints: 'moderate',
             },
           }),

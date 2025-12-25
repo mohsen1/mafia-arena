@@ -50,7 +50,7 @@ export { OpenRouterProvider } from './providers/OpenRouterProvider.js';
 export { createProvider, createProvidersForGame, type CreateProviderOptions } from './factory.js';
 
 // Game adapter
-export { GameAIAdapter, type GameAIAdapterOptions } from './GameAIAdapter.js';
+export { GameAIAdapter, type GameAIAdapterOptions, type FallbackStats } from './GameAIAdapter.js';
 
 // Zod schemas for action validation
 export {

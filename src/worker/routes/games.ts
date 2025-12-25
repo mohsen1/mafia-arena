@@ -82,7 +82,7 @@ games.post('/run', async (c) => {
           maxRounds: 10,
           discussionEnabled: true,
           personaConstraints: 'moderate',
-          contextLevel: 'full',
+          contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
           contextWindowSize: 3,
           personaTheme,
           discountPricing,

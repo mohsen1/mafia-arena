@@ -77,7 +77,7 @@ admin.post('/batches', batchRateLimitMiddleware, async (c) => {
       maxRounds: 10,
       discussionEnabled: true,
       personaConstraints: 'moderate',
-      contextLevel: 'full',
+      contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
       contextWindowSize: 3,
     },
     useBatchAPI: body.useBatchAPI ?? false,
@@ -285,7 +285,7 @@ admin.post('/estimate', async (c) => {
       maxRounds: 10,
       discussionEnabled: true,
       personaConstraints: 'moderate',
-      contextLevel: 'full',
+      contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
       contextWindowSize: 3,
     },
     useBatchAPI: body.useBatchAPI ?? false,
@@ -374,7 +374,7 @@ admin.post('/games/run-live', async (c) => {
         maxRounds: 10,
         discussionEnabled: true,
         personaConstraints: 'moderate',
-        contextLevel: 'full',
+        contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
         contextWindowSize: 3,
         personaTheme,
       },
