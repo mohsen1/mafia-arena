@@ -1,7 +1,7 @@
 ---
 import Layout from '../../components/Layout.astro';
 import { getGames, getLiveGames, formatDuration } from '../../lib/api';
-import { calculateCostFromTotal, formatCost } from '../../lib/costs';
+import { getDisplayCost, formatCost } from '../../lib/costs';
 import { ChevronLeft, ChevronRight, Trophy, Radio, Hash } from 'lucide-astro';
 
 const LIMIT = 25;
@@ -59,11 +59,12 @@ function getMatchup(game: any) {
   };
 }
 
-function estimateCost(game: any): number {
-  const participants = game.participants || [];
-  const models = participants.map((p: any) => p.model_id || p.model_name);
-  const primaryModel = models[0] || 'unknown';
-  return calculateCostFromTotal(primaryModel, game.total_tokens || 0);
+/**
+ * Get cost to display for a game.
+ * Uses stored cost_usd from API (accurate), falls back to estimate for old games.
+ */
+function getGameCost(game: any): number {
+  return getDisplayCost(game.cost_usd, game.total_tokens || 0);
 }
 
 const THEMES: Record<string, string> = {
@@ -138,7 +139,7 @@ const THEMES: Record<string, string> = {
             {games.map(game => {
               const m = getMatchup(game);
               const theme = THEMES[game.persona_theme] || 'Noir';
-              const cost = estimateCost(game);
+              const cost = getGameCost(game);
               return (
                 <tr class="hover:bg-muted/20 transition-colors cursor-pointer group" onclick={`window.location='/games/${game.id}'`}>
                   <td class="px-3 py-1.5 truncate text-muted-foreground max-w-0">

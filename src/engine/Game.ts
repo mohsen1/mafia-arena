@@ -306,6 +306,7 @@ export class Game {
 
   /**
    * Create participant result summaries.
+   * Tracks input/output tokens separately for accurate cost calculation.
    */
   private createParticipantResults(
     winner: Team,
@@ -314,8 +315,14 @@ export class Game {
     // Use a separator that won't appear in model IDs (they contain ':' in free tier models)
     const SEPARATOR = '|||';
     
-    // Group players by model and team
-    const modelTeamMap = new Map<string, { modelId: string; team: Team; count: number; tokens: number }>();
+    // Group players by model and team, tracking input/output tokens separately
+    const modelTeamMap = new Map<string, { 
+      modelId: string; 
+      team: Team; 
+      count: number; 
+      inputTokens: number;
+      outputTokens: number;
+    }>();
 
     for (const player of this.state.players) {
       const key = `${player.modelId}${SEPARATOR}${player.team}`;
@@ -324,11 +331,17 @@ export class Game {
       if (existing) {
         existing.count++;
       } else {
-        modelTeamMap.set(key, { modelId: player.modelId, team: player.team, count: 1, tokens: 0 });
+        modelTeamMap.set(key, { 
+          modelId: player.modelId, 
+          team: player.team, 
+          count: 1, 
+          inputTokens: 0,
+          outputTokens: 0,
+        });
       }
     }
 
-    // Sum up tokens per model
+    // Sum up tokens per model, keeping input/output separate
     for (const event of this.state.events) {
       if (event.type === 'ai_call') {
         const player = this.state.getPlayer(event.playerId);
@@ -336,13 +349,14 @@ export class Game {
           const key = `${player.modelId}${SEPARATOR}${player.team}`;
           const entry = modelTeamMap.get(key);
           if (entry) {
-            entry.tokens += event.tokensUsed.input + event.tokensUsed.output;
+            entry.inputTokens += event.tokensUsed.input;
+            entry.outputTokens += event.tokensUsed.output;
           }
         }
       }
     }
 
-    // Create results
+    // Create results with structured token usage
     const results: ParticipantResult[] = [];
     for (const [, value] of modelTeamMap) {
       // Get consistency score for this model if available
@@ -355,7 +369,11 @@ export class Game {
         team: value.team,
         playerCount: value.count,
         won: value.team === winner,
-        tokensUsed: value.tokens,
+        tokensUsed: {
+          input: value.inputTokens,
+          output: value.outputTokens,
+          total: value.inputTokens + value.outputTokens,
+        },
         consistencyScore,
       });
     }

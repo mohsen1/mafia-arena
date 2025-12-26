@@ -20,7 +20,8 @@ import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent,
 import { createProvidersForGame, GameAIAdapter, SuspenseError, type CachedAIResponse, type CompletionResponse } from './ai/index.js';
 import { isTestModel } from './ai/providers/MockE2EProvider.js';
 import { generateSeed } from '../engine/utils/random.js';
-import { calculateGameCost } from './utils/budget.js';
+import { calculateExactCost, type ModelPricing } from './utils/budget.js';
+import { parsePricingFromConfig, DEFAULT_PRICING } from './ai/models.js';
 import { createLogger, logErrorWithStack, type Logger } from './utils/logger.js';
 
 /** Storage keys for DO state persistence */
@@ -2004,9 +2005,39 @@ export class GameRunner extends DurableObject<Env> {
     const state = await this.loadState();
     const traceId = state.traceId;
 
-    // Calculate cost using per-model pricing
-    const modelIds = result.participants.map(p => p.modelId);
-    const costUsd = calculateGameCost(modelIds, result.tokenUsage.total);
+    // Fetch model pricing from DB for accurate cost calculation
+    const modelIds = [...new Set(result.participants.map(p => p.modelId))];
+    const pricingMap = new Map<string, ModelPricing>();
+    
+    // Batch fetch model configs for all unique models
+    for (const modelId of modelIds) {
+      try {
+        const modelRow = await db.prepare('SELECT config FROM models WHERE id = ?')
+          .bind(modelId)
+          .first<{ config: string | null }>();
+        pricingMap.set(modelId, parsePricingFromConfig(modelRow?.config ?? null));
+      } catch {
+        // Model not found in DB - use default pricing
+        pricingMap.set(modelId, DEFAULT_PRICING);
+      }
+    }
+    
+    // Calculate per-participant costs using exact input/output tokens and model-specific pricing
+    let totalCostUsd = 0;
+    const participantCosts = new Map<string, number>();
+    
+    for (const participant of result.participants) {
+      const pricing = pricingMap.get(participant.modelId) ?? DEFAULT_PRICING;
+      const cost = calculateExactCost(
+        participant.tokensUsed.input,
+        participant.tokensUsed.output,
+        pricing
+      );
+      participantCosts.set(`${participant.modelId}_${participant.team}`, cost);
+      totalCostUsd += cost;
+    }
+    
+    const costUsd = totalCostUsd;
     
     // Check if this is a test game (using mock models)
     // Skip D1 persistence for test games to avoid polluting leaderboard/stats
@@ -2066,7 +2097,7 @@ export class GameRunner extends DurableObject<Env> {
     // This prevents race conditions where two processes might try to complete the same game
     const updateResult = await db.prepare(`
       UPDATE games 
-      SET winner = ?, rounds = ?, duration_ms = ?, total_tokens = ?, status = 'completed',
+      SET winner = ?, rounds = ?, duration_ms = ?, total_tokens = ?, cost_usd = ?, status = 'completed',
           persona_theme = ?, trace_id = COALESCE(?, trace_id)
       WHERE id = ? AND status != 'completed'
     `).bind(
@@ -2074,6 +2105,7 @@ export class GameRunner extends DurableObject<Env> {
       result.rounds,
       result.durationMs,
       result.tokenUsage.total,
+      costUsd,
       result.config.personaTheme ?? 'noir',
       traceId ?? null,
       result.id
@@ -2097,8 +2129,8 @@ export class GameRunner extends DurableObject<Env> {
     // This is a no-op if the row already exists from insertRunningGame or the UPDATE above
     statements.push(
       db.prepare(
-        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, status, seed, persona_theme, trace_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO games (id, batch_id, config_hash, player_count, mafia_count, winner, rounds, duration_ms, total_tokens, cost_usd, status, seed, persona_theme, trace_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (id) DO NOTHING`
       ).bind(
         result.id,
@@ -2110,6 +2142,7 @@ export class GameRunner extends DurableObject<Env> {
         result.rounds,
         result.durationMs,
         result.tokenUsage.total,
+        costUsd,
         'completed',
         result.config.seed ?? null,
         result.config.personaTheme ?? 'noir',
@@ -2118,40 +2151,51 @@ export class GameRunner extends DurableObject<Env> {
       )
     );
 
-    // Insert or update game participants (may already exist from insertRunningGame)
+    // Insert or update game participants with token splits (may already exist from insertRunningGame)
     for (const participant of result.participants) {
       statements.push(
         db.prepare(
-          `INSERT INTO game_participants (id, game_id, model_id, team, player_count, won)
-           VALUES (?, ?, ?, ?, ?, ?)
-           ON CONFLICT (id) DO UPDATE SET won = excluded.won, player_count = excluded.player_count`
+          `INSERT INTO game_participants (id, game_id, model_id, team, player_count, won, input_tokens, output_tokens)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (id) DO UPDATE SET 
+             won = excluded.won, 
+             player_count = excluded.player_count,
+             input_tokens = excluded.input_tokens,
+             output_tokens = excluded.output_tokens`
         ).bind(
           `${result.id}_${participant.modelId}_${participant.team}`,
           result.id,
           participant.modelId,
           participant.team,
           participant.playerCount,
-          participant.won ? 1 : 0
+          participant.won ? 1 : 0,
+          participant.tokensUsed.input,
+          participant.tokensUsed.output
         )
       );
     }
 
-    // Update leaderboard for each participant (only reached if game wasn't already completed)
+    // Update leaderboard for each participant with cost tracking (only reached if game wasn't already completed)
     for (const participant of result.participants) {
+      // Get the participant's cost from our pre-calculated map
+      const participantCost = participantCosts.get(`${participant.modelId}_${participant.team}`) ?? 0;
+      
       statements.push(
         db.prepare(
-          `INSERT INTO leaderboard (model_id, team, games_played, games_won, total_tokens, updated_at)
-           VALUES (?, ?, 1, ?, ?, ?)
+          `INSERT INTO leaderboard (model_id, team, games_played, games_won, total_tokens, cost_usd, updated_at)
+           VALUES (?, ?, 1, ?, ?, ?, ?)
            ON CONFLICT (model_id, team) DO UPDATE SET
              games_played = games_played + 1,
              games_won = games_won + excluded.games_won,
              total_tokens = total_tokens + excluded.total_tokens,
+             cost_usd = COALESCE(cost_usd, 0) + excluded.cost_usd,
              updated_at = excluded.updated_at`
         ).bind(
           participant.modelId,
           participant.team,
           participant.won ? 1 : 0,
-          participant.tokensUsed,
+          participant.tokensUsed.total,
+          participantCost,
           createdAt
         )
       );
