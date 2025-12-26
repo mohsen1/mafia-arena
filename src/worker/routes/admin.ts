@@ -3,6 +3,7 @@
  */
 
 import { Hono } from 'hono';
+import { eq, desc, like, or, sql, ne } from 'drizzle-orm';
 import type { Env, BatchConfig } from '../types.js';
 import { Errors, generateTraceId } from '../utils/index.js';
 import { getRandomTheme } from '../utils/random-config.js';
@@ -19,6 +20,8 @@ import {
 } from '../batch/index.js';
 import { adminAuthMiddleware, batchRateLimitMiddleware } from '../middleware/index.js';
 import { killHangingGames, getRunningGamesCount } from './admin-cleanup.js';
+import { createDb } from '../db/drizzle.js';
+import * as schema from '../db/schema.js';
 
 const admin = new Hono<{ Bindings: Env }>();
 
@@ -139,6 +142,7 @@ admin.get('/batches', async (c) => {
  */
 admin.get('/batches/:id', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
   const batchId = c.req.param('id');
 
   const batch = await getBatch(env, batchId);
@@ -148,22 +152,33 @@ admin.get('/batches/:id', async (c) => {
   }
 
   // Get recent games from this batch (include error_message for debugging)
-  const gamesResult = await env.DB.prepare(`
-    SELECT id, status, winner, rounds, duration_ms, created_at, error_message
-    FROM games
-    WHERE batch_id = ?
-    ORDER BY created_at DESC
-    LIMIT 50
-  `).bind(batchId).all();
+  const recentGames = await db
+    .select({
+      id: schema.games.id,
+      status: schema.games.status,
+      winner: schema.games.winner,
+      rounds: schema.games.rounds,
+      duration_ms: schema.games.durationMs,
+      created_at: schema.games.createdAt,
+      error_message: schema.games.errorMessage,
+    })
+    .from(schema.games)
+    .where(eq(schema.games.batchId, batchId))
+    .orderBy(desc(schema.games.createdAt))
+    .limit(50);
 
   // Get recent error logs that might be related to this batch
-  const errorLogsResult = await env.DB.prepare(`
-    SELECT id, level, message, stack, context, created_at
-    FROM error_log
-    WHERE context LIKE ? OR context LIKE ?
-    ORDER BY created_at DESC
-    LIMIT 20
-  `).bind(`%${batchId}%`, `%batch_id%${batchId}%`).all();
+  const errorLogs = await db
+    .select()
+    .from(schema.errorLog)
+    .where(
+      or(
+        like(schema.errorLog.context, `%${batchId}%`),
+        like(schema.errorLog.context, `%batch_id%${batchId}%`)
+      )
+    )
+    .orderBy(desc(schema.errorLog.createdAt))
+    .limit(20);
 
   return c.json({
     id: batch.id,
@@ -183,8 +198,8 @@ admin.get('/batches/:id', async (c) => {
     progress: batch.total_games > 0
       ? ((batch.completed_games + batch.failed_games) / batch.total_games * 100).toFixed(1)
       : '0',
-    recentGames: gamesResult.results,
-    errorLogs: errorLogsResult.results,
+    recentGames,
+    errorLogs,
   });
 });
 
@@ -424,30 +439,38 @@ admin.post('/games/kill-hanging', killHangingGames);
  * Useful for manually fixing stuck games.
  */
 admin.post('/games/:id/fail', async (c) => {
+  const db = createDb(c.env.DB);
   const gameId = c.req.param('id');
   const { reason } = await c.req.json<{ reason?: string }>();
   
-  const now = Date.now();
+  const now = new Date();
   const errorMessage = reason || 'Manually marked as failed by admin';
   
   try {
-    await c.env.DB.prepare(`
-      UPDATE games 
-      SET status = 'failed', 
-          error_message = ?,
-          updated_at = ?
-      WHERE id = ?
-    `).bind(errorMessage, now, gameId).run();
+    await db
+      .update(schema.games)
+      .set({
+        status: 'failed',
+        errorMessage,
+        updatedAt: now,
+      })
+      .where(eq(schema.games.id, gameId));
     
     // Also update daily stats
     const today = new Date().toISOString().slice(0, 10);
-    await c.env.DB.prepare(`
-      INSERT INTO daily_stats (date, games_failed)
-      VALUES (?, 1)
-      ON CONFLICT (date) DO UPDATE SET
-        games_failed = games_failed + 1,
-        updated_at = unixepoch()
-    `).bind(today).run();
+    await db
+      .insert(schema.dailyStats)
+      .values({
+        date: today,
+        gamesFailed: 1,
+      })
+      .onConflictDoUpdate({
+        target: schema.dailyStats.date,
+        set: {
+          gamesFailed: sql`${schema.dailyStats.gamesFailed} + 1`,
+          updatedAt: now,
+        },
+      });
     
     return c.json({
       success: true,
@@ -470,6 +493,7 @@ admin.post('/games/:id/fail', async (c) => {
  * Useful for manually fixing games that finished but weren't persisted.
  */
 admin.post('/games/:id/complete', async (c) => {
+  const db = createDb(c.env.DB);
   const gameId = c.req.param('id');
   const { winner, rounds } = await c.req.json<{ winner: 'town' | 'mafia'; rounds: number }>();
   
@@ -480,27 +504,34 @@ admin.post('/games/:id/complete', async (c) => {
     return c.json({ success: false, error: 'Invalid rounds. Must be >= 1' }, { status: 400 });
   }
   
-  const now = Date.now();
+  const now = new Date();
   
   try {
-    await c.env.DB.prepare(`
-      UPDATE games 
-      SET status = 'completed', 
-          winner = ?,
-          rounds = ?,
-          updated_at = ?
-      WHERE id = ?
-    `).bind(winner, rounds, now, gameId).run();
+    await db
+      .update(schema.games)
+      .set({
+        status: 'completed',
+        winner,
+        rounds,
+        updatedAt: now,
+      })
+      .where(eq(schema.games.id, gameId));
     
     // Also update daily stats
     const today = new Date().toISOString().slice(0, 10);
-    await c.env.DB.prepare(`
-      INSERT INTO daily_stats (date, games_completed)
-      VALUES (?, 1)
-      ON CONFLICT (date) DO UPDATE SET
-        games_completed = games_completed + 1,
-        updated_at = unixepoch()
-    `).bind(today).run();
+    await db
+      .insert(schema.dailyStats)
+      .values({
+        date: today,
+        gamesCompleted: 1,
+      })
+      .onConflictDoUpdate({
+        target: schema.dailyStats.date,
+        set: {
+          gamesCompleted: sql`${schema.dailyStats.gamesCompleted} + 1`,
+          updatedAt: now,
+        },
+      });
     
     return c.json({
       success: true,
@@ -528,36 +559,41 @@ admin.post('/games/:id/complete', async (c) => {
  * GET /api/admin/dlq - List failed messages in DLQ.
  */
 admin.get('/dlq', async (c) => {
+  const db = createDb(c.env.DB);
   const url = new URL(c.req.url);
-  const status = url.searchParams.get('status') || 'pending';
+  const status = (url.searchParams.get('status') || 'pending') as 'pending' | 'retried' | 'discarded';
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 100);
   const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
 
-  const countResult = await c.env.DB.prepare(`
-    SELECT COUNT(*) as count FROM dlq_entries WHERE status = ?
-  `).bind(status).first<{ count: number }>();
+  const [entries, countResult] = await Promise.all([
+    db
+      .select()
+      .from(schema.dlqEntries)
+      .where(eq(schema.dlqEntries.status, status))
+      .orderBy(desc(schema.dlqEntries.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.dlqEntries)
+      .where(eq(schema.dlqEntries.status, status)),
+  ]);
 
-  const entries = await c.env.DB.prepare(`
-    SELECT id, queue_name, message_body, error_message, attempts, status, created_at, retried_at
-    FROM dlq_entries
-    WHERE status = ?
-    ORDER BY created_at DESC
-    LIMIT ? OFFSET ?
-  `).bind(status, limit, offset).all();
+  const total = countResult[0]?.count ?? 0;
 
   return c.json({
-    entries: entries.results.map((e: Record<string, unknown>) => ({
+    entries: entries.map(e => ({
       id: e.id,
-      queueName: e.queue_name,
-      messageBody: JSON.parse(e.message_body as string),
-      errorMessage: e.error_message,
+      queueName: e.queueName,
+      messageBody: e.messageBody,
+      errorMessage: e.errorMessage,
       attempts: e.attempts,
       status: e.status,
-      createdAt: e.created_at,
-      retriedAt: e.retried_at,
+      createdAt: e.createdAt,
+      retriedAt: e.retriedAt,
     })),
-    total: countResult?.count ?? 0,
-    hasMore: offset + limit < (countResult?.count ?? 0),
+    total,
+    hasMore: offset + limit < total,
   });
 });
 
@@ -565,40 +601,42 @@ admin.get('/dlq', async (c) => {
  * POST /api/admin/dlq/:id/retry - Re-queue a failed message.
  */
 admin.post('/dlq/:id/retry', async (c) => {
+  const db = createDb(c.env.DB);
   const dlqId = c.req.param('id');
 
   // Get the DLQ entry
-  const entry = await c.env.DB.prepare(`
-    SELECT * FROM dlq_entries WHERE id = ? AND status = 'pending'
-  `).bind(dlqId).first<{
-    id: string;
-    queue_name: string;
-    message_body: string;
-  }>();
+  const entry = await db.query.dlqEntries.findFirst({
+    where: eq(schema.dlqEntries.id, dlqId),
+  });
 
-  if (!entry) {
+  if (!entry || entry.status !== 'pending') {
     throw Errors.NotFound('DLQ entry');
   }
 
-  const messageBody = JSON.parse(entry.message_body);
+  const messageBody = entry.messageBody;
 
   // Re-queue based on queue type
-  if (entry.queue_name === 'game-queue') {
-    await c.env.GAME_QUEUE.send(messageBody);
-  } else if (entry.queue_name === 'batch-queue') {
-    await c.env.BATCH_QUEUE.send(messageBody);
+  // Type assertion is safe here as we're restoring the message to its original queue
+  if (entry.queueName === 'game-queue') {
+    await c.env.GAME_QUEUE.send(messageBody as unknown as import('../types.js').GameQueueMessage);
+  } else if (entry.queueName === 'batch-queue') {
+    await c.env.BATCH_QUEUE.send(messageBody as unknown as import('../types.js').BatchQueueMessage);
   } else {
-    throw Errors.BadRequest(`Unknown queue: ${entry.queue_name}`);
+    throw Errors.BadRequest(`Unknown queue: ${entry.queueName}`);
   }
 
   // Mark as retried
-  await c.env.DB.prepare(`
-    UPDATE dlq_entries SET status = 'retried', retried_at = ? WHERE id = ?
-  `).bind(Math.floor(Date.now() / 1000), dlqId).run();
+  await db
+    .update(schema.dlqEntries)
+    .set({
+      status: 'retried',
+      retriedAt: new Date(),
+    })
+    .where(eq(schema.dlqEntries.id, dlqId));
 
   return c.json({
     success: true,
-    message: `Message ${dlqId} re-queued to ${entry.queue_name}`,
+    message: `Message ${dlqId} re-queued to ${entry.queueName}`,
   });
 });
 
@@ -606,15 +644,21 @@ admin.post('/dlq/:id/retry', async (c) => {
  * POST /api/admin/dlq/:id/discard - Mark a failed message as discarded.
  */
 admin.post('/dlq/:id/discard', async (c) => {
+  const db = createDb(c.env.DB);
   const dlqId = c.req.param('id');
 
-  const result = await c.env.DB.prepare(`
-    UPDATE dlq_entries SET status = 'discarded' WHERE id = ? AND status = 'pending'
-  `).bind(dlqId).run();
+  const entry = await db.query.dlqEntries.findFirst({
+    where: eq(schema.dlqEntries.id, dlqId),
+  });
 
-  if (result.meta.changes === 0) {
+  if (!entry || entry.status !== 'pending') {
     throw Errors.NotFound('DLQ entry');
   }
+
+  await db
+    .update(schema.dlqEntries)
+    .set({ status: 'discarded' })
+    .where(eq(schema.dlqEntries.id, dlqId));
 
   return c.json({
     success: true,
@@ -626,20 +670,24 @@ admin.post('/dlq/:id/discard', async (c) => {
  * GET /api/admin/dlq/stats - Get DLQ statistics.
  */
 admin.get('/dlq/stats', async (c) => {
-  const stats = await c.env.DB.prepare(`
-    SELECT 
-      status,
-      COUNT(*) as count,
-      queue_name
-    FROM dlq_entries
-    GROUP BY status, queue_name
-  `).all<{ status: string; count: number; queue_name: string }>();
+  const db = createDb(c.env.DB);
+  
+  const stats = await db
+    .select({
+      status: schema.dlqEntries.status,
+      queue_name: schema.dlqEntries.queueName,
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.dlqEntries)
+    .groupBy(schema.dlqEntries.status, schema.dlqEntries.queueName);
 
   const byStatus: Record<string, number> = {};
   const byQueue: Record<string, number> = {};
 
-  for (const row of stats.results) {
-    byStatus[row.status] = (byStatus[row.status] || 0) + row.count;
+  for (const row of stats) {
+    if (row.status) {
+      byStatus[row.status] = (byStatus[row.status] || 0) + row.count;
+    }
     byQueue[row.queue_name] = (byQueue[row.queue_name] || 0) + row.count;
   }
 
@@ -676,23 +724,21 @@ interface OpenRouterResponse {
  * GET /api/admin/models - List models in DB with sync status.
  */
 admin.get('/models', async (c) => {
-  const env = c.env;
+  const db = createDb(c.env.DB);
 
-  const result = await env.DB.prepare(`
-    SELECT id, provider, display_name, config, created_at
-    FROM models
-    ORDER BY provider, display_name
-  `).all<{
-    id: string;
-    provider: string;
-    display_name: string;
-    config: string | null;
-    created_at: number;
-  }>();
+  const result = await db.query.models.findMany({
+    orderBy: [schema.models.family, schema.models.displayName],
+  });
 
   return c.json({
-    models: result.results,
-    total: result.results.length,
+    models: result.map(m => ({
+      id: m.id,
+      provider: m.family,
+      display_name: m.displayName,
+      config: m.config,
+      created_at: m.createdAt,
+    })),
+    total: result.length,
   });
 });
 
@@ -702,6 +748,7 @@ admin.get('/models', async (c) => {
  */
 admin.post('/models/sync', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
 
   // Fetch from OpenRouter
   const response = await fetch('https://openrouter.ai/api/v1/models', {
@@ -720,13 +767,14 @@ admin.post('/models/sync', async (c) => {
   const data = await response.json() as OpenRouterResponse;
 
   // Get existing models from DB
-  const existing = await env.DB.prepare('SELECT id FROM models').all<{ id: string }>();
-  const existingIds = new Set(existing.results.map(m => m.id));
+  const existing = await db
+    .select({ id: schema.models.id })
+    .from(schema.models);
+  const existingIds = new Set(existing.map(m => m.id));
 
   // Track sync results
   const added: string[] = [];
   const updated: string[] = [];
-  const skipped: string[] = [];
 
   // Upsert each model
   for (const model of data.data) {
@@ -734,28 +782,35 @@ admin.post('/models/sync', async (c) => {
     const provider = model.id.split('/')[0] || 'unknown';
     
     // Store pricing in config JSON
-    const config = JSON.stringify({
+    const config = {
       contextLength: model.context_length,
       pricing: {
         inputPer1K: parseFloat(model.pricing.prompt) * 1000,
         outputPer1K: parseFloat(model.pricing.completion) * 1000,
       },
-    });
+    };
 
     if (existingIds.has(model.id)) {
       // Update existing model
-      await env.DB.prepare(`
-        UPDATE models 
-        SET display_name = ?, provider = ?, config = ?
-        WHERE id = ?
-      `).bind(model.name, provider, config, model.id).run();
+      await db
+        .update(schema.models)
+        .set({
+          displayName: model.name,
+          family: provider,
+          config,
+        })
+        .where(eq(schema.models.id, model.id));
       updated.push(model.id);
     } else {
       // Insert new model
-      await env.DB.prepare(`
-        INSERT INTO models (id, provider, display_name, config)
-        VALUES (?, ?, ?, ?)
-      `).bind(model.id, provider, model.name, config).run();
+      await db.insert(schema.models).values({
+        id: model.id,
+        family: provider,
+        displayName: model.name,
+        config,
+        apiProvider: 'openrouter',
+        apiModelId: model.id,
+      });
       added.push(model.id);
     }
   }
@@ -767,7 +822,7 @@ admin.post('/models/sync', async (c) => {
     success: true,
     added: added.length,
     updated: updated.length,
-    skipped: skipped.length,
+    skipped: 0,
     total: data.data.length,
     addedModels: added.slice(0, 20), // Return first 20 for display
     message: `Synced ${data.data.length} models from OpenRouter`,
@@ -778,18 +833,20 @@ admin.post('/models/sync', async (c) => {
  * DELETE /api/admin/models/:id - Remove a model from DB.
  */
 admin.delete('/models/:id', async (c) => {
+  const db = createDb(c.env.DB);
   const modelId = c.req.param('id');
 
   // Check if model has any game participation
-  const participations = await c.env.DB.prepare(`
-    SELECT COUNT(*) as count FROM game_participants WHERE model_id = ?
-  `).bind(modelId).first<{ count: number }>();
+  const participations = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.gameParticipants)
+    .where(eq(schema.gameParticipants.modelId, modelId));
 
-  if (participations && participations.count > 0) {
-    throw Errors.BadRequest(`Cannot delete model with ${participations.count} game participations`);
+  if (participations[0] && participations[0].count > 0) {
+    throw Errors.BadRequest(`Cannot delete model with ${participations[0].count} game participations`);
   }
 
-  await c.env.DB.prepare('DELETE FROM models WHERE id = ?').bind(modelId).run();
+  await db.delete(schema.models).where(eq(schema.models.id, modelId));
 
   return c.json({
     success: true,
@@ -803,30 +860,33 @@ admin.delete('/models/:id', async (c) => {
  */
 admin.post('/elo/backfill', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
 
   // Get all completed games between different models, ordered chronologically
-  const gamesResult = await env.DB.prepare(`
-    SELECT 
-      g.id,
-      g.winner,
-      g.created_at,
-      mafia.model_id as mafia_model,
-      town.model_id as town_model
-    FROM games g
-    JOIN game_participants mafia ON g.id = mafia.game_id AND mafia.team = 'mafia'
-    JOIN game_participants town ON g.id = town.game_id AND town.team = 'town'
-    WHERE g.status = 'completed'
-      AND mafia.model_id != town.model_id
-      AND mafia.model_id NOT LIKE 'test/%'
-      AND town.model_id NOT LIKE 'test/%'
-    ORDER BY g.created_at ASC
-  `).all<{
-    id: string;
-    winner: 'mafia' | 'town';
-    created_at: number;
-    mafia_model: string;
-    town_model: string;
-  }>();
+  const gamesResult = await db
+    .select({
+      id: schema.games.id,
+      winner: schema.games.winner,
+      created_at: schema.games.createdAt,
+      mafia_model: sql<string>`mafia.model_id`,
+      town_model: sql<string>`town.model_id`,
+    })
+    .from(schema.games)
+    .innerJoin(
+      sql`game_participants mafia`,
+      sql`${schema.games.id} = mafia.game_id AND mafia.team = 'mafia'`
+    )
+    .innerJoin(
+      sql`game_participants town`,
+      sql`${schema.games.id} = town.game_id AND town.team = 'town'`
+    )
+    .where(
+      sql`${schema.games.status} = 'completed'
+        AND mafia.model_id != town.model_id
+        AND mafia.model_id NOT LIKE 'test/%'
+        AND town.model_id NOT LIKE 'test/%'`
+    )
+    .orderBy(schema.games.createdAt);
 
   const INITIAL_RATING = 1500;
   const ratings: Map<string, { rating: number; games: number; peak: number }> = new Map();
@@ -845,7 +905,7 @@ admin.post('/elo/backfill', async (c) => {
   }
 
   // Process each game chronologically
-  for (const game of gamesResult.results) {
+  for (const game of gamesResult) {
     const mafiaData = getOrCreate(game.mafia_model);
     const townData = getOrCreate(game.town_model);
 
@@ -872,7 +932,7 @@ admin.post('/elo/backfill', async (c) => {
     townData.peak = Math.max(townData.peak, townData.rating);
   }
 
-  // Update all models in the database
+  // Update all models in the database using batch
   const updates: D1PreparedStatement[] = [];
   const now = Date.now();
 
@@ -895,7 +955,7 @@ admin.post('/elo/backfill', async (c) => {
 
   return c.json({
     success: true,
-    gamesProcessed: gamesResult.results.length,
+    gamesProcessed: gamesResult.length,
     modelsUpdated: ratings.size,
     topRatings: Array.from(ratings.entries())
       .sort((a, b) => b[1].rating - a[1].rating)
@@ -915,12 +975,14 @@ admin.post('/elo/backfill', async (c) => {
  */
 admin.post('/maintenance/rebuild-leaderboard', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
   
   try {
     // Step 1: Clear the corrupted table
-    await env.DB.prepare('DELETE FROM leaderboard').run();
+    await db.delete(schema.leaderboard);
     
     // Step 2: Re-populate from source of truth (game_participants)
+    // Use raw SQL for the complex INSERT ... SELECT
     const result = await env.DB.prepare(`
       INSERT INTO leaderboard (model_id, team, games_played, games_won, total_tokens, updated_at)
       SELECT 
@@ -929,7 +991,7 @@ admin.post('/maintenance/rebuild-leaderboard', async (c) => {
           COUNT(DISTINCT gp.game_id) as games_played,
           SUM(gp.won) as games_won,
           0 as total_tokens,
-          unixepoch()
+          unixepoch() * 1000
       FROM game_participants gp
       JOIN games g ON gp.game_id = g.id
       WHERE g.status = 'completed'
@@ -957,6 +1019,7 @@ admin.post('/maintenance/rebuild-leaderboard', async (c) => {
  */
 admin.post('/maintenance/merge-model', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
   
   interface MergeRequest {
     fromId: string;
@@ -982,28 +1045,27 @@ admin.post('/maintenance/merge-model', async (c) => {
 
   try {
     // Verify target model exists
-    const targetModel = await env.DB.prepare('SELECT id FROM models WHERE id = ?')
-      .bind(toId).first();
+    const targetModel = await db.query.models.findFirst({
+      where: eq(schema.models.id, toId),
+    });
     
     if (!targetModel) {
       return c.json({ error: `Target model ${toId} does not exist` }, 404);
     }
     
     // Get count of records to migrate
-    const participantCount = await env.DB.prepare(
-      'SELECT COUNT(*) as count FROM game_participants WHERE model_id = ?'
-    ).bind(fromId).first<{ count: number }>();
+    const participantCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.gameParticipants)
+      .where(eq(schema.gameParticipants.modelId, fromId));
     
-    // Execute the merge
+    // Execute the merge using batch for atomicity
     const statements = [
       // Move game participants to the new ID
       env.DB.prepare('UPDATE game_participants SET model_id = ? WHERE model_id = ?')
         .bind(toId, fromId),
       // Delete old leaderboard entries (will be regenerated)
       env.DB.prepare('DELETE FROM leaderboard WHERE model_id = ?')
-        .bind(fromId),
-      // Update ELO ratings table if exists
-      env.DB.prepare('DELETE FROM elo_ratings WHERE model_id = ?')
         .bind(fromId),
       // Delete old model metadata
       env.DB.prepare('DELETE FROM models WHERE id = ?')
@@ -1015,7 +1077,7 @@ admin.post('/maintenance/merge-model', async (c) => {
     return c.json({ 
       success: true, 
       message: `Merged ${fromId} into ${toId}`,
-      recordsMigrated: participantCount?.count ?? 0,
+      recordsMigrated: participantCount[0]?.count ?? 0,
       note: 'Run rebuild-leaderboard and elo/backfill to update aggregates',
     });
   } catch (error) {
@@ -1032,26 +1094,26 @@ admin.post('/maintenance/merge-model', async (c) => {
  * Finds models with similar display names that might be duplicates.
  */
 admin.get('/maintenance/find-duplicates', async (c) => {
-  const env = c.env;
+  const db = createDb(c.env.DB);
   
   try {
     // Get all models with their game counts
-    const models = await env.DB.prepare(`
-      SELECT 
-        m.id,
-        m.display_name,
-        m.family as provider,
-        COALESCE(SUM(l.games_played), 0) as total_games
-      FROM models m
-      LEFT JOIN leaderboard l ON m.id = l.model_id
-      WHERE m.family != 'test'
-      GROUP BY m.id
-      ORDER BY m.display_name, total_games DESC
-    `).all<{ id: string; display_name: string; provider: string; total_games: number }>();
+    const models = await db
+      .select({
+        id: schema.models.id,
+        display_name: schema.models.displayName,
+        provider: schema.models.family,
+        total_games: sql<number>`COALESCE(SUM(${schema.leaderboard.gamesPlayed}), 0)`,
+      })
+      .from(schema.models)
+      .leftJoin(schema.leaderboard, eq(schema.models.id, schema.leaderboard.modelId))
+      .where(ne(schema.models.family, 'test'))
+      .groupBy(schema.models.id)
+      .orderBy(schema.models.displayName);
     
     // Group by display_name to find duplicates
-    const byName: Record<string, typeof models.results> = {};
-    for (const model of models.results) {
+    const byName: Record<string, typeof models> = {};
+    for (const model of models) {
       const normalizedName = model.display_name.toLowerCase().replace(/[^a-z0-9]/g, '');
       if (!byName[normalizedName]) {
         byName[normalizedName] = [];
@@ -1063,7 +1125,7 @@ admin.get('/maintenance/find-duplicates', async (c) => {
     const duplicates = Object.entries(byName)
       .filter(([, models]) => models.length > 1)
       .map(([, models]) => {
-        const first = models[0]!; // Safe: filtered to length > 1
+        const first = models[0]!;
         return {
           displayName: first.display_name,
           models: models.map(m => ({
@@ -1094,27 +1156,26 @@ admin.get('/maintenance/find-duplicates', async (c) => {
  * Lists models with very few games (< 3) that could be hidden from leaderboard.
  */
 admin.get('/maintenance/low-sample-models', async (c) => {
-  const env = c.env;
+  const db = createDb(c.env.DB);
   
   try {
-    const models = await env.DB.prepare(`
-      SELECT 
-        m.id,
-        m.display_name,
-        m.family as provider,
-        COALESCE(SUM(l.games_played), 0) as total_games
-      FROM models m
-      LEFT JOIN leaderboard l ON m.id = l.model_id
-      WHERE m.family != 'test'
-      GROUP BY m.id
-      HAVING total_games < 3 AND total_games > 0
-      ORDER BY total_games DESC
-    `).all<{ id: string; display_name: string; provider: string; total_games: number }>();
+    const models = await db
+      .select({
+        id: schema.models.id,
+        display_name: schema.models.displayName,
+        provider: schema.models.family,
+        total_games: sql<number>`COALESCE(SUM(${schema.leaderboard.gamesPlayed}), 0)`,
+      })
+      .from(schema.models)
+      .leftJoin(schema.leaderboard, eq(schema.models.id, schema.leaderboard.modelId))
+      .where(ne(schema.models.family, 'test'))
+      .groupBy(schema.models.id)
+      .having(sql`COALESCE(SUM(${schema.leaderboard.gamesPlayed}), 0) < 3 AND COALESCE(SUM(${schema.leaderboard.gamesPlayed}), 0) > 0`);
 
     return c.json({ 
       success: true, 
-      count: models.results.length,
-      models: models.results,
+      count: models.length,
+      models,
       note: 'These models have too few games for statistical significance',
     });
   } catch (error) {
@@ -1127,4 +1188,3 @@ admin.get('/maintenance/low-sample-models', async (c) => {
 });
 
 export default admin;
-
