@@ -218,8 +218,18 @@ function getRankIcon(index: number): string {
         <thead>
           <tr>
             <th class="sticky left-0 z-20 bg-card border-b border-r p-0">
-              <div class={`${compact ? 'w-24 h-20' : 'w-28 h-24'} flex items-end justify-end p-1`}>
-                <span class="text-[8px] text-muted-foreground uppercase tracking-wide">vs</span>
+              <div class={`${compact ? 'w-24 h-20' : 'w-28 h-24'} relative`}>
+                <span class="absolute top-1 left-1.5 text-[8px] text-muted-foreground font-medium">vs</span>
+                <div class={`absolute top-1 ${compact ? 'left-6 right-0.5' : 'left-7 right-1'} flex items-center gap-0.5`}>
+                  <div class="flex-1 border-t border-dashed border-blue-400/50"></div>
+                  <span class="text-[7px] text-blue-400 uppercase tracking-wide font-semibold">town</span>
+                  <span class="text-blue-400 text-[10px] leading-none">→</span>
+                </div>
+                <div class={`absolute ${compact ? 'top-5 bottom-0.5 left-1.5' : 'top-6 bottom-1 left-1.5'} flex flex-col items-center gap-0.5`}>
+                  <div class="flex-1 border-l border-dashed border-red-400/50"></div>
+                  <span class="text-[7px] text-red-400 uppercase tracking-wide font-semibold writing-vertical-mafia">mafia</span>
+                  <span class="text-red-400 text-[10px] leading-none">↓</span>
+                </div>
               </div>
             </th>
             {displayModels.map(m => (
@@ -285,6 +295,11 @@ function getRankIcon(index: number): string {
     writing-mode: vertical-rl;
     text-orientation: mixed;
     transform: rotate(180deg);
+  }
+  
+  .writing-vertical-mafia {
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
   }
   
   .cell {
