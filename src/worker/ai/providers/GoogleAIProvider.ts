@@ -52,8 +52,11 @@ function toGoogleModelName(openRouterModelId: string): string {
     // OpenRouter preview names -> Google AI names
     'gemini-2.5-flash-preview-09-2025': 'gemini-2.5-flash',
     'gemini-2.5-flash-lite-preview-09-2025': 'gemini-2.5-flash',
-    'gemini-3-flash-preview': 'gemini-2.5-flash', // Gemini 3 maps to 2.5
-    'gemini-3-pro-preview': 'gemini-2.5-pro',
+    // Gemini 3 models (available Dec 2025)
+    'gemini-3-flash-preview': 'gemini-3-flash-preview',
+    'gemini-3-flash': 'gemini-3-flash-preview',
+    'gemini-3-pro-preview': 'gemini-3-pro-preview',
+    'gemini-3-pro': 'gemini-3-pro-preview',
   };
   
   return modelMappings[modelName] || modelName;
