@@ -33,6 +33,12 @@ export default defineWorkersConfig({
           kvNamespaces: ['RATE_LIMIT'],
 
           // Durable Objects are automatically configured from wrangler.toml
+
+          // Test environment bindings
+          bindings: {
+            ADMIN_USERNAME: 'admin',
+            ADMIN_PASSWORD: 'test-password',
+          },
         },
       },
     },
