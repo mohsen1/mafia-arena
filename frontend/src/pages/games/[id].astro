@@ -85,11 +85,27 @@ const townPlayers = players.filter(p => p.team === 'town');
 
 // Get unique models per team (short names)
 function getShortModelName(modelId: string): string {
-  const name = modelId.split('/').pop() || modelId;
+  let name = modelId.split('/').pop() || modelId;
+  // Strip provider prefix (e.g., "Google: Gemini 2.5" -> "Gemini 2.5")
+  if (name.includes(': ')) {
+    name = name.split(': ').slice(1).join(': ');
+  }
   return name.replace(/-\d{4}-\d{2}-\d{2}$/, '').replace(/@.*$/, '');
 }
+
+// Format model name for display (GPT 4.1 Mini, Gemini 2.5 Flash, etc.)
+function formatDisplayModelName(name: string): string {
+  return name.split('-').map(part => {
+    if (part.match(/^\d/)) return part;
+    if (part === 'gpt' || part === 'o1' || part === 'o3') return part.toUpperCase();
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  }).join(' ');
+}
+
 const mafiaModels = [...new Set(mafiaPlayers.map(p => getShortModelName(p.modelId)))];
 const townModels = [...new Set(townPlayers.map(p => getShortModelName(p.modelId)))];
+const mafiaDisplayName = mafiaModels.map(formatDisplayModelName).join(', ') || 'AI';
+const townDisplayName = townModels.map(formatDisplayModelName).join(', ') || 'AI';
 
 // Group events by round and phase, excluding non-game events
 function groupEvents(events: any[]) {
@@ -201,10 +217,9 @@ function getPersonaName(playerId: string): string {
       </div>
 
       <!-- Broadcast HUD Header -->
-      <div class="space-y-3">
-        <!-- Top Deck: Status + Theme + Matchup -->
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <!-- Left: Badges -->
+      <div class="rounded-xl border bg-card overflow-hidden shadow-sm">
+        <!-- Status Bar -->
+        <div class="flex items-center justify-between px-4 py-2 border-b border-border/50">
           <div class="flex items-center gap-2">
             <!-- Status Badge -->
             <div class={`flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase ${
@@ -225,43 +240,79 @@ function getPersonaName(playerId: string): string {
               {theme.label}
             </div>
           </div>
-          
-          <!-- Right: Teams Matchup -->
-          <div class="flex items-center gap-2 text-xs">
-            <div class={`flex items-center gap-1 ${game.winner === 'mafia' ? 'font-semibold' : ''}`}>
-              {game.winner === 'mafia' && <Trophy size={12} class="text-amber-500" />}
-              <span class="text-rose-600 dark:text-rose-400 font-bold">MAFIA</span>
-              <span class="text-muted-foreground/60 font-mono text-[10px]">{mafiaModels[0] || 'AI'}</span>
+          <div class="text-muted-foreground/60 text-[10px]">{date}</div>
+        </div>
+
+        <!-- Main Matchup Display -->
+        <div class="px-4 py-5 bg-gradient-to-b from-background to-muted/20">
+          <div class="flex items-center justify-center gap-4 sm:gap-8">
+            <!-- Mafia Side -->
+            <div class={`flex-1 text-right ${game.winner === 'mafia' ? '' : 'opacity-70'}`}>
+              <div class="flex flex-col items-end gap-1">
+                {game.winner === 'mafia' && (
+                  <div class="flex items-center gap-1.5 text-amber-500 text-[10px] font-bold uppercase tracking-wider">
+                    <Trophy size={12} />
+                    <span>Winner</span>
+                  </div>
+                )}
+                <div class="flex items-center justify-end gap-2">
+                  <span class="text-rose-500 font-black text-lg sm:text-xl tracking-tight">MAFIA</span>
+                </div>
+                <div class="font-mono text-sm sm:text-base font-semibold text-foreground/90 truncate max-w-[140px] sm:max-w-[200px]">
+                  {mafiaDisplayName}
+                </div>
+              </div>
             </div>
-            <span class="text-muted-foreground/40 text-[10px] font-bold">VS</span>
-            <div class={`flex items-center gap-1 ${game.winner === 'town' ? 'font-semibold' : ''}`}>
-              {game.winner === 'town' && <Trophy size={12} class="text-amber-500" />}
-              <span class="text-indigo-600 dark:text-indigo-400 font-bold">TOWN</span>
-              <span class="text-muted-foreground/60 font-mono text-[10px]">{townModels[0] || 'AI'}</span>
+
+            <!-- VS Divider -->
+            <div class="flex flex-col items-center gap-1 shrink-0">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-border bg-muted/50 flex items-center justify-center">
+                <Swords size={18} class="text-muted-foreground sm:w-5 sm:h-5" />
+              </div>
+              <span class="text-[10px] font-black text-muted-foreground/60 tracking-widest">VS</span>
+            </div>
+
+            <!-- Town Side -->
+            <div class={`flex-1 text-left ${game.winner === 'town' ? '' : 'opacity-70'}`}>
+              <div class="flex flex-col items-start gap-1">
+                {game.winner === 'town' && (
+                  <div class="flex items-center gap-1.5 text-amber-500 text-[10px] font-bold uppercase tracking-wider">
+                    <Trophy size={12} />
+                    <span>Winner</span>
+                  </div>
+                )}
+                <div class="flex items-center justify-start gap-2">
+                  <span class="text-indigo-500 font-black text-lg sm:text-xl tracking-tight">TOWN</span>
+                </div>
+                <div class="font-mono text-sm sm:text-base font-semibold text-foreground/90 truncate max-w-[140px] sm:max-w-[200px]">
+                  {townDisplayName}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        
+
         <!-- Telemetry Strip -->
-        <div class="flex items-center justify-between px-3 py-2 rounded-md border bg-muted/30 text-xs">
-          <div class="flex items-center gap-6">
-            <div class="flex items-center gap-1.5">
-              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wide">Round</span>
-              <span class="font-bold font-mono">{game.rounds}</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wide">Duration</span>
-              <span class="font-mono">{formatDuration(game.duration_ms || 0)}</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="text-muted-foreground/60 text-[10px] uppercase tracking-wide">Tokens</span>
-              <span class="font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                <Zap size={10} />
-                {(game.total_tokens || 0).toLocaleString()}
-              </span>
+        <div class="grid grid-cols-4 divide-x divide-border border-t bg-muted/20 text-[10px] uppercase tracking-wider">
+          <div class="p-2.5 flex flex-col items-center justify-center gap-0.5">
+            <span class="text-muted-foreground text-[9px]">Round</span>
+            <span class="font-mono font-bold text-base leading-none">{game.rounds}</span>
+          </div>
+          <div class="p-2.5 flex flex-col items-center justify-center gap-0.5">
+            <span class="text-muted-foreground text-[9px]">Duration</span>
+            <span class="font-mono font-medium text-[11px]">{formatDuration(game.duration_ms || 0)}</span>
+          </div>
+          <div class="p-2.5 flex flex-col items-center justify-center gap-0.5">
+            <span class="text-muted-foreground text-[9px]">Tokens</span>
+            <div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-500 text-[11px]">
+              <Zap size={10} />
+              <span class="font-mono font-bold tabular-nums">{(game.total_tokens || 0).toLocaleString()}</span>
             </div>
           </div>
-          <div class="text-muted-foreground/60 text-[10px]">{date}</div>
+          <div class="p-2.5 flex flex-col items-center justify-center gap-0.5">
+            <span class="text-muted-foreground text-[9px]">Players</span>
+            <span class="font-mono font-bold text-base leading-none">{players.length}</span>
+          </div>
         </div>
       </div>
 
@@ -523,3 +574,4 @@ function getPersonaName(playerId: string): string {
     list-style: none;
   }
 </style>
+
