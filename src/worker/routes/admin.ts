@@ -976,6 +976,8 @@ admin.post('/elo/backfill', async (c) => {
     );
   }
 
+  // Use D1's native batch() for atomic execution of multiple updates
+  // Note: Drizzle doesn't provide a batch equivalent; this is the recommended pattern
   if (updates.length > 0) {
     await env.DB.batch(updates);
   }
@@ -1099,6 +1101,8 @@ admin.post('/maintenance/merge-model', async (c) => {
         .bind(fromId),
     ];
     
+    // Use D1's native batch() for atomic merge operation
+    // Note: Drizzle doesn't provide a batch equivalent; this is the recommended pattern
     await env.DB.batch(statements);
 
     return c.json({ 
