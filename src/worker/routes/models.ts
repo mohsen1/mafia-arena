@@ -119,18 +119,25 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
 
   minimax: [
     {
-      id: 'minimax-m1-1m',
-      name: 'MiniMax-M1 (1M context)',
+      id: 'MiniMax-M2.1',
+      name: 'MiniMax-M2.1',
       family: 'minimax',
       contextLength: 1000000,
-      pricing: { inputPer1M: 1.5, outputPer1M: 6 },
+      pricing: { inputPer1M: 0.3, outputPer1M: 1.2 },
     },
     {
-      id: 'minimax-text-01',
-      name: 'MiniMax-Text-01',
+      id: 'MiniMax-M2.1-lightning',
+      name: 'MiniMax-M2.1-lightning',
       family: 'minimax',
-      contextLength: 131072,
-      pricing: { inputPer1M: 1, outputPer1M: 4 },
+      contextLength: 1000000,
+      pricing: { inputPer1M: 0.3, outputPer1M: 2.4 },
+    },
+    {
+      id: 'MiniMax-M2',
+      name: 'MiniMax-M2',
+      family: 'minimax',
+      contextLength: 1000000,
+      pricing: { inputPer1M: 0.3, outputPer1M: 1.2 },
     },
   ],
 };
