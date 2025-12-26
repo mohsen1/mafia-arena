@@ -162,11 +162,13 @@ stats.get('/matchups', async (c) => {
 
 /**
  * GET /api/stats/costs - Cost efficiency stats.
+ * Uses accurate cost tracking from leaderboard.cost_usd (populated from model-specific pricing).
  */
 stats.get('/costs', async (c) => {
   const db = createDb(c.env.DB);
 
-  // Token usage and games by model (exclude test models)
+  // Token usage, cost, and games by model (exclude test models)
+  // cost_usd is now accurately tracked using model-specific pricing
   const modelCosts = await db
     .select({
       model_id: schema.leaderboard.modelId,
@@ -176,14 +178,16 @@ stats.get('/costs', async (c) => {
       games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
       wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
       tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
+      cost_usd: sql<number>`coalesce(sum(${schema.leaderboard.costUsd}), 0)`,
       win_rate: sql<number>`cast(sum(${schema.leaderboard.gamesWon}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
       tokens_per_game: sql<number>`cast(sum(${schema.leaderboard.totalTokens}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+      cost_per_game: sql<number>`coalesce(sum(${schema.leaderboard.costUsd}), 0) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
     })
     .from(schema.leaderboard)
     .innerJoin(schema.models, eq(schema.leaderboard.modelId, schema.models.id))
     .where(notLike(schema.leaderboard.modelId, 'test/%'))
     .groupBy(schema.leaderboard.modelId)
-    .orderBy(sql`tokens desc`);
+    .orderBy(sql`cost_usd desc`);
 
   // Aggregate by provider (exclude test models)
   const providerCosts = await db
@@ -193,14 +197,16 @@ stats.get('/costs', async (c) => {
       games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
       wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
       tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
+      cost_usd: sql<number>`coalesce(sum(${schema.leaderboard.costUsd}), 0)`,
       win_rate: sql<number>`cast(sum(${schema.leaderboard.gamesWon}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
       tokens_per_game: sql<number>`cast(sum(${schema.leaderboard.totalTokens}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+      cost_per_game: sql<number>`coalesce(sum(${schema.leaderboard.costUsd}), 0) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
     })
     .from(schema.leaderboard)
     .innerJoin(schema.models, eq(schema.leaderboard.modelId, schema.models.id))
     .where(notLike(schema.leaderboard.modelId, 'test/%'))
     .groupBy(schema.models.family)
-    .orderBy(sql`tokens desc`);
+    .orderBy(sql`cost_usd desc`);
 
   return c.json({
     byModel: modelCosts,
