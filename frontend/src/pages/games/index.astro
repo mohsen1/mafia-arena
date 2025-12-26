@@ -22,7 +22,10 @@ const totalPages = Math.ceil(total / LIMIT);
 const hasPrev = page > 1;
 const hasNext = hasMore;
 
-function formatRelativeTime(timestamp: number): string {
+function formatRelativeTime(timestamp: number | null | undefined): string {
+  if (timestamp == null || !Number.isFinite(timestamp)) {
+    return '—';
+  }
   const ts = timestamp > 9999999999 ? timestamp : timestamp * 1000;
   const now = Date.now();
   const diffMs = now - ts;
@@ -138,7 +141,7 @@ const THEMES: Record<string, string> = {
           <tbody class="divide-y divide-border/50">
             {games.map(game => {
               const m = getMatchup(game);
-              const theme = THEMES[game.persona_theme] || 'Noir';
+              const theme = (game.persona_theme && THEMES[game.persona_theme]) || 'Noir';
               const cost = getGameCost(game);
               return (
                 <tr class="hover:bg-muted/20 transition-colors cursor-pointer group" onclick={`window.location='/games/${game.id}'`}>
