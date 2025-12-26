@@ -799,6 +799,16 @@ admin.post('/models/sync', async (c) => {
     // Extract provider from model ID (e.g., "google/gemini-2.5-pro" -> "google")
     const provider = model.id.split('/')[0] || 'unknown';
     
+    // Normalize display name: strip redundant "Provider: " prefix since we store provider separately
+    let displayName = model.name;
+    const providerPrefixes = ['Google: ', 'Anthropic: ', 'OpenAI: ', 'Meta: ', 'Mistral: ', 'Microsoft: ', 'Xiaomi: ', 'DeepSeek: ', 'Qwen: '];
+    for (const prefix of providerPrefixes) {
+      if (displayName.startsWith(prefix)) {
+        displayName = displayName.slice(prefix.length);
+        break;
+      }
+    }
+    
     // Store pricing in config JSON
     const config = {
       contextLength: model.context_length,
@@ -813,7 +823,7 @@ admin.post('/models/sync', async (c) => {
       await db
         .update(schema.models)
         .set({
-          displayName: model.name,
+          displayName,
           family: provider,
           config,
         })
@@ -824,7 +834,7 @@ admin.post('/models/sync', async (c) => {
       await db.insert(schema.models).values({
         id: model.id,
         family: provider,
-        displayName: model.name,
+        displayName,
         config,
         apiProvider: 'openrouter',
         apiModelId: model.id,
@@ -890,6 +900,7 @@ admin.post('/elo/backfill', async (c) => {
   const db = createDb(env.DB);
 
   // Get all completed games between different models, ordered chronologically
+  // Filter: rounds > 1 excludes games that ended prematurely (setup failures, instant wins)
   const gamesResult = await db
     .select({
       id: schema.games.id,
@@ -909,6 +920,7 @@ admin.post('/elo/backfill', async (c) => {
     )
     .where(
       sql`${schema.games.status} = 'completed'
+        AND ${schema.games.rounds} > 1
         AND mafia.model_id != town.model_id
         AND mafia.model_id NOT LIKE 'test/%'
         AND town.model_id NOT LIKE 'test/%'`
@@ -1012,6 +1024,7 @@ admin.post('/maintenance/rebuild-leaderboard', async (c) => {
     
     // Step 2: Re-populate from source of truth (game_participants)
     // Use raw SQL for the complex INSERT ... SELECT
+    // Filter: rounds > 1 excludes games that ended prematurely (setup failures, instant wins)
     const result = await env.DB.prepare(`
       INSERT INTO leaderboard (model_id, team, games_played, games_won, total_tokens, updated_at)
       SELECT 
@@ -1024,6 +1037,7 @@ admin.post('/maintenance/rebuild-leaderboard', async (c) => {
       FROM game_participants gp
       JOIN games g ON gp.game_id = g.id
       WHERE g.status = 'completed'
+        AND g.rounds > 1
       GROUP BY gp.model_id, gp.team
     `).run();
 
