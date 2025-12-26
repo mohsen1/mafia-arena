@@ -16,6 +16,8 @@ import { parsePricingFromConfig, DEFAULT_PRICING } from '../ai/models.js';
 /**
  * Static model lists for direct API providers.
  * These providers don't have a "list models" API, so we maintain static lists.
+ * Most recent frontier models (late 2025).
+ * Curated manually. No legacy models.
  */
 const DIRECT_PROVIDER_MODELS: Record<string, Array<{
   id: string;
@@ -25,43 +27,101 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
   pricing: { inputPer1M: number; outputPer1M: number };
 }>> = {
   openai: [
-    { id: 'gpt-4o', name: 'GPT-4o', family: 'openai', contextLength: 128000, pricing: { inputPer1M: 2.5, outputPer1M: 10 } },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', family: 'openai', contextLength: 128000, pricing: { inputPer1M: 0.15, outputPer1M: 0.6 } },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', family: 'openai', contextLength: 128000, pricing: { inputPer1M: 10, outputPer1M: 30 } },
-    { id: 'o1', name: 'o1', family: 'openai', contextLength: 200000, pricing: { inputPer1M: 15, outputPer1M: 60 } },
-    { id: 'o1-mini', name: 'o1 Mini', family: 'openai', contextLength: 128000, pricing: { inputPer1M: 3, outputPer1M: 12 } },
-    { id: 'o1-pro', name: 'o1 Pro', family: 'openai', contextLength: 200000, pricing: { inputPer1M: 150, outputPer1M: 600 } },
+    {
+      id: 'gpt-5.2',
+      name: 'GPT-5.2',
+      family: 'openai',
+      contextLength: 256000,
+      pricing: { inputPer1M: 5, outputPer1M: 15 },
+    },
+    {
+      id: 'gpt-5.2-mini',
+      name: 'GPT-5.2 Mini',
+      family: 'openai',
+      contextLength: 256000,
+      pricing: { inputPer1M: 0.8, outputPer1M: 3 },
+    },
   ],
-  anthropic: [
-    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', family: 'anthropic', contextLength: 200000, pricing: { inputPer1M: 3, outputPer1M: 15 } },
-    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', family: 'anthropic', contextLength: 200000, pricing: { inputPer1M: 3, outputPer1M: 15 } },
-    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', family: 'anthropic', contextLength: 200000, pricing: { inputPer1M: 0.8, outputPer1M: 4 } },
-    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', family: 'anthropic', contextLength: 200000, pricing: { inputPer1M: 15, outputPer1M: 75 } },
-    { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', family: 'anthropic', contextLength: 200000, pricing: { inputPer1M: 15, outputPer1M: 75 } },
-  ],
+
   google: [
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', family: 'google', contextLength: 1000000, pricing: { inputPer1M: 1.25, outputPer1M: 10 } },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', family: 'google', contextLength: 1000000, pricing: { inputPer1M: 0.15, outputPer1M: 0.6 } },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', family: 'google', contextLength: 1000000, pricing: { inputPer1M: 0, outputPer1M: 0 } },
-    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', family: 'google', contextLength: 1000000, pricing: { inputPer1M: 0, outputPer1M: 0 } },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', family: 'google', contextLength: 2000000, pricing: { inputPer1M: 1.25, outputPer1M: 5 } },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', family: 'google', contextLength: 1000000, pricing: { inputPer1M: 0.075, outputPer1M: 0.3 } },
+    {
+      id: 'gemini-3-pro',
+      name: 'Gemini 3 Pro',
+      family: 'google',
+      contextLength: 2000000,
+      pricing: { inputPer1M: 1.5, outputPer1M: 10 },
+    },
+    {
+      id: 'gemini-3-flash',
+      name: 'Gemini 3 Flash',
+      family: 'google',
+      contextLength: 1000000,
+      pricing: { inputPer1M: 0.2, outputPer1M: 0.8 },
+    },
   ],
-  cerebras: [
-    { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', family: 'meta', contextLength: 128000, pricing: { inputPer1M: 0.85, outputPer1M: 1.2 } },
-    { id: 'llama-3.1-8b', name: 'Llama 3.1 8B', family: 'meta', contextLength: 128000, pricing: { inputPer1M: 0.1, outputPer1M: 0.1 } },
+
+  anthropic: [
+    {
+      id: 'claude-opus-4.5',
+      name: 'Claude Opus 4.5',
+      family: 'anthropic',
+      contextLength: 200000,
+      pricing: { inputPer1M: 15, outputPer1M: 75 },
+    },
+    {
+      id: 'claude-sonnet-4.5',
+      name: 'Claude Sonnet 4.5',
+      family: 'anthropic',
+      contextLength: 200000,
+      pricing: { inputPer1M: 3, outputPer1M: 15 },
+    },
+    {
+      id: 'claude-haiku-4.5',
+      name: 'Claude Haiku 4.5',
+      family: 'anthropic',
+      contextLength: 200000,
+      pricing: { inputPer1M: 0.8, outputPer1M: 4 },
+    },
   ],
-  fireworks: [
-    { id: 'accounts/fireworks/models/llama-v3p3-70b-instruct', name: 'Llama 3.3 70B', family: 'meta', contextLength: 131072, pricing: { inputPer1M: 0.9, outputPer1M: 0.9 } },
-    { id: 'accounts/fireworks/models/llama-v3p1-405b-instruct', name: 'Llama 3.1 405B', family: 'meta', contextLength: 131072, pricing: { inputPer1M: 3, outputPer1M: 3 } },
-    { id: 'accounts/fireworks/models/qwen2p5-72b-instruct', name: 'Qwen 2.5 72B', family: 'qwen', contextLength: 131072, pricing: { inputPer1M: 0.9, outputPer1M: 0.9 } },
-    { id: 'accounts/fireworks/models/deepseek-v3', name: 'DeepSeek V3', family: 'deepseek', contextLength: 131072, pricing: { inputPer1M: 0.9, outputPer1M: 0.9 } },
+
+  xai: [
+    {
+      id: 'grok-4',
+      name: 'Grok 4',
+      family: 'xai',
+      contextLength: 256000,
+      pricing: { inputPer1M: 5, outputPer1M: 15 },
+    },
+    {
+      id: 'grok-4-heavy',
+      name: 'Grok 4 Heavy',
+      family: 'xai',
+      contextLength: 256000,
+      pricing: { inputPer1M: 10, outputPer1M: 30 },
+    },
   ],
-  minimax: [
-    { id: 'abab6.5s-chat', name: 'ABAB 6.5s Chat', family: 'minimax', contextLength: 245760, pricing: { inputPer1M: 1.1, outputPer1M: 1.1 } },
-    { id: 'abab6.5g-chat', name: 'ABAB 6.5g Chat', family: 'minimax', contextLength: 8192, pricing: { inputPer1M: 0.5, outputPer1M: 0.5 } },
+
+  meta: [
+    {
+      id: 'llama-4-405b-instruct',
+      name: 'Llama 4 405B',
+      family: 'meta',
+      contextLength: 131072,
+      pricing: { inputPer1M: 3, outputPer1M: 3 },
+    },
+  ],
+
+  alibaba: [
+    {
+      id: 'qwen3-plus',
+      name: 'Qwen 3 Plus',
+      family: 'qwen',
+      contextLength: 131072,
+      pricing: { inputPer1M: 1, outputPer1M: 1 },
+    },
   ],
 };
+
 
 const models = new Hono<{ Bindings: Env }>();
 
