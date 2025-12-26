@@ -113,7 +113,14 @@ function inferApiProvider(modelId: string, env: Env): ApiProvider {
   if (modelId.startsWith('minimax/') && env.MINIMAX_API_KEY) return 'minimax';
   
   // Google models get direct access if we have the key
-  if (isGoogleModel(modelId) && env.GOOGLE_API_KEY) return 'google';
+  // Exception: Gemini 3 models are only available via OpenRouter (not on direct API yet)
+  if (isGoogleModel(modelId) && env.GOOGLE_API_KEY) {
+    // Gemini 3 models must use OpenRouter
+    if (modelId.includes('gemini-3')) {
+      return 'openrouter';
+    }
+    return 'google';
+  }
   
   // Default to OpenRouter
   return 'openrouter';
@@ -171,7 +178,13 @@ export function createProvider(
   
   // Determine routing
   const routingConfig = options.routingConfig;
-  const apiProvider: ApiProvider = routingConfig?.apiProvider ?? inferApiProvider(modelId, env);
+  let apiProvider: ApiProvider = routingConfig?.apiProvider ?? inferApiProvider(modelId, env);
+  
+  // Override: Gemini 3 models are only available via OpenRouter (not on direct Google API yet)
+  if (apiProvider === 'google' && modelId.includes('gemini-3')) {
+    apiProvider = 'openrouter';
+  }
+  
   const apiModelId = routingConfig?.apiModelId ?? extractApiModelId(modelId, apiProvider);
   
   console.log(`Creating provider for model: ${modelId} (${modelConfig.displayName}) via ${apiProvider} as ${apiModelId}`);
