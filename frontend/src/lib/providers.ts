@@ -35,14 +35,16 @@ const DEFAULT_COLORS: ProviderColors = {
 /**
  * Get the hex color for a provider.
  */
-export function getProviderColor(provider: string): string {
+export function getProviderColor(provider: string | undefined | null): string {
+  if (!provider) return DEFAULT_COLORS.hex;
   return PROVIDER_COLORS[provider.toLowerCase()]?.hex ?? DEFAULT_COLORS.hex;
 }
 
 /**
  * Get all color classes for a provider.
  */
-export function getProviderColors(provider: string): ProviderColors {
+export function getProviderColors(provider: string | undefined | null): ProviderColors {
+  if (!provider) return DEFAULT_COLORS;
   return PROVIDER_COLORS[provider.toLowerCase()] ?? DEFAULT_COLORS;
 }
 

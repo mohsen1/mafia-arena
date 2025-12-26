@@ -56,6 +56,7 @@ stats.get('/overview', async (c) => {
       model_id: schema.leaderboard.modelId,
       display_name: schema.models.displayName,
       family: schema.models.family,
+      provider: schema.models.family, // Alias for frontend compatibility
       games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
       wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
       win_rate: sql<number>`cast(sum(${schema.leaderboard.gamesWon}) as real) / sum(${schema.leaderboard.gamesPlayed})`,
@@ -144,6 +145,7 @@ stats.get('/matchups', async (c) => {
       id: schema.models.id,
       display_name: schema.models.displayName,
       family: schema.models.family,
+      provider: schema.models.family, // Alias for frontend compatibility
     })
     .from(schema.models)
     .innerJoin(schema.gameParticipants, eq(schema.models.id, schema.gameParticipants.modelId))
@@ -170,6 +172,7 @@ stats.get('/costs', async (c) => {
       model_id: schema.leaderboard.modelId,
       display_name: schema.models.displayName,
       family: schema.models.family,
+      provider: schema.models.family, // Alias for frontend compatibility
       games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
       wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
       tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
@@ -186,6 +189,7 @@ stats.get('/costs', async (c) => {
   const providerCosts = await db
     .select({
       family: schema.models.family,
+      provider: schema.models.family, // Alias for frontend compatibility
       games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
       wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
       tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
@@ -272,6 +276,7 @@ stats.get('/elo', async (c) => {
       id: schema.models.id,
       display_name: schema.models.displayName,
       family: schema.models.family,
+      provider: schema.models.family, // Alias for frontend compatibility
       elo_rating: schema.models.eloRating,
       elo_games_played: schema.models.eloGamesPlayed,
       elo_peak: schema.models.eloPeak,
