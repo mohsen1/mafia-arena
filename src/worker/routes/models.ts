@@ -216,6 +216,15 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
   ],
 
   fireworks: [
+    // GLM-4.7 (latest Dec 2025)
+    {
+      id: 'fireworks/glm-4p7',
+      apiModelId: 'accounts/fireworks/models/glm-4p7',
+      name: 'GLM-4.7',
+      family: 'glm',
+      contextLength: 198000,
+      pricing: { inputPer1M: 0.6, outputPer1M: 2.2 },
+    },
     // DeepSeek R1 (reasoning model)
     {
       id: 'fireworks/deepseek-r1',
