@@ -8,7 +8,9 @@
 import type { AIProviderInterface, CompletionRequest, CompletionResponse } from '../types.js';
 import { AIErrors } from '../errors.js';
 
-const MINIMAX_API_URL = 'https://api.minimax.chat/v1/text/chatcompletion_v2';
+// MiniMax Global API endpoint (for international/non-China region)
+// Note: China region uses api.minimaxi.com
+const MINIMAX_API_URL = 'https://api.minimax.io/v1/text/chatcompletion_v2';
 
 interface MinimaxResponse {
   id: string;
@@ -122,12 +124,24 @@ export class MinimaxProvider implements AIProviderInterface {
   private handleApiError(statusCode: number, message: string): never {
     console.error(`[Minimax] API error ${statusCode} for model ${this.modelId}:`, message);
 
-    if (statusCode === 1002 || statusCode === 1003) {
+    // Rate limit errors (retryable)
+    // 1002: rate limit exceeded (RPM/TPM)
+    // 1004: general rate limit
+    if (statusCode === 1002 || statusCode === 1004) {
+      throw AIErrors.rateLimited(this.name);
+    }
+
+    // Auth/key errors (not retryable)
+    // 1003: invalid api key format
+    // 2049: invalid api key (wrong key)
+    if (statusCode === 1003 || statusCode === 2049) {
       throw AIErrors.authError(`${this.name}: ${message}`);
     }
 
-    if (statusCode === 1004) {
-      throw AIErrors.rateLimited(this.name);
+    // Insufficient balance (not retryable)
+    // 1008: account has no credits
+    if (statusCode === 1008) {
+      throw AIErrors.authError(`${this.name}: Insufficient balance - please top up MiniMax credits`);
     }
 
     throw AIErrors.providerError(this.name, `API ${statusCode}: ${message}`);
