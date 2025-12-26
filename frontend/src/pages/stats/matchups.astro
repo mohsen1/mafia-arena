@@ -81,7 +81,8 @@ uniqueModels.sort((a, b) => {
   return bGames - aGames;
 });
 
-function getProviderColor(provider: string): string {
+function getProviderColor(provider: string | undefined | null): string {
+  if (!provider) return '#71717a';
   switch (provider.toLowerCase()) {
     case 'anthropic': return '#f59e0b';
     case 'openai': return '#10b981';
