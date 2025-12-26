@@ -170,7 +170,7 @@ export class DatabaseService {
           ELSE 0 
         END as win_rate,
         m.display_name,
-        m.provider
+        m.family as provider
       FROM leaderboard l
       LEFT JOIN models m ON l.model_id = m.id
     `;
