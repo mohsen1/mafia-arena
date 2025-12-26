@@ -3,8 +3,6 @@
 import * as React from "react"
 import { ProviderSelector, type ApiProvider, PROVIDERS } from "./ProviderSelector"
 import { ModelSelector } from "./ModelSelector"
-import { Badge } from "./badge"
-import { Network, Zap } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ProviderModelSelectorProps {
@@ -13,11 +11,8 @@ interface ProviderModelSelectorProps {
   team?: "mafia" | "town"
   placeholder?: string
   className?: string
-  /** ID of a hidden input to sync the selected value to (for form submission) */
   inputId?: string
-  /** Default model ID to select on mount */
   defaultValue?: string
-  /** Start with provider already selected */
   defaultProvider?: ApiProvider
 }
 
@@ -34,7 +29,6 @@ export function ProviderModelSelector({
   const [selectedProvider, setSelectedProvider] = React.useState<ApiProvider>(defaultProvider)
   const [selectedModel, setSelectedModel] = React.useState<string>(defaultValue || value || "")
 
-  // Sync with hidden input
   React.useEffect(() => {
     if (inputId && typeof document !== 'undefined') {
       const input = document.getElementById(inputId) as HTMLInputElement | null
@@ -45,7 +39,6 @@ export function ProviderModelSelector({
     }
   }, [inputId, selectedModel, selectedProvider])
 
-  // Listen for external model selection events
   React.useEffect(() => {
     if (!inputId || typeof window === 'undefined') return
     
@@ -65,7 +58,6 @@ export function ProviderModelSelector({
 
   const handleProviderChange = (provider: ApiProvider) => {
     setSelectedProvider(provider)
-    // Clear model selection when provider changes
     setSelectedModel("")
     onChange?.("")
   }
@@ -75,8 +67,6 @@ export function ProviderModelSelector({
     onChange?.(model)
   }
 
-  const providerInfo = PROVIDERS.find(p => p.id === selectedProvider)
-
   const teamLabel = team === "mafia" 
     ? { color: "text-rose-500", dot: "bg-rose-500" }
     : team === "town" 
@@ -85,15 +75,13 @@ export function ProviderModelSelector({
 
   return (
     <div className={cn("space-y-3", className)}>
-      {/* Team Label */}
       {team && teamLabel && (
-        <div className={cn("flex items-center gap-1.5 text-xs", teamLabel.color)}>
+        <div className={cn("flex items-center gap-1.5 text-xs font-medium", teamLabel.color)}>
           <span className={cn("inline-block w-2 h-2 rounded-full", teamLabel.dot)}></span>
           {team === "mafia" ? "Mafia Model" : "Town Model"}
         </div>
       )}
 
-      {/* Provider Selection */}
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground">API Provider</label>
         <ProviderSelector
@@ -103,34 +91,8 @@ export function ProviderModelSelector({
         />
       </div>
 
-      {/* Model Selection */}
       <div className="space-y-1">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>Model</span>
-          {providerInfo && (
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "text-[9px] px-1 py-0",
-                providerInfo.color.bg,
-                providerInfo.color.text,
-                providerInfo.color.border
-              )}
-            >
-              {providerInfo.isAggregator ? (
-                <>
-                  <Network className="h-2.5 w-2.5 mr-0.5" />
-                  {providerInfo.displayName}
-                </>
-              ) : (
-                <>
-                  <Zap className="h-2.5 w-2.5 mr-0.5" />
-                  Direct
-                </>
-              )}
-            </Badge>
-          )}
-        </div>
+        <label className="text-xs text-muted-foreground">Model</label>
         <ModelSelector
           value={selectedModel}
           onChange={handleModelChange}
@@ -140,7 +102,6 @@ export function ProviderModelSelector({
         />
       </div>
 
-      {/* Hidden input for form submission */}
       {inputId && (
         <input 
           type="hidden" 
@@ -155,4 +116,3 @@ export function ProviderModelSelector({
 }
 
 export default ProviderModelSelector
-
