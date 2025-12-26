@@ -24,24 +24,30 @@ import type { ApiProvider } from "./ProviderSelector"
 interface Model {
   id: string
   name: string
+  displayName?: string
   description?: string
   contextLength: number
   pricing: {
-    inputPer1M: number
-    outputPer1M: number
+    inputPer1M?: number
+    outputPer1M?: number
+    input?: number
+    output?: number
   }
   apiProvider?: ApiProvider
   apiModelId?: string
 }
 
 interface ModelsData {
-  providers: string[]
-  families: string[]
-  modelsByProvider: Record<string, Model[]>
-  modelsByFamily: Record<string, Model[]>
-  totalModels: number
+  providers?: string[]
+  families?: string[]
+  modelsByProvider?: Record<string, Model[]>
+  modelsByFamily?: Record<string, Model[]>
+  models?: Model[]
+  totalModels?: number
+  total?: number
   apiProvider?: ApiProvider
   isAggregator?: boolean
+  isStatic?: boolean
 }
 
 interface ModelSelectorProps {
@@ -80,11 +86,19 @@ function getFamilyColors(family: string) {
   return FAMILY_COLORS[family.toLowerCase()] || DEFAULT_COLORS
 }
 
-function formatPrice(price: number): string {
-  if (price === 0) return "Free"
+function formatPrice(price: number | undefined): string {
+  if (price === undefined || price === 0) return "Free"
   if (price < 0.01) return `$${(price * 1000).toFixed(2)}/B`
   if (price < 1) return `$${price.toFixed(2)}/M`
   return `$${price.toFixed(0)}/M`
+}
+
+function getModelName(model: Model): string {
+  return model.name || model.displayName || model.id
+}
+
+function getModelInputPrice(model: Model): number {
+  return model.pricing.inputPer1M ?? (model.pricing.input ? model.pricing.input * 1000 : 0)
 }
 
 function formatContext(length: number): string {
@@ -175,19 +189,27 @@ export function ModelSelector({
         return res.json()
       })
       .then((data: ModelsData) => {
-        setModelsData(data)
+        // Normalize the data structure for consistent access
+        // Direct provider responses have models[] and modelsByFamily[]
+        // OpenRouter responses have modelsByProvider[] and providers[]
+        const normalizedData = {
+          ...data,
+          families: data.families || data.providers || [],
+          modelsByFamily: data.modelsByFamily || data.modelsByProvider || {},
+        }
+        setModelsData(normalizedData)
         setLoading(false)
         
         // Auto-select a random model if no value is set
-        const families = data.families || data.providers || []
-        const modelsByGroup = data.modelsByFamily || data.modelsByProvider
+        const families = normalizedData.families
+        const modelsByGroup = normalizedData.modelsByFamily
         
         if (!value && families.length > 0) {
           const randomFamily = families[Math.floor(Math.random() * families.length)]
           const familyModels = modelsByGroup[randomFamily]
           if (familyModels && familyModels.length > 0) {
             const randomModel = familyModels[Math.floor(Math.random() * familyModels.length)]
-            handleChange(randomModel.id, randomModel.name)
+            handleChange(randomModel.id, getModelName(randomModel))
           }
         }
       })
@@ -201,12 +223,12 @@ export function ModelSelector({
   // Find selected model details
   const selectedModel = React.useMemo(() => {
     if (!modelsData || !value) return null
-    const families = modelsData.families || modelsData.providers || []
-    const modelsByGroup = modelsData.modelsByFamily || modelsData.modelsByProvider
+    const families = modelsData.families || []
+    const modelsByGroup = modelsData.modelsByFamily || {}
     
     for (const family of families) {
       const model = modelsByGroup[family]?.find(m => m.id === value)
-      if (model) return { ...model, family }
+      if (model) return { ...model, family, displayName: getModelName(model) }
     }
     return null
   }, [modelsData, value])
@@ -259,7 +281,7 @@ export function ModelSelector({
                 >
                   {selectedModel.family}
                 </Badge>
-                <span className="truncate">{selectedModel.name}</span>
+                <span className="truncate">{selectedModel.displayName}</span>
                 {isOpenRouter && (
                   <Badge variant="secondary" className="text-[9px] px-1 py-0 shrink-0 flex items-center gap-0.5">
                     <Network className="h-2.5 w-2.5" />
@@ -281,7 +303,7 @@ export function ModelSelector({
             <CommandInput placeholder="Search models..." />
             <CommandList className="max-h-[350px]">
               <CommandEmpty>No models found.</CommandEmpty>
-              {(modelsData?.families || modelsData?.providers || []).map(family => (
+              {(modelsData?.families || []).map(family => (
                 <CommandGroup 
                   key={family} 
                   heading={
@@ -298,7 +320,7 @@ export function ModelSelector({
                         {family}
                       </Badge>
                       <span className="text-muted-foreground text-[10px]">
-                        {(modelsData?.modelsByFamily || modelsData?.modelsByProvider)?.[family]?.length} models
+                        {modelsData?.modelsByFamily?.[family]?.length} models
                       </span>
                       {isOpenRouter && (
                         <Badge variant="secondary" className="text-[9px] px-1 py-0 flex items-center gap-0.5">
@@ -309,38 +331,41 @@ export function ModelSelector({
                     </div>
                   }
                 >
-                  {(modelsData?.modelsByFamily || modelsData?.modelsByProvider)?.[family]?.map(model => (
-                    <CommandItem
-                      key={model.id}
-                      value={`${family} ${model.name} ${model.id}`}
-                      onSelect={() => {
-                        handleChange(model.id, model.name)
-                        setOpen(false)
-                      }}
-                      className="flex items-center justify-between py-2"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <Check
-                          className={cn(
-                            "h-4 w-4 shrink-0",
-                            value === model.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <span className="truncate">{model.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatContext(model.contextLength)}
-                        </span>
-                        <Badge 
-                          variant="secondary" 
-                          className="text-[10px] px-1.5 py-0 font-mono"
-                        >
-                          {formatPrice(model.pricing.inputPer1M)}
-                        </Badge>
-                      </div>
-                    </CommandItem>
-                  ))}
+                  {modelsData?.modelsByFamily?.[family]?.map(model => {
+                    const modelName = getModelName(model)
+                    return (
+                      <CommandItem
+                        key={model.id}
+                        value={`${family} ${modelName} ${model.id}`}
+                        onSelect={() => {
+                          handleChange(model.id, modelName)
+                          setOpen(false)
+                        }}
+                        className="flex items-center justify-between py-2"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <Check
+                            className={cn(
+                              "h-4 w-4 shrink-0",
+                              value === model.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <span className="truncate">{modelName}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatContext(model.contextLength)}
+                          </span>
+                          <Badge 
+                            variant="secondary" 
+                            className="text-[10px] px-1.5 py-0 font-mono"
+                          >
+                            {formatPrice(getModelInputPrice(model))}
+                          </Badge>
+                        </div>
+                      </CommandItem>
+                    )
+                  })}
                 </CommandGroup>
               ))}
             </CommandList>
