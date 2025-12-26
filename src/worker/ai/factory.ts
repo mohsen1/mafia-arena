@@ -1,6 +1,11 @@
 /**
  * AI Provider factory.
- * All models are routed through OpenRouter's unified API.
+ * 
+ * ROUTING LOGIC:
+ * 1. Test models (test/*): MockE2EProvider (zero cost)
+ * 2. Google models + GOOGLE_API_KEY: GoogleAIProvider direct (own rate limits)
+ *    - Falls back to OpenRouter if Google direct fails
+ * 3. All other models: OpenRouter
  * 
  * TEST MODELS:
  * Models with IDs starting with 'test/' use MockE2EProvider instead of OpenRouter.
@@ -9,11 +14,36 @@
  */
 
 import type { Env } from '../types.js';
-import type { AIProviderInterface } from './types.js';
+import type { AIProviderInterface, CompletionRequest, CompletionResponse } from './types.js';
 import { getDefaultModelConfig } from './models.js';
 import { RetryingProvider } from './RetryingProvider.js';
 import { OpenRouterProvider } from './providers/OpenRouterProvider.js';
+import { GoogleAIProvider } from './providers/GoogleAIProvider.js';
 import { MockE2EProvider, isTestModel } from './providers/MockE2EProvider.js';
+
+/**
+ * Simple fallback provider that tries primary first, then secondary.
+ * If primary fails for any reason, we try the secondary provider.
+ */
+class FallbackProvider implements AIProviderInterface {
+  readonly name = 'fallback-wrapper';
+  
+  constructor(
+    private readonly primary: AIProviderInterface,
+    private readonly secondary: AIProviderInterface,
+    readonly modelId: string
+  ) {}
+
+  async complete(request: CompletionRequest): Promise<CompletionResponse> {
+    try {
+      return await this.primary.complete(request);
+    } catch (error) {
+      console.warn(`[FallbackProvider] Primary (${this.primary.name}) failed for ${this.modelId}, trying fallback (${this.secondary.name}):`, 
+        error instanceof Error ? error.message : error);
+      return await this.secondary.complete(request);
+    }
+  }
+}
 
 export interface CreateProviderOptions {
   enableRetry?: boolean;
@@ -45,10 +75,21 @@ const PRICING_MODE_DEFAULTS = {
 } as const;
 
 /**
+ * Check if a model ID is a Google model.
+ */
+function isGoogleModel(modelId: string): boolean {
+  return modelId.startsWith('google/') || 
+         modelId.startsWith('gemini-') ||
+         modelId.includes('gemini');
+}
+
+/**
  * Create an AI provider for the given model.
  * 
- * - Test models (test/*): Use MockE2EProvider for zero-cost testing
- * - All other models: Route through OpenRouter
+ * Routing:
+ * - Test models (test/*): MockE2EProvider for zero-cost testing
+ * - Google models + GOOGLE_API_KEY: GoogleAIProvider (direct) with OpenRouter fallback
+ * - All other models: OpenRouter
  */
 export function createProvider(
   modelId: string,
@@ -80,21 +121,51 @@ export function createProvider(
     throw new Error('OPENROUTER_API_KEY is required');
   }
 
-  const provider = new OpenRouterProvider({
+  // Base OpenRouter provider (used for non-Google models and as fallback)
+  const openRouterProvider = new OpenRouterProvider({
     apiKey: env.OPENROUTER_API_KEY,
     modelId,
     timeoutMs,
   });
 
+  // For Google models with GOOGLE_API_KEY: Use direct Google API with OpenRouter fallback
+  // This avoids OpenRouter's shared rate limits for free Google models
+  if (isGoogleModel(modelId) && env.GOOGLE_API_KEY) {
+    console.log(`[Factory] Using direct Google API for ${modelId} (with OpenRouter fallback)`);
+    
+    const googleProvider = new GoogleAIProvider(modelId, env.GOOGLE_API_KEY, timeoutMs);
+    
+    // Wrap both providers with retry logic
+    const retryingGoogle = enableRetry 
+      ? new RetryingProvider(googleProvider, {
+          maxRetries,
+          baseDelayMs: defaults.baseDelayMs,
+          maxDelayMs: defaults.maxDelayMs,
+        })
+      : googleProvider;
+
+    const retryingOpenRouter = enableRetry
+      ? new RetryingProvider(openRouterProvider, {
+          maxRetries,
+          baseDelayMs: defaults.baseDelayMs,
+          maxDelayMs: defaults.maxDelayMs,
+        })
+      : openRouterProvider;
+
+    // FallbackProvider: Try Google Direct first, fall back to OpenRouter
+    return new FallbackProvider(retryingGoogle, retryingOpenRouter, modelId);
+  }
+
+  // Standard OpenRouter path for non-Google models
   if (enableRetry) {
-    return new RetryingProvider(provider, { 
+    return new RetryingProvider(openRouterProvider, { 
       maxRetries,
       baseDelayMs: defaults.baseDelayMs,
       maxDelayMs: defaults.maxDelayMs,
     });
   }
 
-  return provider;
+  return openRouterProvider;
 }
 
 /**
