@@ -75,6 +75,21 @@ export class GoogleAIProvider implements AIProviderInterface {
     const url = `${GOOGLE_AI_ENDPOINT}/models/${this.googleModelName}:generateContent?key=${this.apiKey}`;
     
     // Build Google AI request format
+    // For structured output, Google expects raw JSON schema, not OpenAI's wrapper format
+    let responseSchemaConfig = {};
+    if (request.structuredOutput) {
+      // OpenAI format has { name, schema, strict }, Google wants the raw schema directly
+      const schema = request.structuredOutput.schema || request.structuredOutput;
+      responseSchemaConfig = {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: schema.type || 'object',
+          properties: schema.properties,
+          required: schema.required,
+        },
+      };
+    }
+
     const googleRequest = {
       contents: [
         ...(request.systemPrompt ? [{
@@ -89,10 +104,7 @@ export class GoogleAIProvider implements AIProviderInterface {
       generationConfig: {
         temperature: request.temperature ?? 0.7,
         maxOutputTokens: request.maxTokens ?? 4000,
-        ...(request.structuredOutput ? {
-          responseMimeType: 'application/json',
-          responseSchema: request.structuredOutput,
-        } : {}),
+        ...responseSchemaConfig,
       },
       safetySettings: [
         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
