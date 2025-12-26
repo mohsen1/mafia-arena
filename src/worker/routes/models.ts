@@ -19,8 +19,19 @@ import { parsePricingFromConfig, DEFAULT_PRICING } from '../ai/models.js';
  * Most recent frontier models (late 2025).
  * Curated manually. No legacy models.
  */
+/**
+ * Static model configuration with prefixed IDs for proper factory routing.
+ * 
+ * ID FORMAT: {provider}/{apiModelId}
+ * - The prefix tells the factory which provider to use
+ * - The apiModelId is what gets sent to the actual API
+ * 
+ * This is necessary because direct API providers don't have a "list models" endpoint,
+ * so we maintain these curated lists manually.
+ */
 const DIRECT_PROVIDER_MODELS: Record<string, Array<{
-  id: string;
+  id: string;           // Prefixed ID for routing: provider/apiModelId
+  apiModelId: string;   // Raw ID sent to the provider's API
   name: string;
   family: string;
   contextLength: number;
@@ -28,113 +39,112 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
 }>> = {
   openai: [
     {
-      id: 'gpt-5.2',
-      name: 'GPT-5.2',
+      id: 'openai/gpt-4o',
+      apiModelId: 'gpt-4o',
+      name: 'GPT-4o',
       family: 'openai',
-      contextLength: 256000,
-      pricing: { inputPer1M: 5, outputPer1M: 15 },
+      contextLength: 128000,
+      pricing: { inputPer1M: 2.5, outputPer1M: 10 },
     },
     {
-      id: 'gpt-5.2-mini',
-      name: 'GPT-5.2 Mini',
+      id: 'openai/gpt-4o-mini',
+      apiModelId: 'gpt-4o-mini',
+      name: 'GPT-4o Mini',
       family: 'openai',
-      contextLength: 256000,
-      pricing: { inputPer1M: 0.8, outputPer1M: 3 },
+      contextLength: 128000,
+      pricing: { inputPer1M: 0.15, outputPer1M: 0.6 },
     },
   ],
 
   google: [
     {
-      id: 'gemini-3-pro',
-      name: 'Gemini 3 Pro',
-      family: 'google',
-      contextLength: 2000000,
-      pricing: { inputPer1M: 1.5, outputPer1M: 10 },
-    },
-    {
-      id: 'gemini-3-flash',
-      name: 'Gemini 3 Flash',
+      id: 'google/gemini-2.5-pro',
+      apiModelId: 'gemini-2.5-pro-preview-06-05',
+      name: 'Gemini 2.5 Pro',
       family: 'google',
       contextLength: 1000000,
-      pricing: { inputPer1M: 0.2, outputPer1M: 0.8 },
+      pricing: { inputPer1M: 1.25, outputPer1M: 10 },
+    },
+    {
+      id: 'google/gemini-2.5-flash',
+      apiModelId: 'gemini-2.5-flash-preview-05-20',
+      name: 'Gemini 2.5 Flash',
+      family: 'google',
+      contextLength: 1000000,
+      pricing: { inputPer1M: 0.15, outputPer1M: 0.6 },
     },
   ],
 
   anthropic: [
     {
-      id: 'claude-opus-4.5',
-      name: 'Claude Opus 4.5',
-      family: 'anthropic',
-      contextLength: 200000,
-      pricing: { inputPer1M: 15, outputPer1M: 75 },
-    },
-    {
-      id: 'claude-sonnet-4.5',
-      name: 'Claude Sonnet 4.5',
+      id: 'anthropic/claude-sonnet-4',
+      apiModelId: 'claude-sonnet-4-20250514',
+      name: 'Claude Sonnet 4',
       family: 'anthropic',
       contextLength: 200000,
       pricing: { inputPer1M: 3, outputPer1M: 15 },
     },
     {
-      id: 'claude-haiku-4.5',
-      name: 'Claude Haiku 4.5',
+      id: 'anthropic/claude-haiku-3.5',
+      apiModelId: 'claude-3-5-haiku-20241022',
+      name: 'Claude 3.5 Haiku',
       family: 'anthropic',
       contextLength: 200000,
       pricing: { inputPer1M: 0.8, outputPer1M: 4 },
     },
   ],
+
   fireworks: [
     {
-      id: 'fireworks-minimax-m2',
-      name: 'MiniMax-M2',
-      family: 'fireworks',
-      contextLength: 128000,
-      pricing: { inputPer1M: 0.3, outputPer1M: 1.2 },
+      id: 'fireworks/qwen3-coder-480b',
+      apiModelId: 'accounts/fireworks/models/qwen3-coder-480b-a35b-instruct',
+      name: 'Qwen3 Coder 480B',
+      family: 'qwen',
+      contextLength: 262144,
+      pricing: { inputPer1M: 0.45, outputPer1M: 1.8 },
     },
     {
-      id: 'fireworks-minimax-m1-80k',
-      name: 'MiniMax-M1-80K',
-      family: 'fireworks',
-      contextLength: 80000,
-      pricing: { inputPer1M: 0.5, outputPer1M: 2 },
+      id: 'fireworks/llama-3.3-70b',
+      apiModelId: 'accounts/fireworks/models/llama-v3p3-70b-instruct',
+      name: 'Llama 3.3 70B',
+      family: 'meta',
+      contextLength: 131072,
+      pricing: { inputPer1M: 0.2, outputPer1M: 0.2 },
     },
   ],
 
   cerebras: [
     {
-      id: 'cerebras-llama3.3-70b',
-      name: 'Cerebras Llama 3.3 70B',
-      family: 'cerebras',
+      id: 'cerebras/llama-3.3-70b',
+      apiModelId: 'llama-3.3-70b',
+      name: 'Llama 3.3 70B (FREE)',
+      family: 'meta',
       contextLength: 131072,
-      pricing: { inputPer1M: 3, outputPer1M: 3 },
+      pricing: { inputPer1M: 0, outputPer1M: 0 },
     },
     {
-      id: 'cerebras-llama3.1-8b',
-      name: 'Cerebras Llama 3.1 8B',
-      family: 'cerebras',
+      id: 'cerebras/llama3.1-8b',
+      apiModelId: 'llama3.1-8b',
+      name: 'Llama 3.1 8B (FREE)',
+      family: 'meta',
       contextLength: 131072,
-      pricing: { inputPer1M: 0.5, outputPer1M: 0.5 },
+      pricing: { inputPer1M: 0, outputPer1M: 0 },
+    },
+    {
+      id: 'cerebras/qwen-3-32b',
+      apiModelId: 'qwen-3-32b',
+      name: 'Qwen 3 32B (FREE)',
+      family: 'qwen',
+      contextLength: 131072,
+      pricing: { inputPer1M: 0, outputPer1M: 0 },
     },
   ],
 
   minimax: [
     {
-      id: 'MiniMax-M2.1',
-      name: 'MiniMax-M2.1',
-      family: 'minimax',
-      contextLength: 1000000,
-      pricing: { inputPer1M: 0.3, outputPer1M: 1.2 },
-    },
-    {
-      id: 'MiniMax-M2.1-lightning',
-      name: 'MiniMax-M2.1-lightning',
-      family: 'minimax',
-      contextLength: 1000000,
-      pricing: { inputPer1M: 0.3, outputPer1M: 2.4 },
-    },
-    {
-      id: 'MiniMax-M2',
-      name: 'MiniMax-M2',
+      id: 'minimax/MiniMax-M1',
+      apiModelId: 'MiniMax-M1',
+      name: 'MiniMax-M1',
       family: 'minimax',
       contextLength: 1000000,
       pricing: { inputPer1M: 0.3, outputPer1M: 1.2 },
@@ -332,12 +342,14 @@ models.get('/by-provider/:provider', async (c) => {
   const staticModels = DIRECT_PROVIDER_MODELS[provider];
   if (staticModels && staticModels.length > 0) {
     // Transform static models to match expected format
+    // id is the prefixed routing ID (e.g., cerebras/llama-3.3-70b)
+    // apiModelId is what gets sent to the actual API (e.g., llama-3.3-70b)
     const modelsForProvider = staticModels.map(m => ({
       id: m.id,
       displayName: m.name,
       family: m.family,
       apiProvider: provider,
-      apiModelId: m.id,
+      apiModelId: m.apiModelId,
       pricing: { input: m.pricing.inputPer1M / 1000, output: m.pricing.outputPer1M / 1000 },
       contextLength: m.contextLength,
       createdAt: Date.now(),
