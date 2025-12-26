@@ -2,7 +2,7 @@
 import Layout from '../../components/Layout.astro';
 import { getGames, getLiveGames, formatDuration } from '../../lib/api';
 import { getDisplayCost, formatCost } from '../../lib/costs';
-import { ChevronLeft, ChevronRight, Trophy, Radio, Hash } from 'lucide-astro';
+import { ChevronLeft, ChevronRight, Radio } from 'lucide-astro';
 
 const LIMIT = 25;
 const page = parseInt(Astro.url.searchParams.get('page') || '1', 10);
@@ -22,11 +22,24 @@ const totalPages = Math.ceil(total / LIMIT);
 const hasPrev = page > 1;
 const hasNext = hasMore;
 
-function formatRelativeTime(timestamp: number | null | undefined): string {
-  if (timestamp == null || !Number.isFinite(timestamp)) {
+function formatRelativeTime(timestamp: number | string | null | undefined): string {
+  if (timestamp == null) {
     return '—';
   }
-  const ts = timestamp > 9999999999 ? timestamp : timestamp * 1000;
+  
+  let ts: number;
+  if (typeof timestamp === 'string') {
+    // Handle ISO date strings
+    ts = new Date(timestamp).getTime();
+  } else if (Number.isFinite(timestamp)) {
+    // Handle numeric timestamps (seconds or milliseconds)
+    ts = timestamp > 9999999999 ? timestamp : timestamp * 1000;
+  } else {
+    return '—';
+  }
+  
+  if (isNaN(ts)) return '—';
+  
   const now = Date.now();
   const diffMs = now - ts;
   const diffSec = Math.floor(diffMs / 1000);
@@ -43,8 +56,20 @@ function formatRelativeTime(timestamp: number | null | undefined): string {
 }
 
 function getShortModelName(modelId: string): string {
-  const name = modelId.split('/').pop() || modelId;
+  let name = modelId.split('/').pop() || modelId;
+  // Strip provider prefix (e.g., "Google: Gemini 2.5" -> "Gemini 2.5")
+  if (name.includes(': ')) {
+    name = name.split(': ').slice(1).join(': ');
+  }
   return name.replace(/-\d{4}-\d{2}-\d{2}$/, '').replace(/@.*$/, '');
+}
+
+function formatDisplayModelName(name: string): string {
+  return name.split('-').map(part => {
+    if (part.match(/^\d/)) return part;
+    if (part === 'gpt' || part === 'o1' || part === 'o3') return part.toUpperCase();
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  }).join(' ');
 }
 
 function getMatchup(game: any) {
@@ -54,11 +79,13 @@ function getMatchup(game: any) {
   const mafiaModel = mafia?.model_name || mafia?.model_id || '?';
   const townModel = town?.model_name || town?.model_id || '?';
   const mafiaWon = game.winner === 'mafia';
+  const shortMafia = getShortModelName(mafiaModel);
+  const shortTown = getShortModelName(townModel);
   return {
-    mafia: getShortModelName(mafiaModel),
-    town: getShortModelName(townModel),
+    mafia: formatDisplayModelName(shortMafia),
+    town: formatDisplayModelName(shortTown),
     mafiaWon,
-    winnerModel: mafiaWon ? getShortModelName(mafiaModel) : getShortModelName(townModel),
+    winnerModel: mafiaWon ? formatDisplayModelName(shortMafia) : formatDisplayModelName(shortTown),
   };
 }
 
@@ -103,13 +130,15 @@ const THEMES: Record<string, string> = {
           return (
             <a 
               href={`/games/${game.id}/live`} 
-              class="flex items-center justify-between border rounded px-3 py-1.5 hover:bg-muted/20 transition-colors text-xs"
+              class="flex items-center justify-between border rounded px-3 py-2 hover:bg-muted/30 transition-colors text-xs group"
             >
-              <span class="text-muted-foreground">
-                {m.mafia} <span class="opacity-50">vs</span> {m.town}
-                {game.rounds > 0 && <span class="opacity-50"> · R{game.rounds}</span>}
-              </span>
-              <span class="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+              <div class="flex items-center gap-2">
+                <span class="font-medium">{m.mafia}</span>
+                <span class="text-muted-foreground/40 text-[10px] font-bold">vs</span>
+                <span class="font-medium">{m.town}</span>
+                {game.rounds > 0 && <span class="text-muted-foreground/50 text-[10px]">R{game.rounds}</span>}
+              </div>
+              <span class="flex items-center gap-1 text-muted-foreground group-hover:text-foreground transition-colors">
                 <Radio size={10} />
                 Watch
               </span>
@@ -129,7 +158,7 @@ const THEMES: Record<string, string> = {
         <table class="w-full">
           <thead>
             <tr class="bg-muted/30 border-b text-[10px] text-muted-foreground uppercase tracking-wide">
-              <th class="text-left font-normal px-3 py-1.5 w-[40%]">Matchup <span class="lowercase font-light opacity-70">(mafia vs town)</span></th>
+              <th class="text-left font-normal px-3 py-1.5 w-[40%]">Matchup <span class="normal-case font-light opacity-70">(Mafia vs Town)</span></th>
               <th class="text-left font-normal px-3 py-1.5 w-[20%]">Winner</th>
               <th class="text-center font-normal px-2 py-1.5 w-14">Rounds</th>
               <th class="text-right font-normal px-2 py-1.5 w-16">Time</th>
@@ -145,9 +174,11 @@ const THEMES: Record<string, string> = {
               const cost = getGameCost(game);
               return (
                 <tr class="hover:bg-muted/20 transition-colors cursor-pointer group" onclick={`window.location='/games/${game.id}'`}>
-                  <td class="px-3 py-1.5 truncate text-muted-foreground max-w-0">
-                    <a href={`/games/${game.id}`} class="block truncate">
-                      {m.mafia} <span class="opacity-50">vs</span> {m.town}
+                  <td class="px-3 py-1.5 max-w-0">
+                    <a href={`/games/${game.id}`} class="flex items-center gap-1.5 truncate text-muted-foreground">
+                      <span class="truncate">{m.mafia}</span>
+                      <span class="text-muted-foreground/30 text-[10px] shrink-0">vs</span>
+                      <span class="truncate">{m.town}</span>
                     </a>
                   </td>
                   <td class="px-3 py-1.5">

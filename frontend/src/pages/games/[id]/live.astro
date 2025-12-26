@@ -53,79 +53,95 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
 
     <!-- Broadcast HUD Header -->
     <div class="rounded-xl border bg-card overflow-hidden shadow-sm">
-      <!-- Top Deck: Status, Game ID & Providers -->
-      <div class="p-4 flex flex-col gap-3">
-        <!-- Row 1: Status badges & Game ID -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <!-- Left: Live Indicator & Theme -->
-          <div class="flex items-center gap-2.5 flex-wrap">
-            <div id="live-badge" class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold tracking-wider uppercase">
-              <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-              </span>
-              LIVE
-            </div>
-
-            <!-- Theme Badge -->
-            <div class={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border ${currentTheme.classes}`}>
-              {theme === 'fantasy' && <Sparkles size={10} />}
-              {theme === 'victorian' && <Scroll size={10} />}
-              {theme === 'modern' && <Building2 size={10} />}
-              {theme === 'noir' && <Feather size={10} />}
-              <span class="uppercase tracking-wide">{currentTheme.label}</span>
-            </div>
+      <!-- Status Bar -->
+      <div class="flex items-center justify-between px-4 py-2 border-b border-border/50">
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <div id="live-badge" class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold tracking-wider uppercase">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+            </span>
+            LIVE
           </div>
 
-          <!-- Right: Game ID -->
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-muted-foreground/60 uppercase tracking-wide">Game</span>
-            <code class="font-mono text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded select-all">{gameId}</code>
+          <!-- Theme Badge -->
+          <div class={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border ${currentTheme.classes}`}>
+            {theme === 'fantasy' && <Sparkles size={10} />}
+            {theme === 'victorian' && <Scroll size={10} />}
+            {theme === 'modern' && <Building2 size={10} />}
+            {theme === 'noir' && <Feather size={10} />}
+            <span class="uppercase tracking-wide">{currentTheme.label}</span>
           </div>
         </div>
 
-        <!-- Row 2: Matchup -->
-        <div id="teams-display" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/50">
-          <div class="flex items-center gap-2.5 text-xs font-medium flex-wrap">
-             <div class="flex items-center gap-1.5">
-                <span class="text-rose-500 font-bold tracking-tight">MAFIA</span>
-                <span id="mafia-models" class="font-mono text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{mafiaModels.join(', ') || '—'}</span>
-             </div>
-             <span class="text-muted-foreground/40 font-black text-[10px]">VS</span>
-             <div class="flex items-center gap-1.5">
-                <span class="text-indigo-500 font-bold tracking-tight">TOWN</span>
-                <span id="town-models" class="font-mono text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{townModels.join(', ') || '—'}</span>
-             </div>
-          </div>
-          
-          <!-- Providers -->
-          <div class="flex items-center gap-1.5">
-            <span class="text-[10px] text-muted-foreground/60 uppercase tracking-wide">Providers</span>
-            <div id="providers-display" class="flex items-center gap-1">
-              {allProviders.length > 0 ? allProviders.map(provider => (
-                <span class={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                  provider === 'OpenAI' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
-                  provider === 'Anthropic' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' :
-                  provider === 'Google' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' :
-                  provider === 'DeepSeek' ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400' :
-                  provider === 'Meta' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' :
-                  'bg-muted text-muted-foreground'
-                }`}>{provider}</span>
-              )) : <span class="text-[10px] text-muted-foreground">—</span>}
+        <!-- Game ID -->
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] text-muted-foreground/60 uppercase tracking-wide">Game</span>
+          <code class="font-mono text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded select-all">{gameId}</code>
+        </div>
+      </div>
+
+      <!-- Main Matchup Display -->
+      <div id="teams-display" class="px-4 py-5 bg-gradient-to-b from-background to-muted/20">
+        <div class="flex items-center justify-center gap-4 sm:gap-8">
+          <!-- Mafia Side -->
+          <div class="flex-1 text-right">
+            <div class="flex flex-col items-end gap-1">
+              <div class="flex items-center justify-end gap-2">
+                <span class="text-rose-500 font-black text-lg sm:text-xl tracking-tight">MAFIA</span>
+              </div>
+              <div id="mafia-models" class="font-mono text-sm sm:text-base font-semibold text-foreground/90 truncate max-w-[140px] sm:max-w-[200px]">
+                {mafiaModels.join(', ') || '—'}
+              </div>
             </div>
+          </div>
+
+          <!-- VS Divider -->
+          <div class="flex flex-col items-center gap-1 shrink-0">
+            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-border bg-muted/50 flex items-center justify-center">
+              <Swords size={18} class="text-muted-foreground sm:w-5 sm:h-5" />
+            </div>
+            <span class="text-[10px] font-black text-muted-foreground/60 tracking-widest">VS</span>
+          </div>
+
+          <!-- Town Side -->
+          <div class="flex-1 text-left">
+            <div class="flex flex-col items-start gap-1">
+              <div class="flex items-center justify-start gap-2">
+                <span class="text-indigo-500 font-black text-lg sm:text-xl tracking-tight">TOWN</span>
+              </div>
+              <div id="town-models" class="font-mono text-sm sm:text-base font-semibold text-foreground/90 truncate max-w-[140px] sm:max-w-[200px]">
+                {townModels.join(', ') || '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Providers Row -->
+        <div class="flex items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border/30">
+          <span class="text-[10px] text-muted-foreground/60 uppercase tracking-wide mr-1">Providers</span>
+          <div id="providers-display" class="flex items-center gap-1">
+            {allProviders.length > 0 ? allProviders.map(provider => (
+              <span class={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                provider === 'OpenAI' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                provider === 'Anthropic' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                provider === 'Google' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' :
+                provider === 'DeepSeek' ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400' :
+                provider === 'Meta' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' :
+                'bg-muted text-muted-foreground'
+              }`}>{provider}</span>
+            )) : <span class="text-[10px] text-muted-foreground">—</span>}
           </div>
         </div>
       </div>
 
       <!-- Telemetry Strip -->
       <div class="grid grid-cols-4 divide-x divide-border border-t bg-muted/20 text-[10px] uppercase tracking-wider">
-        <!-- Round -->
         <div class="p-2.5 flex flex-col items-center justify-center gap-0.5">
           <span class="text-muted-foreground text-[9px]">Round</span>
           <span id="round-display" class="font-mono font-bold text-base leading-none">-</span>
         </div>
         
-        <!-- Phase -->
         <div class="p-2.5 flex flex-col items-center justify-center gap-0.5 col-span-1">
           <span class="text-muted-foreground text-[9px]">Phase</span>
           <div id="phase-display" class="flex items-center gap-1.5 font-medium text-foreground text-[11px]">
@@ -134,13 +150,11 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
           </div>
         </div>
 
-        <!-- Duration -->
         <div class="p-2.5 flex flex-col items-center justify-center gap-0.5">
           <span class="text-muted-foreground text-[9px]">Duration</span>
           <span id="duration-display" class="font-mono font-medium tabular-nums text-[11px]">00:00</span>
         </div>
 
-        <!-- Tokens/Cost -->
         <div class="p-2.5 flex flex-col items-center justify-center gap-0.5 bg-background/30">
           <span class="text-muted-foreground text-[9px]">Tokens</span>
           <div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-500 text-[11px]">
@@ -277,7 +291,11 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
 
   function getShortModelName(modelId) {
     if (!modelId) return '?';
-    const name = modelId.split('/').pop() || modelId;
+    let name = modelId.split('/').pop() || modelId;
+    // Strip provider prefix (e.g., "Google: Gemini 2.5" -> "Gemini 2.5")
+    if (name.includes(': ')) {
+      name = name.split(': ').slice(1).join(': ');
+    }
     return name.replace(/-\d{4}-\d{2}-\d{2}$/, '').replace(/@.*$/, '');
   }
 
@@ -520,8 +538,17 @@ const currentTheme = themeConfig[theme as keyof typeof themeConfig] || themeConf
     const townEl = document.getElementById('town-models');
     const providersEl = document.getElementById('providers-display');
     
-    if (mafiaEl) mafiaEl.textContent = mafiaModels.join(', ') || '—';
-    if (townEl) townEl.textContent = townModels.join(', ') || '—';
+    // Format model names nicely (capitalize, remove dashes)
+    function formatModelName(name) {
+      return name.split('-').map(part => {
+        if (part.match(/^\d/)) return part;
+        if (part === 'gpt' || part === 'o1' || part === 'o3') return part.toUpperCase();
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      }).join(' ');
+    }
+    
+    if (mafiaEl) mafiaEl.textContent = mafiaModels.map(formatModelName).join(', ') || '—';
+    if (townEl) townEl.textContent = townModels.map(formatModelName).join(', ') || '—';
     
     // Update providers display
     if (providersEl && providers.length > 0) {
