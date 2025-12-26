@@ -1,17 +1,24 @@
 /**
  * Models API routes.
- * Models are stored in the database and synced from OpenRouter.
+ * Models are stored in the database and can be fetched from multiple providers.
+ * 
+ * ENDPOINTS:
+ * - GET /api/models - List all models from database
+ * - GET /api/models/providers - List all API providers
+ * - GET /api/models/openrouter - Fetch models from OpenRouter (aggregator)
+ * - GET /api/models/by-provider/:provider - Get models for a specific API provider
  */
 
 import { Hono } from 'hono';
-import type { Env } from '../types.js';
+import type { Env, ApiProvider, ModelDbRecord } from '../types.js';
 import { parsePricingFromConfig, DEFAULT_PRICING } from '../ai/models.js';
 
 const models = new Hono<{ Bindings: Env }>();
 
-// Cache key for OpenRouter models
+// Cache keys for model data
 const OPENROUTER_CACHE_KEY = 'openrouter:models';
-const OPENROUTER_CACHE_TTL = 3600; // 1 hour
+const PROVIDERS_CACHE_KEY = 'providers:list';
+const CACHE_TTL = 3600; // 1 hour
 
 /**
  * Model eligibility requirements for Mafia Arena.
@@ -52,21 +59,17 @@ interface OpenRouterResponse {
 
 /**
  * Check if a model meets eligibility requirements for Mafia Arena.
- * Filters out models with insufficient context, output limits, or wrong modality.
  */
 function isModelEligible(model: OpenRouterModel): boolean {
-  // Check minimum context length
   if (model.context_length < MODEL_REQUIREMENTS.MIN_CONTEXT_LENGTH) {
     return false;
   }
 
-  // Check minimum output tokens (if available)
   const maxOutputTokens = model.top_provider?.max_completion_tokens;
   if (maxOutputTokens !== undefined && maxOutputTokens < MODEL_REQUIREMENTS.MIN_OUTPUT_TOKENS) {
     return false;
   }
 
-  // Check modality includes text
   const modality = model.architecture?.modality ?? '';
   if (!modality.includes(MODEL_REQUIREMENTS.REQUIRED_MODALITY)) {
     return false;
@@ -76,36 +79,49 @@ function isModelEligible(model: OpenRouterModel): boolean {
 }
 
 /**
+ * Transform a model record to the API response format.
+ */
+function transformModelRecord(model: ModelDbRecord) {
+  return {
+    id: model.id,
+    displayName: model.display_name,
+    family: model.family,
+    apiProvider: model.api_provider,
+    apiModelId: model.api_model_id,
+    pricing: parsePricingFromConfig(model.config),
+    createdAt: model.created_at,
+  };
+}
+
+/**
  * GET /api/models - List all models from database.
- * Returns models with pricing parsed from config JSON.
+ * Returns models with routing info and pricing.
  */
 models.get('/', async (c) => {
   const env = c.env;
   
-  interface ModelRow {
-    id: string;
-    display_name: string;
-    provider: string;
-    config: string | null;
-    created_at: number;
-  }
-  
-  const result = await env.DB.prepare('SELECT * FROM models ORDER BY provider, display_name').all<ModelRow>();
+  const result = await env.DB.prepare(`
+    SELECT id, display_name, family, api_provider, api_model_id, config, created_at 
+    FROM models 
+    ORDER BY family, display_name
+  `).all<ModelDbRecord>();
 
-  // Add pricing from config JSON
-  const modelsWithPricing = result.results.map((model) => ({
-    id: model.id,
-    displayName: model.display_name,
-    provider: model.provider,
-    pricing: parsePricingFromConfig(model.config),
-    createdAt: model.created_at,
-  }));
+  const modelsWithRouting = result.results.map(transformModelRecord);
+
+  // Group by API provider for the UI
+  const modelsByApiProvider: Record<string, typeof modelsWithRouting> = {};
+  for (const model of modelsWithRouting) {
+    const provider = model.apiProvider;
+    if (!modelsByApiProvider[provider]) {
+      modelsByApiProvider[provider] = [];
+    }
+    modelsByApiProvider[provider].push(model);
+  }
 
   return c.json({ 
-    models: modelsWithPricing,
-    total: modelsWithPricing.length,
-    // Expose default pricing so frontend can use it for unknown models
-    // This is the single source of truth - frontend should NOT hardcode pricing
+    models: modelsWithRouting,
+    modelsByApiProvider,
+    total: modelsWithRouting.length,
     defaults: {
       pricing: DEFAULT_PRICING,
     },
@@ -113,9 +129,100 @@ models.get('/', async (c) => {
 });
 
 /**
+ * GET /api/models/providers - List all API providers.
+ */
+models.get('/providers', async (c) => {
+  const env = c.env;
+
+  // Check cache
+  const cached = await env.RATE_LIMIT.get(PROVIDERS_CACHE_KEY);
+  if (cached) {
+    return c.json(JSON.parse(cached));
+  }
+
+  interface ProviderRow {
+    id: string;
+    display_name: string;
+    api_type: string;
+    base_url: string | null;
+    is_aggregator: number;
+    supports_streaming: number;
+    supports_function_calling: number;
+    enabled: number;
+    config: string | null;
+  }
+
+  const result = await env.DB.prepare(`
+    SELECT id, display_name, api_type, base_url, is_aggregator, 
+           supports_streaming, supports_function_calling, enabled, config
+    FROM providers 
+    WHERE enabled = 1
+    ORDER BY is_aggregator DESC, display_name
+  `).all<ProviderRow>();
+
+  const providers = result.results.map(p => ({
+    id: p.id as ApiProvider,
+    displayName: p.display_name,
+    apiType: p.api_type,
+    baseUrl: p.base_url,
+    isAggregator: p.is_aggregator === 1,
+    supportsStreaming: p.supports_streaming === 1,
+    supportsFunctionCalling: p.supports_function_calling === 1,
+    enabled: p.enabled === 1,
+  }));
+
+  const response = {
+    providers,
+    total: providers.length,
+  };
+
+  // Cache the result
+  await env.RATE_LIMIT.put(PROVIDERS_CACHE_KEY, JSON.stringify(response), {
+    expirationTtl: CACHE_TTL,
+  });
+
+  return c.json(response);
+});
+
+/**
+ * GET /api/models/by-provider/:provider - Get models for a specific API provider.
+ */
+models.get('/by-provider/:provider', async (c) => {
+  const env = c.env;
+  const provider = c.req.param('provider') as ApiProvider;
+
+  const result = await env.DB.prepare(`
+    SELECT id, display_name, family, api_provider, api_model_id, config, created_at 
+    FROM models 
+    WHERE api_provider = ?
+    ORDER BY family, display_name
+  `).bind(provider).all<ModelDbRecord>();
+
+  const modelsForProvider = result.results.map(transformModelRecord);
+
+  // Group by family for UI display
+  const modelsByFamily: Record<string, typeof modelsForProvider> = {};
+  for (const model of modelsForProvider) {
+    const family = model.family;
+    if (!modelsByFamily[family]) {
+      modelsByFamily[family] = [];
+    }
+    modelsByFamily[family]!.push(model);
+  }
+
+  return c.json({
+    provider,
+    models: modelsForProvider,
+    modelsByFamily,
+    families: Object.keys(modelsByFamily).sort(),
+    total: modelsForProvider.length,
+  });
+});
+
+/**
  * GET /api/models/openrouter - Fetch all models from OpenRouter API.
+ * OpenRouter is an aggregator, so it returns models from many providers.
  * Caches response for 1 hour to avoid rate limits.
- * Returns models grouped by provider with pricing info.
  */
 models.get('/openrouter', async (c) => {
   const env = c.env;
@@ -145,8 +252,8 @@ models.get('/openrouter', async (c) => {
   const eligibleModels = data.data.filter(isModelEligible);
   console.log(`Model eligibility: ${eligibleModels.length}/${data.data.length} models meet requirements`);
 
-  // Transform and group by provider
-  const modelsByProvider: Record<string, Array<{
+  // Transform and group by family (model creator)
+  const modelsByFamily: Record<string, Array<{
     id: string;
     name: string;
     description?: string;
@@ -155,37 +262,47 @@ models.get('/openrouter', async (c) => {
       inputPer1M: number;
       outputPer1M: number;
     };
+    apiProvider: 'openrouter';
+    apiModelId: string;
   }>> = {};
 
   for (const model of eligibleModels) {
-    // Extract provider from model ID (e.g., "google/gemini-2.5-pro" -> "google")
-    const provider = model.id.split('/')[0] || 'unknown';
+    // Extract family from model ID (e.g., "google/gemini-2.5-pro" -> "google")
+    const family = model.id.split('/')[0] || 'unknown';
     
-    if (!modelsByProvider[provider]) {
-      modelsByProvider[provider] = [];
+    if (!modelsByFamily[family]) {
+      modelsByFamily[family] = [];
     }
 
-    modelsByProvider[provider].push({
+    modelsByFamily[family].push({
       id: model.id,
       name: model.name,
       ...(model.description && { description: model.description }),
       contextLength: model.context_length,
       pricing: {
-        // Convert from per-token to per-1M tokens for readability
         inputPer1M: parseFloat(model.pricing.prompt) * 1_000_000,
         outputPer1M: parseFloat(model.pricing.completion) * 1_000_000,
       },
+      apiProvider: 'openrouter',
+      apiModelId: model.id,
     });
   }
 
-  // Sort models within each provider by name
-  for (const provider of Object.keys(modelsByProvider)) {
-    modelsByProvider[provider]!.sort((a, b) => a.name.localeCompare(b.name));
+  // Sort models within each family by name
+  for (const family of Object.keys(modelsByFamily)) {
+    const familyModels = modelsByFamily[family];
+    if (familyModels) {
+      familyModels.sort((a, b) => a.name.localeCompare(b.name));
+    }
   }
 
   const result = {
-    providers: Object.keys(modelsByProvider).sort(),
-    modelsByProvider,
+    apiProvider: 'openrouter' as const,
+    isAggregator: true,
+    providers: Object.keys(modelsByFamily).sort(), // families, kept for backwards compat
+    families: Object.keys(modelsByFamily).sort(),
+    modelsByProvider: modelsByFamily, // kept for backwards compat
+    modelsByFamily,
     totalModels: eligibleModels.length,
     totalFetched: data.data.length,
     cachedAt: Date.now(),
@@ -193,7 +310,7 @@ models.get('/openrouter', async (c) => {
 
   // Cache the result
   await env.RATE_LIMIT.put(OPENROUTER_CACHE_KEY, JSON.stringify(result), {
-    expirationTtl: OPENROUTER_CACHE_TTL,
+    expirationTtl: CACHE_TTL,
   });
 
   return c.json(result);

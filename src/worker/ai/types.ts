@@ -250,6 +250,8 @@ export interface AIProviderConfig {
   modelId: string;
   maxRetries?: number;
   timeoutMs?: number;
+  /** Base URL override for OpenAI-compatible APIs */
+  baseUrl?: string;
 }
 
 /**
@@ -258,6 +260,25 @@ export interface AIProviderConfig {
 export interface ModelConfig {
   provider: string;
   displayName: string;
+  structuredOutput: StructuredOutputLevel;
+}
+
+/**
+ * Extended model configuration with provider routing.
+ * Used by the factory to determine which provider to use.
+ */
+export interface ModelRoutingConfig {
+  /** Primary model ID (used for display and database lookups) */
+  id: string;
+  /** Model family/creator for UI grouping (e.g., 'google', 'openai') */
+  family: string;
+  /** Human-readable display name */
+  displayName: string;
+  /** Which API provider to use for requests */
+  apiProvider: 'openrouter' | 'openai' | 'anthropic' | 'google' | 'cerebras' | 'minimax' | 'fireworks';
+  /** The model ID to send to the specific API (may differ from primary ID) */
+  apiModelId: string;
+  /** Structured output capability level */
   structuredOutput: StructuredOutputLevel;
 }
 

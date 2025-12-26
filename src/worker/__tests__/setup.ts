@@ -16,9 +16,23 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
   const tableStatements = [
     `CREATE TABLE IF NOT EXISTS models (
       id TEXT PRIMARY KEY,
-      provider TEXT NOT NULL,
+      family TEXT NOT NULL,
       display_name TEXT NOT NULL,
+      api_provider TEXT DEFAULT 'openrouter',
+      api_model_id TEXT,
       config TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )`,
+    `CREATE TABLE IF NOT EXISTS providers (
+      id TEXT PRIMARY KEY,
+      display_name TEXT NOT NULL,
+      api_type TEXT NOT NULL CHECK (api_type IN ('openai_compatible', 'anthropic', 'google', 'custom')),
+      base_url TEXT,
+      is_aggregator INTEGER DEFAULT 0,
+      supports_streaming INTEGER DEFAULT 1,
+      supports_function_calling INTEGER DEFAULT 1,
+      config TEXT,
+      enabled INTEGER DEFAULT 1,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     )`,
     `CREATE TABLE IF NOT EXISTS games (
@@ -120,7 +134,11 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
   const insertStatements = [
     `INSERT OR IGNORE INTO system_state (key, value) VALUES ('processing_paused', 'false')`,
     `INSERT OR IGNORE INTO system_state (key, value) VALUES ('max_concurrent_games', '50')`,
-    `INSERT OR IGNORE INTO models (id, provider, display_name) VALUES ('test-model', 'test', 'Test Model')`,
+    `INSERT OR IGNORE INTO models (id, family, display_name, api_provider, api_model_id) VALUES ('test-model', 'test', 'Test Model', 'openrouter', 'test-model')`,
+    `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('openrouter', 'OpenRouter', 'openai_compatible', 'https://openrouter.ai/api/v1', 1)`,
+    `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('openai', 'OpenAI', 'openai_compatible', 'https://api.openai.com/v1', 0)`,
+    `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('anthropic', 'Anthropic', 'anthropic', 'https://api.anthropic.com/v1', 0)`,
+    `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('google', 'Google (Gemini)', 'google', 'https://generativelanguage.googleapis.com/v1beta', 0)`,
   ];
 
   // Execute all statements in order

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronsUpDown, Sparkles } from "lucide-react"
+import { Check, ChevronsUpDown, Sparkles, Network } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
+import type { ApiProvider } from "./ProviderSelector"
 
 interface Model {
   id: string
@@ -29,12 +30,18 @@ interface Model {
     inputPer1M: number
     outputPer1M: number
   }
+  apiProvider?: ApiProvider
+  apiModelId?: string
 }
 
 interface ModelsData {
   providers: string[]
+  families: string[]
   modelsByProvider: Record<string, Model[]>
+  modelsByFamily: Record<string, Model[]>
   totalModels: number
+  apiProvider?: ApiProvider
+  isAggregator?: boolean
 }
 
 interface ModelSelectorProps {
@@ -48,9 +55,11 @@ interface ModelSelectorProps {
   inputId?: string
   /** Default model ID to select on mount */
   defaultValue?: string
+  /** Filter models to this API provider (for two-step selection) */
+  apiProvider?: ApiProvider
 }
 
-const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+const FAMILY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   anthropic: { bg: "bg-orange-500/10", text: "text-orange-600 dark:text-orange-400", border: "border-orange-500/30" },
   openai: { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/30" },
   google: { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", border: "border-blue-500/30" },
@@ -61,12 +70,14 @@ const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string
   amazon: { bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", border: "border-amber-500/30" },
   minimax: { bg: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400", border: "border-rose-500/30" },
   nvidia: { bg: "bg-lime-500/10", text: "text-lime-600 dark:text-lime-400", border: "border-lime-500/30" },
+  cerebras: { bg: "bg-red-500/10", text: "text-red-600 dark:text-red-400", border: "border-red-500/30" },
+  fireworks: { bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", border: "border-amber-500/30" },
 }
 
 const DEFAULT_COLORS = { bg: "bg-zinc-500/10", text: "text-zinc-600 dark:text-zinc-400", border: "border-zinc-500/30" }
 
-function getProviderColors(provider: string) {
-  return PROVIDER_COLORS[provider.toLowerCase()] || DEFAULT_COLORS
+function getFamilyColors(family: string) {
+  return FAMILY_COLORS[family.toLowerCase()] || DEFAULT_COLORS
 }
 
 function formatPrice(price: number): string {
@@ -91,6 +102,7 @@ export function ModelSelector({
   className,
   inputId,
   defaultValue,
+  apiProvider,
 }: ModelSelectorProps) {
   const [open, setOpen] = React.useState(false)
   const [modelsData, setModelsData] = React.useState<ModelsData | null>(null)
@@ -143,12 +155,21 @@ export function ModelSelector({
     return () => window.removeEventListener('selectModel', handleExternalSelect as EventListener)
   }, [inputId, handleChange])
 
-  // Fetch models from OpenRouter API
+  // Fetch models from API based on provider
   React.useEffect(() => {
     const apiUrl = (typeof window !== 'undefined' && (window as unknown as { ENV?: { PUBLIC_API_URL?: string } }).ENV?.PUBLIC_API_URL) 
       || 'https://mafia-arena.me-f9a.workers.dev'
     
-    fetch(`${apiUrl}/api/models/openrouter`)
+    // Reset when provider changes
+    setLoading(true)
+    setError(null)
+    
+    // Determine which endpoint to use
+    const endpoint = apiProvider === 'openrouter' || !apiProvider
+      ? `${apiUrl}/api/models/openrouter`
+      : `${apiUrl}/api/models/by-provider/${apiProvider}`
+    
+    fetch(endpoint)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch models')
         return res.json()
@@ -158,11 +179,14 @@ export function ModelSelector({
         setLoading(false)
         
         // Auto-select a random model if no value is set
-        if (!value && data.providers.length > 0) {
-          const randomProvider = data.providers[Math.floor(Math.random() * data.providers.length)]
-          const providerModels = data.modelsByProvider[randomProvider]
-          if (providerModels && providerModels.length > 0) {
-            const randomModel = providerModels[Math.floor(Math.random() * providerModels.length)]
+        const families = data.families || data.providers || []
+        const modelsByGroup = data.modelsByFamily || data.modelsByProvider
+        
+        if (!value && families.length > 0) {
+          const randomFamily = families[Math.floor(Math.random() * families.length)]
+          const familyModels = modelsByGroup[randomFamily]
+          if (familyModels && familyModels.length > 0) {
+            const randomModel = familyModels[Math.floor(Math.random() * familyModels.length)]
             handleChange(randomModel.id, randomModel.name)
           }
         }
@@ -172,14 +196,17 @@ export function ModelSelector({
         setError(err.message)
         setLoading(false)
       })
-  }, [])
+  }, [apiProvider])
 
   // Find selected model details
   const selectedModel = React.useMemo(() => {
     if (!modelsData || !value) return null
-    for (const provider of modelsData.providers) {
-      const model = modelsData.modelsByProvider[provider]?.find(m => m.id === value)
-      if (model) return { ...model, provider }
+    const families = modelsData.families || modelsData.providers || []
+    const modelsByGroup = modelsData.modelsByFamily || modelsData.modelsByProvider
+    
+    for (const family of families) {
+      const model = modelsByGroup[family]?.find(m => m.id === value)
+      if (model) return { ...model, family }
     }
     return null
   }, [modelsData, value])
@@ -189,6 +216,8 @@ export function ModelSelector({
     : team === "town" 
     ? "border-indigo-500/50 focus:ring-indigo-500/30"
     : ""
+  
+  const isOpenRouter = apiProvider === 'openrouter' || !apiProvider || modelsData?.isAggregator
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
@@ -223,14 +252,20 @@ export function ModelSelector({
                   variant="outline" 
                   className={cn(
                     "text-[10px] px-1.5 py-0",
-                    getProviderColors(selectedModel.provider).bg,
-                    getProviderColors(selectedModel.provider).text,
-                    getProviderColors(selectedModel.provider).border
+                    getFamilyColors(selectedModel.family).bg,
+                    getFamilyColors(selectedModel.family).text,
+                    getFamilyColors(selectedModel.family).border
                   )}
                 >
-                  {selectedModel.provider}
+                  {selectedModel.family}
                 </Badge>
                 <span className="truncate">{selectedModel.name}</span>
+                {isOpenRouter && (
+                  <Badge variant="secondary" className="text-[9px] px-1 py-0 shrink-0 flex items-center gap-0.5">
+                    <Network className="h-2.5 w-2.5" />
+                    OR
+                  </Badge>
+                )}
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">
                   {formatContext(selectedModel.contextLength)}
                 </span>
@@ -246,32 +281,38 @@ export function ModelSelector({
             <CommandInput placeholder="Search models..." />
             <CommandList className="max-h-[350px]">
               <CommandEmpty>No models found.</CommandEmpty>
-              {modelsData?.providers.map(provider => (
+              {(modelsData?.families || modelsData?.providers || []).map(family => (
                 <CommandGroup 
-                  key={provider} 
+                  key={family} 
                   heading={
                     <div className="flex items-center gap-2">
                       <Badge 
                         variant="outline"
                         className={cn(
                           "text-[10px] px-1.5 py-0",
-                          getProviderColors(provider).bg,
-                          getProviderColors(provider).text,
-                          getProviderColors(provider).border
+                          getFamilyColors(family).bg,
+                          getFamilyColors(family).text,
+                          getFamilyColors(family).border
                         )}
                       >
-                        {provider}
+                        {family}
                       </Badge>
                       <span className="text-muted-foreground text-[10px]">
-                        {modelsData.modelsByProvider[provider]?.length} models
+                        {(modelsData?.modelsByFamily || modelsData?.modelsByProvider)?.[family]?.length} models
                       </span>
+                      {isOpenRouter && (
+                        <Badge variant="secondary" className="text-[9px] px-1 py-0 flex items-center gap-0.5">
+                          <Network className="h-2.5 w-2.5" />
+                          via OpenRouter
+                        </Badge>
+                      )}
                     </div>
                   }
                 >
-                  {modelsData.modelsByProvider[provider]?.map(model => (
+                  {(modelsData?.modelsByFamily || modelsData?.modelsByProvider)?.[family]?.map(model => (
                     <CommandItem
                       key={model.id}
-                      value={`${provider} ${model.name} ${model.id}`}
+                      value={`${family} ${model.name} ${model.id}`}
                       onSelect={() => {
                         handleChange(model.id, model.name)
                         setOpen(false)
@@ -311,4 +352,3 @@ export function ModelSelector({
 }
 
 export default ModelSelector
-

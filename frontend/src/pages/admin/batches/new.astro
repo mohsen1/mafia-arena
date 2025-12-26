@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import ModelSelector from '../../../components/ui/ModelSelector';
+import ProviderModelSelector from '../../../components/ui/ProviderModelSelector';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
@@ -85,33 +85,19 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
           </div>
 
           <!-- Model Selection -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <div class="text-xs text-muted-foreground flex items-center gap-1.5">
-                <span class="inline-block w-2 h-2 bg-rose-500 rounded-full"></span>
-                Mafia Model
-              </div>
-              <ModelSelector 
-                client:load 
-                team="mafia"
-                placeholder="Select model..."
-                inputId="modelA"
-              />
-              <input type="hidden" id="modelA" name="modelA" value="" />
-            </div>
-            <div class="space-y-2">
-              <div class="text-xs text-muted-foreground flex items-center gap-1.5">
-                <span class="inline-block w-2 h-2 bg-indigo-500 rounded-full"></span>
-                Town Model
-              </div>
-              <ModelSelector 
-                client:load 
-                team="town"
-                placeholder="Select model..."
-                inputId="modelB"
-              />
-              <input type="hidden" id="modelB" name="modelB" value="" />
-            </div>
+          <div class="grid grid-cols-2 gap-6">
+            <ProviderModelSelector 
+              client:load 
+              team="mafia"
+              placeholder="Select model..."
+              inputId="modelA"
+            />
+            <ProviderModelSelector 
+              client:load 
+              team="town"
+              placeholder="Select model..."
+              inputId="modelB"
+            />
           </div>
 
           <button 
