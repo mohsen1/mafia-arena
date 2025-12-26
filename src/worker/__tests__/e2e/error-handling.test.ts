@@ -50,7 +50,7 @@ describe('Error Handling E2E', () => {
 
   describe('Parse Error Recovery', () => {
     it('recovers from malformed JSON with retries', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       // Queue invalid responses first, then valid ones
       // The adapter retries up to MAX_PARSE_RETRIES times
@@ -83,7 +83,7 @@ describe('Error Handling E2E', () => {
     });
 
     it('handles invalid schema responses', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       // Queue responses with wrong schema (missing required fields)
       provider.queueAction('persona_generation', {
@@ -122,7 +122,7 @@ describe('Error Handling E2E', () => {
 
   describe('Idempotency', () => {
     it('rejects starting a game that is already running', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       // Make the first request
       const request1 = new Request('http://test/api/games/run-direct', {
@@ -192,8 +192,8 @@ describe('Error Handling E2E', () => {
             playerCount: 3, // Too few players (minimum is 7)
             mafiaCount: 1,
             teams: [
-              { modelId: 'test-model', team: 'mafia', count: 1 },
-              { modelId: 'test-model', team: 'town', count: 2 },
+              { modelId: 'test/model', team: 'mafia', count: 1 },
+              { modelId: 'test/model', team: 'town', count: 2 },
             ],
           },
         }),
@@ -234,7 +234,7 @@ describe('Error Handling E2E', () => {
 
   describe('Trace ID Propagation', () => {
     it('includes trace ID in game record', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       const request = new Request('http://test/api/games/run-direct', {
         method: 'POST',

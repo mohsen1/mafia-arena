@@ -267,19 +267,15 @@ export class GameRunner extends DurableObject<Env> {
             
             // Ensure D1 record exists (may have been lost if original insert failed)
             // This is idempotent - uses ON CONFLICT DO UPDATE
-            // Failure here is non-fatal (logged but not thrown)
-            const modelIds = config.teams.map(t => t.modelId);
-            const isTestGame = modelIds.some(id => isTestModel(id));
-            if (!isTestGame) {
-              await this.insertRunningGame(
-                state.gameId, 
-                state.batchId, 
-                gameConfig, 
-                state.startedAt,
-                state.traceId ?? undefined,
-                state.discountPricing ?? false
-              );
-            }
+            // Note: Test games also persist to D1 for E2E test verification
+            await this.insertRunningGame(
+              state.gameId, 
+              state.batchId, 
+              gameConfig, 
+              state.startedAt,
+              state.traceId ?? undefined,
+              state.discountPricing ?? false
+            );
             
             // In DO environment, any unfinished waitUntil tasks are lost on eviction.
             // By calling it here, we ensure it starts again when the DO wakes up.
@@ -1218,13 +1214,12 @@ export class GameRunner extends DurableObject<Env> {
       this.lastR2StreamIndex = 0;
 
       // Insert 'running' record into D1 immediately so game appears in lists
-      // Skip for test games to avoid polluting production data
+      // Note: Test games (test/*) also persist to D1 for E2E test verification
       const modelIds = config.teams.map(t => t.modelId);
       const isTestGame = modelIds.some(id => isTestModel(id));
-      if (!isTestGame) {
-        await this.insertRunningGame(gameId, batchId, gameConfig, startedAt, traceId);
-      } else {
-        gameLog.info('Skipping D1 insert for test game', { testModels: modelIds.filter(id => isTestModel(id)).join(',') });
+      await this.insertRunningGame(gameId, batchId, gameConfig, startedAt, traceId);
+      if (isTestGame) {
+        gameLog.debug('Test game inserted into D1', { testModels: modelIds.filter(id => isTestModel(id)).join(',') });
       }
 
       // Background mode: Return immediately, run game via waitUntil
@@ -1616,9 +1611,13 @@ export class GameRunner extends DurableObject<Env> {
     // Get traceId for request correlation
     const traceId = this.stateCache?.traceId;
     
-    // Create AI adapter with suspense mode enabled
-    // This allows the DO to hibernate while waiting for AI responses
-    const aiAdapter = new GameAIAdapter(providers, {
+    // Check if this is a test game (skip suspense mode for tests)
+    // Test models run synchronously without queue-based AI requests
+    const isTestGame = modelIds.some(id => isTestModel(id));
+    
+    // Create AI adapter - only enable suspense mode for production games
+    // Test games run synchronously without the queue worker
+    const aiAdapter = new GameAIAdapter(providers, isTestGame ? {} : {
       suspenseMode: {
         checkCache: this.getCachedAIResponse.bind(this),
         queueRequest: this.queueAIRequest.bind(this),
@@ -2054,14 +2053,13 @@ export class GameRunner extends DurableObject<Env> {
       // Ignore cleanup errors - stream file may not exist
     }
 
-    // Skip D1 persistence for test games to avoid polluting production data
+    // Note: Test games (test/*) persist to D1 in E2E tests to verify full lifecycle.
+    // The D1 instance in tests is in-memory and isolated.
     if (isTestGame) {
-      this.log.info('Skipping D1 persistence for test game', { 
+      this.log.debug('Test game persisting to D1', { 
         gameId: result.id, 
         testModels: modelIds.filter(id => isTestModel(id)).join(','),
       });
-      console.log(`[${traceId || 'no-trace'}] Test game ${result.id} completed - skipping D1 persistence`);
-      return;
     }
 
     // 2. ATOMIC idempotency check: Update game to 'completed' only if not already completed

@@ -21,6 +21,10 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       api_provider TEXT DEFAULT 'openrouter',
       api_model_id TEXT,
       config TEXT,
+      elo_rating INTEGER DEFAULT 1500,
+      elo_games_played INTEGER DEFAULT 0,
+      elo_peak INTEGER DEFAULT 1500,
+      elo_updated_at INTEGER,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     )`,
     `CREATE TABLE IF NOT EXISTS providers (
@@ -134,7 +138,7 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
   const insertStatements = [
     `INSERT OR IGNORE INTO system_state (key, value) VALUES ('processing_paused', 'false')`,
     `INSERT OR IGNORE INTO system_state (key, value) VALUES ('max_concurrent_games', '50')`,
-    `INSERT OR IGNORE INTO models (id, family, display_name, api_provider, api_model_id) VALUES ('test-model', 'test', 'Test Model', 'openrouter', 'test-model')`,
+    `INSERT OR IGNORE INTO models (id, family, display_name, api_provider, api_model_id) VALUES ('test/model', 'test', 'Test Model', 'openrouter', 'test/model')`,
     `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('openrouter', 'OpenRouter', 'openai_compatible', 'https://openrouter.ai/api/v1', 1)`,
     `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('openai', 'OpenAI', 'openai_compatible', 'https://api.openai.com/v1', 0)`,
     `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('anthropic', 'Anthropic', 'anthropic', 'https://api.anthropic.com/v1', 0)`,

@@ -49,7 +49,7 @@ describe('Context Window E2E', () => {
 
   describe('Context Level Configuration', () => {
     it('accepts full context level', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       const config = {
         ...DISCUSSION_GAME_CONFIG,
@@ -78,7 +78,7 @@ describe('Context Window E2E', () => {
     });
 
     it('accepts windowed context level', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       const config = {
         ...DISCUSSION_GAME_CONFIG,
@@ -104,7 +104,7 @@ describe('Context Window E2E', () => {
     });
 
     it('accepts summary context level (default)', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       const config = {
         ...DISCUSSION_GAME_CONFIG,
@@ -131,7 +131,7 @@ describe('Context Window E2E', () => {
 
   describe('Token Usage Tracking', () => {
     it('tracks total token usage in game record', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       // Configure provider to return specific token counts
       provider.queueAction(
@@ -160,7 +160,7 @@ describe('Context Window E2E', () => {
     });
 
     it('records token usage per AI call in transcript', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       const request = new Request('http://test/api/games/run-direct', {
         method: 'POST',
@@ -200,7 +200,7 @@ describe('Context Window E2E', () => {
 
   describe('Discussion Phases', () => {
     it('handles games with discussion enabled', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       const request = new Request('http://test/api/games/run-direct', {
         method: 'POST',
@@ -232,7 +232,7 @@ describe('Context Window E2E', () => {
     });
 
     it('records discussion messages from all players', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       const request = new Request('http://test/api/games/run-direct', {
         method: 'POST',
@@ -281,7 +281,7 @@ describe('Context Window E2E', () => {
 
   describe('Persona Theme', () => {
     it('uses specified persona theme', async () => {
-      const provider = getOrCreateProvider('test-model');
+      const provider = getOrCreateProvider('test/model');
 
       const themes = ['noir', 'victorian', 'modern', 'fantasy'] as const;
 
@@ -289,7 +289,7 @@ describe('Context Window E2E', () => {
         clearSharedProviders();
         await cleanupTestData(env.DB);
 
-        const freshProvider = getOrCreateProvider('test-model');
+        const freshProvider = getOrCreateProvider('test/model');
 
         const request = new Request('http://test/api/games/run-direct', {
           method: 'POST',
