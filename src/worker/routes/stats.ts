@@ -5,7 +5,8 @@
  */
 
 import { Hono } from 'hono';
-import { eq, sql, desc, gte, and, notLike } from 'drizzle-orm';
+import { eq, sql, desc, gte, and, notLike, ne } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import type { Env } from '../types.js';
 import { createDb } from '../db/drizzle.js';
 import * as schema from '../db/schema.js';
@@ -85,38 +86,49 @@ stats.get('/overview', async (c) => {
 
 /**
  * GET /api/stats/matchups - Head-to-head model matchups.
+ * Uses Drizzle alias() for type-safe self-joins.
  */
 stats.get('/matchups', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
   const url = new URL(c.req.url);
   const team = url.searchParams.get('team') as 'mafia' | 'town' | null;
 
-  // Get all head-to-head matchups (excluding self-play and test models)
-  // Keep as raw SQL due to complexity of self-join with aliased conditions
-  const query = `
-    SELECT 
-      gp1.model_id as model_a,
-      m1.display_name as model_a_name,
-      gp2.model_id as model_b,
-      m2.display_name as model_b_name,
-      COUNT(DISTINCT gp1.game_id) as games,
-      SUM(CASE WHEN gp1.won = 1 THEN 1 ELSE 0 END) as model_a_wins
-    FROM game_participants gp1
-    JOIN game_participants gp2 ON gp1.game_id = gp2.game_id 
-      AND gp1.model_id != gp2.model_id
-    JOIN models m1 ON gp1.model_id = m1.id
-    JOIN models m2 ON gp2.model_id = m2.id
-    WHERE m1.id NOT LIKE 'test/%' AND m2.id NOT LIKE 'test/%'
-    ${team ? 'AND gp1.team = ?' : ''}
-    GROUP BY gp1.model_id, gp2.model_id
-    HAVING games >= 1
-  `;
+  // Create aliases for self-join on game_participants
+  const gp1 = alias(schema.gameParticipants, 'gp1');
+  const gp2 = alias(schema.gameParticipants, 'gp2');
+  const m1 = alias(schema.models, 'm1');
+  const m2 = alias(schema.models, 'm2');
 
-  const result = team
-    ? await env.DB.prepare(query).bind(team).all()
-    : await env.DB.prepare(query).all();
+  // Get all head-to-head matchups (excluding self-play and test models)
+  const matchupsQuery = db
+    .select({
+      model_a: gp1.modelId,
+      model_a_name: m1.displayName,
+      model_b: gp2.modelId,
+      model_b_name: m2.displayName,
+      games: sql<number>`count(distinct ${gp1.gameId})`,
+      model_a_wins: sql<number>`sum(case when ${gp1.won} = 1 then 1 else 0 end)`,
+    })
+    .from(gp1)
+    .innerJoin(gp2, and(
+      eq(gp1.gameId, gp2.gameId),
+      ne(gp1.modelId, gp2.modelId),
+    ))
+    .innerJoin(m1, eq(gp1.modelId, m1.id))
+    .innerJoin(m2, eq(gp2.modelId, m2.id))
+    .where(and(
+      notLike(m1.id, 'test/%'),
+      notLike(m2.id, 'test/%'),
+      team ? eq(gp1.team, team) : undefined,
+    ))
+    .groupBy(gp1.modelId, gp2.modelId)
+    .having(sql`count(distinct ${gp1.gameId}) >= 1`);
+
+  const matchups = await matchupsQuery;
 
   // Get self-play statistics (same model on both teams)
+  // Note: This complex nested subquery still requires raw SQL due to its complexity
   const selfPlayQuery = `
     SELECT 
       model_id,
@@ -139,7 +151,6 @@ stats.get('/matchups', async (c) => {
   const selfPlayResult = await env.DB.prepare(selfPlayQuery).all();
 
   // Get unique models for matrix (exclude test models)
-  const db = createDb(env.DB);
   const models = await db
     .selectDistinct({
       id: schema.models.id,
@@ -153,7 +164,7 @@ stats.get('/matchups', async (c) => {
     .orderBy(schema.models.displayName);
 
   return c.json({
-    matchups: result.results,
+    matchups,
     selfPlay: selfPlayResult.results,
     models,
     filter: { team },
@@ -162,11 +173,13 @@ stats.get('/matchups', async (c) => {
 
 /**
  * GET /api/stats/costs - Cost efficiency stats.
+ * Uses accurate cost tracking from leaderboard.cost_usd (populated from model-specific pricing).
  */
 stats.get('/costs', async (c) => {
   const db = createDb(c.env.DB);
 
-  // Token usage and games by model (exclude test models)
+  // Token usage, cost, and games by model (exclude test models)
+  // cost_usd is now accurately tracked using model-specific pricing
   const modelCosts = await db
     .select({
       model_id: schema.leaderboard.modelId,
@@ -176,14 +189,16 @@ stats.get('/costs', async (c) => {
       games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
       wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
       tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
+      cost_usd: sql<number>`coalesce(sum(${schema.leaderboard.costUsd}), 0)`,
       win_rate: sql<number>`cast(sum(${schema.leaderboard.gamesWon}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
       tokens_per_game: sql<number>`cast(sum(${schema.leaderboard.totalTokens}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+      cost_per_game: sql<number>`coalesce(sum(${schema.leaderboard.costUsd}), 0) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
     })
     .from(schema.leaderboard)
     .innerJoin(schema.models, eq(schema.leaderboard.modelId, schema.models.id))
     .where(notLike(schema.leaderboard.modelId, 'test/%'))
     .groupBy(schema.leaderboard.modelId)
-    .orderBy(sql`tokens desc`);
+    .orderBy(sql`cost_usd desc`);
 
   // Aggregate by provider (exclude test models)
   const providerCosts = await db
@@ -193,14 +208,16 @@ stats.get('/costs', async (c) => {
       games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
       wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
       tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
+      cost_usd: sql<number>`coalesce(sum(${schema.leaderboard.costUsd}), 0)`,
       win_rate: sql<number>`cast(sum(${schema.leaderboard.gamesWon}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
       tokens_per_game: sql<number>`cast(sum(${schema.leaderboard.totalTokens}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+      cost_per_game: sql<number>`coalesce(sum(${schema.leaderboard.costUsd}), 0) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
     })
     .from(schema.leaderboard)
     .innerJoin(schema.models, eq(schema.leaderboard.modelId, schema.models.id))
     .where(notLike(schema.leaderboard.modelId, 'test/%'))
     .groupBy(schema.models.family)
-    .orderBy(sql`tokens desc`);
+    .orderBy(sql`cost_usd desc`);
 
   return c.json({
     byModel: modelCosts,

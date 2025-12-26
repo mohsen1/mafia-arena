@@ -1,7 +1,7 @@
 ---
 import Layout from '../../components/Layout.astro';
 import { getGame, getTranscript, getGamePersonas, formatDuration, type GameDetail, type GamePersona } from '../../lib/api';
-import { calculateCost, formatCost, calculateTotalCost } from '../../lib/costs';
+import { getDisplayCost, formatCost, calculateTotalCost } from '../../lib/costs';
 import { getProviderColorFromModel } from '../../lib/providers';
 import { 
   Trophy, Clock, Zap, Users, ChevronDown, ChevronRight,
@@ -32,7 +32,9 @@ try {
 // Process transcript
 const events = (transcript as any)?.events || [];
 const aiCallEvents = events.filter((e: any) => e.type === 'ai_call');
-const totalCost = calculateTotalCost(aiCallEvents);
+
+// Use stored cost from API if available, fallback to calculated estimate
+const totalCost = getDisplayCost((game as any)?.cost_usd, (game as any)?.total_tokens || 0);
 
 // Build player map from events
 interface PlayerInfo {
