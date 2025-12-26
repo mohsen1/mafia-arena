@@ -83,41 +83,54 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       pricing: { inputPer1M: 0.8, outputPer1M: 4 },
     },
   ],
-
-  xai: [
+  fireworks: [
     {
-      id: 'grok-4',
-      name: 'Grok 4',
-      family: 'xai',
-      contextLength: 256000,
-      pricing: { inputPer1M: 5, outputPer1M: 15 },
+      id: 'fireworks-minimax-m2',
+      name: 'MiniMax-M2',
+      family: 'fireworks',
+      contextLength: 128000,
+      pricing: { inputPer1M: 0.3, outputPer1M: 1.2 },
     },
     {
-      id: 'grok-4-heavy',
-      name: 'Grok 4 Heavy',
-      family: 'xai',
-      contextLength: 256000,
-      pricing: { inputPer1M: 10, outputPer1M: 30 },
+      id: 'fireworks-minimax-m1-80k',
+      name: 'MiniMax-M1-80K',
+      family: 'fireworks',
+      contextLength: 80000,
+      pricing: { inputPer1M: 0.5, outputPer1M: 2 },
     },
   ],
 
-  meta: [
+  cerebras: [
     {
-      id: 'llama-4-405b-instruct',
-      name: 'Llama 4 405B',
-      family: 'meta',
+      id: 'cerebras-llama3.3-70b',
+      name: 'Cerebras Llama 3.3 70B',
+      family: 'cerebras',
       contextLength: 131072,
       pricing: { inputPer1M: 3, outputPer1M: 3 },
     },
+    {
+      id: 'cerebras-llama3.1-8b',
+      name: 'Cerebras Llama 3.1 8B',
+      family: 'cerebras',
+      contextLength: 131072,
+      pricing: { inputPer1M: 0.5, outputPer1M: 0.5 },
+    },
   ],
 
-  alibaba: [
+  minimax: [
     {
-      id: 'qwen3-plus',
-      name: 'Qwen 3 Plus',
-      family: 'qwen',
+      id: 'minimax-m1-1m',
+      name: 'MiniMax-M1 (1M context)',
+      family: 'minimax',
+      contextLength: 1000000,
+      pricing: { inputPer1M: 1.5, outputPer1M: 6 },
+    },
+    {
+      id: 'minimax-text-01',
+      name: 'MiniMax-Text-01',
+      family: 'minimax',
       contextLength: 131072,
-      pricing: { inputPer1M: 1, outputPer1M: 1 },
+      pricing: { inputPer1M: 1, outputPer1M: 4 },
     },
   ],
 };
