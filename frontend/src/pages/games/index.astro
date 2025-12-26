@@ -1,16 +1,30 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { getGames, getLiveGames, formatDuration } from '../../lib/api';
+import { getGames, getLiveGames, getMatchups, formatDuration, type GameFilters } from '../../lib/api';
 import { getDisplayCost, formatCost } from '../../lib/costs';
-import { ChevronLeft, ChevronRight, Radio } from 'lucide-astro';
+import { ChevronLeft, ChevronRight, Radio, X } from 'lucide-astro';
 
 const LIMIT = 25;
 const page = parseInt(Astro.url.searchParams.get('page') || '1', 10);
 const offset = (page - 1) * LIMIT;
 
-const [liveGamesResult, completedGamesResult] = await Promise.all([
+// Extract filters from URL
+const modelFilter = Astro.url.searchParams.get('model') || undefined;
+const winnerFilter = Astro.url.searchParams.get('winner') as 'mafia' | 'town' | undefined;
+const themeFilter = Astro.url.searchParams.get('theme') as 'noir' | 'victorian' | 'modern' | 'fantasy' | undefined;
+
+const filters: GameFilters = {};
+if (modelFilter) filters.model = modelFilter;
+if (winnerFilter && (winnerFilter === 'mafia' || winnerFilter === 'town')) filters.winner = winnerFilter;
+if (themeFilter && ['noir', 'victorian', 'modern', 'fantasy'].includes(themeFilter)) filters.theme = themeFilter;
+
+const hasFilters = Object.keys(filters).length > 0;
+
+// Fetch data in parallel - use matchups API to get models that have actually played games
+const [liveGamesResult, completedGamesResult, matchupsData] = await Promise.all([
   getLiveGames(),
-  getGames(LIMIT, offset, 'completed'),
+  getGames(LIMIT, offset, 'completed', filters),
+  getMatchups(),
 ]);
 
 const liveGames = liveGamesResult.games;
@@ -19,8 +33,26 @@ const total = completedGamesResult.total;
 const hasMore = completedGamesResult.hasMore;
 const totalPages = Math.ceil(total / LIMIT);
 
+// Models that have participated in games (from matchups data)
+const activeModels = matchupsData.models.filter(m => !m.id.startsWith('test/'));
+
 const hasPrev = page > 1;
 const hasNext = hasMore;
+
+// Build pagination URL with filters preserved
+function buildUrl(newPage: number): string {
+  const params = new URLSearchParams();
+  params.set('page', String(newPage));
+  if (modelFilter) params.set('model', modelFilter);
+  if (winnerFilter) params.set('winner', winnerFilter);
+  if (themeFilter) params.set('theme', themeFilter);
+  return `/games?${params}`;
+}
+
+// Get the display name for the selected model
+const selectedModelName = modelFilter 
+  ? activeModels.find(m => m.id === modelFilter)?.display_name || modelFilter 
+  : null;
 
 function formatRelativeTime(timestamp: number | string | null | undefined): string {
   if (timestamp == null) {
@@ -29,10 +61,8 @@ function formatRelativeTime(timestamp: number | string | null | undefined): stri
   
   let ts: number;
   if (typeof timestamp === 'string') {
-    // Handle ISO date strings
     ts = new Date(timestamp).getTime();
   } else if (Number.isFinite(timestamp)) {
-    // Handle numeric timestamps (seconds or milliseconds)
     ts = timestamp > 9999999999 ? timestamp : timestamp * 1000;
   } else {
     return '—';
@@ -57,7 +87,6 @@ function formatRelativeTime(timestamp: number | string | null | undefined): stri
 
 function getShortModelName(modelId: string): string {
   let name = modelId.split('/').pop() || modelId;
-  // Strip provider prefix (e.g., "Google: Gemini 2.5" -> "Gemini 2.5")
   if (name.includes(': ')) {
     name = name.split(': ').slice(1).join(': ');
   }
@@ -89,10 +118,6 @@ function getMatchup(game: any) {
   };
 }
 
-/**
- * Get cost to display for a game.
- * Uses stored cost_usd from API (accurate), falls back to estimate for old games.
- */
 function getGameCost(game: any): number {
   return getDisplayCost(game.cost_usd, game.total_tokens || 0);
 }
@@ -103,6 +128,21 @@ const THEMES: Record<string, string> = {
   modern: 'Modern',
   fantasy: 'Fantasy',
 };
+
+// Group models by provider for better UX in dropdown
+const modelsByProvider = activeModels.reduce((acc, model) => {
+  const provider = model.provider || 'other';
+  if (!acc[provider]) acc[provider] = [];
+  acc[provider].push(model);
+  return acc;
+}, {} as Record<string, typeof activeModels>);
+
+const providerOrder = ['anthropic', 'openai', 'google', 'meta', 'other'];
+const sortedProviders = Object.keys(modelsByProvider).sort((a, b) => {
+  const aIndex = providerOrder.indexOf(a.toLowerCase());
+  const bIndex = providerOrder.indexOf(b.toLowerCase());
+  return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+});
 ---
 
 <Layout title="Games">
@@ -111,12 +151,93 @@ const THEMES: Record<string, string> = {
     <div class="flex items-baseline justify-between">
       <h1 class="text-lg font-semibold">Games</h1>
       <span class="text-xs text-muted-foreground">
-        {total} completed{liveGames.length > 0 ? ` · ${liveGames.length} live` : ''}
+        {total} {hasFilters ? 'matching' : 'completed'}{liveGames.length > 0 && !hasFilters ? ` · ${liveGames.length} live` : ''}
       </span>
     </div>
 
-    <!-- Live Games -->
-    {liveGames.length > 0 && (
+    <!-- Filter Bar -->
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Model Filter -->
+      <select 
+        id="model-filter"
+        class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+        onchange="updateFilters()"
+      >
+        <option value="">All Models</option>
+        {sortedProviders.map(provider => (
+          <optgroup label={provider.charAt(0).toUpperCase() + provider.slice(1)}>
+            {modelsByProvider[provider].map(model => (
+              <option value={model.id} selected={model.id === modelFilter}>
+                {model.display_name}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+
+      <!-- Winner Filter -->
+      <select 
+        id="winner-filter"
+        class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+        onchange="updateFilters()"
+      >
+        <option value="">All Winners</option>
+        <option value="mafia" selected={winnerFilter === 'mafia'}>Mafia</option>
+        <option value="town" selected={winnerFilter === 'town'}>Town</option>
+      </select>
+
+      <!-- Theme Filter -->
+      <select 
+        id="theme-filter"
+        class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+        onchange="updateFilters()"
+      >
+        <option value="">All Themes</option>
+        <option value="noir" selected={themeFilter === 'noir'}>Noir</option>
+        <option value="victorian" selected={themeFilter === 'victorian'}>Victorian</option>
+        <option value="modern" selected={themeFilter === 'modern'}>Modern</option>
+        <option value="fantasy" selected={themeFilter === 'fantasy'}>Fantasy</option>
+      </select>
+
+      <!-- Clear Filters -->
+      {hasFilters && (
+        <a 
+          href="/games" 
+          class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X size={12} />
+          Clear
+        </a>
+      )}
+
+      <!-- Active Filter Pills -->
+      {hasFilters && (
+        <div class="flex items-center gap-1.5 ml-auto">
+          {selectedModelName && (
+            <span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+              {selectedModelName}
+            </span>
+          )}
+          {winnerFilter && (
+            <span class={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${
+              winnerFilter === 'mafia' 
+                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' 
+                : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+            }`}>
+              {winnerFilter === 'mafia' ? 'Mafia wins' : 'Town wins'}
+            </span>
+          )}
+          {themeFilter && (
+            <span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              {THEMES[themeFilter]}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+
+    <!-- Live Games (only show when no filters) -->
+    {!hasFilters && liveGames.length > 0 && (
       <div class="space-y-1.5">
         <div class="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wide">
           <span class="relative flex h-1.5 w-1.5">
@@ -151,7 +272,7 @@ const THEMES: Record<string, string> = {
     <!-- Games List -->
     {games.length === 0 ? (
       <div class="border rounded py-8 text-center text-sm text-muted-foreground">
-        No games yet
+        {hasFilters ? 'No games match the selected filters' : 'No games yet'}
       </div>
     ) : (
       <div class="border rounded overflow-hidden text-xs">
@@ -213,7 +334,7 @@ const THEMES: Record<string, string> = {
         <div class="flex items-center gap-1">
           {hasPrev ? (
             <a 
-              href={`/games?page=${page - 1}`}
+              href={buildUrl(page - 1)}
               class="inline-flex items-center gap-0.5 px-2 py-1 border rounded hover:bg-muted transition-colors"
             >
               <ChevronLeft size={12} /> Prev
@@ -225,7 +346,7 @@ const THEMES: Record<string, string> = {
           )}
           {hasNext ? (
             <a 
-              href={`/games?page=${page + 1}`}
+              href={buildUrl(page + 1)}
               class="inline-flex items-center gap-0.5 px-2 py-1 border rounded hover:bg-muted transition-colors"
             >
               Next <ChevronRight size={12} />
@@ -240,3 +361,23 @@ const THEMES: Record<string, string> = {
     )}
   </div>
 </Layout>
+
+<script>
+  function updateFilters() {
+    const modelSelect = document.getElementById('model-filter') as HTMLSelectElement;
+    const winnerSelect = document.getElementById('winner-filter') as HTMLSelectElement;
+    const themeSelect = document.getElementById('theme-filter') as HTMLSelectElement;
+    
+    const params = new URLSearchParams();
+    
+    if (modelSelect?.value) params.set('model', modelSelect.value);
+    if (winnerSelect?.value) params.set('winner', winnerSelect.value);
+    if (themeSelect?.value) params.set('theme', themeSelect.value);
+    
+    const queryString = params.toString();
+    window.location.href = '/games' + (queryString ? `?${queryString}` : '');
+  }
+  
+  // Expose to global scope for inline handlers
+  (window as any).updateFilters = updateFilters;
+</script>

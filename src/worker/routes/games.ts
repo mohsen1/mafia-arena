@@ -3,7 +3,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, desc, inArray, sql } from 'drizzle-orm';
+import { eq, desc, inArray, sql, and } from 'drizzle-orm';
 import type { Env, GameQueueMessage } from '../types.js';
 import { Errors } from '../utils/errors.js';
 import { getRandomTheme } from '../utils/random-config.js';
@@ -209,7 +209,15 @@ games.post('/run-direct', async (c) => {
 });
 
 /**
- * GET /api/games - List completed games.
+ * GET /api/games - List completed games with optional filters.
+ * 
+ * Query params:
+ * - limit: Max games to return (default 20, max 100)
+ * - offset: Pagination offset (default 0)
+ * - status: Filter by status (default 'completed')
+ * - model: Filter by model ID (games where this model participated)
+ * - winner: Filter by winner ('mafia' | 'town')
+ * - theme: Filter by persona theme ('noir' | 'victorian' | 'modern' | 'fantasy')
  */
 games.get('/', async (c) => {
   const env = c.env;
@@ -218,31 +226,85 @@ games.get('/', async (c) => {
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 100);
   const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
   const status = (url.searchParams.get('status') ?? 'completed') as 'running' | 'completed' | 'failed';
+  
+  // Optional filters
+  const modelFilter = url.searchParams.get('model');
+  const winnerFilter = url.searchParams.get('winner') as 'mafia' | 'town' | null;
+  const themeFilter = url.searchParams.get('theme') as 'noir' | 'victorian' | 'modern' | 'fantasy' | null;
 
-  // Get games and count in parallel
-  const [gamesResult, countResult] = await Promise.all([
-    db
-      .select({
-        id: schema.games.id,
-        batch_id: schema.games.batchId,
-        winner: schema.games.winner,
-        rounds: schema.games.rounds,
-        duration_ms: schema.games.durationMs,
-        total_tokens: schema.games.totalTokens,
-        persona_theme: schema.games.personaTheme,
-        status: schema.games.status,
-        created_at: schema.games.createdAt,
-      })
-      .from(schema.games)
-      .where(eq(schema.games.status, status))
-      .orderBy(desc(schema.games.createdAt))
-      .limit(limit)
-      .offset(offset),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(schema.games)
-      .where(eq(schema.games.status, status)),
-  ]);
+  // Build WHERE conditions
+  const conditions = [eq(schema.games.status, status)];
+  if (winnerFilter && (winnerFilter === 'mafia' || winnerFilter === 'town')) {
+    conditions.push(eq(schema.games.winner, winnerFilter));
+  }
+  if (themeFilter && ['noir', 'victorian', 'modern', 'fantasy'].includes(themeFilter)) {
+    conditions.push(eq(schema.games.personaTheme, themeFilter));
+  }
+
+  // If filtering by model, we need to join with participants
+  let gamesResult;
+  let countResult;
+  
+  if (modelFilter) {
+    // Get game IDs that have this model as participant
+    const gameIdsWithModel = db
+      .selectDistinct({ gameId: schema.gameParticipants.gameId })
+      .from(schema.gameParticipants)
+      .where(eq(schema.gameParticipants.modelId, modelFilter));
+    
+    const modelCondition = inArray(schema.games.id, gameIdsWithModel);
+    
+    [gamesResult, countResult] = await Promise.all([
+      db
+        .select({
+          id: schema.games.id,
+          batch_id: schema.games.batchId,
+          winner: schema.games.winner,
+          rounds: schema.games.rounds,
+          duration_ms: schema.games.durationMs,
+          total_tokens: schema.games.totalTokens,
+          persona_theme: schema.games.personaTheme,
+          status: schema.games.status,
+          created_at: schema.games.createdAt,
+          cost_usd: schema.games.costUsd,
+        })
+        .from(schema.games)
+        .where(and(...conditions, modelCondition))
+        .orderBy(desc(schema.games.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.games)
+        .where(and(...conditions, modelCondition)),
+    ]);
+  } else {
+    // No model filter - simpler query
+    [gamesResult, countResult] = await Promise.all([
+      db
+        .select({
+          id: schema.games.id,
+          batch_id: schema.games.batchId,
+          winner: schema.games.winner,
+          rounds: schema.games.rounds,
+          duration_ms: schema.games.durationMs,
+          total_tokens: schema.games.totalTokens,
+          persona_theme: schema.games.personaTheme,
+          status: schema.games.status,
+          created_at: schema.games.createdAt,
+          cost_usd: schema.games.costUsd,
+        })
+        .from(schema.games)
+        .where(and(...conditions))
+        .orderBy(desc(schema.games.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.games)
+        .where(and(...conditions)),
+    ]);
+  }
 
   const total = countResult[0]?.count ?? 0;
 
@@ -287,6 +349,11 @@ games.get('/', async (c) => {
     hasMore: offset + limit < total,
     limit,
     offset,
+    filters: {
+      model: modelFilter,
+      winner: winnerFilter,
+      theme: themeFilter,
+    },
   });
 });
 
