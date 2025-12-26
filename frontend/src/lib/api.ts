@@ -256,15 +256,45 @@ export async function getLeaderboard(team?: 'mafia' | 'town'): Promise<Leaderboa
   return data.rankings;
 }
 
+export interface GameFilters {
+  model?: string;
+  winner?: 'mafia' | 'town';
+  theme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
+}
+
+export interface GamesResponse {
+  games: GameSummary[];
+  total: number;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+  filters: {
+    model: string | null;
+    winner: 'mafia' | 'town' | null;
+    theme: 'noir' | 'victorian' | 'modern' | 'fantasy' | null;
+  };
+}
+
 /**
- * Fetch list of games.
+ * Fetch list of games with optional filters.
  */
 export async function getGames(
   limit = 20,
   offset = 0,
-  status: 'completed' | 'running' | 'failed' = 'completed'
-): Promise<{ games: GameSummary[]; total: number; hasMore: boolean }> {
-  const res = await fetch(`${API_URL}/api/games?limit=${limit}&offset=${offset}&status=${status}`);
+  status: 'completed' | 'running' | 'failed' = 'completed',
+  filters?: GameFilters
+): Promise<GamesResponse> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+    status,
+  });
+  
+  if (filters?.model) params.set('model', filters.model);
+  if (filters?.winner) params.set('winner', filters.winner);
+  if (filters?.theme) params.set('theme', filters.theme);
+
+  const res = await fetch(`${API_URL}/api/games?${params}`);
   if (!res.ok) throw new Error('Failed to fetch games');
 
   return res.json();

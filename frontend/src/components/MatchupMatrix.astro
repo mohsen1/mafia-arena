@@ -174,29 +174,35 @@ function getRankIcon(index: number): string {
             </tr>
           </thead>
           <tbody>
-            {top10WithModels.map((entry, i) => (
-              <tr class="border-b last:border-0 hover:bg-muted/20">
-                <td class="px-2 py-1 font-medium tabular-nums">{getRankIcon(i)}</td>
-                <td class="px-2 py-1">
-                  <div class="flex items-center gap-1.5">
-                    <span 
-                      class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
-                      style={`background: ${getProviderColor(entry.model.provider)}`}
-                    ></span>
-                    <span class="font-medium truncate">{entry.display_name}</span>
-                  </div>
-                </td>
-                <td class="px-2 py-1 text-right font-bold tabular-nums text-emerald-500">
-                  {entry.elo}
-                </td>
-                <td class="px-2 py-1 text-right tabular-nums text-muted-foreground">
-                  {(entry.win_rate * 100).toFixed(0)}%
-                </td>
-                <td class="px-2 py-1 text-right tabular-nums text-muted-foreground">
-                  {entry.wins}-{entry.losses}
-                </td>
-              </tr>
-            ))}
+            {top10WithModels.map((entry, i) => {
+              // Use first model ID for filtering (they all map to same display_name)
+              const modelId = entry.model_ids?.[0] || entry.model.ids?.[0] || '';
+              const gamesUrl = modelId ? `/games?model=${encodeURIComponent(modelId)}` : '/games';
+              
+              return (
+                <tr class="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer group" onclick={`window.location='${gamesUrl}'`}>
+                  <td class="px-2 py-1 font-medium tabular-nums">{getRankIcon(i)}</td>
+                  <td class="px-2 py-1">
+                    <a href={gamesUrl} class="flex items-center gap-1.5 group-hover:text-primary transition-colors">
+                      <span 
+                        class="w-1.5 h-1.5 rounded-full flex-shrink-0" 
+                        style={`background: ${getProviderColor(entry.model.provider)}`}
+                      ></span>
+                      <span class="font-medium truncate">{entry.display_name}</span>
+                    </a>
+                  </td>
+                  <td class="px-2 py-1 text-right font-bold tabular-nums text-emerald-500">
+                    {entry.elo}
+                  </td>
+                  <td class="px-2 py-1 text-right tabular-nums text-muted-foreground">
+                    {(entry.win_rate * 100).toFixed(0)}%
+                  </td>
+                  <td class="px-2 py-1 text-right tabular-nums text-muted-foreground">
+                    {entry.wins}-{entry.losses}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         <div class="px-2 py-1 text-[10px] text-muted-foreground border-t bg-muted/20">
