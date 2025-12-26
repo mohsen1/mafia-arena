@@ -35,14 +35,14 @@ stats.get('/overview', async (c) => {
   // Stats by provider
   const providerStats = await env.DB.prepare(`
     SELECT 
-      m.provider,
+      m.family,
       COUNT(DISTINCT gp.game_id) as games,
       SUM(CASE WHEN gp.won = 1 THEN 1 ELSE 0 END) as wins,
       SUM(l.total_tokens) as tokens
     FROM game_participants gp
     JOIN models m ON gp.model_id = m.id
     LEFT JOIN leaderboard l ON gp.model_id = l.model_id AND gp.team = l.team
-    GROUP BY m.provider
+    GROUP BY m.family
   `).all();
 
   // Top models by win rate (min 3 games, exclude test models)
@@ -50,7 +50,7 @@ stats.get('/overview', async (c) => {
     SELECT 
       l.model_id,
       m.display_name,
-      m.provider,
+      m.family,
       SUM(l.games_played) as games,
       SUM(l.games_won) as wins,
       CAST(SUM(l.games_won) AS REAL) / SUM(l.games_played) as win_rate
@@ -133,7 +133,7 @@ stats.get('/matchups', async (c) => {
 
   // Get unique models for matrix (exclude test models)
   const models = await env.DB.prepare(`
-    SELECT DISTINCT m.id, m.display_name, m.provider
+    SELECT DISTINCT m.id, m.display_name, m.family
     FROM models m
     JOIN game_participants gp ON m.id = gp.model_id
     WHERE m.id NOT LIKE 'test/%'
@@ -159,7 +159,7 @@ stats.get('/costs', async (c) => {
     SELECT 
       l.model_id,
       m.display_name,
-      m.provider,
+      m.family,
       SUM(l.games_played) as games,
       SUM(l.games_won) as wins,
       SUM(l.total_tokens) as tokens,
@@ -175,7 +175,7 @@ stats.get('/costs', async (c) => {
   // Aggregate by provider (exclude test models)
   const providerCosts = await env.DB.prepare(`
     SELECT 
-      m.provider,
+      m.family,
       SUM(l.games_played) as games,
       SUM(l.games_won) as wins,
       SUM(l.total_tokens) as tokens,
@@ -184,7 +184,7 @@ stats.get('/costs', async (c) => {
     FROM leaderboard l
     JOIN models m ON l.model_id = m.id
     WHERE l.model_id NOT LIKE 'test/%'
-    GROUP BY m.provider
+    GROUP BY m.family
     ORDER BY tokens DESC
   `).all();
 
@@ -259,7 +259,7 @@ stats.get('/elo', async (c) => {
     SELECT 
       m.id,
       m.display_name,
-      m.provider,
+      m.family,
       m.elo_rating,
       m.elo_games_played,
       m.elo_peak,

@@ -1040,11 +1040,11 @@ admin.get('/maintenance/find-duplicates', async (c) => {
       SELECT 
         m.id,
         m.display_name,
-        m.provider,
+        m.family as provider,
         COALESCE(SUM(l.games_played), 0) as total_games
       FROM models m
       LEFT JOIN leaderboard l ON m.id = l.model_id
-      WHERE m.provider != 'test'
+      WHERE m.family != 'test'
       GROUP BY m.id
       ORDER BY m.display_name, total_games DESC
     `).all<{ id: string; display_name: string; provider: string; total_games: number }>();
@@ -1101,11 +1101,11 @@ admin.get('/maintenance/low-sample-models', async (c) => {
       SELECT 
         m.id,
         m.display_name,
-        m.provider,
+        m.family as provider,
         COALESCE(SUM(l.games_played), 0) as total_games
       FROM models m
       LEFT JOIN leaderboard l ON m.id = l.model_id
-      WHERE m.provider != 'test'
+      WHERE m.family != 'test'
       GROUP BY m.id
       HAVING total_games < 3 AND total_games > 0
       ORDER BY total_games DESC
