@@ -228,12 +228,58 @@ export class GameRunner extends DurableObject<Env> {
         if (!isStale) {
           const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
           if (config) {
+            // ZOMBIE PREVENTION: Check if game was already marked failed/completed in D1
+            // This can happen if the cleanup cron ran while we were hibernating
+            // Wrapped in try-catch for graceful D1 failure handling
+            try {
+              const existingGame = await this.env.DB.prepare(
+                'SELECT status FROM games WHERE id = ?'
+              ).bind(state.gameId).first<{ status: string }>();
+              
+              if (existingGame?.status === 'failed' || existingGame?.status === 'completed') {
+                this.log.warn('Game already finalized in D1, not resuming (zombie prevention)', {
+                  gameId: state.gameId,
+                  d1Status: existingGame.status,
+                });
+                // Update local state to match D1
+                await this.saveState({
+                  status: existingGame.status as 'failed' | 'completed',
+                  completedAt: Date.now(),
+                  error: existingGame.status === 'failed' ? 'Game was marked failed by cleanup' : null,
+                });
+                return; // Don't resume
+              }
+            } catch (d1Error) {
+              // D1 unavailable - log but proceed with resume attempt
+              // Better to risk a zombie than leave game stuck
+              this.log.warn('D1 check failed during resume, proceeding anyway', {
+                gameId: state.gameId,
+                error: d1Error instanceof Error ? d1Error.message : String(d1Error),
+              });
+            }
+            
             this.log.info('Resuming interrupted game', { 
               gameId: state.gameId,
               discountPricing: state.discountPricing,
               lastActive: new Date(lastActive).toISOString(),
             });
             const gameConfig = this.toGameConfig(config, state.seed || 0);
+            
+            // Ensure D1 record exists (may have been lost if original insert failed)
+            // This is idempotent - uses ON CONFLICT DO UPDATE
+            // Failure here is non-fatal (logged but not thrown)
+            const modelIds = config.teams.map(t => t.modelId);
+            const isTestGame = modelIds.some(id => isTestModel(id));
+            if (!isTestGame) {
+              await this.insertRunningGame(
+                state.gameId, 
+                state.batchId, 
+                gameConfig, 
+                state.startedAt,
+                state.traceId ?? undefined,
+                state.discountPricing ?? false
+              );
+            }
             
             // In DO environment, any unfinished waitUntil tasks are lost on eviction.
             // By calling it here, we ensure it starts again when the DO wakes up.
