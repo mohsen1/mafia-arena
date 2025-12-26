@@ -30,6 +30,8 @@ export interface Env {
   // API Keys (secrets)
   /** OpenRouter API key - used for all AI model requests */
   OPENROUTER_API_KEY: string;
+  /** Google AI API key - used for direct Google API access (optional, faster than OpenRouter for Google models) */
+  GOOGLE_API_KEY?: string;
 
   // Admin authentication (secrets)
   ADMIN_USERNAME: string;
