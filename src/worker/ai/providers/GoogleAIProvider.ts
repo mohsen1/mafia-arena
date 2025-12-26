@@ -174,8 +174,19 @@ export class GoogleAIProvider implements AIProviderInterface {
 
   private handleHttpError(status: number, body: GoogleAIResponse): never {
     const message = body.error?.message ?? 'Unknown error';
+    const lowercaseMessage = message.toLowerCase();
     
     console.error(`[GoogleAI] Error ${status} for model ${this.googleModelName}:`, JSON.stringify(body));
+
+    // Check for billing/quota errors (non-retryable) before 429
+    if (
+      status === 402 ||
+      lowercaseMessage.includes('billing') ||
+      lowercaseMessage.includes('quota exceeded') ||
+      lowercaseMessage.includes('has not enabled billing')
+    ) {
+      throw AIErrors.authError(`${this.name} (Billing): ${message}`);
+    }
 
     if (status === 429) {
       // Rate limited - this is retryable

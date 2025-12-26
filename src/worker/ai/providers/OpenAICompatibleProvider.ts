@@ -200,7 +200,33 @@ export class OpenAICompatibleProvider implements AIProviderInterface {
       return String(b);
     };
 
+    const extractErrorDetails = (b: unknown) => {
+      if (typeof b === 'object' && b !== null) {
+        const obj = b as Record<string, unknown>;
+        if (obj.error && typeof obj.error === 'object') {
+          const err = obj.error as Record<string, unknown>;
+          return {
+            type: typeof err.type === 'string' ? err.type : undefined,
+            code: typeof err.code === 'string' ? err.code : undefined,
+          };
+        }
+      }
+      return {};
+    };
+
     const message = extractMessage(body);
+    const { type, code } = extractErrorDetails(body);
+
+    // Detect billing/quota errors (non-retryable) - OpenAI sends 429 with type='insufficient_quota'
+    if (
+      status === 402 ||
+      type === 'insufficient_quota' || 
+      code === 'insufficient_quota' ||
+      message.includes('insufficient_quota') ||
+      message.includes('exceeded your current quota')
+    ) {
+      throw AIErrors.authError(`${this.name} (Insufficient Quota): ${message}`);
+    }
 
     if (status === 429 || message.toLowerCase().includes('rate limit')) {
       const retryAfter = response.headers.get('retry-after');

@@ -153,6 +153,11 @@ export class AnthropicProvider implements AIProviderInterface {
     
     console.error(`[Anthropic] Error ${status} for model ${this.modelId}:`, JSON.stringify(body));
 
+    // Billing suspension (non-retryable)
+    if (status === 402) {
+      throw AIErrors.authError(`${this.name} (Billing): ${message}`);
+    }
+
     if (status === 429 || errorType === 'rate_limit_error') {
       throw AIErrors.rateLimited(this.name);
     }
