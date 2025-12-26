@@ -443,6 +443,15 @@ admin.post('/games/:id/fail', async (c) => {
   const gameId = c.req.param('id');
   const { reason } = await c.req.json<{ reason?: string }>();
   
+  // Check if game exists
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+  });
+
+  if (!game) {
+    throw Errors.NotFound('Game');
+  }
+  
   const now = new Date();
   const errorMessage = reason || 'Manually marked as failed by admin';
   
@@ -498,10 +507,19 @@ admin.post('/games/:id/complete', async (c) => {
   const { winner, rounds } = await c.req.json<{ winner: 'town' | 'mafia'; rounds: number }>();
   
   if (!winner || !['town', 'mafia'].includes(winner)) {
-    return c.json({ success: false, error: 'Invalid winner. Must be "town" or "mafia"' }, { status: 400 });
+    throw Errors.BadRequest('Invalid winner. Must be "town" or "mafia"');
   }
   if (!rounds || rounds < 1) {
-    return c.json({ success: false, error: 'Invalid rounds. Must be >= 1' }, { status: 400 });
+    throw Errors.BadRequest('Invalid rounds. Must be >= 1');
+  }
+  
+  // Check if game exists
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+  });
+
+  if (!game) {
+    throw Errors.NotFound('Game');
   }
   
   const now = new Date();
@@ -835,6 +853,15 @@ admin.post('/models/sync', async (c) => {
 admin.delete('/models/:id', async (c) => {
   const db = createDb(c.env.DB);
   const modelId = c.req.param('id');
+
+  // Check if model exists
+  const model = await db.query.models.findFirst({
+    where: eq(schema.models.id, modelId),
+  });
+
+  if (!model) {
+    throw Errors.NotFound('Model');
+  }
 
   // Check if model has any game participation
   const participations = await db

@@ -122,6 +122,7 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       error_message TEXT NOT NULL,
       error_stack TEXT,
       attempts INTEGER NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'retried', 'discarded')),
       created_at INTEGER DEFAULT (unixepoch())
     )`,
   ];
