@@ -123,8 +123,9 @@ describe('AI Fallback Detection', () => {
       expect(response.action.type).toBe('elimination_vote');
       expect(response.action.target).toBeNull();
       
-      // Should have retried MAX_PARSE_RETRIES times (3 total calls)
-      expect(failingProvider.getCallCount()).toBe(3);
+      // GameAIAdapter doesn't retry parse failures - it uses fallback immediately
+      // Retries happen at network level in RetryingProvider
+      expect(failingProvider.getCallCount()).toBe(1);
     });
 
     it('should track fallback usage in response metadata', async () => {

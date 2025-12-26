@@ -13,13 +13,16 @@ import {
 /**
  * Standard game configuration for tests.
  * 7 players: 2 mafia, 5 town (minimum valid configuration)
+ * 
+ * NOTE: Model IDs must start with 'test/' to be recognized as test models.
+ * This disables suspense mode in GameRunner, allowing synchronous execution.
  */
 export const STANDARD_GAME_CONFIG = {
   playerCount: 7,
   mafiaCount: 2,
   teams: [
-    { modelId: 'test-model', team: 'mafia' as const, count: 2 },
-    { modelId: 'test-model', team: 'town' as const, count: 5 },
+    { modelId: 'test/model', team: 'mafia' as const, count: 2 },
+    { modelId: 'test/model', team: 'town' as const, count: 5 },
   ],
   maxRounds: 10,
   discussionEnabled: false, // Faster tests
@@ -29,6 +32,7 @@ export const STANDARD_GAME_CONFIG = {
 
 /**
  * Game config with discussion enabled (for discussion phase tests).
+ * Inherits test/model from STANDARD_GAME_CONFIG.
  */
 export const DISCUSSION_GAME_CONFIG = {
   ...STANDARD_GAME_CONFIG,
