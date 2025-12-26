@@ -70,6 +70,8 @@ export const games = sqliteTable('games', {
   rounds: integer('rounds').default(0),
   durationMs: integer('duration_ms').default(0),
   totalTokens: integer('total_tokens').default(0),
+  /** Calculated cost in USD based on actual model pricing */
+  costUsd: real('cost_usd').default(0),
   status: text('status').$type<'running' | 'completed' | 'failed'>().default('completed').notNull(),
   errorMessage: text('error_message'),
   seed: integer('seed'),
@@ -100,6 +102,10 @@ export const gameParticipants = sqliteTable('game_participants', {
   playerCount: integer('player_count').notNull(),
   won: integer('won', { mode: 'boolean' }).notNull(),
   consistencyScore: real('consistency_score'),
+  /** Input tokens used by this participant (for accurate cost calculation) */
+  inputTokens: integer('input_tokens').default(0),
+  /** Output tokens used by this participant (for accurate cost calculation) */
+  outputTokens: integer('output_tokens').default(0),
 }, (table) => [
   index('idx_participants_game').on(table.gameId),
   index('idx_participants_model').on(table.modelId),
@@ -136,6 +142,8 @@ export const leaderboard = sqliteTable('leaderboard', {
   gamesPlayed: integer('games_played').default(0).notNull(),
   gamesWon: integer('games_won').default(0).notNull(),
   totalTokens: integer('total_tokens').default(0).notNull(),
+  /** Aggregated cost in USD for all games by this model/team */
+  costUsd: real('cost_usd').default(0),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).default(sql`(unixepoch() * 1000)`).notNull(),
 }, (table) => [
   primaryKey({ columns: [table.modelId, table.team] }),

@@ -113,7 +113,12 @@ export interface ParticipantResult {
   readonly team: Team;
   readonly playerCount: number;
   readonly won: boolean;
-  readonly tokensUsed: number;
+  /** Token usage split by input/output for accurate cost calculation */
+  readonly tokensUsed: {
+    readonly input: number;
+    readonly output: number;
+    readonly total: number;
+  };
   readonly consistencyScore?: number | undefined;
 }
 

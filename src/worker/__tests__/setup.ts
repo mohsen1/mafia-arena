@@ -49,9 +49,11 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       rounds INTEGER NOT NULL DEFAULT 0,
       duration_ms INTEGER NOT NULL DEFAULT 0,
       total_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_usd REAL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed')),
       error_message TEXT,
       seed INTEGER,
+      persona_enabled INTEGER DEFAULT 0,
       persona_theme TEXT DEFAULT 'noir',
       trace_id TEXT,
       discount_pricing INTEGER DEFAULT 0,
@@ -65,7 +67,10 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       model_id TEXT NOT NULL,
       team TEXT NOT NULL CHECK (team IN ('mafia', 'town')),
       player_count INTEGER NOT NULL,
-      won INTEGER NOT NULL DEFAULT 0 CHECK (won IN (0, 1))
+      won INTEGER NOT NULL DEFAULT 0 CHECK (won IN (0, 1)),
+      consistency_score REAL,
+      input_tokens INTEGER DEFAULT 0,
+      output_tokens INTEGER DEFAULT 0
     )`,
     `CREATE TABLE IF NOT EXISTS leaderboard (
       model_id TEXT NOT NULL,
@@ -73,6 +78,7 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       games_played INTEGER NOT NULL DEFAULT 0,
       games_won INTEGER NOT NULL DEFAULT 0,
       total_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_usd REAL DEFAULT 0,
       updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
       PRIMARY KEY (model_id, team)
     )`,
@@ -122,7 +128,72 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       error_message TEXT NOT NULL,
       error_stack TEXT,
       attempts INTEGER NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'retried', 'discarded')),
       created_at INTEGER DEFAULT (unixepoch())
+    )`,
+    `CREATE TABLE IF NOT EXISTS elo_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      model_id TEXT NOT NULL,
+      game_id TEXT NOT NULL,
+      rating_before INTEGER NOT NULL,
+      rating_after INTEGER NOT NULL,
+      rating_change INTEGER NOT NULL,
+      opponent_rating INTEGER NOT NULL,
+      won INTEGER NOT NULL CHECK (won IN (0, 1)),
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )`,
+    `CREATE TABLE IF NOT EXISTS game_summaries (
+      id TEXT PRIMARY KEY,
+      game_id TEXT NOT NULL,
+      model_id TEXT NOT NULL,
+      round_start INTEGER NOT NULL,
+      round_end INTEGER NOT NULL,
+      summary_type TEXT NOT NULL CHECK (summary_type IN ('conversation', 'votes', 'full')),
+      summary_text TEXT NOT NULL,
+      token_count INTEGER NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )`,
+    `CREATE TABLE IF NOT EXISTS game_personas (
+      id TEXT PRIMARY KEY,
+      game_id TEXT NOT NULL,
+      player_id TEXT NOT NULL,
+      model_id TEXT NOT NULL,
+      team TEXT NOT NULL CHECK (team IN ('mafia', 'town')),
+      persona_name TEXT NOT NULL,
+      persona_background TEXT NOT NULL,
+      persona_personality TEXT NOT NULL,
+      persona_occupation TEXT,
+      consistency_score REAL,
+      name_usage_count INTEGER DEFAULT 0,
+      personality_alignment_score REAL,
+      inconsistencies TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )`,
+    `CREATE TABLE IF NOT EXISTS game_persona_analysis (
+      game_id TEXT PRIMARY KEY,
+      average_consistency_score REAL NOT NULL,
+      mafia_avg_consistency REAL NOT NULL,
+      town_avg_consistency REAL NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )`,
+    `CREATE TABLE IF NOT EXISTS persona_patterns (
+      model_id TEXT NOT NULL,
+      team TEXT NOT NULL CHECK (team IN ('mafia', 'town')),
+      personality_type TEXT NOT NULL,
+      usage_count INTEGER DEFAULT 0 NOT NULL,
+      avg_consistency_score REAL,
+      win_count INTEGER DEFAULT 0 NOT NULL,
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (model_id, team, personality_type)
+    )`,
+    `CREATE TABLE IF NOT EXISTS persona_name_patterns (
+      model_id TEXT NOT NULL,
+      team TEXT NOT NULL CHECK (team IN ('mafia', 'town')),
+      name_pattern TEXT NOT NULL,
+      usage_count INTEGER DEFAULT 0 NOT NULL,
+      win_count INTEGER DEFAULT 0 NOT NULL,
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (model_id, team, name_pattern)
     )`,
   ];
 
@@ -169,6 +240,12 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
 export async function cleanupTestData(db: D1Database): Promise<void> {
   const tables = [
     'game_participants',
+    'game_personas',
+    'game_persona_analysis',
+    'game_summaries',
+    'elo_history',
+    'persona_patterns',
+    'persona_name_patterns',
     'games',
     'leaderboard',
     'batches',

@@ -80,6 +80,8 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
       `).bind(errorMsg, now, gameId);
     });
 
+    // Use D1's native batch() for atomic multi-row update
+    // Note: Drizzle doesn't provide a batch equivalent; this is the recommended pattern
     await c.env.DB.batch(updates);
 
     // Update daily stats to reflect failures

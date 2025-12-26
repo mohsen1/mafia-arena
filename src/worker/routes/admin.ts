@@ -443,6 +443,15 @@ admin.post('/games/:id/fail', async (c) => {
   const gameId = c.req.param('id');
   const { reason } = await c.req.json<{ reason?: string }>();
   
+  // Check if game exists
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+  });
+
+  if (!game) {
+    throw Errors.NotFound('Game');
+  }
+  
   const now = new Date();
   const errorMessage = reason || 'Manually marked as failed by admin';
   
@@ -498,10 +507,19 @@ admin.post('/games/:id/complete', async (c) => {
   const { winner, rounds } = await c.req.json<{ winner: 'town' | 'mafia'; rounds: number }>();
   
   if (!winner || !['town', 'mafia'].includes(winner)) {
-    return c.json({ success: false, error: 'Invalid winner. Must be "town" or "mafia"' }, { status: 400 });
+    throw Errors.BadRequest('Invalid winner. Must be "town" or "mafia"');
   }
   if (!rounds || rounds < 1) {
-    return c.json({ success: false, error: 'Invalid rounds. Must be >= 1' }, { status: 400 });
+    throw Errors.BadRequest('Invalid rounds. Must be >= 1');
+  }
+  
+  // Check if game exists
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+  });
+
+  if (!game) {
+    throw Errors.NotFound('Game');
   }
   
   const now = new Date();
@@ -836,6 +854,15 @@ admin.delete('/models/:id', async (c) => {
   const db = createDb(c.env.DB);
   const modelId = c.req.param('id');
 
+  // Check if model exists
+  const model = await db.query.models.findFirst({
+    where: eq(schema.models.id, modelId),
+  });
+
+  if (!model) {
+    throw Errors.NotFound('Model');
+  }
+
   // Check if model has any game participation
   const participations = await db
     .select({ count: sql<number>`count(*)` })
@@ -949,6 +976,8 @@ admin.post('/elo/backfill', async (c) => {
     );
   }
 
+  // Use D1's native batch() for atomic execution of multiple updates
+  // Note: Drizzle doesn't provide a batch equivalent; this is the recommended pattern
   if (updates.length > 0) {
     await env.DB.batch(updates);
   }
@@ -1072,6 +1101,8 @@ admin.post('/maintenance/merge-model', async (c) => {
         .bind(fromId),
     ];
     
+    // Use D1's native batch() for atomic merge operation
+    // Note: Drizzle doesn't provide a batch equivalent; this is the recommended pattern
     await env.DB.batch(statements);
 
     return c.json({ 
