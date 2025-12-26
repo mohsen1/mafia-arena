@@ -3,10 +3,13 @@
  */
 
 import { Hono } from 'hono';
+import { eq, desc, inArray, sql } from 'drizzle-orm';
 import type { Env, GameQueueMessage } from '../types.js';
 import { Errors } from '../utils/errors.js';
 import { getRandomTheme } from '../utils/random-config.js';
 import { generateTraceId } from '../utils/trace.js';
+import { createDb } from '../db/drizzle.js';
+import * as schema from '../db/schema.js';
 
 const games = new Hono<{ Bindings: Env }>();
 
@@ -210,65 +213,78 @@ games.post('/run-direct', async (c) => {
  */
 games.get('/', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
   const url = new URL(c.req.url);
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 100);
   const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
-  const status = url.searchParams.get('status') ?? 'completed';
+  const status = (url.searchParams.get('status') ?? 'completed') as 'running' | 'completed' | 'failed';
 
-  const countResult = await env.DB
-    .prepare('SELECT COUNT(*) as count FROM games WHERE status = ?')
-    .bind(status)
-    .first<{ count: number }>();
+  // Get games and count in parallel
+  const [gamesResult, countResult] = await Promise.all([
+    db
+      .select({
+        id: schema.games.id,
+        batch_id: schema.games.batchId,
+        winner: schema.games.winner,
+        rounds: schema.games.rounds,
+        duration_ms: schema.games.durationMs,
+        total_tokens: schema.games.totalTokens,
+        persona_theme: schema.games.personaTheme,
+        status: schema.games.status,
+        created_at: schema.games.createdAt,
+      })
+      .from(schema.games)
+      .where(eq(schema.games.status, status))
+      .orderBy(desc(schema.games.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.games)
+      .where(eq(schema.games.status, status)),
+  ]);
 
-  const gamesResult = await env.DB
-    .prepare(
-      `SELECT id, batch_id, winner, rounds, duration_ms, total_tokens, persona_theme, status, created_at
-       FROM games
-       WHERE status = ?
-       ORDER BY created_at DESC
-       LIMIT ? OFFSET ?`
-    )
-    .bind(status, limit, offset)
-    .all();
+  const total = countResult[0]?.count ?? 0;
 
   // Get participants for each game to show model matchups
-  const gameIds = gamesResult.results.map((g: Record<string, unknown>) => g.id as string);
-  let participantsMap: Record<string, Array<{ model_id: string; model_name: string; team: string }>> = {};
+  const gameIds = gamesResult.map(g => g.id);
+  type ParticipantInfo = { model_id: string; model_name: string | null; team: 'mafia' | 'town' };
+  let participantsMap: Record<string, ParticipantInfo[]> = {};
   
   if (gameIds.length > 0) {
-    const participantsResult = await env.DB
-      .prepare(
-        `SELECT gp.game_id, gp.model_id, gp.team, m.display_name as model_name
-         FROM game_participants gp
-         LEFT JOIN models m ON gp.model_id = m.id
-         WHERE gp.game_id IN (${gameIds.map(() => '?').join(',')})`
-      )
-      .bind(...gameIds)
-      .all();
+    const participantsResult = await db
+      .select({
+        game_id: schema.gameParticipants.gameId,
+        model_id: schema.gameParticipants.modelId,
+        team: schema.gameParticipants.team,
+        model_name: schema.models.displayName,
+      })
+      .from(schema.gameParticipants)
+      .leftJoin(schema.models, eq(schema.gameParticipants.modelId, schema.models.id))
+      .where(inArray(schema.gameParticipants.gameId, gameIds));
 
-    for (const p of participantsResult.results as Record<string, unknown>[]) {
-      const gameId = p.game_id as string;
-      if (!participantsMap[gameId]) {
-        participantsMap[gameId] = [];
+    for (const p of participantsResult) {
+      if (!participantsMap[p.game_id]) {
+        participantsMap[p.game_id] = [];
       }
-      participantsMap[gameId]!.push({
-        model_id: p.model_id as string,
-        model_name: (p.model_name as string) || (p.model_id as string),
-        team: p.team as string,
+      participantsMap[p.game_id]!.push({
+        model_id: p.model_id,
+        model_name: p.model_name,
+        team: p.team,
       });
     }
   }
 
   // Attach participants to games
-  const gamesWithParticipants = gamesResult.results.map((game: Record<string, unknown>) => ({
+  const gamesWithParticipants = gamesResult.map(game => ({
     ...game,
-    participants: participantsMap[game.id as string] || [],
+    participants: participantsMap[game.id] || [],
   }));
 
   return c.json({
     games: gamesWithParticipants,
-    total: countResult?.count ?? 0,
-    hasMore: offset + limit < (countResult?.count ?? 0),
+    total,
+    hasMore: offset + limit < total,
     limit,
     offset,
   });
@@ -279,30 +295,35 @@ games.get('/', async (c) => {
  */
 games.get('/:id', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
   const gameId = c.req.param('id');
 
-  const game = await env.DB
-    .prepare('SELECT * FROM games WHERE id = ?')
-    .bind(gameId)
-    .first();
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+  });
 
   if (!game) {
     throw Errors.NotFound('Game');
   }
 
-  const participants = await env.DB
-    .prepare(
-      `SELECT gp.*, m.display_name as model_name
-       FROM game_participants gp
-       LEFT JOIN models m ON gp.model_id = m.id
-       WHERE gp.game_id = ?`
-    )
-    .bind(gameId)
-    .all();
+  const participants = await db
+    .select({
+      id: schema.gameParticipants.id,
+      game_id: schema.gameParticipants.gameId,
+      model_id: schema.gameParticipants.modelId,
+      team: schema.gameParticipants.team,
+      player_count: schema.gameParticipants.playerCount,
+      won: schema.gameParticipants.won,
+      consistency_score: schema.gameParticipants.consistencyScore,
+      model_name: schema.models.displayName,
+    })
+    .from(schema.gameParticipants)
+    .leftJoin(schema.models, eq(schema.gameParticipants.modelId, schema.models.id))
+    .where(eq(schema.gameParticipants.gameId, gameId));
 
   return c.json({
     ...game,
-    participants: participants.results,
+    participants,
     transcriptUrl: `/api/games/${gameId}/transcript`,
   });
 });
@@ -409,18 +430,26 @@ games.get('/:id/health', async (c) => {
  */
 games.get('/:id/personas', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
   const gameId = c.req.param('id');
 
   // Check game exists
-  const game = await env.DB.prepare('SELECT id, persona_enabled FROM games WHERE id = ?')
-    .bind(gameId)
-    .first<{ id: string; persona_enabled: number }>();
+  const game = await db
+    .select({
+      id: schema.games.id,
+      persona_enabled: schema.games.personaEnabled,
+    })
+    .from(schema.games)
+    .where(eq(schema.games.id, gameId))
+    .limit(1);
 
-  if (!game) {
+  if (game.length === 0 || !game[0]) {
     throw Errors.NotFound('Game');
   }
 
-  if (!game.persona_enabled) {
+  const gameData = game[0];
+
+  if (!gameData.persona_enabled) {
     return c.json({
       gameId,
       personaEnabled: false,
@@ -429,26 +458,36 @@ games.get('/:id/personas', async (c) => {
     });
   }
 
-  // Get personas
-  const personas = await env.DB.prepare(`
-    SELECT 
-      gp.*,
-      m.display_name as model_name
-    FROM game_personas gp
-    LEFT JOIN models m ON gp.model_id = m.id
-    WHERE gp.game_id = ?
-    ORDER BY gp.created_at
-  `).bind(gameId).all();
+  // Get personas with model names
+  const personas = await db
+    .select({
+      player_id: schema.gamePersonas.playerId,
+      model_id: schema.gamePersonas.modelId,
+      model_name: schema.models.displayName,
+      team: schema.gamePersonas.team,
+      persona_name: schema.gamePersonas.personaName,
+      persona_background: schema.gamePersonas.personaBackground,
+      persona_personality: schema.gamePersonas.personaPersonality,
+      persona_occupation: schema.gamePersonas.personaOccupation,
+      consistency_score: schema.gamePersonas.consistencyScore,
+      name_usage_count: schema.gamePersonas.nameUsageCount,
+      personality_alignment_score: schema.gamePersonas.personalityAlignmentScore,
+      inconsistencies: schema.gamePersonas.inconsistencies,
+    })
+    .from(schema.gamePersonas)
+    .leftJoin(schema.models, eq(schema.gamePersonas.modelId, schema.models.id))
+    .where(eq(schema.gamePersonas.gameId, gameId))
+    .orderBy(schema.gamePersonas.createdAt);
 
   // Get analysis
-  const analysis = await env.DB.prepare(`
-    SELECT * FROM game_persona_analysis WHERE game_id = ?
-  `).bind(gameId).first();
+  const analysis = await db.query.gamePersonaAnalysis.findFirst({
+    where: eq(schema.gamePersonaAnalysis.gameId, gameId),
+  });
 
   return c.json({
     gameId,
     personaEnabled: true,
-    personas: personas.results.map((p: Record<string, unknown>) => ({
+    personas: personas.map(p => ({
       playerId: p.player_id,
       modelId: p.model_id,
       modelName: p.model_name || p.model_id,
@@ -463,16 +502,15 @@ games.get('/:id/personas', async (c) => {
         score: p.consistency_score,
         nameUsageCount: p.name_usage_count,
         personalityAlignment: p.personality_alignment_score,
-        inconsistencies: p.inconsistencies ? JSON.parse(p.inconsistencies as string) : [],
+        inconsistencies: p.inconsistencies ?? [],
       },
     })),
     analysis: analysis ? {
-      averageScore: (analysis as Record<string, unknown>).average_consistency_score,
-      mafiaAvgConsistency: (analysis as Record<string, unknown>).mafia_avg_consistency,
-      townAvgConsistency: (analysis as Record<string, unknown>).town_avg_consistency,
+      averageScore: analysis.averageConsistencyScore,
+      mafiaAvgConsistency: analysis.mafiaAvgConsistency,
+      townAvgConsistency: analysis.townAvgConsistency,
     } : null,
   });
 });
 
 export default games;
-

@@ -34,3 +34,7 @@ yarn-error.log*
 
 # Cloudflare
 .mf/
+
+# Drizzle temporary files
+drizzle/
+local.db

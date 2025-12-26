@@ -1,9 +1,14 @@
 /**
  * Stats API routes.
+ * 
+ * Uses Drizzle ORM with sql template tags for complex aggregations.
  */
 
 import { Hono } from 'hono';
+import { eq, sql, desc, gte, and, notLike } from 'drizzle-orm';
 import type { Env } from '../types.js';
+import { createDb } from '../db/drizzle.js';
+import * as schema from '../db/schema.js';
 
 const stats = new Hono<{ Bindings: Env }>();
 
@@ -11,57 +16,57 @@ const stats = new Hono<{ Bindings: Env }>();
  * GET /api/stats/overview - Aggregate stats overview.
  */
 stats.get('/overview', async (c) => {
-  const env = c.env;
+  const db = createDb(c.env.DB);
 
-  // Total games and tokens
-  const totals = await env.DB.prepare(`
-    SELECT 
-      COUNT(*) as total_games,
-      SUM(total_tokens) as total_tokens,
-      SUM(CASE WHEN winner = 'mafia' THEN 1 ELSE 0 END) as mafia_wins,
-      SUM(CASE WHEN winner = 'town' THEN 1 ELSE 0 END) as town_wins,
-      AVG(rounds) as avg_rounds,
-      AVG(duration_ms) as avg_duration_ms
-    FROM games WHERE status = 'completed'
-  `).first<{
-    total_games: number;
-    total_tokens: number;
-    mafia_wins: number;
-    town_wins: number;
-    avg_rounds: number;
-    avg_duration_ms: number;
-  }>();
+  // Total games and tokens using sql template tag for complex aggregations
+  const [totals] = await db
+    .select({
+      total_games: sql<number>`count(*)`,
+      total_tokens: sql<number>`sum(${schema.games.totalTokens})`,
+      mafia_wins: sql<number>`sum(case when ${schema.games.winner} = 'mafia' then 1 else 0 end)`,
+      town_wins: sql<number>`sum(case when ${schema.games.winner} = 'town' then 1 else 0 end)`,
+      avg_rounds: sql<number>`avg(${schema.games.rounds})`,
+      avg_duration_ms: sql<number>`avg(${schema.games.durationMs})`,
+    })
+    .from(schema.games)
+    .where(eq(schema.games.status, 'completed'));
 
   // Stats by provider
-  const providerStats = await env.DB.prepare(`
-    SELECT 
-      m.family,
-      COUNT(DISTINCT gp.game_id) as games,
-      SUM(CASE WHEN gp.won = 1 THEN 1 ELSE 0 END) as wins,
-      SUM(l.total_tokens) as tokens
-    FROM game_participants gp
-    JOIN models m ON gp.model_id = m.id
-    LEFT JOIN leaderboard l ON gp.model_id = l.model_id AND gp.team = l.team
-    GROUP BY m.family
-  `).all();
+  const providerStats = await db
+    .select({
+      family: schema.models.family,
+      games: sql<number>`count(distinct ${schema.gameParticipants.gameId})`,
+      wins: sql<number>`sum(case when ${schema.gameParticipants.won} = 1 then 1 else 0 end)`,
+      tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
+    })
+    .from(schema.gameParticipants)
+    .innerJoin(schema.models, eq(schema.gameParticipants.modelId, schema.models.id))
+    .leftJoin(
+      schema.leaderboard,
+      and(
+        eq(schema.gameParticipants.modelId, schema.leaderboard.modelId),
+        eq(schema.gameParticipants.team, schema.leaderboard.team)
+      )
+    )
+    .groupBy(schema.models.family);
 
   // Top models by win rate (min 3 games, exclude test models)
-  const topModels = await env.DB.prepare(`
-    SELECT 
-      l.model_id,
-      m.display_name,
-      m.family,
-      SUM(l.games_played) as games,
-      SUM(l.games_won) as wins,
-      CAST(SUM(l.games_won) AS REAL) / SUM(l.games_played) as win_rate
-    FROM leaderboard l
-    JOIN models m ON l.model_id = m.id
-    WHERE l.model_id NOT LIKE 'test/%'
-    GROUP BY l.model_id
-    HAVING SUM(l.games_played) >= 3
-    ORDER BY win_rate DESC
-    LIMIT 5
-  `).all();
+  const topModels = await db
+    .select({
+      model_id: schema.leaderboard.modelId,
+      display_name: schema.models.displayName,
+      family: schema.models.family,
+      games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
+      wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
+      win_rate: sql<number>`cast(sum(${schema.leaderboard.gamesWon}) as real) / sum(${schema.leaderboard.gamesPlayed})`,
+    })
+    .from(schema.leaderboard)
+    .innerJoin(schema.models, eq(schema.leaderboard.modelId, schema.models.id))
+    .where(notLike(schema.leaderboard.modelId, 'test/%'))
+    .groupBy(schema.leaderboard.modelId)
+    .having(sql`sum(${schema.leaderboard.gamesPlayed}) >= 3`)
+    .orderBy(sql`win_rate desc`)
+    .limit(5);
 
   return c.json({
     totals: {
@@ -72,8 +77,8 @@ stats.get('/overview', async (c) => {
       avgRounds: totals?.avg_rounds ?? 0,
       avgDurationMs: totals?.avg_duration_ms ?? 0,
     },
-    byProvider: providerStats.results,
-    topModels: topModels.results,
+    byProvider: providerStats,
+    topModels,
   });
 });
 
@@ -86,6 +91,7 @@ stats.get('/matchups', async (c) => {
   const team = url.searchParams.get('team') as 'mafia' | 'town' | null;
 
   // Get all head-to-head matchups (excluding self-play and test models)
+  // Keep as raw SQL due to complexity of self-join with aliased conditions
   const query = `
     SELECT 
       gp1.model_id as model_a,
@@ -132,18 +138,22 @@ stats.get('/matchups', async (c) => {
   const selfPlayResult = await env.DB.prepare(selfPlayQuery).all();
 
   // Get unique models for matrix (exclude test models)
-  const models = await env.DB.prepare(`
-    SELECT DISTINCT m.id, m.display_name, m.family
-    FROM models m
-    JOIN game_participants gp ON m.id = gp.model_id
-    WHERE m.id NOT LIKE 'test/%'
-    ORDER BY m.display_name
-  `).all();
+  const db = createDb(env.DB);
+  const models = await db
+    .selectDistinct({
+      id: schema.models.id,
+      display_name: schema.models.displayName,
+      family: schema.models.family,
+    })
+    .from(schema.models)
+    .innerJoin(schema.gameParticipants, eq(schema.models.id, schema.gameParticipants.modelId))
+    .where(notLike(schema.models.id, 'test/%'))
+    .orderBy(schema.models.displayName);
 
   return c.json({
     matchups: result.results,
     selfPlay: selfPlayResult.results,
-    models: models.results,
+    models,
     filter: { team },
   });
 });
@@ -152,45 +162,45 @@ stats.get('/matchups', async (c) => {
  * GET /api/stats/costs - Cost efficiency stats.
  */
 stats.get('/costs', async (c) => {
-  const env = c.env;
+  const db = createDb(c.env.DB);
 
   // Token usage and games by model (exclude test models)
-  const modelCosts = await env.DB.prepare(`
-    SELECT 
-      l.model_id,
-      m.display_name,
-      m.family,
-      SUM(l.games_played) as games,
-      SUM(l.games_won) as wins,
-      SUM(l.total_tokens) as tokens,
-      CAST(SUM(l.games_won) AS REAL) / NULLIF(SUM(l.games_played), 0) as win_rate,
-      CAST(SUM(l.total_tokens) AS REAL) / NULLIF(SUM(l.games_played), 0) as tokens_per_game
-    FROM leaderboard l
-    JOIN models m ON l.model_id = m.id
-    WHERE l.model_id NOT LIKE 'test/%'
-    GROUP BY l.model_id
-    ORDER BY tokens DESC
-  `).all();
+  const modelCosts = await db
+    .select({
+      model_id: schema.leaderboard.modelId,
+      display_name: schema.models.displayName,
+      family: schema.models.family,
+      games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
+      wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
+      tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
+      win_rate: sql<number>`cast(sum(${schema.leaderboard.gamesWon}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+      tokens_per_game: sql<number>`cast(sum(${schema.leaderboard.totalTokens}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+    })
+    .from(schema.leaderboard)
+    .innerJoin(schema.models, eq(schema.leaderboard.modelId, schema.models.id))
+    .where(notLike(schema.leaderboard.modelId, 'test/%'))
+    .groupBy(schema.leaderboard.modelId)
+    .orderBy(sql`tokens desc`);
 
   // Aggregate by provider (exclude test models)
-  const providerCosts = await env.DB.prepare(`
-    SELECT 
-      m.family,
-      SUM(l.games_played) as games,
-      SUM(l.games_won) as wins,
-      SUM(l.total_tokens) as tokens,
-      CAST(SUM(l.games_won) AS REAL) / NULLIF(SUM(l.games_played), 0) as win_rate,
-      CAST(SUM(l.total_tokens) AS REAL) / NULLIF(SUM(l.games_played), 0) as tokens_per_game
-    FROM leaderboard l
-    JOIN models m ON l.model_id = m.id
-    WHERE l.model_id NOT LIKE 'test/%'
-    GROUP BY m.family
-    ORDER BY tokens DESC
-  `).all();
+  const providerCosts = await db
+    .select({
+      family: schema.models.family,
+      games: sql<number>`sum(${schema.leaderboard.gamesPlayed})`,
+      wins: sql<number>`sum(${schema.leaderboard.gamesWon})`,
+      tokens: sql<number>`sum(${schema.leaderboard.totalTokens})`,
+      win_rate: sql<number>`cast(sum(${schema.leaderboard.gamesWon}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+      tokens_per_game: sql<number>`cast(sum(${schema.leaderboard.totalTokens}) as real) / nullif(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+    })
+    .from(schema.leaderboard)
+    .innerJoin(schema.models, eq(schema.leaderboard.modelId, schema.models.id))
+    .where(notLike(schema.leaderboard.modelId, 'test/%'))
+    .groupBy(schema.models.family)
+    .orderBy(sql`tokens desc`);
 
   return c.json({
-    byModel: modelCosts.results,
-    byProvider: providerCosts.results,
+    byModel: modelCosts,
+    byProvider: providerCosts,
   });
 });
 
@@ -200,6 +210,7 @@ stats.get('/costs', async (c) => {
  */
 stats.get('/trends', async (c) => {
   const env = c.env;
+  const db = createDb(env.DB);
   const url = new URL(c.req.url);
   const days = parseInt(url.searchParams.get('days') ?? '30', 10);
   
@@ -209,19 +220,20 @@ stats.get('/trends', async (c) => {
   const cutoffDateStr = cutoffDate.toISOString().slice(0, 10);
 
   // Use pre-aggregated daily_stats table for better performance
-  const dailyStats = await env.DB.prepare(`
-    SELECT 
-      date,
-      games_completed as games,
-      mafia_wins,
-      town_wins,
-      tokens_used as tokens
-    FROM daily_stats
-    WHERE date >= ?
-    ORDER BY date ASC
-  `).bind(cutoffDateStr).all();
+  const dailyStats = await db
+    .select({
+      date: schema.dailyStats.date,
+      games: schema.dailyStats.gamesCompleted,
+      mafia_wins: schema.dailyStats.mafiaWins,
+      town_wins: schema.dailyStats.townWins,
+      tokens: schema.dailyStats.tokensUsed,
+    })
+    .from(schema.dailyStats)
+    .where(gte(schema.dailyStats.date, cutoffDateStr))
+    .orderBy(schema.dailyStats.date);
 
   // Recent games activity (still needs to query games table for details)
+  // Keep as raw SQL due to GROUP_CONCAT and complex join
   const recentActivity = await env.DB.prepare(`
     SELECT 
       g.id,
@@ -240,7 +252,7 @@ stats.get('/trends', async (c) => {
   `).all();
 
   return c.json({
-    daily: dailyStats.results,
+    daily: dailyStats,
     recent: recentActivity.results,
     period: { days, cutoffDate: cutoffDateStr },
   });
@@ -251,46 +263,35 @@ stats.get('/trends', async (c) => {
  * Reads pre-calculated ELO from database (updated incrementally on game completion).
  */
 stats.get('/elo', async (c) => {
-  const env = c.env;
+  const db = createDb(c.env.DB);
   
   // Read pre-calculated ELO ratings with proper win/loss counts from leaderboard
   // leaderboard has separate rows per team, so we aggregate them
-  const modelsResult = await env.DB.prepare(`
-    SELECT 
-      m.id,
-      m.display_name,
-      m.family,
-      m.elo_rating,
-      m.elo_games_played,
-      m.elo_peak,
-      COALESCE(l.total_games, 0) as total_games,
-      COALESCE(l.total_wins, 0) as total_wins
-    FROM models m
-    LEFT JOIN (
-      SELECT 
-        model_id,
-        SUM(games_played) as total_games,
-        SUM(games_won) as total_wins
-      FROM leaderboard
-      GROUP BY model_id
-    ) l ON m.id = l.model_id
-    WHERE m.id NOT LIKE 'test/%'
-      AND m.elo_games_played >= 3
-    ORDER BY m.elo_rating DESC
-  `).all<{
-    id: string;
-    display_name: string;
-    provider: string;
-    elo_rating: number | null;
-    elo_games_played: number | null;
-    elo_peak: number | null;
-    total_games: number;
-    total_wins: number;
-  }>();
+  const modelsResult = await db
+    .select({
+      id: schema.models.id,
+      display_name: schema.models.displayName,
+      family: schema.models.family,
+      elo_rating: schema.models.eloRating,
+      elo_games_played: schema.models.eloGamesPlayed,
+      elo_peak: schema.models.eloPeak,
+      total_games: sql<number>`coalesce(sum(${schema.leaderboard.gamesPlayed}), 0)`,
+      total_wins: sql<number>`coalesce(sum(${schema.leaderboard.gamesWon}), 0)`,
+    })
+    .from(schema.models)
+    .leftJoin(schema.leaderboard, eq(schema.models.id, schema.leaderboard.modelId))
+    .where(
+      and(
+        notLike(schema.models.id, 'test/%'),
+        gte(schema.models.eloGamesPlayed, 3)
+      )
+    )
+    .groupBy(schema.models.id)
+    .orderBy(desc(schema.models.eloRating));
 
   const INITIAL_RATING = 1500;
   
-  const rankings = modelsResult.results
+  const rankings = modelsResult
     .filter(m => m.elo_games_played && m.elo_games_played >= 3)
     .map(m => {
       const games = m.total_games;
@@ -318,5 +319,3 @@ stats.get('/elo', async (c) => {
 });
 
 export default stats;
-
-

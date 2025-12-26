@@ -6,8 +6,11 @@
  */
 
 import type { Context } from 'hono';
+import { eq, lt, and, sql } from 'drizzle-orm';
 import type { Env } from '../types.js';
 import { createLogger } from '../utils/logger.js';
+import { createDb } from '../db/drizzle.js';
+import * as schema from '../db/schema.js';
 
 const log = createLogger('AdminCleanup');
 
@@ -17,29 +20,31 @@ const log = createLogger('AdminCleanup');
 const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 
 export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const db = createDb(c.env.DB);
   const now = Date.now();
-  const staleTimestamp = now - STALE_THRESHOLD_MS;
+  const staleTimestamp = new Date(now - STALE_THRESHOLD_MS);
 
   try {
     // Find all games that have been "running" for too long
     // A game is stuck if it's been in "running" status for >10 minutes
     // This includes games that never actually started properly
-    interface StaleGame {
-      id: string;
-      created_at: number;
-      rounds: number;
-      batch_id: string | null;
-    }
-    
-    const staleGames = await c.env.DB.prepare(`
-      SELECT id, created_at, rounds, batch_id
-      FROM games
-      WHERE status = 'running'
-        AND created_at < ?
-      ORDER BY created_at ASC
-    `).bind(staleTimestamp).all<StaleGame>();
+    const staleGames = await db
+      .select({
+        id: schema.games.id,
+        created_at: schema.games.createdAt,
+        rounds: schema.games.rounds,
+        batch_id: schema.games.batchId,
+      })
+      .from(schema.games)
+      .where(
+        and(
+          eq(schema.games.status, 'running'),
+          lt(schema.games.createdAt, staleTimestamp)
+        )
+      )
+      .orderBy(schema.games.createdAt);
 
-    if (!staleGames.results || staleGames.results.length === 0) {
+    if (staleGames.length === 0) {
       log.info('No hanging games found');
       return c.json({
         success: true,
@@ -48,19 +53,20 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
       });
     }
 
-    log.info('Found stale games', { count: staleGames.results.length });
+    log.info('Found stale games', { count: staleGames.length });
 
     // Update all stale games to failed status
-    const gameIds = staleGames.results.map((g) => g.id);
+    const gameIds = staleGames.map((g) => g.id);
     
     // Categorize games for better error messages
     // Games with 0 rounds likely never started properly
-    const neverStarted = staleGames.results.filter((g) => g.rounds === 0);
-    const hung = staleGames.results.filter((g) => g.rounds > 0);
+    const neverStarted = staleGames.filter((g) => g.rounds === 0);
+    const hung = staleGames.filter((g) => (g.rounds ?? 0) > 0);
     
     // Build batch update with appropriate error messages
+    // Using raw DB for batched updates (Drizzle batch syntax differs)
     const updates = gameIds.map(gameId => {
-      const game = staleGames.results.find((g) => g.id === gameId);
+      const game = staleGames.find((g) => g.id === gameId);
       const errorMsg = game && game.rounds === 0
         ? 'Killed by admin: Game never started (stuck in running state with 0 rounds)'
         : 'Killed by admin: Game hung for >10 minutes';
@@ -78,13 +84,19 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
 
     // Update daily stats to reflect failures
     const today = new Date().toISOString().slice(0, 10);
-    await c.env.DB.prepare(`
-      INSERT INTO daily_stats (date, games_failed)
-      VALUES (?, ?)
-      ON CONFLICT (date) DO UPDATE SET
-        games_failed = games_failed + excluded.games_failed,
-        updated_at = unixepoch()
-    `).bind(today, gameIds.length).run();
+    await db
+      .insert(schema.dailyStats)
+      .values({
+        date: today,
+        gamesFailed: gameIds.length,
+      })
+      .onConflictDoUpdate({
+        target: schema.dailyStats.date,
+        set: {
+          gamesFailed: sql`${schema.dailyStats.gamesFailed} + ${gameIds.length}`,
+          updatedAt: new Date(),
+        },
+      });
 
     log.info('Killed hanging games', { 
       count: gameIds.length,
@@ -120,18 +132,21 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
  * Get count of currently running games (for display).
  */
 export async function getRunningGamesCount(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const db = createDb(c.env.DB);
+  const staleTimestamp = new Date(Date.now() - STALE_THRESHOLD_MS);
+  
   try {
-    const result = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN created_at < ? THEN 1 ELSE 0 END) as stale
-      FROM games
-      WHERE status = 'running'
-    `).bind(Date.now() - STALE_THRESHOLD_MS).first<{ total: number; stale: number }>();
+    const result = await db
+      .select({
+        total: sql<number>`count(*)`,
+        stale: sql<number>`SUM(CASE WHEN ${schema.games.createdAt} < ${staleTimestamp} THEN 1 ELSE 0 END)`,
+      })
+      .from(schema.games)
+      .where(eq(schema.games.status, 'running'));
 
     return c.json({
-      total: result?.total ?? 0,
-      stale: result?.stale ?? 0,
+      total: result[0]?.total ?? 0,
+      stale: result[0]?.stale ?? 0,
       staleThresholdMinutes: STALE_THRESHOLD_MS / 60 / 1000,
     });
   } catch (error) {
@@ -141,4 +156,3 @@ export async function getRunningGamesCount(c: Context<{ Bindings: Env }>): Promi
     );
   }
 }
-
