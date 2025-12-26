@@ -105,19 +105,18 @@ function isGoogleModel(modelId: string): boolean {
  * Used when no routing config is provided.
  */
 function inferApiProvider(modelId: string, env: Env): ApiProvider {
-  // Direct provider prefix detection (for new-style model IDs)
-  if (modelId.startsWith('openai/') && env.OPENAI_API_KEY) return 'openai';
-  if (modelId.startsWith('anthropic/') && env.ANTHROPIC_API_KEY) return 'anthropic';
-  if (modelId.startsWith('cerebras/') && env.CEREBRAS_API_KEY) return 'cerebras';
-  if (modelId.startsWith('fireworks/') && env.FIREWORKS_API_KEY) return 'fireworks';
-  if (modelId.startsWith('minimax/') && env.MINIMAX_API_KEY) return 'minimax';
+  // NOTE: We intentionally DON'T auto-route openai/* to direct OpenAI
+  // because most OpenAI models in the DB use OpenRouter (which has credits).
+  // Direct OpenAI routing requires explicit routingConfig to be passed.
   
-  // Google models get direct access if we have the key
+  // Only Google models get auto-routed to direct API when key exists
+  // because all google/* models should use the direct Google API
   if (isGoogleModel(modelId) && env.GOOGLE_API_KEY) {
     return 'google';
   }
   
-  // Default to OpenRouter
+  // For all other providers, default to OpenRouter
+  // This is safest since OpenRouter has credits and aggregates multiple providers
   return 'openrouter';
 }
 
