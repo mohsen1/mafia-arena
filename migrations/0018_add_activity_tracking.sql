@@ -10,3 +10,4 @@ CREATE INDEX IF NOT EXISTS idx_games_running_activity
   ON games(status, discount_pricing, last_activity) 
   WHERE status = 'running';
 
+

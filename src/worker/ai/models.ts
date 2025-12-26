@@ -1,13 +1,14 @@
 /**
  * Model utilities for AI providers.
  * 
- * Models are now stored in the database and synced from OpenRouter.
- * This file contains only default pricing and utility functions.
+ * Models are now stored in the database with multi-provider support.
+ * This file contains default pricing and utility functions.
  * 
- * Updated: December 2025
+ * Updated: December 2025 - Multi-provider architecture
  */
 
-import { ModelConfig } from './types.js';
+import type { ModelConfig, ModelRoutingConfig } from './types.js';
+import type { ApiProvider } from '../types.js';
 
 /**
  * Default pricing for models not in the database (per 1K tokens, USD).
@@ -51,17 +52,60 @@ export function getDefaultModelConfig(modelId: string): ModelConfig {
 }
 
 /**
- * Extract provider from OpenRouter model ID.
+ * Get default routing configuration for any model ID.
+ * Infers the API provider from the model ID prefix when possible.
+ */
+export function getDefaultRoutingConfig(modelId: string): ModelRoutingConfig {
+  const family = extractFamily(modelId);
+  const displayName = extractDisplayName(modelId);
+  
+  return {
+    id: modelId,
+    family,
+    displayName,
+    apiProvider: 'openrouter', // Default to OpenRouter
+    apiModelId: modelId,
+    structuredOutput: 'json_mode',
+  };
+}
+
+/**
+ * Extract family/creator from model ID.
  * e.g., "google/gemini-2.0-flash" -> "google"
  */
-export function extractProvider(modelId: string): string {
+export function extractFamily(modelId: string): string {
   return modelId.split('/')[0] || 'unknown';
 }
 
 /**
- * Extract display name from OpenRouter model ID.
+ * @deprecated Use extractFamily instead
+ */
+export const extractProvider = extractFamily;
+
+/**
+ * Extract display name from model ID.
  * e.g., "google/gemini-2.0-flash-exp:free" -> "gemini-2.0-flash-exp:free"
  */
 export function extractDisplayName(modelId: string): string {
   return modelId.split('/').slice(1).join('/') || modelId;
+}
+
+/**
+ * Format a model for display with provider context.
+ * @param modelId The model ID
+ * @param apiProvider The API provider used (for "via OpenRouter" suffix)
+ * @returns Formatted display string
+ */
+export function formatModelDisplay(
+  modelId: string, 
+  apiProvider: ApiProvider = 'openrouter'
+): string {
+  const family = extractFamily(modelId);
+  const name = extractDisplayName(modelId);
+  
+  if (apiProvider === 'openrouter') {
+    return `${family}: ${name} (via OpenRouter)`;
+  }
+  
+  return `${family}: ${name}`;
 }

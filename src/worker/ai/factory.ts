@@ -3,22 +3,33 @@
  * 
  * ROUTING LOGIC:
  * 1. Test models (test/*): MockE2EProvider (zero cost)
- * 2. Google models + GOOGLE_API_KEY: GoogleAIProvider direct (own rate limits)
- *    - Falls back to OpenRouter if Google direct fails
- * 3. All other models: OpenRouter
+ * 2. All other models: Route based on api_provider from database/config
+ *    - openrouter: OpenRouter aggregator (default)
+ *    - openai: Direct OpenAI API
+ *    - anthropic: Direct Anthropic API
+ *    - google: Direct Google Gemini API
+ *    - cerebras: Cerebras API (OpenAI-compatible)
+ *    - fireworks: Fireworks AI API (OpenAI-compatible)
+ *    - minimax: MiniMax API
  * 
- * TEST MODELS:
- * Models with IDs starting with 'test/' use MockE2EProvider instead of OpenRouter.
- * This enables zero-cost E2E testing without calling actual LLMs.
- * Supported test models: test/mock-fast, test/town-wins, test/mafia-wins
+ * FALLBACK BEHAVIOR:
+ * For Google models with GOOGLE_API_KEY: Use direct Google API with OpenRouter fallback.
+ * This is preserved for backward compatibility with the old routing behavior.
  */
 
-import type { Env } from '../types.js';
-import type { AIProviderInterface, CompletionRequest, CompletionResponse } from './types.js';
+import type { Env, ApiProvider } from '../types.js';
+import type { AIProviderInterface, CompletionRequest, CompletionResponse, ModelRoutingConfig } from './types.js';
 import { getDefaultModelConfig } from './models.js';
 import { RetryingProvider } from './RetryingProvider.js';
-import { OpenRouterProvider } from './providers/OpenRouterProvider.js';
-import { GoogleAIProvider } from './providers/GoogleAIProvider.js';
+import { 
+  OpenRouterProvider, 
+  GoogleAIProvider, 
+  OpenAIProvider, 
+  AnthropicProvider,
+  CerebrasProvider,
+  FireworksProvider,
+  MinimaxProvider,
+} from './providers/index.js';
 import { MockE2EProvider, isTestModel } from './providers/MockE2EProvider.js';
 
 /**
@@ -54,6 +65,11 @@ export interface CreateProviderOptions {
    * AI providers may take up to 24 hours to respond in this mode.
    */
   discountPricing?: boolean;
+  /**
+   * Model routing configuration from database.
+   * If provided, uses this for routing instead of inferring from model ID.
+   */
+  routingConfig?: ModelRoutingConfig;
 }
 
 /**
@@ -76,6 +92,7 @@ const PRICING_MODE_DEFAULTS = {
 
 /**
  * Check if a model ID is a Google model.
+ * Used for backward-compatible fallback behavior.
  */
 function isGoogleModel(modelId: string): boolean {
   return modelId.startsWith('google/') || 
@@ -84,12 +101,59 @@ function isGoogleModel(modelId: string): boolean {
 }
 
 /**
+ * Infer the API provider from a model ID.
+ * Used when no routing config is provided.
+ */
+function inferApiProvider(modelId: string, env: Env): ApiProvider {
+  // Direct provider prefix detection (for new-style model IDs)
+  if (modelId.startsWith('openai/') && env.OPENAI_API_KEY) return 'openai';
+  if (modelId.startsWith('anthropic/') && env.ANTHROPIC_API_KEY) return 'anthropic';
+  if (modelId.startsWith('cerebras/') && env.CEREBRAS_API_KEY) return 'cerebras';
+  if (modelId.startsWith('fireworks/') && env.FIREWORKS_API_KEY) return 'fireworks';
+  if (modelId.startsWith('minimax/') && env.MINIMAX_API_KEY) return 'minimax';
+  
+  // Google models get direct access if we have the key
+  if (isGoogleModel(modelId) && env.GOOGLE_API_KEY) return 'google';
+  
+  // Default to OpenRouter
+  return 'openrouter';
+}
+
+/**
+ * Extract the actual model ID to send to the API.
+ * For OpenRouter, this is the full ID. For direct providers, strip the prefix.
+ */
+function extractApiModelId(modelId: string, apiProvider: ApiProvider): string {
+  // OpenRouter uses the full model ID
+  if (apiProvider === 'openrouter') return modelId;
+  
+  // For direct providers, strip the provider prefix if present
+  const prefixMap: Record<ApiProvider, string> = {
+    openrouter: '',
+    openai: 'openai/',
+    anthropic: 'anthropic/',
+    google: 'google/',
+    cerebras: 'cerebras/',
+    fireworks: 'fireworks/',
+    minimax: 'minimax/',
+  };
+  
+  const prefix = prefixMap[apiProvider];
+  if (prefix && modelId.startsWith(prefix)) {
+    return modelId.slice(prefix.length);
+  }
+  
+  return modelId;
+}
+
+/**
  * Create an AI provider for the given model.
  * 
- * Routing:
- * - Test models (test/*): MockE2EProvider for zero-cost testing
- * - Google models + GOOGLE_API_KEY: GoogleAIProvider (direct) with OpenRouter fallback
- * - All other models: OpenRouter
+ * Routing priority:
+ * 1. If routingConfig is provided, use its apiProvider and apiModelId
+ * 2. If model ID starts with a known provider prefix, use that provider
+ * 3. For Google models with GOOGLE_API_KEY, use Google direct with fallback
+ * 4. Default to OpenRouter
  */
 export function createProvider(
   modelId: string,
@@ -104,7 +168,13 @@ export function createProvider(
 
   // Get default config for logging/display purposes
   const modelConfig = getDefaultModelConfig(modelId);
-  console.log(`Creating provider for model: ${modelId} (${modelConfig.displayName})`);
+  
+  // Determine routing
+  const routingConfig = options.routingConfig;
+  const apiProvider: ApiProvider = routingConfig?.apiProvider ?? inferApiProvider(modelId, env);
+  const apiModelId = routingConfig?.apiModelId ?? extractApiModelId(modelId, apiProvider);
+  
+  console.log(`Creating provider for model: ${modelId} (${modelConfig.displayName}) via ${apiProvider} as ${apiModelId}`);
 
   // Select defaults based on pricing mode
   const defaults = options.discountPricing 
@@ -117,34 +187,26 @@ export function createProvider(
     timeoutMs = defaults.timeoutMs,
   } = options;
 
-  if (!env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is required');
-  }
+  // Create the base provider based on apiProvider
+  const baseProvider = createBaseProvider(apiProvider, apiModelId, modelId, env, timeoutMs);
+  
+  // Special case: Google models get OpenRouter fallback for resilience
+  if (apiProvider === 'google' && env.OPENROUTER_API_KEY) {
+    const openRouterProvider = new OpenRouterProvider({
+      apiKey: env.OPENROUTER_API_KEY,
+      modelId,
+      timeoutMs,
+    });
 
-  // Base OpenRouter provider (used for non-Google models and as fallback)
-  const openRouterProvider = new OpenRouterProvider({
-    apiKey: env.OPENROUTER_API_KEY,
-    modelId,
-    timeoutMs,
-  });
-
-  // For Google models with GOOGLE_API_KEY: Use direct Google API with OpenRouter fallback
-  // This avoids OpenRouter's shared rate limits for free Google models
-  if (isGoogleModel(modelId) && env.GOOGLE_API_KEY) {
-    console.log(`[Factory] Using direct Google API for ${modelId} (with OpenRouter fallback)`);
-    
-    const googleProvider = new GoogleAIProvider(modelId, env.GOOGLE_API_KEY, timeoutMs);
-    
-    // Wrap both providers with retry logic
-    const retryingGoogle = enableRetry 
-      ? new RetryingProvider(googleProvider, {
+    const retryingPrimary = enableRetry 
+      ? new RetryingProvider(baseProvider, {
           maxRetries,
           baseDelayMs: defaults.baseDelayMs,
           maxDelayMs: defaults.maxDelayMs,
         })
-      : googleProvider;
+      : baseProvider;
 
-    const retryingOpenRouter = enableRetry
+    const retryingFallback = enableRetry
       ? new RetryingProvider(openRouterProvider, {
           maxRetries,
           baseDelayMs: defaults.baseDelayMs,
@@ -152,20 +214,79 @@ export function createProvider(
         })
       : openRouterProvider;
 
-    // FallbackProvider: Try Google Direct first, fall back to OpenRouter
-    return new FallbackProvider(retryingGoogle, retryingOpenRouter, modelId);
+    return new FallbackProvider(retryingPrimary, retryingFallback, modelId);
   }
 
-  // Standard OpenRouter path for non-Google models
+  // Standard path: wrap with retry if enabled
   if (enableRetry) {
-    return new RetryingProvider(openRouterProvider, { 
+    return new RetryingProvider(baseProvider, { 
       maxRetries,
       baseDelayMs: defaults.baseDelayMs,
       maxDelayMs: defaults.maxDelayMs,
     });
   }
 
-  return openRouterProvider;
+  return baseProvider;
+}
+
+/**
+ * Create the base provider for a given API provider type.
+ */
+function createBaseProvider(
+  apiProvider: ApiProvider,
+  apiModelId: string,
+  displayModelId: string,
+  env: Env,
+  timeoutMs: number
+): AIProviderInterface {
+  switch (apiProvider) {
+    case 'openai':
+      if (!env.OPENAI_API_KEY) {
+        throw new Error('OPENAI_API_KEY is required for OpenAI models');
+      }
+      return new OpenAIProvider(apiModelId, env.OPENAI_API_KEY, timeoutMs);
+
+    case 'anthropic':
+      if (!env.ANTHROPIC_API_KEY) {
+        throw new Error('ANTHROPIC_API_KEY is required for Anthropic models');
+      }
+      return new AnthropicProvider(apiModelId, env.ANTHROPIC_API_KEY, timeoutMs);
+
+    case 'google':
+      if (!env.GOOGLE_API_KEY) {
+        throw new Error('GOOGLE_API_KEY is required for Google models');
+      }
+      return new GoogleAIProvider(displayModelId, env.GOOGLE_API_KEY, timeoutMs);
+
+    case 'cerebras':
+      if (!env.CEREBRAS_API_KEY) {
+        throw new Error('CEREBRAS_API_KEY is required for Cerebras models');
+      }
+      return new CerebrasProvider(apiModelId, env.CEREBRAS_API_KEY, timeoutMs);
+
+    case 'fireworks':
+      if (!env.FIREWORKS_API_KEY) {
+        throw new Error('FIREWORKS_API_KEY is required for Fireworks models');
+      }
+      return new FireworksProvider(apiModelId, env.FIREWORKS_API_KEY, timeoutMs);
+
+    case 'minimax':
+      if (!env.MINIMAX_API_KEY) {
+        throw new Error('MINIMAX_API_KEY is required for MiniMax models');
+      }
+      return new MinimaxProvider(apiModelId, env.MINIMAX_API_KEY, timeoutMs);
+
+    case 'openrouter':
+    default:
+      if (!env.OPENROUTER_API_KEY) {
+        throw new Error('OPENROUTER_API_KEY is required');
+      }
+      return new OpenRouterProvider({
+        apiKey: env.OPENROUTER_API_KEY,
+        modelId: displayModelId,
+        timeoutMs,
+      });
+  }
 }
 
 /**
@@ -187,6 +308,24 @@ export function createProvidersForGame(
   const uniqueModelIds = [...new Set(modelIds)];
   for (const modelId of uniqueModelIds) {
     providers.set(modelId, createProvider(modelId, env, options));
+  }
+
+  return providers;
+}
+
+/**
+ * Create providers using routing configs from the database.
+ * This is the preferred method when you have model routing information.
+ */
+export function createProvidersWithRouting(
+  routingConfigs: readonly ModelRoutingConfig[],
+  env: Env,
+  options: Omit<CreateProviderOptions, 'routingConfig'> = {}
+): Map<string, AIProviderInterface> {
+  const providers = new Map<string, AIProviderInterface>();
+
+  for (const config of routingConfigs) {
+    providers.set(config.id, createProvider(config.id, env, { ...options, routingConfig: config }));
   }
 
   return providers;

@@ -28,14 +28,67 @@ export interface Env {
   ENVIRONMENT: string;
 
   // API Keys (secrets)
-  /** OpenRouter API key - used for all AI model requests */
+  /** OpenRouter API key - used as the default aggregator for all models */
   OPENROUTER_API_KEY: string;
-  /** Google AI API key - used for direct Google API access (optional, faster than OpenRouter for Google models) */
+  /** OpenAI API key - for direct OpenAI API access */
+  OPENAI_API_KEY?: string;
+  /** Anthropic API key - for direct Anthropic API access */
+  ANTHROPIC_API_KEY?: string;
+  /** Google AI API key - for direct Google Gemini API access */
   GOOGLE_API_KEY?: string;
+  /** Cerebras API key - for Cerebras API access */
+  CEREBRAS_API_KEY?: string;
+  /** MiniMax API key - for MiniMax API access */
+  MINIMAX_API_KEY?: string;
+  /** Fireworks API key - for Fireworks AI API access */
+  FIREWORKS_API_KEY?: string;
 
   // Admin authentication (secrets)
   ADMIN_USERNAME: string;
   ADMIN_PASSWORD: string;
+}
+
+// =============================================================================
+// PROVIDER TYPES
+// =============================================================================
+
+/**
+ * Supported API providers for AI model access.
+ */
+export type ApiProvider = 
+  | 'openrouter'   // OpenRouter aggregator (default)
+  | 'openai'       // Direct OpenAI API
+  | 'anthropic'    // Direct Anthropic API
+  | 'google'       // Direct Google Gemini API
+  | 'cerebras'     // Cerebras API (OpenAI-compatible)
+  | 'minimax'      // MiniMax API
+  | 'fireworks';   // Fireworks AI API (OpenAI-compatible)
+
+/**
+ * Provider configuration from database.
+ */
+export interface ProviderConfig {
+  id: ApiProvider;
+  displayName: string;
+  apiType: 'openai_compatible' | 'anthropic' | 'google' | 'custom';
+  baseUrl?: string;
+  isAggregator: boolean;
+  supportsStreaming: boolean;
+  supportsFunctionCalling: boolean;
+  enabled: boolean;
+}
+
+/**
+ * Model configuration with provider routing info.
+ */
+export interface ModelDbRecord {
+  id: string;
+  family: string;
+  display_name: string;
+  api_provider: ApiProvider;
+  api_model_id: string;
+  config: string | null;
+  created_at: number;
 }
 
 /**

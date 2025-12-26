@@ -28,3 +28,4 @@ CREATE TABLE IF NOT EXISTS elo_history (
 CREATE INDEX IF NOT EXISTS idx_elo_history_model ON elo_history(model_id);
 CREATE INDEX IF NOT EXISTS idx_elo_history_game ON elo_history(game_id);
 
+
