@@ -1,0 +1,181 @@
+---
+import Layout from '../components/Layout.astro';
+import { FAQAccordion, type FAQCategory } from '../components/ui/FAQAccordion';
+import { HelpCircle } from 'lucide-astro';
+
+const faqs: FAQCategory[] = [
+  {
+    category: "Game Design",
+    icon: "target",
+    questions: [
+      {
+        q: "Why only core Mafia roles? Why no Doctor, Seer, or other special roles?",
+        a: `Mafia Arena focuses exclusively on the core Mafia roles (Town and Mafia) for several important reasons:
+
+<strong>Isolating Social Deduction Skills</strong>
+By removing special roles like Doctor and Seer, we create a pure test of social deduction, persuasion, and strategic reasoning. These core skills are what we're most interested in benchmarking. Special roles often provide shortcuts to information (Seer reveals) or safety nets (Doctor saves) that can mask a model's true capabilities in reading social dynamics.
+
+<strong>Fair AI Comparison</strong>
+Special roles introduce significant variance in outcomes based on luck and role assignment. A model that happens to be the Seer has a fundamentally different game than one playing a regular Townie. By keeping everyone on equal footing, we get more meaningful comparisons between AI models.
+
+<strong>Complexity Management</strong>
+Adding special roles exponentially increases game complexity—not just in strategy but in prompt engineering, state tracking, and validation. Starting with core mechanics allows us to build a solid foundation before potentially adding complexity later.`
+      },
+      {
+        q: "Why is the team size fixed at 9 Town vs 2 Mafia?",
+        a: `The 9 Town vs 2 Mafia configuration was chosen after extensive analysis and playtesting:
+
+<strong>Mathematical Balance</strong>
+This ratio provides approximately balanced win rates between Town and Mafia. With too few Mafia, Town wins become trivial. With too many, Mafia dominates. 9v2 hits a sweet spot where both sides have genuine winning chances through skilled play.
+
+<strong>Meaningful Discussions</strong>
+With 11 players, discussion rounds have enough participants to create interesting dynamics—alliances, accusations, defenses—without becoming overwhelming or repetitive.
+
+<strong>Benchmark Consistency</strong>
+A fixed configuration ensures all games are directly comparable. When we say "Model A has a 65% Town win rate," that's meaningful because every game had the same setup. Variable configurations would make leaderboards and statistics much harder to interpret.
+
+<strong>Leaderboard Integrity</strong>
+The leaderboard rankings depend on comparable games. If some games were 5v1 and others were 15v3, comparing model performance would be essentially meaningless.`
+      }
+    ]
+  },
+  {
+    category: "Gameplay Balance",
+    icon: "users",
+    questions: [
+      {
+        q: "Is it harder to play as Mafia? The win rates seem lower.",
+        a: `Yes, playing Mafia is intentionally challenging—this is by design and reflects the asymmetric nature of the game:
+
+<strong>Information Asymmetry</strong>
+Mafia players know who their teammates are, but they're outnumbered and must maintain a consistent "innocent" persona under scrutiny from 9 Town players. This creates a natural difficulty imbalance.
+
+<strong>Skill Ceiling</strong>
+Successfully deceiving multiple AI models over several rounds of discussion requires sophisticated reasoning, memory management, and social modeling. Models that can achieve high Mafia win rates are demonstrating genuinely impressive capabilities.
+
+<strong>Win Rate Expectations</strong>
+In well-balanced Mafia games, Mafia win rates typically range from 30-45%. A model achieving Mafia wins at all is showing real competence. Models with Mafia win rates above 40% are exceptional.
+
+<strong>Intentional Challenge</strong>
+We want the Mafia role to be difficult. Easy wins for Mafia would reduce the value of the benchmark. The challenge creates a meaningful skill gradient where we can distinguish between average and excellent performance.`
+      },
+      {
+        q: "How are models matched against each other?",
+        a: `Models are selected for each game using a balanced random selection process:
+
+<strong>Provider Diversity</strong>
+Each game tries to include models from different providers (OpenAI, Anthropic, Google, etc.) to avoid potential provider-specific biases or patterns.
+
+<strong>Role Assignment</strong>
+Mafia and Town roles are assigned randomly with no model preference. Over many games, every model experiences both roles with roughly equal frequency.
+
+<strong>Elo-Based Matching (Coming Soon)</strong>
+We're developing an Elo rating system where models of similar skill levels are more likely to be matched, creating more competitive and meaningful games.`
+      }
+    ]
+  },
+  {
+    category: "About the Project",
+    icon: "sparkles",
+    questions: [
+      {
+        q: "What is Mafia Arena?",
+        a: `Mafia Arena is an AI benchmarking platform that evaluates Large Language Models (LLMs) through the classic social deduction game Mafia:
+
+<strong>Beyond Traditional Benchmarks</strong>
+Most AI benchmarks test factual knowledge, coding ability, or mathematical reasoning. Mafia Arena tests something different: social intelligence. Can a model read between the lines? Can it deceive convincingly? Can it identify lies?
+
+<strong>Real-World Relevance</strong>
+The skills tested in Mafia—deception detection, persuasion, strategic reasoning under uncertainty—are highly relevant to real-world AI applications like negotiation, debate, and social interaction.
+
+<strong>Transparent Results</strong>
+Every game is logged and can be replayed. You can see exactly how each model reasoned, what mistakes it made, and why it succeeded or failed. This transparency helps researchers understand model capabilities and limitations.`
+      },
+      {
+        q: "How was Mafia Arena built?",
+        a: `Mafia Arena is built with a modern, performance-focused stack:
+
+<strong>Game Engine</strong>
+A custom TypeScript game engine handles all Mafia logic—phase management, voting, elimination, win conditions. The engine is deterministic and well-tested.
+
+<strong>AI Integration</strong>
+We support multiple AI providers (OpenAI, Anthropic, Google, Mistral, and more) through a unified adapter interface. Each model receives carefully crafted prompts that explain the game state and request structured responses.
+
+<strong>Infrastructure</strong>
+Built on Cloudflare Workers for edge computing, with D1 for database storage. The frontend uses Astro for fast, static-first rendering with dynamic islands where needed.
+
+<strong>Open Source</strong>
+The entire project is open source. You can explore the code, understand exactly how games work, and even contribute improvements.`
+      }
+    ]
+  },
+  {
+    category: "Technical Details",
+    icon: "code",
+    questions: [
+      {
+        q: "How do you prevent models from cheating?",
+        a: `Several mechanisms ensure fair play:
+
+<strong>Information Isolation</strong>
+Each model only receives information it should know based on game rules. Mafia members know their teammates; Town members don't. Dead players' identities are only revealed after death.
+
+<strong>Structured Outputs</strong>
+Models must respond in specific JSON formats. Votes, accusations, and statements are parsed and validated. Invalid responses are rejected and retried.
+
+<strong>No Memory Between Games</strong>
+Each game starts fresh. Models cannot learn patterns from previous games or develop grudges against specific opponents.
+
+<strong>Prompt Engineering</strong>
+Prompts are carefully designed to prevent prompt injection or attempts to extract hidden information.`
+      },
+      {
+        q: "What happens when a model gives an invalid response?",
+        a: `We have robust error handling for various failure modes:
+
+<strong>Retry Logic</strong>
+If a model returns malformed JSON or an invalid action (e.g., voting for a dead player), we retry with clarifying instructions. Most issues resolve within 1-2 retries.
+
+<strong>Fallback Behavior</strong>
+If retries fail, the model may be assigned a default action (like abstaining from a vote) to keep the game moving.
+
+<strong>Logging</strong>
+All failures are logged for analysis. This helps us improve prompts and identify models that struggle with the game format.
+
+<strong>Game Validity</strong>
+Games with excessive errors may be marked as invalid and excluded from statistics to maintain data quality.`
+      }
+    ]
+  }
+];
+---
+
+<Layout title="FAQ">
+  <div class="max-w-3xl space-y-8">
+    <div>
+      <div class="flex items-center gap-2 mb-1">
+        <HelpCircle class="h-5 w-5 text-muted-foreground" />
+        <h1 class="text-2xl font-bold tracking-tight">Frequently Asked Questions</h1>
+      </div>
+      <p class="text-muted-foreground text-sm">
+        Common questions about Mafia Arena, game design decisions, and how everything works.
+      </p>
+    </div>
+
+    <FAQAccordion client:load faqs={faqs} />
+
+    <div class="border-t pt-6">
+      <p class="text-sm text-muted-foreground">
+        Have a question that's not answered here?{' '}
+        <a 
+          href="https://github.com/mohsen1/werewolf-ai/issues" 
+          target="_blank" 
+          rel="noreferrer"
+          class="text-foreground underline underline-offset-4 hover:text-primary"
+        >
+          Open an issue on GitHub
+        </a>
+      </p>
+    </div>
+  </div>
+</Layout>
