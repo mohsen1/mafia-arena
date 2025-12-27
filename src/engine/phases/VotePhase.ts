@@ -1,6 +1,10 @@
 /**
  * Vote Phase Handler
  * All alive players vote to eliminate someone.
+ * 
+ * RESUMPTION SUPPORT: When a game resumes after suspension (e.g., SuspenseError
+ * while waiting for AI), we check for existing vote events to avoid
+ * duplicating votes from players who already voted.
  */
 
 import type { GameState } from '../GameState.js';
@@ -60,6 +64,22 @@ export async function executeVotePhase(
 
   // Collect votes from each player
   for (const player of alivePlayers) {
+    // RESUMPTION CHECK: Skip if this player already voted in this round
+    // This prevents duplicate votes when resuming from SuspenseError
+    const existingVote = state.events.find(e =>
+      e.type === 'vote' &&
+      e.voterId === player.id &&
+      e.phase === 'day_vote' &&
+      e.round === state.round
+    );
+    if (existingVote) {
+      // Restore their vote to the local map for vote resolution
+      if (existingVote.type === 'vote') {
+        votes.set(player.id, existingVote.targetId);
+      }
+      continue;
+    }
+
     const visibleState = getVisibleState(state, player);
     const validTargets = getValidEliminationTargets(state, player.id);
 

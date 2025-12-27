@@ -1,6 +1,10 @@
 /**
  * Discussion Phase Handler
  * All alive players discuss before voting with multi-round support.
+ * 
+ * RESUMPTION SUPPORT: When a game resumes after suspension (e.g., SuspenseError
+ * while waiting for AI), we check for existing AI call events to avoid
+ * duplicating messages from players who already spoke.
  */
 
 import type { GameState } from '../GameState.js';
@@ -66,6 +70,19 @@ export async function executeDiscussionPhase(
     const speakers = state.rng.shuffled(state.alivePlayers);
 
     for (const player of speakers) {
+      // RESUMPTION CHECK: Skip if this player already spoke in this discussion round
+      // This prevents duplicate messages when resuming from SuspenseError
+      const alreadySpoke = state.events.some(e =>
+        e.type === 'discussion' &&
+        e.playerId === player.id &&
+        e.round === state.round &&
+        e.channel === 'public' &&
+        e.discussionRound === discussionRound
+      );
+      if (alreadySpoke) {
+        continue;
+      }
+
       const visibleState = getVisibleState(state, player, {
         currentDiscussionRound: discussionRound,
         totalDiscussionRounds: numRounds,

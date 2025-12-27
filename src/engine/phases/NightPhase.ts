@@ -1,6 +1,10 @@
 /**
  * Night Phase Handler
  * Mafia members discuss strategy privately, then vote to kill a Town member.
+ * 
+ * RESUMPTION SUPPORT: When a game resumes after suspension (e.g., SuspenseError
+ * while waiting for AI), we check for existing events to avoid duplicating
+ * mafia discussion messages and kill votes.
  */
 
 import type { GameState } from '../GameState.js';
@@ -54,6 +58,19 @@ async function executeMafiaDiscussion(
     const shuffledMafia = state.rng.shuffled(mafiaPlayers);
 
     for (const mafiaPlayer of shuffledMafia) {
+      // RESUMPTION CHECK: Skip if this mafia member already spoke in this discussion round
+      // This prevents duplicate messages when resuming from SuspenseError
+      const alreadySpoke = state.events.some(e =>
+        e.type === 'discussion' &&
+        e.playerId === mafiaPlayer.id &&
+        e.round === state.round &&
+        e.channel === 'mafia' &&
+        e.discussionRound === discussionRound
+      );
+      if (alreadySpoke) {
+        continue;
+      }
+
       const visibleState = getVisibleState(state, mafiaPlayer, {
         currentDiscussionRound: discussionRound,
         totalDiscussionRounds: numRounds,
@@ -209,6 +226,22 @@ export async function executeNightPhase(
   // === KILL VOTE SUB-PHASE ===
   // Collect kill votes from each mafia member
   for (const mafiaPlayer of mafiaPlayers) {
+    // RESUMPTION CHECK: Skip if this mafia member already voted in this round
+    // This prevents duplicate votes when resuming from SuspenseError
+    const existingVote = state.events.find(e =>
+      e.type === 'vote' &&
+      e.voterId === mafiaPlayer.id &&
+      e.phase === 'night' &&
+      e.round === state.round
+    );
+    if (existingVote) {
+      // Restore their vote to the local map for vote resolution
+      if (existingVote.type === 'vote' && existingVote.targetId !== null) {
+        votes.set(mafiaPlayer.id, existingVote.targetId);
+      }
+      continue;
+    }
+
     const visibleState = getVisibleState(state, mafiaPlayer);
     const teammates = state.aliveMafia
       .filter((p) => p.id !== mafiaPlayer.id)
