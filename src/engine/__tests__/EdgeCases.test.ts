@@ -120,7 +120,7 @@ describe('Edge Cases', () => {
   });
 
   describe('Vote Resolution Edge Cases', () => {
-    it('should return null on exact tie', () => {
+    it('should randomly select winner on exact tie (tie-breaking)', () => {
       const players: readonly Player[] = [
         { id: 'p1', name: 'Player 1', modelId: 'test', team: 'town', isAlive: true },
         { id: 'p2', name: 'Player 2', modelId: 'test', team: 'town', isAlive: true },
@@ -131,7 +131,9 @@ describe('Edge Cases', () => {
       votes.set('voter2', 'p2');
 
       const result = resolveVotes(votes, players);
-      expect(result).toBeNull();
+      // With tie-breaking, one of the tied candidates should be selected
+      expect(result).toBeDefined();
+      expect(['p1', 'p2']).toContain(result!.id);
     });
 
     it('should handle single vote scenario', () => {
@@ -173,7 +175,7 @@ describe('Edge Cases', () => {
       expect(result?.id).toBe('p1');
     });
 
-    it('should handle three-way tie', () => {
+    it('should randomly select winner on three-way tie (tie-breaking)', () => {
       const players: readonly Player[] = [
         { id: 'p1', name: 'Player 1', modelId: 'test', team: 'town', isAlive: true },
         { id: 'p2', name: 'Player 2', modelId: 'test', team: 'town', isAlive: true },
@@ -186,7 +188,9 @@ describe('Edge Cases', () => {
       votes.set('voter3', 'p3');
 
       const result = resolveVotes(votes, players);
-      expect(result).toBeNull();
+      // With tie-breaking, one of the tied candidates should be selected
+      expect(result).toBeDefined();
+      expect(['p1', 'p2', 'p3']).toContain(result!.id);
     });
   });
 

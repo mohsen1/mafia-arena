@@ -65,7 +65,7 @@ describe('executeNightPhase', () => {
     expect(result.killed!.id).toBe(target1.id);
   });
 
-  it('should not kill anyone on tie', async () => {
+  it('should randomly select a target on tie (tie-breaking)', async () => {
     const config = createTestConfig();
     const state = GameState.create('test-game', config);
     const mockProvider = new MockAIProvider();
@@ -84,7 +84,9 @@ describe('executeNightPhase', () => {
 
     const result = await executeNightPhase(state, mockProvider);
 
-    expect(result.killed).toBeNull(); // Tie = no kill
+    // With tie-breaking, one of the tied targets should be killed
+    expect(result.killed).toBeDefined();
+    expect([target1.id, target2.id]).toContain(result.killed!.id);
   });
 
   it('should record AI call events', async () => {

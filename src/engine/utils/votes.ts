@@ -46,7 +46,15 @@ export function resolveVotes<T extends Pick<Player, 'id'>>(
   if (sortedVotes.length > 1) {
     const [, secondCount] = sortedVotes[1]!;
     if (topCount === secondCount) {
-      return null; // Tie - no elimination
+      // TIE BREAKER: Randomly select one of the tied candidates
+      // This prevents infinite voting loops in AI games where
+      // models may consistently vote in patterns that cause ties
+      const tiedCandidates = sortedVotes
+        .filter(([, count]) => count === topCount)
+        .map(([id]) => id);
+      
+      const winnerId = tiedCandidates[Math.floor(Math.random() * tiedCandidates.length)];
+      return candidates.find((c) => c.id === winnerId) ?? null;
     }
   }
 
