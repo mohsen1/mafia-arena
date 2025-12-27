@@ -4,8 +4,77 @@
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 
+// =============================================================================
+// AUTH TYPES
+// =============================================================================
+
+export interface User {
+  email: string;
+  name: string;
+  picture?: string;
+  isAdmin: boolean;
+}
+
+export interface AuthState {
+  authenticated: boolean;
+  user?: User;
+}
+
+// =============================================================================
+// AUTH FUNCTIONS (Google OAuth - Primary)
+// =============================================================================
+
+/**
+ * Check current authentication state via session cookie.
+ */
+export async function getAuthState(): Promise<AuthState> {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/me`, {
+      credentials: 'include', // Send cookies
+    });
+    
+    if (!res.ok) {
+      return { authenticated: false };
+    }
+    
+    return await res.json();
+  } catch {
+    return { authenticated: false };
+  }
+}
+
+/**
+ * Logout - clears session cookie.
+ */
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // Ignore errors
+  }
+  
+  // Clear legacy credentials too
+  clearAdminCredentials();
+  localStorage.removeItem('adminUnlocked');
+}
+
+/**
+ * Get Google OAuth login URL.
+ */
+export function getGoogleLoginUrl(redirect = '/admin'): string {
+  return `${API_URL}/api/auth/google?redirect=${encodeURIComponent(redirect)}`;
+}
+
+// =============================================================================
+// LEGACY AUTH FUNCTIONS (Basic Auth - Deprecated)
+// =============================================================================
+
 /**
  * Get stored admin credentials from session storage (client-side only).
+ * @deprecated Use session-based auth with Google OAuth instead.
  */
 function getAdminCredentials(): string | null {
   if (typeof window === 'undefined') return null;
@@ -14,6 +83,7 @@ function getAdminCredentials(): string | null {
 
 /**
  * Set admin credentials in session storage.
+ * @deprecated Use session-based auth with Google OAuth instead.
  */
 export function setAdminCredentials(username: string, password: string): void {
   if (typeof window === 'undefined') return;
@@ -23,6 +93,7 @@ export function setAdminCredentials(username: string, password: string): void {
 
 /**
  * Clear admin credentials.
+ * @deprecated Use logout() instead.
  */
 export function clearAdminCredentials(): void {
   if (typeof window === 'undefined') return;
@@ -31,6 +102,7 @@ export function clearAdminCredentials(): void {
 
 /**
  * Check if admin credentials are set.
+ * @deprecated Use getAuthState() instead.
  */
 export function hasAdminCredentials(): boolean {
   return !!getAdminCredentials();
@@ -38,6 +110,8 @@ export function hasAdminCredentials(): boolean {
 
 /**
  * Create headers with admin auth if available.
+ * Uses session cookie for auth (with credentials: 'include').
+ * Falls back to Basic Auth header if legacy credentials exist.
  */
 function getAdminHeaders(): HeadersInit {
   const credentials = getAdminCredentials();
@@ -48,6 +122,21 @@ function getAdminHeaders(): HeadersInit {
     };
   }
   return { 'Content-Type': 'application/json' };
+}
+
+/**
+ * Get fetch options for admin requests.
+ * Includes credentials for cookie-based auth.
+ */
+function getAdminFetchOptions(options: RequestInit = {}): RequestInit {
+  return {
+    ...options,
+    credentials: 'include', // Send session cookie
+    headers: {
+      ...getAdminHeaders(),
+      ...options.headers,
+    },
+  };
 }
 
 export interface LeaderboardEntry {
@@ -373,10 +462,9 @@ export async function syncModels(): Promise<{
   total: number;
   message: string;
 }> {
-  const res = await fetch(`${API_URL}/api/admin/models/sync`, {
-    method: 'POST',
-    headers: getAdminHeaders(),
-  });
+  const res = await fetch(`${API_URL}/api/admin/models/sync`, 
+    getAdminFetchOptions({ method: 'POST' })
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to sync models');
 
@@ -396,9 +484,9 @@ export async function getDbModels(): Promise<{
   }>;
   total: number;
 }> {
-  const res = await fetch(`${API_URL}/api/admin/models`, {
-    headers: getAdminHeaders(),
-  });
+  const res = await fetch(`${API_URL}/api/admin/models`, 
+    getAdminFetchOptions()
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to fetch DB models');
 
@@ -695,11 +783,12 @@ export async function createBatch(data: {
   };
   useBatchAPI?: boolean;
 }): Promise<{ success: boolean; batchId: string; estimatedCostUsd: number }> {
-  const res = await fetch(`${API_URL}/api/admin/batches`, {
-    method: 'POST',
-    headers: getAdminHeaders(),
-    body: JSON.stringify(data),
-  });
+  const res = await fetch(`${API_URL}/api/admin/batches`, 
+    getAdminFetchOptions({
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) {
     const err = await res.json();
@@ -721,9 +810,9 @@ export async function listBatches(options?: {
   if (options?.limit) params.set('limit', String(options.limit));
   if (options?.offset) params.set('offset', String(options.offset));
 
-  const res = await fetch(`${API_URL}/api/admin/batches?${params}`, {
-    headers: getAdminHeaders(),
-  });
+  const res = await fetch(`${API_URL}/api/admin/batches?${params}`, 
+    getAdminFetchOptions()
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to fetch batches');
   return res.json();
@@ -733,9 +822,9 @@ export async function listBatches(options?: {
  * Get batch details.
  */
 export async function getBatchAdmin(batchId: string): Promise<BatchDetail> {
-  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}`, {
-    headers: getAdminHeaders(),
-  });
+  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}`, 
+    getAdminFetchOptions()
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to fetch batch');
   return res.json();
@@ -745,10 +834,9 @@ export async function getBatchAdmin(batchId: string): Promise<BatchDetail> {
  * Cancel a batch.
  */
 export async function cancelBatch(batchId: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}/cancel`, {
-    method: 'POST',
-    headers: getAdminHeaders(),
-  });
+  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}/cancel`, 
+    getAdminFetchOptions({ method: 'POST' })
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to cancel batch');
   return res.json();
@@ -758,10 +846,9 @@ export async function cancelBatch(batchId: string): Promise<{ success: boolean }
  * Pause system processing.
  */
 export async function pauseSystem(): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_URL}/api/admin/system/pause`, {
-    method: 'POST',
-    headers: getAdminHeaders(),
-  });
+  const res = await fetch(`${API_URL}/api/admin/system/pause`, 
+    getAdminFetchOptions({ method: 'POST' })
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to pause system');
   return res.json();
@@ -771,10 +858,9 @@ export async function pauseSystem(): Promise<{ success: boolean }> {
  * Resume system processing.
  */
 export async function resumeSystem(): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_URL}/api/admin/system/resume`, {
-    method: 'POST',
-    headers: getAdminHeaders(),
-  });
+  const res = await fetch(`${API_URL}/api/admin/system/resume`, 
+    getAdminFetchOptions({ method: 'POST' })
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to resume system');
   return res.json();
@@ -784,9 +870,9 @@ export async function resumeSystem(): Promise<{ success: boolean }> {
  * Get live admin stats.
  */
 export async function getAdminStats(): Promise<AdminStats> {
-  const res = await fetch(`${API_URL}/api/admin/stats/live`, {
-    headers: getAdminHeaders(),
-  });
+  const res = await fetch(`${API_URL}/api/admin/stats/live`, 
+    getAdminFetchOptions()
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to fetch admin stats');
   return res.json();
@@ -806,11 +892,12 @@ export async function getCostEstimate(data: {
   };
   useBatchAPI?: boolean;
 }): Promise<CostEstimate> {
-  const res = await fetch(`${API_URL}/api/admin/estimate`, {
-    method: 'POST',
-    headers: getAdminHeaders(),
-    body: JSON.stringify(data),
-  });
+  const res = await fetch(`${API_URL}/api/admin/estimate`, 
+    getAdminFetchOptions({
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) throw new Error('Failed to get cost estimate');
   return res.json();
@@ -849,11 +936,12 @@ export interface LiveGameResponse {
  * Use the returned liveUrl to connect via WebSocket for real-time updates.
  */
 export async function runLiveGame(config: LiveGameConfig): Promise<LiveGameResponse> {
-  const res = await fetch(`${API_URL}/api/admin/games/run-live`, {
-    method: 'POST',
-    headers: getAdminHeaders(),
-    body: JSON.stringify({ config }),
-  });
+  const res = await fetch(`${API_URL}/api/admin/games/run-live`, 
+    getAdminFetchOptions({
+      method: 'POST',
+      body: JSON.stringify({ config }),
+    })
+  );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
   if (!res.ok) {
     const err = await res.json();

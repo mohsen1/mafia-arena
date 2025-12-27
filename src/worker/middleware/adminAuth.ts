@@ -1,14 +1,22 @@
 /**
- * Admin authentication middleware using Basic Auth.
+ * Admin authentication middleware.
+ * 
+ * Supports two authentication methods:
+ * 1. Google OAuth sessions (preferred) - checks session cookie
+ * 2. Basic Auth (legacy) - username/password in Authorization header
+ * 
+ * During migration, both methods are supported. Once fully migrated,
+ * Basic Auth can be removed.
  */
 
 import type { Context, Next } from 'hono';
 import type { Env } from '../types.js';
+import { getSession } from '../routes/auth.js';
 
 /**
- * Verify Basic Auth credentials for admin routes.
+ * Verify Basic Auth credentials for admin routes (legacy).
  */
-function verifyAdminAuth(request: Request, env: Env): boolean {
+function verifyBasicAuth(request: Request, env: Env): boolean {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Basic ')) {
     return false;
@@ -27,20 +35,69 @@ function verifyAdminAuth(request: Request, env: Env): boolean {
 
 /**
  * Middleware that requires admin authentication.
+ * 
+ * Checks in order:
+ * 1. Session cookie (Google OAuth) - if valid admin session, allow
+ * 2. Basic Auth header (legacy) - if valid credentials, allow
+ * 3. Otherwise, reject with 401
  */
 export async function adminAuthMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
-  if (!verifyAdminAuth(c.req.raw, c.env)) {
-    return c.text('Authentication required', {
-      status: 401,
-      headers: {
-        'WWW-Authenticate': 'Basic realm="Mafia Arena Admin"',
+  // First, try session-based auth (Google OAuth)
+  const session = await getSession(c.req.raw, c.env);
+  if (session?.isAdmin) {
+    return next();
+  }
+
+  // Fallback to Basic Auth (legacy)
+  if (verifyBasicAuth(c.req.raw, c.env)) {
+    return next();
+  }
+
+  // Neither auth method succeeded
+  // Return appropriate error based on request type
+  const acceptHeader = c.req.header('Accept') || '';
+  const isApiRequest = acceptHeader.includes('application/json') || 
+                       c.req.header('Authorization')?.startsWith('Basic ');
+
+  if (isApiRequest) {
+    // API request - return JSON error with WWW-Authenticate for Basic Auth clients
+    return c.json(
+      { 
+        error: 'Authentication required',
+        message: 'Please authenticate with Google OAuth or Basic Auth',
       },
-    });
+      { 
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="Mafia Arena Admin"',
+        },
+      }
+    );
+  }
+
+  // Browser request - redirect to login page
+  const returnTo = new URL(c.req.url).pathname;
+  return c.redirect(`/admin/login?redirect=${encodeURIComponent(returnTo)}`);
+}
+
+/**
+ * Middleware that requires authenticated user (not necessarily admin).
+ * Useful for future per-user API key management.
+ */
+export async function authMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
+  const session = await getSession(c.req.raw, c.env);
+  
+  if (!session) {
+    const acceptHeader = c.req.header('Accept') || '';
+    const isApiRequest = acceptHeader.includes('application/json');
+
+    if (isApiRequest) {
+      return c.json({ error: 'Authentication required' }, 401);
+    }
+
+    const returnTo = new URL(c.req.url).pathname;
+    return c.redirect(`/admin/login?redirect=${encodeURIComponent(returnTo)}`);
   }
 
   return next();
 }
-
-
-
-

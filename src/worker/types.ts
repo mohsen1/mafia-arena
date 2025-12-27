@@ -44,8 +44,20 @@ export interface Env {
   FIREWORKS_API_KEY?: string;
 
   // Admin authentication (secrets)
+  /** @deprecated Use ADMIN_EMAIL with Google OAuth instead */
   ADMIN_USERNAME: string;
+  /** @deprecated Use ADMIN_EMAIL with Google OAuth instead */
   ADMIN_PASSWORD: string;
+  
+  // Google OAuth (new authentication)
+  /** Google OAuth Client ID */
+  GOOGLE_CLIENT_ID?: string;
+  /** Google OAuth Client Secret */
+  GOOGLE_CLIENT_SECRET?: string;
+  /** Admin email address for Google OAuth (e.g., admin@example.com) */
+  ADMIN_EMAIL?: string;
+  /** JWT secret for signing session tokens (auto-generated if not set) */
+  SESSION_SECRET?: string;
 }
 
 // =============================================================================

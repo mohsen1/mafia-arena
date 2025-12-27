@@ -213,18 +213,39 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
   }
 
   async function init() {
+    // Check session-based auth first
+    let isAuthenticated = false;
+    try {
+      const authRes = await fetch(`${apiUrl}/api/auth/me`, { credentials: 'include' });
+      if (authRes.ok) {
+        const authData = await authRes.json();
+        if (authData.authenticated && authData.user?.isAdmin) {
+          isAuthenticated = true;
+        }
+      }
+    } catch (e) {
+      console.log('Session auth check failed');
+    }
+
+    // Fall back to legacy Basic Auth
     const credentials = sessionStorage.getItem('adminCredentials');
-    if (!credentials) {
+    if (!isAuthenticated && !credentials) {
       window.location.href = '/admin/login?redirect=/admin';
       return;
     }
 
-    const headers = { 'Authorization': `Basic ${credentials}` };
+    // Build headers for API calls
+    const headers = credentials 
+      ? { 'Authorization': `Basic ${credentials}` }
+      : {};
+    
+    // Build fetch options (include credentials for cookie-based auth)
+    const fetchOptions = { headers, credentials: 'include' };
 
     try {
       const [statsRes, batchesRes] = await Promise.all([
-        fetch(`${apiUrl}/api/admin/stats/live`, { headers }),
-        fetch(`${apiUrl}/api/admin/batches?limit=5`, { headers }),
+        fetch(`${apiUrl}/api/admin/stats/live`, fetchOptions),
+        fetch(`${apiUrl}/api/admin/batches?limit=5`, fetchOptions),
       ]);
 
       if (statsRes.status === 401 || batchesRes.status === 401) {
@@ -349,10 +370,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 
           try {
             const endpoint = isPaused ? 'resume' : 'pause';
-            const res = await fetch(`${apiUrl}/api/admin/system/${endpoint}`, { 
-              method: 'POST',
-              headers,
-            });
+          const res = await fetch(`${apiUrl}/api/admin/system/${endpoint}`, { 
+            method: 'POST',
+            ...fetchOptions,
+          });
             if (!res.ok) throw new Error('Failed');
             window.location.reload();
           } catch {
@@ -363,12 +384,21 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         });
       }
 
-      document.getElementById('logoutBtn')?.addEventListener('click', () => {
+      document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+        // Clear session cookie via API
+        try {
+          await fetch(`${apiUrl}/api/auth/logout`, { 
+            method: 'POST', 
+            credentials: 'include' 
+          });
+        } catch (e) {}
+        // Clear legacy credentials
         sessionStorage.removeItem('adminCredentials');
+        localStorage.removeItem('adminUnlocked');
         window.location.href = '/admin/login';
       });
 
-      loadRunningGamesCount(headers);
+      loadRunningGamesCount(fetchOptions);
 
       document.getElementById('syncModelsBtn')?.addEventListener('click', async () => {
         const btn = document.getElementById('syncModelsBtn');
@@ -383,7 +413,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         try {
           const res = await fetch(`${apiUrl}/api/admin/models/sync`, {
             method: 'POST',
-            headers,
+            ...fetchOptions,
           });
 
           if (!res.ok) throw new Error('Failed to sync models');
@@ -415,7 +445,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         try {
           const res = await fetch(`${apiUrl}/api/admin/games/kill-hanging`, {
             method: 'POST',
-            headers,
+            ...fetchOptions,
           });
 
           if (!res.ok) throw new Error('Failed');
@@ -438,9 +468,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     }
   }
 
-  async function loadRunningGamesCount(headers) {
+  async function loadRunningGamesCount(fetchOptions) {
     try {
-      const res = await fetch(`${apiUrl}/api/admin/games/running`, { headers });
+      const res = await fetch(`${apiUrl}/api/admin/games/running`, fetchOptions);
       if (!res.ok) return;
 
       const data = await res.json();

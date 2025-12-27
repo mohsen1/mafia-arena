@@ -121,3 +121,24 @@ name = "mafia-arena-dev"
 [env.production]
 name = "mafia-arena"
 
+# =============================================================================
+# SECRETS (set via `wrangler secret put`)
+# =============================================================================
+# Required secrets:
+#   - ADMIN_USERNAME       (legacy Basic Auth)
+#   - ADMIN_PASSWORD       (legacy Basic Auth)
+#   - OPENROUTER_API_KEY   (for AI models)
+#   - OPENAI_API_KEY       (optional, direct OpenAI access)
+#   - ANTHROPIC_API_KEY    (optional, direct Anthropic access)
+#   - GOOGLE_API_KEY       (optional, direct Google Gemini access)
+#
+# Google OAuth secrets (recommended - replaces Basic Auth):
+#   - GOOGLE_CLIENT_ID     (OAuth 2.0 Client ID)
+#   - GOOGLE_CLIENT_SECRET (OAuth 2.0 Client Secret)
+#   - ADMIN_EMAIL          (email address of admin user)
+#
+# To set secrets:
+#   wrangler secret put GOOGLE_CLIENT_ID
+#   wrangler secret put GOOGLE_CLIENT_SECRET
+#   wrangler secret put ADMIN_EMAIL
+
