@@ -300,3 +300,115 @@ export class FireworksProvider extends OpenAICompatibleProvider {
   }
 }
 
+/**
+ * XAI (Grok) API provider (OpenAI-compatible).
+ * Provides access to Grok 2, Grok 2 Mini, Grok 2 Vision.
+ */
+export class XAIProvider extends OpenAICompatibleProvider {
+  constructor(modelId: string, apiKey: string, timeoutMs: number = 60000) {
+    super({
+      apiKey,
+      modelId,
+      timeoutMs,
+      baseUrl: 'https://api.x.ai/v1',
+      providerName: 'xai',
+    });
+  }
+}
+
+/**
+ * DeepSeek API provider (OpenAI-compatible).
+ * Provides access to DeepSeek V3, DeepSeek R1.
+ */
+export class DeepSeekProvider extends OpenAICompatibleProvider {
+  constructor(modelId: string, apiKey: string, timeoutMs: number = 60000) {
+    super({
+      apiKey,
+      modelId,
+      timeoutMs,
+      baseUrl: 'https://api.deepseek.com/v1',
+      providerName: 'deepseek',
+    });
+  }
+}
+
+/**
+ * Together AI API provider (OpenAI-compatible).
+ * Provides access to open-source models: Llama, Mixtral, etc.
+ */
+export class TogetherProvider extends OpenAICompatibleProvider {
+  constructor(modelId: string, apiKey: string, timeoutMs: number = 60000) {
+    super({
+      apiKey,
+      modelId,
+      timeoutMs,
+      baseUrl: 'https://api.together.xyz/v1',
+      providerName: 'together',
+    });
+  }
+}
+
+/**
+ * Groq API provider (OpenAI-compatible).
+ * Fast inference with free tier.
+ */
+export class GroqProvider extends OpenAICompatibleProvider {
+  constructor(modelId: string, apiKey: string, timeoutMs: number = 60000) {
+    super({
+      apiKey,
+      modelId,
+      timeoutMs,
+      baseUrl: 'https://api.groq.com/openai/v1',
+      providerName: 'groq',
+    });
+  }
+}
+
+/**
+ * SambaNova API provider (OpenAI-compatible).
+ * Free Llama 3.1 405B access.
+ */
+export class SambaNovaProvider extends OpenAICompatibleProvider {
+  constructor(modelId: string, apiKey: string, timeoutMs: number = 60000) {
+    super({
+      apiKey,
+      modelId,
+      timeoutMs,
+      baseUrl: 'https://api.sambanova.ai/v1',
+      providerName: 'sambanova',
+    });
+  }
+}
+
+/**
+ * Hyperbolic API provider (OpenAI-compatible).
+ * Free tier available.
+ */
+export class HyperbolicProvider extends OpenAICompatibleProvider {
+  constructor(modelId: string, apiKey: string, timeoutMs: number = 60000) {
+    super({
+      apiKey,
+      modelId,
+      timeoutMs,
+      baseUrl: 'https://api.hyperbolic.xyz/v1',
+      providerName: 'hyperbolic',
+    });
+  }
+}
+
+/**
+ * Mistral AI API provider (OpenAI-compatible).
+ * Provides access to Mistral Large, Mistral 8B/14B.
+ */
+export class MistralProvider extends OpenAICompatibleProvider {
+  constructor(modelId: string, apiKey: string, timeoutMs: number = 60000) {
+    super({
+      apiKey,
+      modelId,
+      timeoutMs,
+      baseUrl: 'https://api.mistral.ai/v1',
+      providerName: 'mistral',
+    });
+  }
+}
+
