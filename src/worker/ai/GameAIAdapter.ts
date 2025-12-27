@@ -220,7 +220,26 @@ export class GameAIAdapter implements AIProvider {
       const cached = await this.suspenseMode.checkCache(requestId);
       
       if (cached) {
-        callLog.debug('Cache hit for AI request', { requestId });
+        callLog.debug('Cache hit for AI request', { requestId, hasError: !!cached.error });
+        
+        // Check for cached error (from failed AI calls)
+        if (cached.error) {
+          callLog.error('Cached AI call error - propagating to game', {
+            requestId,
+            error: cached.error,
+            isFatal: cached.isFatal,
+            modelId: context.modelId,
+          });
+          
+          // Throw the error to fail the game (don't just suspend again)
+          throw new Error(`AI call failed for ${context.modelId}: ${cached.error}`);
+        }
+        
+        // Must have response if no error
+        if (!cached.response) {
+          callLog.error('Cached entry has no response or error', { requestId });
+          throw new Error(`Invalid cache entry for ${requestId}: no response or error`);
+        }
         
         // Parse and return the cached response
         try {
