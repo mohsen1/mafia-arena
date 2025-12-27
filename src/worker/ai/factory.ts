@@ -29,6 +29,15 @@ import {
   CerebrasProvider,
   FireworksProvider,
   MinimaxProvider,
+  XAIProvider,
+  DeepSeekProvider,
+  TogetherProvider,
+  GroqProvider,
+  SambaNovaProvider,
+  HyperbolicProvider,
+  MistralProvider,
+  CohereProvider,
+  AI21Provider,
 } from './providers/index.js';
 import { MockE2EProvider, isTestModel } from './providers/MockE2EProvider.js';
 
@@ -137,6 +146,15 @@ function extractApiModelId(modelId: string, apiProvider: ApiProvider): string {
     cerebras: 'cerebras/',
     fireworks: 'fireworks/',
     minimax: 'minimax/',
+    xai: 'xai/',
+    deepseek: 'deepseek/',
+    together: 'together/',
+    groq: 'groq/',
+    sambanova: 'sambanova/',
+    hyperbolic: 'hyperbolic/',
+    mistral: 'mistral/',
+    cohere: 'cohere/',
+    ai21: 'ai21/',
   };
   
   const prefix = prefixMap[apiProvider];
@@ -276,6 +294,60 @@ function createBaseProvider(
         throw new Error('MINIMAX_API_KEY is required for MiniMax models');
       }
       return new MinimaxProvider(apiModelId, env.MINIMAX_API_KEY, timeoutMs);
+
+    case 'xai':
+      if (!env.XAI_API_KEY) {
+        throw new Error('XAI_API_KEY is required for XAI/Grok models');
+      }
+      return new XAIProvider(apiModelId, env.XAI_API_KEY, timeoutMs);
+
+    case 'deepseek':
+      if (!env.DEEPSEEK_API_KEY) {
+        throw new Error('DEEPSEEK_API_KEY is required for DeepSeek models');
+      }
+      return new DeepSeekProvider(apiModelId, env.DEEPSEEK_API_KEY, timeoutMs);
+
+    case 'together':
+      if (!env.TOGETHER_API_KEY) {
+        throw new Error('TOGETHER_API_KEY is required for Together AI models');
+      }
+      return new TogetherProvider(apiModelId, env.TOGETHER_API_KEY, timeoutMs);
+
+    case 'groq':
+      if (!env.GROQ_API_KEY) {
+        throw new Error('GROQ_API_KEY is required for Groq models');
+      }
+      return new GroqProvider(apiModelId, env.GROQ_API_KEY, timeoutMs);
+
+    case 'sambanova':
+      if (!env.SAMBANOVA_API_KEY) {
+        throw new Error('SAMBANOVA_API_KEY is required for SambaNova models');
+      }
+      return new SambaNovaProvider(apiModelId, env.SAMBANOVA_API_KEY, timeoutMs);
+
+    case 'hyperbolic':
+      if (!env.HYPERBOLIC_API_KEY) {
+        throw new Error('HYPERBOLIC_API_KEY is required for Hyperbolic models');
+      }
+      return new HyperbolicProvider(apiModelId, env.HYPERBOLIC_API_KEY, timeoutMs);
+
+    case 'mistral':
+      if (!env.MISTRAL_API_KEY) {
+        throw new Error('MISTRAL_API_KEY is required for Mistral models');
+      }
+      return new MistralProvider(apiModelId, env.MISTRAL_API_KEY, timeoutMs);
+
+    case 'cohere':
+      if (!env.COHERE_API_KEY) {
+        throw new Error('COHERE_API_KEY is required for Cohere models');
+      }
+      return new CohereProvider(apiModelId, env.COHERE_API_KEY, timeoutMs);
+
+    case 'ai21':
+      if (!env.AI21_API_KEY) {
+        throw new Error('AI21_API_KEY is required for AI21 models');
+      }
+      return new AI21Provider(apiModelId, env.AI21_API_KEY, timeoutMs);
 
     case 'openrouter':
     default:

@@ -5,21 +5,28 @@
 **Goal:**  
 Broaden support for major AI model providers and continually update supported model lists.
 
-### a. Direct API Provider Integrations
-- **XAI (Grok)**
-  - Integrate Grok 2, Grok 2 Mini, Grok 2 Vision via official APIs (currently only OpenRouter)
-- **DeepSeek**
-  - Add DeepSeek V3, DeepSeek R1 direct API support (currently via Fireworks)
-- **Mistral**
-  - Integrate Mistral Large and Mistral 8B/14B direct API (currently via OpenRouter)
-- **Cohere**
-  - Enable Command-R+, Command-R, Command models
-- **AI21 Labs**
-  - Add Jamba 2 Mini, Jamba 2 Large
-- **Amazon Bedrock**
-  - Integrate Nova Pro, Nova Lite, Titan models
-- **Together AI**
-  - Open-source models: Llama, Mixtral, etc.
+### a. Direct API Provider Integrations ✅ (Implemented Dec 2024)
+- **XAI (Grok)** ✅
+  - Provider: `XAIProvider` via `https://api.x.ai/v1`
+  - Supports Grok 2, Grok 2 Mini, Grok 2 Vision via official APIs
+- **DeepSeek** ✅
+  - Provider: `DeepSeekProvider` via `https://api.deepseek.com/v1`
+  - Supports DeepSeek V3, DeepSeek R1 direct API
+- **Mistral** ✅
+  - Provider: `MistralProvider` via `https://api.mistral.ai/v1`
+  - Supports Mistral Large and Mistral 8B/14B direct API
+- **Cohere** ✅
+  - Provider: `CohereProvider` via `https://api.cohere.ai/v2`
+  - Supports Command-R+, Command-R, Command models
+- **AI21 Labs** ✅
+  - Provider: `AI21Provider` via `https://api.ai21.com/studio/v1`
+  - Supports Jamba 2 Mini, Jamba 2 Large
+- **Together AI** ✅
+  - Provider: `TogetherProvider` via `https://api.together.xyz/v1`
+  - Supports open-source models: Llama, Mixtral, etc.
+- **Amazon Bedrock** ⏸️
+  - Deferred: Requires AWS SDK which is complex for Cloudflare Workers
+  - Use OpenRouter for Nova Pro, Nova Lite, Titan models instead
 
 ### b. Google Models
 - Add Gemini 2.5 Flash Lite (already in DB, add to static config)
@@ -33,10 +40,10 @@ Broaden support for major AI model providers and continually update supported mo
 - Alibaba Qwen 2.5 Turbo
 - Expand coverage for Moonshot Kimi
 
-### d. Free & Low-Cost Model Options
-- SambaNova (free Llama 3.1 405B)
-- Groq (fast inference, free tier)
-- Hyperbolic (free tier)
+### d. Free & Low-Cost Model Options ✅ (Implemented Dec 2024)
+- **SambaNova** ✅ - `SambaNovaProvider` via `https://api.sambanova.ai/v1` (free Llama 3.1 405B)
+- **Groq** ✅ - `GroqProvider` via `https://api.groq.com/openai/v1` (fast inference, free tier)
+- **Hyperbolic** ✅ - `HyperbolicProvider` via `https://api.hyperbolic.xyz/v1` (free tier)
 
 ---
 

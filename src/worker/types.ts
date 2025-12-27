@@ -42,6 +42,24 @@ export interface Env {
   MINIMAX_API_KEY?: string;
   /** Fireworks API key - for Fireworks AI API access */
   FIREWORKS_API_KEY?: string;
+  /** XAI API key - for Grok models (direct API access) */
+  XAI_API_KEY?: string;
+  /** DeepSeek API key - for DeepSeek V3/R1 (direct API access) */
+  DEEPSEEK_API_KEY?: string;
+  /** Together AI API key - for open-source models */
+  TOGETHER_API_KEY?: string;
+  /** Groq API key - for fast inference */
+  GROQ_API_KEY?: string;
+  /** SambaNova API key - for free Llama access */
+  SAMBANOVA_API_KEY?: string;
+  /** Hyperbolic API key - for free tier access */
+  HYPERBOLIC_API_KEY?: string;
+  /** Mistral AI API key - for Mistral models (direct API access) */
+  MISTRAL_API_KEY?: string;
+  /** Cohere API key - for Command models */
+  COHERE_API_KEY?: string;
+  /** AI21 Labs API key - for Jamba models */
+  AI21_API_KEY?: string;
 
   // Admin authentication (secrets)
   /** @deprecated Use ADMIN_EMAIL with Google OAuth instead */
@@ -74,7 +92,16 @@ export type ApiProvider =
   | 'google'       // Direct Google Gemini API
   | 'cerebras'     // Cerebras API (OpenAI-compatible)
   | 'minimax'      // MiniMax API
-  | 'fireworks';   // Fireworks AI API (OpenAI-compatible)
+  | 'fireworks'    // Fireworks AI API (OpenAI-compatible)
+  | 'xai'          // XAI/Grok API (OpenAI-compatible)
+  | 'deepseek'     // DeepSeek API (OpenAI-compatible)
+  | 'together'     // Together AI API (OpenAI-compatible)
+  | 'groq'         // Groq API (OpenAI-compatible)
+  | 'sambanova'    // SambaNova API (OpenAI-compatible)
+  | 'hyperbolic'   // Hyperbolic API (OpenAI-compatible)
+  | 'mistral'      // Mistral AI API (OpenAI-compatible)
+  | 'cohere'       // Cohere API (custom format)
+  | 'ai21';        // AI21 Labs API (custom format)
 
 /**
  * Provider configuration from database.
