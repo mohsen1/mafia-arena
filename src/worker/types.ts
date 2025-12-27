@@ -107,8 +107,8 @@ export type ApiProvider =
   | 'deepseek'     // DeepSeek API (OpenAI-compatible)
   | 'together'     // Together AI API (OpenAI-compatible)
   | 'groq'         // Groq API (OpenAI-compatible)
-  | 'sambanova'    // SambaNova API (OpenAI-compatible)
-  | 'hyperbolic'   // Hyperbolic API (OpenAI-compatible)
+  | 'sambanova'    // SambaNova API (OpenAI-compatible) - hidden from UI
+  | 'hyperbolic'   // Hyperbolic API (OpenAI-compatible) - hidden from UI
   | 'mistral'      // Mistral AI API (OpenAI-compatible)
   | 'cohere'       // Cohere API (custom format)
   | 'ai21';        // AI21 Labs API (custom format)

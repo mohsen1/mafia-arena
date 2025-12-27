@@ -102,7 +102,5 @@ INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggreg
   ('groq', 'Groq', 'openai_compatible', 'https://api.groq.com/openai/v1', 0, NULL, 1, strftime('%s','now')),
   ('together', 'Together AI', 'openai_compatible', 'https://api.together.xyz/v1', 0, NULL, 1, strftime('%s','now')),
   ('cohere', 'Cohere', 'custom', 'https://api.cohere.ai/v1', 0, NULL, 1, strftime('%s','now')),
-  ('ai21', 'AI21 Labs', 'custom', 'https://api.ai21.com/studio/v1', 0, NULL, 1, strftime('%s','now')),
-  ('sambanova', 'SambaNova', 'openai_compatible', 'https://api.sambanova.ai/v1', 0, NULL, 1, strftime('%s','now')),
-  ('hyperbolic', 'Hyperbolic', 'openai_compatible', 'https://api.hyperbolic.xyz/v1', 0, NULL, 1, strftime('%s','now'));
+  ('ai21', 'AI21 Labs', 'custom', 'https://api.ai21.com/studio/v1', 0, NULL, 1, strftime('%s','now'));
 

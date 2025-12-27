@@ -30,8 +30,6 @@ export type ApiProvider =
   | 'ai21'
   | 'together'
   | 'groq'
-  | 'sambanova'
-  | 'hyperbolic'
   | 'cerebras'
   | 'minimax'
   | 'fireworks'
@@ -111,18 +109,6 @@ const PROVIDERS: ProviderInfo[] = [
     id: 'groq',
     displayName: 'Groq',
     description: 'Ultra-fast inference (free tier)',
-    isAggregator: false,
-  },
-  {
-    id: 'sambanova',
-    displayName: 'SambaNova',
-    description: 'Free Llama 3.1 405B',
-    isAggregator: false,
-  },
-  {
-    id: 'hyperbolic',
-    displayName: 'Hyperbolic',
-    description: 'Free tier available',
     isAggregator: false,
   },
   {
