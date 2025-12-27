@@ -54,9 +54,12 @@ describe('Admin Routes E2E', () => {
   });
 
   describe('Authentication', () => {
-    it('rejects requests without auth header', async () => {
+    it('rejects API requests without auth header with 401', async () => {
       const request = new Request('http://test/api/admin/models', {
         method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
       });
 
       const ctx = createExecutionContext();
@@ -64,6 +67,22 @@ describe('Admin Routes E2E', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(401);
+    });
+    
+    it('redirects browser requests without auth to login page', async () => {
+      const request = new Request('http://test/api/admin/models', {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/html',
+        },
+      });
+
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toContain('/admin/login');
     });
 
     it('rejects requests with invalid credentials', async () => {
