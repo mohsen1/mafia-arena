@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import ThemeToggle from './ThemeToggle.astro';
-import { Github, Shield, LogIn, LogOut, User } from 'lucide-astro';
+import { Github, Shield, LogOut, User } from 'lucide-astro';
 
 interface Props {
 	title: string;
@@ -44,7 +44,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 		<script is:inline>
 			// Auth state management
 			(function() {
-				const API_URL = 'https://mafia-arena.me-f9a.workers.dev';
+				// Use localhost:8787 for local dev, production URL otherwise
+				const API_URL = window.location.hostname === 'localhost' 
+					? 'http://localhost:8787'
+					: 'https://mafia-arena.me-f9a.workers.dev';
 				
 				async function checkAuth() {
 					const loadingEl = document.getElementById('auth-loading');
@@ -104,6 +107,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 				
 				// User menu toggle
 				document.addEventListener('DOMContentLoaded', () => {
+					// Update sign-in link for localhost
+					const signinEl = document.getElementById('auth-signin');
+					if (signinEl) {
+						const currentPath = window.location.pathname;
+						signinEl.href = `${API_URL}/api/auth/google?redirect=${encodeURIComponent(currentPath)}`;
+					}
+					
 					checkAuth();
 					
 					const menuBtn = document.getElementById('user-menu-btn');
@@ -199,10 +209,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 							<a 
 								id="auth-signin"
 								href={`${apiUrl}/api/auth/google?redirect=${currentPath}`}
-								class="hidden items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-foreground text-background hover:opacity-90 transition-opacity"
+								class="hidden items-center px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
 							>
-								<LogIn class="h-3.5 w-3.5" />
-								<span>Sign In</span>
+								Sign in
 							</a>
 							
 							<!-- User menu (hidden by default) -->
