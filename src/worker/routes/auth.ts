@@ -64,11 +64,34 @@ function generateSessionId(): string {
 }
 
 /**
- * Get the base URL for OAuth callbacks.
+ * Get the OAuth callback URL.
+ * Uses OAUTH_CALLBACK_URL env var if set (needed when wrangler rewrites the host),
+ * otherwise derives it from the request URL.
  */
-function getBaseUrl(request: Request): string {
+function getOAuthCallbackUrl(env: Env, request: Request): string {
+  // Use explicit callback URL if configured (needed in dev due to wrangler host rewriting)
+  if (env.OAUTH_CALLBACK_URL) {
+    return env.OAUTH_CALLBACK_URL;
+  }
+  
+  // Fall back to deriving from request URL
   const url = new URL(request.url);
-  // In production, use the origin. In development, might need to override.
+  return `${url.protocol}//${url.host}/api/auth/callback`;
+}
+
+/**
+ * Get the frontend URL for redirects.
+ * Uses FRONTEND_URL env var if set, otherwise assumes same-origin (production).
+ */
+function getFrontendUrl(env: Env, request: Request): string {
+  // Use explicit FRONTEND_URL if configured
+  if (env.FRONTEND_URL) {
+    return env.FRONTEND_URL.replace(/\/$/, ''); // Remove trailing slash
+  }
+  
+  // In production without FRONTEND_URL, assume frontend is served from same origin
+  // This handles the case where a reverse proxy serves both frontend and API
+  const url = new URL(request.url);
   return `${url.protocol}//${url.host}`;
 }
 
@@ -90,17 +113,29 @@ function parseCookies(request: Request): Record<string, string> {
 }
 
 /**
+ * Check if we're in a secure context (HTTPS or production).
+ */
+function isSecureContext(request: Request): boolean {
+  const url = new URL(request.url);
+  // In production, always use Secure flag
+  // In development (localhost), don't use Secure flag
+  return url.protocol === 'https:' || (!url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1'));
+}
+
+/**
  * Create a session cookie header.
  */
-function createSessionCookie(sessionId: string, maxAge: number): string {
-  return `${SESSION_COOKIE}=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+function createSessionCookie(sessionId: string, maxAge: number, request: Request): string {
+  const secureFlag = isSecureContext(request) ? 'Secure;' : '';
+  return `${SESSION_COOKIE}=${sessionId}; Path=/; HttpOnly; ${secureFlag} SameSite=Lax; Max-Age=${maxAge}`;
 }
 
 /**
  * Create a cookie to clear the session.
  */
-function clearSessionCookie(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+function clearSessionCookie(request: Request): string {
+  const secureFlag = isSecureContext(request) ? 'Secure;' : '';
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; ${secureFlag} SameSite=Lax; Max-Age=0`;
 }
 
 /**
@@ -130,8 +165,10 @@ auth.get('/google', async (c) => {
     return c.json({ error: 'Google OAuth not configured' }, 500);
   }
   
-  const baseUrl = getBaseUrl(c.req.raw);
-  const redirectUri = `${baseUrl}/api/auth/callback`;
+  const redirectUri = getOAuthCallbackUrl(c.env, c.req.raw);
+  
+  // Log for debugging redirect_uri_mismatch issues
+  console.log('OAuth initiation - redirect_uri:', redirectUri);
   
   // Get redirect URL from query param, validate it's a safe relative path
   const requestedRedirect = c.req.query('redirect') || '/admin';
@@ -175,21 +212,24 @@ auth.get('/callback', async (c) => {
   const state = c.req.query('state');
   const error = c.req.query('error');
   
+  // Get frontend URL for redirects (may be different port in development)
+  const frontendUrl = getFrontendUrl(c.env, c.req.raw);
+  
   // Handle OAuth errors
   if (error) {
     console.error('OAuth error:', error);
-    return c.redirect('/admin/login?error=oauth_denied');
+    return c.redirect(`${frontendUrl}/admin/login?error=oauth_denied`);
   }
   
   if (!code || !state) {
-    return c.redirect('/admin/login?error=invalid_callback');
+    return c.redirect(`${frontendUrl}/admin/login?error=invalid_callback`);
   }
   
   // Validate state to prevent CSRF
   const storedState = await RATE_LIMIT.get(`oauth_state:${state}`);
   if (!storedState) {
     console.error('Invalid or expired OAuth state');
-    return c.redirect('/admin/login?error=invalid_state');
+    return c.redirect(`${frontendUrl}/admin/login?error=invalid_state`);
   }
   
   // Clean up state
@@ -209,8 +249,11 @@ auth.get('/callback', async (c) => {
     // Ignore parse errors, use default
   }
   
-  const baseUrl = getBaseUrl(c.req.raw);
-  const redirectUri = `${baseUrl}/api/auth/callback`;
+  // Use same callback URL for the token exchange (must match what was sent to Google)
+  const redirectUri = getOAuthCallbackUrl(c.env, c.req.raw);
+  
+  // Log for debugging redirect_uri_mismatch issues
+  console.log('OAuth callback - redirect_uri for token exchange:', redirectUri);
   
   try {
     // Exchange code for tokens
@@ -229,7 +272,8 @@ auth.get('/callback', async (c) => {
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
       console.error('Token exchange failed:', errorText);
-      return c.redirect('/admin/login?error=token_exchange_failed');
+      console.error('Used redirect_uri:', redirectUri);
+      return c.redirect(`${frontendUrl}/admin/login?error=token_exchange_failed`);
     }
     
     const tokens = await tokenResponse.json() as GoogleTokenResponse;
@@ -241,13 +285,13 @@ auth.get('/callback', async (c) => {
     
     if (!userInfoResponse.ok) {
       console.error('Failed to get user info');
-      return c.redirect('/admin/login?error=user_info_failed');
+      return c.redirect(`${frontendUrl}/admin/login?error=user_info_failed`);
     }
     
     const userInfo = await userInfoResponse.json() as GoogleUserInfo;
     
     if (!userInfo.verified_email) {
-      return c.redirect('/admin/login?error=email_not_verified');
+      return c.redirect(`${frontendUrl}/admin/login?error=email_not_verified`);
     }
     
     // Check if user is admin
@@ -277,11 +321,13 @@ auth.get('/callback', async (c) => {
     console.log(`Created session for ${userInfo.email} (admin: ${isAdmin})`);
     
     // Set cookie and redirect
-    const cookie = createSessionCookie(sessionId, SESSION_TTL_SECONDS);
+    const cookie = createSessionCookie(sessionId, SESSION_TTL_SECONDS, c.req.raw);
     
     // Redirect to frontend with session info in URL for client-side handling
-    const redirectUrl = new URL(returnTo, baseUrl);
+    const redirectUrl = new URL(returnTo, frontendUrl);
     redirectUrl.searchParams.set('auth', 'success');
+    
+    console.log(`OAuth success - redirecting to: ${redirectUrl.toString()}`);
     
     return new Response(null, {
       status: 302,
@@ -292,7 +338,7 @@ auth.get('/callback', async (c) => {
     });
   } catch (error) {
     console.error('OAuth callback error:', error);
-    return c.redirect('/admin/login?error=internal_error');
+    return c.redirect(`${frontendUrl}/admin/login?error=internal_error`);
   }
 });
 
@@ -352,7 +398,7 @@ auth.post('/logout', async (c) => {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Set-Cookie': clearSessionCookie(),
+      'Set-Cookie': clearSessionCookie(c.req.raw),
     },
   });
 });

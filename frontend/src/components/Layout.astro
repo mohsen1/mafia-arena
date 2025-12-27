@@ -83,13 +83,18 @@ const apiUrl = getApiUrl();
 								if (name) name.textContent = data.user.name?.split(' ')[0] || 'User';
 								if (email) email.textContent = data.user.email;
 								
-								// Show admin link if admin
+								// Show admin links if admin
 								if (data.user.isAdmin) {
 									localStorage.setItem('adminUnlocked', 'true');
-									const adminLink = document.getElementById('admin-nav-link');
-									if (adminLink) {
-										adminLink.classList.remove('hidden');
-										adminLink.classList.add('flex');
+									const adminNavLink = document.getElementById('admin-nav-link');
+									const adminDropdownLink = document.getElementById('admin-dropdown-link');
+									if (adminNavLink) {
+										adminNavLink.classList.remove('hidden');
+										adminNavLink.classList.add('flex');
+									}
+									if (adminDropdownLink) {
+										adminDropdownLink.classList.remove('hidden');
+										adminDropdownLink.classList.add('flex');
 									}
 								}
 								
@@ -243,8 +248,16 @@ const apiUrl = getApiUrl();
 										<p id="user-email" class="text-xs text-muted-foreground truncate"></p>
 									</div>
 									<a 
-										href="/admin"
+										href="/account"
 										class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
+									>
+										<User class="h-4 w-4" />
+										<span>Account</span>
+									</a>
+									<a 
+										id="admin-dropdown-link"
+										href="/admin"
+										class="hidden items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
 									>
 										<Shield class="h-4 w-4" />
 										<span>Admin Panel</span>

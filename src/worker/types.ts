@@ -76,6 +76,12 @@ export interface Env {
   ADMIN_EMAIL?: string;
   /** JWT secret for signing session tokens (auto-generated if not set) */
   SESSION_SECRET?: string;
+  
+  // Frontend URL for OAuth redirects
+  /** Frontend URL for OAuth redirects (e.g., http://localhost:4321 in dev, https://mafia-arena.com in prod) */
+  FRONTEND_URL?: string;
+  /** OAuth callback URL override (needed when wrangler rewrites the host in dev) */
+  OAUTH_CALLBACK_URL?: string;
 }
 
 // =============================================================================
