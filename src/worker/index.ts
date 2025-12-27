@@ -19,6 +19,7 @@ import {
   statsRoutes,
   analysisRoutes,
   adminRoutes,
+  authRoutes,
 } from './routes/index.js';
 import {
   processBatchMessage,
@@ -100,6 +101,7 @@ app.route('/api/models', modelsRoutes);
 app.route('/api/stats', statsRoutes);
 app.route('/api/analysis', analysisRoutes);
 app.route('/api/admin', adminRoutes);
+app.route('/api/auth', authRoutes);
 
 // Global error handler
 app.onError(async (error, c) => {

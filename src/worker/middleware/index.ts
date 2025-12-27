@@ -4,7 +4,7 @@
 
 export { corsMiddleware } from './cors.js';
 export { rateLimitMiddleware, batchRateLimitMiddleware } from './rateLimit.js';
-export { adminAuthMiddleware } from './adminAuth.js';
+export { adminAuthMiddleware, authMiddleware } from './adminAuth.js';
 
 
 
