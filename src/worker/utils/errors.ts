@@ -9,6 +9,7 @@ export type ErrorCode =
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
   | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
   | 'GAME_IN_PROGRESS'
   | 'TIMEOUT'
   | 'INVALID_RESPONSE'
@@ -71,6 +72,9 @@ export const Errors = {
 
   Unauthorized: () =>
     new APIError(401, 'UNAUTHORIZED', 'Authentication required'),
+
+  Forbidden: (message: string) =>
+    new APIError(403, 'FORBIDDEN', message),
 
   GameInProgress: (gameId: string) =>
     new APIError(409, 'GAME_IN_PROGRESS', `Game ${gameId} is already running`),

@@ -17,12 +17,14 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env, GameQueueConfig } from './types.js';
 import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent, type SerializedGameState } from '../engine/index.js';
-import { createProvidersForGame, GameAIAdapter, SuspenseError, type CachedAIResponse, type CompletionResponse } from './ai/index.js';
+import { createProvidersForGame, GameAIAdapter, SuspenseError, type CachedAIResponse, type CompletionResponse, type RuntimeAPIKeys } from './ai/index.js';
 import { isTestModel } from './ai/providers/MockE2EProvider.js';
 import { generateSeed } from '../engine/utils/random.js';
 import { calculateExactCost, type ModelPricing } from './utils/budget.js';
 import { parsePricingFromConfig, DEFAULT_PRICING } from './ai/models.js';
 import { createLogger, logErrorWithStack, type Logger } from './utils/logger.js';
+import { decryptKey, validateEncryptionSecret } from './utils/crypto.js';
+import { PROVIDER_TO_ENV_KEY } from './routes/keys.js';
 
 /** Storage keys for DO state persistence */
 const STORAGE_KEYS = {
@@ -51,7 +53,20 @@ const STORAGE_KEYS = {
   AI_RESPONSES: 'aiResponses',
   /** Reason game is suspended (waiting for AI) - helps debug stuck games */
   SUSPENSE_REASON: 'suspenseReason',
+  /** Encrypted user API keys - persisted to survive DO eviction */
+  USER_KEYS_ENCRYPTED: 'userKeysEncrypted',
 } as const;
+
+/**
+ * Encrypted user API keys stored in DO storage.
+ * Keys are stored encrypted to persist across DO eviction/hibernation.
+ */
+interface EncryptedUserKeys {
+  [provider: string]: {
+    encrypted: string;
+    iv: string;
+  };
+}
 
 /**
  * Metadata pointer to R2-stored game state checkpoint.
@@ -206,6 +221,12 @@ export class GameRunner extends DurableObject<Env> {
   
   /** Heartbeat interval in milliseconds (15 seconds) */
   private static readonly HEARTBEAT_INTERVAL_MS = 15_000;
+  
+  /** 
+   * Decrypted user-provided API keys (in-memory cache).
+   * Populated from encrypted storage on demand.
+   */
+  private userApiKeysCache: RuntimeAPIKeys | undefined;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -345,6 +366,72 @@ export class GameRunner extends DurableObject<Env> {
     };
 
     return this.stateCache;
+  }
+
+  /**
+   * Get decrypted user API keys from storage.
+   * Keys are stored encrypted and decrypted on-demand for provider creation.
+   * Returns undefined if no user keys are stored.
+   * Throws an error if keys exist but cannot be decrypted (prevents silent fallback to system keys).
+   */
+  private async getDecryptedUserKeys(): Promise<RuntimeAPIKeys | undefined> {
+    // Return cached keys if available
+    if (this.userApiKeysCache) {
+      return this.userApiKeysCache;
+    }
+
+    // Load encrypted keys from storage
+    const encryptedKeys = await this.ctx.storage.get<EncryptedUserKeys>(STORAGE_KEYS.USER_KEYS_ENCRYPTED);
+    if (!encryptedKeys || Object.keys(encryptedKeys).length === 0) {
+      return undefined;
+    }
+
+    // Keys exist in storage - encryption secret MUST be configured
+    // If not, throw error to prevent silent fallback to system keys (billing leak)
+    if (!validateEncryptionSecret(this.env.ENCRYPTION_SECRET)) {
+      const errorMsg = 'User API keys stored but ENCRYPTION_SECRET not configured. Cannot decrypt.';
+      this.log.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Decrypt all keys
+    const decryptedKeys: RuntimeAPIKeys = {};
+    const failedProviders: string[] = [];
+    
+    for (const [provider, keyData] of Object.entries(encryptedKeys)) {
+      try {
+        const decrypted = await decryptKey(
+          keyData.encrypted,
+          keyData.iv,
+          this.env.ENCRYPTION_SECRET!
+        );
+        const envKeyName = PROVIDER_TO_ENV_KEY[provider];
+        if (envKeyName) {
+          (decryptedKeys as Record<string, string>)[envKeyName] = decrypted;
+        }
+      } catch (error) {
+        this.log.error(`Failed to decrypt ${provider} key`, { 
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+        failedProviders.push(provider);
+      }
+    }
+
+    // If ALL keys failed to decrypt, throw error (likely secret rotation issue)
+    if (failedProviders.length === Object.keys(encryptedKeys).length) {
+      const errorMsg = `All user API keys failed to decrypt (providers: ${failedProviders.join(', ')}). ` +
+        'This may indicate the ENCRYPTION_SECRET was rotated. User must re-add their keys.';
+      this.log.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Cache and return if we got any keys
+    if (Object.keys(decryptedKeys).length > 0) {
+      this.userApiKeysCache = decryptedKeys;
+      return decryptedKeys;
+    }
+
+    return undefined;
   }
 
   /**
@@ -1199,9 +1286,17 @@ export class GameRunner extends DurableObject<Env> {
         background?: boolean;
         /** Trace ID for distributed tracing */
         traceId?: string;
+        /** Encrypted user API keys (optional - uses system keys if not provided) */
+        encryptedUserKeys?: EncryptedUserKeys;
       };
 
-      const { gameId, batchId, config, background = false, traceId } = body;
+      const { gameId, batchId, config, background = false, traceId, encryptedUserKeys } = body;
+      
+      // Store encrypted user API keys in DO storage (persists across eviction)
+      if (encryptedUserKeys && Object.keys(encryptedUserKeys).length > 0) {
+        await this.ctx.storage.put(STORAGE_KEYS.USER_KEYS_ENCRYPTED, encryptedUserKeys);
+        this.log.debug('Stored encrypted user keys', { providers: Object.keys(encryptedUserKeys).join(',') });
+      }
       
       // Create logger with traceId context
       const gameLog = traceId 
@@ -1669,8 +1764,18 @@ export class GameRunner extends DurableObject<Env> {
 
     // Create AI providers for all models
     // Pass discountPricing to use longer timeouts and more retries
-    gameLog.debug('Creating AI providers', { modelIds: modelIds.join(','), discountPricing });
-    const providers = createProvidersForGame(modelIds, this.env, { discountPricing });
+    // Pass userApiKeys if provided (for user-provided API keys)
+    const userApiKeys = await this.getDecryptedUserKeys();
+    const hasUserKeys = userApiKeys !== undefined;
+    gameLog.debug('Creating AI providers', { 
+      modelIds: modelIds.join(','), 
+      discountPricing,
+      keySource: hasUserKeys ? 'user' : 'system',
+    });
+    const providers = createProvidersForGame(modelIds, this.env, { 
+      discountPricing,
+      userKeys: userApiKeys,
+    });
     
     // Get traceId for request correlation
     const traceId = this.stateCache?.traceId;

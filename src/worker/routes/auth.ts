@@ -3,7 +3,7 @@
  * 
  * Flow:
  * 1. GET /api/auth/google - Redirects to Google OAuth consent screen
- * 2. GET /api/auth/callback - Handles OAuth callback, creates session
+ * 2. GET /api/auth/callback - Handles OAuth callback, creates session, syncs user to D1
  * 3. GET /api/auth/me - Returns current user info
  * 4. POST /api/auth/logout - Clears session
  */
@@ -23,6 +23,8 @@ const SESSION_COOKIE = 'mafia_session';
  * Session data stored in KV.
  */
 export interface SessionData {
+  /** User ID from Google OAuth (stable identifier) */
+  userId: string;
   email: string;
   name: string;
   picture: string | undefined;
@@ -299,10 +301,36 @@ auth.get('/callback', async (c) => {
       ? userInfo.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
       : false;
     
+    // Sync user to D1 database (upsert)
+    try {
+      await c.env.DB.prepare(
+        `INSERT INTO users (id, email, name, picture, is_admin, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (email) DO UPDATE SET
+           name = excluded.name,
+           picture = excluded.picture,
+           is_admin = excluded.is_admin,
+           updated_at = excluded.updated_at`
+      ).bind(
+        userInfo.id,
+        userInfo.email,
+        userInfo.name,
+        userInfo.picture ?? null,
+        isAdmin ? 1 : 0,
+        Date.now(),
+        Date.now()
+      ).run();
+      console.log(`Synced user to D1: ${userInfo.email} (id: ${userInfo.id}, admin: ${isAdmin})`);
+    } catch (dbError) {
+      // Log but don't fail - user can still authenticate
+      console.error('Failed to sync user to D1:', dbError);
+    }
+    
     // Create session
     const sessionId = generateSessionId();
     const now = Date.now();
     const sessionData: SessionData = {
+      userId: userInfo.id,
       email: userInfo.email,
       name: userInfo.name,
       picture: userInfo.picture,
@@ -372,6 +400,7 @@ auth.get('/me', async (c) => {
     return c.json({
       authenticated: true,
       user: {
+        id: session.userId,
         email: session.email,
         name: session.name,
         picture: session.picture,

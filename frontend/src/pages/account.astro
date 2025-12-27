@@ -1,9 +1,25 @@
 ---
 import Layout from '../components/Layout.astro';
-import { User, Mail, Shield, Key, LogOut } from 'lucide-astro';
+import { User, Mail, Shield, Key, LogOut, Plus, Trash2, Check, AlertCircle, Loader2 } from 'lucide-astro';
 import { getApiUrl } from '../lib/utils';
 
 const apiUrl = getApiUrl();
+
+const SUPPORTED_PROVIDERS = [
+  { id: 'openai', name: 'OpenAI', placeholder: 'sk-proj-...' },
+  { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...' },
+  { id: 'google', name: 'Google AI', placeholder: 'AIza...' },
+  { id: 'openrouter', name: 'OpenRouter', placeholder: 'sk-or-...' },
+  { id: 'xai', name: 'XAI (Grok)', placeholder: 'xai-...' },
+  { id: 'deepseek', name: 'DeepSeek', placeholder: 'sk-...' },
+  { id: 'together', name: 'Together AI', placeholder: '...' },
+  { id: 'groq', name: 'Groq', placeholder: 'gsk_...' },
+  { id: 'mistral', name: 'Mistral AI', placeholder: '...' },
+  { id: 'cohere', name: 'Cohere', placeholder: '...' },
+  { id: 'ai21', name: 'AI21 Labs', placeholder: '...' },
+  { id: 'cerebras', name: 'Cerebras', placeholder: '...' },
+  { id: 'fireworks', name: 'Fireworks', placeholder: '...' },
+];
 ---
 
 <Layout title="Account">
@@ -11,7 +27,7 @@ const apiUrl = getApiUrl();
     <!-- Header -->
     <div class="space-y-2">
       <h1 class="text-2xl font-bold tracking-tight">Account</h1>
-      <p class="text-muted-foreground">Manage your profile and settings</p>
+      <p class="text-muted-foreground">Manage your profile and API keys</p>
     </div>
 
     <!-- Loading state -->
@@ -68,43 +84,98 @@ const apiUrl = getApiUrl();
         <div id="admin-badge" class="hidden">
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full text-xs font-medium text-amber-600 dark:text-amber-400">
             <Shield class="h-3 w-3" />
-            Administrator
+            Administrator (uses system keys)
+          </span>
+        </div>
+        
+        <!-- User badge -->
+        <div id="user-badge" class="hidden">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full text-xs font-medium text-blue-600 dark:text-blue-400">
+            <Key class="h-3 w-3" />
+            Using personal API keys
           </span>
         </div>
       </div>
 
-      <!-- API Keys Section (Coming Soon) -->
+      <!-- API Keys Section -->
       <div class="border rounded-lg p-6 space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-medium uppercase tracking-wider text-muted-foreground">API Keys</h2>
-          <span class="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">Coming Soon</span>
+          <button
+            id="add-key-btn"
+            class="text-xs px-3 py-1.5 bg-foreground text-background rounded-md hover:bg-foreground/90 transition-colors flex items-center gap-1.5"
+          >
+            <Plus class="h-3 w-3" />
+            Add Key
+          </button>
         </div>
         
         <p class="text-sm text-muted-foreground">
-          Soon you'll be able to add your own API keys for AI providers to run games with your own usage.
+          Add your own API keys to run games with your provider access. Keys are encrypted and stored securely.
         </p>
 
-        <div class="grid gap-3 opacity-50 pointer-events-none">
-          <div class="flex items-center justify-between p-3 bg-muted/30 rounded-md">
-            <div class="flex items-center gap-2">
-              <Key class="h-4 w-4 text-muted-foreground" />
-              <span class="text-sm">OpenAI</span>
-            </div>
-            <span class="text-xs text-muted-foreground">Not configured</span>
+        <!-- Admin notice -->
+        <div id="admin-keys-notice" class="hidden p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <p class="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
+            <AlertCircle class="h-4 w-4 shrink-0" />
+            As an admin, you can use system API keys. Adding personal keys is optional.
+          </p>
+        </div>
+
+        <!-- Keys list -->
+        <div id="keys-list" class="space-y-2">
+          <div class="text-center py-8 text-muted-foreground text-sm">
+            Loading keys...
           </div>
-          <div class="flex items-center justify-between p-3 bg-muted/30 rounded-md">
-            <div class="flex items-center gap-2">
-              <Key class="h-4 w-4 text-muted-foreground" />
-              <span class="text-sm">Anthropic</span>
+        </div>
+      </div>
+
+      <!-- Add Key Modal -->
+      <div id="add-key-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-background border rounded-lg p-6 w-full max-w-md mx-4 space-y-4">
+          <h3 class="text-lg font-semibold">Add API Key</h3>
+          
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <label for="provider-select" class="text-sm font-medium">Provider</label>
+              <select
+                id="provider-select"
+                class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Select a provider...</option>
+                {SUPPORTED_PROVIDERS.map(p => (
+                  <option value={p.id} data-placeholder={p.placeholder}>{p.name}</option>
+                ))}
+              </select>
             </div>
-            <span class="text-xs text-muted-foreground">Not configured</span>
+            
+            <div class="space-y-1.5">
+              <label for="api-key-input" class="text-sm font-medium">API Key</label>
+              <input
+                type="password"
+                id="api-key-input"
+                placeholder="Enter your API key..."
+                class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+              />
+              <p class="text-xs text-muted-foreground">Your key will be encrypted before storage.</p>
+            </div>
           </div>
-          <div class="flex items-center justify-between p-3 bg-muted/30 rounded-md">
-            <div class="flex items-center gap-2">
-              <Key class="h-4 w-4 text-muted-foreground" />
-              <span class="text-sm">Google AI</span>
-            </div>
-            <span class="text-xs text-muted-foreground">Not configured</span>
+          
+          <div id="add-key-error" class="hidden p-2 bg-red-500/10 border border-red-500/20 rounded text-sm text-red-600 dark:text-red-400"></div>
+          
+          <div class="flex gap-2 justify-end">
+            <button
+              id="cancel-add-key"
+              class="px-4 py-2 border rounded-md text-sm hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              id="save-key-btn"
+              class="px-4 py-2 bg-foreground text-background rounded-md text-sm hover:bg-foreground/90 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <span id="save-key-text">Save Key</span>
+            </button>
           </div>
         </div>
       </div>
@@ -125,7 +196,10 @@ const apiUrl = getApiUrl();
   </div>
 </Layout>
 
-<script define:vars={{ apiUrl }}>
+<script define:vars={{ apiUrl, SUPPORTED_PROVIDERS }}>
+  let currentUser = null;
+  let userKeys = [];
+
   async function init() {
     const loadingEl = document.getElementById('account-loading');
     const unauthEl = document.getElementById('account-unauthenticated');
@@ -137,11 +211,15 @@ const apiUrl = getApiUrl();
       if (res.ok) {
         const data = await res.json();
         if (data.authenticated && data.user) {
+          currentUser = data.user;
+          
           // Populate profile
           const avatar = document.getElementById('profile-avatar');
           const name = document.getElementById('profile-name');
           const emailSpan = document.querySelector('#profile-email span');
           const adminBadge = document.getElementById('admin-badge');
+          const userBadge = document.getElementById('user-badge');
+          const adminKeysNotice = document.getElementById('admin-keys-notice');
 
           if (avatar && data.user.picture) {
             avatar.src = data.user.picture;
@@ -149,27 +227,23 @@ const apiUrl = getApiUrl();
           }
           if (name) name.textContent = data.user.name;
           if (emailSpan) emailSpan.textContent = data.user.email;
-          if (adminBadge && data.user.isAdmin) {
-            adminBadge.classList.remove('hidden');
+          
+          if (data.user.isAdmin) {
+            adminBadge?.classList.remove('hidden');
+            adminKeysNotice?.classList.remove('hidden');
+          } else {
+            userBadge?.classList.remove('hidden');
           }
 
           // Show authenticated state
           loadingEl?.classList.add('hidden');
           authEl?.classList.remove('hidden');
 
-          // Setup signout
-          const signoutBtn = document.getElementById('signout-btn');
-          signoutBtn?.addEventListener('click', async () => {
-            try {
-              await fetch(`${apiUrl}/api/auth/logout`, { 
-                method: 'POST', 
-                credentials: 'include' 
-              });
-            } catch (e) {}
-            
-            localStorage.removeItem('adminUnlocked');
-            window.location.href = '/';
-          });
+          // Load API keys
+          await loadKeys();
+
+          // Setup event handlers
+          setupEventHandlers();
 
           return;
         }
@@ -189,6 +263,202 @@ const apiUrl = getApiUrl();
     }
   }
 
+  async function loadKeys() {
+    const keysList = document.getElementById('keys-list');
+    if (!keysList) return;
+
+    try {
+      const res = await fetch(`${apiUrl}/api/auth/keys`, { credentials: 'include' });
+      
+      if (!res.ok) {
+        if (res.status === 503) {
+          keysList.innerHTML = `
+            <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p class="text-sm text-amber-600 dark:text-amber-400">
+                Key management is not yet configured. Please contact the administrator.
+              </p>
+            </div>
+          `;
+          return;
+        }
+        throw new Error('Failed to load keys');
+      }
+
+      const data = await res.json();
+      userKeys = data.keys || [];
+
+      if (userKeys.length === 0) {
+        keysList.innerHTML = `
+          <div class="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+            <p>No API keys configured yet.</p>
+            <p class="mt-1">Add a key to run games with your own provider access.</p>
+          </div>
+        `;
+      } else {
+        keysList.innerHTML = userKeys.map(key => `
+          <div class="flex items-center justify-between p-3 bg-muted/30 rounded-lg border" data-provider="${key.provider}">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded bg-foreground/10 flex items-center justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                </svg>
+              </div>
+              <div>
+                <p class="font-medium text-sm">${getProviderName(key.provider)}</p>
+                <p class="text-xs text-muted-foreground font-mono">${key.fingerprint}</p>
+              </div>
+            </div>
+            <button
+              class="delete-key-btn p-2 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+              data-provider="${key.provider}"
+              title="Delete key"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+              </svg>
+            </button>
+          </div>
+        `).join('');
+
+        // Add delete handlers
+        document.querySelectorAll('.delete-key-btn').forEach(btn => {
+          btn.addEventListener('click', () => deleteKey(btn.getAttribute('data-provider')));
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load keys:', e);
+      keysList.innerHTML = `
+        <div class="text-center py-8 text-red-500 text-sm">
+          Failed to load API keys. Please try again.
+        </div>
+      `;
+    }
+  }
+
+  function getProviderName(providerId) {
+    const provider = SUPPORTED_PROVIDERS.find(p => p.id === providerId);
+    return provider ? provider.name : providerId;
+  }
+
+  function setupEventHandlers() {
+    const addKeyBtn = document.getElementById('add-key-btn');
+    const modal = document.getElementById('add-key-modal');
+    const cancelBtn = document.getElementById('cancel-add-key');
+    const saveBtn = document.getElementById('save-key-btn');
+    const providerSelect = document.getElementById('provider-select');
+    const apiKeyInput = document.getElementById('api-key-input');
+    const errorDiv = document.getElementById('add-key-error');
+    const signoutBtn = document.getElementById('signout-btn');
+
+    // Open modal
+    addKeyBtn?.addEventListener('click', () => {
+      modal?.classList.remove('hidden');
+      providerSelect.value = '';
+      apiKeyInput.value = '';
+      errorDiv?.classList.add('hidden');
+    });
+
+    // Close modal
+    cancelBtn?.addEventListener('click', () => {
+      modal?.classList.add('hidden');
+    });
+
+    // Close modal on backdrop click
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
+
+    // Update placeholder when provider changes
+    providerSelect?.addEventListener('change', () => {
+      const selected = providerSelect.options[providerSelect.selectedIndex];
+      const placeholder = selected?.getAttribute('data-placeholder') || 'Enter your API key...';
+      apiKeyInput.placeholder = placeholder;
+    });
+
+    // Save key
+    saveBtn?.addEventListener('click', async () => {
+      const provider = providerSelect?.value;
+      const apiKey = apiKeyInput?.value?.trim();
+
+      if (!provider) {
+        showError('Please select a provider');
+        return;
+      }
+
+      if (!apiKey || apiKey.length < 10) {
+        showError('Please enter a valid API key');
+        return;
+      }
+
+      saveBtn.disabled = true;
+      document.getElementById('save-key-text').textContent = 'Saving...';
+
+      try {
+        const res = await fetch(`${apiUrl}/api/auth/keys`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, apiKey }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error?.message || 'Failed to save key');
+        }
+
+        modal?.classList.add('hidden');
+        await loadKeys();
+      } catch (e) {
+        showError(e.message);
+      } finally {
+        saveBtn.disabled = false;
+        document.getElementById('save-key-text').textContent = 'Save Key';
+      }
+    });
+
+    // Sign out
+    signoutBtn?.addEventListener('click', async () => {
+      try {
+        await fetch(`${apiUrl}/api/auth/logout`, { 
+          method: 'POST', 
+          credentials: 'include' 
+        });
+      } catch (e) {}
+      
+      localStorage.removeItem('adminUnlocked');
+      window.location.href = '/';
+    });
+
+    function showError(message) {
+      if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+      }
+    }
+  }
+
+  async function deleteKey(provider) {
+    if (!confirm(`Are you sure you want to delete your ${getProviderName(provider)} API key?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${apiUrl}/api/auth/keys/${provider}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to delete key');
+      }
+
+      await loadKeys();
+    } catch (e) {
+      alert('Failed to delete API key. Please try again.');
+    }
+  }
+
   init();
 </script>
-

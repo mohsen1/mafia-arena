@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../components/Layout.astro';
-import { ArrowLeft, Play, Radio, Users, Shield, Sword, Shuffle } from 'lucide-astro';
+import { ArrowLeft, Play, Radio, Users, Shield, Sword, Shuffle, AlertCircle, Key } from 'lucide-astro';
 import ProviderModelSelector from '../../../components/ui/ProviderModelSelector';
 import { getApiUrl } from '../../../lib/utils';
 
@@ -26,6 +26,57 @@ const apiUrl = getApiUrl();
         <p class="text-sm text-muted-foreground mt-1">
           Configure and launch a single game with real-time updates
         </p>
+      </div>
+    </div>
+
+    <!-- User status banner -->
+    <div id="user-status" class="hidden">
+      <!-- Admin banner -->
+      <div id="admin-status" class="hidden p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3">
+        <Shield class="h-5 w-5 text-amber-500 shrink-0" />
+        <div class="text-sm">
+          <span class="font-medium text-amber-600 dark:text-amber-400">Admin Mode:</span>
+          <span class="text-muted-foreground"> Using system API keys. You can run any model.</span>
+        </div>
+      </div>
+      
+      <!-- User banner -->
+      <div id="user-key-status" class="hidden p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+        <div class="flex items-center gap-3">
+          <Key class="h-5 w-5 text-blue-500 shrink-0" />
+          <div class="text-sm">
+            <span class="font-medium text-blue-600 dark:text-blue-400">Personal Keys Mode:</span>
+            <span class="text-muted-foreground"> Games will use your API keys.</span>
+          </div>
+        </div>
+        <div id="configured-keys" class="mt-2 text-xs text-muted-foreground">
+          Loading your configured keys...
+        </div>
+      </div>
+      
+      <!-- Not signed in -->
+      <div id="anon-status" class="hidden p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3">
+        <AlertCircle class="h-5 w-5 text-red-500 shrink-0" />
+        <div class="text-sm">
+          <span class="font-medium text-red-600 dark:text-red-400">Not signed in:</span>
+          <span class="text-muted-foreground"> Please <a href="/account" class="underline">sign in</a> to run games.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Missing keys warning -->
+    <div id="missing-keys-warning" class="hidden p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+      <div class="flex items-start gap-3">
+        <AlertCircle class="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+        <div class="text-sm">
+          <p class="font-medium text-red-600 dark:text-red-400">Missing API Keys</p>
+          <p class="text-muted-foreground mt-1" id="missing-keys-message">
+            You need to add API keys for the selected models.
+          </p>
+          <a href="/account" class="inline-flex items-center gap-1 mt-2 text-red-600 dark:text-red-400 hover:underline">
+            <Key class="h-3.5 w-3.5" /> Add keys in Account settings
+          </a>
+        </div>
       </div>
     </div>
 
@@ -98,6 +149,7 @@ const apiUrl = getApiUrl();
       <div class="flex gap-3">
         <button 
           type="submit"
+          id="submit-btn"
           class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg font-medium hover:from-red-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Play size={18} />
@@ -115,6 +167,139 @@ const apiUrl = getApiUrl();
 </Layout>
 
 <script define:vars={{ apiUrl }}>
+  let currentUser = null;
+  let userKeys = [];
+  let isAdmin = false;
+
+  // Provider inference from model IDs
+  function getRequiredProviders(modelIds) {
+    const providers = new Set();
+    
+    for (const modelId of modelIds) {
+      if (modelId.startsWith('openai/') || modelId.startsWith('gpt-')) {
+        providers.add('openai');
+      } else if (modelId.startsWith('anthropic/') || modelId.startsWith('claude-')) {
+        providers.add('anthropic');
+      } else if (modelId.startsWith('google/') || modelId.startsWith('gemini-')) {
+        providers.add('google');
+      } else if (modelId.startsWith('xai/') || modelId.startsWith('grok-')) {
+        providers.add('xai');
+      } else if (modelId.startsWith('deepseek/')) {
+        providers.add('deepseek');
+      } else if (modelId.startsWith('together/')) {
+        providers.add('together');
+      } else if (modelId.startsWith('groq/')) {
+        providers.add('groq');
+      } else if (modelId.startsWith('cerebras/')) {
+        providers.add('cerebras');
+      } else if (modelId.startsWith('fireworks/')) {
+        providers.add('fireworks');
+      } else if (modelId.startsWith('mistral/')) {
+        providers.add('mistral');
+      } else if (modelId.startsWith('cohere/')) {
+        providers.add('cohere');
+      } else if (modelId.startsWith('ai21/')) {
+        providers.add('ai21');
+      } else {
+        providers.add('openrouter');
+      }
+    }
+    
+    return providers;
+  }
+
+  async function checkAuth() {
+    const userStatus = document.getElementById('user-status');
+    const adminStatus = document.getElementById('admin-status');
+    const userKeyStatus = document.getElementById('user-key-status');
+    const anonStatus = document.getElementById('anon-status');
+
+    try {
+      const res = await fetch(`${apiUrl}/api/auth/me`, { credentials: 'include' });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          currentUser = data.user;
+          isAdmin = data.user.isAdmin;
+          
+          userStatus?.classList.remove('hidden');
+          
+          if (isAdmin) {
+            adminStatus?.classList.remove('hidden');
+          } else {
+            userKeyStatus?.classList.remove('hidden');
+            await loadUserKeys();
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      console.log('Auth check failed:', e);
+    }
+
+    // Not authenticated
+    userStatus?.classList.remove('hidden');
+    anonStatus?.classList.remove('hidden');
+  }
+
+  async function loadUserKeys() {
+    const configuredKeys = document.getElementById('configured-keys');
+    
+    try {
+      const res = await fetch(`${apiUrl}/api/auth/keys`, { credentials: 'include' });
+      
+      if (res.ok) {
+        const data = await res.json();
+        userKeys = data.keys || [];
+        
+        if (userKeys.length === 0) {
+          configuredKeys.innerHTML = `
+            <span class="text-amber-600 dark:text-amber-400">No API keys configured.</span>
+            <a href="/account" class="underline ml-1">Add keys</a>
+          `;
+        } else {
+          const providers = userKeys.map(k => k.provider).join(', ');
+          configuredKeys.innerHTML = `
+            <span class="text-emerald-600 dark:text-emerald-400">Configured:</span> ${providers}
+          `;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load keys:', e);
+      configuredKeys.textContent = 'Failed to load keys';
+    }
+  }
+
+  function checkMissingKeys() {
+    if (isAdmin) {
+      document.getElementById('missing-keys-warning')?.classList.add('hidden');
+      return true;
+    }
+
+    const modelA = document.getElementById('modelA')?.value;
+    const modelB = document.getElementById('modelB')?.value;
+    
+    if (!modelA || !modelB) return true;
+
+    const required = getRequiredProviders([modelA, modelB]);
+    const configured = new Set(userKeys.map(k => k.provider));
+    const missing = [...required].filter(p => !configured.has(p));
+
+    const warning = document.getElementById('missing-keys-warning');
+    const message = document.getElementById('missing-keys-message');
+    
+    if (missing.length > 0) {
+      warning?.classList.remove('hidden');
+      message.textContent = `Missing keys for: ${missing.join(', ')}. Add them in your Account settings.`;
+      return false;
+    } else {
+      warning?.classList.add('hidden');
+      return true;
+    }
+  }
+
+  // Check credentials for admin panel access
   const credentials = sessionStorage.getItem('adminCredentials');
   if (!credentials) {
     window.location.href = '/admin/login?redirect=/admin/games/new';
@@ -124,6 +309,14 @@ const apiUrl = getApiUrl();
     'Authorization': `Basic ${credentials}`,
     'Content-Type': 'application/json'
   } : { 'Content-Type': 'application/json' };
+
+  // Initialize
+  checkAuth();
+
+  // Watch for model changes
+  window.addEventListener('modelSelected', () => {
+    checkMissingKeys();
+  });
 
   // Random free models button handler
   const randomFreeBtn = document.getElementById('randomFreeBtn');
@@ -173,6 +366,9 @@ const apiUrl = getApiUrl();
           detail: { inputId: 'modelB', modelId: modelB.id } 
         }));
 
+        // Check keys after selection
+        setTimeout(checkMissingKeys, 100);
+
       } catch (err) {
         console.error('Failed to fetch free models:', err);
         alert('Failed to fetch models. Please try again.');
@@ -197,6 +393,12 @@ const apiUrl = getApiUrl();
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      // Check for missing keys
+      if (!checkMissingKeys()) {
+        alert('Please add the required API keys in your Account settings before launching a game.');
+        return;
+      }
       
       const submitBtn = form.querySelector('button[type="submit"]');
       const statusDiv = document.getElementById('launch-status');
@@ -237,9 +439,10 @@ const apiUrl = getApiUrl();
           statusText.textContent = 'Contacting server...';
         }
 
-        const res = await fetch(`${apiUrl}/api/admin/games/run-live`, {
+        const res = await fetch(`${apiUrl}/api/games/run-direct`, {
           method: 'POST',
-          headers,
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             config: {
               playerCount,
@@ -250,7 +453,7 @@ const apiUrl = getApiUrl();
               ],
               maxRounds: 10,
               discussionEnabled: true,
-              contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
+              contextLevel: 'windowed',
               personaConstraints: 'moderate',
             },
           }),
@@ -262,9 +465,27 @@ const apiUrl = getApiUrl();
           return;
         }
 
+        if (res.status === 403) {
+          const err = await res.json();
+          alert(err.error?.message || 'You do not have permission to run this game. Please add the required API keys.');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              Launch & Watch Live
+            `;
+          }
+          if (statusDiv) {
+            statusDiv.classList.add('hidden');
+          }
+          return;
+        }
+
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.message || 'Failed to start game');
+          throw new Error(err.error?.message || err.message || 'Failed to start game');
         }
 
         const result = await res.json();

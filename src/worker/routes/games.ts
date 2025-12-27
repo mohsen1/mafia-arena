@@ -10,6 +10,9 @@ import { getRandomTheme } from '../utils/random-config.js';
 import { generateTraceId } from '../utils/trace.js';
 import { createDb } from '../db/drizzle.js';
 import * as schema from '../db/schema.js';
+import { getSession } from './auth.js';
+import { validateEncryptionSecret } from '../utils/crypto.js';
+import { inferProviderFromModelId } from '../ai/factory.js';
 
 const games = new Hono<{ Bindings: Env }>();
 
@@ -111,7 +114,48 @@ games.post('/run', async (c) => {
 });
 
 /**
+ * Map model IDs to their required API providers.
+ * Checks DB for explicit routing config first, then falls back to prefix inference.
+ * 
+ * @param modelIds - List of model IDs
+ * @param env - Environment with DB access
+ * @returns Set of provider names that require API keys
+ */
+async function getRequiredProviders(modelIds: string[], env: Env): Promise<Set<string>> {
+  const providers = new Set<string>();
+  
+  // Fetch model configs from DB to check for explicit api_provider
+  const uniqueModelIds = [...new Set(modelIds)];
+  if (uniqueModelIds.length > 0) {
+    const placeholders = uniqueModelIds.map(() => '?').join(',');
+    const result = await env.DB.prepare(
+      `SELECT id, api_provider FROM models WHERE id IN (${placeholders})`
+    ).bind(...uniqueModelIds).all<{ id: string; api_provider: string }>();
+    
+    const dbProviderMap = new Map(
+      (result.results ?? []).map(m => [m.id, m.api_provider])
+    );
+    
+    for (const modelId of modelIds) {
+      // Use DB provider if explicitly configured, otherwise infer from prefix
+      const dbProvider = dbProviderMap.get(modelId);
+      if (dbProvider) {
+        providers.add(dbProvider);
+      } else {
+        providers.add(inferProviderFromModelId(modelId));
+      }
+    }
+  }
+  
+  return providers;
+}
+
+/**
  * POST /api/games/run-direct - Run a game directly without queue.
+ * 
+ * Authentication:
+ * - Admin users can use system API keys
+ * - Non-admin users must have their own API keys for required providers
  */
 games.post('/run-direct', async (c) => {
   const env = c.env;
@@ -147,6 +191,76 @@ games.post('/run-direct', async (c) => {
     throw Errors.BadRequest('Invalid game configuration: teams required');
   }
 
+  // Check user authentication
+  const session = await getSession(c.req.raw, env);
+  
+  // Encrypted user API keys to pass to GameRunner (for persistence across DO eviction)
+  let encryptedUserKeys: Record<string, { encrypted: string; iv: string }> | undefined;
+  let keySource: 'system' | 'user' = 'system';
+  
+  if (session && !session.isAdmin) {
+    // Non-admin user: must use their own API keys
+    const modelIds = body.config.teams.map(t => t.modelId);
+    const requiredProviders = await getRequiredProviders(modelIds, env);
+    
+    // Check if encryption is configured
+    if (!validateEncryptionSecret(env.ENCRYPTION_SECRET)) {
+      throw Errors.Internal('Key management not configured');
+    }
+    
+    // Fetch user's encrypted API keys directly from D1
+    let query = `SELECT provider, encrypted_key, iv_vector FROM user_api_keys WHERE user_id = ?`;
+    const params: string[] = [session.userId];
+    
+    if (requiredProviders.size > 0) {
+      const placeholders = [...requiredProviders].map(() => '?').join(', ');
+      query += ` AND provider IN (${placeholders})`;
+      params.push(...requiredProviders);
+    }
+    
+    const result = await env.DB.prepare(query).bind(...params).all<{
+      provider: string;
+      encrypted_key: string;
+      iv_vector: string;
+    }>();
+    
+    const userKeyRows = result.results ?? [];
+    const foundProviders = new Set(userKeyRows.map(r => r.provider));
+    
+    // Validate user has all required keys
+    const missingProviders: string[] = [];
+    for (const provider of requiredProviders) {
+      if (!foundProviders.has(provider)) {
+        missingProviders.push(provider);
+      }
+    }
+    
+    if (missingProviders.length > 0) {
+      throw Errors.Forbidden(
+        `Missing API keys for: ${missingProviders.join(', ')}. ` +
+        `Please add your API keys in the Account page to run games with these models.`
+      );
+    }
+    
+    // Build encrypted keys map to pass to GameRunner
+    encryptedUserKeys = {};
+    for (const row of userKeyRows) {
+      encryptedUserKeys[row.provider] = {
+        encrypted: row.encrypted_key,
+        iv: row.iv_vector,
+      };
+    }
+    keySource = 'user';
+    
+    console.log(`User ${session.email} running game with their own API keys for: ${[...requiredProviders].join(', ')}`);
+  } else if (session?.isAdmin) {
+    // Admin user: use system keys
+    console.log(`Admin ${session.email} running game with system API keys`);
+  } else {
+    // No session: use system keys (for backwards compatibility with queue/admin routes)
+    // This path is typically used by the admin UI which handles auth separately
+  }
+
   // Generate trace ID for this direct game
   const traceId = generateTraceId();
   const discountPricing = body.config.discountPricing ?? false;
@@ -161,7 +275,7 @@ games.post('/run-direct', async (c) => {
   const id = env.GAME_RUNNER.idFromName(gameId);
   const stub = env.GAME_RUNNER.get(id);
 
-  console.log(`[${traceId}] Running game ${gameId} directly (discountPricing: ${discountPricing})`);
+  console.log(`[${traceId}] Running game ${gameId} directly (discountPricing: ${discountPricing}, keys: ${keySource})`);
 
   const response = await stub.fetch('http://internal/start', {
     method: 'POST',
@@ -182,6 +296,8 @@ games.post('/run-direct', async (c) => {
         discountPricing,
       },
       traceId,
+      // Pass encrypted user API keys (persisted in DO storage to survive eviction)
+      ...(encryptedUserKeys && { encryptedUserKeys }),
     }),
   });
 
@@ -203,6 +319,7 @@ games.post('/run-direct', async (c) => {
     seed: result.seed,
     contextLevel: 'full',
     discountPricing,
+    keySource,
     message: `Game started directly (bypassing queue). ${estimatedTime}`,
     traceId,
   });

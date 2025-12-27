@@ -82,6 +82,10 @@ export interface Env {
   FRONTEND_URL?: string;
   /** OAuth callback URL override (needed when wrangler rewrites the host in dev) */
   OAUTH_CALLBACK_URL?: string;
+  
+  // User API key encryption
+  /** Secret for encrypting user API keys (32-byte random string, required for key management) */
+  ENCRYPTION_SECRET?: string;
 }
 
 // =============================================================================

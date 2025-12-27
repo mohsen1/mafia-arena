@@ -65,6 +65,29 @@ class FallbackProvider implements AIProviderInterface {
   }
 }
 
+/**
+ * Runtime API keys injected by the user.
+ * These override system env keys when provided.
+ */
+export interface RuntimeAPIKeys {
+  OPENAI_API_KEY?: string;
+  ANTHROPIC_API_KEY?: string;
+  GOOGLE_API_KEY?: string;
+  OPENROUTER_API_KEY?: string;
+  XAI_API_KEY?: string;
+  DEEPSEEK_API_KEY?: string;
+  TOGETHER_API_KEY?: string;
+  GROQ_API_KEY?: string;
+  SAMBANOVA_API_KEY?: string;
+  HYPERBOLIC_API_KEY?: string;
+  MISTRAL_API_KEY?: string;
+  COHERE_API_KEY?: string;
+  AI21_API_KEY?: string;
+  CEREBRAS_API_KEY?: string;
+  FIREWORKS_API_KEY?: string;
+  MINIMAX_API_KEY?: string;
+}
+
 export interface CreateProviderOptions {
   enableRetry?: boolean;
   maxRetries?: number;
@@ -79,6 +102,11 @@ export interface CreateProviderOptions {
    * If provided, uses this for routing instead of inferring from model ID.
    */
   routingConfig?: ModelRoutingConfig;
+  /**
+   * User-provided API keys that override system env keys.
+   * Used when running games with user's own API keys.
+   */
+  userKeys?: RuntimeAPIKeys | undefined;
 }
 
 /**
@@ -107,6 +135,55 @@ function isGoogleModel(modelId: string): boolean {
   return modelId.startsWith('google/') || 
          modelId.startsWith('gemini-') ||
          modelId.includes('gemini');
+}
+
+/**
+ * Map of model ID prefixes to their providers.
+ * Used for key validation and provider inference.
+ */
+const MODEL_PREFIX_TO_PROVIDER: Record<string, ApiProvider> = {
+  'openai/': 'openai',
+  'gpt-': 'openai',
+  'anthropic/': 'anthropic',
+  'claude-': 'anthropic',
+  'google/': 'google',
+  'gemini-': 'google',
+  'xai/': 'xai',
+  'grok-': 'xai',
+  'deepseek/': 'deepseek',
+  'together/': 'together',
+  'groq/': 'groq',
+  'cerebras/': 'cerebras',
+  'fireworks/': 'fireworks',
+  'mistral/': 'mistral',
+  'mistralai/': 'mistral',
+  'cohere/': 'cohere',
+  'ai21/': 'ai21',
+  'minimax/': 'minimax',
+  'sambanova/': 'sambanova',
+  'hyperbolic/': 'hyperbolic',
+  'meta-llama/': 'openrouter', // Open source models via OpenRouter
+  'qwen/': 'openrouter',
+  'microsoft/': 'openrouter',
+  'amazon/': 'openrouter',
+  'nvidia/': 'openrouter',
+};
+
+/**
+ * Infer the provider required for a model ID based on its prefix.
+ * Used for API key validation - tells you which provider key you need.
+ * 
+ * @param modelId - Model ID like "openai/gpt-4" or "anthropic/claude-3"
+ * @returns The provider name that this model requires
+ */
+export function inferProviderFromModelId(modelId: string): ApiProvider {
+  for (const [prefix, provider] of Object.entries(MODEL_PREFIX_TO_PROVIDER)) {
+    if (modelId.startsWith(prefix)) {
+      return provider;
+    }
+  }
+  // Default to OpenRouter for unknown models
+  return 'openrouter';
 }
 
 /**
@@ -193,7 +270,8 @@ export function createProvider(
   const apiProvider: ApiProvider = routingConfig?.apiProvider ?? inferApiProvider(modelId, env);
   const apiModelId = routingConfig?.apiModelId ?? extractApiModelId(modelId, apiProvider);
   
-  console.log(`Creating provider for model: ${modelId} (${modelConfig.displayName}) via ${apiProvider} as ${apiModelId}`);
+  const keySource = options.userKeys ? 'user-provided' : 'system';
+  console.log(`Creating provider for model: ${modelId} (${modelConfig.displayName}) via ${apiProvider} as ${apiModelId} [keys: ${keySource}]`);
 
   // Select defaults based on pricing mode
   const defaults = options.discountPricing 
@@ -204,15 +282,18 @@ export function createProvider(
     enableRetry = true, 
     maxRetries = defaults.maxRetries, 
     timeoutMs = defaults.timeoutMs,
+    userKeys,
   } = options;
 
-  // Create the base provider based on apiProvider
-  const baseProvider = createBaseProvider(apiProvider, apiModelId, modelId, env, timeoutMs);
+  // Create the base provider based on apiProvider (with user keys if provided)
+  const baseProvider = createBaseProvider(apiProvider, apiModelId, modelId, env, timeoutMs, userKeys);
   
   // Special case: Google models get OpenRouter fallback for resilience
-  if (apiProvider === 'google' && env.OPENROUTER_API_KEY) {
+  // Note: Fallback also uses user keys if provided
+  const openRouterKey = resolveApiKey('OPENROUTER_API_KEY', env, userKeys);
+  if (apiProvider === 'google' && openRouterKey) {
     const openRouterProvider = new OpenRouterProvider({
-      apiKey: env.OPENROUTER_API_KEY,
+      apiKey: openRouterKey,
       modelId,
       timeoutMs,
     });
@@ -249,116 +330,166 @@ export function createProvider(
 }
 
 /**
+ * Resolve an API key from user keys (priority) or system env.
+ * User keys take precedence over system keys.
+ */
+function resolveApiKey(
+  envKeyName: keyof RuntimeAPIKeys,
+  env: Env,
+  userKeys?: RuntimeAPIKeys
+): string | undefined {
+  // Priority: User key > System env key
+  if (userKeys && userKeys[envKeyName]) {
+    return userKeys[envKeyName];
+  }
+  return (env as unknown as Record<string, string | undefined>)[envKeyName];
+}
+
+/**
  * Create the base provider for a given API provider type.
+ * User-provided keys take precedence over system env keys.
  */
 function createBaseProvider(
   apiProvider: ApiProvider,
   apiModelId: string,
   displayModelId: string,
   env: Env,
-  timeoutMs: number
+  timeoutMs: number,
+  userKeys?: RuntimeAPIKeys
 ): AIProviderInterface {
   switch (apiProvider) {
-    case 'openai':
-      if (!env.OPENAI_API_KEY) {
+    case 'openai': {
+      const apiKey = resolveApiKey('OPENAI_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('OPENAI_API_KEY is required for OpenAI models');
       }
-      return new OpenAIProvider(apiModelId, env.OPENAI_API_KEY, timeoutMs);
+      return new OpenAIProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'anthropic':
-      if (!env.ANTHROPIC_API_KEY) {
+    case 'anthropic': {
+      const apiKey = resolveApiKey('ANTHROPIC_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('ANTHROPIC_API_KEY is required for Anthropic models');
       }
-      return new AnthropicProvider(apiModelId, env.ANTHROPIC_API_KEY, timeoutMs);
+      return new AnthropicProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'google':
-      if (!env.GOOGLE_API_KEY) {
+    case 'google': {
+      const apiKey = resolveApiKey('GOOGLE_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('GOOGLE_API_KEY is required for Google models');
       }
-      return new GoogleAIProvider(displayModelId, env.GOOGLE_API_KEY, timeoutMs);
+      return new GoogleAIProvider(displayModelId, apiKey, timeoutMs);
+    }
 
-    case 'cerebras':
-      if (!env.CEREBRAS_API_KEY) {
+    case 'cerebras': {
+      const apiKey = resolveApiKey('CEREBRAS_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('CEREBRAS_API_KEY is required for Cerebras models');
       }
-      return new CerebrasProvider(apiModelId, env.CEREBRAS_API_KEY, timeoutMs);
+      return new CerebrasProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'fireworks':
-      if (!env.FIREWORKS_API_KEY) {
+    case 'fireworks': {
+      const apiKey = resolveApiKey('FIREWORKS_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('FIREWORKS_API_KEY is required for Fireworks models');
       }
-      return new FireworksProvider(apiModelId, env.FIREWORKS_API_KEY, timeoutMs);
+      return new FireworksProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'minimax':
-      if (!env.MINIMAX_API_KEY) {
+    case 'minimax': {
+      const apiKey = resolveApiKey('MINIMAX_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('MINIMAX_API_KEY is required for MiniMax models');
       }
-      return new MinimaxProvider(apiModelId, env.MINIMAX_API_KEY, timeoutMs);
+      return new MinimaxProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'xai':
-      if (!env.XAI_API_KEY) {
+    case 'xai': {
+      const apiKey = resolveApiKey('XAI_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('XAI_API_KEY is required for XAI/Grok models');
       }
-      return new XAIProvider(apiModelId, env.XAI_API_KEY, timeoutMs);
+      return new XAIProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'deepseek':
-      if (!env.DEEPSEEK_API_KEY) {
+    case 'deepseek': {
+      const apiKey = resolveApiKey('DEEPSEEK_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('DEEPSEEK_API_KEY is required for DeepSeek models');
       }
-      return new DeepSeekProvider(apiModelId, env.DEEPSEEK_API_KEY, timeoutMs);
+      return new DeepSeekProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'together':
-      if (!env.TOGETHER_API_KEY) {
+    case 'together': {
+      const apiKey = resolveApiKey('TOGETHER_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('TOGETHER_API_KEY is required for Together AI models');
       }
-      return new TogetherProvider(apiModelId, env.TOGETHER_API_KEY, timeoutMs);
+      return new TogetherProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'groq':
-      if (!env.GROQ_API_KEY) {
+    case 'groq': {
+      const apiKey = resolveApiKey('GROQ_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('GROQ_API_KEY is required for Groq models');
       }
-      return new GroqProvider(apiModelId, env.GROQ_API_KEY, timeoutMs);
+      return new GroqProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'sambanova':
-      if (!env.SAMBANOVA_API_KEY) {
+    case 'sambanova': {
+      const apiKey = resolveApiKey('SAMBANOVA_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('SAMBANOVA_API_KEY is required for SambaNova models');
       }
-      return new SambaNovaProvider(apiModelId, env.SAMBANOVA_API_KEY, timeoutMs);
+      return new SambaNovaProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'hyperbolic':
-      if (!env.HYPERBOLIC_API_KEY) {
+    case 'hyperbolic': {
+      const apiKey = resolveApiKey('HYPERBOLIC_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('HYPERBOLIC_API_KEY is required for Hyperbolic models');
       }
-      return new HyperbolicProvider(apiModelId, env.HYPERBOLIC_API_KEY, timeoutMs);
+      return new HyperbolicProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'mistral':
-      if (!env.MISTRAL_API_KEY) {
+    case 'mistral': {
+      const apiKey = resolveApiKey('MISTRAL_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('MISTRAL_API_KEY is required for Mistral models');
       }
-      return new MistralProvider(apiModelId, env.MISTRAL_API_KEY, timeoutMs);
+      return new MistralProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'cohere':
-      if (!env.COHERE_API_KEY) {
+    case 'cohere': {
+      const apiKey = resolveApiKey('COHERE_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('COHERE_API_KEY is required for Cohere models');
       }
-      return new CohereProvider(apiModelId, env.COHERE_API_KEY, timeoutMs);
+      return new CohereProvider(apiModelId, apiKey, timeoutMs);
+    }
 
-    case 'ai21':
-      if (!env.AI21_API_KEY) {
+    case 'ai21': {
+      const apiKey = resolveApiKey('AI21_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('AI21_API_KEY is required for AI21 models');
       }
-      return new AI21Provider(apiModelId, env.AI21_API_KEY, timeoutMs);
+      return new AI21Provider(apiModelId, apiKey, timeoutMs);
+    }
 
     case 'openrouter':
-    default:
-      if (!env.OPENROUTER_API_KEY) {
+    default: {
+      const apiKey = resolveApiKey('OPENROUTER_API_KEY', env, userKeys);
+      if (!apiKey) {
         throw new Error('OPENROUTER_API_KEY is required');
       }
       return new OpenRouterProvider({
-        apiKey: env.OPENROUTER_API_KEY,
+        apiKey,
         modelId: displayModelId,
         timeoutMs,
       });
+    }
   }
 }
 
@@ -370,6 +501,10 @@ function createBaseProvider(
  * - Longer individual request timeouts (5 min vs 60s)
  * - More retry attempts (20 vs 8)
  * - Longer delays between retries (10s-5min vs 3s-60s)
+ * 
+ * When userKeys are provided:
+ * - User's API keys are used instead of system env keys
+ * - Allows users to run games with their own provider access
  */
 export function createProvidersForGame(
   modelIds: readonly string[],

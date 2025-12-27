@@ -9,4 +9,5 @@ export { default as statsRoutes } from './stats.js';
 export { default as analysisRoutes } from './analysis.js';
 export { default as adminRoutes } from './admin.js';
 export { default as authRoutes } from './auth.js';
+export { default as keysRoutes } from './keys.js';
 

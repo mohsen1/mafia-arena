@@ -47,7 +47,13 @@ export { RetryingProvider, type RetryConfig } from './RetryingProvider.js';
 export { OpenRouterProvider } from './providers/OpenRouterProvider.js';
 
 // Factory
-export { createProvider, createProvidersForGame, type CreateProviderOptions } from './factory.js';
+export { 
+  createProvider, 
+  createProvidersForGame, 
+  inferProviderFromModelId,
+  type CreateProviderOptions, 
+  type RuntimeAPIKeys,
+} from './factory.js';
 
 // Game adapter
 export { GameAIAdapter, type GameAIAdapterOptions, type FallbackStats } from './GameAIAdapter.js';

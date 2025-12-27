@@ -20,6 +20,7 @@ import {
   analysisRoutes,
   adminRoutes,
   authRoutes,
+  keysRoutes,
 } from './routes/index.js';
 import {
   processBatchMessage,
@@ -102,6 +103,7 @@ app.route('/api/stats', statsRoutes);
 app.route('/api/analysis', analysisRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/auth', authRoutes);
+app.route('/api/auth/keys', keysRoutes);
 
 // Global error handler
 app.onError(async (error, c) => {

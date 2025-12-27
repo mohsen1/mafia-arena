@@ -307,6 +307,42 @@ export const dlqEntries = sqliteTable('dlq_entries', {
 ]);
 
 // =============================================================================
+// USERS & API KEYS
+// =============================================================================
+
+/**
+ * Users synced from Google OAuth.
+ */
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  name: text('name'),
+  picture: text('picture'),
+  isAdmin: integer('is_admin', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+}, (table) => [
+  index('idx_users_email').on(table.email),
+]);
+
+/**
+ * User API keys for AI providers (encrypted).
+ */
+export const userApiKeys = sqliteTable('user_api_keys', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull(), // 'openai', 'anthropic', 'google', 'openrouter', etc.
+  encryptedKey: text('encrypted_key').notNull(),
+  ivVector: text('iv_vector').notNull(), // Initialization vector for AES-GCM
+  keyFingerprint: text('key_fingerprint').notNull(), // e.g., "sk-...1234"
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+}, (table) => [
+  index('idx_user_api_keys_user').on(table.userId),
+  index('idx_user_api_keys_provider').on(table.provider),
+]);
+
+// =============================================================================
 // SYSTEM
 // =============================================================================
 
@@ -364,6 +400,8 @@ export type Batch = typeof batches.$inferSelect;
 export type DlqEntry = typeof dlqEntries.$inferSelect;
 export type ErrorLogEntry = typeof errorLog.$inferSelect;
 export type SystemStateEntry = typeof systemState.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type UserApiKey = typeof userApiKeys.$inferSelect;
 
 // Inferred types for inserts (writing to DB)
 export type NewModel = typeof models.$inferInsert;
@@ -382,4 +420,6 @@ export type NewBatch = typeof batches.$inferInsert;
 export type NewDlqEntry = typeof dlqEntries.$inferInsert;
 export type NewErrorLogEntry = typeof errorLog.$inferInsert;
 export type NewSystemStateEntry = typeof systemState.$inferInsert;
+export type NewUser = typeof users.$inferInsert;
+export type NewUserApiKey = typeof userApiKeys.$inferInsert;
 
