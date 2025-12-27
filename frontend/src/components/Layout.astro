@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import ThemeToggle from './ThemeToggle.astro';
-import { Github, Shield } from 'lucide-astro';
+import { Github, Shield, LogIn, LogOut, User } from 'lucide-astro';
 
 interface Props {
 	title: string;
@@ -9,6 +9,7 @@ interface Props {
 
 const { title } = Astro.props;
 const currentPath = Astro.url.pathname;
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
 
 <!doctype html>
@@ -39,6 +40,101 @@ const currentPath = Astro.url.pathname;
 					}
 				});
 			}
+		</script>
+		<script is:inline>
+			// Auth state management
+			(function() {
+				const API_URL = 'https://mafia-arena.me-f9a.workers.dev';
+				
+				async function checkAuth() {
+					const loadingEl = document.getElementById('auth-loading');
+					const signinEl = document.getElementById('auth-signin');
+					const userEl = document.getElementById('auth-user');
+					
+					try {
+						const res = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' });
+						
+						if (res.ok) {
+							const data = await res.json();
+							if (data.authenticated && data.user) {
+								// Show user menu
+								loadingEl?.classList.add('hidden');
+								signinEl?.classList.add('hidden');
+								userEl?.classList.remove('hidden');
+								userEl?.classList.add('flex');
+								
+								// Populate user info
+								const avatar = document.getElementById('user-avatar');
+								const name = document.getElementById('user-name');
+								const email = document.getElementById('user-email');
+								
+								if (avatar) {
+									if (data.user.picture) {
+										avatar.src = data.user.picture;
+										avatar.alt = data.user.name;
+									} else {
+										avatar.style.display = 'none';
+									}
+								}
+								if (name) name.textContent = data.user.name?.split(' ')[0] || 'User';
+								if (email) email.textContent = data.user.email;
+								
+								// Show admin link if admin
+								if (data.user.isAdmin) {
+									localStorage.setItem('adminUnlocked', 'true');
+									const adminLink = document.getElementById('admin-nav-link');
+									if (adminLink) {
+										adminLink.classList.remove('hidden');
+										adminLink.classList.add('flex');
+									}
+								}
+								
+								return;
+							}
+						}
+					} catch (e) {
+						console.log('Auth check failed:', e);
+					}
+					
+					// Not authenticated - show sign in
+					loadingEl?.classList.add('hidden');
+					signinEl?.classList.remove('hidden');
+					signinEl?.classList.add('inline-flex');
+				}
+				
+				// User menu toggle
+				document.addEventListener('DOMContentLoaded', () => {
+					checkAuth();
+					
+					const menuBtn = document.getElementById('user-menu-btn');
+					const dropdown = document.getElementById('user-dropdown');
+					const logoutBtn = document.getElementById('logout-btn');
+					
+					menuBtn?.addEventListener('click', (e) => {
+						e.stopPropagation();
+						dropdown?.classList.toggle('hidden');
+					});
+					
+					// Close dropdown on outside click
+					document.addEventListener('click', () => {
+						dropdown?.classList.add('hidden');
+					});
+					
+					// Logout
+					logoutBtn?.addEventListener('click', async () => {
+						try {
+							await fetch(`${API_URL}/api/auth/logout`, { 
+								method: 'POST', 
+								credentials: 'include' 
+							});
+						} catch (e) {}
+						
+						localStorage.removeItem('adminUnlocked');
+						sessionStorage.removeItem('adminCredentials');
+						window.location.reload();
+					});
+				});
+			})();
 		</script>
 	</head>
 	<body class="min-h-screen bg-background font-sans antialiased">
@@ -92,6 +188,68 @@ const currentPath = Astro.url.pathname;
 						</nav>
 					</div>
 					<div class="flex items-center gap-2">
+						<!-- User Auth Button -->
+						<div id="auth-container" class="relative">
+							<!-- Loading state -->
+							<div id="auth-loading" class="w-8 h-8 flex items-center justify-center">
+								<div class="w-4 h-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin"></div>
+							</div>
+							
+							<!-- Sign In button (hidden by default) -->
+							<a 
+								id="auth-signin"
+								href={`${apiUrl}/api/auth/google?redirect=${currentPath}`}
+								class="hidden items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-foreground text-background hover:opacity-90 transition-opacity"
+							>
+								<LogIn class="h-3.5 w-3.5" />
+								<span>Sign In</span>
+							</a>
+							
+							<!-- User menu (hidden by default) -->
+							<div id="auth-user" class="hidden">
+								<button 
+									id="user-menu-btn"
+									class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent transition-colors"
+								>
+									<img 
+										id="user-avatar" 
+										src="" 
+										alt="" 
+										class="w-6 h-6 rounded-full bg-muted object-cover"
+										onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+									/>
+									<div id="user-avatar-fallback" class="hidden w-6 h-6 rounded-full bg-muted items-center justify-center">
+										<User class="h-3.5 w-3.5 text-muted-foreground" />
+									</div>
+									<span id="user-name" class="text-sm font-medium max-w-[100px] truncate"></span>
+								</button>
+								
+								<!-- Dropdown -->
+								<div 
+									id="user-dropdown"
+									class="hidden absolute right-0 top-full mt-1 w-48 py-1 bg-background border rounded-md shadow-lg z-50"
+								>
+									<div class="px-3 py-2 border-b">
+										<p id="user-email" class="text-xs text-muted-foreground truncate"></p>
+									</div>
+									<a 
+										href="/admin"
+										class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
+									>
+										<Shield class="h-4 w-4" />
+										<span>Admin Panel</span>
+									</a>
+									<button 
+										id="logout-btn"
+										class="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-muted transition-colors"
+									>
+										<LogOut class="h-4 w-4" />
+										<span>Sign Out</span>
+									</button>
+								</div>
+							</div>
+						</div>
+
 						<a 
 							href="https://github.com/mohsen1/mafia-arena" 
 							target="_blank" 
