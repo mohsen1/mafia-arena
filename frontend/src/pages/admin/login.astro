@@ -1,9 +1,10 @@
 ---
 import Layout from '../../components/Layout.astro';
 import { Terminal, Chrome, KeyRound, AlertCircle, CheckCircle } from 'lucide-astro';
+import { getApiUrl } from '../../lib/utils';
 
 const redirect = Astro.url.searchParams.get('redirect') || '/admin';
-const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+const apiUrl = getApiUrl();
 const error = Astro.url.searchParams.get('error');
 const authSuccess = Astro.url.searchParams.get('auth') === 'success';
 

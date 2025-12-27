@@ -2,6 +2,7 @@
 import Layout from '../../../components/Layout.astro';
 import { getGame } from '../../../lib/api';
 import { ArrowLeft, Radio, Loader2, Trophy, Users, Moon, Sun, Swords, Vote, MessageSquare, Skull, ChevronDown, ChevronRight, Crosshair, Hash, Timer, DollarSign, Zap, Feather, Scroll, Sparkles, Building2 } from 'lucide-astro';
+import { getApiUrl } from '../../../lib/utils';
 
 const { id } = Astro.params;
 const gameId = id!;
@@ -26,7 +27,7 @@ function getProvider(modelName: string): string {
 }
 const allProviders = [...new Set(participants.map(p => getProvider(p.model_name)))].filter(p => p !== 'Other');
 
-const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+const apiUrl = getApiUrl();
 
 // Theme configuration
 const themeConfig = {
