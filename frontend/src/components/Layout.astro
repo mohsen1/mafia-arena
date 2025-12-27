@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import ThemeToggle from './ThemeToggle.astro';
-import { Shield, LogOut, User, Play } from 'lucide-astro';
+import { Shield, LogOut, User } from 'lucide-astro';
 import { getApiUrl } from '../lib/utils';
 
 interface Props {
@@ -30,17 +30,6 @@ const apiUrl = getApiUrl();
 			const theme = localStorage.getItem('theme') || 
 				(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 			if (theme === 'dark') document.documentElement.classList.add('dark');
-		</script>
-		<script is:inline>
-			if (localStorage.getItem('adminUnlocked') === 'true') {
-				document.addEventListener('DOMContentLoaded', () => {
-					const adminLink = document.getElementById('admin-nav-link');
-					if (adminLink) {
-						adminLink.classList.remove('hidden');
-						adminLink.classList.add('flex');
-					}
-				});
-			}
 		</script>
 		<script is:inline>
 			// Auth state management
@@ -201,11 +190,11 @@ const apiUrl = getApiUrl();
 								id="new-game-nav-link"
 								href="/games/new" 
 								class:list={[
-									"hidden transition-colors hover:text-foreground items-center gap-1",
+									"hidden transition-colors hover:text-foreground items-center gap-1.5",
 									currentPath === "/games/new" ? "text-foreground font-medium" : "text-muted-foreground"
 								]}
 							>
-								<Play class="h-3.5 w-3.5" />
+								<span class="text-base">▶</span>
 								New Game
 							</a>
 							<a 
@@ -276,7 +265,7 @@ const apiUrl = getApiUrl();
 										href="/games/new"
 										class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
 									>
-										<Play class="h-4 w-4" />
+										<span>▶</span>
 										<span>New Game</span>
 									</a>
 									<a 
