@@ -4,7 +4,13 @@ import StatsNav from '../../components/StatsNav.astro';
 import { getMatchups } from '../../lib/api';
 
 const team = Astro.url.searchParams.get('team') as 'mafia' | 'town' | null;
-const data = await getMatchups(team || undefined);
+let data;
+try {
+  data = await getMatchups(team || undefined);
+} catch (error) {
+  // If API is unavailable, use empty defaults
+  data = { models: [], matchups: [], selfPlay: [] };
+}
 
 // Deduplicate models by display_name (merge variants)
 const modelMap = new Map<string, { id: string; display_name: string; provider: string; ids: string[] }>();

@@ -14,10 +14,17 @@ interface Props {
 const { compact = false, showTopModels = true } = Astro.props;
 
 // Fetch both matchups and ELO data
-const [data, eloData] = await Promise.all([
-  getMatchups(),
-  getEloRatings(),
-]);
+let data, eloData;
+try {
+  [data, eloData] = await Promise.all([
+    getMatchups(),
+    getEloRatings(),
+  ]);
+} catch (error) {
+  // If API is unavailable, show empty state
+  data = { models: [], matchups: [] };
+  eloData = { rankings: [] };
+}
 
 // Deduplicate models by display_name
 const modelMap = new Map<string, { id: string; display_name: string; provider: string; ids: string[] }>();

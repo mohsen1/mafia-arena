@@ -21,11 +21,19 @@ if (themeFilter && ['noir', 'victorian', 'modern', 'fantasy'].includes(themeFilt
 const hasFilters = Object.keys(filters).length > 0;
 
 // Fetch data in parallel - use matchups API to get models that have actually played games
-const [liveGamesResult, completedGamesResult, matchupsData] = await Promise.all([
-  getLiveGames(),
-  getGames(LIMIT, offset, 'completed', filters),
-  getMatchups(),
-]);
+let liveGamesResult, completedGamesResult, matchupsData;
+try {
+  [liveGamesResult, completedGamesResult, matchupsData] = await Promise.all([
+    getLiveGames(),
+    getGames(LIMIT, offset, 'completed', filters),
+    getMatchups(),
+  ]);
+} catch (error) {
+  // If API is unavailable, use empty defaults
+  liveGamesResult = { games: [], total: 0 };
+  completedGamesResult = { games: [], total: 0, hasMore: false };
+  matchupsData = { models: [], matchups: [] };
+}
 
 const liveGames = liveGamesResult.games;
 const games = completedGamesResult.games;

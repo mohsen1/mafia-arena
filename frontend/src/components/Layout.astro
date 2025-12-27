@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import ThemeToggle from './ThemeToggle.astro';
-import { Github, Shield, LogOut, User } from 'lucide-astro';
+import { Shield, LogOut, User } from 'lucide-astro';
 
 interface Props {
 	title: string;
@@ -259,15 +259,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
 							</div>
 						</div>
 
-						<a 
-							href="https://github.com/mohsen1/mafia-arena" 
-							target="_blank" 
-							rel="noreferrer"
-							class="inline-flex items-center justify-center rounded-md w-8 h-8 hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
-							aria-label="GitHub"
-						>
-							<Github class="h-4 w-4" />
-						</a>
 						<ThemeToggle />
 					</div>
 				</div>
