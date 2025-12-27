@@ -24,6 +24,13 @@ import {
   getSystemState,
   incrementBatchProgress,
   updateDailyStats,
+  BatchService,
+  modelSupportsBatchPricing,
+  AnthropicBatch,
+  OpenAIBatch,
+  GoogleBatch,
+  CerebrasBatch,
+  FireworksBatch,
 } from './batch/index.js';
 import { cleanupStaleGames } from './scheduled/index.js';
 
@@ -161,10 +168,10 @@ export default {
   /**
    * Handle scheduled cron triggers.
    * 
-   * Current schedule:
+   * Schedule:
+   * - Every 1 minute: Poll batch jobs for completion
+   * - Every 5 minutes: Aggregate pending requests into batches
    * - Every 10 minutes: Clean up stale/hanging games
-   *   - Standard games: Stale after 1 hour of inactivity
-   *   - Discount pricing games: Stale after 24 hours (batch APIs can take up to 24h)
    */
   async scheduled(
     event: ScheduledEvent,
@@ -173,17 +180,91 @@ export default {
   ): Promise<void> {
     console.log(`Cron triggered: ${event.cron} at ${new Date(event.scheduledTime).toISOString()}`);
     
-    ctx.waitUntil(
-      cleanupStaleGames(env)
-        .then((result) => {
-          console.log(`Scheduled cleanup completed: killed ${result.killedCount} games (${result.standardKilled} standard, ${result.discountKilled} discount)`);
-        })
-        .catch((error) => {
-          console.error('Scheduled cleanup failed:', error);
-        })
-    );
+    // Register batch providers (one-time setup per worker invocation)
+    const batchService = new BatchService(env);
+    registerBatchProviders(batchService, env);
+
+    // Route based on cron expression
+    switch (event.cron) {
+      // Poll batch jobs every minute
+      case '*/1 * * * *':
+        ctx.waitUntil(
+          batchService.pollAndDispatch()
+            .then((result) => {
+              console.log(`Batch polling: ${result.jobsPolled} jobs polled, ${result.jobsCompleted} completed, ${result.resultsDispatched} dispatched`);
+            })
+            .catch((error) => {
+              console.error('Batch polling failed:', error);
+            })
+        );
+        break;
+
+      // Aggregate requests into batches every 5 minutes
+      case '*/5 * * * *':
+        ctx.waitUntil(
+          batchService.aggregateAndSubmit()
+            .then((result) => {
+              console.log(`Batch aggregation: ${result.batchesCreated} batches created, ${result.requestsProcessed} requests processed`);
+            })
+            .catch((error) => {
+              console.error('Batch aggregation failed:', error);
+            })
+        );
+        break;
+
+      // Clean up stale games every 10 minutes (default case too)
+      case '*/10 * * * *':
+      default:
+        ctx.waitUntil(
+          cleanupStaleGames(env)
+            .then((result) => {
+              console.log(`Scheduled cleanup completed: killed ${result.killedCount} games (${result.standardKilled} standard, ${result.discountKilled} discount)`);
+            })
+            .catch((error) => {
+              console.error('Scheduled cleanup failed:', error);
+            })
+        );
+        break;
+    }
   },
 };
+
+/**
+ * Register batch provider implementations with the BatchService.
+ * Called once per scheduled invocation.
+ */
+function registerBatchProviders(batchService: BatchService, env: Env): void {
+  // Register providers that have API keys configured
+  // Each provider checks its own env var in the constructor
+  try {
+    // Anthropic - 50% discount
+    if ((env as unknown as Record<string, unknown>).ANTHROPIC_API_KEY) {
+      batchService.registerProvider(new AnthropicBatch(env, 'anthropic/claude-3-5-sonnet'));
+    }
+    
+    // OpenAI - 50% discount
+    if ((env as unknown as Record<string, unknown>).OPENAI_API_KEY) {
+      batchService.registerProvider(new OpenAIBatch(env, 'openai/gpt-4o'));
+    }
+    
+    // Google - 50% discount
+    if ((env as unknown as Record<string, unknown>).GOOGLE_API_KEY) {
+      batchService.registerProvider(new GoogleBatch(env, 'google/gemini-1.5-pro'));
+    }
+    
+    // Cerebras - 50% discount
+    if ((env as unknown as Record<string, unknown>).CEREBRAS_API_KEY) {
+      batchService.registerProvider(new CerebrasBatch(env, 'cerebras/llama3.1-70b'));
+    }
+    
+    // Fireworks - 40% discount (less than others)
+    if ((env as unknown as Record<string, unknown>).FIREWORKS_API_KEY) {
+      batchService.registerProvider(new FireworksBatch(env, 'fireworks/llama-v3p1-70b-instruct'));
+    }
+  } catch (error) {
+    console.error('Failed to register batch providers:', error);
+  }
+}
 
 /**
  * Handle a single game queue message.
@@ -377,7 +458,7 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
     }
   }
 
-  const { requestId, gameId, modelId, request, context, traceId } = body;
+  const { requestId, gameId, modelId, request, context, traceId, discountPricing } = body;
 
   if (!request) {
     console.error(`[${traceId || 'no-trace'}] Invalid message: missing request data for ${requestId}`);
@@ -386,13 +467,32 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
   }
 
   try {
-    console.log(`[${traceId || 'no-trace'}] Processing AI request ${requestId} for game ${gameId} (attempt ${message.attempts})`);
+    // ==========================================================================
+    // BATCH ROUTING: Route discount pricing requests to batch API for 40-50% savings
+    // ==========================================================================
+    if (discountPricing && modelSupportsBatchPricing(modelId)) {
+      console.log(`[${traceId || 'no-trace'}] Routing AI request ${requestId} to batch API (${modelId})`);
+      
+      // Store request in D1 for batch aggregation
+      // The cron job will aggregate and submit batches every 5 minutes
+      const batchService = new BatchService(env);
+      await batchService.storeRequest(body);
+      
+      message.ack();
+      console.log(`[${traceId || 'no-trace'}] AI request ${requestId} queued for batch processing`);
+      return;
+    }
+
+    // ==========================================================================
+    // IMMEDIATE PROCESSING: Non-discount requests or unsupported models
+    // ==========================================================================
+    console.log(`[${traceId || 'no-trace'}] Processing AI request ${requestId} for game ${gameId} (attempt ${message.attempts})${discountPricing ? ' [DISCOUNT-IMMEDIATE]' : ''}`);
 
     // 1. Create provider for this model
+    // For discount pricing games without batch support, use longer timeouts
     const provider = createProvider(modelId, env, {
       enableRetry: true,
-      maxRetries: 3, // Provider-level retries
-      timeoutMs: 120000, // 2 minutes timeout per attempt
+      discountPricing: discountPricing ?? false,
     });
 
     // 2. Execute the AI call (this can take a while - that's the point!)

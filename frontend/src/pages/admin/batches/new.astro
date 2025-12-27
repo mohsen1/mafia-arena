@@ -120,10 +120,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         <div class="space-y-3">
           <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Options</h3>
 
-          <label class="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" id="useBatchAPI" name="useBatchAPI" class="rounded border-muted-foreground/50" />
-            <span class="text-sm">Batch API (50% cheaper, 24h delay)</span>
-          </label>
+          <div id="batchAPIOption" class="relative">
+            <label class="flex items-center gap-3 cursor-pointer peer">
+              <input type="checkbox" id="useBatchAPI" name="useBatchAPI" class="rounded border-muted-foreground/50 disabled:opacity-50" disabled />
+              <span class="text-sm peer-has-[:disabled]:text-muted-foreground/60">
+                Batch API (50% cheaper, 24h delay)
+              </span>
+            </label>
+            <p id="batchAPIHint" class="text-xs text-muted-foreground mt-1 hidden">
+              Select models that support batch pricing to enable this option
+            </p>
+          </div>
         </div>
 
         <!-- Submit (Mobile) -->
@@ -207,6 +214,43 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
     'Authorization': `Basic ${credentials}`,
     'Content-Type': 'application/json'
   } : { 'Content-Type': 'application/json' };
+
+  // Track batch pricing support for both models
+  let modelABatchPricing = false;
+  let modelBBatchPricing = false;
+
+  function updateBatchAPIOption() {
+    const checkbox = document.getElementById('useBatchAPI');
+    const hint = document.getElementById('batchAPIHint');
+    
+    // Enable if either model supports batch pricing
+    const anyModelSupportsBatch = modelABatchPricing || modelBBatchPricing;
+    
+    if (checkbox) {
+      checkbox.disabled = !anyModelSupportsBatch;
+      if (!anyModelSupportsBatch) {
+        checkbox.checked = false;
+      }
+    }
+    
+    if (hint) {
+      hint.classList.toggle('hidden', anyModelSupportsBatch);
+    }
+  }
+
+  // Listen for model changes from ModelSelector
+  window.addEventListener('modelChanged', (e) => {
+    const { inputId, supportsBatchPricing } = e.detail;
+    
+    if (inputId === 'modelA') {
+      modelABatchPricing = supportsBatchPricing;
+    } else if (inputId === 'modelB') {
+      modelBBatchPricing = supportsBatchPricing;
+    }
+    
+    updateBatchAPIOption();
+    updateEstimate();
+  });
 
   const randomFreeBtn = document.getElementById('randomFreeBtn');
   if (randomFreeBtn) {

@@ -89,6 +89,8 @@ export interface ModelDbRecord {
   api_model_id: string;
   config: string | null;
   created_at: number;
+  /** Whether this model's provider supports batch API pricing (0 or 1) */
+  supports_batch_pricing: number;
 }
 
 /**
