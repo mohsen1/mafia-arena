@@ -631,17 +631,48 @@ export class GameRunner extends DurableObject<Env> {
         requestId: string;
         response?: CompletionResponse;
         error?: string;
+        /** Whether this is a fatal/permanent error (e.g., 404 invalid model) */
+        isFatal?: boolean;
       };
 
-      const { requestId, response, error } = body;
-      this.log.info('Received AI callback', { requestId, hasResponse: !!response, hasError: !!error });
+      const { requestId, response, error, isFatal } = body;
+      this.log.info('Received AI callback', { requestId, hasResponse: !!response, hasError: !!error, isFatal });
 
       if (error) {
-        // AI call failed - store the error (game will fail on resume)
-        this.log.error('AI callback received error', { requestId, error });
-        // For now, we don't store errors - the game will just suspend again
-        // and hit max retries in the queue worker
-        return Response.json({ success: false, error });
+        // AI call failed - store the error in cache so the game can handle it on resume
+        this.log.error('AI callback received error', { requestId, error, isFatal });
+        
+        // Store error in DO storage so adapter sees it on resume
+        const responses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES) ?? new Map();
+        responses.set(requestId, { 
+          error,
+          isFatal: isFatal ?? false,
+          timestamp: Date.now(),
+        });
+        await this.ctx.storage.put(STORAGE_KEYS.AI_RESPONSES, responses);
+        this.log.debug('Cached AI error', { requestId, isFatal, cacheSize: responses.size });
+        
+        // Update lastActivity to prevent stale detection
+        await this.saveState({ lastActivity: Date.now() });
+        
+        // Trigger resume so game wakes up and handles the error
+        const state = await this.loadState();
+        if (state.status === 'running' && state.gameId && state.batchId) {
+          const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
+          if (config && !this.isResuming) {
+            this.isResuming = true;
+            this.lastResumeTime = Date.now();
+            const gameConfig = this.toGameConfig(config, state.seed || 0);
+            
+            this.ctx.waitUntil(
+              this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig)
+                .finally(() => { this.isResuming = false; })
+            );
+            this.log.info('Triggered resume to handle AI error', { gameId: state.gameId, requestId });
+          }
+        }
+        
+        return Response.json({ success: true, requestId, errorStored: true });
       }
 
       if (!response) {

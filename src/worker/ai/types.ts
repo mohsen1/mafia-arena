@@ -74,7 +74,11 @@ export interface AIRequestMessage {
  * Keyed by requestId (deterministic based on game state).
  */
 export interface CachedAIResponse {
-  response: CompletionResponse;
+  response?: CompletionResponse;
+  /** Error message if AI call failed permanently (e.g., 404 invalid model) */
+  error?: string;
+  /** Whether this is a fatal/permanent error (should not retry) */
+  isFatal?: boolean;
   timestamp: number;
 }
 

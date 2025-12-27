@@ -55,16 +55,23 @@ interface WsMessage {
 }
 
 interface HealthCheckResponse {
-  healthStatus: 'healthy' | 'warning' | 'critical';
+  healthStatus: 'healthy' | 'warning' | 'critical' | 'idle' | 'completed';
   healthMessage: string;
   aiProgress?: {
     cachedResponses: number;
+    expectedPlayers: number | null;
     progressText: string;
   };
   execution?: {
-    currentPhase: string;
-    currentRound: number;
+    currentPhase: string | null;
+    currentRound: number | null;
+    startedAt: number | null;
+    durationMs: number | null;
   };
+  /** Human-readable reason for why game is suspended (waiting for which model/player) */
+  suspenseReason?: string | null;
+  /** Recommended action for stuck games */
+  recommendedAction?: 'none' | 'punt' | 'fail';
 }
 
 type PhaseType = 'introduction' | 'night' | 'mafia_chat' | 'day_discussion' | 'day_vote';
@@ -77,6 +84,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_POLL_DELAY = 1500;
 const MAX_POLL_DELAY = 15000;
 const HEALTH_CHECK_INTERVAL = 30000;
+const HEALTH_CHECK_INTERVAL_STUCK = 10000; // More frequent when 0 events (likely stuck)
 
 // Icons as inline SVG strings (required for non-module bundling)
 const ICONS: Record<string, string> = {
@@ -113,6 +121,10 @@ class LiveGameState {
   gameHealthy = true;
   totalTokens = 0;
   pendingNewMessages = 0;
+  /** Last known health status for change detection */
+  lastHealthStatus: HealthCheckResponse['healthStatus'] | null = null;
+  /** Whether we're showing the stuck/critical warning banner */
+  showingCriticalWarning = false;
 
   constructor(public config: LiveGameConfig) {}
 
@@ -679,10 +691,67 @@ function showError(errorMessage: string): void {
   messageEl.textContent = errorMessage || 'An unknown error occurred';
   banner.classList.remove('hidden');
 
+  // Hide warning banner if showing
+  const warningBanner = document.getElementById('warning-banner');
+  if (warningBanner) warningBanner.classList.add('hidden');
+
   const connectionStatus = document.getElementById('connection-status');
   if (connectionStatus) {
     connectionStatus.classList.add('hidden');
   }
+}
+
+/**
+ * Show/hide a warning banner for stuck/slow games (non-fatal).
+ * This helps users understand why a game appears frozen.
+ */
+function showWarningBanner(
+  show: boolean, 
+  message?: string, 
+  details?: { suspenseReason?: string | null; aiProgress?: string }
+): void {
+  let banner = document.getElementById('warning-banner');
+  
+  if (!show) {
+    if (banner) banner.classList.add('hidden');
+    return;
+  }
+  
+  // Create banner if it doesn't exist (inject after connection-status)
+  if (!banner) {
+    const connectionStatus = document.getElementById('connection-status');
+    if (!connectionStatus) return;
+    
+    banner = document.createElement('div');
+    banner.id = 'warning-banner';
+    banner.className = 'rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-2';
+    connectionStatus.parentNode?.insertBefore(banner, connectionStatus.nextSibling);
+  }
+  
+  const suspenseHtml = details?.suspenseReason 
+    ? `<div class="text-[11px] text-amber-600/80 dark:text-amber-400/80 font-mono mt-1">${escapeHtml(details.suspenseReason)}</div>` 
+    : '';
+  
+  const progressHtml = details?.aiProgress 
+    ? `<div class="text-[11px] text-amber-600/70 dark:text-amber-400/70 mt-0.5">${escapeHtml(details.aiProgress)}</div>` 
+    : '';
+  
+  banner.innerHTML = `
+    <div class="flex items-start gap-3">
+      <div class="shrink-0 text-amber-500">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+          <path d="M12 9v4"/><path d="M12 17h.01"/>
+        </svg>
+      </div>
+      <div class="space-y-0.5 min-w-0 flex-1">
+        <div class="text-sm font-semibold text-amber-600 dark:text-amber-400">${escapeHtml(message || 'Game may be stuck')}</div>
+        ${suspenseHtml}
+        ${progressHtml}
+      </div>
+    </div>
+  `;
+  banner.classList.remove('hidden');
 }
 
 // =============================================================================
@@ -872,7 +941,7 @@ function fallbackToPolling(state: LiveGameState): void {
         return;
       }
 
-      if (data.status === 'running' && Date.now() - state.lastHealthCheck > HEALTH_CHECK_INTERVAL) {
+      if (data.status === 'running' && Date.now() - state.lastHealthCheck > getHealthCheckInterval(state)) {
         checkGameHealth(state);
       }
 
@@ -905,21 +974,60 @@ async function checkGameHealth(state: LiveGameState): Promise<void> {
       statusMessage = `${statusMessage} · ${data.aiProgress.progressText}`;
     }
 
+    // Track health status changes for banner management
+    const healthChanged = data.healthStatus !== state.lastHealthStatus;
+    state.lastHealthStatus = data.healthStatus;
+
     if (data.healthStatus === 'critical') {
       state.gameHealthy = false;
-      updateConnectionStatus(true, `Game may be stuck: ${statusMessage}`, { polling: true, warning: true });
+      state.showingCriticalWarning = true;
+      
+      // Show prominent warning banner with details
+      showWarningBanner(true, statusMessage, {
+        suspenseReason: data.suspenseReason,
+        aiProgress: data.aiProgress?.progressText,
+      });
+      
+      updateConnectionStatus(true, 'Game stuck', { polling: true, warning: true });
       console.warn('Game health check failed:', data);
     } else if (data.healthStatus === 'warning') {
+      // Show warning in connection status but not the big banner
       updateConnectionStatus(true, statusMessage, { polling: true, warning: true });
+      
+      // Hide critical banner if we recovered from critical
+      if (state.showingCriticalWarning && healthChanged) {
+        showWarningBanner(false);
+        state.showingCriticalWarning = false;
+      }
     } else if (data.aiProgress && data.aiProgress.cachedResponses > 0) {
       updateConnectionStatus(true, `Waiting for AI · ${data.aiProgress.progressText}`, { polling: true });
-    } else if (!state.gameHealthy) {
+      
+      // Hide critical banner if we recovered
+      if (state.showingCriticalWarning) {
+        showWarningBanner(false);
+        state.showingCriticalWarning = false;
+      }
+    } else if (!state.gameHealthy || state.showingCriticalWarning) {
       state.gameHealthy = true;
+      state.showingCriticalWarning = false;
+      showWarningBanner(false);
       updateConnectionStatus(true, 'Polling mode', { polling: true });
     }
   } catch (e) {
     console.warn('Health check error:', e);
   }
+}
+
+/**
+ * Get appropriate health check interval based on game state.
+ * More frequent checks when game appears stuck (0 events).
+ */
+function getHealthCheckInterval(state: LiveGameState): number {
+  // If 0 events and game has been running for > 30s, check more frequently
+  if (state.events.length === 0 && state.startTime && Date.now() - state.startTime > 30000) {
+    return HEALTH_CHECK_INTERVAL_STUCK;
+  }
+  return HEALTH_CHECK_INTERVAL;
 }
 
 // =============================================================================

@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import type { Env, GameQueueMessage, BatchQueueMessage } from './types.js';
 import type { AIRequestMessage, CompletionRequest, CompletionResponse } from './ai/types.js';
 import { createProvider } from './ai/factory.js';
+import { isRetryableError } from './ai/errors.js';
 import { APIError, Errors, logError } from './utils/index.js';
 import { corsMiddleware, rateLimitMiddleware } from './middleware/index.js';
 import {
@@ -533,7 +534,8 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
     message.ack();
     console.log(`[${traceId || 'no-trace'}] AI request ${requestId} callback succeeded`);
   } catch (error) {
-    console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed (attempt ${message.attempts}):`, error);
+    const isFatal = !isRetryableError(error);
+    console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed (attempt ${message.attempts}, fatal=${isFatal}):`, error);
 
     // Log error
     if (error instanceof Error) {
@@ -546,17 +548,23 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
           phase: context.phase,
           playerId: context.playerId,
           actionType: context.actionType,
+          isFatal,
         });
       } catch (dbError) {
         console.error('Failed to log AI request error:', dbError);
       }
     }
 
-    // Retry with exponential backoff, or give up
-    if (message.attempts >= MAX_RETRIES) {
-      console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed after ${MAX_RETRIES} attempts`);
+    // FAIL FAST: Non-retryable errors (invalid model, auth error, etc.) should immediately notify DO
+    // This prevents games from hanging forever waiting for responses that will never come
+    if (isFatal || message.attempts >= MAX_RETRIES) {
+      if (isFatal) {
+        console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed with FATAL error - notifying DO immediately`);
+      } else {
+        console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed after ${MAX_RETRIES} attempts`);
+      }
       
-      // Try to notify DO of failure
+      // Notify DO of failure with isFatal flag
       try {
         const id = env.GAME_RUNNER.idFromName(gameId);
         const stub = env.GAME_RUNNER.get(id);
@@ -566,13 +574,14 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
           body: JSON.stringify({
             requestId,
             error: error instanceof Error ? error.message : 'Unknown error',
+            isFatal, // New flag to indicate permanent failure
           }),
         });
-      } catch {
-        // Best effort - DO will eventually timeout
+      } catch (callbackError) {
+        console.error('Failed to notify DO of AI error:', callbackError);
       }
 
-      // Log to DLQ
+      // Log to DLQ for visibility
       try {
         await logToDlq(env.DB, 'ai-request-queue', message.body, error, message.attempts);
       } catch (dlqError) {
@@ -581,7 +590,7 @@ async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: E
 
       message.ack();
     } else {
-      // Exponential backoff: 10s, 20s, 40s, 80s, 160s
+      // Transient error - retry with exponential backoff: 10s, 20s, 40s, 80s, 160s
       const delaySeconds = 10 * Math.pow(2, message.attempts - 1);
       message.retry({ delaySeconds });
     }
