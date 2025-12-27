@@ -57,32 +57,9 @@ const apiUrl = getApiUrl();
         <div class="space-y-4">
           <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Team Configuration</h3>
           
-          <!-- Player Count -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label for="playerCount" class="text-xs text-muted-foreground">Total Players</label>
-              <select 
-                id="playerCount" 
-                name="playerCount"
-                class="w-full px-3 py-2.5 border rounded-md bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-              >
-                {[5, 6, 7, 8, 9, 10, 11, 12].map(n => (
-                  <option value={n} selected={n === 11}>{n} players</option>
-                ))}
-              </select>
-            </div>
-            <div class="space-y-2">
-              <label for="mafiaCount" class="text-xs text-muted-foreground">Mafia Count</label>
-              <select 
-                id="mafiaCount" 
-                name="mafiaCount"
-                class="w-full px-3 py-2.5 border rounded-md bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-              >
-                {[1, 2, 3].map(n => (
-                  <option value={n} selected={n === 2}>{n} mafia</option>
-                ))}
-              </select>
-            </div>
+          <!-- Player Count (fixed) -->
+          <div class="px-3 py-2 border rounded-md bg-muted/50 text-sm text-muted-foreground">
+            11 players — <span class="text-red-500 font-medium">2 mafia</span> vs <span class="text-blue-500 font-medium">9 town</span>
           </div>
 
           <!-- Model Selection -->
@@ -319,7 +296,7 @@ const apiUrl = getApiUrl();
   const form = document.getElementById('batchForm');
   const totalGamesInput = document.getElementById('totalGames');
 
-  const updateTriggers = ['totalGames', 'playerCount', 'mafiaCount', 'useBatchAPI'];
+  const updateTriggers = ['totalGames', 'useBatchAPI'];
   updateTriggers.forEach(id => {
     document.getElementById(id)?.addEventListener('change', updateEstimate);
     document.getElementById(id)?.addEventListener('input', updateEstimate);
@@ -337,12 +314,10 @@ const apiUrl = getApiUrl();
   async function updateEstimate() {
     if (!totalGamesInput) return;
     const totalGames = parseInt(totalGamesInput.value) || 10;
-    const playerCountEl = document.getElementById('playerCount');
-    const mafiaCountEl = document.getElementById('mafiaCount');
     const useBatchAPIEl = document.getElementById('useBatchAPI');
 
-    const playerCount = playerCountEl ? parseInt(playerCountEl.value) : 11;
-    const mafiaCount = mafiaCountEl ? parseInt(mafiaCountEl.value) : 2;
+    const playerCount = 11;
+    const mafiaCount = 2;
     const useBatchAPI = useBatchAPIEl ? useBatchAPIEl.checked : false;
 
     try {
@@ -409,9 +384,8 @@ const apiUrl = getApiUrl();
       }
 
       try {
-        const formData = new FormData(form);
-        const playerCount = parseInt(String(formData.get('playerCount') || '11'));
-        const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
+        const playerCount = 11;
+        const mafiaCount = 2;
         const batchNameInput = String(formData.get('name') || '').trim();
         
         // Get display names from data attributes (set by ModelSelector)

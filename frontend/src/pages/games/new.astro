@@ -109,31 +109,8 @@ const apiUrl = getApiUrl();
           Team Configuration
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <label for="playerCount" class="text-sm text-muted-foreground">Total Players</label>
-            <select 
-              id="playerCount" 
-              name="playerCount"
-              class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {[5, 6, 7, 8, 9, 10, 11, 12].map(n => (
-                <option value={n} selected={n === 11}>{n} players</option>
-              ))}
-            </select>
-          </div>
-          <div class="space-y-2">
-            <label for="mafiaCount" class="text-sm text-muted-foreground">Mafia Count</label>
-            <select 
-              id="mafiaCount" 
-              name="mafiaCount"
-              class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {[1, 2, 3].map(n => (
-                <option value={n} selected={n === 2}>{n} mafia</option>
-              ))}
-            </select>
-          </div>
+        <div class="px-3 py-2 border rounded-md bg-muted/50 text-sm text-muted-foreground">
+          11 players — <span class="text-red-500 font-medium">2 mafia</span> vs <span class="text-blue-500 font-medium">9 town</span>
         </div>
 
         <div class="grid grid-cols-2 gap-6">
@@ -490,9 +467,8 @@ const apiUrl = getApiUrl();
       }
 
       try {
-        const formData = new FormData(form);
-        const playerCount = parseInt(String(formData.get('playerCount') || '11'));
-        const mafiaCount = parseInt(String(formData.get('mafiaCount') || '2'));
+        const playerCount = 11;
+        const mafiaCount = 2;
 
         if (statusText) {
           statusText.textContent = 'Contacting server...';
