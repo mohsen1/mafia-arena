@@ -61,6 +61,24 @@ const currentPath = Astro.url.pathname;
 								Games
 							</a>
 							<a 
+								href="/blog" 
+								class:list={[
+									"transition-colors hover:text-foreground",
+									currentPath.startsWith("/blog") ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								Blog
+							</a>
+							<a 
+								href="/faq" 
+								class:list={[
+									"transition-colors hover:text-foreground",
+									currentPath === "/faq" ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								FAQ
+							</a>
+							<a 
 								id="admin-nav-link"
 								href="/admin" 
 								class:list={[

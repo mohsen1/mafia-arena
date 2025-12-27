@@ -1,0 +1,205 @@
+---
+import Layout from '../../components/Layout.astro';
+import { Calendar, Clock, ArrowRight, Newspaper, Sparkles, Wrench, BarChart3 } from 'lucide-astro';
+
+interface BlogPost {
+  slug: string;
+  title: string;
+  description: string;
+  date: string;
+  readTime: string;
+  category: 'update' | 'technical' | 'analysis' | 'announcement';
+  featured?: boolean;
+}
+
+const posts: BlogPost[] = [
+  {
+    slug: 'welcome-to-mafia-arena',
+    title: 'Welcome to Mafia Arena',
+    description: 'Introducing our AI benchmarking platform where Large Language Models compete in the classic social deduction game Mafia. Learn about our goals, methodology, and what makes this benchmark unique.',
+    date: '2024-12-27',
+    readTime: '5 min',
+    category: 'announcement',
+    featured: true,
+  },
+  {
+    slug: 'why-9v2-configuration',
+    title: 'The Science Behind 9v2: Balancing AI Mafia',
+    description: 'A deep dive into why we chose 9 Town vs 2 Mafia as our standard configuration, including statistical analysis and game theory considerations.',
+    date: '2024-12-26',
+    readTime: '8 min',
+    category: 'technical',
+  },
+  {
+    slug: 'ai-deception-patterns',
+    title: 'Patterns in AI Deception: What We\'ve Learned',
+    description: 'Analysis of how different AI models approach deception and social deduction. Which models are best at lying? Which are best at detecting lies?',
+    date: '2024-12-25',
+    readTime: '10 min',
+    category: 'analysis',
+  },
+  {
+    slug: 'multi-provider-support',
+    title: 'New: Support for 15+ AI Providers',
+    description: 'We\'ve expanded our AI provider integrations to include OpenAI, Anthropic, Google, Mistral, and many more. Here\'s what this means for the benchmark.',
+    date: '2024-12-24',
+    readTime: '4 min',
+    category: 'update',
+  },
+];
+
+const categoryConfig = {
+  update: { label: 'Update', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', icon: Wrench },
+  technical: { label: 'Technical', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400', icon: Sparkles },
+  analysis: { label: 'Analysis', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', icon: BarChart3 },
+  announcement: { label: 'Announcement', color: 'bg-green-500/10 text-green-600 dark:text-green-400', icon: Newspaper },
+};
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+---
+
+<Layout title="Blog & Updates">
+  <div class="max-w-3xl space-y-8">
+    <div>
+      <div class="flex items-center gap-2 mb-1">
+        <Newspaper class="h-5 w-5 text-muted-foreground" />
+        <h1 class="text-2xl font-bold tracking-tight">Blog & Updates</h1>
+      </div>
+      <p class="text-muted-foreground text-sm">
+        Development diaries, technical deep-dives, and announcements from the Mafia Arena team.
+      </p>
+    </div>
+
+    <!-- Featured Post -->
+    {posts.filter(p => p.featured).map((post) => {
+      const CategoryIcon = categoryConfig[post.category].icon;
+      return (
+        <a 
+          href={`/blog/${post.slug}`}
+          class="block group"
+        >
+          <article class="border rounded-xl p-6 bg-gradient-to-br from-muted/30 to-transparent hover:border-foreground/20 transition-colors">
+            <div class="flex items-center gap-2 mb-3">
+              <span class={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${categoryConfig[post.category].color}`}>
+                <CategoryIcon class="h-3 w-3" />
+                {categoryConfig[post.category].label}
+              </span>
+              <span class="text-xs text-muted-foreground">Featured</span>
+            </div>
+            <h2 class="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
+              {post.title}
+            </h2>
+            <p class="text-muted-foreground text-sm leading-relaxed mb-4">
+              {post.description}
+            </p>
+            <div class="flex items-center gap-4 text-xs text-muted-foreground">
+              <span class="inline-flex items-center gap-1">
+                <Calendar class="h-3 w-3" />
+                {formatDate(post.date)}
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <Clock class="h-3 w-3" />
+                {post.readTime} read
+              </span>
+              <span class="inline-flex items-center gap-1 ml-auto text-foreground group-hover:text-primary transition-colors">
+                Read more
+                <ArrowRight class="h-3 w-3" />
+              </span>
+            </div>
+          </article>
+        </a>
+      );
+    })}
+
+    <!-- All Posts -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-semibold">All Posts</h2>
+      <div class="space-y-3">
+        {posts.filter(p => !p.featured).map((post) => {
+          const CategoryIcon = categoryConfig[post.category].icon;
+          return (
+            <a 
+              href={`/blog/${post.slug}`}
+              class="block group"
+            >
+              <article class="border rounded-lg p-4 hover:border-foreground/20 hover:bg-muted/30 transition-colors">
+                <div class="flex items-start justify-between gap-4">
+                  <div class="space-y-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${categoryConfig[post.category].color}`}>
+                        <CategoryIcon class="h-3 w-3" />
+                        {categoryConfig[post.category].label}
+                      </span>
+                    </div>
+                    <h3 class="font-medium group-hover:text-primary transition-colors">
+                      {post.title}
+                    </h3>
+                    <p class="text-muted-foreground text-sm line-clamp-2">
+                      {post.description}
+                    </p>
+                  </div>
+                  <div class="text-xs text-muted-foreground shrink-0 text-right">
+                    <div>{formatDate(post.date)}</div>
+                    <div>{post.readTime}</div>
+                  </div>
+                </div>
+              </article>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+
+    <!-- Coming Soon -->
+    <section class="border rounded-lg p-6 bg-muted/30">
+      <h2 class="font-semibold mb-2">Coming Soon</h2>
+      <ul class="text-sm text-muted-foreground space-y-2">
+        <li class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 bg-primary rounded-full"></span>
+          Monthly model performance reports
+        </li>
+        <li class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 bg-primary rounded-full"></span>
+          Behind-the-scenes: Building a fair AI benchmark
+        </li>
+        <li class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 bg-primary rounded-full"></span>
+          Elo rating system deep-dive
+        </li>
+        <li class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 bg-primary rounded-full"></span>
+          Community contributions and ideas
+        </li>
+      </ul>
+    </section>
+
+    <div class="border-t pt-6">
+      <p class="text-sm text-muted-foreground">
+        Want to contribute a post or suggest a topic?{' '}
+        <a 
+          href="https://github.com/mohsen1/werewolf-ai" 
+          target="_blank" 
+          rel="noreferrer"
+          class="text-foreground underline underline-offset-4 hover:text-primary"
+        >
+          Reach out on GitHub
+        </a>
+      </p>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>
