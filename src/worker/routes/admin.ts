@@ -5,7 +5,7 @@
 import { Hono } from 'hono';
 import { eq, desc, like, or, sql, ne } from 'drizzle-orm';
 import type { Env, BatchConfig } from '../types.js';
-import { Errors, generateTraceId } from '../utils/index.js';
+import { Errors, generateTraceId, checkAllKeys } from '../utils/index.js';
 import { getRandomTheme } from '../utils/random-config.js';
 import {
   createBatch,
@@ -714,6 +714,49 @@ admin.get('/dlq/stats', async (c) => {
     byQueue,
     total: Object.values(byStatus).reduce((a, b) => a + b, 0),
   });
+});
+
+// =============================================================================
+// API KEY MANAGEMENT
+// =============================================================================
+
+/**
+ * GET /api/admin/keys - Check status and balance of all configured API keys.
+ * Returns masked key previews and balance info where available.
+ * Results are cached for 5 minutes to avoid hammering provider APIs.
+ */
+admin.get('/keys', async (c) => {
+  const env = c.env;
+  const url = new URL(c.req.url);
+  const refresh = url.searchParams.get('refresh') === 'true';
+
+  const CACHE_KEY = 'admin:keys:status';
+  const CACHE_TTL = 300; // 5 minutes
+
+  // Check cache unless refresh requested
+  if (!refresh) {
+    const cached = await env.RATE_LIMIT.get(CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      return c.json({ ...data, cached: true });
+    }
+  }
+
+  // Fetch fresh status from all providers
+  const keys = await checkAllKeys(env);
+
+  // Cache the results
+  const response = {
+    keys,
+    checkedAt: Date.now(),
+    cached: false,
+  };
+
+  await env.RATE_LIMIT.put(CACHE_KEY, JSON.stringify(response), {
+    expirationTtl: CACHE_TTL,
+  });
+
+  return c.json(response);
 });
 
 // =============================================================================

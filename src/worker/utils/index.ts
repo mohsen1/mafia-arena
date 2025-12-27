@@ -10,4 +10,6 @@ export { createLogger, logErrorWithStack, createTimer, logAIOperation, setLogLev
 export type { Logger, LogLevel } from './logger.js';
 export { getRandomTheme, getRandomModelFromList, getRandomModelPairFromList } from './random-config.js';
 export { generateTraceId, getOrCreateTraceId } from './trace.js';
+export { checkAllKeys } from './key-status.js';
+export type { KeyStatus } from './key-status.js';
 

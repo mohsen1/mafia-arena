@@ -1,6 +1,6 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { Plus, AlertTriangle, LogOut, Radio, Database, RefreshCw, Layers, Activity, Zap, ChevronRight } from 'lucide-astro';
+import { Plus, AlertTriangle, LogOut, Radio, Database, RefreshCw, Layers, Activity, Zap, ChevronRight, Key } from 'lucide-astro';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
 ---
@@ -95,6 +95,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.wor
         <a href="/admin/models" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors">
           <Database size={14} class="text-muted-foreground" />
           <span>Models</span>
+        </a>
+        <a href="/admin/keys" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors">
+          <Key size={14} class="text-muted-foreground" />
+          <span>API Keys</span>
         </a>
         
         <div class="flex-1"></div>
