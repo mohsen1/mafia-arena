@@ -70,16 +70,32 @@ const apiUrl = getApiUrl();
       </div>
     </div>
 
-    <!-- Missing keys warning -->
-    <div id="missing-keys-warning" class="hidden p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+    <!-- No API keys error (for non-admin users with zero keys) -->
+    <div id="no-keys-error" class="hidden p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
       <div class="flex items-start gap-3">
         <AlertCircle class="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
         <div class="text-sm">
-          <p class="font-medium text-red-600 dark:text-red-400">Missing API Keys</p>
+          <p class="font-medium text-red-600 dark:text-red-400">No API Keys Configured</p>
+          <p class="text-muted-foreground mt-1">
+            You need to add at least one API key before you can launch games. Games use your own API keys to call AI models.
+          </p>
+          <a href="/account" class="inline-flex items-center gap-2 mt-3 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-md font-medium transition-colors">
+            <Key class="h-4 w-4" /> Add API Keys
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Missing keys warning (for specific models) -->
+    <div id="missing-keys-warning" class="hidden p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+      <div class="flex items-start gap-3">
+        <AlertCircle class="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+        <div class="text-sm">
+          <p class="font-medium text-amber-600 dark:text-amber-400">Missing API Keys for Selected Models</p>
           <p class="text-muted-foreground mt-1" id="missing-keys-message">
             You need to add API keys for the selected models.
           </p>
-          <a href="/account" class="inline-flex items-center gap-1 mt-2 text-red-600 dark:text-red-400 hover:underline">
+          <a href="/account" class="inline-flex items-center gap-1 mt-2 text-amber-600 dark:text-amber-400 hover:underline">
             <Key class="h-3.5 w-3.5" /> Add keys in Account settings
           </a>
         </div>
@@ -285,6 +301,9 @@ const apiUrl = getApiUrl();
 
   async function loadUserKeys() {
     const configuredKeys = document.getElementById('configured-keys');
+    const noKeysError = document.getElementById('no-keys-error');
+    const userKeyStatus = document.getElementById('user-key-status');
+    const submitBtn = document.getElementById('submit-btn');
     
     try {
       const res = await fetch(`${apiUrl}/api/auth/keys`, { credentials: 'include' });
@@ -294,20 +313,24 @@ const apiUrl = getApiUrl();
         userKeys = data.keys || [];
         
         if (userKeys.length === 0) {
-          configuredKeys.innerHTML = `
-            <span class="text-amber-600 dark:text-amber-400">⚠ No API keys configured.</span>
-            <a href="/account" class="underline ml-1 hover:text-foreground">Add keys to run games</a>
-          `;
+          // No keys at all - show prominent error
+          noKeysError?.classList.remove('hidden');
+          userKeyStatus?.classList.add('hidden');
+          if (submitBtn) submitBtn.disabled = true;
         } else {
+          // Has some keys - show which ones
+          noKeysError?.classList.add('hidden');
+          userKeyStatus?.classList.remove('hidden');
           const providers = userKeys.map(k => k.provider).join(', ');
           configuredKeys.innerHTML = `
             <span class="text-emerald-600 dark:text-emerald-400">✓ Configured:</span> ${providers}
           `;
+          if (submitBtn) submitBtn.disabled = false;
         }
       }
     } catch (e) {
       console.error('Failed to load keys:', e);
-      configuredKeys.textContent = 'Failed to load keys';
+      if (configuredKeys) configuredKeys.textContent = 'Failed to load keys';
     }
   }
 
@@ -428,7 +451,13 @@ const apiUrl = getApiUrl();
         return;
       }
       
-      // Check for missing keys
+      // Non-admin users must have at least one API key
+      if (!isAdmin && userKeys.length === 0) {
+        alert('You need to add at least one API key in your Account settings before launching games.');
+        return;
+      }
+      
+      // Check for missing keys for specific models
       if (!checkMissingKeys()) {
         alert('Please add the required API keys in your Account settings before launching a game.');
         return;
