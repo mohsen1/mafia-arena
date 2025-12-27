@@ -292,8 +292,8 @@ export async function executeNightPhase(
     }
   }
 
-  // Resolve the kill vote
-  const killed = resolveVotes(votes, validTargets);
+  // Resolve the kill vote (pass RNG for deterministic tie-breaking)
+  const killed = resolveVotes(votes, validTargets, state.rng);
 
   if (killed) {
     state = state.withPlayerEliminated(killed.id);

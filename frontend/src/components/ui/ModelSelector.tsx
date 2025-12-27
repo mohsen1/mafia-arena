@@ -148,7 +148,7 @@ export function ModelSelector({
 
   React.useEffect(() => {
     const apiUrl = (typeof window !== 'undefined' && (window as unknown as { ENV?: { PUBLIC_API_URL?: string } }).ENV?.PUBLIC_API_URL) 
-      || 'https://mafia-arena.me-f9a.workers.dev'
+      || 'https://api.mafia-arena.com'
     
     setLoading(true)
     setError(null)

@@ -120,6 +120,9 @@ name = "mafia-arena-dev"
 # Production environment
 [env.production]
 name = "mafia-arena"
+routes = [
+  { pattern = "api.mafia-arena.com", custom_domain = true }
+]
 
 # =============================================================================
 # SECRETS (set via `wrangler secret put`)

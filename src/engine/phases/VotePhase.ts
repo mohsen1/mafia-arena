@@ -171,7 +171,7 @@ export async function executeVotePhase(
     );
   }
 
-  const eliminated = resolveVotes(validVotes, [...alivePlayers]);
+  const eliminated = resolveVotes(validVotes, [...alivePlayers], state.rng);
 
   if (eliminated) {
     state = state.withPlayerEliminated(eliminated.id);

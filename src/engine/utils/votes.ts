@@ -4,18 +4,22 @@
  */
 
 import type { Player } from '../types.js';
+import type { RandomGenerator } from './random.js';
 
 /**
  * Resolve votes and determine the eliminated player.
- * Returns null if there's a tie or no valid votes.
+ * With tie-breaking: randomly selects one of the tied candidates.
+ * Returns null only if no valid votes.
  *
  * @param votes - Map of voter ID -> target ID
  * @param candidates - List of valid candidates
+ * @param rng - Optional seeded RNG for deterministic tie-breaking (for reproducible games)
  * @returns The eliminated player or null
  */
 export function resolveVotes<T extends Pick<Player, 'id'>>(
   votes: Map<string, string>,
-  candidates: readonly T[]
+  candidates: readonly T[],
+  rng?: RandomGenerator
 ): T | null {
   // Count votes for each candidate
   const voteCounts = new Map<string, number>();
@@ -53,7 +57,12 @@ export function resolveVotes<T extends Pick<Player, 'id'>>(
         .filter(([, count]) => count === topCount)
         .map(([id]) => id);
       
-      const winnerId = tiedCandidates[Math.floor(Math.random() * tiedCandidates.length)];
+      // Use seeded RNG if available for deterministic/reproducible games
+      // Fall back to Math.random for tests or when RNG not provided
+      const randomIndex = rng 
+        ? rng.randomInt(tiedCandidates.length)
+        : Math.floor(Math.random() * tiedCandidates.length);
+      const winnerId = tiedCandidates[randomIndex];
       return candidates.find((c) => c.id === winnerId) ?? null;
     }
   }

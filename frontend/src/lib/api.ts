@@ -2,7 +2,7 @@
  * API client for the Mafia Arena backend.
  */
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://api.mafia-arena.com';
 
 // =============================================================================
 // AUTH TYPES
