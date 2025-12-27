@@ -14,13 +14,13 @@ import type {
   AICallEvent,
   VoteEvent,
   EliminationEvent,
-  PhaseStartEvent,
   PhaseEndEvent,
   GameEvent,
 } from '../types.js';
 import { resolveVotes } from '../utils/votes.js';
 import { getVisibleState, getValidEliminationTargets, formatPlayerListShuffled } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS } from '../utils/prompts.js';
+import { ensurePhaseStart, getExistingVote } from '../utils/idempotency.js';
 
 export interface VotePhaseResult {
   readonly state: GameState;
@@ -53,30 +53,16 @@ export async function executeVotePhase(
     }
   };
 
-  // Add phase start event
-  const phaseStartEvent: PhaseStartEvent = {
-    type: 'phase_start',
-    phase: 'day_vote',
-    round: state.round,
-    timestamp: Date.now(),
-  };
-  await emitEvent(phaseStartEvent);
+  // Idempotent phase start - only emits if not already emitted
+  await ensurePhaseStart(state, 'day_vote', emitEvent);
 
   // Collect votes from each player
   for (const player of alivePlayers) {
-    // RESUMPTION CHECK: Skip if this player already voted in this round
-    // This prevents duplicate votes when resuming from SuspenseError
-    const existingVote = state.events.find(e =>
-      e.type === 'vote' &&
-      e.voterId === player.id &&
-      e.phase === 'day_vote' &&
-      e.round === state.round
-    );
-    if (existingVote) {
+    // Idempotent vote check - restore existing vote and skip if already voted
+    const existingVote = getExistingVote(state, player.id, 'day_vote');
+    if (existingVote !== undefined) {
       // Restore their vote to the local map for vote resolution
-      if (existingVote.type === 'vote') {
-        votes.set(player.id, existingVote.targetId);
-      }
+      votes.set(player.id, existingVote);
       continue;
     }
 

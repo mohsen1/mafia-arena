@@ -12,13 +12,13 @@ import type {
   AIProvider,
   AICallEvent,
   DiscussionEvent,
-  PhaseStartEvent,
   PhaseEndEvent,
   ConversationMessage,
   GameEvent,
 } from '../types.js';
 import { getVisibleState } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS } from '../utils/prompts.js';
+import { ensurePhaseStart, shouldPlayerActInDiscussionRound } from '../utils/idempotency.js';
 
 /** Default number of discussion rounds during day phase */
 const DEFAULT_DAY_DISCUSSION_ROUNDS = 3;
@@ -55,14 +55,8 @@ export async function executeDiscussionPhase(
   // Get the number of discussion rounds from config
   const numRounds = state.config.dayDiscussionRounds ?? DEFAULT_DAY_DISCUSSION_ROUNDS;
 
-  // Add phase start event
-  const phaseStartEvent: PhaseStartEvent = {
-    type: 'phase_start',
-    phase: 'day_discussion',
-    round: state.round,
-    timestamp: Date.now(),
-  };
-  await emitEvent(phaseStartEvent);
+  // Idempotent phase start - only emits if not already emitted
+  await ensurePhaseStart(state, 'day_discussion', emitEvent);
 
   // Execute multiple discussion rounds
   for (let discussionRound = 1; discussionRound <= numRounds; discussionRound++) {
@@ -70,16 +64,8 @@ export async function executeDiscussionPhase(
     const speakers = state.rng.shuffled(state.alivePlayers);
 
     for (const player of speakers) {
-      // RESUMPTION CHECK: Skip if this player already spoke in this discussion round
-      // This prevents duplicate messages when resuming from SuspenseError
-      const alreadySpoke = state.events.some(e =>
-        e.type === 'discussion' &&
-        e.playerId === player.id &&
-        e.round === state.round &&
-        e.channel === 'public' &&
-        e.discussionRound === discussionRound
-      );
-      if (alreadySpoke) {
+      // Idempotent player action - skip if player already spoke in this discussion round
+      if (!shouldPlayerActInDiscussionRound(state, player.id, 'day_discussion', 'discussion', discussionRound)) {
         continue;
       }
 

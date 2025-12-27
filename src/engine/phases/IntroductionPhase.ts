@@ -9,7 +9,6 @@ import type {
   AICallEvent,
   IntroductionEvent,
   PersonaGenerationEvent,
-  PhaseStartEvent,
   PhaseEndEvent,
   ConversationMessage,
   Player,
@@ -18,6 +17,7 @@ import { getVisibleState } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS, PERSONA_PROMPTS } from '../utils/prompts.js';
 import { sanitizePersona } from '../utils/sanitize.js';
 import { getUniqueAssignments } from '../utils/game-presets.js';
+import { ensurePhaseStart } from '../utils/idempotency.js';
 
 export interface IntroductionPhaseResult {
   readonly state: GameState;
@@ -168,14 +168,13 @@ export async function executeIntroductionPhase(
   const messages: ConversationMessage[] = [];
   const playerCount = alivePlayers.length;
 
-  // Add phase start event
-  const phaseStartEvent: PhaseStartEvent = {
-    type: 'phase_start',
-    phase: 'introduction',
-    round: state.round,
-    timestamp: Date.now(),
+  // Helper to emit events (Introduction phase doesn't stream, so just adds to state)
+  const emitEvent = async (event: import('../types.js').GameEvent): Promise<void> => {
+    state = state.withEvent(event);
   };
-  state = state.withEvent(phaseStartEvent);
+
+  // Idempotent phase start - only emits if not already emitted
+  await ensurePhaseStart(state, 'introduction', emitEvent);
 
   // Generate personas for all players
   state = await generatePersonas(state, aiProvider, alivePlayers);

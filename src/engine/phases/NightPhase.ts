@@ -14,7 +14,6 @@ import type {
   AICallEvent,
   VoteEvent,
   EliminationEvent,
-  PhaseStartEvent,
   PhaseEndEvent,
   ConversationMessage,
   DiscussionEvent,
@@ -23,6 +22,7 @@ import type {
 import { resolveVotes } from '../utils/votes.js';
 import { getVisibleState, getValidKillTargets, formatPlayerListShuffled } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS, generateNightContext } from '../utils/prompts.js';
+import { ensurePhaseStart, shouldPlayerActInDiscussionRound, getExistingVote } from '../utils/idempotency.js';
 
 /** Default number of discussion rounds for mafia during night */
 const DEFAULT_NIGHT_DISCUSSION_ROUNDS = 2;
@@ -58,16 +58,8 @@ async function executeMafiaDiscussion(
     const shuffledMafia = state.rng.shuffled(mafiaPlayers);
 
     for (const mafiaPlayer of shuffledMafia) {
-      // RESUMPTION CHECK: Skip if this mafia member already spoke in this discussion round
-      // This prevents duplicate messages when resuming from SuspenseError
-      const alreadySpoke = state.events.some(e =>
-        e.type === 'discussion' &&
-        e.playerId === mafiaPlayer.id &&
-        e.round === state.round &&
-        e.channel === 'mafia' &&
-        e.discussionRound === discussionRound
-      );
-      if (alreadySpoke) {
+      // Idempotent player action - skip if mafia member already spoke in this discussion round
+      if (!shouldPlayerActInDiscussionRound(state, mafiaPlayer.id, 'night', 'mafia_discussion', discussionRound)) {
         continue;
       }
 
@@ -187,14 +179,8 @@ export async function executeNightPhase(
     }
   };
 
-  // Add phase start event
-  const phaseStartEvent: PhaseStartEvent = {
-    type: 'phase_start',
-    phase: 'night',
-    round: state.round,
-    timestamp: Date.now(),
-  };
-  await emitEvent(phaseStartEvent);
+  // Idempotent phase start - only emits if not already emitted
+  await ensurePhaseStart(state, 'night', emitEvent);
 
   // Get valid targets (alive town members)
   const validTargets = getValidKillTargets(state);
@@ -226,18 +212,12 @@ export async function executeNightPhase(
   // === KILL VOTE SUB-PHASE ===
   // Collect kill votes from each mafia member
   for (const mafiaPlayer of mafiaPlayers) {
-    // RESUMPTION CHECK: Skip if this mafia member already voted in this round
-    // This prevents duplicate votes when resuming from SuspenseError
-    const existingVote = state.events.find(e =>
-      e.type === 'vote' &&
-      e.voterId === mafiaPlayer.id &&
-      e.phase === 'night' &&
-      e.round === state.round
-    );
-    if (existingVote) {
+    // Idempotent vote check - restore existing vote and skip if already voted
+    const existingVote = getExistingVote(state, mafiaPlayer.id, 'night');
+    if (existingVote !== undefined) {
       // Restore their vote to the local map for vote resolution
-      if (existingVote.type === 'vote' && existingVote.targetId !== null) {
-        votes.set(mafiaPlayer.id, existingVote.targetId);
+      if (existingVote !== null) {
+        votes.set(mafiaPlayer.id, existingVote);
       }
       continue;
     }
