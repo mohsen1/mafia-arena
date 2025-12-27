@@ -2,7 +2,7 @@
 import Layout from '../../components/Layout.astro';
 import { getGames, getLiveGames, getMatchups, formatDuration, type GameFilters } from '../../lib/api';
 import { getDisplayCost, formatCost } from '../../lib/costs';
-import { ChevronLeft, ChevronRight, Radio, X } from 'lucide-astro';
+import { ChevronLeft, ChevronRight, ChevronDown, Radio, X } from 'lucide-astro';
 
 const LIMIT = 25;
 const page = parseInt(Astro.url.searchParams.get('page') || '1', 10);
@@ -166,46 +166,55 @@ const sortedProviders = Object.keys(modelsByProvider).sort((a, b) => {
     <!-- Filter Bar -->
     <div class="flex flex-wrap items-center gap-2">
       <!-- Model Filter -->
-      <select 
-        id="model-filter"
-        class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
-        onchange="updateFilters()"
-      >
-        <option value="">All Models</option>
-        {sortedProviders.map(provider => (
-          <optgroup label={provider.charAt(0).toUpperCase() + provider.slice(1)}>
-            {modelsByProvider[provider].map(model => (
-              <option value={model.id} selected={model.id === modelFilter}>
-                {model.display_name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      <div class="relative">
+        <select 
+          id="model-filter"
+          class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+          onchange="updateFilters()"
+        >
+          <option value="">All Models</option>
+          {sortedProviders.map(provider => (
+            <optgroup label={provider.charAt(0).toUpperCase() + provider.slice(1)}>
+              {modelsByProvider[provider].map(model => (
+                <option value={model.id} selected={model.id === modelFilter}>
+                  {model.display_name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <ChevronDown size={12} class="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+      </div>
 
       <!-- Winner Filter -->
-      <select 
-        id="winner-filter"
-        class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
-        onchange="updateFilters()"
-      >
-        <option value="">All Winners</option>
-        <option value="mafia" selected={winnerFilter === 'mafia'}>Mafia</option>
-        <option value="town" selected={winnerFilter === 'town'}>Town</option>
-      </select>
+      <div class="relative">
+        <select 
+          id="winner-filter"
+          class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+          onchange="updateFilters()"
+        >
+          <option value="">All Winners</option>
+          <option value="mafia" selected={winnerFilter === 'mafia'}>Mafia</option>
+          <option value="town" selected={winnerFilter === 'town'}>Town</option>
+        </select>
+        <ChevronDown size={12} class="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+      </div>
 
       <!-- Theme Filter -->
-      <select 
-        id="theme-filter"
-        class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
-        onchange="updateFilters()"
-      >
-        <option value="">All Themes</option>
-        <option value="noir" selected={themeFilter === 'noir'}>Noir</option>
-        <option value="victorian" selected={themeFilter === 'victorian'}>Victorian</option>
-        <option value="modern" selected={themeFilter === 'modern'}>Modern</option>
-        <option value="fantasy" selected={themeFilter === 'fantasy'}>Fantasy</option>
-      </select>
+      <div class="relative">
+        <select 
+          id="theme-filter"
+          class="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+          onchange="updateFilters()"
+        >
+          <option value="">All Themes</option>
+          <option value="noir" selected={themeFilter === 'noir'}>Noir</option>
+          <option value="victorian" selected={themeFilter === 'victorian'}>Victorian</option>
+          <option value="modern" selected={themeFilter === 'modern'}>Modern</option>
+          <option value="fantasy" selected={themeFilter === 'fantasy'}>Fantasy</option>
+        </select>
+        <ChevronDown size={12} class="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+      </div>
 
       <!-- Clear Filters -->
       {hasFilters && (
