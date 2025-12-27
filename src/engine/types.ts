@@ -312,6 +312,7 @@ export interface ConversationMessage {
 // =============================================================================
 
 export type GameEvent =
+  | GameStartEvent
   | PhaseStartEvent
   | PhaseEndEvent
   | AICallEvent
@@ -323,6 +324,18 @@ export type GameEvent =
   | GameEndEvent
   | AIParseErrorEvent
   | SummarizationEvent;
+
+/**
+ * Emitted at the very start of a game with the full player roster.
+ * Ensures the frontend can display all players immediately without waiting for AI calls.
+ */
+export interface GameStartEvent {
+  readonly type: 'game_start';
+  readonly gameId: string;
+  readonly players: readonly Player[];
+  readonly config: GameConfig;
+  readonly timestamp: number;
+}
 
 export interface AIParseErrorEvent {
   readonly type: 'ai_parse_error';

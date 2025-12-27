@@ -104,6 +104,22 @@ function clearSessionCookie(): string {
 }
 
 /**
+ * Validate that a return path is safe (relative, no open redirect).
+ */
+function isValidReturnPath(path: string): boolean {
+  if (!path || typeof path !== 'string') return false;
+  // Must start with / (relative path)
+  if (!path.startsWith('/')) return false;
+  // Must NOT start with // (protocol-relative URL)
+  if (path.startsWith('//')) return false;
+  // Must NOT contain backslash (obfuscation attempt)
+  if (path.includes('\\')) return false;
+  // Must NOT contain newlines (header injection)
+  if (path.includes('\n') || path.includes('\r')) return false;
+  return true;
+}
+
+/**
  * GET /api/auth/google - Initiate Google OAuth flow.
  * Redirects user to Google consent screen.
  */
@@ -117,11 +133,14 @@ auth.get('/google', async (c) => {
   const baseUrl = getBaseUrl(c.req.raw);
   const redirectUri = `${baseUrl}/api/auth/callback`;
   
-  // Optional: Get redirect URL from query param to return user after auth
-  const returnTo = c.req.query('redirect') || '/admin';
+  // Get redirect URL from query param, validate it's a safe relative path
+  const requestedRedirect = c.req.query('redirect') || '/admin';
+  const returnTo = isValidReturnPath(requestedRedirect) ? requestedRedirect : '/admin';
   
   // Generate state parameter to prevent CSRF
-  const state = btoa(JSON.stringify({ returnTo, nonce: generateSessionId().slice(0, 16) }));
+  // Use encodeURIComponent for Unicode safety in btoa
+  const stateData = JSON.stringify({ returnTo, nonce: generateSessionId().slice(0, 16) });
+  const state = btoa(unescape(encodeURIComponent(stateData)));
   
   // Store state temporarily in KV for validation (5 min TTL)
   await c.env.RATE_LIMIT.put(`oauth_state:${state}`, 'valid', { expirationTtl: 300 });
@@ -176,11 +195,16 @@ auth.get('/callback', async (c) => {
   // Clean up state
   await RATE_LIMIT.delete(`oauth_state:${state}`);
   
-  // Parse state to get return URL
+  // Parse state to get return URL (with validation to prevent open redirect)
   let returnTo = '/admin';
   try {
-    const stateData = JSON.parse(atob(state));
-    returnTo = stateData.returnTo || '/admin';
+    const stateData = JSON.parse(decodeURIComponent(escape(atob(state))));
+    const requestedPath = stateData.returnTo;
+    
+    // Validate: Must be a safe relative path
+    if (isValidReturnPath(requestedPath)) {
+      returnTo = requestedPath;
+    }
   } catch {
     // Ignore parse errors, use default
   }
