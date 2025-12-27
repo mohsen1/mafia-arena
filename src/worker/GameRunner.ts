@@ -1442,6 +1442,7 @@ export class GameRunner extends DurableObject<Env> {
    * - Game actively running (heartbeat recent)
    * - Game stuck/crashed (heartbeat stale)
    * - Game waiting on slow AI (activity recent, heartbeat recent)
+   * - Zombie games (running status but no activity for 1+ hour)
    */
   private async handleHealth(): Promise<Response> {
     const state = await this.loadState();
@@ -1457,12 +1458,25 @@ export class GameRunner extends DurableObject<Env> {
     const ZERO_EVENTS_WARN_THRESHOLD = 2 * 60_000; // 2 min with 0 events = warning
     const ZERO_EVENTS_CRITICAL_THRESHOLD = 5 * 60_000; // 5 min with 0 events = critical
     
+    // Zombie detection thresholds - games that appear running but are actually stuck
+    // Use different thresholds for standard vs discount pricing games
+    const ZOMBIE_THRESHOLD_STANDARD = 60 * 60_000; // 1 hour for standard games
+    const ZOMBIE_THRESHOLD_DISCOUNT = 48 * 60 * 60_000; // 48 hours for discount pricing (batch API)
+    const zombieThreshold = state.discountPricing ? ZOMBIE_THRESHOLD_DISCOUNT : ZOMBIE_THRESHOLD_STANDARD;
+    
     // Calculate game duration
     const gameDuration = state.startedAt ? now - state.startedAt : 0;
+    
+    // Check for zombie state - game is technically "running" but hasn't had activity
+    // for an extended period (1 hour for standard, 48 hours for discount)
+    const lastActive = state.lastActivity ?? state.startedAt ?? 0;
+    const timeSinceActivity = lastActive ? now - lastActive : 0;
+    const isZombie = state.status === 'running' && timeSinceActivity > zombieThreshold;
     
     // Determine health status
     let healthStatus: 'healthy' | 'warning' | 'critical' | 'idle' | 'completed';
     let healthMessage: string;
+    let recommendedAction: 'none' | 'punt' | 'fail' | undefined;
     
     if (state.status === 'completed') {
       healthStatus = 'completed';
@@ -1476,15 +1490,24 @@ export class GameRunner extends DurableObject<Env> {
     } else if (state.status === 'running') {
       // Game is supposed to be running - check various conditions
       
+      // Critical: Zombie game - running but no activity for threshold period
+      if (isZombie) {
+        healthStatus = 'critical';
+        const thresholdHours = Math.round(zombieThreshold / (60 * 60_000));
+        healthMessage = `Zombie detected: no activity for ${Math.round(timeSinceActivity / (60 * 60_000))}h (threshold: ${thresholdHours}h)`;
+        recommendedAction = 'fail';
+      }
       // Critical: 0 events after 5 minutes - likely stuck on first AI call
-      if (this.eventLog.length === 0 && gameDuration > ZERO_EVENTS_CRITICAL_THRESHOLD) {
+      else if (this.eventLog.length === 0 && gameDuration > ZERO_EVENTS_CRITICAL_THRESHOLD) {
         healthStatus = 'critical';
         healthMessage = `No events after ${Math.round(gameDuration / 1000)}s - AI provider may be down`;
+        recommendedAction = 'punt';
       }
       // Critical: Heartbeat stale - game process crashed
       else if (heartbeatAge !== null && heartbeatAge > HEARTBEAT_STALE_THRESHOLD) {
         healthStatus = 'critical';
         healthMessage = `Heartbeat stale (${Math.round(heartbeatAge / 1000)}s ago), game may be stuck`;
+        recommendedAction = 'punt';
       }
       // Warning: 0 events after 2 minutes
       else if (this.eventLog.length === 0 && gameDuration > ZERO_EVENTS_WARN_THRESHOLD) {
@@ -1553,6 +1576,15 @@ export class GameRunner extends DurableObject<Env> {
       },
       // Shows which model/player the game is waiting for (helps debug stuck games)
       suspenseReason: state.suspenseReason,
+      // Zombie detection fields for external monitoring/cleanup
+      zombie: {
+        isZombie,
+        timeSinceActivityMs: timeSinceActivity,
+        thresholdMs: zombieThreshold,
+        discountPricing: state.discountPricing,
+      },
+      // Recommended action for unhealthy games
+      recommendedAction,
     };
     
     // Return 200 for healthy/warning, 503 for critical
