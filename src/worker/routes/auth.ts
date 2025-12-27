@@ -125,11 +125,28 @@ function isSecureContext(request: Request): boolean {
 }
 
 /**
+ * Get the cookie domain for cross-subdomain auth.
+ * In production (mafia-arena.com), allows cookie to be shared between
+ * api.mafia-arena.com and mafia-arena.com.
+ * In development (localhost), omits domain to keep cookie on same origin.
+ */
+function getCookieDomain(request: Request): string {
+  const host = request.headers.get('host') || '';
+  // Production: set domain to allow cross-subdomain cookie sharing
+  if (host.includes('mafia-arena.com')) {
+    return 'Domain=mafia-arena.com;';
+  }
+  // Development: don't set domain (stays on exact origin)
+  return '';
+}
+
+/**
  * Create a session cookie header.
  */
 function createSessionCookie(sessionId: string, maxAge: number, request: Request): string {
   const secureFlag = isSecureContext(request) ? 'Secure;' : '';
-  return `${SESSION_COOKIE}=${sessionId}; Path=/; HttpOnly; ${secureFlag} SameSite=Lax; Max-Age=${maxAge}`;
+  const domainFlag = getCookieDomain(request);
+  return `${SESSION_COOKIE}=${sessionId}; Path=/; ${domainFlag} HttpOnly; ${secureFlag} SameSite=Lax; Max-Age=${maxAge}`;
 }
 
 /**
@@ -137,7 +154,8 @@ function createSessionCookie(sessionId: string, maxAge: number, request: Request
  */
 function clearSessionCookie(request: Request): string {
   const secureFlag = isSecureContext(request) ? 'Secure;' : '';
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; ${secureFlag} SameSite=Lax; Max-Age=0`;
+  const domainFlag = getCookieDomain(request);
+  return `${SESSION_COOKIE}=; Path=/; ${domainFlag} HttpOnly; ${secureFlag} SameSite=Lax; Max-Age=0`;
 }
 
 /**
@@ -430,6 +448,73 @@ auth.post('/logout', async (c) => {
       'Set-Cookie': clearSessionCookie(c.req.raw),
     },
   });
+});
+
+/**
+ * DELETE /api/auth/account - Delete user account.
+ * 
+ * Permanently deletes:
+ * - User record from D1 (cascades to user_api_keys)
+ * - Current session from KV
+ * 
+ * This action is irreversible.
+ */
+auth.delete('/account', async (c) => {
+  const cookies = parseCookies(c.req.raw);
+  const sessionId = cookies[SESSION_COOKIE];
+  
+  if (!sessionId) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  
+  const sessionJson = await c.env.RATE_LIMIT.get(`session:${sessionId}`);
+  
+  if (!sessionJson) {
+    return c.json({ error: 'Invalid session' }, 401);
+  }
+  
+  let session: SessionData;
+  try {
+    session = JSON.parse(sessionJson) as SessionData;
+    
+    if (Date.now() > session.expiresAt) {
+      await c.env.RATE_LIMIT.delete(`session:${sessionId}`);
+      return c.json({ error: 'Session expired' }, 401);
+    }
+  } catch {
+    return c.json({ error: 'Invalid session' }, 401);
+  }
+  
+  try {
+    // Delete user from D1 (cascades to user_api_keys due to ON DELETE CASCADE)
+    const result = await c.env.DB.prepare(
+      'DELETE FROM users WHERE id = ?'
+    ).bind(session.userId).run();
+    
+    if (result.meta.changes === 0) {
+      console.warn(`User ${session.userId} not found in DB during account deletion`);
+    } else {
+      console.log(`Deleted user account: ${session.email} (id: ${session.userId})`);
+    }
+    
+    // Delete session from KV
+    await c.env.RATE_LIMIT.delete(`session:${sessionId}`);
+    
+    // Return success with cleared cookie
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: 'Account deleted successfully',
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': clearSessionCookie(c.req.raw),
+      },
+    });
+  } catch (error) {
+    console.error('Failed to delete account:', error);
+    return c.json({ error: 'Failed to delete account' }, 500);
+  }
 });
 
 /**

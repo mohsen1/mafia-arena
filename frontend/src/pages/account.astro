@@ -1,6 +1,6 @@
 ---
 import Layout from '../components/Layout.astro';
-import { User, Mail, Shield, Key, LogOut, Plus, Trash2, Check, AlertCircle, Loader2 } from 'lucide-astro';
+import { User, Mail, Shield, Key, LogOut, Plus, Trash2, Check, AlertCircle, Loader2, AlertTriangle } from 'lucide-astro';
 import { getApiUrl } from '../lib/utils';
 
 const apiUrl = getApiUrl();
@@ -191,6 +191,80 @@ const SUPPORTED_PROVIDERS = [
           <LogOut class="h-4 w-4" />
           Sign out
         </button>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="border border-red-500/30 rounded-lg p-6 space-y-4 bg-red-500/5">
+        <h2 class="text-sm font-medium uppercase tracking-wider text-red-600 dark:text-red-400 flex items-center gap-2">
+          <AlertTriangle class="h-4 w-4" />
+          Danger Zone
+        </h2>
+        
+        <p class="text-sm text-muted-foreground">
+          Permanently delete your account and all associated data. This action cannot be undone.
+        </p>
+        
+        <button 
+          id="delete-account-btn"
+          class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 rounded-md transition-colors"
+        >
+          <Trash2 class="h-4 w-4" />
+          Delete Account
+        </button>
+      </div>
+
+      <!-- Delete Account Modal -->
+      <div id="delete-account-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-background border border-red-500/30 rounded-lg p-6 w-full max-w-md mx-4 space-y-4">
+          <div class="flex items-center gap-3 text-red-600 dark:text-red-400">
+            <AlertTriangle class="h-6 w-6" />
+            <h3 class="text-lg font-semibold">Delete Account</h3>
+          </div>
+          
+          <p class="text-sm text-muted-foreground">
+            Are you sure you want to delete your account? This will permanently remove:
+          </p>
+          
+          <ul class="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2">
+            <li>Your user profile</li>
+            <li>All saved API keys</li>
+            <li>Your session data</li>
+          </ul>
+          
+          <p class="text-sm font-medium text-red-600 dark:text-red-400">
+            This action cannot be undone.
+          </p>
+          
+          <div class="space-y-2">
+            <label for="confirm-email" class="text-sm font-medium">
+              Type your email to confirm: <span id="confirm-email-hint" class="text-muted-foreground font-mono"></span>
+            </label>
+            <input
+              type="email"
+              id="confirm-email"
+              placeholder="Enter your email..."
+              class="w-full px-3 py-2 border border-red-500/30 rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+            />
+          </div>
+          
+          <div id="delete-error" class="hidden p-2 bg-red-500/10 border border-red-500/20 rounded text-sm text-red-600 dark:text-red-400"></div>
+          
+          <div class="flex gap-2 justify-end">
+            <button
+              id="cancel-delete"
+              class="px-4 py-2 border rounded-md text-sm hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              id="confirm-delete-btn"
+              disabled
+              class="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span id="delete-btn-text">Delete Account</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
