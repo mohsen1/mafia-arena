@@ -23,6 +23,15 @@ export type ApiProvider =
   | 'openai'
   | 'anthropic'
   | 'google'
+  | 'xai'
+  | 'deepseek'
+  | 'mistral'
+  | 'cohere'
+  | 'ai21'
+  | 'together'
+  | 'groq'
+  | 'sambanova'
+  | 'hyperbolic'
   | 'cerebras'
   | 'minimax'
   | 'fireworks'
@@ -35,28 +44,85 @@ interface ProviderInfo {
 }
 
 const PROVIDERS: ProviderInfo[] = [
+  // Aggregator
   {
     id: 'openrouter',
     displayName: 'OpenRouter',
     description: 'Access 100+ models from many providers',
     isAggregator: true,
   },
+  // Major providers
   {
     id: 'openai',
     displayName: 'OpenAI',
-    description: 'GPT-4o, GPT-5, and more',
+    description: 'GPT-4o, o1, o3 and more',
     isAggregator: false,
   },
   {
     id: 'anthropic',
     displayName: 'Anthropic',
-    description: 'Claude 3.5, Claude 4, Claude 4.5',
+    description: 'Claude 3.5, Claude 4, Opus',
     isAggregator: false,
   },
   {
     id: 'google',
     displayName: 'Google',
-    description: 'Gemini 2.5, Gemini 3',
+    description: 'Gemini 2.0, 2.5 Flash/Pro',
+    isAggregator: false,
+  },
+  {
+    id: 'xai',
+    displayName: 'xAI',
+    description: 'Grok 2, Grok 2 Vision',
+    isAggregator: false,
+  },
+  {
+    id: 'deepseek',
+    displayName: 'DeepSeek',
+    description: 'DeepSeek V3, R1',
+    isAggregator: false,
+  },
+  {
+    id: 'mistral',
+    displayName: 'Mistral',
+    description: 'Mistral Large, Medium, Small',
+    isAggregator: false,
+  },
+  {
+    id: 'cohere',
+    displayName: 'Cohere',
+    description: 'Command R+, Command R',
+    isAggregator: false,
+  },
+  {
+    id: 'ai21',
+    displayName: 'AI21 Labs',
+    description: 'Jamba 2 Mini, Jamba 2 Large',
+    isAggregator: false,
+  },
+  {
+    id: 'together',
+    displayName: 'Together AI',
+    description: 'Llama, Mixtral, Qwen (open source)',
+    isAggregator: false,
+  },
+  // Free/Fast inference providers
+  {
+    id: 'groq',
+    displayName: 'Groq',
+    description: 'Ultra-fast inference (free tier)',
+    isAggregator: false,
+  },
+  {
+    id: 'sambanova',
+    displayName: 'SambaNova',
+    description: 'Free Llama 3.1 405B',
+    isAggregator: false,
+  },
+  {
+    id: 'hyperbolic',
+    displayName: 'Hyperbolic',
+    description: 'Free tier available',
     isAggregator: false,
   },
   {
@@ -66,15 +132,15 @@ const PROVIDERS: ProviderInfo[] = [
     isAggregator: false,
   },
   {
-    id: 'minimax',
-    displayName: 'MiniMax',
-    description: 'MiniMax M1, M2.1',
-    isAggregator: false,
-  },
-  {
     id: 'fireworks',
     displayName: 'Fireworks',
     description: 'DeepSeek, Llama, Qwen',
+    isAggregator: false,
+  },
+  {
+    id: 'minimax',
+    displayName: 'MiniMax',
+    description: 'MiniMax M1, M2.1',
     isAggregator: false,
   },
 ]
