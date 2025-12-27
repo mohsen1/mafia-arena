@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import ThemeToggle from './ThemeToggle.astro';
-import { Shield, LogOut, User } from 'lucide-astro';
+import { Shield, LogOut, User, Play } from 'lucide-astro';
 import { getApiUrl } from '../lib/utils';
 
 interface Props {
@@ -82,6 +82,13 @@ const apiUrl = getApiUrl();
 								}
 								if (name) name.textContent = data.user.name?.split(' ')[0] || 'User';
 								if (email) email.textContent = data.user.email;
+								
+								// Show "New Game" link for any logged-in user
+								const newGameNavLink = document.getElementById('new-game-nav-link');
+								if (newGameNavLink) {
+									newGameNavLink.classList.remove('hidden');
+									newGameNavLink.classList.add('flex');
+								}
 								
 								// Show admin links if admin
 								if (data.user.isAdmin) {
@@ -191,6 +198,17 @@ const apiUrl = getApiUrl();
 								FAQ
 							</a>
 							<a 
+								id="new-game-nav-link"
+								href="/games/new" 
+								class:list={[
+									"hidden transition-colors hover:text-foreground items-center gap-1",
+									currentPath === "/games/new" ? "text-foreground font-medium" : "text-muted-foreground"
+								]}
+							>
+								<Play class="h-3.5 w-3.5" />
+								New Game
+							</a>
+							<a 
 								id="admin-nav-link"
 								href="/admin" 
 								class:list={[
@@ -253,6 +271,13 @@ const apiUrl = getApiUrl();
 									>
 										<User class="h-4 w-4" />
 										<span>Account</span>
+									</a>
+									<a 
+										href="/games/new"
+										class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
+									>
+										<Play class="h-4 w-4" />
+										<span>New Game</span>
 									</a>
 									<a 
 										id="admin-dropdown-link"

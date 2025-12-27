@@ -511,6 +511,79 @@ const SUPPORTED_PROVIDERS = [
         errorDiv.classList.remove('hidden');
       }
     }
+
+    // Delete account handlers
+    const deleteAccountBtn = document.getElementById('delete-account-btn');
+    const deleteModal = document.getElementById('delete-account-modal');
+    const cancelDeleteBtn = document.getElementById('cancel-delete');
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    const confirmEmailInput = document.getElementById('confirm-email');
+    const confirmEmailHint = document.getElementById('confirm-email-hint');
+    const deleteError = document.getElementById('delete-error');
+    const deleteBtnText = document.getElementById('delete-btn-text');
+
+    // Set the email hint
+    if (confirmEmailHint && currentUser?.email) {
+      confirmEmailHint.textContent = currentUser.email;
+    }
+
+    // Open delete modal
+    deleteAccountBtn?.addEventListener('click', () => {
+      deleteModal?.classList.remove('hidden');
+      confirmEmailInput.value = '';
+      confirmDeleteBtn.disabled = true;
+      deleteError?.classList.add('hidden');
+    });
+
+    // Close delete modal
+    cancelDeleteBtn?.addEventListener('click', () => {
+      deleteModal?.classList.add('hidden');
+    });
+
+    // Close modal on backdrop click
+    deleteModal?.addEventListener('click', (e) => {
+      if (e.target === deleteModal) {
+        deleteModal.classList.add('hidden');
+      }
+    });
+
+    // Enable delete button when email matches
+    confirmEmailInput?.addEventListener('input', () => {
+      const matches = confirmEmailInput.value.toLowerCase() === currentUser?.email?.toLowerCase();
+      confirmDeleteBtn.disabled = !matches;
+    });
+
+    // Handle delete account
+    confirmDeleteBtn?.addEventListener('click', async () => {
+      if (confirmDeleteBtn.disabled) return;
+      
+      confirmDeleteBtn.disabled = true;
+      deleteBtnText.textContent = 'Deleting...';
+      deleteError?.classList.add('hidden');
+
+      try {
+        const res = await fetch(`${apiUrl}/api/auth/account`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to delete account');
+        }
+
+        // Success - clear local storage and redirect
+        localStorage.removeItem('adminUnlocked');
+        window.location.href = '/?deleted=true';
+      } catch (e) {
+        if (deleteError) {
+          deleteError.textContent = e.message;
+          deleteError.classList.remove('hidden');
+        }
+        confirmDeleteBtn.disabled = false;
+        deleteBtnText.textContent = 'Delete Account';
+      }
+    });
   }
 
   async function deleteKey(provider) {
