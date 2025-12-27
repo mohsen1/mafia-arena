@@ -72,7 +72,7 @@ export class CohereProvider implements AIProviderInterface {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
-        'X-Client-Name': 'werewolf-ai',
+        'X-Client-Name': 'mafia-arena',
       },
       body: JSON.stringify(body),
     });
