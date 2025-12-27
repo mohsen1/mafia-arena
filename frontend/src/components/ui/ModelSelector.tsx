@@ -147,8 +147,17 @@ export function ModelSelector({
   }, [inputId, handleChange])
 
   React.useEffect(() => {
-    const apiUrl = (typeof window !== 'undefined' && (window as unknown as { ENV?: { PUBLIC_API_URL?: string } }).ENV?.PUBLIC_API_URL) 
-      || 'https://api.mafia-arena.com'
+    // Detect API URL based on hostname
+    const getApiUrl = () => {
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          return 'http://localhost:8787'
+        }
+      }
+      return 'https://api.mafia-arena.com'
+    }
+    const apiUrl = getApiUrl()
     
     setLoading(true)
     setError(null)

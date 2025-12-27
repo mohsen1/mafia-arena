@@ -1,6 +1,6 @@
 ---
 import Layout from '../../components/Layout.astro';
-import { ArrowLeft, Play, Radio, Users, Shield, Key, Shuffle, AlertCircle, Sparkles } from 'lucide-astro';
+import { ArrowLeft, Users, Shield, Key, Shuffle, AlertCircle } from 'lucide-astro';
 import ProviderModelSelector from '../../components/ui/ProviderModelSelector';
 import { getApiUrl } from '../../lib/utils';
 
@@ -17,16 +17,11 @@ const apiUrl = getApiUrl();
       <span>New Game</span>
     </div>
 
-    <div class="flex items-start gap-4">
-      <div class="p-3 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-xl border border-violet-500/20">
-        <Sparkles size={24} class="text-violet-500" />
-      </div>
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">Launch New Game</h1>
-        <p class="text-sm text-muted-foreground mt-1">
-          Pit AI models against each other in a game of Mafia
-        </p>
-      </div>
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">New Game</h1>
+      <p class="text-sm text-muted-foreground mt-1">
+        Pit AI models against each other in a game of Mafia
+      </p>
     </div>
 
     <!-- Auth required notice (shown when not logged in) -->
@@ -61,11 +56,11 @@ const apiUrl = getApiUrl();
       </div>
       
       <!-- User banner -->
-      <div id="user-key-status" class="hidden p-3 bg-violet-500/10 border border-violet-500/20 rounded-lg">
+      <div id="user-key-status" class="hidden p-3 bg-muted/50 border rounded-lg">
         <div class="flex items-center gap-3">
-          <Key class="h-5 w-5 text-violet-500 shrink-0" />
+          <Key class="h-5 w-5 text-muted-foreground shrink-0" />
           <div class="text-sm">
-            <span class="font-medium text-violet-600 dark:text-violet-400">Your API Keys:</span>
+            <span class="font-medium">Your API Keys:</span>
             <span class="text-muted-foreground"> Games will use your configured keys.</span>
           </div>
         </div>
@@ -162,9 +157,8 @@ const apiUrl = getApiUrl();
           type="submit"
           id="submit-btn"
           disabled
-          class="flex-1 px-4 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-lg font-medium hover:from-violet-600 hover:to-fuchsia-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="flex-1 px-4 py-3 bg-foreground text-background rounded-lg font-medium hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Play size={18} />
           Launch Game
         </button>
         <a 
@@ -181,15 +175,15 @@ const apiUrl = getApiUrl();
       <h2 class="text-sm font-medium mb-3">How it works</h2>
       <div class="grid gap-3 text-sm text-muted-foreground">
         <div class="flex gap-3">
-          <span class="shrink-0 w-6 h-6 rounded-full bg-violet-500/10 text-violet-500 flex items-center justify-center text-xs font-medium">1</span>
+          <span class="shrink-0 w-6 h-6 rounded-full bg-muted text-foreground flex items-center justify-center text-xs font-medium">1</span>
           <p>Select AI models for each team. The mafia team tries to eliminate townspeople while staying hidden.</p>
         </div>
         <div class="flex gap-3">
-          <span class="shrink-0 w-6 h-6 rounded-full bg-violet-500/10 text-violet-500 flex items-center justify-center text-xs font-medium">2</span>
+          <span class="shrink-0 w-6 h-6 rounded-full bg-muted text-foreground flex items-center justify-center text-xs font-medium">2</span>
           <p>The game runs automatically with day/night cycles. Watch AI models discuss, vote, and strategize in real-time.</p>
         </div>
         <div class="flex gap-3">
-          <span class="shrink-0 w-6 h-6 rounded-full bg-violet-500/10 text-violet-500 flex items-center justify-center text-xs font-medium">3</span>
+          <span class="shrink-0 w-6 h-6 rounded-full bg-muted text-foreground flex items-center justify-center text-xs font-medium">3</span>
           <p>Games use your API keys. Add keys for providers you want to use in <a href="/account" class="underline hover:text-foreground">Account settings</a>.</p>
         </div>
       </div>
@@ -454,13 +448,7 @@ const apiUrl = getApiUrl();
       
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `
-          <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-          </svg>
-          Starting Game...
-        `;
+        submitBtn.textContent = 'Starting...';
       }
       
       if (statusDiv) {
@@ -509,12 +497,7 @@ const apiUrl = getApiUrl();
           alert(err.error?.message || 'You do not have permission to run this game. Please add the required API keys.');
           if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = `
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-              Launch Game
-            `;
+            submitBtn.textContent = 'Launch Game';
           }
           if (statusDiv) {
             statusDiv.classList.add('hidden');
@@ -541,12 +524,7 @@ const apiUrl = getApiUrl();
         alert(err instanceof Error ? err.message : 'Failed to start game');
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.innerHTML = `
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-            Launch Game
-          `;
+          submitBtn.textContent = 'Launch Game';
         }
         if (statusDiv) {
           statusDiv.classList.add('hidden');
