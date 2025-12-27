@@ -364,15 +364,51 @@ function updateDuration(state: LiveGameState): void {
 }
 
 function buildPlayerFromEvent(state: LiveGameState, event: GameEvent): void {
-  if (event.type === 'ai_call' && event.playerId && !state.playerMap[event.playerId]) {
-    state.playerMap[event.playerId] = {
-      playerId: event.playerId,
-      playerName: event.playerName || event.playerId,
-      modelId: event.modelId || '',
-      team: event.team || 'town',
-      isAlive: true,
-    };
+  // Handle game_start event to populate all players immediately
+  // This ensures all players (including mafia) are visible from the start
+  if (event.type === 'game_start') {
+    const gameStartEvent = event as GameEvent & { players?: { id: string; name: string; modelId: string; team: 'mafia' | 'town'; persona?: { name?: string } }[] };
+    if (gameStartEvent.players) {
+      for (const p of gameStartEvent.players) {
+        if (!state.playerMap[p.id]) {
+          state.playerMap[p.id] = {
+            playerId: p.id,
+            playerName: p.persona?.name || p.name || p.id,
+            modelId: p.modelId || '',
+            team: p.team || 'town',
+            isAlive: true,
+            persona: p.persona as PlayerInfo['persona'],
+          };
+        }
+      }
+    }
+    return;
   }
+
+  if (event.type === 'ai_call' && event.playerId) {
+    if (!state.playerMap[event.playerId]) {
+      state.playerMap[event.playerId] = {
+        playerId: event.playerId,
+        playerName: event.playerName || event.playerId,
+        modelId: event.modelId || '',
+        team: event.team || 'town',
+        isAlive: true,
+      };
+    } else {
+      // Only update metadata if missing, don't overwrite name if we already have a persona name
+      const p = state.playerMap[event.playerId];
+      if (!p.modelId) p.modelId = event.modelId || '';
+      if (!p.team) p.team = event.team || 'town';
+      
+      // Only update name if current name looks like a fallback ID and we don't have a persona yet
+      const newName = event.playerName;
+      const currentIsIdName = p.playerName === event.playerId || p.playerName.startsWith('player_');
+      if (newName && currentIsIdName && !p.persona) {
+        p.playerName = newName;
+      }
+    }
+  }
+
   if (event.type === 'persona_generation' && event.playerId) {
     if (!state.playerMap[event.playerId]) {
       state.playerMap[event.playerId] = {
@@ -384,8 +420,12 @@ function buildPlayerFromEvent(state: LiveGameState, event: GameEvent): void {
       };
     }
     state.playerMap[event.playerId].persona = event.persona;
-    state.playerMap[event.playerId].playerName = event.persona?.name || event.playerName || event.playerId;
+    // Always trust persona name over everything else
+    if (event.persona?.name) {
+      state.playerMap[event.playerId].playerName = event.persona.name;
+    }
   }
+
   if (event.type === 'elimination' && event.playerId) {
     state.eliminatedPlayers.add(event.playerId);
     if (state.playerMap[event.playerId]) {
@@ -463,8 +503,7 @@ function updatePlayersGrid(state: LiveGameState): void {
     return `
       <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] ${borderClass} ${opacityClass} transition-all">
         ${!isAlive ? `<span class="text-muted-foreground opacity-60">${ICONS.skull}</span>` : `<span class="w-1.5 h-1.5 rounded-full ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}"></span>`}
-        <span class="font-semibold ${textClass} truncate max-w-[80px]">${player.playerName}</span>
-        <span class="text-muted-foreground/50 font-mono text-[9px]">${getShortModelName(player.modelId).slice(0, 8)}</span>
+        <span class="font-semibold ${textClass} truncate max-w-[120px]">${player.playerName}</span>
       </div>
     `;
   }).join('');

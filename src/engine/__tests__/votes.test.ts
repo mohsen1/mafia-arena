@@ -25,7 +25,7 @@ describe('resolveVotes', () => {
     expect(result!.id).toBe('player_1');
   });
 
-  it('should return null on tie', () => {
+  it('should randomly select winner on tie (tie-breaking)', () => {
     const votes = new Map([
       ['voter_1', 'player_1'],
       ['voter_2', 'player_2'],
@@ -33,7 +33,9 @@ describe('resolveVotes', () => {
 
     const result = resolveVotes(votes, candidates);
 
-    expect(result).toBeNull();
+    // With tie-breaking, one of the tied candidates should be selected
+    expect(result).toBeDefined();
+    expect(['player_1', 'player_2']).toContain(result!.id);
   });
 
   it('should return null when no votes', () => {
@@ -65,7 +67,7 @@ describe('resolveVotes', () => {
     expect(result!.id).toBe('player_2');
   });
 
-  it('should handle three-way tie', () => {
+  it('should randomly select winner on three-way tie (tie-breaking)', () => {
     const votes = new Map([
       ['voter_1', 'player_1'],
       ['voter_2', 'player_2'],
@@ -74,7 +76,9 @@ describe('resolveVotes', () => {
 
     const result = resolveVotes(votes, candidates);
 
-    expect(result).toBeNull();
+    // With tie-breaking, one of the tied candidates should be selected
+    expect(result).toBeDefined();
+    expect(['player_1', 'player_2', 'player_3']).toContain(result!.id);
   });
 
   it('should return winner when majority is clear', () => {

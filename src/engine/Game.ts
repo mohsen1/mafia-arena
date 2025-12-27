@@ -102,6 +102,18 @@ export class Game {
   async run(): Promise<GameResult> {
     this.startTime = Date.now();
 
+    // Emit game_start event with full player roster (for immediate frontend display)
+    // Skip if resuming - players are already known from the saved state
+    if (!this.isResuming) {
+      await this.emitEvent({
+        type: 'game_start',
+        gameId: this.gameId,
+        players: this.state.players,
+        config: this.config,
+        timestamp: this.startTime,
+      });
+    }
+
     // Introduction Phase - Players introduce themselves (runs once)
     // Skip if resuming and introduction already completed
     if (!this.isResuming || !this.hasCompletedIntroduction()) {

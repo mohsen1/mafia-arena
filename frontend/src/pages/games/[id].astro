@@ -338,7 +338,6 @@ function getPersonaName(playerId: string): string {
         <div class="flex flex-wrap gap-1.5">
           {players.map((player) => {
             const isMafia = player.team === 'mafia';
-            const shortModel = (player.modelId.split('/').pop() || player.modelId).split('-').slice(0, 2).join('-');
             return (
               <div class={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs ${
                 isMafia 
@@ -351,7 +350,6 @@ function getPersonaName(playerId: string): string {
                 <span class={`font-medium ${isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
                   {player.personaName}
                 </span>
-                <span class="text-muted-foreground/50 text-[9px]">{shortModel}</span>
               </div>
             );
           })}
