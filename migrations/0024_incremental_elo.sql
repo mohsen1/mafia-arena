@@ -11,3 +11,4 @@ ALTER TABLE models ADD COLUMN elo_updated_at INTEGER;
 CREATE INDEX IF NOT EXISTS idx_models_elo ON models(elo_rating DESC);
 
 
+

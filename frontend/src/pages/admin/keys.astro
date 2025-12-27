@@ -1,0 +1,353 @@
+---
+import Layout from '../../components/Layout.astro';
+import { Key, RefreshCw, CheckCircle, XCircle, AlertCircle, Wallet, Clock, Zap } from 'lucide-astro';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://mafia-arena.me-f9a.workers.dev';
+---
+
+<Layout title="API Keys">
+  <div class="max-w-5xl mx-auto space-y-8">
+    <!-- Header -->
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="flex items-center gap-2 text-xs text-muted-foreground font-mono mb-2">
+          <a href="/admin" class="hover:text-foreground transition-colors">admin</a>
+          <span>/</span>
+          <span>keys</span>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight">API Key Status</h1>
+        <p class="text-sm text-muted-foreground mt-1">
+          Monitor connectivity and balances for configured AI providers
+        </p>
+      </div>
+      
+      <button 
+        id="refreshBtn"
+        class="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
+      >
+        <RefreshCw size={14} id="refreshIcon" />
+        <span id="refreshText">Refresh</span>
+      </button>
+    </div>
+
+    <!-- Info Banner -->
+    <div class="border border-amber-500/20 bg-amber-500/5 rounded-lg px-4 py-3 flex items-start gap-3">
+      <AlertCircle size={16} class="text-amber-500 shrink-0 mt-0.5" />
+      <div class="text-sm text-muted-foreground">
+        <span class="font-medium text-foreground">Note:</span> API keys are configured via Wrangler secrets. 
+        This page shows current status and available credits where supported.
+        <span class="text-muted-foreground/70">Results are cached for 5 minutes.</span>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div id="summaryStats" class="hidden grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">
+          <CheckCircle size={12} class="text-emerald-500" />
+          Active
+        </div>
+        <div id="activeCount" class="text-3xl font-bold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">0</div>
+      </div>
+      <div class="space-y-1">
+        <div class="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">
+          <XCircle size={12} class="text-red-500" />
+          Errors
+        </div>
+        <div id="errorCount" class="text-3xl font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">0</div>
+      </div>
+      <div class="space-y-1">
+        <div class="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">
+          <AlertCircle size={12} class="text-muted-foreground" />
+          Unconfigured
+        </div>
+        <div id="unconfiguredCount" class="text-3xl font-bold tabular-nums tracking-tight">0</div>
+      </div>
+      <div class="space-y-1">
+        <div class="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">
+          <Clock size={12} />
+          Last Check
+        </div>
+        <div id="lastCheckTime" class="text-sm font-medium text-muted-foreground">—</div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="flex items-center justify-center py-24">
+      <div class="flex flex-col items-center gap-4">
+        <div class="relative">
+          <div class="w-10 h-10 border-2 border-foreground/20 rounded-full"></div>
+          <div class="absolute inset-0 w-10 h-10 border-2 border-foreground border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <span class="text-sm text-muted-foreground font-mono">Checking API keys...</span>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="hidden">
+      <div class="border border-red-500/30 bg-red-500/5 rounded-lg p-6 text-center">
+        <XCircle size={24} class="mx-auto text-red-500 mb-3" />
+        <p class="font-medium text-red-600 dark:text-red-400">Failed to check API keys</p>
+        <p id="errorMessage" class="text-sm text-muted-foreground mt-1"></p>
+        <button onclick="location.reload()" class="mt-4 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          Retry
+        </button>
+      </div>
+    </div>
+
+    <!-- Keys Grid -->
+    <div id="keysGrid" class="hidden grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <!-- Cards will be inserted here -->
+    </div>
+
+    <!-- Cache indicator -->
+    <div id="cacheIndicator" class="hidden text-center">
+      <span class="text-xs text-muted-foreground/60">
+        <span id="cacheStatus">Results from cache</span>
+        &nbsp;·&nbsp;
+        <button id="forceRefresh" class="text-foreground/60 hover:text-foreground underline underline-offset-2">
+          Force refresh
+        </button>
+      </span>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 8px currentColor; }
+    50% { box-shadow: 0 0 16px currentColor; }
+  }
+  
+  .status-active {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+</style>
+
+<script define:vars={{ apiUrl }}>
+  const credentials = sessionStorage.getItem('adminCredentials');
+  if (!credentials) {
+    window.location.href = '/admin/login?redirect=/admin/keys';
+  }
+
+  const headers = credentials ? { 
+    'Authorization': `Basic ${credentials}`,
+    'Content-Type': 'application/json'
+  } : { 'Content-Type': 'application/json' };
+
+  const loadingState = document.getElementById('loadingState');
+  const errorState = document.getElementById('errorState');
+  const errorMessage = document.getElementById('errorMessage');
+  const keysGrid = document.getElementById('keysGrid');
+  const summaryStats = document.getElementById('summaryStats');
+  const cacheIndicator = document.getElementById('cacheIndicator');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const refreshIcon = document.getElementById('refreshIcon');
+  const refreshText = document.getElementById('refreshText');
+  const forceRefresh = document.getElementById('forceRefresh');
+
+  const STATUS_ICONS = {
+    active: `<svg class="text-emerald-500" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+    error: `<svg class="text-red-500" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>`,
+    unconfigured: `<svg class="text-muted-foreground/50" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v.01"/><path d="M12 8v4"/></svg>`,
+  };
+
+  const PROVIDER_COLORS = {
+    openrouter: 'from-violet-500/20 to-purple-500/20',
+    openai: 'from-emerald-500/20 to-teal-500/20',
+    anthropic: 'from-orange-500/20 to-amber-500/20',
+    google: 'from-blue-500/20 to-cyan-500/20',
+    cerebras: 'from-pink-500/20 to-rose-500/20',
+    fireworks: 'from-red-500/20 to-orange-500/20',
+    minimax: 'from-indigo-500/20 to-blue-500/20',
+  };
+
+  async function loadKeys(forceRefresh = false) {
+    loadingState.classList.remove('hidden');
+    errorState.classList.add('hidden');
+    keysGrid.classList.add('hidden');
+    summaryStats.classList.add('hidden');
+    cacheIndicator.classList.add('hidden');
+    refreshBtn.disabled = true;
+    refreshIcon.classList.add('animate-spin');
+    refreshText.textContent = 'Checking...';
+
+    try {
+      const url = forceRefresh 
+        ? `${apiUrl}/api/admin/keys?refresh=true`
+        : `${apiUrl}/api/admin/keys`;
+        
+      const res = await fetch(url, { headers });
+      
+      if (res.status === 401) {
+        sessionStorage.removeItem('adminCredentials');
+        window.location.href = '/admin/login?redirect=/admin/keys';
+        return;
+      }
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      renderKeys(data);
+      
+    } catch (err) {
+      loadingState.classList.add('hidden');
+      errorState.classList.remove('hidden');
+      errorMessage.textContent = err instanceof Error ? err.message : 'Unknown error';
+    } finally {
+      refreshBtn.disabled = false;
+      refreshIcon.classList.remove('animate-spin');
+      refreshText.textContent = 'Refresh';
+    }
+  }
+
+  function renderKeys(data) {
+    loadingState.classList.add('hidden');
+    keysGrid.classList.remove('hidden');
+    summaryStats.classList.remove('hidden');
+
+    const keys = data.keys || [];
+    
+    // Update summary
+    const active = keys.filter(k => k.status === 'active').length;
+    const errors = keys.filter(k => k.status === 'error').length;
+    const unconfigured = keys.filter(k => k.status === 'unconfigured').length;
+    
+    document.getElementById('activeCount').textContent = active.toString();
+    document.getElementById('errorCount').textContent = errors.toString();
+    document.getElementById('unconfiguredCount').textContent = unconfigured.toString();
+    
+    if (data.checkedAt) {
+      const date = new Date(data.checkedAt);
+      document.getElementById('lastCheckTime').textContent = date.toLocaleTimeString();
+    }
+
+    // Show cache indicator if results are cached
+    if (data.cached) {
+      cacheIndicator.classList.remove('hidden');
+      document.getElementById('cacheStatus').textContent = 'Results from cache';
+    }
+
+    // Render cards
+    keysGrid.innerHTML = keys.map(key => {
+      const gradientClass = PROVIDER_COLORS[key.provider] || 'from-gray-500/20 to-slate-500/20';
+      const statusIcon = STATUS_ICONS[key.status] || STATUS_ICONS.unconfigured;
+      
+      const balanceHtml = key.balance 
+        ? `
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+              ${key.balance.label}
+            </span>
+            <span class="font-mono font-bold ${key.balance.amount < 5 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}">
+              $${key.balance.amount.toFixed(2)}
+            </span>
+          </div>
+        `
+        : key.status === 'active' 
+          ? `
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted-foreground">Balance</span>
+              <span class="text-xs text-muted-foreground/50 italic">Not available</span>
+            </div>
+          `
+          : '';
+
+      const usageHtml = key.usage 
+        ? `
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Usage
+            </span>
+            <span class="font-mono text-xs">
+              $${key.usage.amount.toFixed(2)}
+              ${key.usage.limit !== null ? ` / $${key.usage.limit.toFixed(2)}` : ''}
+            </span>
+          </div>
+        `
+        : '';
+      
+      const errorHtml = key.error 
+        ? `
+          <div class="mt-2 px-2 py-1.5 rounded bg-red-500/10 border border-red-500/20">
+            <span class="text-xs text-red-600 dark:text-red-400 font-mono">${escapeHtml(key.error)}</span>
+          </div>
+        `
+        : '';
+
+      const latencyHtml = key.latencyMs && key.status !== 'unconfigured'
+        ? `<span class="text-[10px] text-muted-foreground/50 tabular-nums">${key.latencyMs}ms</span>`
+        : '';
+
+      const statusBorderColor = {
+        active: 'border-emerald-500/30 hover:border-emerald-500/50',
+        error: 'border-red-500/30 hover:border-red-500/50',
+        unconfigured: 'border-border hover:border-border/80',
+      }[key.status] || 'border-border';
+
+      return `
+        <div class="relative group">
+          <div class="absolute inset-0 bg-gradient-to-br ${gradientClass} rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative p-5 rounded-xl border ${statusBorderColor} bg-card transition-all duration-200">
+            <!-- Header -->
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br ${gradientClass} flex items-center justify-center">
+                  <span class="text-sm font-bold uppercase">${key.provider.substring(0, 2)}</span>
+                </div>
+                <div>
+                  <h3 class="font-semibold">${escapeHtml(key.displayName)}</h3>
+                  <p class="text-xs text-muted-foreground font-mono">${escapeHtml(key.maskedKey)}</p>
+                </div>
+              </div>
+              <div class="${key.status === 'active' ? 'text-emerald-500' : ''}">
+                ${statusIcon}
+              </div>
+            </div>
+
+            <!-- Status Info -->
+            <div class="space-y-2.5">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-muted-foreground">Status</span>
+                <span class="font-medium uppercase text-xs ${
+                  key.status === 'active' ? 'text-emerald-600 dark:text-emerald-400' :
+                  key.status === 'error' ? 'text-red-500' :
+                  'text-muted-foreground/50'
+                }">${key.status}</span>
+              </div>
+              
+              ${balanceHtml}
+              ${usageHtml}
+              ${errorHtml}
+              
+              <div class="flex justify-end pt-2 border-t border-border/50">
+                ${latencyHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Event listeners
+  refreshBtn.addEventListener('click', () => loadKeys(true));
+  forceRefresh.addEventListener('click', () => loadKeys(true));
+
+  // Initial load
+  loadKeys();
+</script>
+
