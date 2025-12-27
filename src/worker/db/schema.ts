@@ -27,6 +27,8 @@ export const models = sqliteTable('models', {
   // Multi-provider support (migration 0025)
   apiProvider: text('api_provider').default('openrouter'),
   apiModelId: text('api_model_id'),
+  // Batch API pricing support (migration 0030) - 40-50% discount
+  supportsBatchPricing: integer('supports_batch_pricing', { mode: 'boolean' }).default(false),
   // ELO rating system (migration 0024)
   eloRating: integer('elo_rating').default(1500),
   eloGamesPlayed: integer('elo_games_played').default(0),
@@ -35,6 +37,7 @@ export const models = sqliteTable('models', {
 }, (table) => [
   index('idx_models_elo').on(table.eloRating),
   index('idx_models_api_provider').on(table.apiProvider),
+  index('idx_models_batch_pricing').on(table.supportsBatchPricing),
 ]);
 
 /**

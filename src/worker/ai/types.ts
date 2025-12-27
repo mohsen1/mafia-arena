@@ -61,6 +61,12 @@ export interface AIRequestMessage {
   };
   timestamp: number;
   traceId?: string;
+  /** 
+   * Whether this request is from a discount pricing game.
+   * When true, requests should be routed to provider batch APIs for 40-50% cost savings.
+   * Batch APIs have 24-hour turnaround time.
+   */
+  discountPricing?: boolean;
 }
 
 /**

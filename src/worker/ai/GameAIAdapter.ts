@@ -67,6 +67,8 @@ export interface GameAIAdapterOptions {
     gameId: string;
     /** Trace ID for distributed tracing */
     traceId?: string;
+    /** Whether this is a discount pricing game (routes to batch APIs) */
+    discountPricing?: boolean;
   };
 }
 
@@ -280,6 +282,8 @@ export class GameAIAdapter implements AIProvider {
         timestamp: Date.now(),
         // Only include traceId if defined (exactOptionalPropertyTypes)
         ...(this.suspenseMode.traceId && { traceId: this.suspenseMode.traceId }),
+        // Include discountPricing flag for batch API routing
+        ...(this.suspenseMode.discountPricing && { discountPricing: this.suspenseMode.discountPricing }),
       };
       
       // Queue the request

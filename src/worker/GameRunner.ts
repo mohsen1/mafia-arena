@@ -1625,6 +1625,8 @@ export class GameRunner extends DurableObject<Env> {
         gameId,
         // Only include traceId if it has a value (exactOptionalPropertyTypes)
         ...(traceId && { traceId }),
+        // Pass discountPricing for batch API routing (40-50% cost savings)
+        ...(discountPricing && { discountPricing }),
       },
     });
 

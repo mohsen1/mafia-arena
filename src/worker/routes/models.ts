@@ -406,6 +406,8 @@ function transformModelRecord(model: ModelDbRecord) {
     apiModelId: model.api_model_id,
     pricing: parsePricingFromConfig(model.config),
     createdAt: model.created_at,
+    /** Whether this model's provider supports batch API pricing for 40-50% discount */
+    supportsBatchPricing: model.supports_batch_pricing === 1,
   };
 }
 
@@ -417,7 +419,7 @@ models.get('/', async (c) => {
   const env = c.env;
   
   const result = await env.DB.prepare(`
-    SELECT id, display_name, family, api_provider, api_model_id, config, created_at 
+    SELECT id, display_name, family, api_provider, api_model_id, config, created_at, supports_batch_pricing 
     FROM models 
     ORDER BY family, display_name
   `).all<ModelDbRecord>();
@@ -553,7 +555,7 @@ models.get('/by-provider/:provider', async (c) => {
 
   // Fallback to database lookup
   const result = await env.DB.prepare(`
-    SELECT id, display_name, family, api_provider, api_model_id, config, created_at 
+    SELECT id, display_name, family, api_provider, api_model_id, config, created_at, supports_batch_pricing 
     FROM models 
     WHERE api_provider = ?
     ORDER BY family, display_name

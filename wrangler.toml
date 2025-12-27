@@ -88,14 +88,26 @@ binding = "ANALYTICS"
 dataset = "mafia_events"
 
 # =============================================================================
-# CRON TRIGGERS - Scheduled jobs
+# CRON TRIGGERS - Scheduled jobs for batch API processing
 # =============================================================================
 
 [triggers]
-# Run cleanup every 10 minutes to detect and kill stale games
-# - Standard games: stale after 1 hour of inactivity
-# - Discount pricing games: stale after 24 hours (batch APIs can take up to 24h)
-crons = ["*/10 * * * *"]
+crons = [
+  # Poll batch jobs for completion every minute
+  # - Checks status of submitted jobs with AI providers
+  # - Dispatches completed results back to GameRunner DOs
+  "*/1 * * * *",
+  
+  # Aggregate pending batch requests every 5 minutes
+  # - Bundles pending discountPricing AI requests
+  # - Submits batches to provider APIs (OpenAI, Anthropic, Google, etc.)
+  "*/5 * * * *",
+  
+  # Clean up stale/hanging games every 10 minutes
+  # - Standard games: stale after 1 hour of inactivity
+  # - Discount pricing games: stale after 24 hours (batch APIs can take up to 24h)
+  "*/10 * * * *"
+]
 
 # Environment Variables
 [vars]

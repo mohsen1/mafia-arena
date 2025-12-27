@@ -99,6 +99,7 @@ export function ProviderModelSelector({
           team={team}
           placeholder={placeholder}
           apiProvider={selectedProvider}
+          inputId={inputId}
         />
       </div>
 

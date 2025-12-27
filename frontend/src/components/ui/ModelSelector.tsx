@@ -34,6 +34,8 @@ interface Model {
   }
   apiProvider?: ApiProvider
   apiModelId?: string
+  /** Whether this model's provider supports batch API pricing for 40-50% discount */
+  supportsBatchPricing?: boolean
 }
 
 interface ModelsData {
@@ -101,7 +103,7 @@ export function ModelSelector({
 
   const value = controlledValue !== undefined ? controlledValue : internalValue
 
-  const handleChange = React.useCallback((newValue: string, displayName?: string) => {
+  const handleChange = React.useCallback((newValue: string, displayName?: string, supportsBatchPricing?: boolean) => {
     setInternalValue(newValue)
     onChange?.(newValue)
     
@@ -112,6 +114,12 @@ export function ModelSelector({
         if (displayName) {
           input.dataset.displayName = displayName
         }
+        // Store batch pricing support for conditional UI
+        input.dataset.supportsBatchPricing = String(supportsBatchPricing ?? false)
+        // Dispatch event for form to react to model change
+        window.dispatchEvent(new CustomEvent('modelChanged', { 
+          detail: { inputId, modelId: newValue, supportsBatchPricing: supportsBatchPricing ?? false } 
+        }))
       }
     }
   }, [onChange, inputId])
@@ -128,9 +136,9 @@ export function ModelSelector({
   React.useEffect(() => {
     if (!inputId || typeof window === 'undefined') return
     
-    const handleExternalSelect = (e: CustomEvent<{ inputId: string; modelId: string; displayName?: string }>) => {
+    const handleExternalSelect = (e: CustomEvent<{ inputId: string; modelId: string; displayName?: string; supportsBatchPricing?: boolean }>) => {
       if (e.detail.inputId === inputId) {
-        handleChange(e.detail.modelId, e.detail.displayName)
+        handleChange(e.detail.modelId, e.detail.displayName, e.detail.supportsBatchPricing)
       }
     }
     
@@ -171,7 +179,7 @@ export function ModelSelector({
           const familyModels = modelsByGroup[randomFamily]
           if (familyModels && familyModels.length > 0) {
             const randomModel = familyModels[Math.floor(Math.random() * familyModels.length)]
-            handleChange(randomModel.id, getModelName(randomModel))
+            handleChange(randomModel.id, getModelName(randomModel), randomModel.supportsBatchPricing)
           }
         }
       })
@@ -252,7 +260,7 @@ export function ModelSelector({
                         key={model.id}
                         value={`${family} ${modelName} ${model.id}`}
                         onSelect={() => {
-                          handleChange(model.id, modelName)
+                          handleChange(model.id, modelName, model.supportsBatchPricing)
                           setOpen(false)
                         }}
                         className="flex items-center justify-between py-2"
