@@ -922,7 +922,7 @@ interface OpenRouterResponse {
 }
 
 /**
- * GET /api/admin/models - List models in DB with sync status.
+ * GET /api/admin/models - List models in DB with routing configuration.
  */
 admin.get('/models', async (c) => {
   const db = createDb(c.env.DB);
@@ -934,12 +934,179 @@ admin.get('/models', async (c) => {
   return c.json({
     models: result.map(m => ({
       id: m.id,
-      provider: m.family,
+      family: m.family,
       display_name: m.displayName,
-      config: m.config,
+      // Routing configuration
+      api_provider: m.apiProvider ?? 'openrouter',
+      api_model_id: m.apiModelId,
+      supports_batch_pricing: m.supportsBatchPricing ?? false,
+      // ELO rating
+      elo_rating: m.eloRating ?? 1500,
+      elo_games_played: m.eloGamesPlayed ?? 0,
+      // Pricing from config
+      pricing: m.config?.pricing ?? null,
+      context_length: m.config?.contextLength ?? null,
       created_at: m.createdAt,
     })),
     total: result.length,
+  });
+});
+
+/**
+ * POST /api/admin/models - Create a new model manually.
+ * Useful for adding new models before they appear on OpenRouter.
+ */
+admin.post('/models', async (c) => {
+  const db = createDb(c.env.DB);
+
+  interface CreateModelRequest {
+    id: string;
+    display_name: string;
+    family: string;
+    api_provider: string;
+    api_model_id?: string;
+    supports_batch_pricing?: boolean;
+    pricing?: { input: number; output: number }; // per 1M tokens
+    context_length?: number;
+  }
+
+  let body: CreateModelRequest;
+  try {
+    body = await c.req.json<CreateModelRequest>();
+  } catch {
+    throw Errors.BadRequest('Invalid JSON body');
+  }
+
+  // Validate required fields
+  if (!body.id || !body.display_name || !body.family || !body.api_provider) {
+    throw Errors.BadRequest('Missing required fields: id, display_name, family, api_provider');
+  }
+
+  // Check if model already exists
+  const existing = await db.query.models.findFirst({
+    where: eq(schema.models.id, body.id),
+  });
+
+  if (existing) {
+    throw Errors.BadRequest(`Model ${body.id} already exists`);
+  }
+
+  // Build config object
+  const config: { contextLength?: number; pricing?: { inputPer1K: number; outputPer1K: number } } = {};
+  if (body.context_length) {
+    config.contextLength = body.context_length;
+  }
+  if (body.pricing) {
+    // Convert per 1M to per 1K (divide by 1000)
+    config.pricing = {
+      inputPer1K: body.pricing.input / 1000,
+      outputPer1K: body.pricing.output / 1000,
+    };
+  }
+
+  // Insert new model
+  await db.insert(schema.models).values({
+    id: body.id,
+    family: body.family,
+    displayName: body.display_name,
+    apiProvider: body.api_provider,
+    apiModelId: body.api_model_id || body.id,
+    supportsBatchPricing: body.supports_batch_pricing ?? false,
+    config: Object.keys(config).length > 0 ? config : null,
+  });
+
+  return c.json({
+    success: true,
+    message: `Model ${body.id} created`,
+    model: {
+      id: body.id,
+      family: body.family,
+      display_name: body.display_name,
+      api_provider: body.api_provider,
+      api_model_id: body.api_model_id || body.id,
+      supports_batch_pricing: body.supports_batch_pricing ?? false,
+    },
+  });
+});
+
+/**
+ * PATCH /api/admin/models/:id - Update an existing model's configuration.
+ */
+admin.patch('/models/:id', async (c) => {
+  const db = createDb(c.env.DB);
+  const modelId = c.req.param('id');
+
+  interface UpdateModelRequest {
+    display_name?: string;
+    api_provider?: string;
+    api_model_id?: string;
+    supports_batch_pricing?: boolean;
+    pricing?: { input: number; output: number }; // per 1M tokens
+    context_length?: number;
+  }
+
+  let body: UpdateModelRequest;
+  try {
+    body = await c.req.json<UpdateModelRequest>();
+  } catch {
+    throw Errors.BadRequest('Invalid JSON body');
+  }
+
+  // Get existing model
+  const existing = await db.query.models.findFirst({
+    where: eq(schema.models.id, modelId),
+  });
+
+  if (!existing) {
+    throw Errors.NotFound('Model');
+  }
+
+  // Build update data
+  const updateData: Partial<typeof schema.models.$inferInsert> = {};
+
+  if (body.display_name !== undefined) {
+    updateData.displayName = body.display_name;
+  }
+  if (body.api_provider !== undefined) {
+    updateData.apiProvider = body.api_provider;
+  }
+  if (body.api_model_id !== undefined) {
+    updateData.apiModelId = body.api_model_id;
+  }
+  if (body.supports_batch_pricing !== undefined) {
+    updateData.supportsBatchPricing = body.supports_batch_pricing;
+  }
+
+  // Update pricing/context in config JSON if provided
+  if (body.pricing !== undefined || body.context_length !== undefined) {
+    const existingConfig = existing.config ?? {};
+    const newConfig = { ...existingConfig };
+    
+    if (body.pricing) {
+      newConfig.pricing = {
+        inputPer1K: body.pricing.input / 1000,
+        outputPer1K: body.pricing.output / 1000,
+      };
+    }
+    if (body.context_length !== undefined) {
+      newConfig.contextLength = body.context_length;
+    }
+    
+    updateData.config = newConfig;
+  }
+
+  // Only update if there are changes
+  if (Object.keys(updateData).length === 0) {
+    return c.json({ success: true, message: 'No changes to apply' });
+  }
+
+  await db.update(schema.models)
+    .set(updateData)
+    .where(eq(schema.models.id, modelId));
+
+  return c.json({
+    success: true,
+    message: `Model ${modelId} updated`,
   });
 });
 
