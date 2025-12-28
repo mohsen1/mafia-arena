@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mafia-arena-frontend",
+  "compatibility_date": "2025-04-04",
+  "main": "./workers/app.ts",
+  "workers_dev": true,
+  "vars": {
+    "VITE_API_URL": "https://api.mafia-arena.com"
+  },
+  "routes": [
+    { "pattern": "mafia-arena.com/*", "zone_name": "mafia-arena.com" }
+  ]
+}
