@@ -115,7 +115,9 @@ export class GameAIAdapter implements AIProvider {
    */
   private generateRequestId(context: AIContext, prompt: ActionPrompt): string {
     // Combine all relevant state that uniquely identifies this AI call
-    const data = `${context.gameId}:${context.round}:${context.phase}:${context.playerId}:${prompt.type}`;
+    // Include discussionRound to differentiate multi-round discussion phases
+    const discussionRound = context.discussionRound ?? 0;
+    const data = `${context.gameId}:${context.round}:${context.phase}:${context.playerId}:${prompt.type}:${discussionRound}`;
     
     // Simple hash for ID (deterministic)
     let hash = 0;

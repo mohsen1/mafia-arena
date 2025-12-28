@@ -166,6 +166,9 @@ export interface AIContext {
   readonly phase: Phase;
   readonly round: number;
   readonly visibleState: VisibleGameState;
+  /** Which discussion sub-round this AI call is for (1-indexed). Used to differentiate
+   * multiple discussion rounds within the same game round for cache key generation. */
+  readonly discussionRound?: number | undefined;
 }
 
 export interface ActionPrompt {

@@ -88,6 +88,7 @@ async function executeMafiaDiscussion(
           phase: 'night',
           round: state.round,
           visibleState,
+          discussionRound, // Critical for cache key differentiation in multi-round discussion
         },
         {
           type: 'mafia_discussion',

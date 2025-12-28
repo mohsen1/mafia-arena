@@ -96,6 +96,7 @@ export async function executeDiscussionPhase(
           phase: 'day_discussion',
           round: state.round,
           visibleState,
+          discussionRound, // Critical for cache key differentiation in multi-round discussion
         },
         {
           type: 'discussion',
