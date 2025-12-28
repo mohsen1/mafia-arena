@@ -715,6 +715,10 @@ export class GameRunner extends DurableObject<Env> {
         case '/punt':
           return await this.handlePunt();
 
+        // Admin endpoint to resume a failed game
+        case '/resume':
+          return await this.handleResume();
+
         default:
           this.log.warn('Unknown path', { path: url.pathname });
           return new Response('Not found', { status: 404 });
@@ -986,6 +990,95 @@ export class GameRunner extends DurableObject<Env> {
       logErrorWithStack(this.log, 'Failed to handle punt', error);
       return Response.json(
         { punted: false, reason: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 500 }
+      );
+    }
+  }
+
+  /**
+   * Admin endpoint to resume a failed game.
+   * Unlike handlePunt, this explicitly allows resuming games marked as 'failed'.
+   * The game will resume from the last R2 checkpoint.
+   */
+  private async handleResume(): Promise<Response> {
+    try {
+      const state = await this.loadState();
+      
+      // Allow resuming 'failed' games (primary use case) or 'running' games (stuck)
+      if (state.status === 'idle') {
+        return Response.json({ 
+          success: false, 
+          reason: 'Game is idle/not initialized' 
+        }, { status: 400 });
+      }
+      
+      if (state.status === 'completed') {
+        return Response.json({ 
+          success: false, 
+          reason: 'Game is already completed' 
+        }, { status: 400 });
+      }
+      
+      // Get config to attempt resume
+      const config = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
+      if (!config || !state.gameId || !state.batchId) {
+        return Response.json({ 
+          success: false, 
+          reason: 'Missing config or game identifiers' 
+        }, { status: 500 });
+      }
+
+      this.log.info('Manual resume requested', { 
+        gameId: state.gameId, 
+        previousStatus: state.status,
+        previousError: state.error 
+      });
+
+      // Reset state to running (clears error)
+      await this.saveState({
+        status: 'running',
+        error: null,
+        lastActivity: Date.now(),
+        heartbeat: Date.now()
+      });
+
+      // Update D1 to reflect running state
+      await this.updateGameStatus(state.gameId, 'running', undefined);
+
+      // Prevent concurrent execution if it was somehow already running
+      if (this.isResuming) {
+        return Response.json({ 
+          success: true, 
+          message: 'Resume already in progress',
+          gameId: state.gameId 
+        });
+      }
+
+      this.isResuming = true;
+      this.lastResumeTime = Date.now();
+      
+      const gameConfig = this.toGameConfig(config, state.seed || 0);
+
+      // Trigger execution in background
+      this.ctx.waitUntil(
+        this.runGameWithErrorHandling(state.gameId, state.batchId, gameConfig)
+          .finally(() => {
+            this.isResuming = false;
+          })
+      );
+
+      return Response.json({ 
+        success: true, 
+        message: 'Game resumed from last checkpoint',
+        gameId: state.gameId,
+        previousStatus: state.status,
+        previousError: state.error,
+      });
+
+    } catch (error) {
+      logErrorWithStack(this.log, 'Failed to resume game', error);
+      return Response.json(
+        { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
         { status: 500 }
       );
     }

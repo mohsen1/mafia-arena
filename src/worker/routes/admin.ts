@@ -429,6 +429,146 @@ admin.post('/games/run-live', async (c) => {
 admin.get('/games/running', getRunningGamesCount);
 
 /**
+ * GET /api/admin/games/failed - List failed games with error reasons.
+ */
+admin.get('/games/failed', async (c) => {
+  const db = createDb(c.env.DB);
+  const url = new URL(c.req.url);
+  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 100);
+  const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+
+  // Fetch failed games with participants
+  const failedGames = await db
+    .select({
+      id: schema.games.id,
+      batchId: schema.games.batchId,
+      rounds: schema.games.rounds,
+      errorMessage: schema.games.errorMessage,
+      playerCount: schema.games.playerCount,
+      mafiaCount: schema.games.mafiaCount,
+      createdAt: schema.games.createdAt,
+      updatedAt: schema.games.updatedAt,
+      lastActivity: schema.games.lastActivity,
+      personaTheme: schema.games.personaTheme,
+    })
+    .from(schema.games)
+    .where(eq(schema.games.status, 'failed'))
+    .orderBy(desc(schema.games.updatedAt))
+    .limit(limit)
+    .offset(offset);
+
+  // Get total count
+  const countResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.games)
+    .where(eq(schema.games.status, 'failed'));
+  
+  const total = countResult[0]?.count ?? 0;
+
+  // Categorize errors for quick filtering
+  const categorizedGames = failedGames.map(game => {
+    const error = game.errorMessage ?? '';
+    let category: 'rate_limit' | 'timeout' | 'auth' | 'model_error' | 'network' | 'unknown';
+    let recoverable = false;
+
+    if (/rate.?limit|429|quota/i.test(error)) {
+      category = 'rate_limit';
+      recoverable = true;
+    } else if (/timeout|504|502|timed? out/i.test(error)) {
+      category = 'timeout';
+      recoverable = true;
+    } else if (/auth|401|403|invalid.*key|api.?key/i.test(error)) {
+      category = 'auth';
+      recoverable = false;
+    } else if (/network|connection|ECONNREFUSED|ENOTFOUND/i.test(error)) {
+      category = 'network';
+      recoverable = true;
+    } else if (/model.*not.*found|404|context.*length|invalid.*model/i.test(error)) {
+      category = 'model_error';
+      recoverable = false;
+    } else {
+      category = 'unknown';
+      recoverable = true; // Give benefit of the doubt
+    }
+
+    return {
+      ...game,
+      errorCategory: category,
+      recoverable,
+    };
+  });
+
+  return c.json({
+    games: categorizedGames,
+    total,
+    hasMore: offset + limit < total,
+    summary: {
+      total,
+      byCategory: {
+        rate_limit: categorizedGames.filter(g => g.errorCategory === 'rate_limit').length,
+        timeout: categorizedGames.filter(g => g.errorCategory === 'timeout').length,
+        auth: categorizedGames.filter(g => g.errorCategory === 'auth').length,
+        model_error: categorizedGames.filter(g => g.errorCategory === 'model_error').length,
+        network: categorizedGames.filter(g => g.errorCategory === 'network').length,
+        unknown: categorizedGames.filter(g => g.errorCategory === 'unknown').length,
+      },
+      recoverable: categorizedGames.filter(g => g.recoverable).length,
+    },
+  });
+});
+
+/**
+ * POST /api/admin/games/:id/resume - Resume a failed game from last checkpoint.
+ */
+admin.post('/games/:id/resume', async (c) => {
+  const env = c.env;
+  const db = createDb(env.DB);
+  const gameId = c.req.param('id');
+
+  // 1. Verify game exists and is failed
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+  });
+
+  if (!game) {
+    throw Errors.NotFound('Game');
+  }
+
+  if (game.status !== 'failed') {
+    throw Errors.BadRequest(`Game status is "${game.status}", not "failed". Cannot resume.`);
+  }
+
+  // 2. Contact the Durable Object to resume
+  const doId = env.GAME_RUNNER.idFromName(gameId);
+  const stub = env.GAME_RUNNER.get(doId);
+
+  const response = await stub.fetch('http://internal/resume', {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const error = await response.json() as { error?: string; reason?: string };
+    const message = error.error || error.reason || 'Durable Object failed to resume game';
+    throw Errors.Internal(message);
+  }
+
+  const result = await response.json() as { 
+    success: boolean; 
+    message: string; 
+    gameId: string;
+    previousStatus?: string;
+    previousError?: string;
+  };
+
+  return c.json({
+    success: true,
+    gameId,
+    message: result.message,
+    previousError: game.errorMessage,
+  });
+});
+
+/**
  * POST /api/admin/games/kill-hanging - Kill all hanging games.
  * Marks games that have been "running" for >10 minutes as failed.
  */

@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Key,
   Loader2,
+  XCircle,
 } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
@@ -46,6 +47,11 @@ interface RunningGames {
   stale: number;
 }
 
+interface FailedGamesCount {
+  total: number;
+  recoverable: number;
+}
+
 const STATUS_COLORS: Record<string, { light: string; dark: string }> = {
   queued: { light: "text-amber-600", dark: "dark:text-amber-400" },
   processing: { light: "text-blue-600", dark: "dark:text-blue-400" },
@@ -61,6 +67,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<LiveStats | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [staleCount, setStaleCount] = useState(0);
+  const [failedGames, setFailedGames] = useState<FailedGamesCount>({ total: 0, recoverable: 0 });
   const [syncing, setSyncing] = useState(false);
   const [killing, setKilling] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -116,8 +123,9 @@ export default function AdminDashboard() {
       setStats(statsData);
       setBatches(batchesData.batches);
 
-      // Load running games count
+      // Load running games count and failed games count
       loadRunningGames(headers);
+      loadFailedGames(headers);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -134,6 +142,19 @@ export default function AdminDashboard() {
       if (res.ok) {
         const data = (await res.json()) as RunningGames;
         setStaleCount(data.stale);
+      }
+    } catch {}
+  }
+
+  async function loadFailedGames(headers: Record<string, string>) {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/games/failed?limit=1`, {
+        headers,
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { summary: FailedGamesCount };
+        setFailedGames(data.summary);
       }
     } catch {}
   }
@@ -345,6 +366,22 @@ export default function AdminDashboard() {
         >
           <Key size={14} className="text-muted-foreground" />
           <span>API Keys</span>
+        </Link>
+        <Link 
+          to="/admin/games/failed"
+          className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+            failedGames.total > 0 
+              ? "text-red-600 dark:text-red-400 hover:bg-red-500/10" 
+              : "hover:bg-muted"
+          }`}
+        >
+          <XCircle size={14} className={failedGames.total > 0 ? "" : "text-muted-foreground"} />
+          <span>Failed Games</span>
+          {failedGames.total > 0 && (
+            <span className="px-1.5 py-0.5 rounded text-xs font-bold tabular-nums bg-red-500 text-white">
+              {failedGames.total}
+            </span>
+          )}
         </Link>
 
         <div className="flex-1"></div>
