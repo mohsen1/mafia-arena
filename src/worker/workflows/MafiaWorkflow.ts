@@ -310,10 +310,18 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
     state = state.withEvent(gameEndEvent);
 
     await step.do('persist-results', async () => {
-      // Save transcript to R2
+      // Save transcript to R2 (wrapped in object for frontend compatibility)
+      const transcript = {
+        gameId: this.gameId,
+        winner,
+        rounds: state.round,
+        events: state.events,
+        durationMs,
+        timestamp: Date.now(),
+      };
       await this.env.TRANSCRIPTS.put(
         `games/${this.gameId}/transcript.json`,
-        JSON.stringify(state.events, null, 2),
+        JSON.stringify(transcript, null, 2),
         { customMetadata: { gameId: this.gameId, winner, rounds: String(state.round) } }
       );
 
