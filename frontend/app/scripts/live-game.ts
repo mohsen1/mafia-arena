@@ -716,7 +716,73 @@ function renderTranscript(state: LiveGameState): void {
 
   const validEvents = state.events.filter(e => e.type !== 'persona_generation' && e.phase && e.phase !== 'other');
 
+  // Count persona generation events to show character generation progress
+  const personaEvents = state.events.filter(e => e.type === 'persona_generation');
+  const totalPlayers = Object.keys(state.playerMap).length || 11; // Default to 11 if unknown
+
   if (validEvents.length === 0) {
+    // Show character generation progress during intro phase
+    if (personaEvents.length > 0) {
+      const players = Object.values(state.playerMap);
+      container.innerHTML = `
+        <div class="px-3 py-6 space-y-4">
+          <div class="text-center">
+            <div class="text-sm font-medium text-muted-foreground mb-2">Generating characters...</div>
+            <div class="text-xs text-muted-foreground/70">${personaEvents.length}/${totalPlayers} personas created</div>
+          </div>
+          <div class="space-y-2">
+            ${players.map(p => {
+              const hasPersona = p.persona?.name;
+              const isMafia = p.team === 'mafia';
+              const teamColor = isMafia ? 'rose' : 'indigo';
+              const dotColor = isMafia ? 'bg-rose-500' : 'bg-indigo-500';
+              const textColor = isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400';
+              
+              if (hasPersona) {
+                return `
+                  <div class="flex items-center gap-2 px-2 py-1.5 rounded bg-${teamColor}-500/5 border border-${teamColor}-500/10">
+                    <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
+                    <span class="text-xs font-medium ${textColor}">${escapeHtml(p.persona?.name || p.playerName)}</span>
+                    <span class="text-[10px] text-muted-foreground/50 ml-auto">${getShortModelName(p.modelId)}</span>
+                  </div>
+                `;
+              } else {
+                return `
+                  <div class="flex items-center gap-2 px-2 py-1.5 rounded bg-muted/50 border border-border/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 animate-pulse"></span>
+                    <span class="text-xs text-muted-foreground/70 italic">Generating...</span>
+                    <span class="text-[10px] text-muted-foreground/30 ml-auto">${getShortModelName(p.modelId)}</span>
+                  </div>
+                `;
+              }
+            }).join('')}
+          </div>
+        </div>
+      `;
+      return;
+    }
+    
+    // Default waiting state with thinking indicator if available
+    if (state.thinkingState) {
+      const player = state.playerMap[state.thinkingState.playerId];
+      const playerName = player?.playerName || state.thinkingState.playerId;
+      const modelName = getShortModelName(player?.modelId);
+      container.innerHTML = `
+        <div class="px-3 py-8 text-center text-muted-foreground">
+          <div class="inline-flex items-center gap-2">
+            <span>${escapeHtml(playerName)}</span>
+            <span class="text-muted-foreground/50 text-xs">${modelName}</span>
+            <span class="flex gap-0.5">
+              <span class="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style="animation-delay: 0s"></span>
+              <span class="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+              <span class="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </span>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    
     container.innerHTML = '<div class="px-3 py-8 text-center text-muted-foreground">Waiting for events...</div>';
     return;
   }
