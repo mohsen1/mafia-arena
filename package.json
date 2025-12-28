@@ -11,7 +11,7 @@
     "build:frontend": "pnpm --dir frontend build",
     "deploy": "pnpm deploy:worker && pnpm deploy:frontend",
     "deploy:worker": "wrangler deploy",
-    "deploy:frontend": "pnpm --dir frontend build && wrangler pages deploy frontend/dist --project-name=mafia-arena-frontend",
+    "deploy:frontend": "pnpm --dir frontend run deploy",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run --config vitest.workers.config.ts",
