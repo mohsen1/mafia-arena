@@ -179,13 +179,19 @@ export class GoogleAIProvider implements AIProviderInterface {
     console.error(`[GoogleAI] Error ${status} for model ${this.googleModelName}:`, JSON.stringify(body));
 
     // Check for billing/quota errors (non-retryable) before 429
+    // Extract a user-friendly message from the full API response
     if (
       status === 402 ||
       lowercaseMessage.includes('billing') ||
       lowercaseMessage.includes('quota exceeded') ||
       lowercaseMessage.includes('has not enabled billing')
     ) {
-      throw AIErrors.authError(`${this.name} (Billing): ${message}`);
+      // Check if quota limit is 0 (model not available on this tier)
+      const isZeroQuota = message.includes('limit: 0');
+      const userMessage = isZeroQuota
+        ? `Model ${this.modelId} is not available on the current API tier (quota: 0). Try a different model like gemini-2.5-flash.`
+        : `Quota exceeded for ${this.modelId}. Please check your API billing or try again later.`;
+      throw AIErrors.authError(userMessage);
     }
 
     if (status === 429) {
@@ -194,7 +200,10 @@ export class GoogleAIProvider implements AIProviderInterface {
     }
 
     if (status === 401 || status === 403) {
-      throw AIErrors.authError(`${this.name}: ${message}`);
+      const userMessage = status === 401 
+        ? `Invalid API key for ${this.name}. Please check your Google AI API key.`
+        : `Access denied for ${this.modelId}. Your API key may not have access to this model.`;
+      throw AIErrors.authError(userMessage);
     }
 
     if (status === 400) {

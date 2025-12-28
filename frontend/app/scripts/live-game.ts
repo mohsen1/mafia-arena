@@ -732,12 +732,92 @@ function showGameEnd(winner: 'mafia' | 'town'): void {
   el.classList.remove('hidden');
 }
 
+/**
+ * Format error message for user display.
+ * Categorizes errors and provides helpful context.
+ */
+function formatErrorForUser(rawError: string): { title: string; message: string; suggestion?: string } {
+  const error = rawError.toLowerCase();
+  
+  // Quota/billing errors
+  if (error.includes('quota') || error.includes('billing') || error.includes('limit: 0')) {
+    return {
+      title: 'Model Not Available',
+      message: rawError,
+      suggestion: 'Try starting a new game with a different model (e.g., Gemini 2.5 Flash).',
+    };
+  }
+  
+  // Authentication errors
+  if (error.includes('api key') || error.includes('invalid api') || error.includes('access denied')) {
+    return {
+      title: 'API Key Issue',
+      message: rawError,
+      suggestion: 'Check your API key configuration in settings.',
+    };
+  }
+  
+  // Model not found
+  if (error.includes('not found') || error.includes('unsupported') || error.includes('not supported')) {
+    return {
+      title: 'Model Unavailable',
+      message: rawError,
+      suggestion: 'This model may have been deprecated. Try a different model.',
+    };
+  }
+  
+  // Timeout
+  if (error.includes('timeout') || error.includes('timed out')) {
+    return {
+      title: 'AI Timeout',
+      message: rawError,
+      suggestion: 'The AI provider took too long to respond. This is usually temporary.',
+    };
+  }
+  
+  // Network errors
+  if (error.includes('network') || error.includes('fetch') || error.includes('connection')) {
+    return {
+      title: 'Connection Error',
+      message: rawError,
+      suggestion: 'Check your internet connection and try again.',
+    };
+  }
+  
+  // Persistence errors (from our fix)
+  if (error.includes('persistence failure') || error.includes('checkpoint')) {
+    return {
+      title: 'Internal Error',
+      message: 'Failed to save game state.',
+      suggestion: 'This is a temporary infrastructure issue. Please try again.',
+    };
+  }
+  
+  // Default
+  return {
+    title: 'Game Failed',
+    message: rawError || 'An unexpected error occurred.',
+  };
+}
+
 function showError(errorMessage: string): void {
   const banner = document.getElementById('error-banner');
   const messageEl = document.getElementById('error-message');
   if (!banner || !messageEl) return;
 
-  messageEl.textContent = errorMessage || 'An unknown error occurred';
+  const formatted = formatErrorForUser(errorMessage);
+  
+  // Update error title if element exists
+  const titleEl = banner.querySelector('.error-title');
+  if (titleEl) {
+    titleEl.textContent = formatted.title;
+  }
+  
+  // Show formatted message with suggestion
+  messageEl.innerHTML = `
+    <div>${escapeHtml(formatted.message)}</div>
+    ${formatted.suggestion ? `<div class="mt-1 text-[11px] opacity-70">${escapeHtml(formatted.suggestion)}</div>` : ''}
+  `;
   banner.classList.remove('hidden');
 
   // Hide warning banner if showing

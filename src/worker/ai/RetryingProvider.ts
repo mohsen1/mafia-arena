@@ -46,7 +46,13 @@ export class RetryingProvider implements AIProviderInterface {
         attempts++;
 
         // Check if we should retry
-        if (attempts > this.config.maxRetries || !isRetryableError(error)) {
+        const shouldRetry = isRetryableError(error);
+        if (attempts > this.config.maxRetries || !shouldRetry) {
+          // For non-retryable errors, re-throw immediately with original message
+          // This preserves important info like "quota exceeded" or "model not found"
+          if (!shouldRetry) {
+            throw lastError;
+          }
           break;
         }
 

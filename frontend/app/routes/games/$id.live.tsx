@@ -129,8 +129,8 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
 
       {/* Error Banner */}
       <div id="error-banner" className="hidden rounded-lg border border-rose-500/30 bg-rose-500/10 p-4">
-        <div className="text-sm font-semibold text-rose-600 dark:text-rose-400">Game Failed</div>
-        <div id="error-message" className="text-xs text-rose-600/80 dark:text-rose-400/80"></div>
+        <div className="error-title text-sm font-semibold text-rose-600 dark:text-rose-400">Game Failed</div>
+        <div id="error-message" className="text-xs text-rose-600/80 dark:text-rose-400/80 mt-1"></div>
       </div>
 
       {/* Players Section */}
