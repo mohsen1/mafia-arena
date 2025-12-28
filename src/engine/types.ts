@@ -320,6 +320,8 @@ export type GameEvent =
   | PhaseEndEvent
   | AICallEvent
   | PersonaGenerationEvent
+  | PersonaGenerationStartEvent
+  | PersonaGenerationProgressEvent
   | IntroductionEvent
   | DiscussionEvent
   | VoteEvent
@@ -374,6 +376,29 @@ export interface PersonaGenerationEvent {
   readonly playerId: string;
   readonly playerName: string;
   readonly persona: Persona;
+  readonly timestamp: number;
+}
+
+/**
+ * Emitted when persona generation begins for all players.
+ * Allows UI to show "Generating personas..." state.
+ */
+export interface PersonaGenerationStartEvent {
+  readonly type: 'persona_generation_start';
+  readonly playerCount: number;
+  readonly timestamp: number;
+}
+
+/**
+ * Emitted after each persona is generated.
+ * Allows UI to show progress like "3/7 personas generated".
+ */
+export interface PersonaGenerationProgressEvent {
+  readonly type: 'persona_generation_progress';
+  readonly completed: number;
+  readonly total: number;
+  readonly playerId: string;
+  readonly playerName: string;
   readonly timestamp: number;
 }
 

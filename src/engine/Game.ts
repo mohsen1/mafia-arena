@@ -90,6 +90,27 @@ export class Game {
   }
 
   /**
+   * Creates a callback that captures full state during phase execution.
+   * 
+   * This is critical for the suspend/resume pattern: when SuspenseError interrupts
+   * a phase, we need Game.state to contain all progress made so far, including
+   * conversation history, personas, and elimination status - not just events.
+   * 
+   * Without this, checkpoints would save stale state, causing infinite loops
+   * and lost context on resume.
+   */
+  private createPhaseStateUpdater(): (event: GameEvent, newState: GameState) => Promise<void> {
+    return async (event: GameEvent, newState: GameState) => {
+      // Capture FULL state including conversation history, personas, eliminations
+      this.state = newState;
+      // Stream event to WebSocket listeners
+      if (this.onEvent) {
+        await this.onEvent(event);
+      }
+    };
+  }
+
+  /**
    * Run the game to completion.
    * Returns the final game result with all events and statistics.
    * 
@@ -117,8 +138,14 @@ export class Game {
     // Introduction Phase - Players introduce themselves (runs once)
     // Skip if resuming and introduction already completed
     if (!this.isResuming || !this.hasCompletedIntroduction()) {
-      const introResult = await executeIntroductionPhase(this.state, this.aiProvider);
-      await this.updateStateAndEmitEvents(introResult.state);
+      // Use state updater to capture progress during persona generation
+      const introResult = await executeIntroductionPhase(
+        this.state,
+        this.aiProvider,
+        this.createPhaseStateUpdater()
+      );
+      // Final sync (state already updated via callback during phase)
+      this.state = introResult.state;
       await this.checkpoint();
     }
 
@@ -134,17 +161,21 @@ export class Game {
         const discussionResult = await executeDiscussionPhase(
           this.state,
           this.aiProvider,
-          this.onEvent // Pass callback for real-time streaming
+          this.createPhaseStateUpdater() // Use state updater for checkpoint safety
         );
-        // Only sync state (events already emitted by phase)
+        // Final sync (state already updated via callback during phase)
         this.state = discussionResult.state;
         await this.checkpoint();
       }
 
       // Day Vote Phase - Town votes to eliminate a suspect
       if (startPhase !== 'night') {
-        const voteResult = await executeVotePhase(this.state, this.aiProvider, this.onEvent);
-        // Only sync state (events already emitted by phase)
+        const voteResult = await executeVotePhase(
+          this.state,
+          this.aiProvider,
+          this.createPhaseStateUpdater() // Use state updater for checkpoint safety
+        );
+        // Final sync (state already updated via callback during phase)
         this.state = voteResult.state;
         await this.checkpoint();
 
@@ -156,8 +187,12 @@ export class Game {
       }
 
       // Night Phase - Mafia kills a town member
-      const nightResult = await executeNightPhase(this.state, this.aiProvider, this.onEvent);
-      // Only sync state (events already emitted by phase)
+      const nightResult = await executeNightPhase(
+        this.state,
+        this.aiProvider,
+        this.createPhaseStateUpdater() // Use state updater for checkpoint safety
+      );
+      // Final sync (state already updated via callback during phase)
       this.state = nightResult.state;
       await this.checkpoint();
 
@@ -236,23 +271,6 @@ export class Game {
   private async checkpoint(): Promise<void> {
     if (this.onPhaseComplete) {
       await this.onPhaseComplete(this.state.serialize());
-    }
-  }
-
-  /**
-   * Update state and emit any new events to live listeners.
-   */
-  private async updateStateAndEmitEvents(newState: GameState): Promise<void> {
-    const previousEventCount = this.state.events.length;
-    const newEvents = newState.events.slice(previousEventCount);
-    
-    this.state = newState;
-    
-    // Emit new events to live listeners
-    if (this.onEvent) {
-      for (const event of newEvents) {
-        await this.onEvent(event);
-      }
     }
   }
 

@@ -8,7 +8,7 @@ Ask Gemini 2.5 Pro (1M context) a question about the codebase with full context.
 
 ## How It Works
 
-This command uses `yek` to serialize up to 800k tokens of the codebase and sends it to Gemini 2.5 Pro for analysis. The model has the full context of relevant directories and can answer complex architectural questions.
+This command uses `yek` to serialize up to 800k tokens of the codebase and sends it to Gemini 3 Pro for analysis. The model has the full context of relevant directories and can answer complex architectural questions.
 
 ## Instructions
 

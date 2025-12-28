@@ -28,27 +28,30 @@ export interface DiscussionPhaseResult {
   readonly messages: readonly ConversationMessage[];
 }
 
-/** Optional callback for streaming events during phase execution */
-export type PhaseEventCallback = (event: GameEvent) => void | Promise<void>;
+/**
+ * Callback for phase state updates - receives both event and full state.
+ * This ensures Game.state is always up-to-date, even if SuspenseError interrupts.
+ */
+export type PhaseStateCallback = (event: GameEvent, state: GameState) => Promise<void>;
 
 /**
  * Execute the discussion phase.
  * Each alive player shares their thoughts across multiple discussion rounds.
- * @param onEvent Optional callback to stream events in real-time
+ * @param onStateUpdate Optional callback to capture state and stream events in real-time
  */
 export async function executeDiscussionPhase(
   initialState: GameState,
   aiProvider: AIProvider,
-  onEvent?: PhaseEventCallback
+  onStateUpdate?: PhaseStateCallback
 ): Promise<DiscussionPhaseResult> {
   let state = initialState.withPhase('day_discussion');
   const messages: ConversationMessage[] = [];
 
-  // Helper to add event to state and optionally emit it
+  // Helper to add event to state AND sync with Game.state for checkpoint safety
   const emitEvent = async (event: GameEvent): Promise<void> => {
     state = state.withEvent(event);
-    if (onEvent) {
-      await onEvent(event);
+    if (onStateUpdate) {
+      await onStateUpdate(event, state); // Pass BOTH event and full state
     }
   };
 

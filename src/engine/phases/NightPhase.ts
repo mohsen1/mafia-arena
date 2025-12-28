@@ -32,8 +32,11 @@ export interface NightPhaseResult {
   readonly killed: Player | null;
 }
 
-/** Optional callback for streaming events during phase execution */
-export type PhaseEventCallback = (event: GameEvent) => void | Promise<void>;
+/**
+ * Callback for phase state updates - receives both event and full state.
+ * This ensures Game.state is always up-to-date, even if SuspenseError interrupts.
+ */
+export type PhaseStateCallback = (event: GameEvent, state: GameState) => Promise<void>;
 
 /**
  * Execute the mafia private discussion sub-phase.
@@ -43,7 +46,7 @@ async function executeMafiaDiscussion(
   initialState: GameState,
   aiProvider: AIProvider,
   numRounds: number,
-  emitEvent: (event: GameEvent) => Promise<void>
+  emitEvent: (event: GameEvent, state: GameState) => Promise<void>
 ): Promise<GameState> {
   let state = initialState;
   const mafiaPlayers = state.aliveMafia;
@@ -120,7 +123,7 @@ async function executeMafiaDiscussion(
         timestamp: Date.now(),
       };
       state = state.withEvent(aiCallEvent);
-      await emitEvent(aiCallEvent);
+      await emitEvent(aiCallEvent, state);
 
       // Record the discussion message (mafia channel)
       if (response.action.type === 'mafia_discussion' || response.action.type === 'discussion') {
@@ -150,7 +153,7 @@ async function executeMafiaDiscussion(
           discussionRound,
         };
         state = state.withEvent(discussionEvent);
-        await emitEvent(discussionEvent);
+        await emitEvent(discussionEvent, state);
       }
     }
   }
@@ -161,22 +164,22 @@ async function executeMafiaDiscussion(
 /**
  * Execute the night phase.
  * Mafia members discuss strategy privately, then vote to kill a Town member.
- * @param onEvent Optional callback to stream events in real-time
+ * @param onStateUpdate Optional callback to capture state and stream events in real-time
  */
 export async function executeNightPhase(
   initialState: GameState,
   aiProvider: AIProvider,
-  onEvent?: PhaseEventCallback
+  onStateUpdate?: PhaseStateCallback
 ): Promise<NightPhaseResult> {
   let state = initialState;
   const mafiaPlayers = state.aliveMafia;
   const votes = new Map<string, string>();
 
-  // Helper to add event to state and optionally emit it
+  // Helper to add event to state AND sync with Game.state for checkpoint safety
   const emitEvent = async (event: GameEvent): Promise<void> => {
     state = state.withEvent(event);
-    if (onEvent) {
-      await onEvent(event);
+    if (onStateUpdate) {
+      await onStateUpdate(event, state); // Pass BOTH event and full state
     }
   };
 
@@ -201,9 +204,10 @@ export async function executeNightPhase(
   // === MAFIA DISCUSSION SUB-PHASE ===
   const numDiscussionRounds = state.config.nightDiscussionRounds ?? DEFAULT_NIGHT_DISCUSSION_ROUNDS;
   if (numDiscussionRounds > 0 && mafiaPlayers.length > 1) {
-    // Note: executeMafiaDiscussion manages its own state, we pass emitEvent for streaming
-    state = await executeMafiaDiscussion(state, aiProvider, numDiscussionRounds, async (event) => {
-      if (onEvent) await onEvent(event);
+    // Pass emitEvent wrapper that also syncs state back to Game.state
+    state = await executeMafiaDiscussion(state, aiProvider, numDiscussionRounds, async (event, newState) => {
+      state = newState; // Keep local state in sync
+      if (onStateUpdate) await onStateUpdate(event, newState);
     });
   }
 

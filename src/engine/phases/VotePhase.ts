@@ -28,28 +28,31 @@ export interface VotePhaseResult {
   readonly votes: ReadonlyMap<string, string | null>;
 }
 
-/** Optional callback for streaming events during phase execution */
-export type PhaseEventCallback = (event: GameEvent) => void | Promise<void>;
+/**
+ * Callback for phase state updates - receives both event and full state.
+ * This ensures Game.state is always up-to-date, even if SuspenseError interrupts.
+ */
+export type PhaseStateCallback = (event: GameEvent, state: GameState) => Promise<void>;
 
 /**
  * Execute the voting phase.
  * Each alive player votes to eliminate someone.
- * @param onEvent Optional callback to stream events in real-time
+ * @param onStateUpdate Optional callback to capture state and stream events in real-time
  */
 export async function executeVotePhase(
   initialState: GameState,
   aiProvider: AIProvider,
-  onEvent?: PhaseEventCallback
+  onStateUpdate?: PhaseStateCallback
 ): Promise<VotePhaseResult> {
   let state = initialState.withPhase('day_vote');
   const alivePlayers = state.alivePlayers;
   const votes = new Map<string, string | null>();
 
-  // Helper to add event to state and optionally emit it
+  // Helper to add event to state AND sync with Game.state for checkpoint safety
   const emitEvent = async (event: GameEvent): Promise<void> => {
     state = state.withEvent(event);
-    if (onEvent) {
-      await onEvent(event);
+    if (onStateUpdate) {
+      await onStateUpdate(event, state); // Pass BOTH event and full state
     }
   };
 

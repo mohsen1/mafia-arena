@@ -9,15 +9,24 @@ import type {
   AICallEvent,
   IntroductionEvent,
   PersonaGenerationEvent,
+  PersonaGenerationStartEvent,
+  PersonaGenerationProgressEvent,
   PhaseEndEvent,
   ConversationMessage,
   Player,
+  GameEvent,
 } from '../types.js';
 import { getVisibleState } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS, PERSONA_PROMPTS } from '../utils/prompts.js';
 import { sanitizePersona } from '../utils/sanitize.js';
 import { getUniqueAssignments } from '../utils/game-presets.js';
 import { ensurePhaseStart } from '../utils/idempotency.js';
+
+/**
+ * Callback for phase state updates - receives both event and full state.
+ * This ensures Game.state is always up-to-date, even if SuspenseError interrupts.
+ */
+export type PhaseStateCallback = (event: GameEvent, state: GameState) => Promise<void>;
 
 export interface IntroductionPhaseResult {
   readonly state: GameState;
@@ -32,11 +41,14 @@ export interface IntroductionPhaseResult {
  * - Unique names (no "Vesper-2" duplicates)
  * - Diverse personalities (prevents "Analytical Phalanx")
  * - Consistent character development
+ * 
+ * @param emitEvent Callback to sync state with Game.state and stream events
  */
 async function generatePersonas(
   initialState: GameState,
   aiProvider: AIProvider,
-  players: readonly Player[]
+  players: readonly Player[],
+  emitEvent: (event: GameEvent, state: GameState) => Promise<void>
 ): Promise<GameState> {
   let state = initialState;
   const personaConstraints = state.config.personaConstraints ?? 'moderate';
@@ -45,6 +57,15 @@ async function generatePersonas(
 
   // Pre-assign unique names and archetypes using seeded RNG for reproducibility
   const assignments = getUniqueAssignments(playerCount, personaTheme, state.rng);
+
+  // Emit persona generation start event for UI progress tracking
+  const startEvent: PersonaGenerationStartEvent = {
+    type: 'persona_generation_start',
+    playerCount,
+    timestamp: Date.now(),
+  };
+  state = state.withEvent(startEvent);
+  await emitEvent(startEvent, state);
 
   // Generate all persona requests in parallel
   const personaPromises = players.map(async (player, index) => {
@@ -85,13 +106,14 @@ async function generatePersonas(
       }
     );
 
-    return { player, response, systemPrompt, userPrompt, assignment };
+    return { player, response, systemPrompt, userPrompt, assignment, index };
   });
 
   // Wait for all persona generations to complete
   const results = await Promise.all(personaPromises);
 
   // Process results sequentially to maintain state consistency
+  let completedCount = 0;
   for (const { player, response, systemPrompt, userPrompt, assignment } of results) {
     // Record the AI call event
     const aiCallEvent: AICallEvent = {
@@ -116,6 +138,7 @@ async function generatePersonas(
       timestamp: Date.now(),
     };
     state = state.withEvent(aiCallEvent);
+    await emitEvent(aiCallEvent, state);
 
     // Parse and store the persona
     // Note: GameAIAdapter guarantees persona_generation type via zod validation
@@ -148,6 +171,20 @@ async function generatePersonas(
         timestamp: Date.now(),
       };
       state = state.withEvent(personaEvent);
+      await emitEvent(personaEvent, state);
+
+      // Emit progress event for UI
+      completedCount++;
+      const progressEvent: PersonaGenerationProgressEvent = {
+        type: 'persona_generation_progress',
+        completed: completedCount,
+        total: playerCount,
+        playerId: player.id,
+        playerName: persona.name,
+        timestamp: Date.now(),
+      };
+      state = state.withEvent(progressEvent);
+      await emitEvent(progressEvent, state);
     }
   }
 
@@ -157,10 +194,12 @@ async function generatePersonas(
 /**
  * Execute the introduction phase.
  * Each player introduces themselves at the start of the game.
+ * @param onStateUpdate Optional callback to capture state and stream events in real-time
  */
 export async function executeIntroductionPhase(
   initialState: GameState,
-  aiProvider: AIProvider
+  aiProvider: AIProvider,
+  onStateUpdate?: PhaseStateCallback
 ): Promise<IntroductionPhaseResult> {
   let state = initialState.withPhase('introduction');
   // Use seeded RNG for reproducible player order
@@ -168,16 +207,22 @@ export async function executeIntroductionPhase(
   const messages: ConversationMessage[] = [];
   const playerCount = alivePlayers.length;
 
-  // Helper to emit events (Introduction phase doesn't stream, so just adds to state)
-  const emitEvent = async (event: import('../types.js').GameEvent): Promise<void> => {
+  // Helper to add event to state AND sync with Game.state for checkpoint safety
+  const emitEvent = async (event: GameEvent): Promise<void> => {
     state = state.withEvent(event);
+    if (onStateUpdate) {
+      await onStateUpdate(event, state); // Pass BOTH event and full state
+    }
   };
 
   // Idempotent phase start - only emits if not already emitted
   await ensurePhaseStart(state, 'introduction', emitEvent);
 
-  // Generate personas for all players
-  state = await generatePersonas(state, aiProvider, alivePlayers);
+  // Generate personas for all players (now with state sync callback)
+  state = await generatePersonas(state, aiProvider, alivePlayers, async (event, newState) => {
+    state = newState; // Keep local state in sync
+    if (onStateUpdate) await onStateUpdate(event, newState);
+  });
 
   // Re-fetch players after persona generation (names may have changed)
   const playersForIntro = alivePlayers.map(p => state.getPlayer(p.id)!).filter(Boolean);
@@ -251,6 +296,7 @@ export async function executeIntroductionPhase(
       timestamp: Date.now(),
     };
     state = state.withEvent(aiCallEvent);
+    if (onStateUpdate) await onStateUpdate(aiCallEvent, state);
 
     // Extract and record the introduction message
     if (response.action.type === 'introduction') {
@@ -273,6 +319,7 @@ export async function executeIntroductionPhase(
         timestamp: Date.now(),
       };
       state = state.withEvent(introductionEvent);
+      if (onStateUpdate) await onStateUpdate(introductionEvent, state);
     }
   }
 
@@ -284,6 +331,7 @@ export async function executeIntroductionPhase(
     timestamp: Date.now(),
   };
   state = state.withEvent(phaseEndEvent);
+  if (onStateUpdate) await onStateUpdate(phaseEndEvent, state);
 
   return { state, messages };
 }
