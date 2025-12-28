@@ -53,6 +53,10 @@ const STORAGE_KEYS = {
   AI_RESPONSES: 'aiResponses',
   /** Reason game is suspended (waiting for AI) - helps debug stuck games */
   SUSPENSE_REASON: 'suspenseReason',
+  /** When game started waiting for current AI call (for per-call timeout) */
+  SUSPENSE_STARTED_AT: 'suspenseStartedAt',
+  /** Persistent event count (survives DO restart, used by health check) */
+  PERSISTED_EVENT_COUNT: 'persistedEventCount',
   /** Encrypted user API keys - persisted to survive DO eviction */
   USER_KEYS_ENCRYPTED: 'userKeysEncrypted',
 } as const;
@@ -98,6 +102,13 @@ const STALE_THRESHOLD_MS = {
 
 /** Max length for action messages in stripped events */
 const MAX_ACTION_MESSAGE_LENGTH = 200;
+
+/** 
+ * Max events to keep in memory for WebSocket streaming.
+ * Full event log is persisted to R2. This cap prevents hitting the 128MB DO memory limit.
+ * 500 events * ~5KB average = ~2.5MB which is safe.
+ */
+const MAX_IN_MEMORY_EVENTS = 500;
 
 /**
  * Truncate a string to max length, adding ellipsis if truncated.
@@ -176,6 +187,10 @@ interface GameRunnerState {
   currentRound: number | null;
   /** Reason game is suspended - helps identify which model/player is blocking */
   suspenseReason: string | null;
+  /** When game started waiting for current AI call (for per-call timeout) */
+  suspenseStartedAt: number | null;
+  /** Persistent event count for health checks (survives DO restart) */
+  persistedEventCount: number;
 }
 
 /** WebSocket message types for live streaming */
@@ -190,6 +205,16 @@ interface WsMessage {
   startedAt?: number | undefined;
   /** Duration in ms for failed/completed games */
   durationMs?: number | undefined;
+  /** Current suspense reason - which model/player game is waiting for */
+  suspenseReason?: string | null | undefined;
+  /** When game started waiting for current AI call */
+  suspenseStartedAt?: number | null | undefined;
+  /** AI progress info for UI */
+  aiProgress?: {
+    cachedResponses: number;
+    expectedPlayers: number | null;
+    progressText: string;
+  } | undefined;
 }
 
 export class GameRunner extends DurableObject<Env> {
@@ -331,7 +356,7 @@ export class GameRunner extends DurableObject<Env> {
 
     const storage = this.ctx.storage;
     
-    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId, discountPricing, lastActivity, heartbeat, currentPhase, currentRound, suspenseReason] = await Promise.all([
+    const [status, gameId, batchId, startedAt, completedAt, error, seed, traceId, discountPricing, lastActivity, heartbeat, currentPhase, currentRound, suspenseReason, suspenseStartedAt, persistedEventCount] = await Promise.all([
       storage.get<GameRunnerState['status']>(STORAGE_KEYS.STATUS),
       storage.get<string>(STORAGE_KEYS.GAME_ID),
       storage.get<string>(STORAGE_KEYS.BATCH_ID),
@@ -346,6 +371,8 @@ export class GameRunner extends DurableObject<Env> {
       storage.get<string>(STORAGE_KEYS.CURRENT_PHASE),
       storage.get<number>(STORAGE_KEYS.CURRENT_ROUND),
       storage.get<string>(STORAGE_KEYS.SUSPENSE_REASON),
+      storage.get<number>(STORAGE_KEYS.SUSPENSE_STARTED_AT),
+      storage.get<number>(STORAGE_KEYS.PERSISTED_EVENT_COUNT),
     ]);
 
     this.stateCache = {
@@ -363,6 +390,8 @@ export class GameRunner extends DurableObject<Env> {
       currentPhase: currentPhase ?? null,
       currentRound: currentRound ?? null,
       suspenseReason: suspenseReason ?? null,
+      suspenseStartedAt: suspenseStartedAt ?? null,
+      persistedEventCount: persistedEventCount ?? 0,
     };
 
     return this.stateCache;
@@ -503,6 +532,18 @@ export class GameRunner extends DurableObject<Env> {
         updates.push(storage.put(STORAGE_KEYS.SUSPENSE_REASON, state.suspenseReason));
       }
       if (this.stateCache) this.stateCache.suspenseReason = state.suspenseReason;
+    }
+    if (state.suspenseStartedAt !== undefined) {
+      if (state.suspenseStartedAt === null) {
+        updates.push(storage.delete(STORAGE_KEYS.SUSPENSE_STARTED_AT).then(() => {}));
+      } else {
+        updates.push(storage.put(STORAGE_KEYS.SUSPENSE_STARTED_AT, state.suspenseStartedAt));
+      }
+      if (this.stateCache) this.stateCache.suspenseStartedAt = state.suspenseStartedAt;
+    }
+    if (state.persistedEventCount !== undefined) {
+      updates.push(storage.put(STORAGE_KEYS.PERSISTED_EVENT_COUNT, state.persistedEventCount));
+      if (this.stateCache) this.stateCache.persistedEventCount = state.persistedEventCount;
     }
 
     await Promise.all(updates);
@@ -1593,6 +1634,12 @@ export class GameRunner extends DurableObject<Env> {
     // Calculate game duration
     const gameDuration = state.startedAt ? now - state.startedAt : 0;
     
+    // Effective event count: use in-memory log if available, fall back to persisted count
+    // This handles DO restarts where in-memory log is lost but events are in R2
+    const effectiveEventCount = this.eventLog.length > 0 
+      ? this.eventLog.length 
+      : state.persistedEventCount;
+    
     // Check for zombie state - game is technically "running" but hasn't had activity
     // for an extended period (1 hour for standard, 48 hours for discount)
     const lastActive = state.lastActivity ?? state.startedAt ?? 0;
@@ -1624,7 +1671,8 @@ export class GameRunner extends DurableObject<Env> {
         recommendedAction = 'fail';
       }
       // Critical: 0 events after 5 minutes - likely stuck on first AI call
-      else if (this.eventLog.length === 0 && gameDuration > ZERO_EVENTS_CRITICAL_THRESHOLD) {
+      // Use persistedEventCount if in-memory log is empty (DO may have restarted)
+      else if (effectiveEventCount === 0 && gameDuration > ZERO_EVENTS_CRITICAL_THRESHOLD) {
         healthStatus = 'critical';
         healthMessage = `No events after ${Math.round(gameDuration / 1000)}s - AI provider may be down`;
         recommendedAction = 'punt';
@@ -1636,7 +1684,7 @@ export class GameRunner extends DurableObject<Env> {
         recommendedAction = 'punt';
       }
       // Warning: 0 events after 2 minutes
-      else if (this.eventLog.length === 0 && gameDuration > ZERO_EVENTS_WARN_THRESHOLD) {
+      else if (effectiveEventCount === 0 && gameDuration > ZERO_EVENTS_WARN_THRESHOLD) {
         healthStatus = 'warning';
         healthMessage = `Waiting for first event (${Math.round(gameDuration / 1000)}s elapsed)`;
       }
@@ -1688,7 +1736,9 @@ export class GameRunner extends DurableObject<Env> {
         startedAt: state.startedAt,
         durationMs: state.startedAt ? now - state.startedAt : null,
       },
-      eventCount: this.eventLog.length,
+      eventCount: effectiveEventCount,
+      inMemoryEventCount: this.eventLog.length,
+      persistedEventCount: state.persistedEventCount,
       sessionCount: this.sessions.length,
       // AI response progress for "Waiting for AI (3/7 responses)" visualization
       aiProgress: {
@@ -1869,6 +1919,18 @@ export class GameRunner extends DurableObject<Env> {
 
       // Add to in-memory log (full events for R2 transcript)
       this.eventLog.push(event);
+      
+      // Cap in-memory log to prevent 128MB DO memory limit
+      // Old events are preserved in R2 stream, so this is safe
+      if (this.eventLog.length > MAX_IN_MEMORY_EVENTS) {
+        // Keep the most recent events and trim the oldest
+        const trimCount = this.eventLog.length - MAX_IN_MEMORY_EVENTS;
+        this.eventLog.splice(0, trimCount);
+        this.log.debug('Trimmed old events from memory', { 
+          trimCount, 
+          remaining: this.eventLog.length,
+        });
+      }
 
       // Stream to R2 incrementally (every 10 events or on important events)
       // R2 is our persistence layer for events.
@@ -1979,6 +2041,8 @@ export class GameRunner extends DurableObject<Env> {
         currentPhase: null,
         currentRound: null,
         suspenseReason: null, // Clear suspense reason on completion
+        suspenseStartedAt: null, // Clear suspense timestamp on completion
+        persistedEventCount: this.eventLog.length, // Final event count
       });
       gameLog.info('State saved as completed');
 
@@ -1995,11 +2059,13 @@ export class GameRunner extends DurableObject<Env> {
       // These are no longer needed after the final transcript is written
       this.ctx.waitUntil(this.cleanupR2TempFiles(gameId, gameLog));
 
-      // Broadcast completion status
+      // Broadcast completion status (clear suspense fields)
       this.broadcast({
         type: 'STATUS',
         status: 'completed',
         gameId,
+        suspenseReason: null,
+        suspenseStartedAt: null,
       });
     } catch (error) {
       // Handle SuspenseError - game is waiting for AI response
@@ -2017,46 +2083,83 @@ export class GameRunner extends DurableObject<Env> {
           suspenseReason,
         });
         
-        // Save suspense reason for monitoring/debugging
-        await this.saveState({ suspenseReason });
+        // Save suspense reason and timestamp for monitoring/debugging/timeout
+        await this.saveState({ 
+          suspenseReason,
+          suspenseStartedAt: Date.now(),
+        });
         
         // CRITICAL: Save checkpoint before suspending!
         // This ensures the game can resume from its current state.
         // SuspenseError can be thrown BEFORE onPhaseComplete fires,
         // so we must save the checkpoint here.
+        //
+        // FIX: If checkpoint save fails, we CANNOT safely suspend because
+        // the DO will revert to old state on resume, causing duplicate events.
+        // We must throw an error to fail the game rather than create duplicates.
+        const currentState = game.getState();
+        const serializedState: SerializedGameState = {
+          players: currentState.players,
+          phase: currentState.phase,
+          round: currentState.round ?? 1,
+          seed: config.seed ?? 0,
+          conversationHistory: currentState.conversationHistory,
+          gameId,
+          events: currentState.events,
+          config,
+        };
+        
         try {
-          const currentState = game.getState();
-          const serializedState: SerializedGameState = {
-            players: currentState.players,
-            phase: currentState.phase,
-            round: currentState.round ?? 1,
-            seed: config.seed ?? 0,
-            conversationHistory: currentState.conversationHistory,
-            gameId,
-            events: currentState.events,
-            config,
-          };
           await this.saveCheckpoint(serializedState);
           gameLog.debug('Saved checkpoint on suspend', { 
             round: serializedState.round, 
             phase: serializedState.phase 
           });
         } catch (checkpointError) {
-          // Don't fail the suspend for checkpoint errors
-          logErrorWithStack(gameLog, 'Failed to save suspend checkpoint', checkpointError);
+          // CRITICAL FIX: Do NOT swallow this error!
+          // If we can't save state, we can't suspend safely (leads to duplicates).
+          // Instead, throw a fatal error that will fail the game.
+          logErrorWithStack(gameLog, 'FATAL: Failed to save suspend checkpoint - cannot safely suspend', checkpointError);
+          
+          // Clear the pending AI request since we can't wait for it
+          const aiResponses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES);
+          if (aiResponses) {
+            aiResponses.delete(error.requestId);
+            await this.ctx.storage.put(STORAGE_KEYS.AI_RESPONSES, aiResponses);
+          }
+          
+          throw new Error(`Critical persistence failure during suspend: ${checkpointError instanceof Error ? checkpointError.message : String(checkpointError)}`);
         }
         
-        // Update activity timestamp
-        await this.saveState({ lastActivity: Date.now() });
+        // Update activity timestamp and persist event count
+        await this.saveState({ 
+          lastActivity: Date.now(),
+          persistedEventCount: this.eventLog.length,
+        });
         
         // Stop heartbeat - we're intentionally suspending
         this.stopHeartbeat();
         
-        // Broadcast status update to clients
+        // Get AI response cache for progress indicator
+        const aiResponses = await this.ctx.storage.get<Map<string, CachedAIResponse>>(STORAGE_KEYS.AI_RESPONSES);
+        const cachedResponseCount = aiResponses?.size ?? 0;
+        const playerConfig = await this.ctx.storage.get<GameQueueConfig>(STORAGE_KEYS.CONFIG);
+        const expectedPlayers = playerConfig?.playerCount ?? null;
+        
+        // Broadcast status update to clients with suspense info
         this.broadcast({
           type: 'STATUS',
           status: 'running',
           gameId,
+          suspenseReason,
+          suspenseStartedAt: Date.now(),
+          aiProgress: {
+            cachedResponses: cachedResponseCount,
+            expectedPlayers,
+            progressText: expectedPlayers 
+              ? `${cachedResponseCount}/${expectedPlayers} AI responses`
+              : `${cachedResponseCount} AI responses cached`,
+          },
         });
         
         // Return - DO will hibernate, callback will wake it up

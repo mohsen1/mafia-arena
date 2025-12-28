@@ -52,6 +52,16 @@ interface WsMessage {
   gameId?: string;
   startedAt?: number;
   durationMs?: number;
+  /** Current suspense reason - which model/player game is waiting for */
+  suspenseReason?: string | null;
+  /** When game started waiting for current AI call */
+  suspenseStartedAt?: number | null;
+  /** AI progress info for UI */
+  aiProgress?: {
+    cachedResponses: number;
+    expectedPlayers: number | null;
+    progressText: string;
+  };
 }
 
 interface HealthCheckResponse {
@@ -851,6 +861,33 @@ function handleMessage(state: LiveGameState, data: WsMessage): void {
     if (data.status === 'failed' && data.error) {
       showError(data.error);
       if (state.durationInterval) clearInterval(state.durationInterval);
+    }
+    // Show AI progress when game is waiting for AI response
+    if (data.status === 'running' && data.suspenseReason) {
+      const waitTime = data.suspenseStartedAt 
+        ? Math.round((Date.now() - data.suspenseStartedAt) / 1000) 
+        : 0;
+      const progressText = data.aiProgress?.progressText || '';
+      const waitTimeText = waitTime > 0 ? ` (${waitTime}s)` : '';
+      updateConnectionStatus(true, `Waiting for AI${waitTimeText}`, { polling: true });
+      showWarningBanner(false); // Clear any existing warning
+      // Show detailed AI progress in connection status area
+      const statusEl = document.getElementById('connection-status');
+      if (statusEl && data.aiProgress) {
+        statusEl.innerHTML = `
+          <div class="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <span id="poll-heartbeat" class="relative flex h-2 w-2">
+              <span class="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 heartbeat-ping"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            <span>${data.aiProgress.progressText}${waitTimeText}</span>
+          </div>
+          <div class="text-[10px] text-muted-foreground/70 mt-0.5">${escapeHtml(data.suspenseReason)}</div>
+        `;
+      }
+    } else if (data.status === 'running' && !data.suspenseReason) {
+      // Game is running but not waiting for AI - show normal status
+      updateConnectionStatus(true, 'Connected');
     }
   } else if (data.type === 'ERROR') {
     updateLiveBadge('failed');
