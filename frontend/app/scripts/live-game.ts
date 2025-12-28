@@ -731,6 +731,20 @@ function renderTranscript(state: LiveGameState): void {
     grouped[round][phase].push(event);
   }
 
+  // Inject thinking pseudo-event if an agent is currently generating
+  if (state.thinkingState) {
+    const { round, phase, playerId } = state.thinkingState;
+    if (!grouped[round]) grouped[round] = {};
+    if (!grouped[round][phase]) grouped[round][phase] = [];
+    // Add thinking event at the end of the current phase
+    grouped[round][phase].push({
+      type: 'thinking',
+      playerId,
+      round,
+      phase
+    });
+  }
+
   const rounds = Object.keys(grouped).map(Number).sort((a, b) => a - b);
   const lastRound = rounds[rounds.length - 1];
 
