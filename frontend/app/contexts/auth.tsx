@@ -17,6 +17,7 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   logout: () => Promise<void>;
   getLoginUrl: (redirect?: string) => string;
+  apiUrl: string;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -86,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, logout, getLoginUrl }}>
+    <AuthContext.Provider value={{ ...state, logout, getLoginUrl, apiUrl }}>
       {children}
     </AuthContext.Provider>
   );
