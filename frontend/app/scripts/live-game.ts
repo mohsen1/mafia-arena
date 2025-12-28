@@ -40,7 +40,7 @@ interface PlayerInfo {
   modelId: string;
   team: 'mafia' | 'town';
   isAlive: boolean;
-  persona?: { name?: string; background?: string };
+  persona?: { name?: string; background?: string; personality?: string; occupation?: string };
 }
 
 interface WsMessage {
@@ -563,19 +563,163 @@ function updatePlayersGrid(state: LiveGameState): void {
     const isAlive = player.isAlive;
 
     const borderClass = isMafia
-      ? (isAlive ? 'border-rose-500/30 bg-rose-500/10' : 'border-rose-500/20 bg-rose-500/5 border-dashed')
-      : (isAlive ? 'border-indigo-500/30 bg-indigo-500/10' : 'border-indigo-500/20 bg-indigo-500/5 border-dashed');
+      ? (isAlive ? 'border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20' : 'border-rose-500/20 bg-rose-500/5 border-dashed hover:bg-rose-500/10')
+      : (isAlive ? 'border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20' : 'border-indigo-500/20 bg-indigo-500/5 border-dashed hover:bg-indigo-500/10');
 
     const textClass = isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400';
     const opacityClass = isAlive ? '' : 'opacity-40';
 
     return `
-      <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] ${borderClass} ${opacityClass}">
+      <button 
+        type="button"
+        data-player-id="${player.playerId}"
+        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] cursor-pointer transition-colors ${borderClass} ${opacityClass}"
+      >
         ${!isAlive ? `<span class="text-muted-foreground/50">${ICONS.skull}</span>` : `<span class="w-1 h-1 rounded-full ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}"></span>`}
-        <span class="font-medium ${textClass} truncate max-w-[80px]">${player.playerName}</span>
-      </div>
+        <span class="font-medium ${textClass} truncate max-w-[80px]">${escapeHtml(player.playerName)}</span>
+      </button>
     `;
   }).join('');
+
+  // Add click handlers to player pills
+  grid.querySelectorAll('[data-player-id]').forEach(el => {
+    el.addEventListener('click', () => {
+      const playerId = el.getAttribute('data-player-id');
+      if (playerId) showPlayerModal(state, playerId);
+    });
+  });
+}
+
+function showPlayerModal(state: LiveGameState, playerId: string): void {
+  const player = state.playerMap[playerId];
+  if (!player) return;
+
+  // Remove existing modal if any
+  const existingModal = document.getElementById('player-modal');
+  if (existingModal) existingModal.remove();
+
+  const isMafia = player.team === 'mafia';
+  const teamColor = isMafia ? 'rose' : 'indigo';
+  const teamLabel = isMafia ? 'Mafia' : 'Town';
+  const modelName = getShortModelName(player.modelId);
+  const provider = getProviderFromModel(player.modelId);
+  const providerClass = provider ? getProviderBadgeClass(provider) : 'bg-muted text-muted-foreground';
+
+  // Build persona section if available
+  let personaHtml = '';
+  if (player.persona) {
+    personaHtml = `
+      <div class="space-y-3 mt-4 pt-4 border-t border-border/50">
+        ${player.persona.occupation ? `
+          <div class="flex items-start gap-2">
+            <span class="text-muted-foreground shrink-0 mt-0.5">${ICONS.user}</span>
+            <div>
+              <div class="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Role</div>
+              <div class="text-sm text-foreground">${escapeHtml(player.persona.occupation)}</div>
+            </div>
+          </div>
+        ` : ''}
+        ${player.persona.background ? `
+          <div class="flex items-start gap-2">
+            <span class="text-muted-foreground shrink-0 mt-0.5">${ICONS.message}</span>
+            <div>
+              <div class="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Background</div>
+              <div class="text-xs text-foreground/80 leading-relaxed">${escapeHtml(player.persona.background)}</div>
+            </div>
+          </div>
+        ` : ''}
+        ${player.persona.personality ? `
+          <div class="flex items-start gap-2">
+            <span class="text-muted-foreground shrink-0 mt-0.5">${ICONS.brain}</span>
+            <div>
+              <div class="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Personality</div>
+              <div class="text-xs text-foreground/80 leading-relaxed">${escapeHtml(player.persona.personality)}</div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Create modal
+  const modal = document.createElement('div');
+  modal.id = 'player-modal';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4';
+  modal.innerHTML = `
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-modal-backdrop></div>
+    <div class="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <!-- Header -->
+      <div class="flex items-start justify-between p-4 border-b border-border/50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center bg-${teamColor}-500/20 border-2 border-${teamColor}-500/40">
+            <span class="text-lg font-bold text-${teamColor}-500">${escapeHtml(player.playerName.charAt(0).toUpperCase())}</span>
+          </div>
+          <div>
+            <h2 class="text-base font-semibold text-foreground">${escapeHtml(player.playerName)}</h2>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-${teamColor}-500/10 text-${teamColor}-500 border border-${teamColor}-500/30">
+                <span class="w-1.5 h-1.5 rounded-full bg-${teamColor}-500"></span>
+                ${teamLabel}
+              </span>
+              ${!player.isAlive ? `
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-muted-foreground bg-muted border border-border">
+                  ${ICONS.skull} Eliminated
+                </span>
+              ` : `
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Alive
+                </span>
+              `}
+            </div>
+          </div>
+        </div>
+        <button 
+          type="button" 
+          data-modal-close 
+          class="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label="Close modal"
+        >
+          ${ICONS.close}
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div class="p-4">
+        <!-- Model Info -->
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] text-muted-foreground uppercase tracking-wide">Model</span>
+          <span class="text-xs px-2 py-0.5 rounded font-mono ${providerClass}">${escapeHtml(modelName)}</span>
+          ${provider ? `<span class="text-[10px] text-muted-foreground">(${provider})</span>` : ''}
+        </div>
+        
+        <!-- Player ID -->
+        <div class="flex items-center gap-2 mt-2">
+          <span class="text-[10px] text-muted-foreground uppercase tracking-wide">ID</span>
+          <code class="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">${escapeHtml(player.playerId)}</code>
+        </div>
+        
+        ${personaHtml}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Close modal handlers
+  const closeModal = () => modal.remove();
+  
+  modal.querySelector('[data-modal-backdrop]')?.addEventListener('click', closeModal);
+  modal.querySelector('[data-modal-close]')?.addEventListener('click', closeModal);
+  
+  // Close on Escape key
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  };
+  document.addEventListener('keydown', handleKeyDown);
 }
 
 function parseResponse(raw: string | undefined): { type: string; content: unknown } {
