@@ -1,43 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLoaderData } from "react-router";
 import type { Route } from "./+types/$id";
 import { getApiUrl } from "~/lib/utils";
 import {
   Trophy,
-  Clock,
-  Zap,
-  Users,
   ChevronDown,
-  ChevronRight,
   Moon,
   Sun,
   MessageSquare,
   Vote,
   Skull,
-  Sparkles,
   ArrowLeft,
   Swords,
   MessagesSquare,
   Crosshair,
-  Feather,
-  Scroll,
-  Building2,
+  Zap,
 } from "lucide-react";
+import { GameHeader, GameLayout, TranscriptContainer } from "~/components/GameHeader";
 
 export function meta({ data }: Route.MetaArgs) {
   const game = data?.game;
   return [{ title: game ? `Game ${game.id.slice(-8)} | Mafia Arena` : "Game Not Found | Mafia Arena" }];
 }
 
+interface Participant {
+  model_id: string;
+  model_name: string;
+  team: 'mafia' | 'town';
+  player_count: number;
+  won: boolean;
+}
+
 interface GameDetail {
   id: string;
   winner: string | null;
   rounds: number;
-  duration_ms: number;
-  total_tokens: number;
-  created_at: number;
-  persona_theme?: string;
-  cost_usd?: number;
+  durationMs: number;
+  totalTokens: number;
+  createdAt: number;
+  personaTheme?: string;
+  costUsd?: number;
+  status?: string;
+  participants?: Participant[];
 }
 
 interface TranscriptEvent {
@@ -78,25 +82,36 @@ export async function loader({ params }: Route.LoaderArgs) {
     ]);
 
     if (!gameRes.ok) {
-      return { error: "Game not found", game: null as GameDetail | null, transcript: { events: [] } as TranscriptData };
+      return { error: "Game not found", game: null as GameDetail | null, transcript: { events: [] } as TranscriptData, transcriptError: null as string | null };
     }
 
     const game = (await gameRes.json()) as GameDetail;
-    const transcript: TranscriptData = transcriptRes.ok ? await transcriptRes.json() : { events: [] };
+    
+    let transcript: TranscriptData = { events: [] };
+    let transcriptError: string | null = null;
+    
+    if (transcriptRes.ok) {
+      transcript = await transcriptRes.json();
+    } else if (transcriptRes.status === 404) {
+      transcriptError = "Transcript not available for this game";
+    } else {
+      transcriptError = `Failed to load transcript (${transcriptRes.status})`;
+    }
 
-    return { game, transcript, error: null as string | null };
+    return { game, transcript, error: null as string | null, transcriptError };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Failed to load game", game: null as GameDetail | null, transcript: { events: [] } as TranscriptData };
+    return { error: e instanceof Error ? e.message : "Failed to load game", game: null as GameDetail | null, transcript: { events: [] } as TranscriptData, transcriptError: null as string | null };
   }
 }
 
 function formatDuration(ms: number): string {
   if (!ms) return "—";
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}m ${remainingSeconds}s`;
+  if (ms < 1000) return `${ms}ms`;
+  const totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds}s`;
 }
 
 function getShortModelName(modelId: string): string {
@@ -132,13 +147,6 @@ function parseResponse(raw: string): { type: string; content: any } {
   }
 }
 
-const THEME_CONFIG: Record<string, { label: string; iconType: string; classes: string }> = {
-  noir: { label: "Noir", iconType: "feather", classes: "bg-zinc-500/10 border-zinc-500/20 text-zinc-700 dark:text-zinc-300" },
-  victorian: { label: "Victorian", iconType: "scroll", classes: "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400" },
-  modern: { label: "Modern", iconType: "building", classes: "bg-cyan-500/10 border-cyan-500/20 text-cyan-700 dark:text-cyan-400" },
-  fantasy: { label: "Fantasy", iconType: "sparkles", classes: "bg-purple-500/10 border-purple-500/20 text-purple-700 dark:text-purple-400" },
-};
-
 const PHASE_CONFIG: Record<string, { label: string; iconType: string }> = {
   introduction: { label: "Intro", iconType: "message" },
   night: { label: "Night", iconType: "moon" },
@@ -148,43 +156,22 @@ const PHASE_CONFIG: Record<string, { label: string; iconType: string }> = {
   system: { label: "System", iconType: "zap" },
 };
 
-function PhaseIcon({ type, size = 12 }: { type: string; size?: number }) {
+function PhaseIcon({ type, size = 10 }: { type: string; size?: number }) {
   switch (type) {
-    case "moon":
-      return <Moon size={size} />;
-    case "sun":
-      return <Sun size={size} />;
-    case "swords":
-      return <Swords size={size} />;
-    case "vote":
-      return <Vote size={size} />;
-    case "message":
-      return <MessagesSquare size={size} />;
-    case "zap":
-      return <Zap size={size} />;
-    default:
-      return <MessageSquare size={size} />;
-  }
-}
-
-function ThemeIcon({ type }: { type: string }) {
-  switch (type) {
-    case "feather":
-      return <Feather size={10} />;
-    case "scroll":
-      return <Scroll size={10} />;
-    case "building":
-      return <Building2 size={10} />;
-    case "sparkles":
-      return <Sparkles size={10} />;
-    default:
-      return null;
+    case "moon": return <Moon size={size} />;
+    case "sun": return <Sun size={size} />;
+    case "swords": return <Swords size={size} />;
+    case "vote": return <Vote size={size} />;
+    case "message": return <MessagesSquare size={size} />;
+    case "zap": return <Zap size={size} />;
+    default: return <MessageSquare size={size} />;
   }
 }
 
 export default function GameDetail() {
-  const { game, transcript, error } = useLoaderData<typeof loader>();
+  const { game, transcript, error, transcriptError } = useLoaderData<typeof loader>();
   const [openRounds, setOpenRounds] = useState<Set<number>>(new Set());
+  const transcriptRef = useRef<HTMLDivElement>(null);
 
   if (error || !game) {
     return (
@@ -231,10 +218,21 @@ export default function GameDetail() {
   const mafiaPlayers = players.filter((p) => p.team === "mafia");
   const townPlayers = players.filter((p) => p.team === "town");
 
-  const mafiaModels = [...new Set(mafiaPlayers.map((p) => getShortModelName(p.modelId)))];
-  const townModels = [...new Set(townPlayers.map((p) => getShortModelName(p.modelId)))];
-  const mafiaDisplayName = mafiaModels.map(formatDisplayModelName).join(", ") || "AI";
-  const townDisplayName = townModels.map(formatDisplayModelName).join(", ") || "AI";
+  // Use participants from game detail as fallback when transcript is missing
+  let mafiaDisplayName = "AI";
+  let townDisplayName = "AI";
+  
+  if (mafiaPlayers.length > 0 || townPlayers.length > 0) {
+    const mafiaModels = [...new Set(mafiaPlayers.map((p) => getShortModelName(p.modelId)))];
+    const townModels = [...new Set(townPlayers.map((p) => getShortModelName(p.modelId)))];
+    mafiaDisplayName = mafiaModels.map(formatDisplayModelName).join(", ") || "AI";
+    townDisplayName = townModels.map(formatDisplayModelName).join(", ") || "AI";
+  } else if (game.participants && game.participants.length > 0) {
+    const mafiaParticipants = game.participants.filter(p => p.team === 'mafia');
+    const townParticipants = game.participants.filter(p => p.team === 'town');
+    mafiaDisplayName = [...new Set(mafiaParticipants.map(p => p.model_name))].join(", ") || "AI";
+    townDisplayName = [...new Set(townParticipants.map(p => p.model_name))].join(", ") || "AI";
+  }
 
   // Group events by round and phase
   const groupedEvents: Record<number, Record<string, TranscriptEvent[]>> = {};
@@ -256,14 +254,21 @@ export default function GameDetail() {
   }
 
   const gameEndEvent = events.find((e) => e.type === "game_end");
-  const rounds = Object.keys(groupedEvents)
-    .map(Number)
-    .sort((a, b) => a - b);
+  const rounds = Object.keys(groupedEvents).map(Number).sort((a, b) => a - b);
 
   // Initialize last round as open
-  if (rounds.length > 0 && openRounds.size === 0) {
-    setOpenRounds(new Set([rounds[rounds.length - 1]]));
-  }
+  useEffect(() => {
+    if (rounds.length > 0 && openRounds.size === 0) {
+      setOpenRounds(new Set([rounds[rounds.length - 1]]));
+    }
+  }, [rounds.length]);
+
+  // Scroll to bottom on mount
+  useEffect(() => {
+    if (transcriptRef.current) {
+      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+    }
+  }, []);
 
   const toggleRound = (round: number) => {
     const newOpen = new Set(openRounds);
@@ -275,334 +280,192 @@ export default function GameDetail() {
     setOpenRounds(newOpen);
   };
 
-  const timestamp = game.created_at > 9999999999 ? game.created_at : game.created_at * 1000;
-  const date = new Date(timestamp).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  const theme = THEME_CONFIG[game.persona_theme || "noir"] || THEME_CONFIG.noir;
-
   const getPersonaName = (playerId: string) => playerMap[playerId]?.personaName || playerId;
 
+  // Get current phase from last event
+  const lastPhaseEvent = [...events].reverse().find(e => e.phase && e.phase !== 'other');
+  const currentPhase = lastPhaseEvent?.phase || 'completed';
+  const phaseConfig = PHASE_CONFIG[currentPhase] || { label: 'Completed', iconType: 'message' };
+
   return (
-    <div className="space-y-5 pb-8">
-      {/* Back Link */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Link to="/games" className="hover:text-foreground inline-flex items-center gap-1 transition-colors">
-          <ArrowLeft size={12} /> Games
-        </Link>
-        <span className="opacity-30">/</span>
-        <code className="font-mono opacity-50">{game.id.slice(-12)}</code>
-      </div>
-
-      {/* Broadcast HUD Header */}
-      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-        {/* Status Bar */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
+    <GameLayout>
+      <GameHeader
+        status={game.winner ? 'completed' : 'running'}
+        theme={game.personaTheme || 'noir'}
+        mafiaModels={mafiaDisplayName}
+        townModels={townDisplayName}
+        winner={game.winner as 'mafia' | 'town' | null}
+        round={game.rounds}
+        phase={phaseConfig.label}
+        duration={formatDuration(game.durationMs || 0)}
+        tokens={game.totalTokens || 0}
+        connectionStatus={
           <div className="flex items-center gap-2">
-            <div
-              className={`flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase ${
-                game.winner
-                  ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                  : "bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400"
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${game.winner ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}></span>
-              {game.winner ? "COMPLETED" : "RUNNING"}
-            </div>
-
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium ${theme.classes}`}>
-              <ThemeIcon type={theme.iconType} />
-              {theme.label}
-            </div>
-          </div>
-          <div className="text-muted-foreground/60 text-[10px]">{date}</div>
-        </div>
-
-        {/* Main Matchup Display */}
-        <div className="px-4 py-5 bg-gradient-to-b from-background to-muted/20">
-          <div className="flex items-center justify-center gap-4 sm:gap-8">
-            {/* Mafia Side */}
-            <div className={`flex-1 text-right ${game.winner === "mafia" ? "" : "opacity-70"}`}>
-              <div className="flex flex-col items-end gap-1">
-                {game.winner === "mafia" && (
-                  <div className="flex items-center gap-1.5 text-amber-500 text-[10px] font-bold uppercase tracking-wider">
-                    <Trophy size={12} />
-                    <span>Winner</span>
-                  </div>
-                )}
-                <span className="text-rose-500 font-black text-lg sm:text-xl tracking-tight">MAFIA</span>
-                <div className="font-mono text-sm sm:text-base font-semibold text-foreground/90 truncate max-w-[140px] sm:max-w-[200px]">
-                  {mafiaDisplayName}
-                </div>
-              </div>
-            </div>
-
-            {/* VS Divider */}
-            <div className="flex flex-col items-center gap-1 shrink-0">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-border bg-muted/50 flex items-center justify-center">
-                <Swords size={18} className="text-muted-foreground sm:w-5 sm:h-5" />
-              </div>
-              <span className="text-[10px] font-black text-muted-foreground/60 tracking-widest">VS</span>
-            </div>
-
-            {/* Town Side */}
-            <div className={`flex-1 text-left ${game.winner === "town" ? "" : "opacity-70"}`}>
-              <div className="flex flex-col items-start gap-1">
-                {game.winner === "town" && (
-                  <div className="flex items-center gap-1.5 text-amber-500 text-[10px] font-bold uppercase tracking-wider">
-                    <Trophy size={12} />
-                    <span>Winner</span>
-                  </div>
-                )}
-                <span className="text-indigo-500 font-black text-lg sm:text-xl tracking-tight">TOWN</span>
-                <div className="font-mono text-sm sm:text-base font-semibold text-foreground/90 truncate max-w-[140px] sm:max-w-[200px]">
-                  {townDisplayName}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Telemetry Strip */}
-        <div className="grid grid-cols-4 divide-x divide-border border-t bg-muted/20 text-[10px] uppercase tracking-wider">
-          <div className="p-2.5 flex flex-col items-center justify-center gap-0.5">
-            <span className="text-muted-foreground text-[9px]">Round</span>
-            <span className="font-mono font-bold text-base leading-none">{game.rounds}</span>
-          </div>
-          <div className="p-2.5 flex flex-col items-center justify-center gap-0.5">
-            <span className="text-muted-foreground text-[9px]">Duration</span>
-            <span className="font-mono font-medium text-[11px]">{formatDuration(game.duration_ms || 0)}</span>
-          </div>
-          <div className="p-2.5 flex flex-col items-center justify-center gap-0.5">
-            <span className="text-muted-foreground text-[9px]">Tokens</span>
-            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-500 text-[11px]">
-              <Zap size={10} />
-              <span className="font-mono font-bold tabular-nums">{(game.total_tokens || 0).toLocaleString()}</span>
-            </div>
-          </div>
-          <div className="p-2.5 flex flex-col items-center justify-center gap-0.5">
-            <span className="text-muted-foreground text-[9px]">Players</span>
-            <span className="font-mono font-bold text-base leading-none">{players.length}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Players */}
-      <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold flex items-center gap-1.5">
-            <Users size={14} />
-            Players
-          </h2>
-          <div className="flex items-center gap-3 text-[10px]">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-              Mafia ({mafiaPlayers.length})
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-              Town ({townPlayers.length})
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          {players.map((player) => {
-            const isMafia = player.team === "mafia";
-            return (
-              <div
-                key={player.playerId}
-                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs ${
-                  isMafia ? "border-rose-500/20 bg-rose-500/5" : "border-indigo-500/20 bg-indigo-500/5"
-                } ${!player.isAlive ? "opacity-40" : ""}`}
-              >
-                {!player.isAlive && <Skull size={10} className="text-muted-foreground" />}
-                {player.team === game.winner && player.isAlive && <Trophy size={10} className="text-amber-500" />}
-                <span className={`w-1.5 h-1.5 rounded-full ${isMafia ? "bg-rose-500" : "bg-indigo-500"}`}></span>
-                <span className={`font-medium ${isMafia ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"}`}>
-                  {player.personaName}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Game Transcript */}
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold flex items-center gap-1.5">
-          <MessageSquare size={14} />
-          Transcript
-        </h2>
-
-        {rounds.length === 0 ? (
-          <div className="border rounded-md p-6 text-center text-muted-foreground text-sm">No events recorded</div>
-        ) : (
-          <div className="space-y-1.5" id="transcript">
-            {rounds.map((round) => {
-              const isOpen = openRounds.has(round);
+            {players.map((player) => {
+              const isMafia = player.team === "mafia";
               return (
-                <div key={round} className="border rounded-md overflow-hidden">
-                  <button
-                    onClick={() => toggleRound(round)}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors text-xs text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded bg-primary/10 flex items-center justify-center text-[10px] font-bold">
-                        {round}
-                      </span>
-                      <span className="font-medium">Round {round}</span>
-                      <div className="flex items-center gap-0.5 ml-1 text-muted-foreground">
-                        {Object.keys(groupedEvents[round] || {}).map((phase) => {
-                          const config = PHASE_CONFIG[phase] || { label: phase, iconType: "message" };
-                          return <PhaseIcon key={phase} type={config.iconType} size={12} />;
-                        })}
-                      </div>
-                    </div>
-                    <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-                  </button>
-
-                  {isOpen && (
-                    <div className="divide-y divide-border/50">
-                      {Object.entries(groupedEvents[round] || {}).map(([phase, phaseEvents]) => {
-                        const phaseConfig = PHASE_CONFIG[phase] || { label: phase, iconType: "message" };
-                        const isNightPhase = phase === "night" || phase === "mafia_chat";
-                        return (
-                          <div key={phase} className={`px-3 py-2 space-y-1.5 ${isNightPhase ? "bg-rose-500/3" : ""}`}>
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                              <PhaseIcon type={phaseConfig.iconType} size={10} />
-                              <span className="font-medium uppercase tracking-wide">{phaseConfig.label}</span>
-                              <span className="opacity-50">·</span>
-                              <span className="opacity-50">{phaseEvents.length}</span>
-                            </div>
-
-                            <div className="space-y-1">
-                              {phaseEvents.map((event, idx) => {
-                                const player = playerMap[event.playerId || ""];
-                                const team = event.team || player?.team || "town";
-                                const isMafia = team === "mafia";
-
-                                if (event.type === "ai_call") {
-                                  const parsed = parseResponse(event.response?.raw || "");
-                                  if (parsed.type === "persona") return null;
-
-                                  return (
-                                    <div key={idx} className="py-1.5">
-                                      <div className="flex items-center gap-1.5 mb-0.5">
-                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isMafia ? "bg-rose-500" : "bg-indigo-500"}`}></span>
-                                        <span className={`font-medium text-xs ${isMafia ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"}`}>
-                                          {event.playerName}
-                                        </span>
-                                        <span className="text-[9px] text-muted-foreground/40">{event.modelId?.split("/").pop()}</span>
-                                      </div>
-                                      {parsed.type === "message" ? (
-                                        <p className="text-xs text-foreground/90 leading-relaxed pl-3">{parsed.content}</p>
-                                      ) : parsed.type === "vote" ? (
-                                        <div className="text-xs pl-3">
-                                          <span className="inline-flex items-center gap-1 text-muted-foreground">
-                                            <Vote size={10} />
-                                            <span>Voted for</span>
-                                            <span className={`font-semibold ${playerMap[parsed.content.vote]?.team === "mafia" ? "text-rose-500" : "text-indigo-500"}`}>
-                                              {getPersonaName(parsed.content.vote)}
-                                            </span>
-                                          </span>
-                                        </div>
-                                      ) : parsed.type === "action" ? (
-                                        <div className="text-xs pl-3">
-                                          <span className="inline-flex items-center gap-1">
-                                            <Crosshair size={10} className={parsed.content.action === "kill" ? "text-rose-500" : "text-muted-foreground"} />
-                                            <span className="text-muted-foreground">{parsed.content.action}</span>
-                                            <span className={`font-semibold ${playerMap[parsed.content.target]?.team === "mafia" ? "text-rose-500" : "text-indigo-500"}`}>
-                                              {getPersonaName(parsed.content.target)}
-                                            </span>
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <p className="text-xs text-foreground/90 leading-relaxed pl-3">{parsed.content}</p>
-                                      )}
-                                    </div>
-                                  );
-                                }
-
-                                if (event.type === "elimination") {
-                                  return (
-                                    <div
-                                      key={idx}
-                                      className={`flex items-center gap-2 py-1.5 px-2 rounded text-xs ${
-                                        event.team === "mafia" ? "bg-rose-500/10 border border-rose-500/20" : "bg-indigo-500/10 border border-indigo-500/20"
-                                      }`}
-                                    >
-                                      <Skull size={12} className={event.team === "mafia" ? "text-rose-500" : "text-indigo-500"} />
-                                      <span className={`font-medium ${event.team === "mafia" ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"}`}>
-                                        {event.playerName || getPersonaName(event.playerId || "")}
-                                      </span>
-                                      <span className="text-muted-foreground">eliminated</span>
-                                      <span
-                                        className={`ml-auto text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                          event.team === "mafia" ? "bg-rose-500/20 text-rose-600 dark:text-rose-400" : "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
-                                        }`}
-                                      >
-                                        {event.team}
-                                      </span>
-                                    </div>
-                                  );
-                                }
-
-                                if (event.type === "summarization") {
-                                  const [roundStart, roundEnd] = event.roundRangeSummarized || [1, 1];
-                                  return (
-                                    <div key={idx} className="flex items-center gap-2 py-1.5 px-2 rounded text-xs bg-amber-500/10 border border-amber-500/20">
-                                      <Zap size={12} className="text-amber-500" />
-                                      <span className="text-amber-600 dark:text-amber-400">
-                                        Rounds {roundStart}-{roundEnd} summarized
-                                      </span>
-                                      <span className="text-muted-foreground text-[10px]">({event.tokensSaved?.toLocaleString() || 0} tokens saved)</span>
-                                      <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                                        context optimization
-                                      </span>
-                                    </div>
-                                  );
-                                }
-
-                                return null;
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                <div
+                  key={player.playerId}
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] ${
+                    isMafia ? "bg-rose-500/10 text-rose-600 dark:text-rose-400" : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                  } ${!player.isAlive ? "opacity-40" : ""}`}
+                >
+                  {!player.isAlive && <Skull size={8} />}
+                  {player.team === game.winner && player.isAlive && <Trophy size={8} className="text-amber-500" />}
+                  <span className={`w-1 h-1 rounded-full ${isMafia ? "bg-rose-500" : "bg-indigo-500"}`}></span>
+                  <span className="font-medium truncate max-w-[60px]">{player.personaName}</span>
                 </div>
               );
             })}
-
-            {/* Game End */}
-            {gameEndEvent && (
-              <div
-                className={`text-center py-4 rounded-md border ${
-                  gameEndEvent.winner === "mafia" ? "bg-rose-500/10 border-rose-500/30" : "bg-indigo-500/10 border-indigo-500/30"
-                }`}
-              >
-                <Trophy size={20} className={`mx-auto mb-1 ${gameEndEvent.winner === "mafia" ? "text-rose-500" : "text-indigo-500"}`} />
-                <div className={`text-sm font-bold ${gameEndEvent.winner === "mafia" ? "text-rose-500" : "text-indigo-500"}`}>
-                  {gameEndEvent.winner === "mafia" ? "Mafia" : "Town"} Wins
-                </div>
-              </div>
-            )}
           </div>
-        )}
-      </section>
+        }
+      />
 
-      {/* Footer Stats */}
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground border-t pt-3">
-        <span>{game.total_tokens?.toLocaleString() || 0} tokens</span>
-        <span>{events.filter((e) => e.type !== "persona_generation").length} events</span>
+      <div className="flex-1 min-h-0 relative px-4 pb-4">
+        <div ref={transcriptRef} className="absolute inset-x-4 top-0 bottom-4 rounded-lg text-xs overflow-y-auto bg-muted/30">
+          {transcriptError ? (
+            <div className="px-3 py-8 text-center text-muted-foreground">{transcriptError}</div>
+          ) : rounds.length === 0 ? (
+            <div className="px-3 py-8 text-center text-muted-foreground">No events recorded</div>
+          ) : (
+            <div className="space-y-0">
+              {rounds.map((round) => {
+                const isOpen = openRounds.has(round);
+                return (
+                  <details key={round} open={isOpen} className="group">
+                    <summary
+                      onClick={(e) => { e.preventDefault(); toggleRound(round); }}
+                      className="flex items-center justify-between px-2 py-1.5 bg-muted cursor-pointer hover:bg-muted/80 transition-colors sticky top-0 z-10"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-xs">Round {round}</span>
+                        <div className="flex items-center gap-0.5 text-muted-foreground">
+                          {Object.keys(groupedEvents[round] || {}).map((phase) => {
+                            const config = PHASE_CONFIG[phase] || { label: phase, iconType: "message" };
+                            return <span key={phase} className="inline-flex items-center"><PhaseIcon type={config.iconType} size={10} /></span>;
+                          })}
+                        </div>
+                      </div>
+                      <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                    </summary>
+
+                    {isOpen && (
+                      <div>
+                        {Object.entries(groupedEvents[round] || {}).map(([phase, phaseEvents]) => {
+                          const config = PHASE_CONFIG[phase] || { label: phase, iconType: "message" };
+                          const isNightPhase = phase === "night" || phase === "mafia_chat";
+                          return (
+                            <div key={phase} className={`px-2 py-1.5 space-y-1 ${isNightPhase ? "bg-rose-500/5" : ""}`}>
+                              <div className="inline-flex items-center gap-1 text-[9px] text-muted-foreground">
+                                <span className="inline-flex items-center"><PhaseIcon type={config.iconType} size={10} /></span>
+                                <span className="font-medium uppercase tracking-wide">{config.label}</span>
+                                <span className="opacity-40">·</span>
+                                <span className="opacity-40">{phaseEvents.length}</span>
+                              </div>
+
+                              <div className="space-y-0.5">
+                                {phaseEvents.map((event, idx) => {
+                                  const player = playerMap[event.playerId || ""];
+                                  const team = event.team || player?.team || "town";
+                                  const isMafia = team === "mafia";
+
+                                  if (event.type === "ai_call") {
+                                    const parsed = parseResponse(event.response?.raw || "");
+                                    if (parsed.type === "persona") return null;
+
+                                    let content;
+                                    if (parsed.type === "message") {
+                                      content = <p className="text-[11px] text-foreground/90 leading-snug">{parsed.content}</p>;
+                                    } else if (parsed.type === "vote") {
+                                      const targetTeam = playerMap[parsed.content.vote]?.team || 'town';
+                                      content = (
+                                        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                                          <Vote size={10} />
+                                          <span className={`font-medium ${targetTeam === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`}>
+                                            {getPersonaName(parsed.content.vote)}
+                                          </span>
+                                        </span>
+                                      );
+                                    } else if (parsed.type === "action") {
+                                      const targetTeam = playerMap[parsed.content.target]?.team || 'town';
+                                      content = (
+                                        <span className="inline-flex items-center gap-1 text-[10px]">
+                                          <Crosshair size={10} className={parsed.content.action === 'kill' ? 'text-rose-500' : 'text-muted-foreground'} />
+                                          <span className={`font-medium ${targetTeam === 'mafia' ? 'text-rose-500' : 'text-indigo-500'}`}>
+                                            {getPersonaName(parsed.content.target)}
+                                          </span>
+                                        </span>
+                                      );
+                                    } else {
+                                      content = <p className="text-[11px] text-foreground/90 leading-snug">{parsed.content}</p>;
+                                    }
+
+                                    return (
+                                      <div key={idx} className="py-0.5">
+                                        <div className="flex items-start gap-1">
+                                          <span className={`w-1 h-1 rounded-full shrink-0 mt-1.5 ${isMafia ? "bg-rose-500" : "bg-indigo-500"}`}></span>
+                                          <div className="min-w-0 flex-1">
+                                            <span className={`font-semibold text-[10px] ${isMafia ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"}`}>
+                                              {event.playerName}
+                                            </span>
+                                            <span className="text-[8px] text-muted-foreground/30 ml-1">{getShortModelName(event.modelId || '')}</span>
+                                            <div className="mt-0.5">{content}</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (event.type === "elimination") {
+                                    const elimTeam = event.team || 'town';
+                                    const isElimMafia = elimTeam === 'mafia';
+                                    return (
+                                      <div key={idx} className={`flex items-center gap-1.5 py-1 px-1.5 rounded text-[10px] ${isElimMafia ? 'bg-rose-500/10' : 'bg-indigo-500/10'}`}>
+                                        <Skull size={12} className={isElimMafia ? "text-rose-500" : "text-indigo-500"} />
+                                        <span className={`font-medium ${isElimMafia ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"}`}>
+                                          {event.playerName || getPersonaName(event.playerId || "")}
+                                        </span>
+                                        <span className="text-muted-foreground/60">eliminated</span>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (event.type === "summarization") {
+                                    const [roundStart, roundEnd] = event.roundRangeSummarized || [1, 1];
+                                    return (
+                                      <div key={idx} className="flex items-center gap-1.5 py-1 px-1.5 rounded text-[10px] bg-amber-500/10">
+                                        <Zap size={12} className="text-amber-500" />
+                                        <span className="text-amber-600 dark:text-amber-400">R{roundStart}-{roundEnd} summarized</span>
+                                        <span className="text-muted-foreground/60">({event.tokensSaved?.toLocaleString() || 0} tok)</span>
+                                      </div>
+                                    );
+                                  }
+
+                                  return null;
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </details>
+                );
+              })}
+
+              {/* Game End */}
+              {gameEndEvent && (
+                <div className={`text-center py-3 ${gameEndEvent.winner === "mafia" ? "bg-rose-500/10" : "bg-indigo-500/10"}`}>
+                  <Trophy size={16} className={`mx-auto mb-1 ${gameEndEvent.winner === "mafia" ? "text-rose-500" : "text-indigo-500"}`} />
+                  <div className={`text-xs font-bold ${gameEndEvent.winner === "mafia" ? "text-rose-500" : "text-indigo-500"}`}>
+                    {gameEndEvent.winner === "mafia" ? "Mafia" : "Town"} Wins
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </GameLayout>
   );
 }
