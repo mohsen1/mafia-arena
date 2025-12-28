@@ -637,8 +637,13 @@ models.get('/openrouter', async (c) => {
       modelsByFamily[family] = [];
     }
 
+    // NEW: Prepend 'openrouter/' to make routing explicit
+    // openrouter/google/gemini-2.5-pro -> Routes via OpenRouter
+    // google/gemini-2.5-pro -> Routes via Direct Google API
+    const prefixedId = `openrouter/${model.id}`;
+
     modelsByFamily[family].push({
-      id: model.id,
+      id: prefixedId,  // Prefixed for explicit routing
       name: model.name,
       ...(model.description && { description: model.description }),
       contextLength: model.context_length,
@@ -647,7 +652,7 @@ models.get('/openrouter', async (c) => {
         outputPer1M: parseFloat(model.pricing.completion) * 1_000_000,
       },
       apiProvider: 'openrouter',
-      apiModelId: model.id,
+      apiModelId: model.id,  // Original ID for API calls
     });
   }
 

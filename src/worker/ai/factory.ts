@@ -1,20 +1,25 @@
 /**
  * AI Provider factory.
  * 
- * ROUTING LOGIC:
- * 1. Test models (test/*): MockE2EProvider (zero cost)
- * 2. All other models: Route based on api_provider from database/config
- *    - openrouter: OpenRouter aggregator (default)
- *    - openai: Direct OpenAI API
- *    - anthropic: Direct Anthropic API
- *    - google: Direct Google Gemini API
- *    - cerebras: Cerebras API (OpenAI-compatible)
- *    - fireworks: Fireworks AI API (OpenAI-compatible)
- *    - minimax: MiniMax API
+ * MODEL ID NAMING CONVENTION:
+ * The first segment of the model ID determines the routing provider:
  * 
- * FALLBACK BEHAVIOR:
- * For Google models with GOOGLE_API_KEY: Use direct Google API with OpenRouter fallback.
- * This is preserved for backward compatibility with the old routing behavior.
+ * - openrouter/anthropic/claude-3   → Routes via OpenRouter
+ * - anthropic/claude-3              → Routes via Direct Anthropic API
+ * - google/gemini-2.5-flash         → Routes via Direct Google API
+ * - openai/gpt-4o                   → Routes via Direct OpenAI API
+ * - test/town-wins                  → MockE2EProvider (zero cost)
+ * 
+ * SUPPORTED PROVIDERS:
+ * - openrouter: OpenRouter aggregator (100+ models)
+ * - openai: Direct OpenAI API
+ * - anthropic: Direct Anthropic API
+ * - google: Direct Google Gemini API
+ * - xai, deepseek, together, groq, cerebras, fireworks, minimax, etc.
+ * 
+ * BACKWARD COMPATIBILITY:
+ * Legacy IDs without explicit routing (e.g., 'anthropic/claude-3') are supported
+ * during migration. They route based on available API keys.
  */
 
 import type { Env, ApiProvider } from '../types.js';
@@ -128,46 +133,67 @@ const PRICING_MODE_DEFAULTS = {
 } as const;
 
 /**
- * Check if a model ID is a Google model.
- * Used for backward-compatible fallback behavior.
+ * All supported direct API providers.
+ * The first segment of a model ID determines the provider.
  */
-function isGoogleModel(modelId: string): boolean {
-  return modelId.startsWith('google/') || 
-         modelId.startsWith('gemini-') ||
-         modelId.includes('gemini');
-}
+const DIRECT_PROVIDERS: Set<ApiProvider> = new Set([
+  'openrouter',
+  'openai',
+  'anthropic',
+  'google',
+  'xai',
+  'deepseek',
+  'together',
+  'groq',
+  'cerebras',
+  'fireworks',
+  'minimax',
+  'sambanova',
+  'hyperbolic',
+  'mistral',
+  'cohere',
+  'ai21',
+]);
 
 /**
- * Map of model ID prefixes to their providers.
- * Used for key validation and provider inference.
+ * Parse a model ID to extract the routing provider and API model ID.
+ * 
+ * NEW FORMAT (explicit routing):
+ * - "openrouter/anthropic/claude-3" → { provider: "openrouter", apiModelId: "anthropic/claude-3" }
+ * - "anthropic/claude-3"            → { provider: "anthropic", apiModelId: "claude-3" }
+ * - "google/gemini-2.5-flash"       → { provider: "google", apiModelId: "gemini-2.5-flash" }
+ * 
+ * LEGACY FORMAT (backward compatibility):
+ * - IDs without a recognized provider prefix default to OpenRouter
+ * - e.g., "meta-llama/llama-3" → { provider: "openrouter", apiModelId: "meta-llama/llama-3" }
  */
-const MODEL_PREFIX_TO_PROVIDER: Record<string, ApiProvider> = {
-  'openai/': 'openai',
-  'gpt-': 'openai',
-  'anthropic/': 'anthropic',
-  'claude-': 'anthropic',
-  'google/': 'google',
-  'gemini-': 'google',
-  'xai/': 'xai',
-  'grok-': 'xai',
-  'deepseek/': 'deepseek',
-  'together/': 'together',
-  'groq/': 'groq',
-  'cerebras/': 'cerebras',
-  'fireworks/': 'fireworks',
-  'mistral/': 'mistral',
-  'mistralai/': 'mistral',
-  'cohere/': 'cohere',
-  'ai21/': 'ai21',
-  'minimax/': 'minimax',
-  'sambanova/': 'sambanova',
-  'hyperbolic/': 'hyperbolic',
-  'meta-llama/': 'openrouter', // Open source models via OpenRouter
-  'qwen/': 'openrouter',
-  'microsoft/': 'openrouter',
-  'amazon/': 'openrouter',
-  'nvidia/': 'openrouter',
-};
+function parseModelId(modelId: string): { provider: ApiProvider; apiModelId: string } {
+  const parts = modelId.split('/');
+  const firstSegment = parts[0] as ApiProvider;
+  
+  // Check if the first segment is a known direct provider
+  if (DIRECT_PROVIDERS.has(firstSegment)) {
+    if (firstSegment === 'openrouter') {
+      // openrouter/anthropic/claude-3 → apiModelId: "anthropic/claude-3"
+      return {
+        provider: 'openrouter',
+        apiModelId: parts.slice(1).join('/'),
+      };
+    } else {
+      // anthropic/claude-3 → apiModelId: "claude-3"
+      return {
+        provider: firstSegment,
+        apiModelId: parts.slice(1).join('/'),
+      };
+    }
+  }
+  
+  // Legacy/unknown models default to OpenRouter with full ID
+  return {
+    provider: 'openrouter',
+    apiModelId: modelId,
+  };
+}
 
 /**
  * Infer the provider required for a model ID based on its prefix.
@@ -177,65 +203,69 @@ const MODEL_PREFIX_TO_PROVIDER: Record<string, ApiProvider> = {
  * @returns The provider name that this model requires
  */
 export function inferProviderFromModelId(modelId: string): ApiProvider {
-  for (const [prefix, provider] of Object.entries(MODEL_PREFIX_TO_PROVIDER)) {
-    if (modelId.startsWith(prefix)) {
-      return provider;
-    }
-  }
-  // Default to OpenRouter for unknown models
-  return 'openrouter';
+  return parseModelId(modelId).provider;
+}
+
+/**
+ * Check if a model ID is a Google model (for fallback behavior).
+ */
+function isGoogleModel(modelId: string): boolean {
+  return modelId.startsWith('google/') || 
+         modelId.startsWith('gemini-') ||
+         modelId.includes('gemini');
 }
 
 /**
  * Infer the API provider from a model ID.
- * Used when no routing config is provided.
+ * 
+ * NEW BEHAVIOR: Uses explicit prefix parsing.
+ * The first segment of the ID determines the provider.
+ * 
+ * LEGACY FALLBACK: For backward compatibility during migration,
+ * IDs without recognized prefixes still check env vars for auto-routing.
  */
 function inferApiProvider(modelId: string, env: Env): ApiProvider {
-  // NOTE: We intentionally DON'T auto-route openai/* to direct OpenAI
-  // because most OpenAI models in the DB use OpenRouter (which has credits).
-  // Direct OpenAI routing requires explicit routingConfig to be passed.
+  const parsed = parseModelId(modelId);
   
-  // Only Google models get auto-routed to direct API when key exists
-  // because all google/* models should use the direct Google API
+  // If we have an explicit provider prefix, use it
+  if (parsed.provider !== 'openrouter' || modelId.startsWith('openrouter/')) {
+    return parsed.provider;
+  }
+  
+  // LEGACY FALLBACK: For old-format IDs, check env vars
+  // This maintains backward compatibility during migration
+  // TODO: Remove this fallback after data migration is complete
+  
+  // Google models with key get direct routing
   if (isGoogleModel(modelId) && env.GOOGLE_API_KEY) {
     return 'google';
   }
   
-  // For all other providers, default to OpenRouter
-  // This is safest since OpenRouter has credits and aggregates multiple providers
+  // Anthropic-prefixed models with key get direct routing
+  if ((modelId.startsWith('anthropic/') || modelId.startsWith('claude-')) && env.ANTHROPIC_API_KEY) {
+    return 'anthropic';
+  }
+  
   return 'openrouter';
 }
 
 /**
  * Extract the actual model ID to send to the API.
- * For OpenRouter, this is the full ID. For direct providers, strip the prefix.
+ * 
+ * For OpenRouter: Returns the model ID without the 'openrouter/' prefix
+ * For Direct providers: Returns the model ID without the provider prefix
  */
 function extractApiModelId(modelId: string, apiProvider: ApiProvider): string {
-  // OpenRouter uses the full model ID
-  if (apiProvider === 'openrouter') return modelId;
+  const parsed = parseModelId(modelId);
   
-  // For direct providers, strip the provider prefix if present
-  const prefixMap: Record<ApiProvider, string> = {
-    openrouter: '',
-    openai: 'openai/',
-    anthropic: 'anthropic/',
-    google: 'google/',
-    cerebras: 'cerebras/',
-    fireworks: 'fireworks/',
-    minimax: 'minimax/',
-    xai: 'xai/',
-    deepseek: 'deepseek/',
-    together: 'together/',
-    groq: 'groq/',
-    sambanova: 'sambanova/',
-    hyperbolic: 'hyperbolic/',
-    mistral: 'mistral/',
-    cohere: 'cohere/',
-    ai21: 'ai21/',
-  };
+  // If parsing already extracted the correct format, use it
+  if (parsed.provider === apiProvider) {
+    return parsed.apiModelId;
+  }
   
-  const prefix = prefixMap[apiProvider];
-  if (prefix && modelId.startsWith(prefix)) {
+  // Legacy fallback: strip known prefix if present
+  const prefix = `${apiProvider}/`;
+  if (modelId.startsWith(prefix)) {
     return modelId.slice(prefix.length);
   }
   

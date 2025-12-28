@@ -11,6 +11,34 @@ import { AIErrors } from '../errors.js';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_API_VERSION = '2023-06-01';
 
+/**
+ * Map display model IDs to Anthropic API model names.
+ * The UI uses short IDs like "claude-haiku-3.5" but Anthropic's API
+ * requires the full versioned names like "claude-3-5-haiku-20241022".
+ */
+function toAnthropicModelName(modelId: string): string {
+  // Remove provider prefix if present
+  const shortId = modelId.replace(/^anthropic\//, '');
+  
+  // Map display names to Anthropic API model names
+  const modelMappings: Record<string, string> = {
+    // Claude 4.5 family (Dec 2025)
+    'claude-opus-4.5': 'claude-opus-4-5-20251218',
+    // Claude 4 family
+    'claude-sonnet-4': 'claude-sonnet-4-20250514',
+    // Claude 3.5 family
+    'claude-sonnet-3.5': 'claude-3-5-sonnet-20241022',
+    'claude-haiku-3.5': 'claude-3-5-haiku-20241022',
+    // Claude 3 family
+    'claude-opus-3': 'claude-3-opus-20240229',
+    'claude-sonnet-3': 'claude-3-sonnet-20240229',
+    'claude-haiku-3': 'claude-3-haiku-20240307',
+  };
+  
+  // Return mapped name, or original if already a valid API name
+  return modelMappings[shortId] || shortId;
+}
+
 interface AnthropicResponse {
   id: string;
   type: 'message';
@@ -41,12 +69,14 @@ interface AnthropicError {
 export class AnthropicProvider implements AIProviderInterface {
   readonly name = 'anthropic-direct';
   readonly modelId: string;
+  private readonly anthropicModelName: string;
 
   private readonly apiKey: string;
   private readonly timeoutMs: number;
 
   constructor(modelId: string, apiKey: string, timeoutMs: number = 60000) {
     this.modelId = modelId;
+    this.anthropicModelName = toAnthropicModelName(modelId);
     this.apiKey = apiKey;
     this.timeoutMs = timeoutMs;
   }
@@ -55,7 +85,7 @@ export class AnthropicProvider implements AIProviderInterface {
     const startTime = Date.now();
 
     const body: Record<string, unknown> = {
-      model: this.modelId,
+      model: this.anthropicModelName,
       max_tokens: request.maxTokens ?? 4000,
       system: request.systemPrompt,
       messages: [
