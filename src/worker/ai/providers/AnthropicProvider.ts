@@ -24,8 +24,13 @@ function toAnthropicModelName(modelId: string): string {
   const modelMappings: Record<string, string> = {
     // Claude 4.5 family (Dec 2025)
     'claude-opus-4.5': 'claude-opus-4-5-20251218',
+    'claude-sonnet-4.5': 'claude-sonnet-4-5-20251218',
+    'claude-haiku-4.5': 'claude-haiku-4-5-20251218',
     // Claude 4 family
+    'claude-opus-4': 'claude-opus-4-20250514',
     'claude-sonnet-4': 'claude-sonnet-4-20250514',
+    // Claude 3.7 family
+    'claude-3.7-sonnet': 'claude-3-7-sonnet-20250219',
     // Claude 3.5 family
     'claude-sonnet-3.5': 'claude-3-5-sonnet-20241022',
     'claude-haiku-3.5': 'claude-3-5-haiku-20241022',
