@@ -61,7 +61,7 @@ const STATUS_COLORS: Record<string, { light: string; dark: string }> = {
 };
 
 export default function AdminDashboard() {
-  const { authenticated, user, apiUrl: authApiUrl, logout } = useAuth();
+  const { authenticated, user, loading: authLoading, apiUrl: authApiUrl, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<LiveStats | null>(null);
@@ -75,8 +75,9 @@ export default function AdminDashboard() {
   const apiUrl = authApiUrl || getApiUrl();
 
   useEffect(() => {
-    // Check auth
-    const isAdmin = user?.isAdmin;
+    // Wait for auth check to complete before redirecting
+    if (authLoading) return;
+
     const hasLegacyAuth = typeof window !== "undefined" && sessionStorage.getItem("adminCredentials");
 
     if (!authenticated && !hasLegacyAuth) {
@@ -85,7 +86,7 @@ export default function AdminDashboard() {
     }
 
     loadDashboard();
-  }, [authenticated, user]);
+  }, [authenticated, user, authLoading]);
 
   async function getHeaders(): Promise<Record<string, string>> {
     const credentials = sessionStorage.getItem("adminCredentials");
@@ -231,12 +232,14 @@ export default function AdminDashboard() {
     window.location.href = "/admin/login";
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground font-mono">Loading...</span>
+          <span className="text-sm text-muted-foreground font-mono">
+            {authLoading ? "Checking session..." : "Loading..."}
+          </span>
         </div>
       </div>
     );

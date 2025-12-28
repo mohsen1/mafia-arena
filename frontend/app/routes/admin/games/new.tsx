@@ -16,7 +16,7 @@ interface UserKey {
 }
 
 export default function RunLiveGame() {
-  const { authenticated, user, apiUrl: authApiUrl } = useAuth();
+  const { authenticated, user, loading: authLoading, apiUrl: authApiUrl } = useAuth();
   const [modelA, setModelA] = useState("");
   const [modelB, setModelB] = useState("");
   const [userKeys, setUserKeys] = useState<UserKey[]>([]);
@@ -30,6 +30,9 @@ export default function RunLiveGame() {
   const isAdmin = user?.isAdmin || false;
 
   useEffect(() => {
+    // Wait for auth check to complete before redirecting
+    if (authLoading) return;
+
     const credentials = sessionStorage.getItem("adminCredentials");
     if (!credentials && !authenticated) {
       window.location.href = "/admin/login?redirect=/admin/games/new";
@@ -37,7 +40,7 @@ export default function RunLiveGame() {
     }
 
     checkAuth();
-  }, [authenticated, user]);
+  }, [authenticated, user, authLoading]);
 
   async function checkAuth() {
     if (authenticated && user) {
@@ -238,10 +241,15 @@ export default function RunLiveGame() {
     }
   }
 
-  if (!authChecked) {
+  if (authLoading || !authChecked) {
     return (
       <div className="max-w-2xl mx-auto flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            {authLoading ? "Checking session..." : "Loading..."}
+          </span>
+        </div>
       </div>
     );
   }
