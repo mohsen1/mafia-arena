@@ -135,6 +135,10 @@ class LiveGameState {
   lastHealthStatus: HealthCheckResponse['healthStatus'] | null = null;
   /** Whether we're showing the stuck/critical warning banner */
   showingCriticalWarning = false;
+  /** Whether user is at bottom of transcript (auto-scroll enabled) */
+  isAtBottom = true;
+  /** Scroll listener cleanup */
+  scrollCleanup: (() => void) | null = null;
 
   constructor(public config: LiveGameConfig) {}
 
@@ -142,6 +146,7 @@ class LiveGameState {
     if (this.ws) this.ws.close(1000);
     if (this.pollInterval) clearTimeout(this.pollInterval);
     if (this.durationInterval) clearInterval(this.durationInterval);
+    if (this.scrollCleanup) this.scrollCleanup();
   }
 }
 
@@ -218,6 +223,19 @@ function getProviderBadgeClass(provider: string): string {
   return classes[provider] || 'bg-muted text-muted-foreground';
 }
 
+/**
+ * Format AI progress text with clamped values.
+ * Prevents showing "12/11" when retries cause cached responses > expected players.
+ */
+function formatAiProgress(progress: { cachedResponses: number; expectedPlayers: number | null; progressText: string }): string {
+  if (progress.expectedPlayers !== null && progress.expectedPlayers > 0) {
+    // Clamp cached responses to not exceed expected players
+    const current = Math.min(progress.cachedResponses, progress.expectedPlayers);
+    return `${current}/${progress.expectedPlayers} AI responses`;
+  }
+  return progress.progressText || `${progress.cachedResponses} AI responses`;
+}
+
 // =============================================================================
 // UI Update Functions
 // =============================================================================
@@ -282,8 +300,13 @@ function showEventFlash(state: LiveGameState, count: number): void {
     setTimeout(() => flash.classList.add('hidden'), 1500);
   }
 
-  state.pendingNewMessages += count;
-  showNewMessagesPill(state);
+  // If user is at bottom, auto-scroll. Otherwise accumulate pending count.
+  if (state.isAtBottom) {
+    scrollToLatest(state, true);
+  } else {
+    state.pendingNewMessages += count;
+    showNewMessagesPill(state);
+  }
 }
 
 function showNewMessagesPill(state: LiveGameState): void {
@@ -291,7 +314,8 @@ function showNewMessagesPill(state: LiveGameState): void {
   const countEl = document.getElementById('new-messages-count');
   if (!pill || !countEl) return;
 
-  if (state.pendingNewMessages > 0) {
+  // Only show pill if user has scrolled up (not at bottom)
+  if (state.pendingNewMessages > 0 && !state.isAtBottom) {
     countEl.textContent = String(state.pendingNewMessages);
     pill.classList.remove('hidden');
     pill.classList.add('flex');
@@ -307,12 +331,40 @@ function hideNewMessagesPill(state: LiveGameState): void {
   state.pendingNewMessages = 0;
 }
 
-function scrollToLatest(state: LiveGameState): void {
+function scrollToLatest(state: LiveGameState, immediate = false): void {
   const container = document.getElementById('transcript-container');
   if (!container) return;
 
-  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  if (immediate) {
+    container.scrollTop = container.scrollHeight;
+  } else {
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  }
+  state.isAtBottom = true;
   hideNewMessagesPill(state);
+}
+
+function checkIfAtBottom(container: HTMLElement): boolean {
+  const threshold = 50; // pixels from bottom to consider "at bottom"
+  return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+}
+
+function setupScrollListener(state: LiveGameState): void {
+  const container = document.getElementById('transcript-container');
+  if (!container) return;
+
+  const handleScroll = () => {
+    const wasAtBottom = state.isAtBottom;
+    state.isAtBottom = checkIfAtBottom(container);
+    
+    // If user scrolled to bottom, hide pill and clear pending
+    if (!wasAtBottom && state.isAtBottom) {
+      hideNewMessagesPill(state);
+    }
+  };
+
+  container.addEventListener('scroll', handleScroll, { passive: true });
+  state.scrollCleanup = () => container.removeEventListener('scroll', handleScroll);
 }
 
 function updateLiveBadge(status: string): void {
@@ -359,10 +411,7 @@ function updateTelemetry(state: LiveGameState): void {
   const phaseEl = document.getElementById('phase-display');
   if (phaseEl) {
     const config = getPhaseConfig(currentPhase ?? undefined);
-    phaseEl.innerHTML = `
-      <span class="${config.color}">${config.icon}</span>
-      <span class="truncate ${config.color}">${config.label}</span>
-    `;
+    phaseEl.innerHTML = `<span class="inline-flex items-center ${config.color}">${config.icon}</span><span class="${config.color}">${config.label}</span>`;
   }
 }
 
@@ -504,16 +553,16 @@ function updatePlayersGrid(state: LiveGameState): void {
     const isAlive = player.isAlive;
 
     const borderClass = isMafia
-      ? (isAlive ? 'border-rose-500/40 bg-rose-500/10' : 'border-rose-500/20 bg-rose-500/5 border-dashed')
-      : (isAlive ? 'border-indigo-500/40 bg-indigo-500/10' : 'border-indigo-500/20 bg-indigo-500/5 border-dashed');
+      ? (isAlive ? 'border-rose-500/30 bg-rose-500/10' : 'border-rose-500/20 bg-rose-500/5 border-dashed')
+      : (isAlive ? 'border-indigo-500/30 bg-indigo-500/10' : 'border-indigo-500/20 bg-indigo-500/5 border-dashed');
 
     const textClass = isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400';
-    const opacityClass = isAlive ? '' : 'opacity-50';
+    const opacityClass = isAlive ? '' : 'opacity-40';
 
     return `
-      <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] ${borderClass} ${opacityClass} transition-all">
-        ${!isAlive ? `<span class="text-muted-foreground opacity-60">${ICONS.skull}</span>` : `<span class="w-1.5 h-1.5 rounded-full ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}"></span>`}
-        <span class="font-semibold ${textClass} truncate max-w-[120px]">${player.playerName}</span>
+      <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] ${borderClass} ${opacityClass}">
+        ${!isAlive ? `<span class="text-muted-foreground/50">${ICONS.skull}</span>` : `<span class="w-1 h-1 rounded-full ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}"></span>`}
+        <span class="font-medium ${textClass} truncate max-w-[80px]">${player.playerName}</span>
       </div>
     `;
   }).join('');
@@ -550,62 +599,40 @@ function renderEvent(state: LiveGameState, event: GameEvent): string {
 
     let content = '';
     if (parsed.type === 'message') {
-      content = `<p class="text-xs text-foreground/90 leading-relaxed mt-0.5">${escapeHtml(parsed.content)}</p>`;
+      content = `<p class="text-[11px] text-foreground/90 leading-snug">${escapeHtml(parsed.content)}</p>`;
     } else if (parsed.type === 'vote') {
       const voteContent = parsed.content as { vote: string; reasoning?: string };
       const targetTeam = state.playerMap[voteContent.vote]?.team || 'town';
       const targetClass = targetTeam === 'mafia' ? 'text-rose-500' : 'text-indigo-500';
       content = `
-        <div class="text-xs mt-0.5">
-          <span class="inline-flex items-center gap-1 text-muted-foreground">
-            ${ICONS.vote} Voted for <span class="font-semibold ${targetClass}">${escapeHtml(getPersonaName(state, voteContent.vote))}</span>
-          </span>
-          ${voteContent.reasoning ? `
-            <details class="mt-0.5 text-[10px] text-muted-foreground">
-              <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
-                ${ICONS.chevronRight} reason
-              </summary>
-              <p class="mt-0.5 pl-3 italic opacity-70">"${escapeHtml(voteContent.reasoning)}"</p>
-            </details>
-          ` : ''}
-        </div>
+        <span class="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+          ${ICONS.vote} <span class="font-medium ${targetClass}">${escapeHtml(getPersonaName(state, voteContent.vote))}</span>
+        </span>
       `;
     } else if (parsed.type === 'action') {
       const actionContent = parsed.content as { action: string; target: string; reasoning?: string };
       const targetTeam = state.playerMap[actionContent.target]?.team || 'town';
       const targetClass = targetTeam === 'mafia' ? 'text-rose-500' : 'text-indigo-500';
       content = `
-        <div class="text-xs mt-0.5">
-          <span class="inline-flex items-center gap-1">
-            <span class="${actionContent.action === 'kill' ? 'text-rose-500' : 'text-muted-foreground'}">${ICONS.crosshair}</span>
-            <span class="text-muted-foreground">${escapeHtml(actionContent.action)}</span>
-            <span class="font-semibold ${targetClass}">${escapeHtml(getPersonaName(state, actionContent.target))}</span>
-          </span>
-          ${actionContent.reasoning ? `
-            <details class="mt-0.5 text-[10px] text-muted-foreground">
-              <summary class="cursor-pointer hover:text-foreground transition-colors inline-flex items-center gap-0.5">
-                ${ICONS.chevronRight} reason
-              </summary>
-              <p class="mt-0.5 pl-3 italic opacity-70">"${escapeHtml(actionContent.reasoning)}"</p>
-            </details>
-          ` : ''}
-        </div>
+        <span class="inline-flex items-center gap-1 text-[10px]">
+          <span class="${actionContent.action === 'kill' ? 'text-rose-500' : 'text-muted-foreground'}">${ICONS.crosshair}</span>
+          <span class="font-medium ${targetClass}">${escapeHtml(getPersonaName(state, actionContent.target))}</span>
+        </span>
       `;
     } else {
-      content = `<p class="text-xs text-foreground/90 leading-relaxed mt-0.5">${escapeHtml(parsed.content)}</p>`;
+      content = `<p class="text-[11px] text-foreground/90 leading-snug">${escapeHtml(parsed.content)}</p>`;
     }
 
     return `
-      <div class="group/msg py-1.5">
-        <div class="flex items-baseline gap-1.5 mb-0.5">
-          <span class="w-1.5 h-1.5 rounded-full shrink-0 ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}"></span>
-          <span class="font-semibold text-xs ${nameClass}">${event.playerName}</span>
-          <span class="text-[9px] text-muted-foreground/40 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
-            <span class="w-1 h-1 rounded-full" style="background: ${getProviderColor(event.modelId)}"></span>
-            ${getShortModelName(event.modelId)}
-          </span>
+      <div class="group/msg py-0.5">
+        <div class="flex items-start gap-1">
+          <span class="w-1 h-1 rounded-full shrink-0 mt-1.5 ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}"></span>
+          <div class="min-w-0 flex-1">
+            <span class="font-semibold text-[10px] ${nameClass}">${event.playerName}</span>
+            <span class="text-[8px] text-muted-foreground/30 ml-1">${getShortModelName(event.modelId)}</span>
+            <div class="mt-0.5">${content}</div>
+          </div>
         </div>
-        ${content}
       </div>
     `;
   }
@@ -615,14 +642,12 @@ function renderEvent(state: LiveGameState, event: GameEvent): string {
     const isElimMafia = elimTeam === 'mafia';
     const bgClass = isElimMafia ? 'bg-rose-500/10 border-rose-500/20' : 'bg-indigo-500/10 border-indigo-500/20';
     const textClass = isElimMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400';
-    const badgeClass = isElimMafia ? 'bg-rose-500/20 text-rose-600' : 'bg-indigo-500/20 text-indigo-600';
 
     return `
-      <div class="flex items-center gap-2 py-1.5 px-2 rounded text-xs ${bgClass} border">
+      <div class="flex items-center gap-1.5 py-1 px-1.5 rounded text-[10px] ${bgClass} border">
         <span class="${textClass}">${ICONS.skull}</span>
         <span class="font-medium ${textClass}">${event.playerName || getPersonaName(state, event.playerId || '')}</span>
-        <span class="text-muted-foreground">eliminated</span>
-        <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded font-medium ${badgeClass}">${elimTeam}</span>
+        <span class="text-muted-foreground/60">eliminated</span>
       </div>
     `;
   }
@@ -631,17 +656,10 @@ function renderEvent(state: LiveGameState, event: GameEvent): string {
     const [roundStart, roundEnd] = event.roundRangeSummarized || [1, 1];
     const tokensSaved = event.tokensSaved?.toLocaleString() || '0';
     return `
-      <div class="flex items-center gap-2 py-1.5 px-2 rounded text-xs bg-amber-500/10 border border-amber-500/20">
+      <div class="flex items-center gap-1.5 py-1 px-1.5 rounded text-[10px] bg-amber-500/10 border border-amber-500/20">
         <span class="text-amber-500">${ICONS.zap}</span>
-        <span class="text-amber-600 dark:text-amber-400">
-          Rounds ${roundStart}-${roundEnd} summarized
-        </span>
-        <span class="text-muted-foreground text-[10px]">
-          (${tokensSaved} tokens saved)
-        </span>
-        <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
-          context optimization
-        </span>
+        <span class="text-amber-600 dark:text-amber-400">R${roundStart}-${roundEnd} summarized</span>
+        <span class="text-muted-foreground/60">(${tokensSaved} tok)</span>
       </div>
     `;
   }
@@ -653,10 +671,13 @@ function renderTranscript(state: LiveGameState): void {
   const container = document.getElementById('transcript-container');
   if (!container) return;
 
+  // Check if at bottom before re-rendering
+  const shouldAutoScroll = state.isAtBottom;
+
   const validEvents = state.events.filter(e => e.type !== 'persona_generation' && e.phase && e.phase !== 'other');
 
   if (validEvents.length === 0) {
-    container.innerHTML = '<div class="px-3 py-6 text-center text-muted-foreground">Waiting for events...</div>';
+    container.innerHTML = '<div class="px-3 py-8 text-center text-muted-foreground">Waiting for events...</div>';
     return;
   }
 
@@ -673,21 +694,20 @@ function renderTranscript(state: LiveGameState): void {
   const rounds = Object.keys(grouped).map(Number).sort((a, b) => a - b);
   const lastRound = rounds[rounds.length - 1];
 
-  let html = '<div class="space-y-1.5">';
+  let html = '<div class="space-y-1">';
 
   for (const round of rounds) {
     const isLastRound = round === lastRound;
     html += `
-      <details class="group border-b last:border-0" ${isLastRound ? 'open' : ''}>
-        <summary class="flex items-center justify-between px-3 py-2 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors">
-          <div class="flex items-center gap-2">
-            <span class="w-5 h-5 rounded bg-primary/10 flex items-center justify-center text-[10px] font-bold">${round}</span>
-            <span class="font-medium">Round ${round}</span>
-            <div class="flex items-center gap-0.5 ml-1 text-muted-foreground">
-              ${Object.keys(grouped[round]).map(phase => `<span title="${getPhaseConfig(phase).label}">${getPhaseConfig(phase).icon}</span>`).join('')}
+      <details class="group" ${isLastRound ? 'open' : ''}>
+        <summary class="flex items-center justify-between px-2 py-1.5 bg-muted cursor-pointer hover:bg-muted/80 transition-colors sticky top-0 z-10">
+          <div class="flex items-center gap-1.5">
+            <span class="font-semibold text-xs">Round ${round}</span>
+            <div class="flex items-center gap-0.5 text-muted-foreground">
+              ${Object.keys(grouped[round]).map(phase => `<span class="inline-flex items-center" title="${getPhaseConfig(phase).label}">${getPhaseConfig(phase).icon}</span>`).join('')}
             </div>
           </div>
-          <span class="transition-transform duration-200 group-open:rotate-180">${ICONS.chevronDown}</span>
+          <span class="transition-transform duration-200 group-open:rotate-180 text-muted-foreground">${ICONS.chevronDown}</span>
         </summary>
         <div class="divide-y divide-border/50">
     `;
@@ -697,14 +717,14 @@ function renderTranscript(state: LiveGameState): void {
       const isNight = phase === 'night' || phase === 'mafia_chat';
 
       html += `
-        <div class="px-3 py-2 space-y-1.5 ${isNight ? 'bg-rose-500/3' : ''}">
-          <div class="flex items-center gap-2 text-[10px] text-muted-foreground">
-            ${config.icon}
+        <div class="px-2 py-1.5 space-y-1 ${isNight ? 'bg-rose-500/5' : ''}">
+          <div class="inline-flex items-center gap-1 text-[9px] text-muted-foreground">
+            <span class="inline-flex items-center">${config.icon}</span>
             <span class="font-medium uppercase tracking-wide">${config.label}</span>
-            <span class="opacity-50">·</span>
-            <span class="opacity-50">${phaseEvents.length}</span>
+            <span class="opacity-40">·</span>
+            <span class="opacity-40">${phaseEvents.length}</span>
           </div>
-          <div class="space-y-1">
+          <div class="space-y-0.5">
             ${phaseEvents.map(e => renderEvent(state, e)).join('')}
           </div>
         </div>
@@ -716,6 +736,13 @@ function renderTranscript(state: LiveGameState): void {
 
   html += '</div>';
   container.innerHTML = html;
+
+  // Auto-scroll to bottom if user was at bottom
+  if (shouldAutoScroll) {
+    requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+    });
+  }
 }
 
 function showGameEnd(winner: 'mafia' | 'town'): void {
@@ -947,7 +974,7 @@ function handleMessage(state: LiveGameState, data: WsMessage): void {
       const waitTime = data.suspenseStartedAt 
         ? Math.round((Date.now() - data.suspenseStartedAt) / 1000) 
         : 0;
-      const progressText = data.aiProgress?.progressText || '';
+      const progressText = data.aiProgress ? formatAiProgress(data.aiProgress) : '';
       const waitTimeText = waitTime > 0 ? ` (${waitTime}s)` : '';
       updateConnectionStatus(true, `Waiting for AI${waitTimeText}`, { polling: true });
       showWarningBanner(false); // Clear any existing warning
@@ -960,7 +987,7 @@ function handleMessage(state: LiveGameState, data: WsMessage): void {
               <span class="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 heartbeat-ping"></span>
               <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
             </span>
-            <span>${data.aiProgress.progressText}${waitTimeText}</span>
+            <span>${progressText}${waitTimeText}</span>
           </div>
           <div class="text-[10px] text-muted-foreground/70 mt-0.5">${escapeHtml(data.suspenseReason)}</div>
         `;
@@ -1127,7 +1154,7 @@ async function checkGameHealth(state: LiveGameState): Promise<void> {
 
     let statusMessage = data.healthMessage;
     if (data.aiProgress && data.aiProgress.cachedResponses > 0) {
-      statusMessage = `${statusMessage} · ${data.aiProgress.progressText}`;
+      statusMessage = `${statusMessage} · ${formatAiProgress(data.aiProgress)}`;
     }
 
     // Track health status changes for banner management
@@ -1141,7 +1168,7 @@ async function checkGameHealth(state: LiveGameState): Promise<void> {
       // Show prominent warning banner with details
       showWarningBanner(true, statusMessage, {
         suspenseReason: data.suspenseReason,
-        aiProgress: data.aiProgress?.progressText,
+        aiProgress: data.aiProgress ? formatAiProgress(data.aiProgress) : undefined,
       });
       
       updateConnectionStatus(true, 'Game stuck', { polling: true, warning: true });
@@ -1156,7 +1183,7 @@ async function checkGameHealth(state: LiveGameState): Promise<void> {
         state.showingCriticalWarning = false;
       }
     } else if (data.aiProgress && data.aiProgress.cachedResponses > 0) {
-      updateConnectionStatus(true, `Waiting for AI · ${data.aiProgress.progressText}`, { polling: true });
+      updateConnectionStatus(true, `Waiting for AI · ${formatAiProgress(data.aiProgress)}`, { polling: true });
       
       // Hide critical banner if we recovered
       if (state.showingCriticalWarning) {
@@ -1192,6 +1219,9 @@ function getHealthCheckInterval(state: LiveGameState): number {
 
 export function initLiveGame(config: LiveGameConfig): LiveGameState {
   const state = new LiveGameState(config);
+
+  // Setup scroll listener for auto-scroll detection
+  setupScrollListener(state);
 
   // Setup new messages pill click handler
   const pill = document.getElementById('new-messages-pill');
