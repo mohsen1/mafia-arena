@@ -182,8 +182,13 @@ export class Game {
    * Used for resumption logic.
    */
   private hasCompletedIntroduction(): boolean {
-    // Introduction is complete if we have persona_generation events
-    return this.state.events.some(e => e.type === 'persona_generation');
+    // Introduction is complete if ALL players have persona_generation events
+    const personaEventPlayerIds = new Set(
+      this.state.events
+        .filter(e => e.type === 'persona_generation')
+        .map(e => e.playerId)
+    );
+    return personaEventPlayerIds.size === this.state.players.length;
   }
 
   /**
