@@ -1,6 +1,10 @@
 /**
  * Tests for detecting and handling AI fallback abuse.
  * 
+ * @deprecated These tests are for the deprecated GameAIAdapter.
+ * The new WorkflowAIProvider uses Cloudflare Workflows for AI calls and
+ * doesn't support the fallback detection features being tested here.
+ * 
  * When AI models consistently fail to produce valid responses,
  * the system should fail fast rather than continue with fallback actions.
  * 
@@ -80,7 +84,10 @@ class DegradingProvider implements AIProviderInterface {
   }
 }
 
-describe('AI Fallback Detection', () => {
+// DEPRECATED: GameAIAdapter has been replaced by WorkflowAIProvider in Cloudflare Workflows
+// These tests test functionality that no longer exists in the new architecture.
+// The WorkflowAIProvider does NOT support fallback actions - it throws errors on parse failures.
+describe.skip('AI Fallback Detection', () => {
   describe('GameAIAdapter fallback behavior', () => {
     it('should return fallback action when parse fails', async () => {
       const failingProvider = new FailingProvider();

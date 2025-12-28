@@ -3,6 +3,12 @@
  */
 
 export interface Env {
+  // Workflows - using inline type since Workflow isn't exposed at compile time
+  MAFIA_WORKFLOW: {
+    create(options: { id: string; params: unknown }): Promise<void>;
+    get(id: string): Promise<{ status(): Promise<unknown> }>;
+  };
+
   // Durable Objects
   GAME_RUNNER: DurableObjectNamespace;
 
@@ -18,8 +24,6 @@ export interface Env {
   // Queues
   BATCH_QUEUE: Queue<BatchQueueMessage>;
   GAME_QUEUE: Queue<GameQueueMessage>;
-  /** AI Request Queue for offloaded AI calls (suspense pattern) */
-  AI_REQUEST_QUEUE: Queue<import('./ai/types.js').AIRequestMessage>;
 
   // Analytics Engine for real-time metrics
   ANALYTICS: AnalyticsEngineDataset;

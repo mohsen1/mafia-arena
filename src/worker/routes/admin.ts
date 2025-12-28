@@ -370,55 +370,36 @@ admin.post('/games/run-live', async (c) => {
   // Pick random theme if not specified
   const personaTheme = config.personaTheme ?? getRandomTheme();
 
-  // Get Durable Object instance and start game in background mode
-  const id = env.GAME_RUNNER.idFromName(gameId);
-  const stub = env.GAME_RUNNER.get(id);
+  console.log(`[${traceId}] Starting live game ${gameId} via admin panel (workflow)`);
 
-  console.log(`[${traceId}] Starting live game ${gameId} via admin panel`);
-
-  const response = await stub.fetch('http://internal/start', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  // Start the workflow
+  await env.MAFIA_WORKFLOW.create({
+    id: gameId,
+    params: {
       gameId,
-      batchId,
       config: {
         playerCount: config.playerCount,
         mafiaCount: config.mafiaCount,
         teams: config.teams,
-        maxRounds: 10,
-        discussionEnabled: true,
-        personaConstraints: 'moderate',
-        contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
-        contextWindowSize: 3,
+        maxRounds: config.maxRounds ?? 10,
+        discussionEnabled: config.discussionEnabled ?? true,
+        personaConstraints: config.personaConstraints ?? 'moderate',
+        contextLevel: config.contextLevel ?? 'windowed',
+        contextWindowSize: config.contextWindowSize ?? 3,
         personaTheme,
       },
-      background: true, // Run in background mode for live streaming
       traceId,
-    }),
+      batchId,
+    },
   });
-
-  if (!response.ok) {
-    const error = (await response.json()) as { error: string };
-    throw Errors.Internal(error.error ?? 'Failed to start game');
-  }
-
-  const result = await response.json() as { 
-    success: boolean; 
-    gameId: string; 
-    seed: number;
-    status: string;
-    liveUrl: string;
-  };
 
   return c.json({
     success: true,
     gameId,
     batchId,
-    seed: result.seed,
-    status: result.status,
+    status: 'running',
     liveUrl: `/games/${gameId}/live`,
-    message: 'Game started. Redirect to live URL to watch progress.',
+    message: 'Game started via Cloudflare Workflow. Redirect to live URL to watch progress.',
     traceId,
   });
 });

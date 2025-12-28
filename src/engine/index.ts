@@ -40,9 +40,11 @@ export { GameState } from './GameState.js';
 
 // Phase handlers
 export {
+  executeIntroductionPhase,
   executeNightPhase,
   executeDiscussionPhase,
   executeVotePhase,
+  type IntroductionPhaseResult,
   type NightPhaseResult,
   type DiscussionPhaseResult,
   type VotePhaseResult,

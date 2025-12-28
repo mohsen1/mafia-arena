@@ -3,19 +3,14 @@
  */
 
 // =============================================================================
-// Suspense Pattern Types (for handling long AI calls without DO hibernation issues)
+// Legacy Suspense Pattern Types (DEPRECATED - kept for backwards compatibility)
+// These types support the old GameRunner Durable Object path.
+// New games should use Cloudflare Workflows via MafiaWorkflow.
 // =============================================================================
 
 /**
+ * @deprecated Use WorkflowAIProvider with Cloudflare Workflows instead.
  * Error thrown when an AI result is not yet available.
- * Signals the GameRunner to suspend execution and queue the request.
- * 
- * This implements the "Async Suspend-Resume" pattern:
- * 1. GameAIAdapter checks DO storage for cached response
- * 2. If not found, throws SuspenseError
- * 3. GameRunner catches this, queues the AI request, saves state, hibernates
- * 4. Queue worker executes AI call, POSTs result back to DO
- * 5. DO resumes, adapter finds cached response, game continues
  */
 export class SuspenseError extends Error {
   readonly name = 'SuspenseError';
@@ -37,21 +32,25 @@ export class SuspenseError extends Error {
 }
 
 /**
- * Message payload for the AI Request Queue.
- * Contains everything needed for the queue worker to execute the AI call
- * and route the response back to the correct DO.
- * 
- * CLAIM CHECK PATTERN:
- * If the request payload exceeds 128KB queue limit, it's offloaded to R2
- * and only the reference (requestRef) is sent in the queue message.
+ * @deprecated Use WorkflowAIProvider with Cloudflare Workflows instead.
+ * Structure stored in DO storage for cached AI responses.
+ */
+export interface CachedAIResponse {
+  response?: CompletionResponse;
+  error?: string;
+  isFatal?: boolean;
+  timestamp: number;
+}
+
+/**
+ * @deprecated Legacy message type for the AI Request Queue.
+ * Still used by BatchService for batch API request storage.
  */
 export interface AIRequestMessage {
   requestId: string;
   gameId: string;
   modelId: string;
-  /** The full request payload. Optional if offloaded to R2 via requestRef. */
   request?: CompletionRequest;
-  /** R2 key for offloaded request payload (Claim Check pattern for large prompts) */
   requestRef?: string;
   context: {
     round: number;
@@ -61,38 +60,8 @@ export interface AIRequestMessage {
   };
   timestamp: number;
   traceId?: string;
-  /** 
-   * Whether this request is from a discount pricing game.
-   * When true, requests should be routed to provider batch APIs for 40-50% cost savings.
-   * Batch APIs have 24-hour turnaround time.
-   */
   discountPricing?: boolean;
 }
-
-/**
- * Structure stored in DO storage for cached AI responses.
- * Keyed by requestId (deterministic based on game state).
- */
-export interface CachedAIResponse {
-  response?: CompletionResponse;
-  /** Error message if AI call failed permanently (e.g., 404 invalid model) */
-  error?: string;
-  /** Whether this is a fatal/permanent error (should not retry) */
-  isFatal?: boolean;
-  timestamp: number;
-}
-
-/**
- * Function type for checking DO storage cache.
- * Injected into GameAIAdapter by GameRunner.
- */
-export type ResponseCacheFn = (requestId: string) => Promise<CachedAIResponse | undefined>;
-
-/**
- * Function type for queueing AI requests.
- * Injected into GameAIAdapter by GameRunner.
- */
-export type QueueRequestFn = (message: AIRequestMessage) => Promise<void>;
 
 // =============================================================================
 // Core AI Provider Types

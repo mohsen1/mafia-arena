@@ -719,6 +719,10 @@ export class GameRunner extends DurableObject<Env> {
         case '/resume':
           return await this.handleResume();
 
+        // Internal broadcast endpoint from MafiaWorkflow
+        case '/internal/broadcast':
+          return await this.handleBroadcast(request);
+
         default:
           this.log.warn('Unknown path', { path: url.pathname });
           return new Response('Not found', { status: 404 });
@@ -1094,57 +1098,18 @@ export class GameRunner extends DurableObject<Env> {
   }
 
   /**
-   * Queue an AI request to the AI_REQUEST_QUEUE (for suspense pattern).
-   * This is passed to GameAIAdapter as the queueRequest function.
-   */
-  /** Size limit for queue messages (100KB safety buffer under 128KB max) */
-  private static readonly QUEUE_SIZE_LIMIT = 100 * 1024;
-
-  /**
-   * Queue an AI request to the AI_REQUEST_QUEUE (for suspense pattern).
-   * This is passed to GameAIAdapter as the queueRequest function.
-   * 
-   * IMPLEMENTS CLAIM CHECK PATTERN:
-   * If the message payload exceeds Cloudflare Queue limits (128KB),
-   * the request body is offloaded to R2 and a reference is sent instead.
+   * @deprecated Queue-based AI requests are no longer supported.
+   * Use MafiaWorkflow with WorkflowAIProvider instead.
+   * This method is kept for backwards compatibility but will throw an error.
    */
   private async queueAIRequest(message: import('./ai/index.js').AIRequestMessage): Promise<void> {
-    const json = JSON.stringify(message);
-    const size = new TextEncoder().encode(json).length;
-
-    if (size > GameRunner.QUEUE_SIZE_LIMIT && message.request) {
-      this.log.info('AI request payload too large, offloading to R2 (Claim Check)', { 
-        requestId: message.requestId, 
-        size, 
-        limit: GameRunner.QUEUE_SIZE_LIMIT 
-      });
-
-      const key = `games/${message.gameId}/requests/${message.requestId}.json`;
-      
-      // 1. Upload full request to R2
-      await this.env.TRANSCRIPTS.put(key, JSON.stringify(message.request), {
-        httpMetadata: { contentType: 'application/json' },
-      });
-
-      // 2. Create lightweight message with reference (exclude 'request', add 'requestRef')
-      const { request: _omit, ...rest } = message;
-      const lightMessage: import('./ai/index.js').AIRequestMessage = {
-        ...rest,
-        requestRef: key,
-      };
-
-      // 3. Send lightweight message
-      await this.env.AI_REQUEST_QUEUE.send(lightMessage);
-      this.log.debug('Queued AI request (offloaded to R2)', { 
-        requestId: message.requestId, 
-        modelId: message.modelId,
-        r2Key: key,
-      });
-    } else {
-      // Send directly if within limits
-      await this.env.AI_REQUEST_QUEUE.send(message);
-      this.log.debug('Queued AI request', { requestId: message.requestId, modelId: message.modelId });
-    }
+    // Log a warning but don't throw - the game will fail gracefully via SuspenseError timeout
+    this.log.error('queueAIRequest called but AI_REQUEST_QUEUE is deprecated', {
+      requestId: message.requestId,
+      modelId: message.modelId,
+      gameId: message.gameId,
+    });
+    throw new Error('AI_REQUEST_QUEUE is deprecated. Use MafiaWorkflow with WorkflowAIProvider instead.');
   }
 
   /**
@@ -1184,27 +1149,38 @@ export class GameRunner extends DurableObject<Env> {
     }
 
     // Send current state and event history to new client
-    const state = await this.loadState();
-    const syncMessage: WsMessage = {
-      type: 'SYNC',
-      events: this.eventLog,
-      status: state.status,
-      gameId: state.gameId ?? undefined,
-      // Include startedAt for timer calculation
-      startedAt: state.startedAt ?? undefined,
-      // Include error and duration for failed/completed games
-      error: state.error ?? undefined,
-      durationMs: state.startedAt && state.completedAt 
-        ? state.completedAt - state.startedAt 
-        : undefined,
-    };
-    server.send(JSON.stringify(syncMessage));
-    this.log.info('Sent SYNC message', { 
-      eventCount: this.eventLog.length, 
-      status: state.status,
-      gameId: state.gameId,
-      hasError: !!state.error,
-    });
+    // Check if we have a lastSyncMessage from workflow (workflow mode)
+    if (this.lastSyncMessage) {
+      server.send(JSON.stringify(this.lastSyncMessage));
+      this.log.info('Sent cached SYNC from workflow', {
+        type: this.lastSyncMessage.type,
+        status: this.lastSyncMessage.status,
+        eventCount: this.lastSyncMessage.events?.length ?? 0,
+      });
+    } else {
+      // Legacy DO mode - use eventLog and state
+      const state = await this.loadState();
+      const syncMessage: WsMessage = {
+        type: 'SYNC',
+        events: this.eventLog,
+        status: state.status,
+        gameId: state.gameId ?? undefined,
+        // Include startedAt for timer calculation
+        startedAt: state.startedAt ?? undefined,
+        // Include error and duration for failed/completed games
+        error: state.error ?? undefined,
+        durationMs: state.startedAt && state.completedAt 
+          ? state.completedAt - state.startedAt 
+          : undefined,
+      };
+      server.send(JSON.stringify(syncMessage));
+      this.log.info('Sent SYNC message', { 
+        eventCount: this.eventLog.length, 
+        status: state.status,
+        gameId: state.gameId,
+        hasError: !!state.error,
+      });
+    }
 
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -1302,6 +1278,38 @@ export class GameRunner extends DurableObject<Env> {
     // Clean up dead sessions
     if (deadSessions.length > 0) {
       this.sessions = this.sessions.filter(s => !deadSessions.includes(s));
+    }
+  }
+
+  /** Last sync message for late-joining WebSocket clients (workflow mode) */
+  private lastSyncMessage: WsMessage | null = null;
+
+  /**
+   * Handle broadcast from MafiaWorkflow.
+   * Receives state updates from the workflow and broadcasts to WebSocket clients.
+   */
+  private async handleBroadcast(request: Request): Promise<Response> {
+    try {
+      const message = await request.json<WsMessage>();
+      
+      // Store for late joiners
+      this.lastSyncMessage = message;
+      
+      // Broadcast to all connected clients
+      this.broadcast(message);
+      
+      this.log.debug('Broadcast from workflow', { 
+        type: message.type, 
+        status: message.status,
+        sessionCount: this.sessions.length,
+      });
+      
+      return new Response('OK', { status: 200 });
+    } catch (error) {
+      this.log.error('Failed to handle broadcast', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      return new Response('Bad Request', { status: 400 });
     }
   }
 

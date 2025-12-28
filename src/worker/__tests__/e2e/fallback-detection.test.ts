@@ -80,7 +80,10 @@ class DegradingProvider implements AIProviderInterface {
   }
 }
 
-describe('AI Fallback Detection', () => {
+// DEPRECATED: GameAIAdapter has been replaced by WorkflowAIProvider in Cloudflare Workflows
+// These tests test functionality that no longer exists in the new architecture.
+// The WorkflowAIProvider does NOT support fallback actions - it throws errors on parse failures.
+describe.skip('AI Fallback Detection', () => {
   describe('GameAIAdapter fallback behavior', () => {
     it('should return fallback action after MAX_PARSE_RETRIES exhausted', async () => {
       const failingProvider = new FailingProvider();

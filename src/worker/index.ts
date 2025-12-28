@@ -7,9 +7,6 @@
 
 import { Hono } from 'hono';
 import type { Env, GameQueueMessage, BatchQueueMessage } from './types.js';
-import type { AIRequestMessage, CompletionRequest, CompletionResponse } from './ai/types.js';
-import { createProvider } from './ai/factory.js';
-import { isRetryableError } from './ai/errors.js';
 import { APIError, Errors, logError } from './utils/index.js';
 import { corsMiddleware, rateLimitMiddleware } from './middleware/index.js';
 import {
@@ -28,17 +25,18 @@ import {
   incrementBatchProgress,
   updateDailyStats,
   BatchService,
-  modelSupportsBatchPricing,
   AnthropicBatch,
   OpenAIBatch,
   GoogleBatch,
   CerebrasBatch,
   FireworksBatch,
 } from './batch/index.js';
-import { cleanupStaleGames } from './scheduled/index.js';
 
 // Re-export the Durable Object
 export { GameRunner } from './GameRunner.js';
+
+// Re-export the Workflow
+export { MafiaWorkflow } from './workflows/index.js';
 
 // Create Hono app with typed bindings
 const app = new Hono<{ Bindings: Env }>();
@@ -139,11 +137,11 @@ export default {
 
   /**
    * Handle queue messages.
-   * This single handler processes batch queue, game queue, and AI request queue messages.
-   * Cloudflare routes messages to this handler based on the queue configuration.
+   * Processes batch queue and game queue messages.
+   * Game queue messages trigger Cloudflare Workflows.
    */
   async queue(
-    batch: MessageBatch<GameQueueMessage | BatchQueueMessage | AIRequestMessage>,
+    batch: MessageBatch<GameQueueMessage | BatchQueueMessage>,
     env: Env
   ): Promise<void> {
     // Process all messages in parallel for maximum throughput
@@ -151,13 +149,8 @@ export default {
       batch.messages.map(async (message) => {
         const body = message.body;
 
-        // Check message type based on fields
-        // Note: AIRequestMessage may have 'request' OR 'requestRef' (Claim Check pattern)
-        if ('requestId' in body && ('request' in body || 'requestRef' in body)) {
-          // AI Request queue message (suspense pattern)
-          await handleAIRequestMessage(message as Message<AIRequestMessage>, env);
-        } else if ('gameId' in body && body.gameId) {
-          // Game queue message
+        if ('gameId' in body && body.gameId) {
+          // Game queue message - start workflow
           await handleGameMessage(message as Message<GameQueueMessage>, env);
         } else if ('config' in body && body.config && 'totalGames' in body.config) {
           // Batch queue message
@@ -176,7 +169,8 @@ export default {
    * Schedule:
    * - Every 1 minute: Poll batch jobs for completion
    * - Every 5 minutes: Aggregate pending requests into batches
-   * - Every 10 minutes: Clean up stale/hanging games
+   * 
+   * NOTE: Cleanup cron removed - Workflows handle timeouts natively.
    */
   async scheduled(
     event: ScheduledEvent,
@@ -206,6 +200,7 @@ export default {
 
       // Aggregate requests into batches every 5 minutes
       case '*/5 * * * *':
+      default:
         ctx.waitUntil(
           batchService.aggregateAndSubmit()
             .then((result) => {
@@ -213,20 +208,6 @@ export default {
             })
             .catch((error) => {
               console.error('Batch aggregation failed:', error);
-            })
-        );
-        break;
-
-      // Clean up stale games every 10 minutes (default case too)
-      case '*/10 * * * *':
-      default:
-        ctx.waitUntil(
-          cleanupStaleGames(env)
-            .then((result) => {
-              console.log(`Scheduled cleanup completed: killed ${result.killedCount} games (${result.standardKilled} standard, ${result.discountKilled} discount)`);
-            })
-            .catch((error) => {
-              console.error('Scheduled cleanup failed:', error);
             })
         );
         break;
@@ -273,6 +254,7 @@ function registerBatchProviders(batchService: BatchService, env: Env): void {
 
 /**
  * Handle a single game queue message.
+ * Creates a Cloudflare Workflow instance to run the game.
  */
 async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): Promise<void> {
   const { gameId, batchId, config, traceId } = message.body;
@@ -281,24 +263,20 @@ async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): 
   try {
     console.log(`[${traceId || 'no-trace'}] Processing game ${gameId} from batch ${batchId} (attempt ${message.attempts})`);
 
-    // Get Durable Object instance by game ID
-    const id = env.GAME_RUNNER.idFromName(gameId);
-    const stub = env.GAME_RUNNER.get(id);
-
-    // Start the game with traceId
-    const response = await stub.fetch('http://internal/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId, batchId, config, traceId }),
+    // Start the game via Cloudflare Workflow
+    await env.MAFIA_WORKFLOW.create({
+      id: gameId,
+      params: {
+        gameId,
+        config,
+        traceId,
+        batchId,
+        discountPricing: config.discountPricing,
+      },
     });
 
-    if (!response.ok) {
-      const error = (await response.json()) as { error: string };
-      throw new Error(error.error ?? 'Failed to start game');
-    }
-
     message.ack();
-    console.log(`[${traceId || 'no-trace'}] Game ${gameId} started successfully`);
+    console.log(`[${traceId || 'no-trace'}] Game ${gameId} workflow started successfully`);
   } catch (error) {
     console.error(`Failed to process game ${gameId} (attempt ${message.attempts}):`, error);
 
@@ -388,215 +366,6 @@ async function handleBatchMessage(message: Message<BatchQueueMessage>, env: Env)
       message.ack();
     } else {
       message.retry();
-    }
-  }
-}
-
-/**
- * Handle AI request queue messages (suspense pattern).
- * 
- * This worker:
- * 1. Receives AI request from queue (sent when DO suspended)
- * 2. Executes the AI call (can take 60s+, that's fine for queue workers)
- * 3. POSTs the result back to the DO callback endpoint
- * 4. DO resumes with cached response
- */
-// Drop AI requests older than 10 minutes (games likely timed out or moved on)
-const AI_REQUEST_TTL_MS = 10 * 60 * 1000;
-
-async function handleAIRequestMessage(message: Message<AIRequestMessage>, env: Env): Promise<void> {
-  let body = message.body;
-  const MAX_RETRIES = 5;
-  
-  // --- FIX 1: TTL Check (Clears Queue Backlog) ---
-  // Old messages from failed games will be dropped immediately, clearing the queue
-  const age = Date.now() - body.timestamp;
-  if (age > AI_REQUEST_TTL_MS) {
-    console.warn(`[${body.traceId || 'no-trace'}] Dropping stale AI request ${body.requestId} (Age: ${Math.round(age / 1000)}s, Game: ${body.gameId})`);
-    message.ack(); // Remove from queue immediately
-    return;
-  }
-  
-  // --- FIX 2: Game Liveness Check (Prevents processing dead games) ---
-  // Quick D1 check is much cheaper than an LLM call (~10ms vs ~10-60s)
-  try {
-    const game = await env.DB.prepare('SELECT status FROM games WHERE id = ?')
-      .bind(body.gameId)
-      .first<{ status: string }>();
-
-    if (!game) {
-      console.warn(`[${body.traceId || 'no-trace'}] Game ${body.gameId} not found in DB. Dropping request ${body.requestId}.`);
-      message.ack();
-      return;
-    }
-
-    if (game.status !== 'running') {
-      console.warn(`[${body.traceId || 'no-trace'}] Game ${body.gameId} is ${game.status}. Dropping request ${body.requestId}.`);
-      message.ack();
-      return;
-    }
-  } catch (error) {
-    // If DB check fails, log but continue (fail open) to not block valid games
-    console.warn(`[${body.traceId || 'no-trace'}] Failed to check game status for ${body.gameId}, proceeding:`, error);
-  }
-  
-  // CLAIM CHECK PATTERN: Rehydrate request from R2 if offloaded
-  if (!body.request && body.requestRef) {
-    console.log(`[${body.traceId || 'no-trace'}] Rehydrating large request from R2: ${body.requestRef}`);
-    try {
-      const obj = await env.TRANSCRIPTS.get(body.requestRef);
-      if (!obj) {
-        // FIX: If object is missing, it's non-recoverable (already processed by another worker
-        // or expired via TTL). Ack/discard to prevent infinite retry loops.
-        console.warn(`[${body.traceId || 'no-trace'}] Offloaded request not found in R2 (likely already processed): ${body.requestRef}. Discarding duplicate message.`);
-        message.ack();
-        return;
-      }
-      const requestData = await obj.json() as CompletionRequest;
-      // Merge back into body for processing
-      body = { ...body, request: requestData };
-    } catch (error) {
-      console.error(`[${body.traceId || 'no-trace'}] Failed to rehydrate request ${body.requestId}:`, error);
-      // Retry - R2 read might be transiently failing (network error)
-      message.retry();
-      return;
-    }
-  }
-
-  const { requestId, gameId, modelId, request, context, traceId, discountPricing } = body;
-
-  if (!request) {
-    console.error(`[${traceId || 'no-trace'}] Invalid message: missing request data for ${requestId}`);
-    message.ack();
-    return;
-  }
-
-  try {
-    // ==========================================================================
-    // BATCH ROUTING: Route discount pricing requests to batch API for 40-50% savings
-    // ==========================================================================
-    if (discountPricing && modelSupportsBatchPricing(modelId)) {
-      console.log(`[${traceId || 'no-trace'}] Routing AI request ${requestId} to batch API (${modelId})`);
-      
-      // Store request in D1 for batch aggregation
-      // The cron job will aggregate and submit batches every 5 minutes
-      const batchService = new BatchService(env);
-      await batchService.storeRequest(body);
-      
-      message.ack();
-      console.log(`[${traceId || 'no-trace'}] AI request ${requestId} queued for batch processing`);
-      return;
-    }
-
-    // ==========================================================================
-    // IMMEDIATE PROCESSING: Non-discount requests or unsupported models
-    // ==========================================================================
-    console.log(`[${traceId || 'no-trace'}] Processing AI request ${requestId} for game ${gameId} (attempt ${message.attempts})${discountPricing ? ' [DISCOUNT-IMMEDIATE]' : ''}`);
-
-    // 1. Create provider for this model
-    // For discount pricing games without batch support, use longer timeouts
-    const provider = createProvider(modelId, env, {
-      enableRetry: true,
-      discountPricing: discountPricing ?? false,
-    });
-
-    // 2. Execute the AI call (this can take a while - that's the point!)
-    const startTime = Date.now();
-    const response = await provider.complete(request);
-    const latencyMs = Date.now() - startTime;
-
-    console.log(`[${traceId || 'no-trace'}] AI request ${requestId} completed in ${latencyMs}ms`);
-
-    // 3. Call back to the DO with the response
-    const id = env.GAME_RUNNER.idFromName(gameId);
-    const stub = env.GAME_RUNNER.get(id);
-
-    const callbackResponse = await stub.fetch('http://internal/internal/ai-callback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        requestId,
-        response: {
-          content: response.content,
-          tokensUsed: response.tokensUsed,
-          latencyMs: response.latencyMs,
-          modelId: response.modelId,
-        } satisfies CompletionResponse,
-      }),
-    });
-
-    if (!callbackResponse.ok) {
-      const errorText = await callbackResponse.text();
-      throw new Error(`DO callback failed: ${callbackResponse.status} - ${errorText}`);
-    }
-
-    // NOTE: We intentionally do NOT delete the R2 request payload here.
-    // This makes the Claim Check pattern idempotent if duplicate queue messages
-    // reference the same R2 object (e.g., from punt/resume logic).
-    // R2 objects will be cleaned up automatically via Bucket Lifecycle Rules (TTL).
-
-    message.ack();
-    console.log(`[${traceId || 'no-trace'}] AI request ${requestId} callback succeeded`);
-  } catch (error) {
-    const isFatal = !isRetryableError(error);
-    console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed (attempt ${message.attempts}, fatal=${isFatal}):`, error);
-
-    // Log error
-    if (error instanceof Error) {
-      try {
-        await logError(env.DB, error, { 
-          requestId, 
-          gameId, 
-          modelId, 
-          round: context.round,
-          phase: context.phase,
-          playerId: context.playerId,
-          actionType: context.actionType,
-          isFatal,
-        });
-      } catch (dbError) {
-        console.error('Failed to log AI request error:', dbError);
-      }
-    }
-
-    // FAIL FAST: Non-retryable errors (invalid model, auth error, etc.) should immediately notify DO
-    // This prevents games from hanging forever waiting for responses that will never come
-    if (isFatal || message.attempts >= MAX_RETRIES) {
-      if (isFatal) {
-        console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed with FATAL error - notifying DO immediately`);
-      } else {
-        console.error(`[${traceId || 'no-trace'}] AI request ${requestId} failed after ${MAX_RETRIES} attempts`);
-      }
-      
-      // Notify DO of failure with isFatal flag
-      try {
-        const id = env.GAME_RUNNER.idFromName(gameId);
-        const stub = env.GAME_RUNNER.get(id);
-        await stub.fetch('http://internal/internal/ai-callback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            requestId,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            isFatal, // New flag to indicate permanent failure
-          }),
-        });
-      } catch (callbackError) {
-        console.error('Failed to notify DO of AI error:', callbackError);
-      }
-
-      // Log to DLQ for visibility
-      try {
-        await logToDlq(env.DB, 'ai-request-queue', message.body, error, message.attempts);
-      } catch (dlqError) {
-        console.error('Failed to log AI request to DLQ:', dlqError);
-      }
-
-      message.ack();
-    } else {
-      // Transient error - retry with exponential backoff: 10s, 20s, 40s, 80s, 160s
-      const delaySeconds = 10 * Math.pow(2, message.attempts - 1);
-      message.retry({ delaySeconds });
     }
   }
 }

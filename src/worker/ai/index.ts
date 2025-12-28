@@ -13,11 +13,9 @@ export type {
   StructuredOutputConfig,
   StructuredOutputLevel,
   ModelConfig,
-  // Suspense pattern types
-  AIRequestMessage,
+  // Legacy types (deprecated - for backwards compatibility)
   CachedAIResponse,
-  ResponseCacheFn,
-  QueueRequestFn,
+  AIRequestMessage,
 } from './types.js';
 
 export {
@@ -28,7 +26,7 @@ export {
   MESSAGE_SCHEMA,
   KILL_VOTE_SCHEMA,
   ELIMINATION_VOTE_SCHEMA,
-  // Suspense error
+  // Legacy (deprecated - for backwards compatibility with GameRunner DO)
   SuspenseError,
 } from './types.js';
 
@@ -55,8 +53,11 @@ export {
   type RuntimeAPIKeys,
 } from './factory.js';
 
-// Game adapter
-export { GameAIAdapter, type GameAIAdapterOptions, type FallbackStats } from './GameAIAdapter.js';
+// Workflow AI Provider (recommended)
+export { WorkflowAIProvider, type WorkflowAIProviderOptions } from '../providers/WorkflowAIProvider.js';
+
+// Legacy GameAIAdapter (deprecated - for backwards compatibility with GameRunner DO)
+export { GameAIAdapter, AIParseError, type GameAIAdapterOptions, type FallbackStats } from './GameAIAdapter.js';
 
 // Zod schemas for action validation
 export {

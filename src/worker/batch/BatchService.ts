@@ -632,7 +632,8 @@ export class BatchService {
     const now = Date.now();
 
     if (result.success && result.response) {
-      // Update request as completed
+      // Update request as completed in D1
+      // Workflow will poll D1 for completion using step.sleep()
       await this.env.DB.prepare(`
         UPDATE batch_api_requests
         SET status = 'completed', response_body = ?,
@@ -646,42 +647,11 @@ export class BatchService {
         request.id
       ).run();
 
-      // Dispatch to GameRunner DO via callback
-      try {
-        const doId = this.env.GAME_RUNNER.idFromName(request.game_id);
-        const stub = this.env.GAME_RUNNER.get(doId);
-        
-        const callbackResponse = await stub.fetch('http://internal/internal/ai-callback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            requestId: request.request_id,
-            response: result.response,
-          }),
-        });
-
-        if (!callbackResponse.ok) {
-          this.log.error('DO callback failed', {
-            gameId: request.game_id,
-            requestId: request.request_id,
-            status: callbackResponse.status,
-          });
-          return false;
-        }
-
-        this.log.debug('Result dispatched to DO', {
-          gameId: request.game_id,
-          requestId: request.request_id,
-        });
-        return true;
-
-      } catch (error) {
-        logErrorWithStack(this.log, 'Failed to dispatch result to DO', error, {
-          gameId: request.game_id,
-          requestId: request.request_id,
-        });
-        return false;
-      }
+      this.log.debug('Batch result stored in D1 (workflow will poll)', {
+        gameId: request.game_id,
+        requestId: request.request_id,
+      });
+      return true;
     } else {
       // Update request as failed
       await this.env.DB.prepare(`

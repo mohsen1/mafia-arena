@@ -271,42 +271,31 @@ games.post('/run-direct', async (c) => {
   // Pick random theme if not specified
   const personaTheme = body.config.personaTheme ?? getRandomTheme();
 
-  // Get Durable Object instance and run directly
-  const id = env.GAME_RUNNER.idFromName(gameId);
-  const stub = env.GAME_RUNNER.get(id);
+  console.log(`[${traceId}] Starting game ${gameId} via workflow (discountPricing: ${discountPricing}, keys: ${keySource})`);
 
-  console.log(`[${traceId}] Running game ${gameId} directly (discountPricing: ${discountPricing}, keys: ${keySource})`);
-
-  const response = await stub.fetch('http://internal/start', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  // Start the workflow
+  await env.MAFIA_WORKFLOW.create({
+    id: gameId,
+    params: {
       gameId,
-      batchId,
       config: {
         playerCount: body.config.playerCount,
         mafiaCount: body.config.mafiaCount,
         teams: body.config.teams,
-        maxRounds: 10,
-        discussionEnabled: true,
-        personaConstraints: 'moderate',
-        contextLevel: 'full',
-        contextWindowSize: 3,
+        maxRounds: body.config.maxRounds ?? 10,
+        discussionEnabled: body.config.discussionEnabled ?? true,
+        personaConstraints: body.config.personaConstraints ?? 'moderate',
+        contextLevel: body.config.contextLevel ?? 'full',
+        contextWindowSize: body.config.contextWindowSize ?? 3,
         personaTheme,
         discountPricing,
       },
       traceId,
-      // Pass encrypted user API keys (persisted in DO storage to survive eviction)
+      batchId,
+      // Pass encrypted user API keys (persisted in workflow params)
       ...(encryptedUserKeys && { encryptedUserKeys }),
-    }),
+    },
   });
-
-  if (!response.ok) {
-    const error = (await response.json()) as { error: string };
-    throw Errors.Internal(error.error ?? 'Failed to start game');
-  }
-
-  const result = await response.json() as { success: boolean; gameId: string; seed: number };
 
   const estimatedTime = discountPricing 
     ? 'Game uses discount pricing. May take up to 24 hours per AI response.'
@@ -316,11 +305,10 @@ games.post('/run-direct', async (c) => {
     success: true,
     gameId,
     batchId,
-    seed: result.seed,
-    contextLevel: 'full',
+    contextLevel: body.config.contextLevel ?? 'full',
     discountPricing,
     keySource,
-    message: `Game started directly (bypassing queue). ${estimatedTime}`,
+    message: `Game started via Cloudflare Workflow. ${estimatedTime}`,
     traceId,
   });
 });
@@ -695,6 +683,94 @@ games.get('/:id/personas', async (c) => {
       townAvgConsistency: analysis.townAvgConsistency,
     } : null,
   });
+});
+
+/**
+ * POST /api/games/test-workflow - Test the new workflow implementation.
+ * This is a temporary endpoint for testing Phase 1-3 of the migration.
+ */
+games.post('/test-workflow', async (c) => {
+  interface TestWorkflowRequest {
+    playerCount: number;
+    mafiaCount: number;
+    teams: Array<{
+      modelId: string;
+      team: 'mafia' | 'town';
+      count: number;
+    }>;
+    maxRounds?: number;
+    discussionEnabled?: boolean;
+    personaConstraints?: 'strict' | 'moderate' | 'free';
+    personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
+    discountPricing?: boolean;
+  }
+
+  let body: TestWorkflowRequest;
+  try {
+    body = await c.req.json<TestWorkflowRequest>();
+  } catch {
+    throw Errors.BadRequest('Invalid JSON body');
+  }
+
+  if (!body.teams || body.teams.length === 0) {
+    throw Errors.BadRequest('Invalid game configuration: teams required');
+  }
+
+  const traceId = generateTraceId();
+  const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const personaTheme = body.personaTheme ?? getRandomTheme();
+
+  console.log(`[${traceId}] Starting test workflow for game ${gameId}`);
+
+  // Start the workflow
+  await c.env.MAFIA_WORKFLOW.create({
+    id: gameId,
+    params: {
+      gameId,
+      config: {
+        playerCount: body.playerCount,
+        mafiaCount: body.mafiaCount,
+        teams: body.teams,
+        maxRounds: body.maxRounds ?? 10,
+        discussionEnabled: body.discussionEnabled ?? true,
+        personaConstraints: body.personaConstraints ?? 'moderate',
+        personaTheme,
+        discountPricing: body.discountPricing ?? false,
+      },
+      traceId,
+    },
+  });
+
+  return c.json({
+    id: gameId,
+    traceId,
+    status: 'workflow_started',
+    message: 'Game started via Cloudflare Workflow. Connect to WebSocket for live updates.',
+  });
+});
+
+/**
+ * GET /api/games/:id/workflow-status - Get workflow execution status.
+ */
+games.get('/:id/workflow-status', async (c) => {
+  const gameId = c.req.param('id');
+  
+  try {
+    const instance = await c.env.MAFIA_WORKFLOW.get(gameId);
+    const status = await instance.status();
+    
+    return c.json({
+      gameId,
+      workflow: status,
+    });
+  } catch (error) {
+    // Workflow not found
+    return c.json({
+      gameId,
+      workflow: null,
+      error: 'Workflow not found',
+    }, 404);
+  }
 });
 
 export default games;

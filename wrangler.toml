@@ -13,6 +13,15 @@ custom_domain = true
 [placement]
 mode = "smart"
 
+# =============================================================================
+# WORKFLOWS - Native Cloudflare Workflows for game orchestration
+# =============================================================================
+
+[[workflows]]
+name = "mafia-workflow"
+binding = "MAFIA_WORKFLOW"
+class_name = "MafiaWorkflow"
+
 # Durable Objects
 [durable_objects]
 bindings = [
@@ -70,19 +79,7 @@ max_retries = 3
 max_concurrency = 50
 dead_letter_queue = "mafia-arena-dlq"
 
-# AI Request Queue - offloaded AI calls that may take 60s+
-# This allows the DO to hibernate while waiting for AI responses
-[[queues.producers]]
-queue = "mafia-arena-ai-requests"
-binding = "AI_REQUEST_QUEUE"
-
-[[queues.consumers]]
-queue = "mafia-arena-ai-requests"
-max_batch_size = 5  # Keep low to avoid rate limits
-max_batch_timeout = 30
-max_retries = 5     # More retries for transient AI failures
-max_concurrency = 20
-dead_letter_queue = "mafia-arena-dlq"
+# NOTE: AI Request Queue removed - Workflows handle AI calls natively via step.do()
 
 # =============================================================================
 # ANALYTICS ENGINE - Real-time metrics without D1 load
@@ -100,18 +97,15 @@ dataset = "mafia_events"
 crons = [
   # Poll batch jobs for completion every minute
   # - Checks status of submitted jobs with AI providers
-  # - Dispatches completed results back to GameRunner DOs
+  # - Updates D1 batch_api_requests table for Workflow polling
   "*/1 * * * *",
   
   # Aggregate pending batch requests every 5 minutes
   # - Bundles pending discountPricing AI requests
   # - Submits batches to provider APIs (OpenAI, Anthropic, Google, etc.)
-  "*/5 * * * *",
+  "*/5 * * * *"
   
-  # Clean up stale/hanging games every 10 minutes
-  # - Standard games: stale after 1 hour of inactivity
-  # - Discount pricing games: stale after 24 hours (batch APIs can take up to 24h)
-  "*/10 * * * *"
+  # NOTE: Cleanup cron removed - Workflows handle timeouts natively
 ]
 
 # Environment Variables
