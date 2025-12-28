@@ -86,6 +86,14 @@ interface HealthCheckResponse {
 
 type PhaseType = 'introduction' | 'night' | 'mafia_chat' | 'day_discussion' | 'day_vote';
 
+/** State for showing which agent is currently thinking/generating */
+interface ThinkingState {
+  playerId: string;
+  round: number;
+  phase: string;
+  actionType: string;
+}
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -139,6 +147,8 @@ class LiveGameState {
   isAtBottom = true;
   /** Scroll listener cleanup */
   scrollCleanup: (() => void) | null = null;
+  /** Current agent that is thinking/generating (parsed from suspenseReason) */
+  thinkingState: ThinkingState | null = null;
 
   constructor(public config: LiveGameConfig) {}
 
@@ -664,6 +674,36 @@ function renderEvent(state: LiveGameState, event: GameEvent): string {
     `;
   }
 
+  // Thinking indicator - shows which agent is currently generating
+  if (event.type === 'thinking') {
+    const player = state.playerMap[event.playerId || ''];
+    const isMafia = player?.team === 'mafia';
+    const nameClass = isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400';
+    const dotColor = isMafia ? 'bg-rose-400' : 'bg-indigo-400';
+    const playerName = player?.playerName || event.playerId || 'Unknown';
+    const modelName = getShortModelName(player?.modelId);
+
+    return `
+      <div class="group/msg py-0.5">
+        <div class="flex items-start gap-1 opacity-70">
+          <span class="w-1 h-1 rounded-full shrink-0 mt-1.5 ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'} animate-pulse"></span>
+          <div class="min-w-0 flex-1">
+            <span class="font-semibold text-[10px] ${nameClass}">${escapeHtml(playerName)}</span>
+            <span class="text-[8px] text-muted-foreground/50 ml-1">${modelName}</span>
+            <div class="mt-0.5 text-[11px] text-muted-foreground italic flex items-center gap-1.5">
+              <span>thinking</span>
+              <span class="flex gap-0.5">
+                <span class="w-1 h-1 ${dotColor} rounded-full animate-bounce" style="animation-delay: 0s; animation-duration: 0.6s"></span>
+                <span class="w-1 h-1 ${dotColor} rounded-full animate-bounce" style="animation-delay: 0.15s; animation-duration: 0.6s"></span>
+                <span class="w-1 h-1 ${dotColor} rounded-full animate-bounce" style="animation-delay: 0.3s; animation-duration: 0.6s"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   return '';
 }
 
@@ -950,6 +990,8 @@ function handleMessage(state: LiveGameState, data: WsMessage): void {
     }
   } else if (data.type === 'EVENT' && data.event) {
     const event = data.event;
+    // Clear thinking state when real event arrives (AI finished generating)
+    state.thinkingState = null;
     state.events.push(event);
     buildPlayerFromEvent(state, event);
     updateTeamsDisplay(state);
@@ -971,6 +1013,27 @@ function handleMessage(state: LiveGameState, data: WsMessage): void {
     }
     // Show AI progress when game is waiting for AI response
     if (data.status === 'running' && data.suspenseReason) {
+      // Parse suspenseReason to extract player info for thinking indicator
+      // Format: "Waiting for modelId (playerId, actionType) in round N phase"
+      const match = data.suspenseReason.match(/\(([^,]+), ([^)]+)\) in round (\d+) (\w+)/);
+      if (match) {
+        const newThinkingState: ThinkingState = {
+          playerId: match[1],
+          actionType: match[2],
+          round: parseInt(match[3], 10),
+          phase: match[4]
+        };
+        // Only re-render if thinking state changed
+        const changed = !state.thinkingState || 
+          state.thinkingState.playerId !== newThinkingState.playerId ||
+          state.thinkingState.round !== newThinkingState.round ||
+          state.thinkingState.phase !== newThinkingState.phase;
+        state.thinkingState = newThinkingState;
+        if (changed) {
+          renderTranscript(state);
+        }
+      }
+
       const waitTime = data.suspenseStartedAt 
         ? Math.round((Date.now() - data.suspenseStartedAt) / 1000) 
         : 0;
@@ -993,7 +1056,11 @@ function handleMessage(state: LiveGameState, data: WsMessage): void {
         `;
       }
     } else if (data.status === 'running' && !data.suspenseReason) {
-      // Game is running but not waiting for AI - show normal status
+      // Game is running but not waiting for AI - clear thinking state
+      if (state.thinkingState) {
+        state.thinkingState = null;
+        renderTranscript(state);
+      }
       updateConnectionStatus(true, 'Connected');
     }
   } else if (data.type === 'ERROR') {
