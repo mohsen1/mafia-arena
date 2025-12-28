@@ -1,1 +1,0 @@
-INSERT INTO game_participants (id, game_id, model_id, team, player_count, won) VALUES ('test2', 'game2', 'model2', 'mafia', 2, 0);
