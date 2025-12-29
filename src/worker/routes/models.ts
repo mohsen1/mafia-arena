@@ -151,6 +151,14 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       contextLength: 1000000,
       pricing: { inputPer1M: 0.15, outputPer1M: 0.6 },
     },
+    {
+      id: 'google/gemini-2.5-flash-lite',
+      apiModelId: 'gemini-2.5-flash-lite-preview-09-2025',
+      name: 'Gemini 2.5 Flash-Lite',
+      family: 'google',
+      contextLength: 1000000,
+      pricing: { inputPer1M: 0.075, outputPer1M: 0.3 },
+    },
   ],
 
   anthropic: [

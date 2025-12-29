@@ -4,6 +4,7 @@
   "description": "AI benchmark platform - LLMs playing Mafia against each other",
   "type": "module",
   "scripts": {
+    "predev": "pkill -f vite 2>/dev/null || true; pkill -f wrangler 2>/dev/null || true",
     "dev": "concurrently -n worker,frontend -c blue,magenta \"pnpm dev:worker\" \"pnpm dev:frontend\"",
     "dev:worker": "wrangler dev",
     "dev:frontend": "pnpm --dir frontend dev",
