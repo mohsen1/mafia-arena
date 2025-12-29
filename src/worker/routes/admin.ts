@@ -872,6 +872,96 @@ admin.post('/games/:id/complete', async (c) => {
   }
 });
 
+/**
+ * POST /api/admin/games/:id/restart - Restart a failed game with the same config.
+ * Creates a new game with the same configuration and starts a new workflow.
+ */
+admin.post('/games/:id/restart', async (c) => {
+  const env = c.env;
+  const db = createDb(env.DB);
+  const oldGameId = c.req.param('id');
+  
+  // 1. Get the original game config
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, oldGameId),
+  });
+
+  if (!game) {
+    throw Errors.NotFound('Game');
+  }
+  
+  if (game.status !== 'failed') {
+    throw Errors.BadRequest(`Game status is "${game.status}". Only failed games can be restarted.`);
+  }
+
+  // 2. Parse config from config_hash: "11-2-google/gemini-3-flash:2,anthropic/claude-opus-4.5:9"
+  const configHash = game.configHash;
+  const [_playerCount, ...teamParts] = configHash.split('-');
+  const mafiaCountFromHash = parseInt(teamParts[0] ?? '0', 10);
+  const teamsStr = teamParts.slice(1).join('-'); // Rejoin in case modelId has dashes
+  
+  // Parse teams: "google/gemini-3-flash:2,anthropic/claude-opus-4.5:9"
+  const teamEntries = teamsStr.split(',');
+  const teams: Array<{ modelId: string; team: 'mafia' | 'town'; count: number }> = [];
+  
+  let mafiaAssigned = 0;
+  for (const entry of teamEntries) {
+    const lastColon = entry.lastIndexOf(':');
+    if (lastColon === -1) continue;
+    const modelId = entry.slice(0, lastColon);
+    const count = parseInt(entry.slice(lastColon + 1), 10);
+    
+    // Assign to mafia first, then town
+    if (mafiaAssigned < mafiaCountFromHash) {
+      const mafiaCount = Math.min(count, mafiaCountFromHash - mafiaAssigned);
+      if (mafiaCount > 0) {
+        teams.push({ modelId, team: 'mafia', count: mafiaCount });
+        mafiaAssigned += mafiaCount;
+      }
+      const townCount = count - mafiaCount;
+      if (townCount > 0) {
+        teams.push({ modelId, team: 'town', count: townCount });
+      }
+    } else {
+      teams.push({ modelId, team: 'town', count });
+    }
+  }
+
+  // 3. Generate new game ID and trace ID
+  const traceId = generateTraceId();
+  const newGameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_restart`;
+  const personaTheme = game.personaTheme ?? getRandomTheme();
+
+  // 4. Start new workflow
+  await env.MAFIA_WORKFLOW.create({
+    id: newGameId,
+    params: {
+      gameId: newGameId,
+      config: {
+        playerCount: game.playerCount,
+        mafiaCount: game.mafiaCount,
+        teams,
+        maxRounds: 10,
+        discussionEnabled: true,
+        personaConstraints: 'moderate',
+        personaTheme,
+        discountPricing: game.discountPricing ?? false,
+      },
+      traceId,
+      batchId: game.batchId ?? undefined,
+    },
+  });
+
+  return c.json({
+    success: true,
+    originalGameId: oldGameId,
+    newGameId,
+    traceId,
+    message: `Game restarted as ${newGameId}`,
+    liveUrl: `https://mafia-arena.com/games/${newGameId}/live`,
+  });
+});
+
 // =============================================================================
 // DEAD LETTER QUEUE MANAGEMENT
 // =============================================================================
