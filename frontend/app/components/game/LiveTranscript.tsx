@@ -9,6 +9,7 @@ import { ChevronDown, Moon, Sun, Swords, Vote, MessageCircle } from 'lucide-reac
 import type { GameEvent, PlayersMap, ThinkingState } from '~/lib/game-types';
 import { getPhaseConfig, getShortModelName } from '~/lib/game-types';
 import { TranscriptItem } from './TranscriptItem';
+import { SnakeGame } from './SnakeGame';
 
 // =============================================================================
 // Phase Icon Component
@@ -344,8 +345,11 @@ export function LiveTranscript({ events, players, thinkingState, currentPhase }:
     }
 
     return (
-      <div className="h-full flex items-center justify-center rounded-lg bg-muted/30 text-muted-foreground">
-        Waiting for events...
+      <div className="h-full relative rounded-lg bg-muted/30 text-muted-foreground overflow-hidden">
+        <SnakeGame />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-sm">Waiting for events...</span>
+        </div>
       </div>
     );
   }

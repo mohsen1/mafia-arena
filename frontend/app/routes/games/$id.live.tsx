@@ -3,34 +3,53 @@
  * Uses React hooks and components instead of imperative DOM manipulation.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router';
 import type { Route } from './+types/$id.live';
 import { getGame } from '~/lib/api';
 import { getApiUrl } from '~/lib/utils';
-import { ArrowLeft, Trophy, Feather, Scroll, Building2, Sparkles, Loader2, Moon, Sun, Swords, Vote, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Trophy, Feather, Scroll, Building2, Sparkles, Loader2, Moon, Sun, Swords, Vote, MessageCircle, X } from 'lucide-react';
 import { useGameConnection } from '~/hooks/useGameConnection';
 import {
   LiveTranscript,
   PlayerPill,
   PlayerModal,
   BatchBanner,
-  ConnectionStatus,
   ErrorBanner,
   GameEndOverlay,
 } from '~/components/game';
 import type { PlayerInfo } from '~/lib/game-types';
-import { formatDuration, getPhaseConfig, getShortModelName, getProviderFromModel } from '~/lib/game-types';
+import { formatDuration, getPhaseConfig, getShortModelName } from '~/lib/game-types';
 
 // =============================================================================
 // Theme Configuration
 // =============================================================================
 
-const THEME_CONFIG: Record<string, { label: string; iconType: string; classes: string }> = {
-  noir: { label: 'Noir', iconType: 'feather', classes: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' },
-  victorian: { label: 'Victorian', iconType: 'scroll', classes: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
-  modern: { label: 'Modern', iconType: 'building', classes: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400' },
-  fantasy: { label: 'Fantasy', iconType: 'sparkles', classes: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' },
+const THEME_CONFIG: Record<string, { label: string; iconType: string; classes: string; description: string }> = {
+  noir: { 
+    label: 'Noir', 
+    iconType: 'feather', 
+    classes: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
+    description: 'A dark, atmospheric setting inspired by 1940s detective fiction. Characters speak in hard-boiled prose, shadows lurk around every corner, and trust is a currency nobody can afford.'
+  },
+  victorian: { 
+    label: 'Victorian', 
+    iconType: 'scroll', 
+    classes: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    description: 'Set in the gaslit streets of 19th century London. Characters are bound by rigid social hierarchy, proper etiquette masks deadly intentions, and secrets fester beneath respectable facades.'
+  },
+  modern: { 
+    label: 'Modern', 
+    iconType: 'building', 
+    classes: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
+    description: 'A contemporary corporate thriller setting. Power plays unfold in glass towers, alliances shift in boardrooms, and the deadliest weapons are information and influence.'
+  },
+  fantasy: { 
+    label: 'Fantasy', 
+    iconType: 'sparkles', 
+    classes: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
+    description: 'A realm of magic and mystery where guilds vie for power. Ancient prophecies guide the righteous while dark sorcery empowers the corrupted. Every spell cast could reveal—or conceal—the truth.'
+  },
 };
 
 function ThemeIcon({ type }: { type: string }) {
@@ -52,17 +71,6 @@ function PhaseIcon({ icon }: { icon: string }) {
     case 'message': return <MessageCircle size={10} />;
     default: return <MessageCircle size={10} />;
   }
-}
-
-function getProviderBadgeClass(provider: string): string {
-  const classes: Record<string, string> = {
-    OpenAI: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-    Anthropic: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-    Google: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    DeepSeek: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-    Meta: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
-  };
-  return classes[provider] || 'bg-muted text-muted-foreground';
 }
 
 // =============================================================================
@@ -97,6 +105,7 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
 
   // Modal state
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerInfo | null>(null);
+  const [showThemeDialog, setShowThemeDialog] = useState(false);
 
   // Game connection hook
   const { state, isConnected, isConnecting, isPolling } = useGameConnection({
@@ -123,12 +132,6 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
   const townModels = useMemo(() => {
     const models = [...new Set(players.filter(p => p.team === 'town').map(p => getShortModelName(p.modelId)))];
     return models.join(', ') || '—';
-  }, [players]);
-
-  // Derive providers
-  const providers = useMemo(() => {
-    const allModels = players.map(p => p.modelId);
-    return [...new Set(allModels.map(getProviderFromModel).filter((p): p is string => p !== null))];
   }, [players]);
 
   // Phase config
@@ -198,10 +201,13 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
           <div className="flex items-center gap-3 text-[10px]">
             {statusBadge}
 
-            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-medium ${theme.classes}`}>
+            <button
+              onClick={() => setShowThemeDialog(true)}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-medium cursor-pointer hover:opacity-80 transition-opacity ${theme.classes}`}
+            >
               <ThemeIcon type={theme.iconType} />
               {theme.label}
-            </div>
+            </button>
 
             <div className="h-3 w-px bg-border/50" />
 
@@ -231,8 +237,13 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
               </div>
               <span className="font-mono tabular-nums">{formatDuration(state.durationMs || 0)}</span>
               <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                {state.totalTokens.toLocaleString()}
+                {state.totalTokens.toLocaleString()} <span className="font-normal">tokens</span>
               </span>
+              {state.aiProgress && (
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  · {state.aiProgress.cachedResponses} AI cached
+                </span>
+              )}
             </div>
           </div>
 
@@ -251,31 +262,6 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
             </div>
           )}
 
-          {/* Providers */}
-          {providers.length > 0 && (
-            <div className="flex items-center gap-1 pt-1">
-              {providers.map(provider => (
-                <span
-                  key={provider}
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getProviderBadgeClass(provider)}`}
-                >
-                  {provider}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Connection Status */}
-          <div className="text-[9px] pt-1">
-            <ConnectionStatus
-              isConnected={isConnected}
-              isConnecting={isConnecting}
-              isPolling={isPolling}
-              aiProgress={state.aiProgress}
-              suspenseReason={state.suspenseReason}
-              eventCount={state.events.length}
-            />
-          </div>
 
           {/* Batch Banner */}
           <BatchBanner
@@ -313,6 +299,32 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
           player={selectedPlayer}
           onClose={() => setSelectedPlayer(null)}
         />
+      )}
+
+      {/* Theme Dialog */}
+      {showThemeDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowThemeDialog(false)}>
+          <div 
+            className="bg-background border rounded-lg shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-sm font-medium ${theme.classes}`}>
+                <ThemeIcon type={theme.iconType} />
+                {theme.label} Theme
+              </div>
+              <button 
+                onClick={() => setShowThemeDialog(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {theme.description}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
