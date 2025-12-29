@@ -22,6 +22,7 @@ import { adminAuthMiddleware, batchRateLimitMiddleware } from '../middleware/ind
 import { killHangingGames, getRunningGamesCount } from './admin-cleanup.js';
 import { createDb } from '../db/drizzle.js';
 import * as schema from '../db/schema.js';
+import { getGameStateFromKV, deleteGameStateFromKV } from '../utils/workflow-sync.js';
 
 const admin = new Hono<{ Bindings: Env }>();
 
@@ -616,6 +617,184 @@ admin.post('/games/:id/fail', async (c) => {
       { status: 500 }
     );
   }
+});
+
+/**
+ * POST /api/admin/games/:id/repair - Repair a stuck game by saving its state.
+ * 
+ * This endpoint:
+ * 1. Reads game state from KV (where Workflow saves progress)
+ * 2. Saves transcript to R2 (preserves game history)
+ * 3. Updates D1 with stats (rounds, tokens, duration)
+ * 4. Marks game as failed with proper cleanup
+ * 5. Cleans up KV state
+ * 
+ * Use this for games that made progress but the Workflow crashed.
+ */
+admin.post('/games/:id/repair', async (c) => {
+  const env = c.env;
+  const db = createDb(env.DB);
+  const gameId = c.req.param('id');
+  const { reason } = await c.req.json<{ reason?: string }>().catch(() => ({ reason: undefined }));
+  
+  // 1. Check if game exists and is stuck
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+  });
+
+  if (!game) {
+    throw Errors.NotFound('Game');
+  }
+  
+  if (game.status !== 'running') {
+    throw Errors.BadRequest(`Game status is "${game.status}", not "running". Cannot repair.`);
+  }
+
+  // 2. Get game state from KV
+  const kvState = await getGameStateFromKV(env, gameId);
+  
+  if (!kvState || !kvState.state) {
+    throw Errors.BadRequest('No game state found in KV. Cannot repair - try marking as failed instead.');
+  }
+
+  const events = kvState.state.events || [];
+  const players = kvState.state.players || [];
+  
+  if (events.length === 0) {
+    throw Errors.BadRequest('No events found in KV state. Cannot repair - try marking as failed instead.');
+  }
+
+  // 3. Calculate stats from events
+  const firstEvent = events[0];
+  const lastEvent = events[events.length - 1];
+  const startedAt = firstEvent?.timestamp || game.createdAt.getTime();
+  const endedAt = lastEvent?.timestamp || Date.now();
+  const durationMs = endedAt - startedAt;
+  
+  // Find highest round number and count tokens
+  let maxRound = 0;
+  let totalTokens = 0;
+  let winner: 'town' | 'mafia' | null = null;
+  
+  for (const event of events) {
+    // Check for round (present on most events)
+    const eventRound = (event as { round?: number }).round;
+    if (eventRound && eventRound > maxRound) {
+      maxRound = eventRound;
+    }
+    
+    // Count tokens from ai_call events
+    if (event.type === 'ai_call') {
+      const aiEvent = event as { response?: { usage?: { total_tokens?: number } } };
+      if (aiEvent.response?.usage?.total_tokens) {
+        totalTokens += aiEvent.response.usage.total_tokens;
+      }
+    }
+    
+    // Check for game_end event to determine winner
+    if (event.type === 'game_end') {
+      const gameEndEvent = event as { winner?: 'town' | 'mafia' };
+      winner = gameEndEvent.winner || null;
+    }
+  }
+  const finalStatus = winner ? 'completed' : 'failed';
+
+  // 4. Save transcript to R2
+  const transcript = {
+    gameId,
+    events,
+    players,
+    result: {
+      winner,
+      rounds: maxRound,
+      durationMs,
+    },
+    repaired: true,
+    repairedAt: Date.now(),
+    originalError: reason || 'Workflow crashed - repaired via admin',
+  };
+
+  await env.TRANSCRIPTS.put(
+    `games/${gameId}/transcript.json`,
+    JSON.stringify(transcript, null, 2),
+    {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { 
+        gameId, 
+        repaired: 'true',
+        rounds: String(maxRound),
+        ...(winner && { winner }),
+      },
+    }
+  );
+
+  // 5. Update D1 with stats
+  const now = new Date();
+  const errorMessage = winner 
+    ? null 
+    : (reason || 'Workflow crashed - repaired via admin');
+
+  await db
+    .update(schema.games)
+    .set({
+      status: finalStatus,
+      winner,
+      rounds: maxRound,
+      totalTokens,
+      durationMs,
+      errorMessage,
+      updatedAt: now,
+    })
+    .where(eq(schema.games.id, gameId));
+
+  // 6. Update daily stats
+  const today = new Date().toISOString().slice(0, 10);
+  if (winner) {
+    await db
+      .insert(schema.dailyStats)
+      .values({
+        date: today,
+        gamesCompleted: 1,
+      })
+      .onConflictDoUpdate({
+        target: schema.dailyStats.date,
+        set: {
+          gamesCompleted: sql`${schema.dailyStats.gamesCompleted} + 1`,
+          updatedAt: now,
+        },
+      });
+  } else {
+    await db
+      .insert(schema.dailyStats)
+      .values({
+        date: today,
+        gamesFailed: 1,
+      })
+      .onConflictDoUpdate({
+        target: schema.dailyStats.date,
+        set: {
+          gamesFailed: sql`${schema.dailyStats.gamesFailed} + 1`,
+          updatedAt: now,
+        },
+      });
+  }
+
+  // 7. Clean up KV state
+  await deleteGameStateFromKV(env, gameId);
+
+  return c.json({
+    success: true,
+    gameId,
+    status: finalStatus,
+    message: `Game ${gameId} repaired successfully`,
+    stats: {
+      events: events.length,
+      rounds: maxRound,
+      totalTokens,
+      durationMs,
+      winner,
+    },
+  });
 });
 
 /**
