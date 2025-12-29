@@ -356,11 +356,25 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
   const pollDelayRef = useRef(POLL_INTERVAL_MS);
   const isMountedRef = useRef(true);
 
+  // Ref for triggering polling fallback from handleMessage
+  const triggerPollingFallbackRef = useRef<(() => void) | null>(null);
+
   // Handle incoming WebSocket messages
   const handleMessage = useCallback((msg: WsMessage) => {
     if (!isMountedRef.current) return;
     
     if (msg.type === 'SYNC') {
+      const eventCount = msg.events?.length || 0;
+      
+      // CRITICAL FIX: If DO returns empty SYNC for a running game, the DO
+      // likely woke up from hibernation without state. Fall back to polling
+      // which queries KV directly and should have the actual game state.
+      if (eventCount === 0 && msg.status === 'running') {
+        console.warn('Empty SYNC for running game - falling back to polling');
+        triggerPollingFallbackRef.current?.();
+        return;
+      }
+      
       dispatch({
         type: 'SYNC',
         events: msg.events || [],
@@ -371,7 +385,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         players: msg.players,
         currentPhase: msg.currentPhase,
       });
-      lastEventCountRef.current = msg.events?.length || 0;
+      lastEventCountRef.current = eventCount;
     } else if (msg.type === 'EVENT' && msg.event) {
       dispatch({ type: 'ADD_EVENT', event: msg.event });
     } else if (msg.type === 'STATUS') {
@@ -422,6 +436,15 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
+
+      // Set up polling fallback callback for empty SYNC detection
+      triggerPollingFallbackRef.current = () => {
+        ws.close(1000);
+        setIsPolling(true);
+        setWsConnecting(false);
+        setWsConnected(false);
+        dispatch({ type: 'SET_CONNECTION_STATUS', connectionStatus: 'polling' });
+      };
 
       ws.onopen = () => {
         if (!isMountedRef.current) return;
