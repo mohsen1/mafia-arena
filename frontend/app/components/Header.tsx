@@ -83,7 +83,7 @@ export function Header() {
                     : 'text-muted-foreground'
                 )}
               >
-                Batche Games
+                Batch Games
               </Link>
             )}
             {user?.isAdmin && (
@@ -155,7 +155,7 @@ export function Header() {
                         : 'text-muted-foreground'
                     )}
                   >
-                    Batche Games
+                    Batch Games
                   </Link>
                 )}
                 {user?.isAdmin && (
@@ -238,7 +238,7 @@ export function Header() {
                       onClick={() => setDropdownOpen(false)}
                     >
                       <Layers className="h-4 w-4" />
-                      <span>Batche Games</span>
+                      <span>Batch Games</span>
                     </Link>
                     {user.isAdmin && (
                       <Link

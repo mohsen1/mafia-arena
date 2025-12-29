@@ -367,7 +367,7 @@ export default function UserBatches() {
   
   return (
     <div>
-      <h1>Batche Games</h1>
+      <h1>Batch Games</h1>
       <Link to="/batches/new">Create New Batch</Link>
       <BatchList batches={batches} onCancel={handleCancel} />
     </div>
@@ -439,14 +439,14 @@ cd frontend && timeout 30s pnpm build
 **File(s):** `frontend/app/components/Header.tsx`
 
 **Description:**
-Add "Batche Games" link to the navigation for authenticated users.
+Add "Batch Games" link to the navigation for authenticated users.
 
 **Code Changes:**
 ```typescript
 // In Header.tsx navigation items
 {authenticated && (
   <Link to="/batches" className="...">
-    Batche Games
+    Batch Games
   </Link>
 )}
 ```
@@ -657,7 +657,7 @@ timeout 120s pnpm e2e
 If something goes wrong:
 
 1. Disable user batch routes by removing from `index.ts`
-2. Hide "Batche Games" link in Header
+2. Hide "Batch Games" link in Header
 3. Admin batch functionality remains unchanged
 4. User keys remain available for future use
 
@@ -721,7 +721,7 @@ timeout 60s pnpm test
 | `src/worker/batch/service.ts` | Propagate user keys through queue |
 | `src/worker/index.ts` | Mount user batch routes |
 | `src/worker/middleware/rateLimit.ts` | Add user batch rate limiting |
-| `frontend/app/components/Header.tsx` | Add "Batche Games" link |
+| `frontend/app/components/Header.tsx` | Add "Batch Games" link |
 
 ### User Limits vs Admin
 

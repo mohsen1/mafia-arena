@@ -6,7 +6,7 @@ import { Plus, ChevronLeft, ChevronRight, Loader2, KeyRound, AlertCircle } from 
 
 export function meta() {
   return [
-    { title: "Batche Games | Mafia Arena" },
+    { title: "Batch Games | Mafia Arena" },
     { name: "description", content: "Manage your batch game runs on Mafia Arena" },
   ];
 }
@@ -148,7 +148,7 @@ export default function UserBatches() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Batche Games</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Batch Games</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Run batch games using your own API keys
           </p>
