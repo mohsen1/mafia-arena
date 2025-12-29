@@ -186,7 +186,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         durationMs: action.durationMs || state.durationMs,
         totalTokens: telemetry.totalTokens,
         currentRound: telemetry.currentRound,
-        currentPhase: telemetry.currentPhase,
+        // Prefer API's currentPhase (from workflow state) over event-derived
+        currentPhase: action.currentPhase || telemetry.currentPhase,
         winner: gameEndEvent?.winner || null,
         error: action.error || null,
         thinkingState: null, // Clear thinking on sync
@@ -368,6 +369,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         durationMs: msg.durationMs,
         error: msg.error,
         players: msg.players,
+        currentPhase: msg.currentPhase,
       });
       lastEventCountRef.current = msg.events?.length || 0;
     } else if (msg.type === 'EVENT' && msg.event) {
@@ -485,6 +487,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         durationMs?: number;
         error?: string;
         players?: APIPlayer[];
+        currentPhase?: string;
       };
 
       if (!isMountedRef.current) return;
@@ -500,6 +503,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
           durationMs: data.durationMs,
           error: data.error,
           players: data.players,
+          currentPhase: data.currentPhase,
         });
         lastEventCountRef.current = data.events.length;
       }

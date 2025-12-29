@@ -159,35 +159,72 @@ interface CharacterGenerationProps {
   events: GameEvent[];
   players: PlayersMap;
   totalPlayers: number;
+  currentPhase?: string;
 }
 
-function CharacterGeneration({ events, players, totalPlayers }: CharacterGenerationProps) {
+function CharacterGeneration({ events, players, totalPlayers, currentPhase }: CharacterGenerationProps) {
   const personaEvents = events.filter(e => e.type === 'persona_generation');
+  const progressEvent = [...events].reverse().find(e => e.type === 'persona_generation_progress');
   const playerList = Object.values(players);
+  
+  // Use progress event if available, otherwise count persona events
+  const completed = progressEvent?.completed ?? personaEvents.length;
+  const total = progressEvent?.total ?? totalPlayers;
+  const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  
+  // Determine if we're still generating or moving to introductions
+  const isGenerating = completed < total;
+  const statusText = isGenerating 
+    ? 'Generating characters...' 
+    : currentPhase === 'introduction' 
+      ? 'Characters ready! Starting introductions...'
+      : 'Characters generated';
 
   return (
     <div className="px-3 py-6 space-y-4">
-      <div className="text-center">
-        <div className="text-sm font-medium text-muted-foreground mb-2">Generating characters...</div>
-        <div className="text-xs text-muted-foreground/70">{personaEvents.length}/{totalPlayers} personas created</div>
+      <div className="text-center space-y-3">
+        <div className="text-sm font-medium text-foreground">{statusText}</div>
+        
+        {/* Progress bar */}
+        <div className="max-w-xs mx-auto">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {completed}/{total} personas created
+          </div>
+        </div>
       </div>
-      <div className="space-y-2">
+      
+      {/* Player list */}
+      <div className="space-y-1.5 max-h-64 overflow-y-auto">
         {playerList.map(player => {
           const hasPersona = player.persona?.name;
           const isMafia = player.team === 'mafia';
-          const teamColor = isMafia ? 'rose' : 'indigo';
-          const dotColor = isMafia ? 'bg-rose-500' : 'bg-indigo-500';
-          const textColor = isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400';
 
           if (hasPersona) {
             return (
               <div
                 key={player.playerId}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded bg-${teamColor}-500/5 border border-${teamColor}-500/10`}
+                className={`flex items-center gap-2 px-2.5 py-2 rounded-lg transition-all duration-300 ${
+                  isMafia 
+                    ? 'bg-rose-500/10 border border-rose-500/20' 
+                    : 'bg-indigo-500/10 border border-indigo-500/20'
+                }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-                <span className={`text-xs font-medium ${textColor}`}>{player.persona?.name || player.playerName}</span>
-                <span className="text-[10px] text-muted-foreground/50 ml-auto">{getShortModelName(player.modelId)}</span>
+                <span className={`w-2 h-2 rounded-full ${isMafia ? 'bg-rose-500' : 'bg-indigo-500'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs font-medium truncate ${isMafia ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                    {player.persona?.name || player.playerName}
+                  </div>
+                  {player.persona?.occupation && (
+                    <div className="text-[10px] text-muted-foreground truncate">{player.persona.occupation}</div>
+                  )}
+                </div>
+                <span className="text-[10px] text-muted-foreground/50 shrink-0">{getShortModelName(player.modelId)}</span>
               </div>
             );
           }
@@ -195,11 +232,13 @@ function CharacterGeneration({ events, players, totalPlayers }: CharacterGenerat
           return (
             <div
               key={player.playerId}
-              className="flex items-center gap-2 px-2 py-1.5 rounded bg-muted/50 border border-border/50"
+              className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-muted/30 border border-border/30"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 animate-pulse" />
-              <span className="text-xs text-muted-foreground/70 italic">Generating...</span>
-              <span className="text-[10px] text-muted-foreground/30 ml-auto">{getShortModelName(player.modelId)}</span>
+              <span className="w-2 h-2 rounded-full bg-muted-foreground/30 animate-pulse" />
+              <div className="flex-1">
+                <div className="text-xs text-muted-foreground/70 italic">Generating...</div>
+              </div>
+              <span className="text-[10px] text-muted-foreground/30 shrink-0">{getShortModelName(player.modelId)}</span>
             </div>
           );
         })}
@@ -216,9 +255,10 @@ interface LiveTranscriptProps {
   events: GameEvent[];
   players: PlayersMap;
   thinkingState: ThinkingState | null;
+  currentPhase?: string | null;
 }
 
-export function LiveTranscript({ events, players, thinkingState }: LiveTranscriptProps) {
+export function LiveTranscript({ events, players, thinkingState, currentPhase }: LiveTranscriptProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [newMessageCount, setNewMessageCount] = useState(0);
@@ -248,19 +288,35 @@ export function LiveTranscript({ events, players, thinkingState }: LiveTranscrip
     setNewMessageCount(0);
   }, []);
 
-  // Check for valid events to display
-  const validEvents = events.filter(
-    e => e.type !== 'persona_generation' && e.phase && e.phase !== 'other'
-  );
-
+  // Check for persona generation events
+  const personaStartEvent = events.find(e => e.type === 'persona_generation_start');
   const personaEvents = events.filter(e => e.type === 'persona_generation');
-  const totalPlayers = Object.keys(players).length || 11;
-
-  // Show character generation progress during intro
-  if (validEvents.length === 0 && personaEvents.length > 0) {
+  const personaProgressEvents = events.filter(e => e.type === 'persona_generation_progress');
+  const totalPlayers = personaStartEvent?.playerCount || Object.keys(players).length || 11;
+  
+  // Check for valid gameplay events (excluding persona generation)
+  const validEvents = events.filter(
+    e => e.type !== 'persona_generation' && 
+         e.type !== 'persona_generation_start' && 
+         e.type !== 'persona_generation_progress' &&
+         e.phase && e.phase !== 'other'
+  );
+  
+  // Determine if we're in persona generation phase
+  const isGeneratingPersonas = personaStartEvent && personaEvents.length < totalPlayers;
+  const hasPersonaEvents = personaEvents.length > 0 || personaProgressEvents.length > 0;
+  
+  // Show character generation progress during intro phase while personas are being generated
+  // or when we have persona events but no gameplay events yet
+  if ((isGeneratingPersonas || (hasPersonaEvents && validEvents.length === 0)) && currentPhase === 'introduction') {
     return (
       <div className="h-full overflow-y-auto rounded-lg bg-muted/30">
-        <CharacterGeneration events={events} players={players} totalPlayers={totalPlayers} />
+        <CharacterGeneration 
+          events={events} 
+          players={players} 
+          totalPlayers={totalPlayers}
+          currentPhase={currentPhase ?? undefined}
+        />
       </div>
     );
   }

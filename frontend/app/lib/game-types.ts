@@ -34,7 +34,22 @@ export interface TokenUsage {
 }
 
 export interface GameEvent {
-  type: 'ai_call' | 'elimination' | 'game_end' | 'game_start' | 'persona_generation' | 'summarization' | 'phase_change' | 'thinking';
+  type: 
+    | 'ai_call' 
+    | 'elimination' 
+    | 'game_end' 
+    | 'game_start' 
+    | 'persona_generation' 
+    | 'persona_generation_start'
+    | 'persona_generation_progress'
+    | 'summarization' 
+    | 'phase_change' 
+    | 'phase_start'
+    | 'phase_end'
+    | 'introduction'
+    | 'discussion'
+    | 'vote'
+    | 'thinking';
   phase?: PhaseType | string;
   round?: number;
   playerId?: string;
@@ -54,6 +69,11 @@ export interface GameEvent {
   roundRangeSummarized?: [number, number];
   tokensSaved?: number;
   timestamp?: number;
+  /** For persona_generation_start */
+  playerCount?: number;
+  /** For persona_generation_progress */
+  completed?: number;
+  total?: number;
   /** For game_start events */
   players?: Array<{
     id: string;
@@ -110,6 +130,8 @@ export interface WsMessage {
   durationMs?: number;
   /** Full player data from serialized state (includes personas) */
   players?: APIPlayer[];
+  /** Current phase from workflow state (more accurate than deriving from events) */
+  currentPhase?: string;
   /** Current suspense reason - which model/player game is waiting for */
   suspenseReason?: string | null;
   /** When game started waiting for current AI call */
@@ -171,7 +193,7 @@ export interface GameState {
 // =============================================================================
 
 export type GameAction =
-  | { type: 'SYNC'; events: GameEvent[]; status?: GameStatus; startedAt?: number; durationMs?: number; error?: string; players?: APIPlayer[] }
+  | { type: 'SYNC'; events: GameEvent[]; status?: GameStatus; startedAt?: number; durationMs?: number; error?: string; players?: APIPlayer[]; currentPhase?: string }
   | { type: 'ADD_EVENT'; event: GameEvent }
   | { type: 'SET_STATUS'; status: GameStatus; error?: string }
   | { type: 'SET_CONNECTION_STATUS'; connectionStatus: ConnectionStatus }

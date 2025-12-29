@@ -615,16 +615,33 @@ games.get('/:id/events', async (c) => {
     const kvState = await getGameStateFromKV(env, gameId);
     if (kvState) {
       // Work directly with serialized state - no need to instantiate GameState class
-      const events = kvState.state.events;
+      const allEvents = kvState.state.events;
       const players = kvState.state.players;
+      
+      // Separate persona events (always include) from game events (last 50)
+      const personaEvents = allEvents.filter(e => 
+        e.type === 'persona_generation' || 
+        e.type === 'persona_generation_start' || 
+        e.type === 'persona_generation_progress'
+      );
+      const gameEvents = allEvents.filter(e => 
+        e.type !== 'persona_generation' && 
+        e.type !== 'persona_generation_start' && 
+        e.type !== 'persona_generation_progress'
+      );
+      
+      // Combine: all persona events + last 50 game events
+      const events = [...personaEvents, ...gameEvents.slice(-50)];
+      
       return c.json({
         status: kvState.status,
         gameId,
-        eventCount: events.length,
-        events: events.slice(-50), // Last 50 events for size
+        eventCount: allEvents.length,
+        events,
         players, // Include full player data with personas
-        startedAt: events.length > 0 
-          ? events[0]?.timestamp 
+        currentPhase: kvState.currentPhase,
+        startedAt: allEvents.length > 0 
+          ? allEvents[0]?.timestamp 
           : undefined,
       });
     }
