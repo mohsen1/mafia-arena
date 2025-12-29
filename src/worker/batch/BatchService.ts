@@ -147,8 +147,8 @@ export class BatchService {
     await this.env.DB.prepare(`
       INSERT INTO batch_api_requests (
         id, request_id, custom_id, game_id, model_id, provider,
-        request_body, context_json, status, retry_count, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)
+        request_body, context_json, status, retry_count, created_at, trace_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?)
     `).bind(
       id,
       message.requestId,
@@ -158,7 +158,8 @@ export class BatchService {
       provider,
       JSON.stringify(message.request),
       JSON.stringify(message.context),
-      now
+      now,
+      message.traceId ?? null
     ).run();
 
     this.log.debug('Stored batch request', {
@@ -167,6 +168,7 @@ export class BatchService {
       gameId: message.gameId,
       provider,
       modelId: message.modelId,
+      traceId: message.traceId,
     });
   }
 

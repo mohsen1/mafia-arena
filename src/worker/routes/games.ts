@@ -773,4 +773,114 @@ games.get('/:id/workflow-status', async (c) => {
   }
 });
 
+/**
+ * GET /api/games/:id/batch-status - Get batch API request status for a game.
+ * Returns pending/bundled/completed batch requests for games using discount pricing.
+ */
+games.get('/:id/batch-status', async (c) => {
+  const env = c.env;
+  const gameId = c.req.param('id');
+
+  // Get all batch requests for this game
+  const requests = await env.DB.prepare(`
+    SELECT 
+      request_id,
+      status,
+      provider,
+      model_id,
+      batch_job_id,
+      created_at,
+      updated_at,
+      error_message
+    FROM batch_api_requests
+    WHERE game_id = ?
+    ORDER BY created_at ASC
+  `).bind(gameId).all<{
+    request_id: string;
+    status: string;
+    provider: string;
+    model_id: string;
+    batch_job_id: string | null;
+    created_at: number;
+    updated_at: number | null;
+    error_message: string | null;
+  }>();
+
+  const results = requests.results ?? [];
+
+  // Calculate summary stats
+  const total = results.length;
+  const pending = results.filter(r => r.status === 'pending').length;
+  const bundled = results.filter(r => r.status === 'bundled').length;
+  const completed = results.filter(r => r.status === 'completed').length;
+  const failed = results.filter(r => r.status === 'failed').length;
+
+  // Get batch job info if any requests are bundled
+  let batchJob = null;
+  const bundledRequest = results.find(r => r.batch_job_id);
+  if (bundledRequest?.batch_job_id) {
+    const job = await env.DB.prepare(`
+      SELECT 
+        id,
+        provider,
+        provider_job_id,
+        status,
+        request_count,
+        completed_count,
+        failed_count,
+        created_at,
+        submitted_at,
+        expires_at
+      FROM batch_api_jobs
+      WHERE id = ?
+    `).bind(bundledRequest.batch_job_id).first<{
+      id: string;
+      provider: string;
+      provider_job_id: string | null;
+      status: string;
+      request_count: number;
+      completed_count: number;
+      failed_count: number;
+      created_at: number;
+      submitted_at: number | null;
+      expires_at: number | null;
+    }>();
+    batchJob = job;
+  }
+
+  // Determine overall batch status for the game
+  let batchPending = false;
+  let estimatedWaitHours: number | null = null;
+
+  if (total > 0 && completed < total) {
+    batchPending = true;
+    // Estimate wait time based on typical batch processing times
+    // Most providers complete within 1-6 hours, max 24 hours
+    if (batchJob?.submitted_at) {
+      const elapsedMs = Date.now() - batchJob.submitted_at;
+      const elapsedHours = elapsedMs / (1000 * 60 * 60);
+      // Assume typical completion time is 2-4 hours
+      estimatedWaitHours = Math.max(0, 4 - elapsedHours);
+    } else {
+      // Not yet submitted - include aggregation + processing time
+      estimatedWaitHours = 5; // ~5 min aggregation + 4-5 hour processing
+    }
+  }
+
+  return c.json({
+    gameId,
+    batchPending,
+    estimatedWaitHours,
+    summary: {
+      total,
+      pending,
+      bundled,
+      completed,
+      failed,
+    },
+    batchJob,
+    requests: results,
+  });
+});
+
 export default games;

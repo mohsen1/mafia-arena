@@ -214,6 +214,7 @@ export class WorkflowAIProvider implements AIProvider {
         },
         timestamp: Date.now(),
         discountPricing: true,
+        ...(this.options.traceId && { traceId: this.options.traceId }),
       });
     });
 
@@ -260,7 +261,8 @@ export class WorkflowAIProvider implements AIProvider {
    */
   private async waitForBatchResult(stepId: string, requestId: string): Promise<CompletionResponse> {
     const MAX_POLLS = 144; // 24 hours at 10-min intervals
-    const sleepTime = this.env.ENVIRONMENT === 'development' ? '10 seconds' : '10 minutes';
+    // Dev: 2 seconds for fast testing, Prod: 10 minutes for cost efficiency
+    const sleepTime = this.env.ENVIRONMENT === 'development' ? '2 seconds' : '10 minutes';
 
     for (let i = 0; i < MAX_POLLS; i++) {
       // Sleep before checking (except first poll)

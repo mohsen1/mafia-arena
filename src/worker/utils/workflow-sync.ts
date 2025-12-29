@@ -28,6 +28,22 @@ export interface WorkflowGameState {
   error?: string | undefined;
   /** Timestamp of last update */
   updatedAt: number;
+  /** Whether game is waiting for batch API (discount pricing) */
+  batchPending?: boolean | undefined;
+  /** Estimated wait time in hours for batch processing */
+  estimatedWaitHours?: number | undefined;
+}
+
+/**
+ * Options for saving game state to KV.
+ */
+export interface SaveGameStateOptions {
+  /** Current phase being executed */
+  currentPhase?: string;
+  /** Whether game is waiting for batch API (discount pricing) */
+  batchPending?: boolean;
+  /** Estimated wait time in hours for batch processing */
+  estimatedWaitHours?: number;
 }
 
 /**
@@ -37,20 +53,27 @@ export interface WorkflowGameState {
  * @param gameId - Game identifier
  * @param state - Current game state
  * @param status - Workflow status
- * @param currentPhase - Current phase being executed (optional)
+ * @param options - Additional options (currentPhase, batchPending, estimatedWaitHours)
  */
 export async function saveGameStateToKV(
   env: Env,
   gameId: string,
   state: GameState,
   status: 'running' | 'completed' | 'failed' = 'running',
-  currentPhase?: string
+  options?: SaveGameStateOptions | string
 ): Promise<void> {
+  // Support legacy signature: saveGameStateToKV(env, gameId, state, status, currentPhase)
+  const opts: SaveGameStateOptions = typeof options === 'string' 
+    ? { currentPhase: options } 
+    : (options ?? {});
+
   const workflowState: WorkflowGameState = {
     state: state.serialize(),
     status,
-    currentPhase,
     updatedAt: Date.now(),
+    ...(opts.currentPhase && { currentPhase: opts.currentPhase }),
+    ...(opts.batchPending !== undefined && { batchPending: opts.batchPending }),
+    ...(opts.estimatedWaitHours !== undefined && { estimatedWaitHours: opts.estimatedWaitHours }),
   };
 
   await env.RATE_LIMIT.put(
