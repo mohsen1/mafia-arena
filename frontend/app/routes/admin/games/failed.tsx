@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Route } from "./+types/failed";
+import { useAuth } from "~/contexts/auth";
 import { getApiUrl } from "~/lib/utils";
 import {
   AlertTriangle,
@@ -105,6 +106,7 @@ const CATEGORY_INFO: Record<
 };
 
 export default function FailedGames() {
+  const { authenticated, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const pageParam = searchParams.get("page") || "1";
   const categoryFilter = searchParams.get("category") || "";
@@ -122,22 +124,26 @@ export default function FailedGames() {
   const apiUrl = getApiUrl();
 
   useEffect(() => {
+    if (authLoading) return;
+
     const credentials = sessionStorage.getItem("adminCredentials");
-    if (!credentials) {
+    if (!credentials && !authenticated) {
       window.location.href = `/admin/login?redirect=${encodeURIComponent(
         window.location.pathname + window.location.search
       )}`;
       return;
     }
     loadGames();
-  }, [page, categoryFilter]);
+  }, [page, categoryFilter, authLoading, authenticated]);
 
   async function loadGames() {
     setLoading(true);
     setError(null);
 
     const credentials = sessionStorage.getItem("adminCredentials");
-    const headers: Record<string, string> = { Authorization: `Basic ${credentials}` };
+    const headers: Record<string, string> = credentials
+      ? { Authorization: `Basic ${credentials}` }
+      : {};
 
     try {
       const params = new URLSearchParams();
@@ -181,10 +187,9 @@ export default function FailedGames() {
 
   async function handleResume(gameId: string) {
     const credentials = sessionStorage.getItem("adminCredentials");
-    const headers: Record<string, string> = {
-      Authorization: `Basic ${credentials}`,
-      "Content-Type": "application/json",
-    };
+    const headers: Record<string, string> = credentials
+      ? { Authorization: `Basic ${credentials}`, "Content-Type": "application/json" }
+      : { "Content-Type": "application/json" };
 
     setResumingIds((prev) => new Set([...prev, gameId]));
 
@@ -233,12 +238,14 @@ export default function FailedGames() {
 
   const totalPages = Math.ceil(total / limit);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground font-mono">Loading...</span>
+          <span className="text-sm text-muted-foreground font-mono">
+            {authLoading ? "Checking session..." : "Loading..."}
+          </span>
         </div>
       </div>
     );

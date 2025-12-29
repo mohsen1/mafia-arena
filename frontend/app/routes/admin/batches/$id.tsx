@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router";
 import type { Route } from "./+types/$id";
+import { useAuth } from "~/contexts/auth";
 import { getApiUrl } from "~/lib/utils";
 import { AlertTriangle, RotateCcw, Loader2, Pause, Play, XCircle } from "lucide-react";
 
@@ -46,6 +47,7 @@ const STATUS_COLORS: Record<string, { light: string; dark: string }> = {
 };
 
 export default function BatchDetail() {
+  const { authenticated, loading: authLoading } = useAuth();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,8 +57,10 @@ export default function BatchDetail() {
   const apiUrl = getApiUrl();
 
   useEffect(() => {
+    if (authLoading) return;
+
     const credentials = sessionStorage.getItem("adminCredentials");
-    if (!credentials) {
+    if (!credentials && !authenticated) {
       window.location.href = `/admin/login?redirect=/admin/batches/${id}`;
       return;
     }
@@ -70,11 +74,13 @@ export default function BatchDetail() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [id]);
+  }, [id, authLoading, authenticated]);
 
   async function loadBatch() {
     const credentials = sessionStorage.getItem("adminCredentials");
-    const headers: Record<string, string> = { Authorization: `Basic ${credentials}` };
+    const headers: Record<string, string> = credentials
+      ? { Authorization: `Basic ${credentials}` }
+      : {};
 
     try {
       const res = await fetch(`${apiUrl}/api/admin/batches/${id}`, {
@@ -111,10 +117,9 @@ export default function BatchDetail() {
     setActionLoading(action);
 
     const credentials = sessionStorage.getItem("adminCredentials");
-    const headers: Record<string, string> = {
-      Authorization: `Basic ${credentials}`,
-      "Content-Type": "application/json",
-    };
+    const headers: Record<string, string> = credentials
+      ? { Authorization: `Basic ${credentials}`, "Content-Type": "application/json" }
+      : { "Content-Type": "application/json" };
 
     try {
       const res = await fetch(`${apiUrl}/api/admin/batches/${id}/${action}`, {
@@ -133,11 +138,13 @@ export default function BatchDetail() {
     }
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground font-mono">Loading...</span>
+        <span className="text-sm text-muted-foreground font-mono">
+          {authLoading ? "Checking session..." : "Loading..."}
+        </span>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/keys";
+import { useAuth } from "~/contexts/auth";
 import { getApiUrl } from "~/lib/utils";
 import {
   Key,
@@ -44,6 +45,7 @@ const PROVIDER_COLORS: Record<string, string> = {
 };
 
 export default function AdminKeys() {
+  const { authenticated, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [keys, setKeys] = useState<ApiKeyStatus[]>([]);
@@ -54,13 +56,15 @@ export default function AdminKeys() {
   const apiUrl = getApiUrl();
 
   useEffect(() => {
+    if (authLoading) return;
+
     const credentials = sessionStorage.getItem("adminCredentials");
-    if (!credentials) {
+    if (!credentials && !authenticated) {
       window.location.href = "/admin/login?redirect=/admin/keys";
       return;
     }
     loadKeys(false);
-  }, []);
+  }, [authLoading, authenticated]);
 
   async function loadKeys(forceRefresh: boolean) {
     setRefreshing(true);
@@ -101,12 +105,14 @@ export default function AdminKeys() {
   const errorCount = keys.filter((k) => k.status === "error").length;
   const unconfiguredCount = keys.filter((k) => k.status === "unconfigured").length;
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="max-w-5xl mx-auto flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground font-mono">Checking API keys...</span>
+          <span className="text-sm text-muted-foreground font-mono">
+            {authLoading ? "Checking session..." : "Checking API keys..."}
+          </span>
         </div>
       </div>
     );

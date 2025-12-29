@@ -26,8 +26,11 @@ import { getRandomTheme } from '../utils/random-config.js';
 /** Maximum games per batch */
 export const MAX_BATCH_SIZE = 10_000;
 
-/** Average tokens per game (empirical estimate) */
-const TOKENS_PER_GAME = 15_000;
+/** Average tokens per game (empirical estimate from production data)
+ * Actual average is ~550K tokens but varies wildly by model and game length.
+ * Using 300K as a conservative estimate for cost predictions.
+ */
+const TOKENS_PER_GAME = 300_000;
 
 /** Average game duration in seconds */
 const SECONDS_PER_GAME = 45;

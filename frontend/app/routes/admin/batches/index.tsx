@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Route } from "./+types/index";
+import { useAuth } from "~/contexts/auth";
 import { getApiUrl } from "~/lib/utils";
 import { Plus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
@@ -34,6 +35,7 @@ const STATUS_COLORS: Record<string, { light: string; dark: string }> = {
 };
 
 export default function AdminBatches() {
+  const { authenticated, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const status = searchParams.get("status") || "";
   const pageParam = searchParams.get("page") || "1";
@@ -49,20 +51,24 @@ export default function AdminBatches() {
   const apiUrl = getApiUrl();
 
   useEffect(() => {
+    if (authLoading) return;
+
     const credentials = sessionStorage.getItem("adminCredentials");
-    if (!credentials) {
+    if (!credentials && !authenticated) {
       window.location.href = `/admin/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       return;
     }
     loadBatches();
-  }, [status, page]);
+  }, [status, page, authLoading, authenticated]);
 
   async function loadBatches() {
     setLoading(true);
     setError(null);
 
     const credentials = sessionStorage.getItem("adminCredentials");
-    const headers: Record<string, string> = { Authorization: `Basic ${credentials}` };
+    const headers: Record<string, string> = credentials
+      ? { Authorization: `Basic ${credentials}` }
+      : {};
 
     try {
       const params = new URLSearchParams();
@@ -95,12 +101,14 @@ export default function AdminBatches() {
 
   const totalPages = Math.ceil(total / limit);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground font-mono">Loading...</span>
+          <span className="text-sm text-muted-foreground font-mono">
+            {authLoading ? "Checking session..." : "Loading..."}
+          </span>
         </div>
       </div>
     );

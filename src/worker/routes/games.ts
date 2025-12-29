@@ -273,6 +273,25 @@ games.post('/run-direct', async (c) => {
 
   console.log(`[${traceId}] Starting game ${gameId} via workflow (discountPricing: ${discountPricing}, keys: ${keySource})`);
 
+  // Create game record in D1 BEFORE starting the workflow.
+  // This prevents a race condition where the frontend redirects to the live page
+  // before the workflow has created the record, causing "Game not found" errors.
+  const configHash = `${body.config.playerCount}-${body.config.mafiaCount}-${body.config.teams.map(t => `${t.modelId}:${t.count}`).join(',')}`;
+  await env.DB.prepare(`
+    INSERT INTO games (id, status, batch_id, config_hash, player_count, mafia_count, trace_id, persona_theme, discount_pricing, created_at)
+    VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    gameId,
+    batchId,
+    configHash,
+    body.config.playerCount,
+    body.config.mafiaCount,
+    traceId,
+    personaTheme,
+    discountPricing ? 1 : 0,
+    Date.now()
+  ).run();
+
   // Start the workflow
   await env.MAFIA_WORKFLOW.create({
     id: gameId,
@@ -555,16 +574,45 @@ games.get('/:id/live', async (c) => {
 /**
  * GET /api/games/:id/events - Get current events (polling fallback).
  * Returns current game state and all events so far.
+ * 
+ * For completed/failed games, serves directly from R2 transcript.
+ * For running games, forwards to Durable Object.
  */
 games.get('/:id/events', async (c) => {
   const env = c.env;
   const gameId = c.req.param('id');
 
-  // Get the Durable Object instance for this game
+  // First check D1 for game status - this handles workflow-based games where
+  // the DO might not have been updated with final status
+  const db = createDb(env.DB);
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+    columns: { status: true, winner: true, rounds: true, durationMs: true, createdAt: true },
+  });
+
+  // If game is completed/failed in D1, serve events from R2 transcript
+  if (game && (game.status === 'completed' || game.status === 'failed')) {
+    try {
+      const transcript = await env.TRANSCRIPTS.get(`games/${gameId}/transcript.json`);
+      if (transcript) {
+        const data = await transcript.json() as { events: Array<unknown> };
+        return c.json({
+          status: game.status,
+          gameId,
+          eventCount: data.events?.length ?? 0,
+          events: data.events ?? [],
+          durationMs: game.durationMs ?? undefined,
+        });
+      }
+    } catch (error) {
+      console.warn(`[events] Failed to read transcript for completed game ${gameId}:`, error);
+    }
+  }
+
+  // For running games or if transcript read failed, forward to Durable Object
   const doId = env.GAME_RUNNER.idFromName(gameId);
   const stub = env.GAME_RUNNER.get(doId);
 
-  // Forward the request to the Durable Object
   const response = await stub.fetch(new Request('http://internal/events'));
   const data = await response.json();
 

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/new";
+import { useAuth } from "~/contexts/auth";
 import { getApiUrl } from "~/lib/utils";
 import ProviderModelSelector from "~/components/ui/ProviderModelSelector";
-import { Shuffle } from "lucide-react";
+import { Shuffle, Loader2 } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "New Batch | Mafia Arena Admin" }];
@@ -17,6 +18,7 @@ interface Estimate {
 }
 
 export default function NewBatch() {
+  const { authenticated, loading: authLoading } = useAuth();
   const [name, setName] = useState("");
   const [totalGames, setTotalGames] = useState(10);
   const [modelA, setModelA] = useState("");
@@ -28,15 +30,20 @@ export default function NewBatch() {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [pickingRandom, setPickingRandom] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const apiUrl = getApiUrl();
 
   useEffect(() => {
+    if (authLoading) return;
+
     const credentials = sessionStorage.getItem("adminCredentials");
-    if (!credentials) {
+    if (!credentials && !authenticated) {
       window.location.href = "/admin/login?redirect=/admin/batches/new";
+      return;
     }
-  }, []);
+    setAuthChecked(true);
+  }, [authLoading, authenticated]);
 
   useEffect(() => {
     updateEstimate();
@@ -187,6 +194,19 @@ export default function NewBatch() {
       alert(err instanceof Error ? err.message : "Failed to create batch");
       setSubmitting(false);
     }
+  }
+
+  if (authLoading || !authChecked) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground font-mono">
+            {authLoading ? "Checking session..." : "Loading..."}
+          </span>
+        </div>
+      </div>
+    );
   }
 
   return (

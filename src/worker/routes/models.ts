@@ -36,6 +36,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
   family: string;
   contextLength: number;
   pricing: { inputPer1M: number; outputPer1M: number };
+  supportsBatchPricing?: boolean;  // Whether provider supports batch API (50% discount)
 }>> = {
   openai: [
     // GPT-5.2 family (latest Dec 2025)
@@ -46,6 +47,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 400000,
       pricing: { inputPer1M: 21, outputPer1M: 168 },
+      supportsBatchPricing: true,
     },
     {
       id: 'openai/gpt-5.2',
@@ -54,6 +56,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 400000,
       pricing: { inputPer1M: 1.75, outputPer1M: 14 },
+      supportsBatchPricing: true,
     },
     {
       id: 'openai/gpt-5.2-chat',
@@ -62,6 +65,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 128000,
       pricing: { inputPer1M: 1.75, outputPer1M: 14 },
+      supportsBatchPricing: true,
     },
     // GPT-5.1 family
     {
@@ -71,6 +75,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 400000,
       pricing: { inputPer1M: 1.25, outputPer1M: 10 },
+      supportsBatchPricing: true,
     },
     {
       id: 'openai/gpt-5.1-codex',
@@ -79,6 +84,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 400000,
       pricing: { inputPer1M: 1.25, outputPer1M: 10 },
+      supportsBatchPricing: true,
     },
     // GPT-5 family
     {
@@ -88,6 +94,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 400000,
       pricing: { inputPer1M: 1.25, outputPer1M: 10 },
+      supportsBatchPricing: true,
     },
     {
       id: 'openai/gpt-5-mini',
@@ -96,6 +103,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 400000,
       pricing: { inputPer1M: 0.25, outputPer1M: 2 },
+      supportsBatchPricing: true,
     },
     // GPT-4o family (still popular)
     {
@@ -105,6 +113,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 128000,
       pricing: { inputPer1M: 2.5, outputPer1M: 10 },
+      supportsBatchPricing: true,
     },
     {
       id: 'openai/gpt-4o-mini',
@@ -113,11 +122,13 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'openai',
       contextLength: 128000,
       pricing: { inputPer1M: 0.15, outputPer1M: 0.6 },
+      supportsBatchPricing: true,
     },
   ],
 
   google: [
     // Gemini 3 family (latest Dec 2025)
+    // Google supports batch API via Vertex AI (50% discount)
     {
       id: 'google/gemini-3-pro',
       apiModelId: 'gemini-3-pro-preview',
@@ -125,6 +136,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'google',
       contextLength: 1048576,
       pricing: { inputPer1M: 2, outputPer1M: 12 },
+      supportsBatchPricing: true,
     },
     {
       id: 'google/gemini-3-flash',
@@ -133,6 +145,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'google',
       contextLength: 1048576,
       pricing: { inputPer1M: 0.5, outputPer1M: 3 },
+      supportsBatchPricing: true,
     },
     // Gemini 2.5 family
     {
@@ -142,6 +155,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'google',
       contextLength: 1000000,
       pricing: { inputPer1M: 1.25, outputPer1M: 10 },
+      supportsBatchPricing: true,
     },
     {
       id: 'google/gemini-2.5-flash',
@@ -150,6 +164,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'google',
       contextLength: 1000000,
       pricing: { inputPer1M: 0.15, outputPer1M: 0.6 },
+      supportsBatchPricing: true,
     },
     {
       id: 'google/gemini-2.5-flash-lite',
@@ -158,11 +173,13 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'google',
       contextLength: 1000000,
       pricing: { inputPer1M: 0.075, outputPer1M: 0.3 },
+      supportsBatchPricing: true,
     },
   ],
 
   anthropic: [
     // Claude 4.5 family (latest Dec 2025)
+    // Anthropic supports batch API (50% discount)
     {
       id: 'anthropic/claude-opus-4.5',
       apiModelId: 'claude-opus-4-5-20251218',
@@ -170,6 +187,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'anthropic',
       contextLength: 200000,
       pricing: { inputPer1M: 5, outputPer1M: 25 },
+      supportsBatchPricing: true,
     },
     {
       id: 'anthropic/claude-sonnet-4.5',
@@ -178,6 +196,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'anthropic',
       contextLength: 1000000,
       pricing: { inputPer1M: 3, outputPer1M: 15 },
+      supportsBatchPricing: true,
     },
     {
       id: 'anthropic/claude-haiku-4.5',
@@ -186,6 +205,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'anthropic',
       contextLength: 200000,
       pricing: { inputPer1M: 1, outputPer1M: 5 },
+      supportsBatchPricing: true,
     },
     // Claude 4 family
     {
@@ -195,6 +215,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'anthropic',
       contextLength: 200000,
       pricing: { inputPer1M: 15, outputPer1M: 75 },
+      supportsBatchPricing: true,
     },
     {
       id: 'anthropic/claude-sonnet-4',
@@ -203,6 +224,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'anthropic',
       contextLength: 1000000,
       pricing: { inputPer1M: 3, outputPer1M: 15 },
+      supportsBatchPricing: true,
     },
     // Claude 3.5/3.7 family
     {
@@ -212,6 +234,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'anthropic',
       contextLength: 200000,
       pricing: { inputPer1M: 3, outputPer1M: 15 },
+      supportsBatchPricing: true,
     },
     {
       id: 'anthropic/claude-haiku-3.5',
@@ -220,11 +243,13 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'anthropic',
       contextLength: 200000,
       pricing: { inputPer1M: 0.8, outputPer1M: 4 },
+      supportsBatchPricing: true,
     },
   ],
 
   fireworks: [
     // GLM-4.7 (latest Dec 2025)
+    // Fireworks supports batch API (40% discount)
     {
       id: 'fireworks/glm-4p7',
       apiModelId: 'accounts/fireworks/models/glm-4p7',
@@ -232,6 +257,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'glm',
       contextLength: 198000,
       pricing: { inputPer1M: 0.6, outputPer1M: 2.2 },
+      supportsBatchPricing: true,
     },
     // DeepSeek R1 (reasoning model)
     {
@@ -241,6 +267,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'deepseek',
       contextLength: 163840,
       pricing: { inputPer1M: 1.35, outputPer1M: 5.4 },
+      supportsBatchPricing: true,
     },
     // DeepSeek V3
     {
@@ -250,6 +277,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'deepseek',
       contextLength: 131072,
       pricing: { inputPer1M: 0.9, outputPer1M: 0.9 },
+      supportsBatchPricing: true,
     },
     // Qwen family
     {
@@ -259,6 +287,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'qwen',
       contextLength: 262144,
       pricing: { inputPer1M: 0.45, outputPer1M: 1.8 },
+      supportsBatchPricing: true,
     },
     // Llama family
     {
@@ -268,6 +297,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'meta',
       contextLength: 131072,
       pricing: { inputPer1M: 0.2, outputPer1M: 0.2 },
+      supportsBatchPricing: true,
     },
     {
       id: 'fireworks/llama-3.1-8b',
@@ -276,10 +306,12 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'meta',
       contextLength: 131072,
       pricing: { inputPer1M: 0.2, outputPer1M: 0.2 },
+      supportsBatchPricing: true,
     },
   ],
 
   cerebras: [
+    // Cerebras - free tier, no batch API needed
     {
       id: 'cerebras/llama-3.3-70b',
       apiModelId: 'llama-3.3-70b',
@@ -287,6 +319,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'meta',
       contextLength: 131072,
       pricing: { inputPer1M: 0, outputPer1M: 0 },
+      supportsBatchPricing: false,
     },
     {
       id: 'cerebras/llama3.1-8b',
@@ -295,6 +328,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'meta',
       contextLength: 131072,
       pricing: { inputPer1M: 0, outputPer1M: 0 },
+      supportsBatchPricing: false,
     },
     {
       id: 'cerebras/qwen-3-32b',
@@ -303,6 +337,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
       family: 'qwen',
       contextLength: 131072,
       pricing: { inputPer1M: 0, outputPer1M: 0 },
+      supportsBatchPricing: false,
     },
   ],
 
@@ -538,6 +573,7 @@ models.get('/by-provider/:provider', async (c) => {
       apiModelId: m.apiModelId,
       pricing: { input: m.pricing.inputPer1M / 1000, output: m.pricing.outputPer1M / 1000 },
       contextLength: m.contextLength,
+      supportsBatchPricing: m.supportsBatchPricing ?? false,
       createdAt: Date.now(),
     }));
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/index";
+import { useAuth } from "~/contexts/auth";
 import { getApiUrl } from "~/lib/utils";
 import { 
   RefreshCw, Database, Cloud, Check, Loader2, Edit2, 
@@ -64,6 +65,7 @@ const MODEL_FAMILIES = [
 ];
 
 export default function AdminModels() {
+  const { authenticated, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ added: number; updated: number; total: number } | null>(null);
@@ -97,13 +99,15 @@ export default function AdminModels() {
   const apiUrl = getApiUrl();
 
   useEffect(() => {
+    if (authLoading) return;
+
     const credentials = sessionStorage.getItem("adminCredentials");
-    if (!credentials) {
+    if (!credentials && !authenticated) {
       window.location.href = "/admin/login?redirect=/admin/models";
       return;
     }
     loadData();
-  }, []);
+  }, [authLoading, authenticated]);
 
   async function loadData() {
     setLoading(true);
@@ -364,12 +368,14 @@ export default function AdminModels() {
     return `$${pricePerM.toFixed(2)}/M`;
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="max-w-6xl mx-auto flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground font-mono">Loading models...</span>
+          <span className="text-sm text-muted-foreground font-mono">
+            {authLoading ? "Checking session..." : "Loading models..."}
+          </span>
         </div>
       </div>
     );

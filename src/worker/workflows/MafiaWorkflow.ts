@@ -111,14 +111,19 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
     });
 
     try {
-      // Step 1: Create game record in D1
+      // Step 1: Ensure game record exists in D1 and update with seed
+      // The API route creates the record before starting the workflow, but we use
+      // ON CONFLICT to handle edge cases and update the seed (which is generated here).
       await step.do('create-game-record', async () => {
-        // Generate config hash for deduplication
         const configHash = `${config.playerCount}-${config.mafiaCount}-${config.teams.map(t => `${t.modelId}:${t.count}`).join(',')}`;
         
         await this.env.DB.prepare(`
           INSERT INTO games (id, status, batch_id, config_hash, player_count, mafia_count, seed, trace_id, persona_theme, discount_pricing, created_at)
           VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            seed = excluded.seed,
+            status = excluded.status,
+            updated_at = ?
         `).bind(
           gameId,
           batchId ?? null,
@@ -129,21 +134,23 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
           traceId ?? null,
           gameConfig.personaTheme ?? 'noir',
           discountPricing ? 1 : 0,
+          Date.now(),
           Date.now()
         ).run();
       });
 
       // Step 2: Introduction Phase (persona generation + introductions)
-      // NOTE: We save state to R2 and return a small checkpoint reference to avoid
-      // hitting Cloudflare Workflows' ~1MB step.do() return value limit.
-      const introCheckpoint = await step.do('intro-phase', async () => {
-        const result = await executeIntroductionPhase(
-          state,
-          aiProvider,
-          this.createStateUpdater(step, 'introduction')
-        );
-        // Save to R2 and return small reference (avoids SQLITE_TOOBIG)
-        return await saveCheckpointToR2(this.env, gameId, 'introduction', result.state);
+      // IMPORTANT: Do NOT wrap phase execution in step.do() - the AI calls inside
+      // already use step.do() and nested step.do() is not supported by Cloudflare Workflows.
+      // The WorkflowAIProvider checkpoints each AI call individually.
+      const introResult = await executeIntroductionPhase(
+        state,
+        aiProvider,
+        this.createStateUpdater(step, 'introduction')
+      );
+      // Save checkpoint to R2 separately (small reference avoids SQLITE_TOOBIG)
+      const introCheckpoint = await step.do('save-intro', async () => {
+        return await saveCheckpointToR2(this.env, gameId, 'introduction', introResult.state);
       });
       state = await loadCheckpointFromR2(this.env, introCheckpoint);
 
@@ -154,14 +161,15 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         const currentRound = state.round; // Capture for step names
         
         // Discussion Phase (if enabled)
+        // IMPORTANT: Do NOT wrap phase execution in step.do() - nested step.do() is not supported
         if (gameConfig.discussionEnabled) {
-          const discussionCheckpoint = await step.do(`discussion-r${currentRound}`, async () => {
-            const result = await executeDiscussionPhase(
-              state,
-              aiProvider,
-              this.createStateUpdater(step, 'day_discussion')
-            );
-            return await saveCheckpointToR2(this.env, gameId, `discussion-r${currentRound}`, result.state);
+          const discussionResult = await executeDiscussionPhase(
+            state,
+            aiProvider,
+            this.createStateUpdater(step, 'day_discussion')
+          );
+          const discussionCheckpoint = await step.do(`save-discussion-r${currentRound}`, async () => {
+            return await saveCheckpointToR2(this.env, gameId, `discussion-r${currentRound}`, discussionResult.state);
           });
           state = await loadCheckpointFromR2(this.env, discussionCheckpoint);
 
@@ -169,13 +177,13 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         }
 
         // Vote Phase
-        const voteCheckpoint = await step.do(`vote-r${currentRound}`, async () => {
-          const result = await executeVotePhase(
-            state,
-            aiProvider,
-            this.createStateUpdater(step, 'day_vote')
-          );
-          return await saveCheckpointToR2(this.env, gameId, `vote-r${currentRound}`, result.state);
+        const voteResult = await executeVotePhase(
+          state,
+          aiProvider,
+          this.createStateUpdater(step, 'day_vote')
+        );
+        const voteCheckpoint = await step.do(`save-vote-r${currentRound}`, async () => {
+          return await saveCheckpointToR2(this.env, gameId, `vote-r${currentRound}`, voteResult.state);
         });
         state = await loadCheckpointFromR2(this.env, voteCheckpoint);
 
@@ -188,13 +196,13 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         }
 
         // Night Phase
-        const nightCheckpoint = await step.do(`night-r${currentRound}`, async () => {
-          const result = await executeNightPhase(
-            state,
-            aiProvider,
-            this.createStateUpdater(step, 'night')
-          );
-          return await saveCheckpointToR2(this.env, gameId, `night-r${currentRound}`, result.state);
+        const nightResult = await executeNightPhase(
+          state,
+          aiProvider,
+          this.createStateUpdater(step, 'night')
+        );
+        const nightCheckpoint = await step.do(`save-night-r${currentRound}`, async () => {
+          return await saveCheckpointToR2(this.env, gameId, `night-r${currentRound}`, nightResult.state);
         });
         state = await loadCheckpointFromR2(this.env, nightCheckpoint);
 
