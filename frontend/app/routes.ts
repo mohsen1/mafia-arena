@@ -4,6 +4,7 @@ export default [
   // Public routes
   index("routes/home.tsx"),
   route("about", "routes/about.tsx"),
+  route("prompts", "routes/prompts.tsx"),
   route("faq", "routes/faq.tsx"),
   route("privacy-policy", "routes/privacy-policy.tsx"),
   route("tos", "routes/tos.tsx"),

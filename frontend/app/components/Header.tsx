@@ -34,6 +34,7 @@ export function Header() {
 
   const navLinks = [
     { href: '/games', label: 'Games', match: (p: string) => p.startsWith('/games') },
+    { href: '/prompts', label: 'Prompts', match: (p: string) => p === '/prompts' },
     { href: '/blog', label: 'Blog', match: (p: string) => p.startsWith('/blog') },
     { href: '/faq', label: 'FAQ', match: (p: string) => p === '/faq' },
   ];

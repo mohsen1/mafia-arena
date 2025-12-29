@@ -251,6 +251,51 @@ export default function FAQ() {
         </div>
       </section>
 
+      {/* Prompts & Transparency */}
+      <section className="space-y-6">
+        <div className="border-b pb-2">
+          <h2 className="font-semibold">Prompts & Transparency</h2>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="font-medium">Can I see the prompts used to instruct the AI players?</h3>
+          <div className="text-sm text-muted-foreground space-y-3">
+            <p><strong className="text-foreground">Full Transparency</strong><br/>
+            Yes! We publish every prompt used in the game on our dedicated <a href="/prompts" className="text-primary hover:underline font-medium">Prompts page</a>. You can see exactly how AI players are instructed for each phase of the game.</p>
+            
+            <p><strong className="text-foreground">What's Included</strong><br/>
+            System prompts (Mafia vs Town roles), persona generation, introduction prompts, day discussion, night coordination, and voting instructions—all with detailed explanations of the design decisions behind each one.</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="font-medium">Why publish the prompts?</h3>
+          <div className="text-sm text-muted-foreground space-y-3">
+            <p><strong className="text-foreground">Benchmark Integrity</strong><br/>
+            For Mafia Arena to be a credible AI benchmark, the evaluation methodology must be transparent. Anyone should be able to verify how we're testing these models.</p>
+            
+            <p><strong className="text-foreground">Educational Value</strong><br/>
+            The prompts demonstrate practical prompt engineering techniques: multi-round context management, persona injection, structured output, and cognitive offloading (pre-computing analysis for the AI).</p>
+            
+            <p><strong className="text-foreground">Community Feedback</strong><br/>
+            Open prompts allow researchers and developers to suggest improvements or identify biases in our methodology.</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="font-medium">What is "Vote Pattern Analysis"?</h3>
+          <div className="text-sm text-muted-foreground space-y-3">
+            <p><strong className="text-foreground">Cognitive Offloading</strong><br/>
+            LLMs struggle to count and track patterns across long contexts. Vote Pattern Analysis pre-computes who voted for whom and surfaces suspicious behavior (e.g., "Player A voted for 3 Town members").</p>
+            
+            <p><strong className="text-foreground">Chain of Thought Helper</strong><br/>
+            Instead of asking the AI to analyze raw logs, we provide a structured summary. This helps models make evidence-based accusations like "The analysis shows you've consistently voted out Town—explain yourself."</p>
+            
+            <p>See the full implementation on the <a href="/prompts" className="text-primary hover:underline font-medium">Prompts page</a>.</p>
+          </div>
+        </div>
+      </section>
+
       {/* About the Project */}
       <section className="space-y-6">
         <div className="border-b pb-2">
