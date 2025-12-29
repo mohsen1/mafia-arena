@@ -8,7 +8,7 @@ import { useParams, Link } from 'react-router';
 import type { Route } from './+types/$id.live';
 import { getGame } from '~/lib/api';
 import { getApiUrl } from '~/lib/utils';
-import { ArrowLeft, Trophy, Feather, Scroll, Building2, Sparkles, Loader2, Moon, Sun, Swords, Vote, MessageCircle, X } from 'lucide-react';
+import { ArrowLeft, Trophy, Moon, Sun, Swords, Vote, MessageCircle } from 'lucide-react';
 import { useGameConnection } from '~/hooks/useGameConnection';
 import {
   LiveTranscript,
@@ -17,50 +17,13 @@ import {
   BatchBanner,
   ErrorBanner,
   GameEndOverlay,
+  ThemeDialog,
 } from '~/components/game';
+import { ThemeIcon } from '~/components/ThemeIcon';
 import type { PlayerInfo } from '~/lib/game-types';
 import { formatDuration, getPhaseConfig, getShortModelName } from '~/lib/game-types';
-
-// =============================================================================
-// Theme Configuration
-// =============================================================================
-
-const THEME_CONFIG: Record<string, { label: string; iconType: string; classes: string; description: string }> = {
-  noir: { 
-    label: 'Noir', 
-    iconType: 'feather', 
-    classes: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
-    description: 'A dark, atmospheric setting inspired by 1940s detective fiction. Characters speak in hard-boiled prose, shadows lurk around every corner, and trust is a currency nobody can afford.'
-  },
-  victorian: { 
-    label: 'Victorian', 
-    iconType: 'scroll', 
-    classes: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
-    description: 'Set in the gaslit streets of 19th century London. Characters are bound by rigid social hierarchy, proper etiquette masks deadly intentions, and secrets fester beneath respectable facades.'
-  },
-  modern: { 
-    label: 'Modern', 
-    iconType: 'building', 
-    classes: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
-    description: 'A contemporary corporate thriller setting. Power plays unfold in glass towers, alliances shift in boardrooms, and the deadliest weapons are information and influence.'
-  },
-  fantasy: { 
-    label: 'Fantasy', 
-    iconType: 'sparkles', 
-    classes: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
-    description: 'A realm of magic and mystery where guilds vie for power. Ancient prophecies guide the righteous while dark sorcery empowers the corrupted. Every spell cast could reveal—or conceal—the truth.'
-  },
-};
-
-function ThemeIcon({ type }: { type: string }) {
-  switch (type) {
-    case 'feather': return <Feather size={10} />;
-    case 'scroll': return <Scroll size={10} />;
-    case 'building': return <Building2 size={10} />;
-    case 'sparkles': return <Sparkles size={10} />;
-    default: return null;
-  }
-}
+import { getTheme } from '~/lib/themes';
+import { sortPlayers } from '~/lib/game-utils';
 
 function PhaseIcon({ icon }: { icon: string }) {
   switch (icon) {
@@ -114,25 +77,42 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
   });
 
   // Derive display values
-  const theme = THEME_CONFIG[game?.persona_theme || 'noir'] || THEME_CONFIG.noir;
+  const theme = getTheme(game?.persona_theme);
   const players = Object.values(state.players);
-  const sortedPlayers = useMemo(() => {
-    return [...players].sort((a, b) => {
-      if (a.team !== b.team) return a.team === 'mafia' ? -1 : 1;
-      return a.isAlive === b.isAlive ? 0 : a.isAlive ? -1 : 1;
-    });
-  }, [players]);
+  const sortedPlayers = useMemo(() => sortPlayers(players), [players]);
 
-  // Derive team models
+  // Derive team models - use game.participants as fallback when state.players is empty
   const mafiaModels = useMemo(() => {
-    const models = [...new Set(players.filter(p => p.team === 'mafia').map(p => getShortModelName(p.modelId)))];
-    return models.join(', ') || '—';
-  }, [players]);
+    if (players.length > 0) {
+      const models = [...new Set(players.filter(p => p.team === 'mafia').map(p => getShortModelName(p.modelId)))];
+      return models.join(', ') || '—';
+    }
+    // Fallback to game participants from loader (use model_name or model_id)
+    if (game?.participants && game.participants.length > 0) {
+      const mafiaParticipants = game.participants.filter(p => p.team === 'mafia');
+      if (mafiaParticipants.length > 0) {
+        const models = [...new Set(mafiaParticipants.map(p => p.model_name || getShortModelName(p.model_id)))];
+        return models.filter(Boolean).join(', ') || '—';
+      }
+    }
+    return '—';
+  }, [players, game?.participants]);
 
   const townModels = useMemo(() => {
-    const models = [...new Set(players.filter(p => p.team === 'town').map(p => getShortModelName(p.modelId)))];
-    return models.join(', ') || '—';
-  }, [players]);
+    if (players.length > 0) {
+      const models = [...new Set(players.filter(p => p.team === 'town').map(p => getShortModelName(p.modelId)))];
+      return models.join(', ') || '—';
+    }
+    // Fallback to game participants from loader (use model_name or model_id)
+    if (game?.participants && game.participants.length > 0) {
+      const townParticipants = game.participants.filter(p => p.team === 'town');
+      if (townParticipants.length > 0) {
+        const models = [...new Set(townParticipants.map(p => p.model_name || getShortModelName(p.model_id)))];
+        return models.filter(Boolean).join(', ') || '—';
+      }
+    }
+    return '—';
+  }, [players, game?.participants]);
 
   // Phase config
   const phaseConfig = getPhaseConfig(state.currentPhase || undefined);
@@ -275,14 +255,36 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
           {effectiveError && <ErrorBanner error={effectiveError} />}
         </div>
 
-        {/* Transcript */}
+        {/* Transcript or Error State */}
         <div className="flex-1 min-h-0 px-4 pb-4">
-          <LiveTranscript
-            events={state.events}
-            players={state.players}
-            thinkingState={state.thinkingState}
-            currentPhase={state.currentPhase}
-          />
+          {effectiveStatus === 'failed' ? (
+            <div className="h-full flex flex-col items-center justify-center rounded-lg bg-rose-500/5 border border-rose-500/20">
+              <div className="text-center space-y-3 max-w-md px-4">
+                <div className="text-4xl">💀</div>
+                <div className="text-lg font-semibold text-rose-600 dark:text-rose-400">Game Failed</div>
+                {effectiveError && (
+                  <div className="text-sm text-muted-foreground bg-background/50 rounded-lg p-3 text-left">
+                    <div className="font-mono text-xs break-all">{effectiveError}</div>
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground">
+                  {mafiaModels !== '—' && townModels !== '—' && (
+                    <span>
+                      <span className="text-rose-500 font-medium">Mafia</span> ({mafiaModels}) vs{' '}
+                      <span className="text-indigo-500 font-medium">Town</span> ({townModels})
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <LiveTranscript
+              events={state.events}
+              players={state.players}
+              thinkingState={state.thinkingState}
+              currentPhase={state.currentPhase}
+            />
+          )}
         </div>
 
         {/* Game End Overlay */}
@@ -302,30 +304,11 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Theme Dialog */}
-      {showThemeDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowThemeDialog(false)}>
-          <div 
-            className="bg-background border rounded-lg shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-sm font-medium ${theme.classes}`}>
-                <ThemeIcon type={theme.iconType} />
-                {theme.label} Theme
-              </div>
-              <button 
-                onClick={() => setShowThemeDialog(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {theme.description}
-            </p>
-          </div>
-        </div>
-      )}
+      <ThemeDialog
+        isOpen={showThemeDialog}
+        onClose={() => setShowThemeDialog(false)}
+        themeKey={game?.persona_theme}
+      />
     </div>
   );
 }

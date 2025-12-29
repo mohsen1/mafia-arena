@@ -12,6 +12,14 @@ export function Footer() {
           <Link to="/tos" className="hover:text-foreground transition-colors">
             Terms
           </Link>
+          <a
+            href="https://github.com/mohsen1/mafia-arena-issues/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground transition-colors"
+          >
+            Report Issue
+          </a>
         </nav>
       </div>
     </footer>

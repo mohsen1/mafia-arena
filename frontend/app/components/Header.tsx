@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { Shield, LogOut, User, Menu, X } from 'lucide-react';
+import { Shield, LogOut, User, Menu, X, Play, Layers } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '~/contexts/auth';
 import { ThemeToggle } from './ThemeToggle';
@@ -34,7 +34,6 @@ export function Header() {
 
   const navLinks = [
     { href: '/games', label: 'Games', match: (p: string) => p.startsWith('/games') },
-    { href: '/blog', label: 'Blog', match: (p: string) => p.startsWith('/blog') },
     { href: '/faq', label: 'FAQ', match: (p: string) => p === '/faq' },
   ];
 
@@ -42,9 +41,9 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="max-w-6xl mx-auto flex h-12 items-center justify-between px-4">
         <div className="flex items-center gap-4 md:gap-6">
-          <Link to="/" className="flex items-center gap-2 font-semibold text-sm">
-            <img src="/logo.jpeg" alt="" className="h-7 w-7 rounded" />
-            <span>Mafia Arena</span>
+          <Link to="/" className="flex items-center gap-2.5 font-bold text-base tracking-tight hover:opacity-90 transition-opacity">
+            <img src="/logo.jpeg" alt="" className="h-8 w-8 rounded-lg shadow-sm" />
+            <span className="font-display">Mafia Arena</span>
           </Link>
           
           {/* Desktop Navigation */}
@@ -63,17 +62,28 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            <Link
+              to="/games/new"
+              className={cn(
+                'transition-colors hover:text-foreground',
+                pathname === '/games/new'
+                  ? 'text-foreground font-medium'
+                  : 'text-muted-foreground'
+              )}
+            >
+              Start a New Game
+            </Link>
             {authenticated && (
               <Link
-                to="/games/new"
+                to="/batches"
                 className={cn(
                   'transition-colors hover:text-foreground',
-                  pathname === '/games/new'
+                  pathname.startsWith('/batches')
                     ? 'text-foreground font-medium'
                     : 'text-muted-foreground'
                 )}
               >
-                New Game
+                My Batches
               </Link>
             )}
             {user?.isAdmin && (
@@ -124,17 +134,28 @@ export function Header() {
                     {link.label}
                   </Link>
                 ))}
+                <Link
+                  to="/games/new"
+                  className={cn(
+                    'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
+                    pathname === '/games/new'
+                      ? 'text-foreground font-medium bg-muted/50'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  Start a New Game
+                </Link>
                 {authenticated && (
                   <Link
-                    to="/games/new"
+                    to="/batches"
                     className={cn(
                       'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
-                      pathname === '/games/new'
+                      pathname.startsWith('/batches')
                         ? 'text-foreground font-medium bg-muted/50'
                         : 'text-muted-foreground'
                     )}
                   >
-                    New Game
+                    My Batches
                   </Link>
                 )}
                 {user?.isAdmin && (
@@ -208,7 +229,16 @@ export function Header() {
                       className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
                       onClick={() => setDropdownOpen(false)}
                     >
-                      New Game
+                      <Play className="h-4 w-4" />
+                      <span>Start a New Game</span>
+                    </Link>
+                    <Link
+                      to="/batches"
+                      className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Layers className="h-4 w-4" />
+                      <span>My Batches</span>
                     </Link>
                     {user.isAdmin && (
                       <Link

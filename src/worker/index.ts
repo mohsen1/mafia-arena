@@ -18,6 +18,7 @@ import {
   adminRoutes,
   authRoutes,
   keysRoutes,
+  batchesRoutes,
 } from './routes/index.js';
 import {
   processBatchMessage,
@@ -102,6 +103,7 @@ app.route('/api/analysis', analysisRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api/auth/keys', keysRoutes);
+app.route('/api/batches', batchesRoutes);
 
 // Global error handler
 app.onError(async (error, c) => {
@@ -257,7 +259,7 @@ function registerBatchProviders(batchService: BatchService, env: Env): void {
  * Creates a Cloudflare Workflow instance to run the game.
  */
 async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): Promise<void> {
-  const { gameId, batchId, config, traceId } = message.body;
+  const { gameId, batchId, config, traceId, encryptedUserKeys } = message.body;
   const MAX_RETRIES = 3;
 
   try {
@@ -282,6 +284,8 @@ async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): 
           traceId,
           batchId,
           discountPricing: config.discountPricing,
+          // Pass user's encrypted API keys for non-admin batches
+          encryptedUserKeys,
         },
       });
       console.log(`[${traceId || 'no-trace'}] Game ${gameId} workflow started successfully`);

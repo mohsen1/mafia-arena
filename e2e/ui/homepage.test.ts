@@ -5,7 +5,7 @@ test.describe('Homepage', () => {
     await page.goto('/');
 
     // Check main heading
-    await expect(page.locator('h1').first()).toContainText('AI Mafia Arena');
+    await expect(page.locator('h1').first()).toContainText('Mafia Arena');
 
     // Check hero description
     await expect(page.getByText('benchmarking platform')).toBeVisible();

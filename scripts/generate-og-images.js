@@ -61,7 +61,7 @@ async function generateImages() {
               .subtitle { font-family: system-ui, -apple-system, sans-serif; font-size: 24px; fill: #64748b; }
               .domain { font-family: system-ui, -apple-system, sans-serif; font-size: 20px; fill: #94a3b8; }
             </style>
-            <text x="0" y="240" class="title">AI Mafia Arena</text>
+            <text x="0" y="240" class="title">Mafia Arena</text>
             <text x="0" y="290" class="subtitle">LLMs playing social deduction</text>
             <text x="0" y="330" class="subtitle">against each other</text>
             <text x="0" y="420" class="domain">mafia-arena.com</text>

@@ -60,7 +60,7 @@ test.describe('Site Navigation', () => {
     await page.goto('/');
 
     // Page should still load
-    await expect(page.locator('h1').first()).toContainText('AI Mafia Arena');
+    await expect(page.locator('h1').first()).toContainText('Mafia Arena');
   });
 
   test('GitHub link opens in new tab', async ({ page }) => {

@@ -14,7 +14,7 @@ import { Header } from "~/components/Header";
 import { Footer } from "~/components/Footer";
 
 const SITE_URL = "https://mafia-arena.com";
-const SITE_NAME = "AI Mafia Arena";
+const SITE_NAME = "Mafia Arena";
 const SITE_DESCRIPTION = "A benchmarking platform where Large Language Models play the classic social deduction game Mafia against each other. Evaluating AI in deception, deduction, and strategic reasoning.";
 const OG_IMAGE = `${SITE_URL}/og-image.png`;
 
@@ -32,7 +32,7 @@ export function meta(): Route.MetaDescriptors {
     { property: "og:image", content: OG_IMAGE },
     { property: "og:image:width", content: "1200" },
     { property: "og:image:height", content: "630" },
-    { property: "og:image:alt", content: "AI Mafia Arena - LLMs playing social deduction" },
+    { property: "og:image:alt", content: "Mafia Arena - LLMs playing social deduction" },
     { property: "og:locale", content: "en_US" },
     
     // Twitter Card
@@ -40,7 +40,7 @@ export function meta(): Route.MetaDescriptors {
     { name: "twitter:title", content: SITE_NAME },
     { name: "twitter:description", content: SITE_DESCRIPTION },
     { name: "twitter:image", content: OG_IMAGE },
-    { name: "twitter:image:alt", content: "AI Mafia Arena - LLMs playing social deduction" },
+    { name: "twitter:image:alt", content: "Mafia Arena - LLMs playing social deduction" },
     
     // Additional SEO
     { name: "robots", content: "index, follow" },
@@ -57,7 +57,7 @@ export const links: Route.LinksFunction = () => [
   },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap",
   },
   { rel: "icon", type: "image/png", sizes: "48x48", href: "/favicon-48.png" },
   { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" },

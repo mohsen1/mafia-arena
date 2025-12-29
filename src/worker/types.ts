@@ -169,6 +169,17 @@ export interface BatchQueueMessage {
 }
 
 /**
+ * Encrypted user API keys for queue transport.
+ * Keys are encrypted using AES-GCM before being passed through queues.
+ */
+export interface EncryptedUserKeys {
+  [provider: string]: {
+    encrypted: string;
+    iv: string;
+  };
+}
+
+/**
  * Batch configuration for creating multiple games.
  */
 export interface BatchConfig {
@@ -178,6 +189,10 @@ export interface BatchConfig {
   createdBy?: string;
   /** Use batch API for 50% cost savings (24h delay) */
   useBatchAPI?: boolean;
+  /** User ID for non-admin batches (enables ownership filtering) */
+  userId?: string;
+  /** Encrypted user API keys for non-admin batches */
+  encryptedUserKeys?: EncryptedUserKeys;
 }
 
 /**
@@ -217,6 +232,8 @@ export interface GameQueueMessage {
   createdAt: number;
   /** Trace ID for distributed tracing */
   traceId?: string;
+  /** Encrypted user API keys (for non-admin batches) */
+  encryptedUserKeys?: EncryptedUserKeys;
 }
 
 /**

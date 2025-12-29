@@ -3,6 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
+  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
@@ -126,8 +127,34 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground font-sans antialiased;
+    line-height: 1.6;
+    font-feature-settings: "rlig" 1, "calt" 1, "tnum" 1;
+  }
+
+  /* Typography Hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight text-foreground;
+    line-height: 1.2;
+  }
+
+  h1 {
+    @apply text-3xl sm:text-4xl font-bold;
+    letter-spacing: -0.03em;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold;
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    @apply text-xl font-semibold;
+    letter-spacing: -0.01em;
+  }
+
+  h4 {
+    @apply text-lg font-medium;
   }
 }
 

@@ -275,6 +275,11 @@ export async function processBatchMessage(
     if (traceId) {
       gameMessage.traceId = traceId;
     }
+    
+    // Propagate user's encrypted API keys to individual games (for non-admin batches)
+    if (config.encryptedUserKeys) {
+      gameMessage.encryptedUserKeys = config.encryptedUserKeys;
+    }
 
     messages.push({ body: gameMessage });
 

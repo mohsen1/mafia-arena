@@ -50,14 +50,14 @@ function PromptBlock({
     <div className="border rounded-lg overflow-hidden bg-card">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
+        className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
       >
         <div>
-          <h3 className="font-medium">{title}</h3>
-          <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+          <h3 className="font-semibold font-display">{title}</h3>
+          <p className="text-sm text-foreground/70 mt-1 leading-relaxed">{description}</p>
         </div>
         <svg
-          className={`w-5 h-5 text-muted-foreground transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-muted-foreground transition-transform flex-shrink-0 ml-4 ${expanded ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -69,28 +69,28 @@ function PromptBlock({
       {expanded && (
         <div className="border-t">
           {explanation && (
-            <div className="px-4 py-4 bg-gradient-to-b from-primary/5 to-transparent border-b space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="px-5 py-5 bg-gradient-to-b from-primary/5 to-transparent border-b space-y-5">
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Purpose</p>
-                  <p className="text-sm text-muted-foreground">{explanation.purpose}</p>
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5 font-display">Purpose</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{explanation.purpose}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">When Used</p>
-                  <p className="text-sm text-muted-foreground">{explanation.whenUsed}</p>
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5 font-display">When Used</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{explanation.whenUsed}</p>
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Strategic Intent</p>
-                <p className="text-sm text-muted-foreground">{explanation.strategicIntent}</p>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5 font-display">Strategic Intent</p>
+                <p className="text-sm text-foreground/80 leading-relaxed">{explanation.strategicIntent}</p>
               </div>
               {explanation.keyDecisions.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Key Design Decisions</p>
-                  <ul className="space-y-1.5">
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2 font-display">Key Design Decisions</p>
+                  <ul className="space-y-2">
                     {explanation.keyDecisions.map((decision, i) => (
-                      <li key={i} className="text-sm text-muted-foreground flex gap-2">
-                        <span className="text-primary">•</span>
+                      <li key={i} className="text-sm text-foreground/80 flex gap-2 leading-relaxed">
+                        <span className="text-primary font-bold">•</span>
                         <span>{decision}</span>
                       </li>
                     ))}
@@ -101,23 +101,23 @@ function PromptBlock({
           )}
           
           {variables && variables.length > 0 && (
-            <div className="px-4 py-3 bg-muted/30 border-b">
-              <p className="text-xs font-medium text-muted-foreground mb-2">DYNAMIC VARIABLES</p>
+            <div className="px-5 py-4 bg-muted/30 border-b">
+              <p className="text-[10px] font-bold text-foreground/60 uppercase tracking-widest mb-2.5 font-display">Dynamic Variables</p>
               <div className="flex flex-wrap gap-2">
                 {variables.map(v => (
                   <span 
                     key={v.name}
-                    className="inline-flex items-center gap-1.5 text-xs bg-background border rounded-md px-2 py-1"
+                    className="inline-flex items-center gap-1.5 text-xs bg-background border rounded-md px-2.5 py-1.5"
                     title={v.description}
                   >
-                    <code className="text-primary font-mono">{`{${v.name}}`}</code>
-                    <span className="text-muted-foreground hidden sm:inline">— {v.description}</span>
+                    <code className="text-primary font-mono font-medium">{`{${v.name}}`}</code>
+                    <span className="text-foreground/60 hidden sm:inline">— {v.description}</span>
                   </span>
                 ))}
               </div>
             </div>
           )}
-          <pre className="p-4 text-sm overflow-x-auto font-mono whitespace-pre-wrap bg-muted/20 text-foreground/90 leading-relaxed">
+          <pre className="p-5 text-[13px] overflow-x-auto font-mono whitespace-pre-wrap bg-muted/20 text-foreground/90 leading-relaxed">
             {prompt}
           </pre>
         </div>
@@ -128,32 +128,31 @@ function PromptBlock({
 
 export default function Prompts() {
   return (
-    <div className="max-w-4xl space-y-10">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Game Prompts</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+    <div className="max-w-4xl space-y-12 pb-12">
+      {/* Page Header */}
+      <div className="space-y-3">
+        <h1>Game Prompts</h1>
+        <p className="text-foreground/80 text-lg leading-relaxed max-w-2xl">
           Full transparency into how AI players are instructed. Click any prompt to expand.
         </p>
       </div>
 
       {/* Introduction */}
       <section className="prose prose-sm dark:prose-invert max-w-none">
-        <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border rounded-lg p-4">
-          <h2 className="text-base font-semibold mb-2 mt-0">How Prompts Work</h2>
-          <p className="text-muted-foreground text-sm mb-0 leading-relaxed">
+          <h2 className="text-lg font-bold mb-2 mt-0 font-display">How Prompts Work</h2>
+          <p className="text-foreground/90 mb-0 leading-7">
             Every AI action in Mafia Arena is guided by carefully crafted prompts. We use a 
-            <strong className="text-foreground"> system prompt</strong> to define the AI's role and goals, 
-            then <strong className="text-foreground">action prompts</strong> for specific game phases. 
+            <strong className="text-foreground font-display"> system prompt</strong> to define the AI's role and goals, 
+            then <strong className="text-foreground font-display">action prompts</strong> for specific game phases. 
             All responses are structured using JSON schemas for reliable parsing.
           </p>
-        </div>
       </section>
 
       {/* System Prompts */}
-      <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-semibold">System Prompts</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+      <section className="space-y-5">
+        <div className="border-b border-border/50 pb-2">
+          <h2 className="text-xl">System Prompts</h2>
+          <p className="text-foreground/70 mt-1.5 leading-relaxed">
             Define the AI's fundamental identity and constraints for the entire game
           </p>
         </div>
@@ -223,10 +222,10 @@ RULES:
       </section>
 
       {/* Persona Generation */}
-      <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-semibold">Persona Generation</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+      <section className="space-y-5">
+        <div className="border-b border-border/50 pb-2">
+          <h2 className="text-xl">Persona Generation</h2>
+          <p className="text-foreground/70 mt-1.5 leading-relaxed">
             Creates unique character identities before the game begins
           </p>
         </div>
@@ -306,10 +305,10 @@ Analytical, Emotional, Cautious, Bold, Diplomatic, Direct, Skeptical, Trusting, 
       </section>
 
       {/* Introduction Phase */}
-      <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-semibold">Introduction Phase</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+      <section className="space-y-5">
+        <div className="border-b border-border/50 pb-2">
+          <h2 className="text-xl">Introduction Phase</h2>
+          <p className="text-foreground/70 mt-1.5 leading-relaxed">
             Players introduce themselves at the start of the game
           </p>
         </div>
@@ -394,10 +393,10 @@ Provide your introduction message (2-4 sentences).`}
       </section>
 
       {/* Night Phase */}
-      <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-semibold">Night Phase</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+      <section className="space-y-5">
+        <div className="border-b border-border/50 pb-2">
+          <h2 className="text-xl">Night Phase</h2>
+          <p className="text-foreground/70 mt-1.5 leading-relaxed">
             Mafia coordinate privately and choose a target to eliminate
           </p>
         </div>
@@ -488,10 +487,10 @@ Provide your target and brief reasoning for your choice.`}
       </section>
 
       {/* Day Phase */}
-      <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-semibold">Day Phase</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+      <section className="space-y-5">
+        <div className="border-b border-border/50 pb-2">
+          <h2 className="text-xl">Day Phase</h2>
+          <p className="text-foreground/70 mt-1.5 leading-relaxed">
             Players discuss publicly and vote to eliminate a suspected Mafia member
           </p>
         </div>
@@ -594,10 +593,10 @@ Provide your vote and brief reasoning.`}
       </section>
 
       {/* Large Context Features */}
-      <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-semibold">Advanced: Context Management</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+      <section className="space-y-5">
+        <div className="border-b border-border/50 pb-2">
+          <h2 className="text-xl">Advanced: Context Management</h2>
+          <p className="text-foreground/70 mt-1.5 leading-relaxed">
             Techniques for leveraging large context windows and managing token limits
           </p>
         </div>
@@ -712,43 +711,6 @@ ANALYSIS TIPS:
         </div>
       </section>
 
-      {/* Technical Details */}
-      <section className="bg-muted/30 rounded-lg p-5 space-y-4">
-        <h2 className="font-semibold">Technical Implementation</h2>
-        
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Response Format</h3>
-            <p className="text-xs text-muted-foreground">
-              All AI responses use <strong>structured output</strong> with JSON schemas. 
-              This ensures reliable parsing regardless of how creative the AI gets with its reasoning.
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Temperature</h3>
-            <p className="text-xs text-muted-foreground">
-              All gameplay actions use <code className="bg-muted px-1 py-0.5 rounded text-[10px]">temperature: 0.7</code> for 
-              consistent benchmarking while allowing creative responses.
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Position Bias Mitigation</h3>
-            <p className="text-xs text-muted-foreground">
-              Target lists are shuffled before presentation to prevent LLMs from defaulting to first/last items—a known model bias.
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Retry Logic</h3>
-            <p className="text-xs text-muted-foreground">
-              Invalid responses trigger retries with the validation error included. 
-              If all retries fail, a fallback action (e.g., abstain) ensures the game completes.
-            </p>
-          </div>
-        </div>
-      </section>
 
     </div>
   );

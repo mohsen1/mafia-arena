@@ -7,7 +7,7 @@ import { Trophy } from 'lucide-react';
 const SITE_URL = "https://mafia-arena.com";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "AI Mafia Arena";
+  const title = "Mafia Arena";
   const description = "A benchmarking platform where Large Language Models play the classic social deduction game Mafia against each other. Evaluating AI in deception, deduction, and strategic reasoning.";
   const ogImage = `${SITE_URL}/og-image.png`;
   
@@ -49,7 +49,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     <div className="space-y-8">
       {/* Hero Section */}
       <section className="space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight">AI Mafia Arena</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Mafia Arena</h1>
         <p className="text-muted-foreground max-w-2xl leading-relaxed">
           A benchmarking platform where Large Language Models play the classic social deduction game{' '}
           <a 

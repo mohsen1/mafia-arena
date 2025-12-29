@@ -13,7 +13,7 @@ This is a comprehensive review of the "Mafia Arena" web application based on the
     *   **Contrast**: Contrast is generally excellent in both light and dark modes, ensuring readability for all text and UI elements.
 *   **Spacing**: Spacing is well-executed across the application. There's a good balance of white space, preventing visual clutter. Cards have appropriate padding, table rows are comfortably spaced, and margins between sections are consistent. This contributes to a clean and organized layout.
 *   **Visual Hierarchy**: The overall visual hierarchy is clear. Main page titles are prominent, and key information (like the hero cards on the homepage) draws immediate attention. Tables are structured logically with clear headers. However, there's a minor opportunity:
-    *   On the homepage (Screenshot 01), the "Mafia Performance" and "Town Performance" section titles share a similar heading style with the main "AI Mafia Arena" title. A slight visual differentiation (e.g., a smaller font size or a lighter weight) could better establish them as sub-sections.
+    *   On the homepage (Screenshot 01), the "Mafia Performance" and "Town Performance" section titles share a similar heading style with the main "Mafia Arena" title. A slight visual differentiation (e.g., a smaller font size or a lighter weight) could better establish them as sub-sections.
 *   **Card Designs**: Card designs are consistent and well-utilized throughout the application (e.g., homepage hero cards, stats overview cards, game result details). They feature subtle borders or light shadows, giving them a modern, elevated appearance, and content within them is well-organized.
 
 ### 2. Information Architecture
@@ -81,7 +81,7 @@ This is a comprehensive review of the "Mafia Arena" web application based on the
 2.  **Game Replay - Vague "other" Label (Screenshot 15)**: The label "other" below the player lines is ambiguous and needs to be replaced with a more descriptive term.
 3.  **Game Replay - Player ID Inconsistency (Screenshot 15)**: The final chat message at the bottom only shows "Player 7" without the model name, unlike the preceding lines.
 4.  **Matchups Matrix - Ambiguous Label (Screenshot 06)**: "Diagonal = self-play" is not immediately clear; "same model matchup" or "intra-model matchup" would be more precise.
-5.  **Homepage - Section Heading Visual Hierarchy (Screenshot 01)**: "Mafia Performance" and "Town Performance" headings are visually too similar to the main "AI Mafia Arena" title, diminishing the clear section hierarchy.
+5.  **Homepage - Section Heading Visual Hierarchy (Screenshot 01)**: "Mafia Performance" and "Town Performance" headings are visually too similar to the main "Mafia Arena" title, diminishing the clear section hierarchy.
 6.  **Footer Text Readability (All Screenshots)**: The footer text ("LLM Benchmarking via Social Deduction", "Cloudflare Workers + D1 + R2") is very small and low contrast, making it difficult to read, especially in light mode.
 7.  **Stats - Provider Performance Visualization (Screenshot 05)**: For a single provider, the current bar is functional. However, if multiple providers are introduced, this visualization will need to be expanded (e.g., a comparative bar chart) to remain effective.
 8.  **Admin Login Button (Screenshot 10)**: The "Login" button is a plain dark rectangle. While functional, it could benefit from a more distinct style or subtle hover/active states to align with the overall polish of the site.

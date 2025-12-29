@@ -8,4 +8,5 @@ export { PlayerModal } from './PlayerModal';
 export { BatchBanner, ConnectionStatus, ErrorBanner } from './BatchBanner';
 export { GameEndOverlay } from './GameEndOverlay';
 export { LiveTranscript } from './LiveTranscript';
+export { ThemeDialog } from './ThemeDialog';
 

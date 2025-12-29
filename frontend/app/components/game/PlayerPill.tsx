@@ -28,20 +28,20 @@ export function PlayerPill({ player, onClick }: PlayerPillProps) {
     : 'text-indigo-600 dark:text-indigo-400';
 
   const dotClass = isMafia ? 'bg-rose-500' : 'bg-indigo-500';
-  const opacityClass = isAlive ? '' : 'opacity-40';
+  const opacityClass = isAlive ? '' : 'opacity-50';
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] cursor-pointer transition-colors ${borderClass} ${opacityClass}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] cursor-pointer transition-colors ${borderClass} ${opacityClass}`}
     >
       {!isAlive ? (
-        <span className="text-muted-foreground/50"><Skull size={10} /></span>
+        <span className="text-muted-foreground/50"><Skull size={11} /></span>
       ) : (
-        <span className={`w-1 h-1 rounded-full ${dotClass}`} />
+        <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
       )}
-      <span className={`font-medium ${textClass} truncate max-w-[80px]`}>
+      <span className={`font-semibold font-display ${textClass} truncate max-w-[90px]`}>
         {player.playerName}
       </span>
     </button>
