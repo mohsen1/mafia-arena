@@ -6,7 +6,7 @@
  */
 
 import type { Env } from '../types.js';
-import type { GameState, SerializedGameState, GameEvent } from '../../engine/index.js';
+import { GameState, type SerializedGameState, type GameEvent } from '../../engine/index.js';
 
 /** KV key prefix for game state */
 const KV_PREFIX = 'game-state:';
@@ -168,3 +168,108 @@ export function getRecentEvents(
   return events.slice(-limit) as GameEvent[];
 }
 
+// =============================================================================
+// R2-based Checkpoint System for Large State
+// =============================================================================
+// Cloudflare Workflows has a ~1MB limit per step.do() return value.
+// For games with many rounds/discussions, the serialized GameState can exceed this.
+// These utilities save state to R2 and return only a small reference.
+
+/** R2 key prefix for workflow checkpoints */
+const CHECKPOINT_PREFIX = 'checkpoints/';
+
+/**
+ * Checkpoint metadata returned from step.do() instead of full state.
+ * Small enough to never hit the 1MB limit.
+ */
+export interface CheckpointRef {
+  /** R2 key where full state is stored */
+  key: string;
+  /** Current round number */
+  round: number;
+  /** Current phase */
+  phase: string;
+  /** Number of events at checkpoint */
+  eventCount: number;
+  /** Timestamp of checkpoint */
+  timestamp: number;
+}
+
+/**
+ * Save game state to R2 as a checkpoint and return a small reference.
+ * Use this inside step.do() to avoid returning large state.
+ * 
+ * @param env - Worker environment
+ * @param gameId - Game identifier
+ * @param phase - Current phase name (used in checkpoint key)
+ * @param state - Game state to checkpoint
+ * @returns Small checkpoint reference to return from step.do()
+ */
+export async function saveCheckpointToR2(
+  env: Env,
+  gameId: string,
+  phase: string,
+  state: GameState
+): Promise<CheckpointRef> {
+  const timestamp = Date.now();
+  const key = `${CHECKPOINT_PREFIX}${gameId}/${state.round}-${phase}-${timestamp}.json`;
+  
+  const serialized = state.serialize();
+  await env.TRANSCRIPTS.put(key, JSON.stringify(serialized), {
+    customMetadata: {
+      gameId,
+      round: String(state.round),
+      phase,
+      eventCount: String(state.events.length),
+    },
+  });
+  
+  return {
+    key,
+    round: state.round,
+    phase,
+    eventCount: state.events.length,
+    timestamp,
+  };
+}
+
+/**
+ * Load game state from R2 checkpoint.
+ * 
+ * @param env - Worker environment
+ * @param checkpoint - Checkpoint reference from step.do()
+ * @returns Deserialized game state
+ * @throws Error if checkpoint not found
+ */
+export async function loadCheckpointFromR2(
+  env: Env,
+  checkpoint: CheckpointRef
+): Promise<GameState> {
+  const obj = await env.TRANSCRIPTS.get(checkpoint.key);
+  if (!obj) {
+    throw new Error(`Checkpoint not found: ${checkpoint.key}`);
+  }
+  
+  const serialized = await obj.json() as SerializedGameState;
+  return GameState.deserialize(serialized);
+}
+
+/**
+ * Clean up old checkpoints for a completed game.
+ * Call this after game completion to free R2 storage.
+ * 
+ * @param env - Worker environment
+ * @param gameId - Game identifier
+ */
+export async function cleanupCheckpoints(
+  env: Env,
+  gameId: string
+): Promise<void> {
+  const prefix = `${CHECKPOINT_PREFIX}${gameId}/`;
+  const listed = await env.TRANSCRIPTS.list({ prefix });
+  
+  // Delete all checkpoints for this game
+  await Promise.all(
+    listed.objects.map(obj => env.TRANSCRIPTS.delete(obj.key))
+  );
+}

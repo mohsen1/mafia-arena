@@ -34,6 +34,9 @@ import {
   saveGameStateToKV, 
   saveErrorStateToKV,
   getRecentEvents,
+  saveCheckpointToR2,
+  loadCheckpointFromR2,
+  cleanupCheckpoints,
 } from '../utils/workflow-sync.js';
 import { calculateExactCost } from '../utils/budget.js';
 import { DEFAULT_PRICING } from '../ai/models.js';
@@ -131,16 +134,18 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
       });
 
       // Step 2: Introduction Phase (persona generation + introductions)
-      // Note: step.do() requires serializable return values, so we serialize/deserialize GameState
-      const introSerialized = await step.do('intro-phase', async () => {
+      // NOTE: We save state to R2 and return a small checkpoint reference to avoid
+      // hitting Cloudflare Workflows' ~1MB step.do() return value limit.
+      const introCheckpoint = await step.do('intro-phase', async () => {
         const result = await executeIntroductionPhase(
           state,
           aiProvider,
           this.createStateUpdater(step, 'introduction')
         );
-        return result.state.serialize();
+        // Save to R2 and return small reference (avoids SQLITE_TOOBIG)
+        return await saveCheckpointToR2(this.env, gameId, 'introduction', result.state);
       });
-      state = GameState.deserialize(introSerialized);
+      state = await loadCheckpointFromR2(this.env, introCheckpoint);
 
       await this.syncAndBroadcast(step, state, 'introduction');
 
@@ -150,29 +155,29 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         
         // Discussion Phase (if enabled)
         if (gameConfig.discussionEnabled) {
-          const discussionSerialized = await step.do(`discussion-r${currentRound}`, async () => {
+          const discussionCheckpoint = await step.do(`discussion-r${currentRound}`, async () => {
             const result = await executeDiscussionPhase(
               state,
               aiProvider,
               this.createStateUpdater(step, 'day_discussion')
             );
-            return result.state.serialize();
+            return await saveCheckpointToR2(this.env, gameId, `discussion-r${currentRound}`, result.state);
           });
-          state = GameState.deserialize(discussionSerialized);
+          state = await loadCheckpointFromR2(this.env, discussionCheckpoint);
 
           await this.syncAndBroadcast(step, state, 'day_discussion');
         }
 
         // Vote Phase
-        const voteSerialized = await step.do(`vote-r${currentRound}`, async () => {
+        const voteCheckpoint = await step.do(`vote-r${currentRound}`, async () => {
           const result = await executeVotePhase(
             state,
             aiProvider,
             this.createStateUpdater(step, 'day_vote')
           );
-          return result.state.serialize();
+          return await saveCheckpointToR2(this.env, gameId, `vote-r${currentRound}`, result.state);
         });
-        state = GameState.deserialize(voteSerialized);
+        state = await loadCheckpointFromR2(this.env, voteCheckpoint);
 
         await this.syncAndBroadcast(step, state, 'day_vote');
 
@@ -183,15 +188,15 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         }
 
         // Night Phase
-        const nightSerialized = await step.do(`night-r${currentRound}`, async () => {
+        const nightCheckpoint = await step.do(`night-r${currentRound}`, async () => {
           const result = await executeNightPhase(
             state,
             aiProvider,
             this.createStateUpdater(step, 'night')
           );
-          return result.state.serialize();
+          return await saveCheckpointToR2(this.env, gameId, `night-r${currentRound}`, result.state);
         });
-        state = GameState.deserialize(nightSerialized);
+        state = await loadCheckpointFromR2(this.env, nightCheckpoint);
 
         await this.syncAndBroadcast(step, state, 'night');
 
@@ -449,6 +454,11 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
 
       // Final KV sync
       await saveGameStateToKV(this.env, this.gameId, state, 'completed');
+    });
+
+    // Clean up intermediate checkpoints from R2 (they're no longer needed)
+    await step.do('cleanup-checkpoints', async () => {
+      await cleanupCheckpoints(this.env, this.gameId);
     });
 
     // Final broadcast
