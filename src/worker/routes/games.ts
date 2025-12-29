@@ -13,6 +13,7 @@ import * as schema from '../db/schema.js';
 import { getSession } from './auth.js';
 import { validateEncryptionSecret } from '../utils/crypto.js';
 import { inferProviderFromModelId } from '../ai/factory.js';
+import { getGameStateFromKV } from '../utils/workflow-sync.js';
 
 const games = new Hono<{ Bindings: Env }>();
 
@@ -609,7 +610,25 @@ games.get('/:id/events', async (c) => {
     }
   }
 
-  // For running games or if transcript read failed, forward to Durable Object
+  // For running games, check KV for workflow state first (avoid deserializing)
+  if (game && game.status === 'running') {
+    const kvState = await getGameStateFromKV(env, gameId);
+    if (kvState) {
+      // Work directly with serialized state - no need to instantiate GameState class
+      const events = kvState.state.events;
+      return c.json({
+        status: kvState.status,
+        gameId,
+        eventCount: events.length,
+        events: events.slice(-50), // Last 50 events for size
+        startedAt: events.length > 0 
+          ? events[0]?.timestamp 
+          : undefined,
+      });
+    }
+  }
+
+  // Fallback to Durable Object (legacy mode)
   const doId = env.GAME_RUNNER.idFromName(gameId);
   const stub = env.GAME_RUNNER.get(doId);
 

@@ -20,6 +20,7 @@ import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent,
 import { createProvidersForGame, type CompletionResponse, type RuntimeAPIKeys } from './ai/index.js';
 import { isTestModel } from './ai/providers/MockE2EProvider.js';
 import { generateSeed } from '../engine/utils/random.js';
+import { getGameStateFromKV } from './utils/workflow-sync.js';
 
 // =============================================================================
 // DEPRECATED: Legacy Suspense Pattern Types
@@ -1205,28 +1206,52 @@ export class GameRunner extends DurableObject<Env> {
         eventCount: this.lastSyncMessage.events?.length ?? 0,
       });
     } else {
-      // Legacy DO mode - use eventLog and state
+      // Try to get workflow state from KV (for workflow-based games after DO hibernation)
       const state = await this.loadState();
-      const syncMessage: WsMessage = {
-        type: 'SYNC',
-        events: this.eventLog,
-        status: state.status,
-        gameId: state.gameId ?? undefined,
-        // Include startedAt for timer calculation
-        startedAt: state.startedAt ?? undefined,
-        // Include error and duration for failed/completed games
-        error: state.error ?? undefined,
-        durationMs: state.startedAt && state.completedAt 
-          ? state.completedAt - state.startedAt 
-          : undefined,
-      };
-      server.send(JSON.stringify(syncMessage));
-      this.log.info('Sent SYNC message', { 
-        eventCount: this.eventLog.length, 
-        status: state.status,
-        gameId: state.gameId,
-        hasError: !!state.error,
-      });
+      const kvState = state.gameId ? await getGameStateFromKV(this.env, state.gameId) : null;
+      
+      if (kvState && kvState.status !== 'completed' && kvState.status !== 'failed') {
+        // Workflow mode - work directly with serialized state (avoid deserializing)
+        const events = kvState.state.events;
+        const syncMessage: WsMessage = {
+          type: 'SYNC',
+          events: events.slice(-50), // Last 50 events
+          status: kvState.status,
+          gameId: state.gameId ?? undefined,
+          startedAt: events.length > 0 
+            ? events[0]?.timestamp 
+            : undefined,
+        };
+        // Cache for subsequent connections in same wake cycle
+        this.lastSyncMessage = syncMessage;
+        server.send(JSON.stringify(syncMessage));
+        this.log.info('Sent SYNC from KV state', { 
+          eventCount: events.length, 
+          status: kvState.status,
+          gameId: state.gameId,
+          phase: kvState.currentPhase,
+        });
+      } else {
+        // Legacy DO mode - use eventLog and local state
+        const syncMessage: WsMessage = {
+          type: 'SYNC',
+          events: this.eventLog,
+          status: state.status,
+          gameId: state.gameId ?? undefined,
+          startedAt: state.startedAt ?? undefined,
+          error: state.error ?? undefined,
+          durationMs: state.startedAt && state.completedAt 
+            ? state.completedAt - state.startedAt 
+            : undefined,
+        };
+        server.send(JSON.stringify(syncMessage));
+        this.log.info('Sent SYNC message', { 
+          eventCount: this.eventLog.length, 
+          status: state.status,
+          gameId: state.gameId,
+          hasError: !!state.error,
+        });
+      }
     }
 
     return new Response(null, { status: 101, webSocket: client });
@@ -1363,7 +1388,7 @@ export class GameRunner extends DurableObject<Env> {
   /**
    * Get current events (for polling fallback).
    * For completed games, serves full data from R2 transcript.
-   * For running games, serves from DO storage, then R2 stream fallback.
+   * For running games, serves from DO storage, KV, or R2 stream fallback.
    */
   private async handleGetEvents(): Promise<Response> {
     const state = await this.loadState();
@@ -1388,6 +1413,26 @@ export class GameRunner extends DurableObject<Env> {
       } catch (error) {
         this.log.warn('Failed to read transcript from R2', { 
           error: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    }
+    
+    // For idle state, check KV for workflow state (workflow-based games after DO hibernation)
+    if (state.status === 'idle' && state.gameId) {
+      const kvState = await getGameStateFromKV(this.env, state.gameId);
+      if (kvState) {
+        // Work directly with serialized state - avoid deserializing
+        const events = kvState.state.events;
+        // Cache events in memory for subsequent requests (spread to make mutable copy)
+        this.eventLog = [...events];
+        return Response.json({
+          status: kvState.status,
+          gameId: state.gameId,
+          eventCount: events.length,
+          events: events.slice(-50), // Last 50 events for size
+          startedAt: events.length > 0 
+            ? events[0]?.timestamp 
+            : undefined,
         });
       }
     }
