@@ -89,6 +89,16 @@ export interface AIProgress {
   progressText: string;
 }
 
+/** Player data from API (matches engine Player type) */
+export interface APIPlayer {
+  id: string;
+  name: string;
+  modelId: string;
+  team: 'mafia' | 'town';
+  isAlive: boolean;
+  persona?: ParsedPersona;
+}
+
 export interface WsMessage {
   type: 'SYNC' | 'EVENT' | 'STATUS' | 'ERROR';
   events?: GameEvent[];
@@ -98,6 +108,8 @@ export interface WsMessage {
   gameId?: string;
   startedAt?: number;
   durationMs?: number;
+  /** Full player data from serialized state (includes personas) */
+  players?: APIPlayer[];
   /** Current suspense reason - which model/player game is waiting for */
   suspenseReason?: string | null;
   /** When game started waiting for current AI call */
@@ -159,7 +171,7 @@ export interface GameState {
 // =============================================================================
 
 export type GameAction =
-  | { type: 'SYNC'; events: GameEvent[]; status?: GameStatus; startedAt?: number; durationMs?: number; error?: string }
+  | { type: 'SYNC'; events: GameEvent[]; status?: GameStatus; startedAt?: number; durationMs?: number; error?: string; players?: APIPlayer[] }
   | { type: 'ADD_EVENT'; event: GameEvent }
   | { type: 'SET_STATUS'; status: GameStatus; error?: string }
   | { type: 'SET_CONNECTION_STATUS'; connectionStatus: ConnectionStatus }

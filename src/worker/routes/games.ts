@@ -616,11 +616,13 @@ games.get('/:id/events', async (c) => {
     if (kvState) {
       // Work directly with serialized state - no need to instantiate GameState class
       const events = kvState.state.events;
+      const players = kvState.state.players;
       return c.json({
         status: kvState.status,
         gameId,
         eventCount: events.length,
         events: events.slice(-50), // Last 50 events for size
+        players, // Include full player data with personas
         startedAt: events.length > 0 
           ? events[0]?.timestamp 
           : undefined,

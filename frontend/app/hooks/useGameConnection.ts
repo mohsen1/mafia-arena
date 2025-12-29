@@ -12,6 +12,7 @@ import type {
   PlayersMap,
   WsMessage,
   HealthCheckResponse,
+  APIPlayer,
 } from '~/lib/game-types';
 import { getEventTokens } from '~/lib/game-types';
 
@@ -122,6 +123,27 @@ function buildPlayersFromEvents(events: GameEvent[]): PlayersMap {
   return players;
 }
 
+/**
+ * Build players map from API players array (includes full persona data).
+ * This takes priority over event-derived players since it has complete data.
+ */
+function buildPlayersFromAPIPlayers(apiPlayers: APIPlayer[]): PlayersMap {
+  const players: PlayersMap = {};
+  
+  for (const p of apiPlayers) {
+    players[p.id] = {
+      playerId: p.id,
+      playerName: p.persona?.name || p.name || p.id,
+      modelId: p.modelId || '',
+      team: p.team || 'town',
+      isAlive: p.isAlive,
+      persona: p.persona,
+    };
+  }
+  
+  return players;
+}
+
 function calculateTelemetry(events: GameEvent[]): { totalTokens: number; currentRound: number | null; currentPhase: string | null } {
   let totalTokens = 0;
   let currentRound: number | null = null;
@@ -145,7 +167,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'SYNC': {
       const events = action.events || [];
-      const players = buildPlayersFromEvents(events);
+      // Prefer API players (has full persona data) over event-derived players
+      const players = action.players?.length 
+        ? buildPlayersFromAPIPlayers(action.players)
+        : buildPlayersFromEvents(events);
       const eliminated = new Set<string>();
       events.forEach(e => { if (e.type === 'elimination' && e.playerId) eliminated.add(e.playerId); });
       const telemetry = calculateTelemetry(events);
@@ -342,6 +367,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         startedAt: msg.startedAt,
         durationMs: msg.durationMs,
         error: msg.error,
+        players: msg.players,
       });
       lastEventCountRef.current = msg.events?.length || 0;
     } else if (msg.type === 'EVENT' && msg.event) {
@@ -458,6 +484,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         startedAt?: number;
         durationMs?: number;
         error?: string;
+        players?: APIPlayer[];
       };
 
       if (!isMountedRef.current) return;
@@ -472,6 +499,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
           startedAt: data.startedAt,
           durationMs: data.durationMs,
           error: data.error,
+          players: data.players,
         });
         lastEventCountRef.current = data.events.length;
       }
