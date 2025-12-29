@@ -252,7 +252,11 @@ export function ModelSelector({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[380px] p-0" align="start">
+        <PopoverContent 
+          className="w-[calc(100vw-2rem)] sm:w-[380px] p-0" 
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <Command>
             <CommandInput placeholder="Search models..." />
             <CommandList className="max-h-[350px]">

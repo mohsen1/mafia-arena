@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { Shield, LogOut, User } from 'lucide-react';
+import { Shield, LogOut, User, Menu, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '~/contexts/auth';
 import { ThemeToggle } from './ThemeToggle';
@@ -9,7 +9,9 @@ export function Header() {
   const { pathname } = useLocation();
   const { authenticated, user, loading, logout, getLoginUrl } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -17,10 +19,18 @@ export function Header() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false);
+      }
     }
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  // Close mobile menu on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   const navLinks = [
     { href: '/games', label: 'Games', match: (p: string) => p.startsWith('/games') },
@@ -31,12 +41,14 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="max-w-6xl mx-auto flex h-12 items-center justify-between px-4">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 md:gap-6">
           <Link to="/" className="flex items-center gap-2 font-semibold text-sm">
             <span className="text-lg">🎭</span>
             <span>Mafia Arena</span>
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
+          
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-4 text-sm">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -82,6 +94,67 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Mobile Menu Button */}
+          <div className="relative md:hidden" ref={mobileMenuRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMobileMenuOpen(!mobileMenuOpen);
+              }}
+              className="p-2 -ml-2 hover:bg-accent rounded-md transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+
+            {/* Mobile Navigation Overlay */}
+            {mobileMenuOpen && (
+              <div className="absolute top-full right-0 mt-2 w-48 py-2 bg-background border rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    className={cn(
+                      'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
+                      link.match(pathname)
+                        ? 'text-foreground font-medium bg-muted/50'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                {authenticated && (
+                  <Link
+                    to="/games/new"
+                    className={cn(
+                      'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
+                      pathname === '/games/new'
+                        ? 'text-foreground font-medium bg-muted/50'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    New Game
+                  </Link>
+                )}
+                {user?.isAdmin && (
+                  <Link
+                    to="/admin"
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-muted',
+                      pathname.startsWith('/admin')
+                        ? 'text-foreground font-medium bg-muted/50'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    <Shield className="h-4 w-4" />
+                    Admin
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Auth Button */}
           <div className="relative" ref={dropdownRef}>
             {loading ? (

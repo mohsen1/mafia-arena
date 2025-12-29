@@ -1359,13 +1359,38 @@ export class GameRunner extends DurableObject<Env> {
   /**
    * Handle broadcast from MafiaWorkflow.
    * Receives state updates from the workflow and broadcasts to WebSocket clients.
+   * 
+   * HIBERNATION FIX: Persists gameId to storage so DO can recover identity
+   * after hibernation and query KV for game state.
    */
   private async handleBroadcast(request: Request): Promise<Response> {
     try {
       const message = await request.json<WsMessage>();
       
-      // Store for late joiners
+      // Store for late joiners (in-memory cache)
       this.lastSyncMessage = message;
+      
+      // CRITICAL: Persist identity to storage for hibernation recovery
+      // Without this, waking up from hibernation results in null gameId,
+      // causing handleWebSocket to fail its KV lookup.
+      if (message.gameId) {
+        const currentState = await this.loadState();
+        
+        // Only write if gameId changed or status changed (avoid unnecessary writes)
+        if (currentState.gameId !== message.gameId || 
+            (message.status && currentState.status !== message.status)) {
+          await this.saveState({
+            gameId: message.gameId,
+            status: message.status ?? 'running',
+            lastActivity: Date.now(),
+            heartbeat: Date.now(),
+          });
+          this.log.debug('Persisted identity for hibernation recovery', {
+            gameId: message.gameId,
+            status: message.status,
+          });
+        }
+      }
       
       // Broadcast to all connected clients
       this.broadcast(message);

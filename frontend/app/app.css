@@ -231,21 +231,55 @@
 
   .card-table tbody tr {
     display: block;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     border: 1px solid var(--border);
     border-radius: 0.5rem;
     padding: 0.75rem;
+    background: var(--card);
   }
 
   .card-table tbody td {
-    display: block;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     text-align: left !important;
-    padding: 0.25rem 0;
+    padding: 0.375rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8125rem;
+  }
+
+  .card-table tbody td:last-child {
+    border-bottom: none;
   }
 
   .card-table tbody td::before {
     content: attr(data-label);
-    font-weight: 600;
-    margin-right: 0.5rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    margin-right: 0.75rem;
+  }
+
+  .card-table tbody td:not([data-label])::before {
+    display: none;
+  }
+
+  /* Hide less important columns on mobile */
+  .card-table .mobile-hide {
+    display: none !important;
+  }
+}
+
+/* Mobile touch targets and readability */
+@media (max-width: 640px) {
+  /* Boost tiny fonts on mobile for readability */
+  .text-\[8px\] { font-size: 10px !important; }
+  .text-\[9px\] { font-size: 11px !important; }
+  .text-\[10px\] { font-size: 11px !important; }
+  
+  /* Ensure select dropdowns are usable and prevent iOS zoom */
+  select {
+    font-size: 16px;
   }
 }

@@ -369,7 +369,7 @@ export default function NewGame() {
         </div>
 
         {/* Model selectors with ELO */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div className="space-y-2">
             <ProviderModelSelector team="mafia" placeholder="Select mafia model..." inputId="modelA" />
             {modelAElo !== null && (

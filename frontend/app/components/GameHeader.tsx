@@ -84,39 +84,42 @@ export function GameHeader({
   };
 
   return (
-    <div className="shrink-0 px-4 pt-2 pb-1">
-      {/* Status bar + Matchup - all in one row */}
-      <div className="flex items-center gap-3 text-[10px]">
-        {statusBadge()}
-        
-        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-medium ${theme.classes}`}>
-          <ThemeIcon type={theme.iconType} />
-          {theme.label}
+    <div className="shrink-0 px-3 sm:px-4 pt-2 pb-1">
+      {/* Status bar + Matchup - wraps on mobile */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 sm:gap-x-3 text-[10px]">
+        {/* Row 1 on mobile: Status + Theme */}
+        <div className="flex items-center gap-2">
+          {statusBadge()}
+          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-medium ${theme.classes}`}>
+            <ThemeIcon type={theme.iconType} />
+            {theme.label}
+          </div>
         </div>
 
-        <div className="h-3 w-px bg-border/50" />
+        {/* Separator - hidden on mobile */}
+        <div className="hidden sm:block h-3 w-px bg-border/50" />
 
-        {/* Matchup inline */}
-        <div id="teams-display" className="flex items-center gap-1.5">
-          {winner === 'mafia' && <Trophy size={10} className="text-amber-500" />}
-          <span className={`font-bold ${winner === 'town' ? 'opacity-50' : ''} text-rose-500`}>MAFIA</span>
-          <span id="mafia-models" className={`font-mono text-foreground/60 truncate max-w-[120px] ${winner === 'town' ? 'opacity-50' : ''}`}>
+        {/* Matchup - full width on mobile */}
+        <div id="teams-display" className="flex items-center gap-1.5 w-full sm:w-auto order-last sm:order-none">
+          {winner === 'mafia' && <Trophy size={10} className="text-amber-500 shrink-0" />}
+          <span className={`font-bold ${winner === 'town' ? 'opacity-50' : ''} text-rose-500 shrink-0`}>MAFIA</span>
+          <span id="mafia-models" className={`font-mono text-foreground/60 truncate max-w-[70px] sm:max-w-[120px] ${winner === 'town' ? 'opacity-50' : ''}`}>
             {mafiaModels || '—'}
           </span>
-          <span className="text-muted-foreground/40 text-[8px]">vs</span>
-          {winner === 'town' && <Trophy size={10} className="text-amber-500" />}
-          <span className={`font-bold ${winner === 'mafia' ? 'opacity-50' : ''} text-indigo-500`}>TOWN</span>
-          <span id="town-models" className={`font-mono text-foreground/60 truncate max-w-[120px] ${winner === 'mafia' ? 'opacity-50' : ''}`}>
+          <span className="text-muted-foreground/40 text-[8px] shrink-0">vs</span>
+          {winner === 'town' && <Trophy size={10} className="text-amber-500 shrink-0" />}
+          <span className={`font-bold ${winner === 'mafia' ? 'opacity-50' : ''} text-indigo-500 shrink-0`}>TOWN</span>
+          <span id="town-models" className={`font-mono text-foreground/60 truncate max-w-[70px] sm:max-w-[120px] ${winner === 'mafia' ? 'opacity-50' : ''}`}>
             {townModels || '—'}
           </span>
         </div>
 
-        <div className="flex-1" />
+        <div className="flex-1 hidden sm:block" />
         
-        {/* Stats */}
-        <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
-          <span>Round <span id="round-display" className="font-mono font-bold text-foreground">{round}</span></span>
-          <div id="phase-display" className="inline-flex items-center gap-1 font-medium text-foreground">{phase}</div>
+        {/* Stats - right side on desktop, after status on mobile */}
+        <div className="flex items-center gap-1.5 sm:gap-2 text-[9px] text-muted-foreground ml-auto sm:ml-0">
+          <span>R<span id="round-display" className="font-mono font-bold text-foreground">{round}</span></span>
+          <div id="phase-display" className="hidden sm:inline-flex items-center gap-1 font-medium text-foreground">{phase}</div>
           <span id="duration-display" className="font-mono tabular-nums">{duration}</span>
           <span id="token-display" className="font-mono font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
             {typeof tokens === 'number' ? tokens.toLocaleString() : tokens}
@@ -161,7 +164,7 @@ export interface GameLayoutProps {
 export function GameLayout({ children, gameId, apiUrl }: GameLayoutProps) {
   return (
     <div 
-      className="fixed inset-0 top-14 flex flex-col overflow-hidden bg-background" 
+      className="fixed inset-0 top-14 flex flex-col overflow-hidden bg-background h-[calc(100dvh-3.5rem)]" 
       id="live-game-container" 
       data-game-id={gameId} 
       data-api-url={apiUrl}

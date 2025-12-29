@@ -153,9 +153,63 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
 
       {/* Head-to-Head Matrix */}
       <div className="rounded border bg-card overflow-hidden">
-        {/* Mobile: Hidden matrix, show message */}
-        <div className="md:hidden p-4 text-center text-sm text-muted-foreground">
-          <p>Matrix view available on larger screens</p>
+        {/* Mobile: List view of top matchups */}
+        <div className="md:hidden p-3 space-y-3">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium pb-1 border-b">
+            Head-to-Head Records (as Mafia)
+          </div>
+          {displayModels.slice(0, 6).map(rowModel => {
+            const matchups = displayModels
+              .filter(col => col.display_name !== rowModel.display_name)
+              .map(col => ({
+                opponent: col.display_name,
+                provider: col.provider,
+                ...matrix[rowModel.display_name]?.[col.display_name],
+              }))
+              .filter(m => m.games > 0)
+              .sort((a, b) => b.rate - a.rate)
+              .slice(0, 2);
+
+            if (matchups.length === 0) return null;
+
+            return (
+              <div key={rowModel.id} className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span 
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0" 
+                    style={{ background: getProviderColor(rowModel.provider) }}
+                  />
+                  <span className="font-medium">{rowModel.display_name}</span>
+                </div>
+                <div className="pl-3 space-y-1">
+                  {matchups.map(m => (
+                    <div key={m.opponent} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground/60">vs</span>
+                        <span 
+                          className="w-1 h-1 rounded-full flex-shrink-0" 
+                          style={{ background: getProviderColor(m.provider) }}
+                        />
+                        <span className="truncate max-w-[120px]">{m.opponent}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground/70">{m.wins}/{m.games}</span>
+                        <span 
+                          className="font-mono font-semibold min-w-[36px] text-right"
+                          style={{ color: getHeatColor(m.rate) }}
+                        >
+                          {(m.rate * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          <div className="text-[10px] text-muted-foreground/70 text-center pt-2 border-t">
+            Full matrix available on larger screens
+          </div>
         </div>
         
         {/* Desktop: Full matrix */}

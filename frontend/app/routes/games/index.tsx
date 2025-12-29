@@ -193,70 +193,73 @@ export default function GamesIndex({ loaderData }: Route.ComponentProps) {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Model Filter */}
-        <div className="relative">
-          <select 
-            className="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
-            value={modelFilter || ''}
-            onChange={(e) => updateFilters('model', e.target.value)}
-          >
-            <option value="">All Models</option>
-            {sortedProviders.map(provider => (
-              <optgroup key={provider} label={provider.charAt(0).toUpperCase() + provider.slice(1)}>
-                {modelsByProvider[provider].map(model => (
-                  <option key={model.id} value={model.id}>{model.display_name}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-        </div>
+      <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2">
+        {/* Filters container - horizontal scroll on mobile */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 w-full sm:w-auto -mx-1 px-1">
+          {/* Model Filter */}
+          <div className="relative shrink-0">
+            <select 
+              className="appearance-none text-xs sm:text-xs border rounded px-2 py-1.5 sm:py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+              value={modelFilter || ''}
+              onChange={(e) => updateFilters('model', e.target.value)}
+            >
+              <option value="">All Models</option>
+              {sortedProviders.map(provider => (
+                <optgroup key={provider} label={provider.charAt(0).toUpperCase() + provider.slice(1)}>
+                  {modelsByProvider[provider].map(model => (
+                    <option key={model.id} value={model.id}>{model.display_name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+          </div>
 
-        {/* Winner Filter */}
-        <div className="relative">
-          <select 
-            className="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
-            value={winnerFilter || ''}
-            onChange={(e) => updateFilters('winner', e.target.value)}
-          >
-            <option value="">All Winners</option>
-            <option value="mafia">Mafia</option>
-            <option value="town">Town</option>
-          </select>
-          <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-        </div>
+          {/* Winner Filter */}
+          <div className="relative shrink-0">
+            <select 
+              className="appearance-none text-xs sm:text-xs border rounded px-2 py-1.5 sm:py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+              value={winnerFilter || ''}
+              onChange={(e) => updateFilters('winner', e.target.value)}
+            >
+              <option value="">All Winners</option>
+              <option value="mafia">Mafia</option>
+              <option value="town">Town</option>
+            </select>
+            <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+          </div>
 
-        {/* Theme Filter */}
-        <div className="relative">
-          <select 
-            className="appearance-none text-xs border rounded px-2 py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
-            value={themeFilter || ''}
-            onChange={(e) => updateFilters('theme', e.target.value)}
-          >
-            <option value="">All Themes</option>
-            <option value="noir">Noir</option>
-            <option value="victorian">Victorian</option>
-            <option value="modern">Modern</option>
-            <option value="fantasy">Fantasy</option>
-          </select>
-          <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-        </div>
+          {/* Theme Filter */}
+          <div className="relative shrink-0">
+            <select 
+              className="appearance-none text-xs sm:text-xs border rounded px-2 py-1.5 sm:py-1 pr-6 bg-background hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+              value={themeFilter || ''}
+              onChange={(e) => updateFilters('theme', e.target.value)}
+            >
+              <option value="">All Themes</option>
+              <option value="noir">Noir</option>
+              <option value="victorian">Victorian</option>
+              <option value="modern">Modern</option>
+              <option value="fantasy">Fantasy</option>
+            </select>
+            <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+          </div>
 
-        {/* Clear Filters */}
-        {hasFilters && (
-          <Link 
-            to="/games" 
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X size={12} />
-            Clear
-          </Link>
-        )}
+          {/* Clear Filters */}
+          {hasFilters && (
+            <Link 
+              to="/games" 
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <X size={12} />
+              Clear
+            </Link>
+          )}
+        </div>
 
         {/* Active Filter Pills */}
         {hasFilters && (
-          <div className="flex items-center gap-1.5 ml-auto">
+          <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
             {selectedModelName && (
               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                 {selectedModelName}
@@ -320,9 +323,9 @@ export default function GamesIndex({ loaderData }: Route.ComponentProps) {
           {hasFilters ? 'No games match the selected filters' : 'No games yet'}
         </div>
       ) : (
-        <div className="border rounded overflow-hidden text-xs">
-          <table className="w-full">
-            <thead>
+        <div className="border rounded overflow-hidden text-xs md:border-0 md:rounded-none">
+          <table className="w-full card-table">
+            <thead className="hidden md:table-header-group">
               <tr className="bg-muted/30 border-b text-[10px] text-muted-foreground uppercase tracking-wide">
                 <th className="text-left font-normal px-3 py-1.5 w-[40%]">Matchup <span className="normal-case font-light opacity-70">(Mafia vs Town)</span></th>
                 <th className="text-left font-normal px-3 py-1.5 w-[20%]">Winner</th>
@@ -333,7 +336,7 @@ export default function GamesIndex({ loaderData }: Route.ComponentProps) {
                 <th className="text-right font-normal px-3 py-1.5">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
+            <tbody className="divide-y divide-border/50 md:divide-y">
               {games.map(game => {
                 const m = getMatchup(game);
                 const theme = (game.persona_theme && THEMES[game.persona_theme]) || 'Noir';
@@ -344,14 +347,14 @@ export default function GamesIndex({ loaderData }: Route.ComponentProps) {
                     className="hover:bg-muted/20 transition-colors cursor-pointer group"
                     onClick={() => navigate(`/games/${game.id}`)}
                   >
-                    <td className="px-3 py-1.5 max-w-0">
-                      <Link to={`/games/${game.id}`} className="flex items-center gap-1.5 truncate text-muted-foreground">
+                    <td data-label="Matchup" className="px-3 py-1.5 max-w-0 md:max-w-none">
+                      <Link to={`/games/${game.id}`} className="flex items-center gap-1.5 text-muted-foreground">
                         <span className="truncate">{m.mafia}</span>
                         <span className="text-muted-foreground/30 text-[10px] shrink-0">vs</span>
                         <span className="truncate">{m.town}</span>
                       </Link>
                     </td>
-                    <td className="px-3 py-1.5">
+                    <td data-label="Winner" className="px-3 py-1.5">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate">{m.winnerModel}</span>
                         <span className={`shrink-0 text-[9px] px-1 rounded ${
@@ -361,11 +364,11 @@ export default function GamesIndex({ loaderData }: Route.ComponentProps) {
                         </span>
                       </div>
                     </td>
-                    <td className="px-2 py-1.5 text-center font-mono text-muted-foreground">{game.rounds}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground whitespace-nowrap">{formatDuration(game.duration_ms || 0)}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{formatCost(cost)}</td>
-                    <td className="px-2 py-1.5 text-center text-muted-foreground">{theme}</td>
-                    <td className="px-3 py-1.5 text-right text-muted-foreground whitespace-nowrap">{formatRelativeTime(game.created_at)}</td>
+                    <td data-label="Rounds" className="px-2 py-1.5 text-center font-mono text-muted-foreground mobile-hide">{game.rounds}</td>
+                    <td data-label="Time" className="px-2 py-1.5 text-right font-mono text-muted-foreground whitespace-nowrap mobile-hide">{formatDuration(game.duration_ms || 0)}</td>
+                    <td data-label="Cost" className="px-2 py-1.5 text-right font-mono text-muted-foreground mobile-hide">{formatCost(cost)}</td>
+                    <td data-label="Theme" className="px-2 py-1.5 text-center text-muted-foreground mobile-hide">{theme}</td>
+                    <td data-label="Date" className="px-3 py-1.5 text-right text-muted-foreground whitespace-nowrap">{formatRelativeTime(game.created_at)}</td>
                   </tr>
                 );
               })}
