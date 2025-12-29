@@ -2,6 +2,77 @@
  * AI Provider type definitions.
  */
 
+import type { ApiProvider } from '../types.js';
+import type { BatchProvider } from '../batch/types.js';
+
+// =============================================================================
+// Model Context Types (for ModelRegistry)
+// =============================================================================
+
+/**
+ * Pricing per 1K tokens in USD.
+ */
+export interface ModelPricing {
+  /** Input token cost per 1K tokens */
+  input: number;
+  /** Output token cost per 1K tokens */
+  output: number;
+  /** Cached/prompt-cached input pricing (some providers offer discounts) */
+  cachedInput?: number;
+  /** Image input pricing per 1K tokens (for multimodal models) */
+  imageInput?: number;
+}
+
+/**
+ * Batch API pricing configuration.
+ * Batch APIs offer 40-50% discount but with up to 24h latency.
+ */
+export interface BatchPricingConfig {
+  /** Whether this provider supports batch API for this model */
+  supported: boolean;
+  /** Discount percentage (e.g., 50 for 50% off) */
+  discountPercent: number;
+  /** Provider-specific batch API (anthropic, openai, google, etc.) */
+  batchProvider: BatchProvider | null;
+}
+
+/**
+ * Rich model context with all metadata needed for provider instantiation.
+ * This is the single source of truth - replaces string ID parsing.
+ */
+export interface ModelContext {
+  /** Primary model ID (e.g., "google/gemini-2.0-flash") */
+  id: string;
+  /** Model family/creator for UI grouping (e.g., "google", "anthropic") */
+  family: string;
+  /** Human-readable display name */
+  displayName: string;
+  /** Which API provider to use for requests */
+  apiProvider: ApiProvider;
+  /** The model ID to send to the specific API (may differ from primary ID) */
+  apiModelId: string;
+  
+  // Pricing
+  /** Standard pricing per 1K tokens */
+  pricing: ModelPricing;
+  /** Batch API pricing configuration */
+  batchPricing: BatchPricingConfig;
+  
+  // Context limits
+  /** Maximum context window in tokens */
+  contextLength: number;
+  /** Maximum output tokens (if known) */
+  maxOutputTokens?: number;
+  
+  // Capabilities
+  /** Structured output capability level */
+  structuredOutput: StructuredOutputLevel;
+  
+  // Flags
+  /** Whether this is a test/mock model */
+  isTest: boolean;
+}
+
 // =============================================================================
 // Batch API Types
 // =============================================================================

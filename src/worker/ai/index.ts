@@ -14,6 +14,10 @@ export type {
   StructuredOutputLevel,
   ModelConfig,
   AIRequestMessage,
+  // Model context types (for ModelRegistry)
+  ModelContext,
+  ModelPricing,
+  BatchPricingConfig,
 } from './types.js';
 
 export {
@@ -45,7 +49,11 @@ export {
   createProvider, 
   createProvidersForGame, 
   inferProviderFromModelId,
-  type CreateProviderOptions, 
+  // Context-based provider creation (preferred API)
+  createProviderFromContext,
+  createProvidersFromContexts,
+  type CreateProviderOptions,
+  type CreateProviderFromContextOptions,
   type RuntimeAPIKeys,
 } from './factory.js';
 

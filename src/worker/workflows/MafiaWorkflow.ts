@@ -19,6 +19,7 @@ import { WorkflowEntrypoint, type WorkflowStep, type WorkflowEvent } from 'cloud
 import type { Env } from '../types.js';
 import type { WorkflowParams, WorkflowResult, BroadcastMessage } from './types.js';
 import type { GameConfig, GameEvent, Team } from '../../engine/types.js';
+import type { ModelContext, ModelPricing } from '../ai/types.js';
 import { 
   GameState,
   executeIntroductionPhase,
@@ -34,8 +35,9 @@ import {
   saveErrorStateToKV,
   getRecentEvents,
 } from '../utils/workflow-sync.js';
-import { calculateExactCost, type ModelPricing } from '../utils/budget.js';
-import { parsePricingFromConfig, DEFAULT_PRICING } from '../ai/models.js';
+import { calculateExactCost } from '../utils/budget.js';
+import { DEFAULT_PRICING } from '../ai/models.js';
+import { ModelRegistry } from '../services/ModelRegistry.js';
 import { createLogger, type Logger } from '../utils/logger.js';
 
 /**
@@ -44,10 +46,14 @@ import { createLogger, type Logger } from '../utils/logger.js';
 export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
   private log: Logger;
   private gameId!: string;
+  private modelRegistry: ModelRegistry;
+  /** Cached model contexts, hydrated at workflow start */
+  private modelContexts: Map<string, ModelContext> = new Map();
 
   constructor(ctx: ExecutionContext, env: Env) {
     super(ctx, env);
     this.log = createLogger('MafiaWorkflow');
+    this.modelRegistry = new ModelRegistry(env.DB);
   }
 
   /**
@@ -80,9 +86,24 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
     // Initialize game state
     let state = GameState.create(gameId, gameConfig);
 
-    // Create AI provider
+    // Hydrate model contexts at workflow start for pricing lookups
+    // This single batch fetch prevents repeated D1 queries during the game
+    const modelIds = config.teams.map(t => t.modelId);
+    this.modelContexts = await step.do('hydrate-models', async () => {
+      const contexts = await this.modelRegistry.getMany(modelIds);
+      // Convert to serializable format for workflow checkpointing
+      return Object.fromEntries(contexts);
+    }).then(entries => new Map(Object.entries(entries) as [string, ModelContext][]));
+
+    this.log.debug('Hydrated model contexts', { 
+      modelCount: this.modelContexts.size,
+      models: modelIds.join(', '),
+    });
+
+    // Create AI provider with pre-loaded contexts (avoids redundant D1 queries)
     const aiProvider = new WorkflowAIProvider(step, this.env, gameId, {
       discountPricing: discountPricing ?? false,
+      preloadedContexts: this.modelContexts,
       ...(traceId && { traceId }),
     });
 
@@ -556,12 +577,16 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
   }
 
   /**
-   * Get pricing for a model.
+   * Get pricing for a model from cached model contexts.
+   * Falls back to DEFAULT_PRICING if model was not hydrated.
    */
-  private getModelPricing(_modelId: string): ModelPricing {
-    // Try to get from config, fallback to default
-    const pricing = parsePricingFromConfig(null);
-    return pricing ?? DEFAULT_PRICING;
+  private getModelPricing(modelId: string): ModelPricing {
+    const context = this.modelContexts.get(modelId);
+    if (context) {
+      return context.pricing;
+    }
+    this.log.warn('Model pricing not found in hydrated contexts, using defaults', { modelId });
+    return DEFAULT_PRICING;
   }
 
   /**

@@ -23,7 +23,7 @@
  */
 
 import type { Env, ApiProvider } from '../types.js';
-import type { AIProviderInterface, CompletionRequest, CompletionResponse, ModelRoutingConfig } from './types.js';
+import type { AIProviderInterface, CompletionRequest, CompletionResponse, ModelRoutingConfig, ModelContext } from './types.js';
 import { getDefaultModelConfig } from './models.js';
 import { RetryingProvider } from './RetryingProvider.js';
 import { 
@@ -158,6 +158,9 @@ const DIRECT_PROVIDERS: Set<ApiProvider> = new Set([
 /**
  * Parse a model ID to extract the routing provider and API model ID.
  * 
+ * @deprecated Use ModelRegistry.get() instead for database-driven routing.
+ * This function is kept for backward compatibility with the string-based createProvider API.
+ * 
  * NEW FORMAT (explicit routing):
  * - "openrouter/anthropic/claude-3" → { provider: "openrouter", apiModelId: "anthropic/claude-3" }
  * - "anthropic/claude-3"            → { provider: "anthropic", apiModelId: "claude-3" }
@@ -199,8 +202,11 @@ function parseModelId(modelId: string): { provider: ApiProvider; apiModelId: str
  * Infer the provider required for a model ID based on its prefix.
  * Used for API key validation - tells you which provider key you need.
  * 
+ * @deprecated Use ModelRegistry.get(modelId).apiProvider instead.
+ * This function relies on string parsing which may not match database routing.
+ * 
  * @param modelId - Model ID like "openai/gpt-4" or "anthropic/claude-3"
- * @returns The provider name that this model requires
+ * @returns The provider name that this model requires (based on string parsing)
  */
 export function inferProviderFromModelId(modelId: string): ApiProvider {
   return parseModelId(modelId).provider;
@@ -217,6 +223,9 @@ function isGoogleModel(modelId: string): boolean {
 
 /**
  * Infer the API provider from a model ID.
+ * 
+ * @deprecated Use ModelRegistry.get(modelId).apiProvider instead.
+ * This function relies on string parsing which may not match database routing.
  * 
  * NEW BEHAVIOR: Uses explicit prefix parsing.
  * The first segment of the ID determines the provider.
@@ -252,6 +261,9 @@ function inferApiProvider(modelId: string, env: Env): ApiProvider {
 /**
  * Extract the actual model ID to send to the API.
  * 
+ * @deprecated Use ModelRegistry.get(modelId).apiModelId instead.
+ * This function relies on string parsing which may not match database routing.
+ * 
  * For OpenRouter: Returns the model ID without the 'openrouter/' prefix
  * For Direct providers: Returns the model ID without the provider prefix
  */
@@ -274,6 +286,9 @@ function extractApiModelId(modelId: string, apiProvider: ApiProvider): string {
 
 /**
  * Create an AI provider for the given model.
+ * 
+ * **NOTE**: For new code, prefer using ModelRegistry + createProviderFromContext()
+ * which uses database-driven routing instead of string parsing.
  * 
  * Routing priority:
  * 1. If routingConfig is provided, use its apiProvider and apiModelId
@@ -564,6 +579,122 @@ export function createProvidersWithRouting(
 
   for (const config of routingConfigs) {
     providers.set(config.id, createProvider(config.id, env, { ...options, routingConfig: config }));
+  }
+
+  return providers;
+}
+
+// =============================================================================
+// CONTEXT-BASED PROVIDER CREATION (Preferred API)
+// =============================================================================
+
+/**
+ * Options for context-based provider creation.
+ */
+export interface CreateProviderFromContextOptions {
+  enableRetry?: boolean;
+  maxRetries?: number;
+  timeoutMs?: number;
+  discountPricing?: boolean;
+  userKeys?: RuntimeAPIKeys;
+}
+
+/**
+ * Create an AI provider from a ModelContext.
+ * This is the preferred method - uses structured data instead of string parsing.
+ * 
+ * @param context - Rich model context from ModelRegistry
+ * @param env - Worker environment with API keys
+ * @param options - Provider creation options
+ */
+export function createProviderFromContext(
+  context: ModelContext,
+  env: Env,
+  options: CreateProviderFromContextOptions = {}
+): AIProviderInterface {
+  // Test models use mock provider
+  if (context.isTest) {
+    console.log(`Creating MOCK provider for test model: ${context.id}`);
+    return new MockE2EProvider(context.id);
+  }
+
+  const { apiProvider, apiModelId, id: modelId, displayName } = context;
+  
+  const keySource = options.userKeys ? 'user-provided' : 'system';
+  console.log(`Creating provider for model: ${modelId} (${displayName}) via ${apiProvider} as ${apiModelId} [keys: ${keySource}]`);
+
+  // Select defaults based on pricing mode
+  const defaults = options.discountPricing 
+    ? PRICING_MODE_DEFAULTS.DISCOUNT 
+    : PRICING_MODE_DEFAULTS.STANDARD;
+
+  const { 
+    enableRetry = true, 
+    maxRetries = defaults.maxRetries, 
+    timeoutMs = defaults.timeoutMs,
+    userKeys,
+  } = options;
+
+  // Create the base provider
+  const baseProvider = createBaseProvider(apiProvider, apiModelId, modelId, env, timeoutMs, userKeys);
+  
+  // Special case: Google models get OpenRouter fallback for resilience
+  const openRouterKey = resolveApiKey('OPENROUTER_API_KEY', env, userKeys);
+  if (apiProvider === 'google' && openRouterKey) {
+    const openRouterProvider = new OpenRouterProvider({
+      apiKey: openRouterKey,
+      modelId,
+      timeoutMs,
+    });
+
+    const retryingPrimary = enableRetry 
+      ? new RetryingProvider(baseProvider, {
+          maxRetries,
+          baseDelayMs: defaults.baseDelayMs,
+          maxDelayMs: defaults.maxDelayMs,
+        })
+      : baseProvider;
+
+    const retryingFallback = enableRetry
+      ? new RetryingProvider(openRouterProvider, {
+          maxRetries,
+          baseDelayMs: defaults.baseDelayMs,
+          maxDelayMs: defaults.maxDelayMs,
+        })
+      : openRouterProvider;
+
+    return new FallbackProvider(retryingPrimary, retryingFallback, modelId);
+  }
+
+  // Standard path: wrap with retry if enabled
+  if (enableRetry) {
+    return new RetryingProvider(baseProvider, { 
+      maxRetries,
+      baseDelayMs: defaults.baseDelayMs,
+      maxDelayMs: defaults.maxDelayMs,
+    });
+  }
+
+  return baseProvider;
+}
+
+/**
+ * Create providers for multiple ModelContexts.
+ * This is the preferred method for game setup - uses pre-fetched model metadata.
+ * 
+ * @param contexts - Map of model ID to ModelContext from ModelRegistry.getMany()
+ * @param env - Worker environment with API keys
+ * @param options - Provider creation options
+ */
+export function createProvidersFromContexts(
+  contexts: Map<string, ModelContext>,
+  env: Env,
+  options: CreateProviderFromContextOptions = {}
+): Map<string, AIProviderInterface> {
+  const providers = new Map<string, AIProviderInterface>();
+
+  for (const [modelId, context] of contexts) {
+    providers.set(modelId, createProviderFromContext(context, env, options));
   }
 
   return providers;

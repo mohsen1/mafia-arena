@@ -7,6 +7,8 @@
  * 3. Submit batches to provider APIs
  * 4. Poll for job completion
  * 5. Dispatch results back to GameRunner DOs
+ * 
+ * Uses ModelRegistry for database-driven batch provider detection.
  */
 
 import type { Env } from '../types.js';
@@ -21,6 +23,7 @@ import type {
 } from './types.js';
 import type { AIRequestMessage, CompletionResponse } from '../ai/types.js';
 import { createLogger, logErrorWithStack, type Logger } from '../utils/logger.js';
+import { ModelRegistry } from '../services/ModelRegistry.js';
 
 // Default configuration
 const DEFAULT_OPTIONS: BatchServiceOptions = {
@@ -31,75 +34,13 @@ const DEFAULT_OPTIONS: BatchServiceOptions = {
 };
 
 /**
- * Map model ID to its batch provider (if batch pricing is supported).
- * 
- * Providers with batch API support (40-50% discount):
- * - anthropic: Message Batches API
- * - openai: Batch API
- * - google: Batch Generation API
- * - cerebras: Batch API
- * - fireworks: Batch API (40% discount)
- * 
- * Providers WITHOUT batch support (returns null):
- * - openrouter: Aggregator, doesn't have native batch API
- * - minimax: No documented batch API
- */
-function getProviderForModel(modelId: string): BatchProvider | null {
-  const lowerModelId = modelId.toLowerCase();
-  
-  // Anthropic models (50% discount)
-  if (
-    lowerModelId.startsWith('anthropic/') ||
-    lowerModelId.startsWith('claude-') ||
-    lowerModelId.includes('claude')
-  ) {
-    return 'anthropic';
-  }
-  
-  // OpenAI models (50% discount)
-  if (
-    lowerModelId.startsWith('openai/') ||
-    lowerModelId.startsWith('gpt-') ||
-    lowerModelId.includes('gpt-4') ||
-    lowerModelId.includes('gpt-3')
-  ) {
-    return 'openai';
-  }
-  
-  // Google/Gemini models (50% discount)
-  if (
-    lowerModelId.startsWith('google/') ||
-    lowerModelId.startsWith('gemini-') ||
-    lowerModelId.includes('gemini')
-  ) {
-    return 'google';
-  }
-  
-  // Cerebras models (50% discount)
-  if (lowerModelId.startsWith('cerebras/') || lowerModelId.includes('cerebras')) {
-    return 'cerebras';
-  }
-  
-  // Fireworks models (40% discount)
-  if (
-    lowerModelId.startsWith('fireworks/') || 
-    lowerModelId.includes('fireworks')
-  ) {
-    return 'fireworks';
-  }
-  
-  // OpenRouter and MiniMax don't have batch APIs - return null
-  // These will be processed via immediate (non-batch) pathway
-  return null;
-}
-
-/**
  * Main batch service class.
  */
 export class BatchService {
   private readonly log: Logger;
   private readonly options: BatchServiceOptions;
   private readonly providers: Map<BatchProvider, BatchProviderInterface>;
+  private readonly modelRegistry: ModelRegistry;
 
   constructor(
     private readonly env: Env,
@@ -108,6 +49,7 @@ export class BatchService {
     this.log = createLogger('BatchService');
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.providers = new Map();
+    this.modelRegistry = new ModelRegistry(env.DB);
     
     this.log.info('BatchService initialized', { 
       minBatchSize: this.options.minBatchSize,
@@ -128,16 +70,19 @@ export class BatchService {
    * Called when handleAIRequestMessage receives a discountPricing request.
    */
   async storeRequest(message: AIRequestMessage): Promise<void> {
-    const provider = getProviderForModel(message.modelId);
+    // Use ModelRegistry to get batch pricing info from database
+    const modelContext = await this.modelRegistry.get(message.modelId);
+    const { batchPricing } = modelContext;
     
-    if (!provider) {
+    if (!batchPricing.supported || !batchPricing.batchProvider) {
       this.log.warn('Model does not support batch pricing, will process immediately', {
         modelId: message.modelId,
+        apiProvider: modelContext.apiProvider,
       });
-      // TODO: Should we throw or just log? For now, store anyway with null provider
       throw new Error(`Model ${message.modelId} does not support batch pricing`);
     }
 
+    const provider = batchPricing.batchProvider;
     const id = crypto.randomUUID();
     // Use the original requestId as customId - it's deterministic based on full game state
     // including sub-round indices, ensuring uniqueness for multi-turn phases (discussion)
@@ -168,6 +113,7 @@ export class BatchService {
       gameId: message.gameId,
       provider,
       modelId: message.modelId,
+      batchDiscount: batchPricing.discountPercent,
       traceId: message.traceId,
     });
   }
@@ -729,9 +675,31 @@ export class BatchService {
 }
 
 /**
- * Check if a model supports batch pricing.
+ * Check if a model supports batch pricing using the ModelRegistry.
+ * 
+ * @param modelId - Model ID to check
+ * @param db - D1 database instance
+ * @returns Whether the model supports batch pricing
  */
-export function modelSupportsBatchPricing(modelId: string): boolean {
-  return getProviderForModel(modelId) !== null;
+export async function modelSupportsBatchPricing(modelId: string, db: D1Database): Promise<boolean> {
+  const registry = new ModelRegistry(db);
+  const context = await registry.get(modelId);
+  return context.batchPricing.supported;
+}
+
+/**
+ * Get batch pricing details for a model using the ModelRegistry.
+ * 
+ * @param modelId - Model ID to check
+ * @param db - D1 database instance
+ * @returns Batch pricing configuration
+ */
+export async function getBatchPricingForModel(
+  modelId: string, 
+  db: D1Database
+): Promise<{ supported: boolean; discountPercent: number; batchProvider: BatchProvider | null }> {
+  const registry = new ModelRegistry(db);
+  const context = await registry.get(modelId);
+  return context.batchPricing;
 }
 

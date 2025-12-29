@@ -22,10 +22,11 @@ import type {
   Persona,
 } from '../../engine/types.js';
 import type { Env } from '../types.js';
-import type { CompletionResponse } from '../ai/types.js';
-import { createProvider } from '../ai/factory.js';
+import type { CompletionResponse, ModelContext } from '../ai/types.js';
+import { createProviderFromContext } from '../ai/factory.js';
 import { getSchemaForAction } from '../ai/types.js';
-import { modelSupportsBatchPricing, BatchService } from '../batch/index.js';
+import { BatchService } from '../batch/index.js';
+import { ModelRegistry } from '../services/ModelRegistry.js';
 import { createLogger, type Logger } from '../utils/logger.js';
 import { jsonrepair } from 'jsonrepair';
 import {
@@ -62,6 +63,11 @@ export interface WorkflowAIProviderOptions {
   discountPricing?: boolean;
   /** Trace ID for distributed tracing */
   traceId?: string;
+  /**
+   * Pre-loaded model contexts from MafiaWorkflow hydration.
+   * Avoids redundant D1 queries during game execution.
+   */
+  preloadedContexts?: Map<string, ModelContext>;
 }
 
 /**
@@ -70,6 +76,7 @@ export interface WorkflowAIProviderOptions {
  */
 export class WorkflowAIProvider implements AIProvider {
   private readonly log: Logger;
+  private readonly modelRegistry: ModelRegistry;
   private fallbackCounts: Map<string, { total: number; fallbacks: number }> = new Map();
 
   constructor(
@@ -79,6 +86,7 @@ export class WorkflowAIProvider implements AIProvider {
     private readonly options: WorkflowAIProviderOptions = {}
   ) {
     this.log = createLogger('WorkflowAIProvider');
+    this.modelRegistry = new ModelRegistry(env.DB);
   }
 
   /**
@@ -111,22 +119,32 @@ export class WorkflowAIProvider implements AIProvider {
    * Routes to batch flow if discount pricing is enabled and model supports it.
    */
   async getAction(context: AIContext, prompt: ActionPrompt): Promise<AIResponse> {
-    // Check if we should use batch flow
-    if (this.options.discountPricing && modelSupportsBatchPricing(context.modelId)) {
-      return this.executeBatchFlow(context, prompt);
+    // Get model context from preloaded cache or fetch from registry
+    const modelContext = this.options.preloadedContexts?.get(context.modelId)
+      ?? await this.modelRegistry.get(context.modelId);
+    
+    // Check if we should use batch flow (uses database-driven batch pricing info)
+    if (this.options.discountPricing && modelContext.batchPricing.supported) {
+      return this.executeBatchFlow(context, prompt, modelContext);
     }
-    return this.executeDirectFlow(context, prompt);
+    return this.executeDirectFlow(context, prompt, modelContext);
   }
 
   /**
    * Execute AI call directly within a workflow step.
+   * Uses ModelContext for database-driven provider routing.
    */
-  private async executeDirectFlow(context: AIContext, prompt: ActionPrompt): Promise<AIResponse> {
+  private async executeDirectFlow(
+    context: AIContext, 
+    prompt: ActionPrompt,
+    modelContext: ModelContext
+  ): Promise<AIResponse> {
     const stepId = this.generateStepId(context, prompt);
     const structuredOutput = getSchemaForAction(prompt.type);
 
     const result = await this.step.do(stepId, async () => {
-      const provider = createProvider(context.modelId, this.env, {
+      // Use context-based provider creation (database-driven routing)
+      const provider = createProviderFromContext(modelContext, this.env, {
         enableRetry: true,
         discountPricing: this.options.discountPricing ?? false,
       });
@@ -187,7 +205,11 @@ export class WorkflowAIProvider implements AIProvider {
    * Execute AI call via batch API with sleep-poll pattern.
    * Used for discount pricing (40-50% cost savings, up to 24h response time).
    */
-  private async executeBatchFlow(context: AIContext, prompt: ActionPrompt): Promise<AIResponse> {
+  private async executeBatchFlow(
+    context: AIContext, 
+    prompt: ActionPrompt,
+    _modelContext: ModelContext  // Available for future use
+  ): Promise<AIResponse> {
     const stepId = this.generateStepId(context, prompt);
     const requestId = `${this.gameId}-${stepId}`;
     const structuredOutput = getSchemaForAction(prompt.type);

@@ -50,7 +50,11 @@ export type {
 // =============================================================================
 // AI Batch API Service (for multi-provider discount pricing)
 // =============================================================================
-export { BatchService, modelSupportsBatchPricing } from './BatchService.js';
+export { 
+  BatchService, 
+  modelSupportsBatchPricing, 
+  getBatchPricingForModel,
+} from './BatchService.js';
 
 // Base provider (for implementing new providers)
 export { BaseBatchProvider } from './providers/BaseBatchProvider.js';
