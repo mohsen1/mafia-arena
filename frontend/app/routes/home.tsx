@@ -1,6 +1,7 @@
 import type { Route } from "./+types/home";
 import { getMatchups, getEloRatings } from '~/lib/api';
 import { MatchupMatrix } from '~/components/MatchupMatrix';
+import { EloBarChart } from '~/components/EloBarChart';
 import { Trophy } from 'lucide-react';
 
 export function meta({}: Route.MetaArgs) {
@@ -54,8 +55,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-amber-500" />
           <h2 className="text-lg font-semibold">Model Rankings</h2>
-          <span className="text-xs text-muted-foreground">by head-to-head win rate</span>
+          <span className="text-xs text-muted-foreground">by ELO rating</span>
         </div>
+        
+        {/* ELO Bar Chart */}
+        <div className="rounded border bg-card p-3">
+          <EloBarChart rankings={eloData.rankings} maxItems={12} />
+        </div>
+
         <MatchupMatrix 
           matchupsData={matchupsData} 
           eloData={eloData} 
