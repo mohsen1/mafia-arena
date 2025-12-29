@@ -217,10 +217,8 @@ export default function Account() {
 
   // Not authenticated state
   if (!authenticated || !user) {
-    const signInUrl =
-      typeof window !== "undefined" && window.location.hostname === "localhost"
-        ? `http://localhost:8787/api/auth/google?redirect=/account`
-        : `${effectiveApiUrl}/api/auth/google?redirect=/account`;
+    // Use effectiveApiUrl which returns empty string in dev (goes through Vite proxy for cookies)
+    const signInUrl = `${effectiveApiUrl}/api/auth/google?redirect=/account`;
 
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">

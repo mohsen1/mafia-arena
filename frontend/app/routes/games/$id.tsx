@@ -22,6 +22,7 @@ import { PlayerPill, PlayerModal, ThemeDialog } from "~/components/game";
 import type { PlayerInfo as GamePlayerInfo } from "~/lib/game-types";
 import { getTheme } from "~/lib/themes";
 import { sortPlayers } from "~/lib/game-utils";
+import { MarkdownText } from "~/components/ui/MarkdownText";
 
 const SITE_URL = "https://mafia-arena.com";
 
@@ -464,7 +465,7 @@ export default function GameDetail() {
 
                                     let content;
                                     if (parsed.type === "message") {
-                                      content = <p className="text-[12px] text-foreground/90 leading-relaxed">{parsed.content}</p>;
+                                      content = <MarkdownText content={parsed.content} className="text-[12px] text-foreground/90" />;
                                     } else if (parsed.type === "vote") {
                                       const targetTeam = playerMap[parsed.content.vote]?.team || 'town';
                                       content = (
@@ -486,7 +487,7 @@ export default function GameDetail() {
                                         </span>
                                       );
                                     } else {
-                                      content = <p className="text-[12px] text-foreground/90 leading-relaxed">{parsed.content}</p>;
+                                      content = <MarkdownText content={parsed.content} className="text-[12px] text-foreground/90" />;
                                     }
 
                                     return (

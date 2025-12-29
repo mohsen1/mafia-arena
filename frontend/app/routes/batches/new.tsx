@@ -226,10 +226,8 @@ export default function NewUserBatch() {
 
   // Not authenticated
   if (!authLoading && !authenticated) {
-    const signInUrl =
-      typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        ? `http://localhost:8787/api/auth/google?redirect=/batches/new`
-        : `${apiUrl}/api/auth/google?redirect=/batches/new`;
+    // Use apiUrl which handles dev vs prod
+    const signInUrl = `${apiUrl}/api/auth/google?redirect=/batches/new`;
 
     return (
       <div className="max-w-lg mx-auto py-16 text-center space-y-6">

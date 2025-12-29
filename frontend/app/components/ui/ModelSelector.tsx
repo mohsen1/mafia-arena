@@ -148,11 +148,12 @@ export function ModelSelector({
 
   React.useEffect(() => {
     // Detect API URL based on hostname
+    // Return empty string in dev to use relative paths via Vite proxy (for cookie support)
     const getApiUrl = () => {
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
-          return 'http://localhost:8787'
+          return '' // Use relative path via Vite proxy
         }
       }
       return 'https://api.mafia-arena.com'

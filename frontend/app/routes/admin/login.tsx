@@ -89,10 +89,8 @@ export default function AdminLogin() {
     }
   }
 
-  const googleLoginUrl =
-    typeof window !== "undefined" && window.location.hostname === "localhost"
-      ? `http://localhost:8787/api/auth/google?redirect=${encodeURIComponent(redirect)}`
-      : `${apiUrl}/api/auth/google?redirect=${encodeURIComponent(redirect)}`;
+  // Use apiUrl which returns empty string in dev (goes through Vite proxy for cookies)
+  const googleLoginUrl = `${apiUrl}/api/auth/google?redirect=${encodeURIComponent(redirect)}`;
 
   if (loading) {
     return (

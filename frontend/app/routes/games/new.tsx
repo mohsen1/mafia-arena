@@ -315,10 +315,8 @@ export default function NewGame() {
     }
   }
 
-  const signInUrl =
-    typeof window !== "undefined" && window.location.hostname === "localhost"
-      ? `http://localhost:8787/api/auth/google?redirect=/games/new`
-      : `${apiUrl}/api/auth/google?redirect=/games/new`;
+  // Use apiUrl which returns empty string in dev (goes through Vite proxy for cookies)
+  const signInUrl = `${apiUrl}/api/auth/google?redirect=/games/new`;
 
   const canSubmit = authenticated && (isAdmin || userKeys.length > 0) && missingKeys.length === 0;
 

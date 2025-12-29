@@ -13,5 +13,14 @@ export default defineConfig({
   ],
   server: {
     port: 4321,
+    proxy: {
+      // Proxy API requests to the worker in development
+      // This ensures cookies work (same origin)
+      '/api': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+    },
   },
 });

@@ -6,6 +6,7 @@
 import { Skull, Crosshair, Vote, Zap } from 'lucide-react';
 import type { GameEvent, PlayersMap } from '~/lib/game-types';
 import { parseResponse, getShortModelName } from '~/lib/game-types';
+import { MarkdownText } from '~/components/ui/MarkdownText';
 
 interface TranscriptItemProps {
   event: GameEvent;
@@ -29,7 +30,7 @@ export function TranscriptItem({ event, players, getPersonaName }: TranscriptIte
     let content: React.ReactNode = null;
 
     if (parsed.type === 'message') {
-      content = <p className="text-[11px] text-foreground/90 leading-snug">{parsed.content}</p>;
+      content = <MarkdownText content={parsed.content} className="text-[11px] text-foreground/90" />;
     } else if (parsed.type === 'vote') {
       // TypeScript knows parsed.content is ParsedVote here
       const targetTeam = players[parsed.content.vote]?.team || 'town';
@@ -53,7 +54,7 @@ export function TranscriptItem({ event, players, getPersonaName }: TranscriptIte
         </span>
       );
     } else if (parsed.type === 'raw') {
-      content = <p className="text-[11px] text-foreground/90 leading-snug">{parsed.content}</p>;
+      content = <MarkdownText content={parsed.content} className="text-[11px] text-foreground/90" />;
     }
 
     return (
