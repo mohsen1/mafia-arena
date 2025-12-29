@@ -2,7 +2,7 @@
  * Worker-level mock AI provider that returns JSON strings.
  *
  * This provider implements AIProviderInterface (worker level) and returns
- * stringified JSON to test GameAIAdapter's parsing logic, including:
+ * stringified JSON to test AI provider parsing logic, including:
  * - Zod schema validation
  * - Context window limit checks
  * - Parse error retries
@@ -44,7 +44,7 @@ export interface CallLogEntry {
 }
 
 /**
- * Worker-level mock that returns JSON strings to test GameAIAdapter parsing.
+ * Worker-level mock that returns JSON strings to test AI provider parsing.
  * Uses a queue of scripted actions for deterministic game outcomes.
  */
 export class ScriptedWorkerProvider implements AIProviderInterface {

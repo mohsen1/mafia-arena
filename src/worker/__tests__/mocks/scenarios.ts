@@ -99,7 +99,7 @@ export function setupMafiaWinsScenario(
  * Configure provider for testing parse error recovery.
  *
  * Returns invalid JSON for the first N attempts, then valid JSON.
- * Tests GameAIAdapter's retry logic.
+ * Tests AI provider parsing retry logic.
  */
 export function setupParseErrorScenario(
   provider: ScriptedWorkerProvider,

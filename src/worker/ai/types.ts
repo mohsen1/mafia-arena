@@ -3,48 +3,12 @@
  */
 
 // =============================================================================
-// Legacy Suspense Pattern Types (DEPRECATED - kept for backwards compatibility)
-// These types support the old GameRunner Durable Object path.
-// New games should use Cloudflare Workflows via MafiaWorkflow.
+// Batch API Types
 // =============================================================================
 
 /**
- * @deprecated Use WorkflowAIProvider with Cloudflare Workflows instead.
- * Error thrown when an AI result is not yet available.
- */
-export class SuspenseError extends Error {
-  readonly name = 'SuspenseError';
-  
-  constructor(
-    public readonly requestId: string,
-    public readonly request: CompletionRequest,
-    public readonly modelId: string,
-    public readonly context: {
-      gameId: string;
-      round: number;
-      phase: string;
-      playerId: string;
-      actionType: string;
-    }
-  ) {
-    super(`Suspended waiting for AI: ${requestId}`);
-  }
-}
-
-/**
- * @deprecated Use WorkflowAIProvider with Cloudflare Workflows instead.
- * Structure stored in DO storage for cached AI responses.
- */
-export interface CachedAIResponse {
-  response?: CompletionResponse;
-  error?: string;
-  isFatal?: boolean;
-  timestamp: number;
-}
-
-/**
- * @deprecated Legacy message type for the AI Request Queue.
- * Still used by BatchService for batch API request storage.
+ * Message type for batch API request storage.
+ * Used by BatchService to store requests in D1 for batch processing.
  */
 export interface AIRequestMessage {
   requestId: string;

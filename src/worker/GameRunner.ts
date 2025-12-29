@@ -17,9 +17,56 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env, GameQueueConfig } from './types.js';
 import { Game, validateConfig, type GameConfig, type GameResult, type GameEvent, type SerializedGameState } from '../engine/index.js';
-import { createProvidersForGame, GameAIAdapter, SuspenseError, type CachedAIResponse, type CompletionResponse, type RuntimeAPIKeys } from './ai/index.js';
+import { createProvidersForGame, type CompletionResponse, type RuntimeAPIKeys } from './ai/index.js';
 import { isTestModel } from './ai/providers/MockE2EProvider.js';
 import { generateSeed } from '../engine/utils/random.js';
+
+// =============================================================================
+// DEPRECATED: Legacy Suspense Pattern Types
+// These types are kept only for backwards compatibility with legacy code paths.
+// New games should use MafiaWorkflow instead of GameRunner for game execution.
+// GameRunner should only be used for WebSocket broadcasting.
+// =============================================================================
+
+/** @deprecated Use MafiaWorkflow instead */
+interface CachedAIResponse {
+  response?: CompletionResponse;
+  error?: string;
+  isFatal?: boolean;
+  timestamp: number;
+}
+
+/** @deprecated Use MafiaWorkflow instead - this error should never be thrown in the new architecture */
+class SuspenseError extends Error {
+  readonly name = 'SuspenseError';
+  readonly requestId: string;
+  readonly modelId: string;
+  readonly context: {
+    gameId: string;
+    round: number;
+    phase: string;
+    playerId: string;
+    actionType: string;
+  };
+
+  constructor(message: string) {
+    super(message);
+    this.requestId = '';
+    this.modelId = '';
+    this.context = { gameId: '', round: 0, phase: '', playerId: '', actionType: '' };
+  }
+}
+
+/** @deprecated Use WorkflowAIProvider instead */
+class GameAIAdapter {
+  constructor(_providers: Map<string, unknown>, _options?: unknown) {
+    // Constructor only - throws at runtime if used
+  }
+
+  async getAction(): Promise<never> {
+    throw new Error('GameAIAdapter is deprecated. Use WorkflowAIProvider with MafiaWorkflow instead.');
+  }
+}
 import { calculateExactCost, type ModelPricing } from './utils/budget.js';
 import { parsePricingFromConfig, DEFAULT_PRICING } from './ai/models.js';
 import { createLogger, logErrorWithStack, type Logger } from './utils/logger.js';
