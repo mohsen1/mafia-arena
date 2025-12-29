@@ -26,6 +26,11 @@ export default [
   route("analysis", "routes/analysis.tsx"),
   route("analysis/model/:id", "routes/analysis/model.$id.tsx"),
   
+  // User batch routes
+  route("batches", "routes/batches/index.tsx"),
+  route("batches/new", "routes/batches/new.tsx"),
+  route("batches/:id", "routes/batches/$id.tsx"),
+  
   // Admin routes
   route("admin", "routes/admin/index.tsx"),
   route("admin/login", "routes/admin/login.tsx"),
