@@ -62,12 +62,16 @@ const batches = new Hono<BatchesBindings>();
 // =============================================================================
 
 /**
- * Require authenticated user session.
+ * Require authenticated user session with valid userId.
  */
 async function requireAuth(c: Context<BatchesBindings>, next: Next) {
   const session = await getSession(c.req.raw, c.env);
   if (!session) {
     throw Errors.Unauthorized();
+  }
+  // Validate session has userId (older sessions may not have it)
+  if (!session.userId) {
+    throw Errors.Forbidden('Session expired. Please sign out and sign in again to refresh your session.');
   }
   c.set('session', session);
   return next();
