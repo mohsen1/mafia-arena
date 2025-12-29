@@ -166,3 +166,44 @@ describe('VotePhase all-null detection', () => {
   });
 });
 
+describe('VotePhase forced voting (low player count)', () => {
+  function createLowPlayerCountState(): GameState {
+    // 4 or fewer players triggers forced voting
+    const config: GameConfig = {
+      teams: [
+        { modelId: 'test/model', team: 'mafia', count: 1 },
+        { modelId: 'test/model', team: 'town', count: 3 },
+      ],
+      discussionRounds: 2,
+      seed: 12345,
+    };
+
+    return GameState.create('test-game', config);
+  }
+
+  it('should force random vote when player tries to abstain with 4 or fewer players', async () => {
+    const state = createLowPlayerCountState();
+    const aiProvider = new AllNullVoteProvider();
+
+    // Should NOT throw - instead, null votes get converted to random votes
+    const result = await executeVotePhase(state, aiProvider);
+    
+    // All votes should be valid (not null) because forced voting kicks in
+    const nullVoteCount = Array.from(result.votes.values()).filter(v => v === null).length;
+    expect(nullVoteCount).toBe(0);
+    
+    // Someone should be eliminated
+    expect(result.eliminated).not.toBeNull();
+  });
+
+  it('should still allow abstaining when player count is above threshold (5+)', async () => {
+    const state = createTestGameState(); // 6 players
+    const aiProvider = new AllNullVoteProvider();
+
+    // With 6 players, abstaining is allowed, so all-null should throw
+    await expect(executeVotePhase(state, aiProvider)).rejects.toThrow(
+      /All \d+ alive players abstained/
+    );
+  });
+});
+

@@ -467,10 +467,12 @@ Provide your strategic message to teammates (who to target, observations, strate
   eliminationVote: (
     targets: readonly string[],
     state: VisibleGameState,
-    ownPersona?: Persona
+    ownPersona?: Persona,
+    options?: { forceVote?: boolean }
   ) => {
     const historyText = formatConversationHistory(state.conversationHistory);
     const hasFullHistory = hasFullHistoryContext(state);
+    const forceVote = options?.forceVote ?? false;
     
     const personaContext = ownPersona 
       ? `You are ${ownPersona.name} (${ownPersona.personality}). Vote in a way consistent with your character.\n\n`
@@ -508,15 +510,24 @@ Before voting, consider the FULL GAME HISTORY above:
 `
       : '';
 
+    // When player count is low, force voting (no abstention allowed)
+    const voteInstruction = forceVote
+      ? `Based on the discussion, you MUST vote to eliminate a player. With only ${targets.length} players remaining, abstaining is NOT allowed - the game must progress.`
+      : `Based on the discussion, vote to eliminate a player you suspect is Mafia, or abstain if you're unsure.`;
+    
+    const abstainInstruction = forceVote
+      ? `⚠️ MANDATORY VOTE: You MUST choose a player. Abstaining (null) is NOT allowed with ${targets.length} players remaining.`
+      : `To abstain, use null.`;
+
     return `DAY PHASE - Elimination Vote
 
-${personaContext}${fullHistoryContext}Based on the discussion, vote to eliminate a player you suspect is Mafia, or abstain if you're unsure.
+${personaContext}${fullHistoryContext}${voteInstruction}
 
 Alive players:
 ${targets.join('\n')}
 
 ${historyText ? `Discussion summary:\n${historyText}\n\n` : ''}${strategicInstructions}IMPORTANT: Your vote MUST be the exact player ID (e.g., "player_1", "player_2") - NOT the player's name.
-To abstain, use null.
+${abstainInstruction}
 
 Provide your vote and brief reasoning.`;
   },

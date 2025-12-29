@@ -265,7 +265,19 @@ describe('Error Handling', () => {
     });
 
     it('should throw error when all players abstain (indicates AI failures)', async () => {
-      const config = createTestConfig();
+      // Use 5+ players so abstaining is allowed (forced voting only kicks in at 4 or fewer)
+      const config: GameConfig = {
+        playerCount: 5,
+        mafiaCount: 1,
+        teams: [
+          { modelId: 'mafia-model', team: 'mafia', count: 1 },
+          { modelId: 'town-model', team: 'town', count: 4 },
+        ],
+        maxRounds: 10,
+        discussionEnabled: true,
+        nightDiscussionRounds: 0,
+        dayDiscussionRounds: 1,
+      };
       let state = GameState.create('test-game', config).withPhase('day_vote');
 
       const abstainProvider = createMockProvider((context, prompt) => {

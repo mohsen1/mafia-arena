@@ -5,6 +5,9 @@
  * RESUMPTION SUPPORT: When a game resumes after suspension (e.g., SuspenseError
  * while waiting for AI), we check for existing vote events to avoid
  * duplicating votes from players who already voted.
+ * 
+ * FORCED VOTING: When player count is at or below FORCE_VOTE_THRESHOLD,
+ * abstaining is not allowed to prevent strategic deadlocks.
  */
 
 import type { GameState } from '../GameState.js';
@@ -21,6 +24,12 @@ import { resolveVotes } from '../utils/votes.js';
 import { getVisibleState, getValidEliminationTargets, formatPlayerListShuffled } from '../utils/visibility.js';
 import { SYSTEM_PROMPTS, ACTION_PROMPTS } from '../utils/prompts.js';
 import { ensurePhaseStart, getExistingVote } from '../utils/idempotency.js';
+
+/**
+ * When player count is at or below this threshold, abstaining is not allowed.
+ * This prevents strategic deadlocks where all remaining players abstain.
+ */
+const FORCE_VOTE_THRESHOLD = 4;
 
 export interface VotePhaseResult {
   readonly state: GameState;
@@ -47,6 +56,9 @@ export async function executeVotePhase(
   let state = initialState.withPhase('day_vote');
   const alivePlayers = state.alivePlayers;
   const votes = new Map<string, string | null>();
+  
+  // Force voting when player count is low to prevent strategic deadlocks
+  const forceVote = alivePlayers.length <= FORCE_VOTE_THRESHOLD;
 
   // Helper to add event to state AND sync with Game.state for checkpoint safety
   const emitEvent = async (event: GameEvent): Promise<void> => {
@@ -87,7 +99,8 @@ export async function executeVotePhase(
     const userPrompt = ACTION_PROMPTS.eliminationVote(
       targetList.split('\n'),
       visibleState,
-      player.persona
+      player.persona,
+      { forceVote }
     );
 
     const response = await aiProvider.getAction(
@@ -135,10 +148,20 @@ export async function executeVotePhase(
 
     // Record the vote
     if (response.action.type === 'elimination_vote') {
-      const targetId = response.action.target;
+      let targetId = response.action.target;
 
-      // Validate the target (null is valid for abstaining)
-      if (targetId === null || validTargets.some((t) => t.id === targetId)) {
+      // If forceVote is active and player tried to abstain, pick a random target
+      if (forceVote && targetId === null && validTargets.length > 0) {
+        const randomIndex = state.rng.randomInt(validTargets.length);
+        targetId = validTargets[randomIndex]!.id;
+      }
+
+      // Validate the target (null is valid for abstaining only when forceVote is false)
+      const isValidVote = forceVote
+        ? targetId !== null && validTargets.some((t) => t.id === targetId)
+        : targetId === null || validTargets.some((t) => t.id === targetId);
+      
+      if (isValidVote) {
         votes.set(player.id, targetId);
 
         const voteEvent: VoteEvent = {
