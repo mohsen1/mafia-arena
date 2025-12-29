@@ -128,6 +128,11 @@ export default function UserBatchDetail() {
 
   // Not authenticated
   if (!authLoading && !authenticated) {
+    const signInUrl =
+      typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? `http://localhost:8787/api/auth/google?redirect=/batches/${id}`
+        : `${apiUrl}/api/auth/google?redirect=/batches/${id}`;
+
     return (
       <div className="max-w-lg mx-auto py-16 text-center space-y-6">
         <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
@@ -137,12 +142,12 @@ export default function UserBatchDetail() {
           <h1 className="text-2xl font-bold tracking-tight mb-2">Sign In Required</h1>
           <p className="text-muted-foreground">Sign in to view your batch details.</p>
         </div>
-        <Link
-          to={`/api/auth/google?redirect=/batches/${id}`}
+        <a
+          href={signInUrl}
           className="inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
         >
           Sign in with Google
-        </Link>
+        </a>
       </div>
     );
   }

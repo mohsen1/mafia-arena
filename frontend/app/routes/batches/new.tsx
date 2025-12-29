@@ -226,6 +226,11 @@ export default function NewUserBatch() {
 
   // Not authenticated
   if (!authLoading && !authenticated) {
+    const signInUrl =
+      typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? `http://localhost:8787/api/auth/google?redirect=/batches/new`
+        : `${apiUrl}/api/auth/google?redirect=/batches/new`;
+
     return (
       <div className="max-w-lg mx-auto py-16 text-center space-y-6">
         <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
@@ -237,12 +242,12 @@ export default function NewUserBatch() {
             Sign in to create batch games using your own API keys.
           </p>
         </div>
-        <Link
-          to="/api/auth/google?redirect=/batches/new"
+        <a
+          href={signInUrl}
           className="inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
         >
           Sign in with Google
-        </Link>
+        </a>
       </div>
     );
   }
