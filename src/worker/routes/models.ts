@@ -178,36 +178,7 @@ const DIRECT_PROVIDER_MODELS: Record<string, Array<{
   ],
 
   anthropic: [
-    // Claude 4.5 family (latest Dec 2025)
-    // Anthropic supports batch API (50% discount)
-    {
-      id: 'anthropic/claude-opus-4.5',
-      apiModelId: 'claude-opus-4-5-20251218',
-      name: 'Claude Opus 4.5',
-      family: 'anthropic',
-      contextLength: 200000,
-      pricing: { inputPer1M: 5, outputPer1M: 25 },
-      supportsBatchPricing: true,
-    },
-    {
-      id: 'anthropic/claude-sonnet-4.5',
-      apiModelId: 'claude-sonnet-4-5-20251218',
-      name: 'Claude Sonnet 4.5',
-      family: 'anthropic',
-      contextLength: 1000000,
-      pricing: { inputPer1M: 3, outputPer1M: 15 },
-      supportsBatchPricing: true,
-    },
-    {
-      id: 'anthropic/claude-haiku-4.5',
-      apiModelId: 'claude-haiku-4-5-20251218',
-      name: 'Claude Haiku 4.5',
-      family: 'anthropic',
-      contextLength: 200000,
-      pricing: { inputPer1M: 1, outputPer1M: 5 },
-      supportsBatchPricing: true,
-    },
-    // Claude 4 family
+    // Claude 4 family (latest released)
     {
       id: 'anthropic/claude-opus-4',
       apiModelId: 'claude-opus-4-20250514',

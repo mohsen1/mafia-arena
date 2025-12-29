@@ -22,10 +22,6 @@ function toAnthropicModelName(modelId: string): string {
   
   // Map display names to Anthropic API model names
   const modelMappings: Record<string, string> = {
-    // Claude 4.5 family (Dec 2025)
-    'claude-opus-4.5': 'claude-opus-4-5-20251218',
-    'claude-sonnet-4.5': 'claude-sonnet-4-5-20251218',
-    'claude-haiku-4.5': 'claude-haiku-4-5-20251218',
     // Claude 4 family
     'claude-opus-4': 'claude-opus-4-20250514',
     'claude-sonnet-4': 'claude-sonnet-4-20250514',

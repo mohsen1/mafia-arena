@@ -134,9 +134,13 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
   // Phase config
   const phaseConfig = getPhaseConfig(state.currentPhase || undefined);
 
+  // Effective status: prefer state from WebSocket, fall back to initial game status
+  const effectiveStatus = state.status === 'idle' && game?.status ? game.status : state.status;
+  const effectiveError = state.error || game?.errorMessage || null;
+
   // Status badge
   const statusBadge = useMemo(() => {
-    if (state.status === 'running') {
+    if (effectiveStatus === 'running') {
       return (
         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[8px] font-bold tracking-wider uppercase">
           <span className="relative flex h-1.5 w-1.5">
@@ -147,7 +151,7 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
         </div>
       );
     }
-    if (state.status === 'completed') {
+    if (effectiveStatus === 'completed') {
       return (
         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] font-bold tracking-wider uppercase">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -155,7 +159,7 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
         </div>
       );
     }
-    if (state.status === 'failed') {
+    if (effectiveStatus === 'failed') {
       return (
         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[8px] font-bold tracking-wider uppercase">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
@@ -169,7 +173,7 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
         STARTING
       </div>
     );
-  }, [state.status]);
+  }, [effectiveStatus]);
 
   // Handle error states
   if (loaderError || !game) {
@@ -282,7 +286,7 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
           />
 
           {/* Error Banner */}
-          {state.error && <ErrorBanner error={state.error} />}
+          {effectiveError && <ErrorBanner error={effectiveError} />}
         </div>
 
         {/* Transcript */}
