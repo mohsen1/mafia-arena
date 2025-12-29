@@ -40,6 +40,7 @@
     "@cloudflare/workers-types": "^4.20241205.0",
     "@libsql/client": "^0.15.15",
     "@playwright/test": "^1.57.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^22.10.2",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.8",
@@ -47,6 +48,7 @@
     "msw": "^2.12.4",
     "prettier": "^3.4.2",
     "puppeteer": "^24.34.0",
+    "sharp": "^0.34.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8",
     "wrangler": "^3.99.0"

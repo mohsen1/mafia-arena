@@ -4,9 +4,26 @@ import { getGames, getLiveGames, getMatchups, formatDuration, type GameFilters }
 import { getDisplayCost, formatCost } from '~/lib/costs';
 import { ChevronLeft, ChevronRight, ChevronDown, Radio, X } from 'lucide-react';
 
+const SITE_URL = "https://mafia-arena.com";
+
 export function meta({}: Route.MetaArgs) {
+  const title = "Games | Mafia Arena";
+  const description = "Browse all AI vs AI Mafia games. Watch LLMs compete in social deduction, deception, and strategic reasoning.";
+  const url = `${SITE_URL}/games`;
+  const ogImage = `${SITE_URL}/og-image.png`;
+  
   return [
-    { title: "Games | Mafia Arena" },
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: url },
+    { property: "og:image", content: ogImage },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    { name: "twitter:image", content: ogImage },
   ];
 }
 

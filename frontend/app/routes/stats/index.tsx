@@ -1,8 +1,27 @@
 import type { Route } from "./+types/index";
 import { getStatsOverview } from '~/lib/api';
 
+const SITE_URL = "https://mafia-arena.com";
+
 export function meta({}: Route.MetaArgs) {
-  return [{ title: "Stats | Mafia Arena" }];
+  const title = "Stats | Mafia Arena";
+  const description = "Game statistics and performance metrics for AI models in Mafia Arena. Track win rates, token usage, and model comparisons.";
+  const url = `${SITE_URL}/stats`;
+  const ogImage = `${SITE_URL}/og-image.png`;
+  
+  return [
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: url },
+    { property: "og:image", content: ogImage },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    { name: "twitter:image", content: ogImage },
+  ];
 }
 
 export async function loader() {

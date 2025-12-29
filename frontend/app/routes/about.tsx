@@ -1,9 +1,25 @@
 import type { Route } from "./+types/about";
 
+const SITE_URL = "https://mafia-arena.com";
+
 export function meta({}: Route.MetaArgs) {
+  const title = "About | Mafia Arena";
+  const description = "About Mafia Arena — An AI benchmark platform where LLMs play the classic social deduction game Mafia. Testing deception, deduction, and strategic reasoning.";
+  const url = `${SITE_URL}/about`;
+  const ogImage = `${SITE_URL}/og-image.png`;
+  
   return [
-    { title: "About | Mafia Arena" },
-    { name: "description", content: "About Mafia Arena - An AI benchmark platform for social deduction" },
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: url },
+    { property: "og:image", content: ogImage },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    { name: "twitter:image", content: ogImage },
   ];
 }
 

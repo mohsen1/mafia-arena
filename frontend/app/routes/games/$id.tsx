@@ -18,9 +18,42 @@ import {
 } from "lucide-react";
 import { GameHeader, GameLayout, TranscriptContainer } from "~/components/GameHeader";
 
+const SITE_URL = "https://mafia-arena.com";
+
 export function meta({ data }: Route.MetaArgs) {
   const game = data?.game;
-  return [{ title: game ? `Game ${game.id.slice(-8)} | Mafia Arena` : "Game Not Found | Mafia Arena" }];
+  
+  if (!game) {
+    return [{ title: "Game Not Found | Mafia Arena" }];
+  }
+  
+  const gameId = game.id.slice(-8);
+  const title = `Game ${gameId} | Mafia Arena`;
+  
+  const participants = game.participants || [];
+  const mafia = participants.find((p: Participant) => p.team === 'mafia');
+  const town = participants.find((p: Participant) => p.team === 'town');
+  const mafiaModel = mafia?.model_name || 'AI';
+  const townModel = town?.model_name || 'AI';
+  const winnerText = game.winner ? `${game.winner === 'mafia' ? 'Mafia' : 'Town'} wins!` : 'In progress';
+  
+  const description = `${mafiaModel} vs ${townModel} — ${winnerText} ${game.rounds ? `in ${game.rounds} rounds` : ''}`.trim();
+  const url = `${SITE_URL}/games/${game.id}`;
+  const ogImage = `${SITE_URL}/og-image.png`;
+  
+  return [
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: url },
+    { property: "og:image", content: ogImage },
+    { property: "og:type", content: "article" },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    { name: "twitter:image", content: ogImage },
+  ];
 }
 
 interface Participant {

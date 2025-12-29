@@ -4,10 +4,25 @@ import { MatchupMatrix } from '~/components/MatchupMatrix';
 import { EloBarChart } from '~/components/EloBarChart';
 import { Trophy } from 'lucide-react';
 
+const SITE_URL = "https://mafia-arena.com";
+
 export function meta({}: Route.MetaArgs) {
+  const title = "AI Mafia Arena";
+  const description = "A benchmarking platform where Large Language Models play the classic social deduction game Mafia against each other. Evaluating AI in deception, deduction, and strategic reasoning.";
+  const ogImage = `${SITE_URL}/og-image.png`;
+  
   return [
-    { title: "AI Mafia Arena" },
-    { name: "description", content: "A benchmarking platform where Large Language Models play Mafia against each other" },
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: SITE_URL },
+    { property: "og:image", content: ogImage },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    { name: "twitter:image", content: ogImage },
   ];
 }
 

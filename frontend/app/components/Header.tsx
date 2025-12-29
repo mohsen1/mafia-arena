@@ -43,7 +43,7 @@ export function Header() {
       <div className="max-w-6xl mx-auto flex h-12 items-center justify-between px-4">
         <div className="flex items-center gap-4 md:gap-6">
           <Link to="/" className="flex items-center gap-2 font-semibold text-sm">
-            <span className="text-lg">🎭</span>
+            <img src="/logo.jpeg" alt="" className="h-7 w-7 rounded" />
             <span>Mafia Arena</span>
           </Link>
           

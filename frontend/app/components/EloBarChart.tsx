@@ -103,7 +103,7 @@ export function EloBarChart({ rankings, maxItems = 12 }: Props) {
             grid: { display: false },
             border: { display: false },
             ticks: {
-              font: { size: 9, family: 'system-ui, sans-serif', weight: '500' },
+              font: { size: 9, family: 'system-ui, sans-serif', weight: 500 },
               color: '#a1a1aa',
               maxRotation: 45,
               minRotation: 45,
@@ -115,7 +115,7 @@ export function EloBarChart({ rankings, maxItems = 12 }: Props) {
           legend: { display: false },
           tooltip: {
             backgroundColor: 'rgba(9, 9, 11, 0.96)',
-            titleFont: { size: 11, weight: '600' },
+            titleFont: { size: 11, weight: 'bold' },
             bodyFont: { size: 10, family: 'ui-monospace, monospace' },
             padding: { x: 10, y: 8 },
             cornerRadius: 6,
