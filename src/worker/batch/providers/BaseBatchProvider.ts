@@ -47,8 +47,14 @@ export abstract class BaseBatchProvider implements BatchProviderInterface {
   /**
    * Create and submit a batch job to the provider.
    * Must be implemented by subclasses.
+   * 
+   * @param requests - Array of requests to batch together
+   * @param options - Optional configuration including internal job ID for tracking
    */
-  abstract createBatch(requests: BatchRequest[]): Promise<{
+  abstract createBatch(requests: BatchRequest[], options?: {
+    /** Internal job ID for tracking/recovery (sent in provider metadata if supported) */
+    internalJobId?: string;
+  }): Promise<{
     providerJobId: string;
     inputResourceId?: string;
     metadata?: Record<string, unknown>;

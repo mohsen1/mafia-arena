@@ -12,8 +12,13 @@ export type BatchProvider = 'anthropic' | 'openai' | 'google' | 'cerebras' | 'fi
 
 /**
  * Status of a pending batch request in D1.
+ * 
+ * Flow: pending -> claiming -> bundled -> completed/failed
+ * 
+ * 'claiming' is a transient state used during aggregation to prevent
+ * race conditions when multiple cron workers run simultaneously.
  */
-export type BatchRequestStatus = 'pending' | 'bundled' | 'completed' | 'failed';
+export type BatchRequestStatus = 'pending' | 'claiming' | 'bundled' | 'completed' | 'failed';
 
 /**
  * Status of a batch job submitted to a provider.
@@ -146,9 +151,13 @@ export interface BatchProviderInterface {
    * Create and submit a batch job to the provider.
    * 
    * @param requests - Array of requests to batch together
+   * @param options - Optional configuration for batch creation
    * @returns Provider's job ID and any metadata
    */
-  createBatch(requests: BatchRequest[]): Promise<{
+  createBatch(requests: BatchRequest[], options?: {
+    /** Internal job ID for tracking/recovery (sent in provider metadata if supported) */
+    internalJobId?: string;
+  }): Promise<{
     providerJobId: string;
     inputResourceId?: string;
     metadata?: Record<string, unknown>;

@@ -123,13 +123,24 @@ export class AnthropicBatch extends BaseBatchProvider {
 
   /**
    * Create and submit a batch to Anthropic.
+   * 
+   * Note: Anthropic's batch API doesn't support custom metadata, so the
+   * internalJobId is stored in our returned metadata but not sent to Anthropic.
+   * 
+   * @param requests - Array of requests to batch together
+   * @param options - Optional configuration (internalJobId tracked locally, not sent to Anthropic)
    */
-  async createBatch(requests: BatchRequest[]): Promise<{
+  async createBatch(requests: BatchRequest[], options?: {
+    internalJobId?: string;
+  }): Promise<{
     providerJobId: string;
     inputResourceId?: string;
     metadata?: Record<string, unknown>;
   }> {
-    this.log.info('Creating Anthropic batch', { requestCount: requests.length });
+    this.log.info('Creating Anthropic batch', { 
+      requestCount: requests.length,
+      internalJobId: options?.internalJobId,
+    });
 
     // Format requests for Anthropic API
     const anthropicRequests = requests.map(req => 
@@ -148,6 +159,7 @@ export class AnthropicBatch extends BaseBatchProvider {
       batchId: response.id,
       status: response.processing_status,
       expiresAt: response.expires_at,
+      internalJobId: options?.internalJobId,
     });
 
     return {
@@ -155,6 +167,8 @@ export class AnthropicBatch extends BaseBatchProvider {
       metadata: {
         created_at: response.created_at,
         expires_at: response.expires_at,
+        // Track internally even though Anthropic doesn't support metadata
+        mafia_arena_job_id: options?.internalJobId,
       },
     };
   }

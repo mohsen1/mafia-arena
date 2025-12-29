@@ -112,12 +112,17 @@ export class GoogleBatch extends BaseBatchProvider {
   /**
    * Create and submit a batch to Google.
    */
-  async createBatch(requests: BatchRequest[]): Promise<{
+  async createBatch(requests: BatchRequest[], options?: {
+    internalJobId?: string;
+  }): Promise<{
     providerJobId: string;
     inputResourceId?: string;
     metadata?: Record<string, unknown>;
   }> {
-    this.log.info('Creating Google batch', { requestCount: requests.length });
+    this.log.info('Creating Google batch', { 
+      requestCount: requests.length,
+      internalJobId: options?.internalJobId,
+    });
 
     // Build inline batch requests (for smaller batches)
     // For larger batches, would need to use File API

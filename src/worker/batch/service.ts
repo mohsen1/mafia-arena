@@ -199,8 +199,15 @@ export async function cancelBatch(env: Env, batchId: string): Promise<void> {
 // BATCH PROCESSING
 // =============================================================================
 
+/** Checkpoint interval - save progress every N games queued */
+const CHECKPOINT_INTERVAL = 50;
+
 /**
  * Process a batch message - split into individual game messages.
+ * 
+ * Supports checkpoint/resume: If worker crashes mid-batch, it will resume
+ * from games_queued instead of starting from 0 (preventing duplicate games).
+ * 
  * Preserves traceId from the batch message for distributed tracing.
  */
 export async function processBatchMessage(
@@ -219,18 +226,39 @@ export async function processBatchMessage(
     return;
   }
 
-  console.log(`[${traceId || 'no-trace'}] Processing batch ${batchId} with ${config.totalGames} games`);
+  // Get current checkpoint (how many games already queued)
+  const batch = await getBatch(env, batchId);
+  if (!batch) {
+    console.error(`[${traceId || 'no-trace'}] Batch ${batchId} not found, skipping`);
+    return;
+  }
 
-  // Update batch status
-  await updateBatchStatus(env, batchId, 'processing');
+  const startIndex = batch.games_queued;
+  const totalGames = config.totalGames;
 
-  // Split into individual game messages
+  // Already fully queued? This shouldn't happen but handle gracefully
+  if (startIndex >= totalGames) {
+    console.log(`[${traceId || 'no-trace'}] Batch ${batchId} already fully queued (${startIndex}/${totalGames})`);
+    return;
+  }
+
+  console.log(`[${traceId || 'no-trace'}] Processing batch ${batchId}: queuing games ${startIndex + 1}-${totalGames} (${totalGames - startIndex} remaining)`);
+
+  // Update batch status to processing (if not already)
+  if (batch.status === 'queued') {
+    await updateBatchStatus(env, batchId, 'processing');
+  }
+
+  // Split into individual game messages, starting from checkpoint
   const messages: MessageSendRequest<GameQueueMessage>[] = [];
 
-  for (let i = 0; i < config.totalGames; i++) {
-    const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_${i}`;
+  for (let i = startIndex; i < totalGames; i++) {
+    // IMPORTANT: Use deterministic IDs to prevent duplicate games on queue retry.
+    // If the worker crashes mid-batch and retries, same batchId + index = same gameId.
+    const gameId = `${batchId}_game_${String(i).padStart(5, '0')}`;
 
     // Each game gets a random theme for variety
+    // Note: Theme is still random per game, but gameId is deterministic
     const gameConfig: GameQueueConfig = {
       ...config.gameConfig,
       personaTheme: config.gameConfig.personaTheme ?? getRandomTheme(),
@@ -254,13 +282,31 @@ export async function processBatchMessage(
     if (messages.length >= 100) {
       await env.GAME_QUEUE.sendBatch(messages);
       messages.length = 0;
+      
+      // Checkpoint every CHECKPOINT_INTERVAL games (within the 100-batch sends)
+      const gamesQueued = i + 1;
+      if (gamesQueued % CHECKPOINT_INTERVAL === 0 || gamesQueued === totalGames) {
+        await updateGamesQueued(env, batchId, gamesQueued);
+      }
     }
   }
 
-  // Send remaining messages
+  // Send remaining messages and final checkpoint
   if (messages.length > 0) {
     await env.GAME_QUEUE.sendBatch(messages);
   }
+  await updateGamesQueued(env, batchId, totalGames);
+
+  console.log(`[${traceId || 'no-trace'}] Batch ${batchId} fully queued: ${totalGames} games`);
+}
+
+/**
+ * Update the games_queued checkpoint for a batch.
+ */
+async function updateGamesQueued(env: Env, batchId: string, count: number): Promise<void> {
+  await env.DB.prepare(`
+    UPDATE batches SET games_queued = ? WHERE id = ?
+  `).bind(count, batchId).run();
 }
 
 // =============================================================================
@@ -310,20 +356,37 @@ export function estimateCost(config: BatchConfig): CostEstimate {
 
 /**
  * Get current system state.
+ * Uses KV for fast reads with D1 fallback for reliability.
  */
 export async function getSystemState(env: Env): Promise<SystemState> {
-  // Check KV for fast circuit breaker state
-  const isPaused = await env.RATE_LIMIT.get('SYSTEM_PAUSED');
+  let isPaused: string | null = null;
+  
+  // Try KV first for fast circuit breaker state
+  try {
+    isPaused = await env.RATE_LIMIT.get('SYSTEM_PAUSED');
+  } catch (kvError) {
+    console.warn('KV read failed for SYSTEM_PAUSED, falling back to D1:', kvError);
+  }
 
-  // Get other settings from D1
+  // Get other settings from D1 (and fallback pause state if KV failed)
+  const keysToFetch = isPaused === null 
+    ? ['max_concurrent_games', 'processing_paused'] 
+    : ['max_concurrent_games'];
+  
+  const placeholders = keysToFetch.map(() => '?').join(',');
   const settings = await env.DB.prepare(`
-    SELECT key, value FROM system_state WHERE key IN ('max_concurrent_games')
-  `).all<{ key: string; value: string }>();
+    SELECT key, value FROM system_state WHERE key IN (${placeholders})
+  `).bind(...keysToFetch).all<{ key: string; value: string }>();
 
   const settingsMap = new Map(settings.results.map(s => [s.key, s.value]));
 
+  // Use KV value if available, otherwise fall back to D1
+  const processingPaused = isPaused !== null 
+    ? isPaused === 'true' 
+    : settingsMap.get('processing_paused') === 'true';
+
   return {
-    processingPaused: isPaused === 'true',
+    processingPaused,
     maxConcurrentGames: parseInt(settingsMap.get('max_concurrent_games') ?? '50', 10),
   };
 }

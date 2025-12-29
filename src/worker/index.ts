@@ -261,22 +261,53 @@ async function handleGameMessage(message: Message<GameQueueMessage>, env: Env): 
   const MAX_RETRIES = 3;
 
   try {
+    // Check system state - respect pause even for queued games
+    const systemState = await getSystemState(env);
+    if (systemState.processingPaused) {
+      console.log(`[${traceId || 'no-trace'}] System paused, retrying game ${gameId} in 60s`);
+      message.retry({ delaySeconds: 60 });
+      return;
+    }
+
     console.log(`[${traceId || 'no-trace'}] Processing game ${gameId} from batch ${batchId} (attempt ${message.attempts})`);
 
     // Start the game via Cloudflare Workflow
-    await env.MAFIA_WORKFLOW.create({
-      id: gameId,
-      params: {
-        gameId,
-        config,
-        traceId,
-        batchId,
-        discountPricing: config.discountPricing,
-      },
-    });
+    // Wrapped in try-catch to handle duplicate workflow creation (idempotency)
+    try {
+      await env.MAFIA_WORKFLOW.create({
+        id: gameId,
+        params: {
+          gameId,
+          config,
+          traceId,
+          batchId,
+          discountPricing: config.discountPricing,
+        },
+      });
+      console.log(`[${traceId || 'no-trace'}] Game ${gameId} workflow started successfully`);
+    } catch (workflowError) {
+      // Handle duplicate workflow creation gracefully
+      // This can happen if queue message is retried after workflow was already created
+      const errorMsg = workflowError instanceof Error ? workflowError.message : String(workflowError);
+      
+      if (errorMsg.includes('already exists') || errorMsg.includes('already running')) {
+        console.log(`[${traceId || 'no-trace'}] Workflow ${gameId} already exists/running, skipping duplicate`);
+        message.ack();
+        return;
+      }
+      
+      // Workflow exists but is terminated/failed - skip to avoid duplicate stats
+      if (errorMsg.includes('completed') || errorMsg.includes('failed') || errorMsg.includes('terminated')) {
+        console.warn(`[${traceId || 'no-trace'}] Workflow ${gameId} previously terminated, skipping re-run`);
+        message.ack();
+        return;
+      }
+      
+      // Unknown error - rethrow to trigger retry logic
+      throw workflowError;
+    }
 
     message.ack();
-    console.log(`[${traceId || 'no-trace'}] Game ${gameId} workflow started successfully`);
   } catch (error) {
     console.error(`Failed to process game ${gameId} (attempt ${message.attempts}):`, error);
 

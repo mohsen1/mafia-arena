@@ -14,6 +14,7 @@ import { getSession } from './auth.js';
 import { validateEncryptionSecret } from '../utils/crypto.js';
 import { inferProviderFromModelId } from '../ai/factory.js';
 import { getGameStateFromKV } from '../utils/workflow-sync.js';
+import { getSystemState } from '../batch/service.js';
 
 const games = new Hono<{ Bindings: Env }>();
 
@@ -190,6 +191,12 @@ games.post('/run-direct', async (c) => {
 
   if (!body.config || !body.config.teams || body.config.teams.length === 0) {
     throw Errors.BadRequest('Invalid game configuration: teams required');
+  }
+
+  // Check system state - respect pause even for direct runs
+  const systemState = await getSystemState(env);
+  if (systemState.processingPaused) {
+    throw Errors.BadRequest('System is paused. New games cannot be started until processing resumes.');
   }
 
   // Check user authentication

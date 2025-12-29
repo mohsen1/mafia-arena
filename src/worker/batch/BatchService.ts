@@ -121,6 +121,9 @@ export class BatchService {
   /**
    * Aggregate pending requests and submit batches.
    * Called by cron job every N minutes.
+   * 
+   * Uses atomic claim mechanism to prevent race conditions when multiple
+   * cron workers run simultaneously (prevents double-billing).
    */
   async aggregateAndSubmit(): Promise<{
     batchesCreated: number;
@@ -131,7 +134,11 @@ export class BatchService {
     let requestsProcessed = 0;
 
     // Get pending requests grouped by provider and model
+    // This atomically claims the requests to prevent double-processing
     const pendingRequests = await this.getPendingRequestsByProviderModel();
+    
+    // Track requests that weren't submitted (to release back to pending)
+    const unsubmittedIds: string[] = [];
     
     for (const [key, requests] of pendingRequests.entries()) {
       const [provider, modelId] = key.split('::') as [BatchProvider, string];
@@ -155,11 +162,17 @@ export class BatchService {
           waitTimeMs: waitTime,
           maxWaitMs: this.options.maxWaitTimeMs,
         });
+        // Track these for release back to pending
+        unsubmittedIds.push(...requests.map(r => r.id));
         continue;
       }
 
       // Take up to maxBatchSize requests
       const batchRequests = requests.slice(0, this.options.maxBatchSize);
+      // Any requests beyond maxBatchSize go back to pending
+      if (requests.length > this.options.maxBatchSize) {
+        unsubmittedIds.push(...requests.slice(this.options.maxBatchSize).map(r => r.id));
+      }
       
       try {
         await this.submitBatch(provider, modelId, batchRequests);
@@ -171,7 +184,23 @@ export class BatchService {
           modelId,
           requestCount: batchRequests.length,
         });
+        // Failed requests go back to pending for retry
+        unsubmittedIds.push(...batchRequests.map(r => r.id));
       }
+    }
+    
+    // Release any unsubmitted requests back to pending status
+    if (unsubmittedIds.length > 0) {
+      const placeholders = unsubmittedIds.map(() => '?').join(',');
+      await this.env.DB.prepare(`
+        UPDATE batch_api_requests
+        SET status = 'pending', claim_id = NULL, claim_expires_at = NULL
+        WHERE id IN (${placeholders}) AND status = 'claiming'
+      `).bind(...unsubmittedIds).run();
+      
+      this.log.debug('Released unsubmitted requests back to pending', { 
+        count: unsubmittedIds.length 
+      });
     }
 
     this.log.info('Aggregation complete', {
@@ -340,19 +369,47 @@ export class BatchService {
   /**
    * Get pending requests grouped by provider and model.
    * 
+   * IMPORTANT: Uses atomic claim to prevent race conditions when multiple cron
+   * workers run simultaneously. Requests are marked as 'claiming' before being
+   * returned, preventing double-submission and double-billing.
+   * 
    * NOTE: We limit to 500 requests at a time to avoid OOM issues when the queue
    * backs up. This is called by the aggregator cron which runs every 5 minutes,
    * so a large backlog will be processed over multiple cron invocations.
    */
   private async getPendingRequestsByProviderModel(): Promise<Map<string, BatchRequest[]>> {
-    // First, get just the metadata to determine grouping (avoid loading all JSON bodies)
+    // Generate a unique claim ID for this aggregation run
+    const claimId = `claim_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    const claimExpiry = Date.now() + 5 * 60 * 1000; // 5 minute claim expiry
+    
+    // STEP 1: Atomically claim pending requests using UPDATE with subquery
+    // This prevents race conditions when multiple workers run aggregation simultaneously.
+    // D1/SQLite doesn't support UPDATE...LIMIT directly, so we use WHERE id IN (SELECT... LIMIT)
+    await this.env.DB.prepare(`
+      UPDATE batch_api_requests
+      SET status = 'claiming', claim_id = ?, claim_expires_at = ?
+      WHERE id IN (
+        SELECT id FROM batch_api_requests
+        WHERE status = 'pending'
+        ORDER BY created_at ASC
+        LIMIT 500
+      )
+    `).bind(claimId, claimExpiry).run();
+    
+    // Also reclaim any expired claims (from crashed workers)
+    await this.env.DB.prepare(`
+      UPDATE batch_api_requests
+      SET status = 'claiming', claim_id = ?, claim_expires_at = ?
+      WHERE status = 'claiming' AND claim_expires_at < ?
+    `).bind(claimId, claimExpiry, Date.now()).run();
+
+    // STEP 2: Select only our claimed requests
     const metaResult = await this.env.DB.prepare(`
       SELECT id, provider, model_id, created_at
       FROM batch_api_requests
-      WHERE status = 'pending'
+      WHERE status = 'claiming' AND claim_id = ?
       ORDER BY created_at ASC
-      LIMIT 500
-    `).all<{
+    `).bind(claimId).all<{
       id: string;
       provider: string;
       model_id: string;
@@ -362,6 +419,11 @@ export class BatchService {
     if (!metaResult.results || metaResult.results.length === 0) {
       return new Map();
     }
+    
+    this.log.debug('Claimed requests for aggregation', { 
+      claimId, 
+      count: metaResult.results.length 
+    });
 
     // Group IDs by provider::model
     const idsByGroup = new Map<string, string[]>();
@@ -385,9 +447,9 @@ export class BatchService {
           id, request_id, custom_id, game_id, model_id, provider,
           request_body, context_json, status, retry_count, created_at
         FROM batch_api_requests
-        WHERE id IN (${placeholders})
+        WHERE id IN (${placeholders}) AND claim_id = ?
         ORDER BY created_at ASC
-      `).bind(...idsToFetch).all<{
+      `).bind(...idsToFetch, claimId).all<{
         id: string;
         request_id: string;
         custom_id: string;
@@ -411,7 +473,7 @@ export class BatchService {
         provider: row.provider as BatchProvider,
         request: JSON.parse(row.request_body),
         context: JSON.parse(row.context_json),
-        status: row.status as 'pending',
+        status: 'claiming' as const,
         retryCount: row.retry_count,
         createdAt: row.created_at,
       }));
@@ -450,17 +512,18 @@ export class BatchService {
       ) VALUES (?, ?, ?, 'pending', ?, ?, ?)
     `).bind(jobId, provider, modelId, requests.length, now, expiresAt).run();
 
-    // Update requests to bundled status
+    // Update requests from claiming -> bundled status
+    // Clear claim fields as they're now officially assigned to a job
     const requestIds = requests.map(r => r.id);
     await this.env.DB.prepare(`
       UPDATE batch_api_requests
-      SET status = 'bundled', batch_job_id = ?, updated_at = ?
+      SET status = 'bundled', batch_job_id = ?, claim_id = NULL, claim_expires_at = NULL, updated_at = ?
       WHERE id IN (${requestIds.map(() => '?').join(',')})
     `).bind(jobId, now, ...requestIds).run();
 
     try {
-      // Submit to provider
-      const result = await providerImpl.createBatch(requests);
+      // Submit to provider with internal job ID for tracking/recovery
+      const result = await providerImpl.createBatch(requests, { internalJobId: jobId });
       
       // Update job with provider details
       await this.env.DB.prepare(`
@@ -494,10 +557,11 @@ export class BatchService {
         jobId
       ).run();
 
-      // Revert requests to pending for retry
+      // Revert requests to pending for retry (clear claim fields too)
       await this.env.DB.prepare(`
         UPDATE batch_api_requests
-        SET status = 'pending', batch_job_id = NULL, retry_count = retry_count + 1
+        SET status = 'pending', batch_job_id = NULL, claim_id = NULL, 
+            claim_expires_at = NULL, retry_count = retry_count + 1
         WHERE batch_job_id = ?
       `).bind(jobId).run();
 
@@ -553,13 +617,20 @@ export class BatchService {
     });
   }
 
+  /**
+   * Dispatch a single batch result to update the request status.
+   * 
+   * IDEMPOTENT: Only updates requests that are still in 'bundled' status.
+   * If pollAndDispatch runs twice on the same completed batch, the second
+   * run will be a no-op for already-completed requests.
+   */
   private async dispatchResult(
     jobId: string,
     result: { customId: string; success: boolean; response?: CompletionResponse; error?: { code: string; message: string }; inputTokens?: number; outputTokens?: number }
   ): Promise<boolean> {
-    // Find the request by custom_id
+    // Find the request by custom_id, but ONLY if still bundled (not already processed)
     const request = await this.env.DB.prepare(`
-      SELECT id, request_id, game_id, context_json
+      SELECT id, request_id, game_id, context_json, status
       FROM batch_api_requests
       WHERE batch_job_id = ? AND custom_id = ?
     `).bind(jobId, result.customId).first<{
@@ -567,6 +638,7 @@ export class BatchService {
       request_id: string;
       game_id: string;
       context_json: string;
+      status: string;
     }>();
 
     if (!request) {
@@ -577,16 +649,26 @@ export class BatchService {
       return false;
     }
 
+    // IDEMPOTENCY CHECK: Skip if already processed
+    if (request.status === 'completed' || request.status === 'failed') {
+      this.log.debug('Request already processed, skipping duplicate dispatch', {
+        requestId: request.request_id,
+        status: request.status,
+        customId: result.customId,
+      });
+      return false;
+    }
+
     const now = Date.now();
 
     if (result.success && result.response) {
-      // Update request as completed in D1
+      // Update request as completed in D1 - with idempotency guard
       // Workflow will poll D1 for completion using step.sleep()
-      await this.env.DB.prepare(`
+      const updateResult = await this.env.DB.prepare(`
         UPDATE batch_api_requests
         SET status = 'completed', response_body = ?,
             input_tokens = ?, output_tokens = ?, updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND status = 'bundled'
       `).bind(
         JSON.stringify(result.response),
         result.inputTokens ?? result.response.tokensUsed.input,
@@ -595,24 +677,37 @@ export class BatchService {
         request.id
       ).run();
 
+      if (updateResult.meta?.changes === 0) {
+        this.log.debug('Request already processed (race condition avoided)', {
+          requestId: request.request_id,
+        });
+        return false;
+      }
+
       this.log.debug('Batch result stored in D1 (workflow will poll)', {
         gameId: request.game_id,
         requestId: request.request_id,
       });
       return true;
     } else {
-      // Update request as failed
-      await this.env.DB.prepare(`
+      // Update request as failed - with idempotency guard
+      const updateResult = await this.env.DB.prepare(`
         UPDATE batch_api_requests
         SET status = 'failed', error_message = ?, updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND status = 'bundled'
       `).bind(
         result.error?.message ?? 'Unknown error',
         now,
         request.id
       ).run();
 
-      // TODO: Should we callback to DO with error? For now, let game timeout
+      if (updateResult.meta?.changes === 0) {
+        this.log.debug('Request already processed (race condition avoided)', {
+          requestId: request.request_id,
+        });
+        return false;
+      }
+
       this.log.error('Batch request failed', {
         gameId: request.game_id,
         requestId: request.request_id,

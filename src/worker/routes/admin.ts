@@ -51,6 +51,7 @@ admin.post('/batches', batchRateLimitMiddleware, async (c) => {
       personaConstraints?: 'strict' | 'moderate' | 'free';
       contextLevel?: 'full' | 'windowed' | 'summary';
       contextWindowSize?: number;
+      personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
     };
     useBatchAPI?: boolean;
   }
@@ -83,6 +84,8 @@ admin.post('/batches', batchRateLimitMiddleware, async (c) => {
       personaConstraints: 'moderate',
       contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
       contextWindowSize: 3,
+      // If personaTheme is undefined, batch service will randomize per game
+      ...(body.config.personaTheme && { personaTheme: body.config.personaTheme }),
     },
     useBatchAPI: body.useBatchAPI ?? false,
   };

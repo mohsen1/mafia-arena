@@ -109,13 +109,21 @@ export class OpenAIBatch extends BaseBatchProvider {
    * 1. Format requests as JSONL
    * 2. Upload JSONL file via Files API
    * 3. Create batch with input_file_id
+   * 
+   * @param requests - Array of requests to batch together
+   * @param options - Optional configuration including internal job ID for tracking
    */
-  async createBatch(requests: BatchRequest[]): Promise<{
+  async createBatch(requests: BatchRequest[], options?: {
+    internalJobId?: string;
+  }): Promise<{
     providerJobId: string;
     inputResourceId?: string;
     metadata?: Record<string, unknown>;
   }> {
-    this.log.info('Creating OpenAI batch', { requestCount: requests.length });
+    this.log.info('Creating OpenAI batch', { 
+      requestCount: requests.length,
+      internalJobId: options?.internalJobId,
+    });
 
     // 1. Build JSONL content
     const jsonlContent = requests
@@ -141,16 +149,28 @@ export class OpenAIBatch extends BaseBatchProvider {
     const fileData = await fileResponse.json() as { id: string };
     const inputFileId = fileData.id;
 
-    // 3. Create batch
+    // 3. Create batch with metadata for recovery tracking
+    // If worker crashes after this call but before DB update, we can find the batch
+    // by querying OpenAI's list batches API and matching the internal job ID
+    const batchRequest: Record<string, unknown> = {
+      input_file_id: inputFileId,
+      endpoint: '/v1/chat/completions',
+      completion_window: '24h',
+    };
+    
+    // Add metadata for zombie batch recovery (if provider supports it)
+    if (options?.internalJobId) {
+      batchRequest.metadata = {
+        mafia_arena_job_id: options.internalJobId,
+        created_at: new Date().toISOString(),
+      };
+    }
+    
     const batchResponse = await this.httpRequest<OpenAIBatchResponse>(
       `${OPENAI_API_URL}/batches`,
       {
         method: 'POST',
-        body: JSON.stringify({
-          input_file_id: inputFileId,
-          endpoint: '/v1/chat/completions',
-          completion_window: '24h',
-        }),
+        body: JSON.stringify(batchRequest),
       }
     );
 
@@ -158,6 +178,7 @@ export class OpenAIBatch extends BaseBatchProvider {
       batchId: batchResponse.id,
       inputFileId,
       status: batchResponse.status,
+      internalJobId: options?.internalJobId,
     });
 
     return {
@@ -166,6 +187,7 @@ export class OpenAIBatch extends BaseBatchProvider {
       metadata: {
         completion_window: batchResponse.completion_window,
         created_at: batchResponse.created_at,
+        mafia_arena_job_id: options?.internalJobId,
       },
     };
   }

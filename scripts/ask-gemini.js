@@ -2,7 +2,7 @@
 /**
  * ask-gemini.js
  *
- * Uses yek to serialize codebase content and sends it to Gemini 2.5 Pro
+ * Uses yek to serialize codebase content and sends it to Gemini 3 Pro
  * with 1 million token context for answering complex codebase questions.
  *
  * Usage:
@@ -30,7 +30,7 @@ const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 // Default configuration for Mafia Arena
 const DEFAULT_TOKENS = "800k";
-const DEFAULT_DIRS = ["src/", "frontend/src/"];
+const DEFAULT_DIRS = ["src/", "frontend/app/"];
 
 // Colors for terminal output
 const colors = {
@@ -441,7 +441,7 @@ async function main() {
     process.exit(1);
   }
 
-  log(`${colors.cyan}${colors.bright}Asking Gemini 2.5 Pro...${colors.reset}`, colors.cyan);
+  log(`${colors.cyan}${colors.bright}Asking Gemini 3 Pro...${colors.reset}`, colors.cyan);
   log(`${colors.dim}Loading codebase context...${colors.reset}`, colors.dim);
 
   const codebaseContext = runYek(config.tokens, config.dirs);

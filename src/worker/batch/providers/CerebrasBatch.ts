@@ -31,12 +31,17 @@ export class CerebrasBatch extends BaseBatchProvider {
     super('cerebras', env, 'CEREBRAS_API_KEY');
   }
 
-  async createBatch(requests: BatchRequest[]): Promise<{
+  async createBatch(requests: BatchRequest[], options?: {
+    internalJobId?: string;
+  }): Promise<{
     providerJobId: string;
     inputResourceId?: string;
     metadata?: Record<string, unknown>;
   }> {
-    this.log.info('Creating Cerebras batch', { requestCount: requests.length });
+    this.log.info('Creating Cerebras batch', { 
+      requestCount: requests.length,
+      internalJobId: options?.internalJobId,
+    });
     
     // Cerebras uses OpenAI-compatible API format
     const jsonlContent = requests

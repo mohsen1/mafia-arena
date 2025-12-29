@@ -193,6 +193,8 @@ export interface BatchRecord {
   name: string | null;
   status: BatchStatus;
   total_games: number;
+  /** Number of games successfully queued to GAME_QUEUE (checkpoint for resume) */
+  games_queued: number;
   completed_games: number;
   failed_games: number;
   config_json: string;
