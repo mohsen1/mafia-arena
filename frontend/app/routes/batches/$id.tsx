@@ -387,7 +387,7 @@ export default function UserBatchDetail() {
           to="/batches"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          ← Back to My Batches
+          ← Back to Batche Games
         </Link>
       </div>
     </div>
