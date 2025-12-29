@@ -38,6 +38,26 @@ interface Model {
   supportsBatchPricing?: boolean
 }
 
+/** Model as returned from /api/models database endpoint */
+interface DbModel {
+  id: string
+  displayName: string
+  family: string
+  apiProvider: string
+  apiModelId?: string
+  pricing?: { input?: number; output?: number }
+  createdAt?: number
+  supportsBatchPricing?: boolean
+}
+
+/** Response from /api/models endpoint */
+interface ModelsApiResponse {
+  models: DbModel[]
+  modelsByApiProvider: Record<string, DbModel[]>
+  total: number
+  defaults?: { pricing: { input: number; output: number } }
+}
+
 interface ModelsData {
   providers?: string[]
   families?: string[]
@@ -163,26 +183,52 @@ export function ModelSelector({
     setLoading(true)
     setError(null)
     
-    const endpoint = apiProvider === 'openrouter' || !apiProvider
-      ? `${apiUrl}/api/models/openrouter`
-      : `${apiUrl}/api/models/by-provider/${apiProvider}`
+    // Always fetch all models from database
+    const endpoint = `${apiUrl}/api/models`
     
     fetch(endpoint)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch models')
-        return res.json() as Promise<ModelsData>
+        return res.json() as Promise<ModelsApiResponse>
       })
       .then((data) => {
-        const normalizedData = {
-          ...data,
-          families: data.families || data.providers || [],
-          modelsByFamily: data.modelsByFamily || data.modelsByProvider || {},
+        // Transform DB models to UI format, using pre-grouped data from API
+        const modelsByProvider: Record<string, Model[]> = {}
+        
+        // If apiProvider is specified, filter to just that provider
+        const sourceProviders = apiProvider 
+          ? [apiProvider].filter(p => data.modelsByApiProvider[p])
+          : Object.keys(data.modelsByApiProvider)
+        const providers: string[] = sourceProviders.sort()
+        
+        for (const provider of providers) {
+          const dbModels = data.modelsByApiProvider[provider] || []
+          modelsByProvider[provider] = dbModels.map(dbModel => ({
+            id: dbModel.id,
+            name: dbModel.displayName,
+            displayName: dbModel.displayName,
+            contextLength: 128000, // Default context length
+            pricing: {
+              inputPer1M: (dbModel.pricing?.input || 0) * 1000,
+              outputPer1M: (dbModel.pricing?.output || 0) * 1000,
+            },
+            apiProvider: dbModel.apiProvider as ApiProvider,
+            supportsBatchPricing: dbModel.supportsBatchPricing ?? false,
+          }))
+        }
+        
+        const totalInView = providers.reduce((sum, p) => sum + (modelsByProvider[p]?.length || 0), 0)
+        
+        const normalizedData: ModelsData = {
+          families: providers,
+          modelsByFamily: modelsByProvider,
+          totalModels: totalInView,
         }
         setModelsData(normalizedData)
         setLoading(false)
         
-        const families = normalizedData.families
-        const modelsByGroup = normalizedData.modelsByFamily
+        const families = normalizedData.families || []
+        const modelsByGroup = normalizedData.modelsByFamily || {}
         
         if (!value && families.length > 0) {
           const randomFamily = families[Math.floor(Math.random() * families.length)]
