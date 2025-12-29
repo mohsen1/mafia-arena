@@ -22,6 +22,7 @@ interface Props {
 export function EloBarChart({ rankings, maxItems = 12 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
+  const hasAnimatedRef = useRef(false);
 
   const data = rankings.slice(0, maxItems);
 
@@ -134,9 +135,13 @@ export function EloBarChart({ rankings, maxItems = 12 }: Props) {
             },
           },
         },
-        animation: { duration: 400, easing: 'easeOutQuart' },
+        animation: hasAnimatedRef.current 
+          ? false 
+          : { duration: 400, easing: 'easeOutQuart' },
       },
     });
+
+    hasAnimatedRef.current = true;
 
     return () => {
       if (chartRef.current) {

@@ -62,11 +62,6 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
     };
   });
 
-  // Calculate ELO range for bar widths
-  const eloMax = Math.max(...top10WithModels.map(e => e.elo));
-  const eloMin = Math.min(...top10WithModels.map(e => e.elo));
-  const eloRange = eloMax - eloMin || 1;
-
   // For the matrix, use ELO order
   const eloModelNames = eloTop10.map(e => e.display_name);
   const sortedModels = eloModelNames
@@ -134,22 +129,10 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
                         <span className="font-medium truncate">{entry.display_name}</span>
                       </a>
                     </td>
-                    <td className="px-2 py-1">
-                      <div className="flex items-center gap-2 justify-end">
-                        <div className="w-16 h-1.5 bg-muted/30 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full rounded-full transition-all"
-                            style={{ 
-                              width: `${20 + ((entry.elo - eloMin) / eloRange) * 80}%`,
-                              background: getProviderColor(entry.model.provider),
-                              opacity: 0.7 + ((entry.elo - eloMin) / eloRange) * 0.3
-                            }}
-                          />
-                        </div>
-                        <span className="font-bold tabular-nums text-emerald-500 w-10 text-right">
-                          {entry.elo}
-                        </span>
-                      </div>
+                    <td className="px-2 py-1 text-right">
+                      <span className="font-bold tabular-nums text-emerald-500">
+                        {entry.elo}
+                      </span>
                     </td>
                     <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
                       {(entry.win_rate * 100).toFixed(0)}%
