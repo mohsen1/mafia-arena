@@ -142,7 +142,19 @@ export class WorkflowAIProvider implements AIProvider {
     const stepId = this.generateStepId(context, prompt);
     const structuredOutput = getSchemaForAction(prompt.type);
 
-    const result = await this.step.do(stepId, async () => {
+    // Step-level timeout (2 minutes) as safety net for hung requests
+    // Provider-level timeout (60s) should handle most cases, but this catches edge cases
+    // where setTimeout doesn't fire during CF Worker hibernation
+    const STEP_TIMEOUT_MS = 120_000;
+
+    const result = await this.step.do(stepId, {
+      retries: {
+        limit: 3,
+        delay: '5 second',
+        backoff: 'exponential',
+      },
+      timeout: '3 minutes',
+    }, async () => {
       // Use context-based provider creation (database-driven routing)
       const provider = createProviderFromContext(modelContext, this.env, {
         enableRetry: true,
@@ -150,13 +162,23 @@ export class WorkflowAIProvider implements AIProvider {
       });
 
       const startTime = Date.now();
-      const response = await provider.complete({
+      
+      // Wrap provider call with explicit timeout using Promise.race
+      const aiCallPromise = provider.complete({
         systemPrompt: prompt.systemPrompt,
         userPrompt: prompt.userPrompt,
         structuredOutput,
         temperature: 0.7,
         maxTokens: 4000,
       });
+      
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`AI call timed out after ${STEP_TIMEOUT_MS}ms for model ${modelContext.id}`));
+        }, STEP_TIMEOUT_MS);
+      });
+
+      const response = await Promise.race([aiCallPromise, timeoutPromise]);
 
       return {
         content: response.content,
