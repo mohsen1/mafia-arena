@@ -338,7 +338,8 @@ games.post('/run-direct', async (c) => {
   const discountPricing = body.config.discountPricing ?? false;
 
   const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_direct`;
-  const batchId = `batch_${Date.now().toString(36)}_direct`;
+  // Direct/live games don't have a batch - null batchId allows them to show in live games list
+  const batchId: string | null = null;
 
   // Pick random theme if not specified
   const personaTheme = body.config.personaTheme ?? getRandomTheme();
