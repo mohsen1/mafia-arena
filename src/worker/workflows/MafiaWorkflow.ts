@@ -224,14 +224,24 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      this.log.error('Workflow failed', { gameId, error: errorMessage });
+      
+      // Detect timeout errors for better UI feedback
+      const isTimeout = errorMessage.includes('timed out') || 
+                        errorMessage.includes('AbortError') ||
+                        errorMessage.includes('Durable Object reset');
+      
+      const userFriendlyError = isTimeout 
+        ? `AI Provider timed out repeatedly. The model may be experiencing high load or network issues. Error: ${errorMessage}`
+        : errorMessage;
+
+      this.log.error('Workflow failed', { gameId, error: errorMessage, isTimeout });
 
       // Save error state
       await step.do('handle-error', async () => {
         await saveErrorStateToKV(
           this.env,
           gameId,
-          errorMessage,
+          userFriendlyError,
           state
         );
 
@@ -239,14 +249,14 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
           UPDATE games SET status = 'failed', error_message = ?, updated_at = ?
           WHERE id = ?
         `).bind(
-          errorMessage,
+          userFriendlyError,
           Date.now(),
           gameId
         ).run();
       });
 
       // Broadcast error
-      await this.broadcastToViewLayer(state, 'failed', errorMessage);
+      await this.broadcastToViewLayer(state, 'failed', userFriendlyError);
 
       throw err;
     }

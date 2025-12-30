@@ -241,6 +241,150 @@ export class GameState {
   }
 
   // ===========================================================================
+  // Progress Tracking (for UI visibility)
+  // ===========================================================================
+
+  /**
+   * Action type for pending actions.
+   */
+  static readonly ActionTypes = {
+    INTRODUCTION: 'introduction',
+    DISCUSSION: 'discussion',
+    VOTE: 'vote',
+    NIGHT_ACTION: 'night_action',
+  } as const;
+
+  /**
+   * Get list of players who still need to act in the current phase/round.
+   * Used for UI progress indicators.
+   */
+  getPendingActions(): Array<{
+    playerId: string;
+    name: string;
+    team: string;
+    modelId: string;
+    actionType: 'introduction' | 'discussion' | 'vote' | 'night_action';
+  }> {
+    const pending: Array<{
+      playerId: string;
+      name: string;
+      team: string;
+      modelId: string;
+      actionType: 'introduction' | 'discussion' | 'vote' | 'night_action';
+    }> = [];
+
+    if (this.phase === 'night' && this.round === 1) {
+      // Introduction phase - check who hasn't introduced themselves
+      for (const p of this.alivePlayers) {
+        const hasIntro = this.events.some(
+          (e) => e.type === 'introduction' && e.playerId === p.id
+        );
+        if (!hasIntro) {
+          pending.push({
+            playerId: p.id,
+            name: p.name,
+            team: p.team,
+            modelId: p.modelId,
+            actionType: 'introduction',
+          });
+        }
+      }
+    } else if (this.phase === 'day_discussion') {
+      // Discussion phase - check who hasn't spoken in this round
+      // Note: Discussion can have multiple sub-rounds, so we check by round
+      for (const p of this.alivePlayers) {
+        const hasSpoken = this.events.some(
+          (e) =>
+            e.type === 'discussion' &&
+            e.round === this.round &&
+            e.playerId === p.id
+        );
+        if (!hasSpoken) {
+          pending.push({
+            playerId: p.id,
+            name: p.name,
+            team: p.team,
+            modelId: p.modelId,
+            actionType: 'discussion',
+          });
+        }
+      }
+    } else if (this.phase === 'day_vote') {
+      // Voting phase - check who hasn't voted
+      for (const p of this.alivePlayers) {
+        const hasVoted = this.events.some(
+          (e) =>
+            e.type === 'vote' && e.round === this.round && e.voterId === p.id
+        );
+        if (!hasVoted) {
+          pending.push({
+            playerId: p.id,
+            name: p.name,
+            team: p.team,
+            modelId: p.modelId,
+            actionType: 'vote',
+          });
+        }
+      }
+    } else if (this.phase === 'night' && this.round > 1) {
+      // Night phase - check which mafia haven't voted for kill target
+      const mafia = this.alivePlayers.filter((p) => p.team === 'mafia');
+      for (const p of mafia) {
+        const hasVoted = this.events.some(
+          (e) =>
+            e.type === 'vote' &&
+            e.phase === 'night' &&
+            e.round === this.round &&
+            e.voterId === p.id
+        );
+        if (!hasVoted) {
+          pending.push({
+            playerId: p.id,
+            name: p.name,
+            team: p.team,
+            modelId: p.modelId,
+            actionType: 'night_action',
+          });
+        }
+      }
+    }
+
+    return pending;
+  }
+
+  /**
+   * Get progress information for UI display.
+   */
+  getProgress(): {
+    current: number;
+    total: number;
+    label: string;
+    pendingPlayers: string[];
+  } {
+    const pending = this.getPendingActions();
+    
+    // Calculate total based on phase
+    let total: number;
+    if (this.phase === 'night' && this.round > 1) {
+      // Night phase - only mafia act
+      total = this.aliveMafia.length;
+    } else {
+      // Other phases - all alive players act
+      total = this.alivePlayers.length;
+    }
+    
+    const completed = total - pending.length;
+    const pendingNames = pending.map((p) => p.name);
+
+    const label =
+      pending.length === 0
+        ? 'All actions complete'
+        : `Waiting for ${pending.length} player${pending.length > 1 ? 's' : ''}`;
+
+    return { current: completed, total, label, pendingPlayers: pendingNames };
+  }
+
+  // ===========================================================================
   // Serialization (for DO state persistence)
   // ===========================================================================
 

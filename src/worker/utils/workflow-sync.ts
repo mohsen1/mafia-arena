@@ -15,6 +15,48 @@ const KV_PREFIX = 'game-state:';
 const STATE_TTL_SECONDS = 24 * 60 * 60;
 
 /**
+ * Progress information for UI display.
+ */
+export interface GameProgress {
+  /** Number of actions completed in current phase */
+  current: number;
+  /** Total actions expected in current phase */
+  total: number;
+  /** Human-readable label (e.g., "Waiting for 3 players") */
+  label: string;
+  /** Names of players we're waiting for */
+  pendingPlayers: string[];
+}
+
+/**
+ * Information about what the game is currently waiting for.
+ */
+export interface WaitingFor {
+  /** Player name (display name) */
+  playerName: string;
+  /** Model ID being used */
+  modelId: string;
+  /** Type of action we're waiting for */
+  actionType: 'introduction' | 'discussion' | 'vote' | 'night_action';
+}
+
+/**
+ * Batch API status for games using discount pricing.
+ */
+export interface BatchStatus {
+  /** Whether game is waiting for batch API */
+  isWaitingForBatch: boolean;
+  /** Provider name (openai, anthropic) */
+  provider?: string;
+  /** When batch was submitted */
+  submittedAt?: number;
+  /** How many times we've polled */
+  pollCount?: number;
+  /** Estimated hours remaining */
+  estimatedWaitHours?: number;
+}
+
+/**
  * Serialized game state with additional workflow metadata.
  */
 export interface WorkflowGameState {
@@ -24,14 +66,22 @@ export interface WorkflowGameState {
   status: 'running' | 'completed' | 'failed';
   /** Current phase being executed */
   currentPhase?: string | undefined;
+  /** Current round number */
+  currentRound?: number | undefined;
   /** Error message if failed */
   error?: string | undefined;
   /** Timestamp of last update */
   updatedAt: number;
-  /** Whether game is waiting for batch API (discount pricing) */
+  /** Whether game is waiting for batch API (discount pricing) - DEPRECATED: use batchStatus */
   batchPending?: boolean | undefined;
-  /** Estimated wait time in hours for batch processing */
+  /** Estimated wait time in hours for batch processing - DEPRECATED: use batchStatus */
   estimatedWaitHours?: number | undefined;
+  /** Progress information for UI */
+  progress?: GameProgress | undefined;
+  /** What we're actively waiting for (direct flow only) */
+  waitingFor?: WaitingFor | null | undefined;
+  /** Batch API status (for discountPricing games) */
+  batchStatus?: BatchStatus | undefined;
 }
 
 /**
@@ -40,10 +90,16 @@ export interface WorkflowGameState {
 export interface SaveGameStateOptions {
   /** Current phase being executed */
   currentPhase?: string;
-  /** Whether game is waiting for batch API (discount pricing) */
+  /** Whether game is waiting for batch API (discount pricing) - DEPRECATED */
   batchPending?: boolean;
-  /** Estimated wait time in hours for batch processing */
+  /** Estimated wait time in hours for batch processing - DEPRECATED */
   estimatedWaitHours?: number;
+  /** Progress information for UI */
+  progress?: GameProgress;
+  /** What we're actively waiting for */
+  waitingFor?: WaitingFor | null;
+  /** Batch API status */
+  batchStatus?: BatchStatus;
 }
 
 /**
@@ -67,13 +123,20 @@ export async function saveGameStateToKV(
     ? { currentPhase: options } 
     : (options ?? {});
 
+  // Get progress from state if not provided
+  const progress = opts.progress ?? state.getProgress();
+  
   const workflowState: WorkflowGameState = {
     state: state.serialize(),
     status,
     updatedAt: Date.now(),
+    currentRound: state.round,
+    progress,
     ...(opts.currentPhase && { currentPhase: opts.currentPhase }),
     ...(opts.batchPending !== undefined && { batchPending: opts.batchPending }),
     ...(opts.estimatedWaitHours !== undefined && { estimatedWaitHours: opts.estimatedWaitHours }),
+    ...(opts.waitingFor !== undefined && { waitingFor: opts.waitingFor }),
+    ...(opts.batchStatus && { batchStatus: opts.batchStatus }),
   };
 
   await env.RATE_LIMIT.put(

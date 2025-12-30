@@ -13,6 +13,9 @@ import type {
   WsMessage,
   HealthCheckResponse,
   APIPlayer,
+  GameProgress,
+  WaitingFor,
+  BatchStatus,
 } from '~/lib/game-types';
 import { getEventTokens } from '~/lib/game-types';
 
@@ -48,6 +51,9 @@ const initialGameState: GameState = {
   aiProgress: null,
   suspenseReason: null,
   healthStatus: null,
+  progress: null,
+  waitingFor: null,
+  batchStatus: null,
 };
 
 // =============================================================================
@@ -191,6 +197,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         winner: gameEndEvent?.winner || null,
         error: action.error || null,
         thinkingState: null, // Clear thinking on sync
+        // New progress fields
+        progress: action.progress ?? state.progress,
+        waitingFor: action.waitingFor !== undefined ? action.waitingFor : state.waitingFor,
+        batchStatus: action.batchStatus !== undefined ? action.batchStatus : state.batchStatus,
       };
     }
 
@@ -317,6 +327,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         durationMs: action.durationMs,
       };
 
+    case 'SET_PROGRESS':
+      return {
+        ...state,
+        progress: action.progress,
+        waitingFor: action.waitingFor,
+      };
+
     case 'RESET':
       return initialGameState;
 
@@ -415,6 +432,13 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         dispatch({ type: 'SET_THINKING', thinkingState: null });
         dispatch({ type: 'SET_AI_PROGRESS', aiProgress: null, suspenseReason: null });
       }
+    } else if (msg.type === 'PROGRESS') {
+      // New progress update from workflow
+      dispatch({
+        type: 'SET_PROGRESS',
+        progress: msg.progress ?? null,
+        waitingFor: msg.waitingFor ?? null,
+      });
     } else if (msg.type === 'ERROR') {
       dispatch({ type: 'SET_STATUS', status: 'failed', error: msg.error });
     }
@@ -511,6 +535,9 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         error?: string;
         players?: APIPlayer[];
         currentPhase?: string;
+        progress?: GameProgress;
+        waitingFor?: WaitingFor | null;
+        batchStatus?: BatchStatus | null;
       };
 
       if (!isMountedRef.current) return;
@@ -527,8 +554,18 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
           error: data.error,
           players: data.players,
           currentPhase: data.currentPhase,
+          progress: data.progress,
+          waitingFor: data.waitingFor,
+          batchStatus: data.batchStatus,
         });
         lastEventCountRef.current = data.events.length;
+      } else if (data.progress) {
+        // Update progress even if no new events
+        dispatch({
+          type: 'SET_PROGRESS',
+          progress: data.progress,
+          waitingFor: data.waitingFor ?? null,
+        });
       }
 
       if (data.status === 'completed' || data.status === 'failed') {

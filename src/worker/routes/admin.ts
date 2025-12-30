@@ -1284,10 +1284,16 @@ admin.post('/models', async (c) => {
 
 /**
  * PATCH /api/admin/models/:id - Update an existing model's configuration.
+ * Note: Uses wildcard to support model IDs containing slashes (e.g., fireworks/deepseek-r1)
  */
-admin.patch('/models/:id', async (c) => {
+admin.patch('/models/*', async (c) => {
   const db = createDb(c.env.DB);
-  const modelId = c.req.param('id');
+  // Extract model ID from wildcard - handles IDs with slashes like "fireworks/deepseek-r1"
+  const modelId = decodeURIComponent(c.req.param('*') || '');
+  
+  if (!modelId) {
+    throw Errors.BadRequest('Model ID is required');
+  }
 
   interface UpdateModelRequest {
     display_name?: string;
@@ -1462,10 +1468,16 @@ admin.post('/models/sync', async (c) => {
 
 /**
  * DELETE /api/admin/models/:id - Remove a model from DB.
+ * Note: Uses wildcard to support model IDs containing slashes (e.g., fireworks/deepseek-r1)
  */
-admin.delete('/models/:id', async (c) => {
+admin.delete('/models/*', async (c) => {
   const db = createDb(c.env.DB);
-  const modelId = c.req.param('id');
+  // Extract model ID from wildcard - handles IDs with slashes like "fireworks/deepseek-r1"
+  const modelId = decodeURIComponent(c.req.param('*') || '');
+
+  if (!modelId) {
+    throw Errors.BadRequest('Model ID is required');
+  }
 
   // Check if model exists
   const model = await db.query.models.findFirst({

@@ -243,7 +243,7 @@ interface GameRunnerState {
 
 /** WebSocket message types for live streaming */
 interface WsMessage {
-  type: 'SYNC' | 'EVENT' | 'STATUS' | 'ERROR';
+  type: 'SYNC' | 'EVENT' | 'STATUS' | 'ERROR' | 'PROGRESS';
   events?: GameEvent[] | undefined;
   event?: GameEvent | undefined;
   status?: GameRunnerState['status'] | undefined;
@@ -263,6 +263,23 @@ interface WsMessage {
     expectedPlayers: number | null;
     progressText: string;
   } | undefined;
+  /** Current round (for PROGRESS messages) */
+  round?: number | undefined;
+  /** Current phase (for PROGRESS messages) */
+  phase?: string | undefined;
+  /** Progress information for UI */
+  progress?: {
+    current: number;
+    total: number;
+    label: string;
+    pendingPlayers: string[];
+  } | undefined;
+  /** What we're actively waiting for */
+  waitingFor?: {
+    playerName: string;
+    modelId: string;
+    actionType: string;
+  } | null | undefined;
 }
 
 export class GameRunner extends DurableObject<Env> {
@@ -770,6 +787,10 @@ export class GameRunner extends DurableObject<Env> {
         // Internal broadcast endpoint from MafiaWorkflow
         case '/internal/broadcast':
           return await this.handleBroadcast(request);
+
+        // Internal progress update endpoint from MafiaWorkflow
+        case '/internal/progress':
+          return await this.handleProgressUpdate(request);
 
         default:
           this.log.warn('Unknown path', { path: url.pathname });
@@ -1404,6 +1425,65 @@ export class GameRunner extends DurableObject<Env> {
       return new Response('OK', { status: 200 });
     } catch (error) {
       this.log.error('Failed to handle broadcast', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      return new Response('Bad Request', { status: 400 });
+    }
+  }
+
+  /**
+   * Handle progress update from MafiaWorkflow.
+   * This is called more frequently than broadcast (before/after each AI action)
+   * to provide real-time "Waiting for X" status to connected clients.
+   * 
+   * Unlike broadcast, this is a lightweight update that doesn't persist full state.
+   */
+  private async handleProgressUpdate(request: Request): Promise<Response> {
+    try {
+      const data = await request.json<{
+        gameId: string;
+        phase: string;
+        round: number;
+        progress: {
+          current: number;
+          total: number;
+          label: string;
+          pendingPlayers: string[];
+        };
+        waitingFor?: {
+          playerName: string;
+          modelId: string;
+          actionType: string;
+        } | null;
+        timestamp: number;
+      }>();
+      
+      // Store in DO storage for late-joining clients (no rate limit)
+      await this.ctx.storage.put('progress', data);
+      
+      // Broadcast to all connected WebSocket clients
+      const message: WsMessage = {
+        type: 'PROGRESS',
+        gameId: data.gameId,
+        status: 'running',
+        round: data.round,
+        phase: data.phase,
+        progress: data.progress,
+        waitingFor: data.waitingFor,
+      };
+      
+      this.broadcast(message);
+      
+      this.log.debug('Progress update broadcast', { 
+        phase: data.phase,
+        progress: data.progress.label,
+        waitingFor: data.waitingFor?.playerName,
+        sessionCount: this.sessions.length,
+      });
+      
+      return new Response('OK', { status: 200 });
+    } catch (error) {
+      this.log.error('Failed to handle progress update', { 
         error: error instanceof Error ? error.message : String(error) 
       });
       return new Response('Bad Request', { status: 400 });

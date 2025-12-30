@@ -302,16 +302,48 @@ export class WorkflowAIProvider implements AIProvider {
   /**
    * Wait for batch result using sleep-poll pattern.
    * Checks D1 for completion, sleeps between polls.
+   * Updates KV every ~1 hour so UI knows game is alive during long batch waits.
    */
   private async waitForBatchResult(stepId: string, requestId: string): Promise<CompletionResponse> {
     const MAX_POLLS = 144; // 24 hours at 10-min intervals
     // Dev: 2 seconds for fast testing, Prod: 10 minutes for cost efficiency
     const sleepTime = this.env.ENVIRONMENT === 'development' ? '2 seconds' : '10 minutes';
+    // Update KV every 6 polls (~1 hour in prod, ~12 seconds in dev)
+    const KV_UPDATE_INTERVAL = 6;
+    const submittedAt = Date.now();
 
     for (let i = 0; i < MAX_POLLS; i++) {
       // Sleep before checking (except first poll)
       if (i > 0) {
         await this.step.sleep(`wait-${stepId}-${i}`, sleepTime);
+      }
+
+      // Update KV periodically so UI knows batch game is alive
+      // This prevents the game from appearing "stuck" during 24h batch wait
+      if (i > 0 && i % KV_UPDATE_INTERVAL === 0) {
+        const hoursElapsed = (Date.now() - submittedAt) / (1000 * 60 * 60);
+        const estimatedWaitHours = Math.max(0, Math.ceil(24 - hoursElapsed));
+        
+        await this.step.do(`batch-progress-${stepId}-${i}`, async () => {
+          // Update KV with batch pending status
+          await this.env.RATE_LIMIT.put(
+            `game-state:${this.gameId}:batch-status`,
+            JSON.stringify({
+              batchPending: true,
+              pollCount: i,
+              submittedAt,
+              estimatedWaitHours,
+              lastPollAt: Date.now(),
+            }),
+            { expirationTtl: 86400 } // 24 hours
+          );
+        });
+        
+        this.log.debug('Batch polling progress update', {
+          gameId: this.gameId,
+          pollCount: i,
+          estimatedWaitHours,
+        });
       }
 
       // Check status in D1
@@ -335,10 +367,14 @@ export class WorkflowAIProvider implements AIProvider {
       }
 
       if (result.status === 'completed' && result.response_body) {
+        // Clean up batch status from KV
+        await this.env.RATE_LIMIT.delete(`game-state:${this.gameId}:batch-status`);
         return JSON.parse(result.response_body) as CompletionResponse;
       }
 
       if (result.status === 'failed') {
+        // Clean up batch status from KV
+        await this.env.RATE_LIMIT.delete(`game-state:${this.gameId}:batch-status`);
         throw new Error(`Batch request failed: ${result.error_message ?? 'Unknown error'}`);
       }
 

@@ -1,6 +1,7 @@
-import { Trophy, Loader2 } from "lucide-react";
+import { Trophy, Loader2, User, Clock } from "lucide-react";
 import { ThemeIcon } from "~/components/ThemeIcon";
 import { getTheme } from "~/lib/themes";
+import type { GameProgress, WaitingFor, BatchStatus } from "~/lib/game-types";
 
 export interface GameHeaderProps {
   status: 'live' | 'completed' | 'running' | 'failed';
@@ -14,6 +15,12 @@ export interface GameHeaderProps {
   tokens?: number | string;
   isLive?: boolean;
   connectionStatus?: React.ReactNode;
+  /** Progress information from workflow */
+  progress?: GameProgress | null;
+  /** What game is actively waiting for */
+  waitingFor?: WaitingFor | null;
+  /** Batch API status for discount pricing games */
+  batchStatus?: BatchStatus | null;
 }
 
 export function GameHeader({
@@ -28,6 +35,9 @@ export function GameHeader({
   tokens = 0,
   isLive = false,
   connectionStatus,
+  progress,
+  waitingFor,
+  batchStatus,
 }: GameHeaderProps) {
   const theme = getTheme(themeKey);
   
@@ -115,6 +125,64 @@ export function GameHeader({
       <div id="players-section" className="hidden pt-1.5">
         <div id="players-grid" className="flex flex-wrap gap-1"></div>
       </div>
+
+      {/* Progress Indicator */}
+      {(isLive || status === 'running') && (progress || waitingFor || batchStatus) && (
+        <div id="progress-indicator" className="pt-2">
+          {/* Batch Status (for discount pricing games) */}
+          {batchStatus?.isWaitingForBatch && (
+            <div className="flex items-center gap-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1.5 rounded-md">
+              <Clock size={12} className="shrink-0" />
+              <span className="font-display font-semibold">Waiting for batch API</span>
+              {batchStatus.estimatedWaitHours !== undefined && (
+                <span className="text-amber-600/70 dark:text-amber-400/70">
+                  ~{batchStatus.estimatedWaitHours}h remaining
+                </span>
+              )}
+            </div>
+          )}
+          
+          {/* Progress bar and waiting status (for direct games) */}
+          {!batchStatus?.isWaitingForBatch && progress && (
+            <div className="space-y-1">
+              {/* Progress bar */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min(100, (progress.current / progress.total) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[9px] font-mono text-muted-foreground tabular-nums">
+                  {progress.current}/{progress.total}
+                </span>
+              </div>
+              
+              {/* Waiting for player indicator */}
+              {waitingFor && (
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Loader2 size={10} className="animate-spin text-blue-500" />
+                  <span>Waiting for</span>
+                  <span className="font-semibold text-foreground">{waitingFor.playerName}</span>
+                  <span className="text-muted-foreground/60">({waitingFor.actionType})</span>
+                </div>
+              )}
+              
+              {/* Pending players list (when not showing specific player) */}
+              {!waitingFor && progress.pendingPlayers.length > 0 && (
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <User size={10} className="text-muted-foreground/60" />
+                  <span>Pending:</span>
+                  <span className="text-foreground/80 truncate max-w-[200px]">
+                    {progress.pendingPlayers.slice(0, 3).join(', ')}
+                    {progress.pendingPlayers.length > 3 && ` +${progress.pendingPlayers.length - 3}`}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Connection Status */}
       {connectionStatus !== undefined ? (

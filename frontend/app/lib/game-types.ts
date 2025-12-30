@@ -109,6 +109,30 @@ export interface AIProgress {
   progressText: string;
 }
 
+/** Progress information from the workflow for UI display */
+export interface GameProgress {
+  current: number;
+  total: number;
+  label: string;
+  pendingPlayers: string[];
+}
+
+/** What the game is currently waiting for */
+export interface WaitingFor {
+  playerName: string;
+  modelId: string;
+  actionType: 'introduction' | 'discussion' | 'vote' | 'night_action';
+}
+
+/** Batch API status for games using discount pricing */
+export interface BatchStatus {
+  isWaitingForBatch: boolean;
+  provider?: string;
+  submittedAt?: number;
+  pollCount?: number;
+  estimatedWaitHours?: number;
+}
+
 /** Player data from API (matches engine Player type) */
 export interface APIPlayer {
   id: string;
@@ -120,7 +144,7 @@ export interface APIPlayer {
 }
 
 export interface WsMessage {
-  type: 'SYNC' | 'EVENT' | 'STATUS' | 'ERROR';
+  type: 'SYNC' | 'EVENT' | 'STATUS' | 'ERROR' | 'PROGRESS';
   events?: GameEvent[];
   event?: GameEvent;
   status?: GameStatus;
@@ -132,12 +156,20 @@ export interface WsMessage {
   players?: APIPlayer[];
   /** Current phase from workflow state (more accurate than deriving from events) */
   currentPhase?: string;
+  /** Current round */
+  round?: number;
+  /** Current phase (for PROGRESS messages) */
+  phase?: string;
   /** Current suspense reason - which model/player game is waiting for */
   suspenseReason?: string | null;
   /** When game started waiting for current AI call */
   suspenseStartedAt?: number | null;
   /** AI progress info for UI */
   aiProgress?: AIProgress;
+  /** Progress information from workflow (new) */
+  progress?: GameProgress;
+  /** What game is actively waiting for */
+  waitingFor?: WaitingFor | null;
 }
 
 // =============================================================================
@@ -186,6 +218,12 @@ export interface GameState {
   aiProgress: AIProgress | null;
   suspenseReason: string | null;
   healthStatus: HealthCheckResponse['healthStatus'] | null;
+  /** Progress information from workflow */
+  progress: GameProgress | null;
+  /** What game is actively waiting for */
+  waitingFor: WaitingFor | null;
+  /** Batch API status for discount pricing games */
+  batchStatus: BatchStatus | null;
 }
 
 // =============================================================================
@@ -193,7 +231,7 @@ export interface GameState {
 // =============================================================================
 
 export type GameAction =
-  | { type: 'SYNC'; events: GameEvent[]; status?: GameStatus; startedAt?: number; durationMs?: number; error?: string; players?: APIPlayer[]; currentPhase?: string }
+  | { type: 'SYNC'; events: GameEvent[]; status?: GameStatus; startedAt?: number; durationMs?: number; error?: string; players?: APIPlayer[]; currentPhase?: string; progress?: GameProgress; waitingFor?: WaitingFor | null; batchStatus?: BatchStatus | null }
   | { type: 'ADD_EVENT'; event: GameEvent }
   | { type: 'SET_STATUS'; status: GameStatus; error?: string }
   | { type: 'SET_CONNECTION_STATUS'; connectionStatus: ConnectionStatus }
@@ -202,6 +240,7 @@ export type GameAction =
   | { type: 'SET_HEALTH'; healthStatus: HealthCheckResponse['healthStatus']; healthMessage?: string }
   | { type: 'SET_WINNER'; winner: 'mafia' | 'town' }
   | { type: 'UPDATE_DURATION'; durationMs: number }
+  | { type: 'SET_PROGRESS'; progress: GameProgress | null; waitingFor: WaitingFor | null }
   | { type: 'RESET' };
 
 // =============================================================================

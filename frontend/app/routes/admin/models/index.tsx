@@ -49,6 +49,7 @@ const API_PROVIDERS = [
   { value: "openai", label: "OpenAI (Direct)" },
   { value: "mistral", label: "Mistral (Direct)" },
   { value: "groq", label: "Groq (Direct)" },
+  { value: "fireworks", label: "Fireworks (Direct)" },
 ];
 
 const MODEL_FAMILIES = [

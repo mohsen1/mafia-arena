@@ -640,6 +640,11 @@ games.get('/:id/events', async (c) => {
       // Combine: all persona events + last 50 game events
       const events = [...personaEvents, ...gameEvents.slice(-50)];
       
+      // Check for batch status (for games using discount pricing)
+      const batchStatusKey = `game-state:${gameId}:batch-status`;
+      const batchStatusRaw = await env.RATE_LIMIT.get(batchStatusKey);
+      const batchStatus = batchStatusRaw ? JSON.parse(batchStatusRaw) : undefined;
+      
       return c.json({
         status: kvState.status,
         gameId,
@@ -647,9 +652,14 @@ games.get('/:id/events', async (c) => {
         events,
         players, // Include full player data with personas
         currentPhase: kvState.currentPhase,
+        currentRound: kvState.currentRound,
         startedAt: allEvents.length > 0 
           ? allEvents[0]?.timestamp 
           : undefined,
+        // NEW: Progress fields for UI
+        progress: kvState.progress,
+        waitingFor: kvState.waitingFor,
+        batchStatus: batchStatus ?? kvState.batchStatus,
       });
     }
   }
