@@ -3,7 +3,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, desc, inArray, sql, and } from 'drizzle-orm';
+import { eq, desc, inArray, sql, and, isNull } from 'drizzle-orm';
 import type { Env, GameQueueMessage, ApiProvider } from '../types.js';
 import { Errors } from '../utils/errors.js';
 import { getRandomTheme } from '../utils/random-config.js';
@@ -430,6 +430,10 @@ games.get('/', async (c) => {
 
   // Build WHERE conditions
   const conditions = [eq(schema.games.status, status)];
+  // Exclude batch games from live games list (they run async and aren't watchable)
+  if (status === 'running') {
+    conditions.push(isNull(schema.games.batchId));
+  }
   if (winnerFilter && (winnerFilter === 'mafia' || winnerFilter === 'town')) {
     conditions.push(eq(schema.games.winner, winnerFilter));
   }
