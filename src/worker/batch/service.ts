@@ -287,6 +287,15 @@ export async function processBatchMessage(
       gameMessage.encryptedUserKeys = config.encryptedUserKeys;
     }
 
+    // Validate message size (Cloudflare Queue limit is 128KB)
+    const messageSize = JSON.stringify(gameMessage).length;
+    const MAX_QUEUE_MESSAGE_SIZE = 128_000;
+    if (messageSize > MAX_QUEUE_MESSAGE_SIZE) {
+      const error = `Queue message too large: ${messageSize} bytes (limit: ${MAX_QUEUE_MESSAGE_SIZE}). Game config may be too complex.`;
+      console.error(`[${traceId || 'no-trace'}] ${error}`);
+      throw new Error(error);
+    }
+
     messages.push({ body: gameMessage });
 
     // Send in batches of 100 to avoid hitting queue limits

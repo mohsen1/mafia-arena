@@ -14,6 +14,20 @@ const KV_PREFIX = 'game-state:';
 /** TTL for game state in KV (24 hours) */
 const STATE_TTL_SECONDS = 24 * 60 * 60;
 
+/** 
+ * Maximum KV value size in bytes (Cloudflare KV limit is 25MB, but Workflows has 128KB limit)
+ * We use 100KB as a safe threshold to leave room for JSON overhead and metadata
+ */
+const MAX_KV_VALUE_SIZE = 100 * 1024;
+
+/**
+ * Maximum number of events to include in KV state.
+ * For 11-player games with rich personas, each event can be ~2-5KB.
+ * 30 events * 5KB = 150KB which is too large.
+ * We limit to 20 events which should be ~100KB max.
+ */
+const MAX_EVENTS_IN_KV = 20;
+
 /**
  * Progress information for UI display.
  */
@@ -105,6 +119,10 @@ export interface SaveGameStateOptions {
 /**
  * Save game state to KV for frontend visibility.
  * 
+ * NOTE: KV is for real-time frontend display only. Full state is stored in R2 checkpoints.
+ * To avoid hitting Cloudflare's storage limits (128KB for Workflow step.do() returns),
+ * we truncate events to keep only the most recent ones.
+ * 
  * @param env - Worker environment
  * @param gameId - Game identifier
  * @param state - Current game state
@@ -126,8 +144,13 @@ export async function saveGameStateToKV(
   // Get progress from state if not provided
   const progress = opts.progress ?? state.getProgress();
   
+  // Serialize state and truncate events to avoid hitting storage limits
+  // Full state is always available in R2 checkpoints
+  const serialized = state.serialize();
+  const truncatedState = truncateStateForKV(serialized);
+  
   const workflowState: WorkflowGameState = {
-    state: state.serialize(),
+    state: truncatedState,
     status,
     updatedAt: Date.now(),
     currentRound: state.round,
@@ -139,11 +162,42 @@ export async function saveGameStateToKV(
     ...(opts.batchStatus && { batchStatus: opts.batchStatus }),
   };
 
+  // Double-check size before writing (safety net)
+  const jsonStr = JSON.stringify(workflowState);
+  if (jsonStr.length > MAX_KV_VALUE_SIZE) {
+    console.warn(`[workflow-sync] KV state still too large (${jsonStr.length} bytes), truncating more`);
+    // Aggressive truncation: keep only last 5 events
+    workflowState.state = {
+      ...truncatedState,
+      events: truncatedState.events.slice(-5),
+    };
+  }
+
   await env.RATE_LIMIT.put(
     `${KV_PREFIX}${gameId}`,
     JSON.stringify(workflowState),
     { expirationTtl: STATE_TTL_SECONDS }
   );
+}
+
+/**
+ * Truncate serialized state to fit within KV storage limits.
+ * Keeps only recent events since full state is always in R2.
+ */
+function truncateStateForKV(state: SerializedGameState): SerializedGameState {
+  const eventCount = state.events.length;
+  
+  if (eventCount <= MAX_EVENTS_IN_KV) {
+    return state;
+  }
+  
+  // Keep only the most recent events
+  const truncatedEvents = state.events.slice(-MAX_EVENTS_IN_KV);
+  
+  return {
+    ...state,
+    events: truncatedEvents,
+  };
 }
 
 /**
@@ -165,15 +219,20 @@ export async function saveErrorStateToKV(
     ? ('serialize' in state ? state.serialize() : state)
     : undefined;
   
+  // Truncate state to fit KV limits (same as running state)
+  const truncatedState = serializedState 
+    ? truncateStateForKV(serializedState) 
+    : undefined;
+  
   const workflowState: WorkflowGameState = {
-    state: serializedState!,
+    state: truncatedState!,
     status: 'failed',
     error,
     updatedAt: Date.now(),
   };
 
   // Only save if we have state, otherwise just log the error
-  if (serializedState) {
+  if (truncatedState) {
     await env.RATE_LIMIT.put(
       `${KV_PREFIX}${gameId}`,
       JSON.stringify(workflowState),
