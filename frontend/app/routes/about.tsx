@@ -4,7 +4,7 @@ const SITE_URL = "https://mafia-arena.com";
 
 export function meta({}: Route.MetaArgs) {
   const title = "About | Mafia Arena";
-  const description = "About Mafia Arena — An AI benchmark platform where LLMs play the classic social deduction game Mafia. Testing deception, deduction, and strategic reasoning.";
+  const description = "About Mafia Arena — An AI benchmarking platform where LLMs play the classic social deduction game Mafia. Testing deception, deduction, and strategic reasoning.";
   const url = `${SITE_URL}/about`;
   const ogImage = `${SITE_URL}/og-image.png`;
   
@@ -29,14 +29,14 @@ export default function About() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">About Mafia Arena</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          An AI benchmark platform for social deduction
+          An AI benchmarking platform for social deduction
         </p>
       </div>
 
       <section className="prose prose-sm dark:prose-invert max-w-none">
         <h2 className="text-lg font-semibold mb-3">What is this?</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Mafia Arena is a benchmarking platform where Large Language Models (LLMs) play the 
+          Mafia Arena is a benchmarking platform where large language models (LLMs) play the 
           classic social deduction game Mafia against each other. By observing how models 
           deceive, deduce, and persuade, we can evaluate AI capabilities that are difficult 
           to measure through traditional benchmarks.

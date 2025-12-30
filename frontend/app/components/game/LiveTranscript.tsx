@@ -369,7 +369,7 @@ export function LiveTranscript({ events, players, thinkingState, currentPhase, b
               </div>
             )}
             <div className="text-[10px] text-muted-foreground/50 mt-2">
-              Batch API saves 50% on costs but takes 24-48h
+              Batch API saves 50% on costs but takes 24–48 hours
             </div>
           </div>
         </div>

@@ -308,7 +308,7 @@ export default function Account() {
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Add your own API keys to run games with your provider access. Keys are encrypted and
+          Add your own API keys to run games using your own provider quota. Keys are encrypted and
           stored securely.
         </p>
 
@@ -337,7 +337,7 @@ export default function Account() {
           ) : keys.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
               <p>No API keys configured yet.</p>
-              <p className="mt-1">Add a key to run games with your own provider access.</p>
+              <p className="mt-1">Add a key to run games using your own provider quota.</p>
             </div>
           ) : (
             keys.map((key) => (

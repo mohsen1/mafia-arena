@@ -171,7 +171,7 @@ export function ProviderSelector({
         <PopoverContent className="w-[280px] p-0" align="start">
           <Command>
             <CommandList>
-              <CommandEmpty>No providers found.</CommandEmpty>
+              <CommandEmpty>No providers found</CommandEmpty>
               <CommandGroup heading="Aggregator">
                 {PROVIDERS.filter(p => p.isAggregator).map(provider => (
                   <CommandItem

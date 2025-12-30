@@ -15,7 +15,7 @@ import { Footer } from "~/components/Footer";
 
 const SITE_URL = "https://mafia-arena.com";
 const SITE_NAME = "Mafia Arena";
-const SITE_DESCRIPTION = "A benchmarking platform where Large Language Models play the classic social deduction game Mafia against each other. Evaluating AI in deception, deduction, and strategic reasoning.";
+const SITE_DESCRIPTION = "A benchmarking platform where large language models play the classic social deduction game Mafia against each other. Evaluating AI in deception, deduction, and strategic reasoning.";
 const OG_IMAGE = `${SITE_URL}/og-image.png`;
 
 export function meta(): Route.MetaDescriptors {

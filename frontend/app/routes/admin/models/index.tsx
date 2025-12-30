@@ -516,7 +516,7 @@ export default function AdminModels() {
                 Pricing (In/Out)
               </th>
               <th className="text-left py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                ELO
+                Elo
               </th>
               <th className="text-right py-3 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">
                 Actions

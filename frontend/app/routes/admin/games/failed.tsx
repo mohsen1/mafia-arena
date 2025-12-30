@@ -73,7 +73,7 @@ const CATEGORY_INFO: Record<
     icon: Clock,
     color: "text-orange-600 dark:text-orange-400",
     bgColor: "bg-orange-500/10",
-    description: "Request timed out. Usually safe to retry.",
+    description: "Request timed out. It is usually safe to retry.",
   },
   network: {
     label: "Network",
@@ -101,7 +101,7 @@ const CATEGORY_INFO: Record<
     icon: HelpCircle,
     color: "text-muted-foreground",
     bgColor: "bg-muted",
-    description: "Unknown error. May be safe to retry.",
+    description: "Unknown error. It may be safe to retry.",
   },
 };
 

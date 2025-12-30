@@ -307,7 +307,7 @@ export function ModelSelector({
           <Command>
             <CommandInput placeholder="Search models..." />
             <CommandList className="max-h-[350px]">
-              <CommandEmpty>No models found.</CommandEmpty>
+              <CommandEmpty>No models found</CommandEmpty>
               {(modelsData?.families || []).map(family => (
                 <CommandGroup 
                   key={family} 

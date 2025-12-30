@@ -355,8 +355,8 @@ export default function RunLiveGame() {
           </div>
 
           <div className="px-3 py-2 border rounded-md bg-muted/50 text-sm text-muted-foreground">
-            11 players — <span className="text-red-500 font-medium">2 mafia</span> vs{" "}
-            <span className="text-blue-500 font-medium">9 town</span>
+            11 players — <span className="text-red-500 font-medium">2 Mafia</span> vs{" "}
+            <span className="text-blue-500 font-medium">9 Town</span>
           </div>
 
           <div className="grid grid-cols-2 gap-6">

@@ -181,7 +181,7 @@ export default function UserBatches() {
             <>
               <span>•</span>
               <span>
-                <strong className="text-foreground">{limits.rateLimitMinutes}</strong> min between batches
+                <strong className="text-foreground">{limits.rateLimitMinutes}</strong> minutes between batches
               </span>
             </>
           )}

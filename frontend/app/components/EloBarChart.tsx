@@ -127,7 +127,7 @@ export function EloBarChart({ rankings, maxItems = 12 }: Props) {
               label: (item) => {
                 const ranking = data[item.dataIndex];
                 return [
-                  `ELO ${ranking.elo}`,
+                  `Elo ${ranking.elo}`,
                   `${(ranking.win_rate * 100).toFixed(0)}% win rate`,
                   `${ranking.wins}W - ${ranking.losses}L`,
                 ];

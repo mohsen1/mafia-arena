@@ -70,10 +70,10 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
     }
   }
 
-  // Use ELO rankings for the leaderboard (top 10)
+  // Use Elo rankings for the leaderboard (top 10)
   const eloTop10 = eloData.rankings.slice(0, 10);
 
-  // Map ELO rankings to include model info for display
+  // Map Elo rankings to include model info for display
   const top10WithModels = eloTop10.map(elo => {
     const modelInfo = uniqueModels.find(m => m.display_name === elo.display_name);
     return {
@@ -82,7 +82,7 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
     };
   });
 
-  // For the matrix, use ELO order
+  // For the matrix, use Elo order
   const eloModelNames = eloTop10.map(e => e.display_name);
   const sortedModels = eloModelNames
     .map(name => uniqueModels.find(m => m.display_name === name))
@@ -115,7 +115,7 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
 
   return (
     <div className="space-y-4">
-      {/* Top 10 Models Table - ELO Rankings */}
+      {/* Top 10 Models Table - Elo Rankings */}
       {showTopModels && top10WithModels.length > 0 && (
         <div className="rounded border bg-card overflow-hidden">
           <table className="w-full text-xs">
@@ -123,7 +123,7 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
               <tr className="border-b bg-muted/40">
                 <th className="px-2 py-1.5 text-left font-medium text-muted-foreground w-8">#</th>
                 <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">Model</th>
-                <th className="px-2 py-1.5 text-right font-medium text-muted-foreground w-14">ELO</th>
+                <th className="px-2 py-1.5 text-right font-medium text-muted-foreground w-14">Elo</th>
                 <th className="px-2 py-1.5 text-right font-medium text-muted-foreground w-14">Win%</th>
                 <th className="px-2 py-1.5 text-right font-medium text-muted-foreground w-14">W-L</th>
               </tr>
@@ -166,7 +166,7 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
             </tbody>
           </table>
           <div className="px-2 py-1 text-[10px] text-muted-foreground border-t bg-muted/20">
-            ELO accounts for opponent strength — beating strong models earns more points
+            Elo accounts for opponent strength—beating strong models earns more points
           </div>
         </div>
       )}

@@ -8,7 +8,7 @@ const SITE_URL = "https://mafia-arena.com";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Mafia Arena";
-  const description = "A benchmarking platform where Large Language Models play the classic social deduction game Mafia against each other. Evaluating AI in deception, deduction, and strategic reasoning.";
+  const description = "A benchmarking platform where large language models play the classic social deduction game Mafia against each other. Evaluating AI in deception, deduction, and strategic reasoning.";
   const ogImage = `${SITE_URL}/og-image.png`;
   
   return [
@@ -70,10 +70,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-amber-500" />
           <h2 className="text-lg font-semibold">Model Rankings</h2>
-          <span className="text-xs text-muted-foreground">by ELO rating</span>
+          <span className="text-xs text-muted-foreground">by Elo rating</span>
         </div>
         
-        {/* ELO Bar Chart */}
+        {/* Elo Bar Chart */}
         <div className="rounded border bg-card p-3">
           <EloBarChart rankings={eloData.rankings} maxItems={12} />
         </div>

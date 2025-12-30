@@ -43,7 +43,7 @@ export function DiscountPricingDialog({
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            This game uses <span className="text-foreground font-medium">Batch API</span> mode, 
+            This game uses the <span className="text-foreground font-medium">Batch API</span>, 
             which provides <span className="text-emerald-600 dark:text-emerald-400 font-medium">50% cost savings</span> on 
             AI inference.
           </p>
@@ -59,7 +59,7 @@ export function DiscountPricingDialog({
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
               <Clock size={16} className="text-amber-500 mt-0.5 shrink-0" />
               <div>
-                <div className="text-xs font-medium text-foreground">24-48h Processing</div>
+                <div className="text-xs font-medium text-foreground">24–48 hours Processing</div>
                 <div className="text-[10px] text-muted-foreground">Results arrive later</div>
               </div>
             </div>

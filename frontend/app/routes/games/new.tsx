@@ -48,13 +48,13 @@ export default function NewGame() {
   const [showKeyInputs, setShowKeyInputs] = useState<Record<string, boolean>>({});
   const [keyErrors, setKeyErrors] = useState<Record<string, string>>({});
   
-  // ELO data
+  // Elo data
   const [eloData, setEloData] = useState<EloRanking[]>([]);
 
   const apiUrl = authApiUrl || getApiUrl();
   const isAdmin = user?.isAdmin || false;
 
-  // Load ELO data on mount
+  // Load Elo data on mount
   useEffect(() => {
     getEloRatings()
       .then(data => setEloData(data.rankings))
@@ -184,7 +184,7 @@ export default function NewGame() {
   }
 
   function getModelElo(modelId: string): number | null {
-    // Try to find ELO by model ID
+    // Try to find Elo by model ID
     for (const ranking of eloData) {
       if (ranking.model_ids?.includes(modelId)) {
         return ranking.elo;
@@ -320,7 +320,7 @@ export default function NewGame() {
 
   const canSubmit = authenticated && (isAdmin || userKeys.length > 0) && missingKeys.length === 0;
 
-  // Get ELO for selected models
+  // Get Elo for selected models
   const modelAElo = modelA ? getModelElo(modelA) : null;
   const modelBElo = modelB ? getModelElo(modelB) : null;
 
@@ -362,18 +362,18 @@ export default function NewGame() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Team setup note */}
         <div className="text-sm text-muted-foreground">
-          11 players — <span className="text-red-500 font-medium">2 mafia</span> vs{" "}
-          <span className="text-blue-500 font-medium">9 town</span>
+          11 players — <span className="text-red-500 font-medium">2 Mafia</span> vs{" "}
+          <span className="text-blue-500 font-medium">9 Town</span>
         </div>
 
-        {/* Model selectors with ELO */}
+        {/* Model selectors with Elo */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div className="space-y-2">
             <ProviderModelSelector team="mafia" placeholder="Select mafia model..." inputId="modelA" />
             {modelAElo !== null && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground pl-1">
                 <TrendingUp size={12} className="text-rose-400" />
-                <span>ELO: <span className="font-mono font-medium text-foreground">{modelAElo}</span></span>
+                <span>Elo: <span className="font-mono font-medium text-foreground">{modelAElo}</span></span>
               </div>
             )}
           </div>
@@ -382,7 +382,7 @@ export default function NewGame() {
             {modelBElo !== null && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground pl-1">
                 <TrendingUp size={12} className="text-indigo-400" />
-                <span>ELO: <span className="font-mono font-medium text-foreground">{modelBElo}</span></span>
+                <span>Elo: <span className="font-mono font-medium text-foreground">{modelBElo}</span></span>
               </div>
             )}
           </div>
