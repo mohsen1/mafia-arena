@@ -8,7 +8,7 @@ import { useParams, Link } from 'react-router';
 import type { Route } from './+types/$id.live';
 import { getGame } from '~/lib/api';
 import { getApiUrl } from '~/lib/utils';
-import { ArrowLeft, Trophy, Moon, Sun, Swords, Vote, MessageCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Trophy, Moon, Sun, Swords, Vote, MessageCircle, Clock, DollarSign } from 'lucide-react';
 import { useGameConnection } from '~/hooks/useGameConnection';
 import {
   LiveTranscript,
@@ -18,6 +18,7 @@ import {
   ErrorBanner,
   GameEndOverlay,
   ThemeDialog,
+  DiscountPricingDialog,
 } from '~/components/game';
 import { ThemeIcon } from '~/components/ThemeIcon';
 import type { PlayerInfo } from '~/lib/game-types';
@@ -69,6 +70,7 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
   // Modal state
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerInfo | null>(null);
   const [showThemeDialog, setShowThemeDialog] = useState(false);
+  const [showDiscountDialog, setShowDiscountDialog] = useState(false);
 
   // Game connection hook
   const { state, isConnected, isConnecting, isPolling } = useGameConnection({
@@ -186,6 +188,17 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
           {/* Row 1: Status + Theme + Matchup */}
           <div className="flex items-center gap-2 text-[10px]">
             {statusBadge}
+
+            {/* Discount Pricing Pill */}
+            {game?.discountPricing && (
+              <button
+                onClick={() => setShowDiscountDialog(true)}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium cursor-pointer hover:opacity-80 transition-opacity bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              >
+                <DollarSign size={10} />
+                <span>50% off</span>
+              </button>
+            )}
 
             <button
               onClick={() => setShowThemeDialog(true)}
@@ -341,6 +354,14 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
         isOpen={showThemeDialog}
         onClose={() => setShowThemeDialog(false)}
         themeKey={game?.persona_theme}
+      />
+
+      {/* Discount Pricing Dialog */}
+      <DiscountPricingDialog
+        isOpen={showDiscountDialog}
+        onClose={() => setShowDiscountDialog(false)}
+        estimatedWaitHours={state.batchStatus?.estimatedWaitHours}
+        pendingRequests={state.batchStatus?.pendingRequests}
       />
     </div>
   );

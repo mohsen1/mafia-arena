@@ -21,6 +21,26 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
   }
   const uniqueModels = Array.from(modelMap.values());
 
+  // Build self-play stats map by display_name (aggregating across model IDs)
+  const selfPlayMap = new Map<string, { games: number; mafiaWins: number; townWins: number }>();
+  for (const sp of matchupsData.selfPlay || []) {
+    const model = matchupsData.models.find(m => m.id === sp.model_id);
+    if (model) {
+      const existing = selfPlayMap.get(model.display_name);
+      if (existing) {
+        existing.games += sp.games;
+        existing.mafiaWins += sp.mafia_wins;
+        existing.townWins += sp.town_wins;
+      } else {
+        selfPlayMap.set(model.display_name, {
+          games: sp.games,
+          mafiaWins: sp.mafia_wins,
+          townWins: sp.town_wins,
+        });
+      }
+    }
+  }
+
   // Build matchup matrix with deduplication
   const matrix: Record<string, Record<string, { games: number; wins: number; rate: number }>> = {};
 

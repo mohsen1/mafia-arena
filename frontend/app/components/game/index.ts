@@ -9,4 +9,5 @@ export { BatchBanner, ConnectionStatus, ErrorBanner } from './BatchBanner';
 export { GameEndOverlay } from './GameEndOverlay';
 export { LiveTranscript } from './LiveTranscript';
 export { ThemeDialog } from './ThemeDialog';
+export { DiscountPricingDialog } from './DiscountPricingDialog';
 
