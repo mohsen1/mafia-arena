@@ -228,7 +228,7 @@ export default function NewUserBatch() {
             maxRounds: 10,
             personaConstraints: "moderate",
           },
-          useBatchAPI: isAdmin && useBatchAPI,
+          useBatchAPI: useBatchAPI,
           useSystemKeys: isAdmin && useSystemKeys,
         }),
       });
@@ -328,7 +328,36 @@ export default function NewUserBatch() {
         </p>
       </div>
 
-      {/* Admin Options */}
+      {/* Batch API Option - Available to all users */}
+      <div className="space-y-3 p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
+        <h3 className="text-sm font-medium flex items-center gap-2">
+          <Clock className="w-4 h-4" />
+          Batch Pricing
+        </h3>
+        
+        <label className={`flex items-start gap-3 ${!batchAPIEnabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
+          <input
+            type="checkbox"
+            checked={useBatchAPI}
+            onChange={(e) => setUseBatchAPI(e.target.checked)}
+            disabled={!batchAPIEnabled}
+            className="mt-1 rounded border-muted-foreground/50 disabled:opacity-50"
+          />
+          <div>
+            <span className="text-sm font-medium flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5" />
+              Batch API (50% cheaper, ~24h delay)
+            </span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {batchAPIEnabled 
+                ? "Use provider batch APIs for significant cost savings. Results may take up to 24 hours."
+                : "Select models that support batch pricing to enable this option."}
+            </p>
+          </div>
+        </label>
+      </div>
+
+      {/* Admin Options - System Keys Only */}
       {isAdmin && (
         <div className="space-y-3 p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
           <h3 className="text-sm font-medium flex items-center gap-2">
@@ -347,27 +376,6 @@ export default function NewUserBatch() {
               <span className="text-sm font-medium">Use System API Keys</span>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Run games using the platform's configured keys instead of your own.
-              </p>
-            </div>
-          </label>
-
-          <label className={`flex items-start gap-3 ${!batchAPIEnabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
-            <input
-              type="checkbox"
-              checked={useBatchAPI}
-              onChange={(e) => setUseBatchAPI(e.target.checked)}
-              disabled={!batchAPIEnabled}
-              className="mt-1 rounded border-muted-foreground/50 disabled:opacity-50"
-            />
-            <div>
-              <span className="text-sm font-medium flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5" />
-                Batch API (50% cheaper, ~24h delay)
-              </span>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {batchAPIEnabled 
-                  ? "Use provider batch APIs for significant cost savings. Results may take up to 24 hours."
-                  : "Select models that support batch pricing to enable this option."}
               </p>
             </div>
           </label>
