@@ -30,7 +30,7 @@ export function PlayerPill({ player, onClick, showModel = true }: PlayerPillProp
     : 'text-indigo-600 dark:text-indigo-400';
 
   const dotClass = isMafia ? 'bg-rose-500' : 'bg-indigo-500';
-  const opacityClass = isAlive ? '' : 'opacity-50';
+  const opacityClass = isAlive ? '' : 'opacity-50 hover:opacity-100';
   
   const shortModelName = showModel ? getShortModelName(player.modelId) : null;
 
@@ -38,7 +38,7 @@ export function PlayerPill({ player, onClick, showModel = true }: PlayerPillProp
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] cursor-pointer transition-colors ${borderClass} ${opacityClass}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] cursor-pointer transition-all ${borderClass} ${opacityClass}`}
     >
       {!isAlive ? (
         <Skull size={10} className="text-muted-foreground/40 shrink-0" />

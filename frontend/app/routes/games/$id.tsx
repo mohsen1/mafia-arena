@@ -395,18 +395,24 @@ export default function GameDetail() {
           <div className="h-3 w-px bg-border/40" />
 
           {/* Matchup */}
-          <div className="flex items-center gap-1.5">
-            {game.winner === 'mafia' && <Trophy size={10} className="text-amber-500" />}
-            <span className={`font-bold text-[10px] tracking-wide ${game.winner === 'town' ? 'opacity-40' : ''} text-rose-500`}>MAFIA</span>
-            <span className={`font-mono text-[9px] text-foreground/70 truncate max-w-[120px] ${game.winner === 'town' ? 'opacity-40' : ''}`}>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-[12px] tracking-wide text-red-700 dark:text-red-400 relative">
+              MAFIA
+              {game.winner === 'mafia' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-700 dark:bg-red-400" />}
+            </span>
+            <span className="font-mono text-[11px] font-semibold text-foreground truncate max-w-[120px]">
               {mafiaDisplayName}
             </span>
-            <span className="text-muted-foreground/50 text-[9px]">vs</span>
-            {game.winner === 'town' && <Trophy size={10} className="text-amber-500" />}
-            <span className={`font-bold text-[10px] tracking-wide ${game.winner === 'mafia' ? 'opacity-40' : ''} text-indigo-500`}>TOWN</span>
-            <span className={`font-mono text-[9px] text-foreground/70 truncate max-w-[120px] ${game.winner === 'mafia' ? 'opacity-40' : ''}`}>
+            {game.winner === 'mafia' && <span className="text-red-700 dark:text-red-400 text-[10px] font-bold">won</span>}
+            <span className="text-foreground font-medium text-[10px]">vs</span>
+            <span className="font-bold text-[12px] tracking-wide text-blue-700 dark:text-blue-400 relative">
+              TOWN
+              {game.winner === 'town' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-700 dark:bg-blue-400" />}
+            </span>
+            <span className="font-mono text-[11px] font-semibold text-foreground truncate max-w-[120px]">
               {townDisplayName}
             </span>
+            {game.winner === 'town' && <span className="text-blue-700 dark:text-blue-400 text-[10px] font-bold">won</span>}
           </div>
 
           <div className="flex-1" />

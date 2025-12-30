@@ -8,7 +8,7 @@ import { useParams, Link } from 'react-router';
 import type { Route } from './+types/$id.live';
 import { getGame } from '~/lib/api';
 import { getApiUrl } from '~/lib/utils';
-import { ArrowLeft, Trophy, Moon, Sun, Swords, Vote, MessageCircle, Clock, DollarSign } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Swords, Vote, MessageCircle, Clock, DollarSign } from 'lucide-react';
 import { useGameConnection } from '~/hooks/useGameConnection';
 import {
   LiveTranscript,
@@ -211,18 +211,24 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
             <div className="h-3 w-px bg-border/40" />
 
             {/* Matchup */}
-            <div className="flex items-center gap-1.5">
-              {state.winner === 'mafia' && <Trophy size={10} className="text-amber-500" />}
-              <span className={`font-bold text-[10px] tracking-wide ${state.winner === 'town' ? 'opacity-40' : ''} text-rose-500`}>MAFIA</span>
-              <span className={`font-mono text-[9px] text-foreground/70 truncate max-w-[120px] ${state.winner === 'town' ? 'opacity-40' : ''}`}>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-[12px] tracking-wide text-red-700 dark:text-red-400 relative">
+                MAFIA
+                {state.winner === 'mafia' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-700 dark:bg-red-400" />}
+              </span>
+              <span className="font-mono text-[11px] font-semibold text-foreground truncate max-w-[120px]">
                 {mafiaModels}
               </span>
-              <span className="text-muted-foreground/50 text-[9px]">vs</span>
-              {state.winner === 'town' && <Trophy size={10} className="text-amber-500" />}
-              <span className={`font-bold text-[10px] tracking-wide ${state.winner === 'mafia' ? 'opacity-40' : ''} text-indigo-500`}>TOWN</span>
-              <span className={`font-mono text-[9px] text-foreground/70 truncate max-w-[120px] ${state.winner === 'mafia' ? 'opacity-40' : ''}`}>
+              {state.winner === 'mafia' && <span className="text-red-700 dark:text-red-400 text-[10px] font-bold">won</span>}
+              <span className="text-foreground font-medium text-[10px]">vs</span>
+              <span className="font-bold text-[12px] tracking-wide text-blue-700 dark:text-blue-400 relative">
+                TOWN
+                {state.winner === 'town' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-700 dark:bg-blue-400" />}
+              </span>
+              <span className="font-mono text-[11px] font-semibold text-foreground truncate max-w-[120px]">
                 {townModels}
               </span>
+              {state.winner === 'town' && <span className="text-blue-700 dark:text-blue-400 text-[10px] font-bold">won</span>}
             </div>
 
             <div className="flex-1" />

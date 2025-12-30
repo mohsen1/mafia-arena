@@ -1,4 +1,4 @@
-import { Trophy, Loader2, User, Clock } from "lucide-react";
+import { Loader2, User, Clock } from "lucide-react";
 import { ThemeIcon } from "~/components/ThemeIcon";
 import { getTheme } from "~/lib/themes";
 import type { GameProgress, WaitingFor, BatchStatus } from "~/lib/game-types";
@@ -94,18 +94,24 @@ export function GameHeader({
         <div className="hidden sm:block h-4 w-px bg-border/30" />
 
         {/* Matchup - full width on mobile */}
-        <div id="teams-display" className="flex items-center gap-2 w-full sm:w-auto order-last sm:order-none">
-          {winner === 'mafia' && <Trophy size={12} className="text-amber-500 shrink-0" />}
-          <span className={`font-bold font-display tracking-wide ${winner === 'town' ? 'opacity-50' : ''} text-rose-500 shrink-0`}>MAFIA</span>
-          <span id="mafia-models" className={`font-mono text-[10px] text-foreground/80 truncate max-w-[80px] sm:max-w-[140px] ${winner === 'town' ? 'opacity-50' : ''}`}>
+        <div id="teams-display" className="flex items-center gap-2.5 w-full sm:w-auto order-last sm:order-none">
+          <span className="font-bold font-display tracking-wide text-[13px] text-red-700 dark:text-red-400 shrink-0 relative">
+            MAFIA
+            {winner === 'mafia' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-700 dark:bg-red-400" />}
+          </span>
+          <span id="mafia-models" className="font-mono text-[11px] font-semibold text-foreground truncate max-w-[80px] sm:max-w-[140px]">
             {mafiaModels || '—'}
           </span>
-          <span className="text-muted-foreground/50 text-[9px] font-display shrink-0">vs</span>
-          {winner === 'town' && <Trophy size={12} className="text-amber-500 shrink-0" />}
-          <span className={`font-bold font-display tracking-wide ${winner === 'mafia' ? 'opacity-50' : ''} text-indigo-500 shrink-0`}>TOWN</span>
-          <span id="town-models" className={`font-mono text-[10px] text-foreground/80 truncate max-w-[80px] sm:max-w-[140px] ${winner === 'mafia' ? 'opacity-50' : ''}`}>
+          {winner === 'mafia' && <span className="text-red-700 dark:text-red-400 text-[10px] font-bold shrink-0">won</span>}
+          <span className="text-foreground font-medium text-[10px] font-display shrink-0">vs</span>
+          <span className="font-bold font-display tracking-wide text-[13px] text-blue-700 dark:text-blue-400 shrink-0 relative">
+            TOWN
+            {winner === 'town' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-700 dark:bg-blue-400" />}
+          </span>
+          <span id="town-models" className="font-mono text-[11px] font-semibold text-foreground truncate max-w-[80px] sm:max-w-[140px]">
             {townModels || '—'}
           </span>
+          {winner === 'town' && <span className="text-blue-700 dark:text-blue-400 text-[10px] font-bold shrink-0">won</span>}
         </div>
 
         <div className="flex-1 hidden sm:block" />
