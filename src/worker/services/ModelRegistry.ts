@@ -36,6 +36,17 @@ const BATCH_PROVIDER_MAP: Record<string, { provider: BatchProvider; discount: nu
   fireworks: { provider: 'fireworks', discount: 40 },
 };
 
+/**
+ * Known direct API providers that can be inferred from model ID prefix.
+ * When a model is not in the database but its prefix matches one of these,
+ * we route to that provider instead of defaulting to OpenRouter.
+ */
+const DIRECT_PROVIDERS = new Set<ApiProvider>([
+  'openai', 'anthropic', 'google', 'cerebras', 'fireworks', 
+  'minimax', 'xai', 'deepseek', 'together', 'groq', 
+  'sambanova', 'hyperbolic', 'mistral', 'cohere', 'ai21',
+]);
+
 // =============================================================================
 // DB RECORD TYPE
 // =============================================================================
@@ -285,18 +296,36 @@ export class ModelRegistry {
   }
 
   /**
-   * Create fallback context for unknown models (OpenRouter passthrough).
+   * Create fallback context for unknown models.
+   * 
+   * If the model ID prefix matches a known direct provider (e.g., "fireworks/"),
+   * we route to that provider. Otherwise, we default to OpenRouter.
+   * 
+   * This prevents issues where a model like "fireworks/glm-4p7" exists in code
+   * but not in D1, and would incorrectly be routed to OpenRouter.
    */
   private createFallbackContext(modelId: string): ModelContext {
     const family = this.extractFamily(modelId);
     const displayName = this.extractDisplayName(modelId);
     
+    // Check if the prefix matches a known direct provider
+    // e.g., "fireworks/glm-4p7" -> apiProvider: "fireworks", apiModelId: "glm-4p7"
+    let apiProvider: ApiProvider = 'openrouter';
+    let apiModelId = modelId;
+    
+    if (DIRECT_PROVIDERS.has(family as ApiProvider)) {
+      apiProvider = family as ApiProvider;
+      // For direct providers, use the display name (part after the prefix)
+      // e.g., "fireworks/glm-4p7" -> "glm-4p7"
+      apiModelId = displayName;
+    }
+    
     return {
       id: modelId,
       family,
       displayName,
-      apiProvider: 'openrouter',
-      apiModelId: modelId,
+      apiProvider,
+      apiModelId,
       pricing: DEFAULT_PRICING,
       batchPricing: { supported: false, discountPercent: 0, batchProvider: null },
       contextLength: DEFAULT_CONTEXT_LENGTH,

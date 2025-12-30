@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import { eq, desc, inArray, sql, and } from 'drizzle-orm';
-import type { Env, GameQueueMessage } from '../types.js';
+import type { Env, GameQueueMessage, ApiProvider } from '../types.js';
 import { Errors } from '../utils/errors.js';
 import { getRandomTheme } from '../utils/random-config.js';
 import { generateTraceId } from '../utils/trace.js';
@@ -17,6 +17,57 @@ import { getGameStateFromKV } from '../utils/workflow-sync.js';
 import { getSystemState } from '../batch/service.js';
 
 const games = new Hono<{ Bindings: Env }>();
+
+/**
+ * Map of providers to their env key names.
+ * Used for validating system API keys.
+ */
+const PROVIDER_ENV_KEYS: Record<ApiProvider, string> = {
+  openrouter: 'OPENROUTER_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  google: 'GOOGLE_API_KEY',
+  xai: 'XAI_API_KEY',
+  deepseek: 'DEEPSEEK_API_KEY',
+  together: 'TOGETHER_API_KEY',
+  groq: 'GROQ_API_KEY',
+  cerebras: 'CEREBRAS_API_KEY',
+  fireworks: 'FIREWORKS_API_KEY',
+  minimax: 'MINIMAX_API_KEY',
+  sambanova: 'SAMBANOVA_API_KEY',
+  hyperbolic: 'HYPERBOLIC_API_KEY',
+  mistral: 'MISTRAL_API_KEY',
+  cohere: 'COHERE_API_KEY',
+  ai21: 'AI21_API_KEY',
+};
+
+/**
+ * Validate that system API keys are configured for all required providers.
+ * Throws Errors.BadRequest if any required keys are missing.
+ */
+function validateSystemKeys(requiredProviders: Set<string>, env: Env): void {
+  const missingKeys: string[] = [];
+  
+  for (const provider of requiredProviders) {
+    const envKey = PROVIDER_ENV_KEYS[provider as ApiProvider];
+    if (!envKey) {
+      // Unknown provider - skip validation (will fail at runtime with clear error)
+      continue;
+    }
+    
+    const keyValue = (env as unknown as Record<string, string | undefined>)[envKey];
+    if (!keyValue) {
+      missingKeys.push(`${provider} (${envKey})`);
+    }
+  }
+  
+  if (missingKeys.length > 0) {
+    throw Errors.BadRequest(
+      `System API keys not configured for: ${missingKeys.join(', ')}. ` +
+      `Please contact the administrator to add the missing keys.`
+    );
+  }
+}
 
 /**
  * POST /api/games/run - Queue a batch of games.
@@ -60,6 +111,12 @@ games.post('/run', async (c) => {
   if (!body.config || !body.config.teams || body.config.teams.length === 0) {
     throw Errors.BadRequest('Invalid game configuration: teams required');
   }
+
+  // Validate system API keys are configured for required providers
+  // This prevents queuing games that will fail on workflow start
+  const modelIds = body.config.teams.map(t => t.modelId);
+  const requiredProviders = await getRequiredProviders(modelIds, env);
+  validateSystemKeys(requiredProviders, env);
 
   // Generate trace ID for this batch request
   const traceId = generateTraceId();
@@ -262,10 +319,17 @@ games.post('/run-direct', async (c) => {
     
     console.log(`User ${session.email} running game with their own API keys for: ${[...requiredProviders].join(', ')}`);
   } else if (session?.isAdmin) {
-    // Admin user: use system keys
-    console.log(`Admin ${session.email} running game with system API keys`);
+    // Admin user: use system keys - validate they are configured
+    const modelIds = body.config.teams.map(t => t.modelId);
+    const requiredProviders = await getRequiredProviders(modelIds, env);
+    validateSystemKeys(requiredProviders, env);
+    console.log(`Admin ${session.email} running game with system API keys for: ${[...requiredProviders].join(', ')}`);
   } else {
     // No session: use system keys (for backwards compatibility with queue/admin routes)
+    // Still validate that required keys are configured
+    const modelIds = body.config.teams.map(t => t.modelId);
+    const requiredProviders = await getRequiredProviders(modelIds, env);
+    validateSystemKeys(requiredProviders, env);
     // This path is typically used by the admin UI which handles auth separately
   }
 

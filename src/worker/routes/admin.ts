@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import { eq, desc, like, or, sql, ne } from 'drizzle-orm';
-import type { Env, BatchConfig } from '../types.js';
+import type { Env, BatchConfig, ApiProvider } from '../types.js';
 import { Errors, generateTraceId, checkAllKeys } from '../utils/index.js';
 import { getRandomTheme } from '../utils/random-config.js';
 import {
@@ -23,6 +23,85 @@ import { killHangingGames, getRunningGamesCount } from './admin-cleanup.js';
 import { createDb } from '../db/drizzle.js';
 import * as schema from '../db/schema.js';
 import { getGameStateFromKV, deleteGameStateFromKV } from '../utils/workflow-sync.js';
+import { inferProviderFromModelId } from '../ai/factory.js';
+
+/**
+ * Map of providers to their env key names.
+ * Used for validating system API keys.
+ */
+const PROVIDER_ENV_KEYS: Record<ApiProvider, string> = {
+  openrouter: 'OPENROUTER_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  google: 'GOOGLE_API_KEY',
+  xai: 'XAI_API_KEY',
+  deepseek: 'DEEPSEEK_API_KEY',
+  together: 'TOGETHER_API_KEY',
+  groq: 'GROQ_API_KEY',
+  cerebras: 'CEREBRAS_API_KEY',
+  fireworks: 'FIREWORKS_API_KEY',
+  minimax: 'MINIMAX_API_KEY',
+  sambanova: 'SAMBANOVA_API_KEY',
+  hyperbolic: 'HYPERBOLIC_API_KEY',
+  mistral: 'MISTRAL_API_KEY',
+  cohere: 'COHERE_API_KEY',
+  ai21: 'AI21_API_KEY',
+};
+
+/**
+ * Get required providers for a list of model IDs.
+ */
+async function getRequiredProviders(modelIds: string[], env: Env): Promise<Set<string>> {
+  const providers = new Set<string>();
+  
+  const uniqueModelIds = [...new Set(modelIds)];
+  if (uniqueModelIds.length > 0) {
+    const placeholders = uniqueModelIds.map(() => '?').join(',');
+    const result = await env.DB.prepare(
+      `SELECT id, api_provider FROM models WHERE id IN (${placeholders})`
+    ).bind(...uniqueModelIds).all<{ id: string; api_provider: string }>();
+    
+    const dbProviderMap = new Map(
+      (result.results ?? []).map(m => [m.id, m.api_provider])
+    );
+    
+    for (const modelId of modelIds) {
+      const dbProvider = dbProviderMap.get(modelId);
+      if (dbProvider) {
+        providers.add(dbProvider);
+      } else {
+        providers.add(inferProviderFromModelId(modelId));
+      }
+    }
+  }
+  
+  return providers;
+}
+
+/**
+ * Validate that system API keys are configured for all required providers.
+ * Throws Errors.BadRequest if any required keys are missing.
+ */
+function validateSystemKeys(requiredProviders: Set<string>, env: Env): void {
+  const missingKeys: string[] = [];
+  
+  for (const provider of requiredProviders) {
+    const envKey = PROVIDER_ENV_KEYS[provider as ApiProvider];
+    if (!envKey) continue;
+    
+    const keyValue = (env as unknown as Record<string, string | undefined>)[envKey];
+    if (!keyValue) {
+      missingKeys.push(`${provider} (${envKey})`);
+    }
+  }
+  
+  if (missingKeys.length > 0) {
+    throw Errors.BadRequest(
+      `System API keys not configured for: ${missingKeys.join(', ')}. ` +
+      `Please contact the administrator to add the missing keys.`
+    );
+  }
+}
 
 const admin = new Hono<{ Bindings: Env }>();
 
@@ -365,6 +444,11 @@ admin.post('/games/run-live', async (c) => {
   if (mafiaPlayers !== config.mafiaCount) {
     throw Errors.BadRequest(`Mafia team counts (${mafiaPlayers}) must equal mafiaCount (${config.mafiaCount})`);
   }
+
+  // Validate system API keys are configured for required providers
+  const modelIds = config.teams.map(t => t.modelId);
+  const requiredProviders = await getRequiredProviders(modelIds, env);
+  validateSystemKeys(requiredProviders, env);
 
   // Generate IDs and trace ID
   const traceId = generateTraceId();
