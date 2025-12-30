@@ -282,11 +282,22 @@ export function MatchupMatrix({ matchupsData, eloData, compact = false, showTopM
                   {displayModels.map((colModel) => {
                     const cell = matrix[rowModel.display_name]?.[colModel.display_name];
                     const isSelf = rowModel.display_name === colModel.display_name;
+                    const selfPlay = isSelf ? selfPlayMap.get(rowModel.display_name) : null;
                     
                     return (
                       <td key={colModel.id} className="p-px">
                         {isSelf ? (
-                          <div className="w-full h-7 bg-muted/30 flex items-center justify-center text-muted-foreground">—</div>
+                          selfPlay && selfPlay.games > 0 ? (
+                            <div 
+                              className="w-full h-7 bg-muted/40 flex items-center justify-center text-[9px] font-semibold hover:ring-1 hover:ring-white/30"
+                              title={`${rowModel.display_name} self-play\n${selfPlay.mafiaWins}M / ${selfPlay.townWins}T (${selfPlay.games} games)`}
+                            >
+                              <span className="text-rose-500">M</span>
+                              <span className="text-muted-foreground ml-0.5">{Math.round((selfPlay.mafiaWins / selfPlay.games) * 100)}%</span>
+                            </div>
+                          ) : (
+                            <div className="w-full h-7 bg-muted/30 flex items-center justify-center text-muted-foreground">—</div>
+                          )
                         ) : cell ? (
                           <div 
                             className="w-full h-7 flex items-center justify-center text-white text-[9px] font-semibold hover:ring-1 hover:ring-white/50"
