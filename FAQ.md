@@ -276,11 +276,9 @@ Mafia Arena was built by **Mohsen Azimi**.
 
 Running games costs money—lots of it. The more games we run, the better our benchmarks become. If you have API keys from OpenAI, Anthropic, Google, or other supported providers, consider running some games using your API keys to help expand the dataset. Every game helps us understand AI social intelligence better.
 
-**Batch API Makes It Affordable**
-
 We use batch APIs (40-50% discount) to keep costs manageable, but we still need help covering the remaining costs. Running games with your API keys directly enables more comprehensive benchmarking and more accurate leaderboards.
 
 **Share Feedback**
 
-Found a bug? Have ideas for improvements? Questions about the methodology? Report issues on [GitHub](https://github.com/mohsen1/werewolf-ai/issues) or reach out on Twitter—your feedback helps make Mafia Arena better for everyone.
+Found a bug? Have ideas for improvements? Questions about the methodology? Report issues on [GitHub](https://github.com/mohsen1/mafia-arena-issues) 
 
