@@ -15,6 +15,26 @@ import { BaseBatchProvider } from './BaseBatchProvider.js';
 /** Fireworks API base URL */
 const FIREWORKS_API_URL = 'https://api.fireworks.ai/inference/v1';
 
+/** 
+ * Mapping from internal model IDs to Fireworks API model IDs.
+ * Fireworks requires the full account path format.
+ */
+const FIREWORKS_MODEL_MAP: Record<string, string> = {
+  'fireworks/glm-4p7': 'accounts/fireworks/models/glm-4p7',
+  'fireworks/deepseek-r1': 'accounts/fireworks/models/deepseek-r1',
+  'fireworks/deepseek-v3': 'accounts/fireworks/models/deepseek-v3',
+  'fireworks/qwen3-coder-480b': 'accounts/fireworks/models/qwen3-coder-480b-a35b-instruct',
+  'fireworks/llama-3.3-70b': 'accounts/fireworks/models/llama-v3p3-70b-instruct',
+  'fireworks/llama-3.1-8b': 'accounts/fireworks/models/llama-v3p1-8b-instruct',
+  // Fallback short names (without fireworks/ prefix)
+  'glm-4p7': 'accounts/fireworks/models/glm-4p7',
+  'deepseek-r1': 'accounts/fireworks/models/deepseek-r1',
+  'deepseek-v3': 'accounts/fireworks/models/deepseek-v3',
+  'qwen3-coder-480b': 'accounts/fireworks/models/qwen3-coder-480b-a35b-instruct',
+  'llama-3.3-70b': 'accounts/fireworks/models/llama-v3p3-70b-instruct',
+  'llama-3.1-8b': 'accounts/fireworks/models/llama-v3p1-8b-instruct',
+};
+
 /**
  * Fireworks Batch API provider implementation.
  * 
@@ -172,15 +192,28 @@ export class FireworksBatch extends BaseBatchProvider {
    * @param modelId - The model ID from the original request
    */
   formatRequest(request: CompletionRequest, customId: string, modelId: string): unknown {
-    let model = modelId;
-    if (model.startsWith('fireworks/')) model = model.slice('fireworks/'.length);
+    // Convert internal model ID to Fireworks API model ID
+    // Fireworks requires full account path: accounts/fireworks/models/...
+    let apiModelId = FIREWORKS_MODEL_MAP[modelId];
+    
+    // If not found in map, try stripping prefix and looking up
+    if (!apiModelId && modelId.startsWith('fireworks/')) {
+      const shortId = modelId.slice('fireworks/'.length);
+      apiModelId = FIREWORKS_MODEL_MAP[shortId];
+    }
+    
+    // Final fallback: assume it's already a valid API model ID or use as-is
+    if (!apiModelId) {
+      this.log.warn('Unknown Fireworks model ID, using as-is', { modelId });
+      apiModelId = modelId.startsWith('accounts/') ? modelId : `accounts/fireworks/models/${modelId.replace('fireworks/', '')}`;
+    }
 
     return {
       custom_id: customId,
       method: 'POST',
       url: '/v1/chat/completions',
       body: {
-        model,
+        model: apiModelId,
         max_tokens: request.maxTokens ?? 4096,
         messages: [
           { role: 'system', content: request.systemPrompt },

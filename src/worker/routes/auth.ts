@@ -132,9 +132,10 @@ function isSecureContext(request: Request): boolean {
  */
 function getCookieDomain(request: Request): string {
   const host = request.headers.get('host') || '';
-  // Production: set domain to allow cross-subdomain cookie sharing
+  // Production: set domain with leading dot for cross-subdomain cookie sharing
+  // Leading dot ensures compatibility with all browsers and subdomains
   if (host.includes('mafia-arena.com')) {
-    return 'Domain=mafia-arena.com;';
+    return 'Domain=.mafia-arena.com;';
   }
   // Development: don't set domain (stays on exact origin)
   return '';
@@ -142,20 +143,28 @@ function getCookieDomain(request: Request): string {
 
 /**
  * Create a session cookie header.
+ * Uses SameSite=None in production to allow cross-subdomain requests (including WebSocket).
+ * SameSite=None requires Secure flag, which is set in HTTPS contexts.
  */
 function createSessionCookie(sessionId: string, maxAge: number, request: Request): string {
-  const secureFlag = isSecureContext(request) ? 'Secure;' : '';
+  const isSecure = isSecureContext(request);
+  const secureFlag = isSecure ? 'Secure;' : '';
   const domainFlag = getCookieDomain(request);
-  return `${SESSION_COOKIE}=${sessionId}; Path=/; ${domainFlag} HttpOnly; ${secureFlag} SameSite=Lax; Max-Age=${maxAge}`;
+  // Use SameSite=None in production (with Secure) to allow cross-subdomain requests
+  // Fall back to Lax in development (without Secure, None won't work)
+  const sameSite = isSecure ? 'None' : 'Lax';
+  return `${SESSION_COOKIE}=${sessionId}; Path=/; ${domainFlag} HttpOnly; ${secureFlag} SameSite=${sameSite}; Max-Age=${maxAge}`;
 }
 
 /**
  * Create a cookie to clear the session.
  */
 function clearSessionCookie(request: Request): string {
-  const secureFlag = isSecureContext(request) ? 'Secure;' : '';
+  const isSecure = isSecureContext(request);
+  const secureFlag = isSecure ? 'Secure;' : '';
   const domainFlag = getCookieDomain(request);
-  return `${SESSION_COOKIE}=; Path=/; ${domainFlag} HttpOnly; ${secureFlag} SameSite=Lax; Max-Age=0`;
+  const sameSite = isSecure ? 'None' : 'Lax';
+  return `${SESSION_COOKIE}=; Path=/; ${domainFlag} HttpOnly; ${secureFlag} SameSite=${sameSite}; Max-Age=0`;
 }
 
 /**

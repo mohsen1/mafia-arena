@@ -29,6 +29,8 @@ const HEALTH_CHECK_INTERVAL_MS = 30000;
 const HEALTH_CHECK_INTERVAL_STUCK_MS = 10000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY_MS = 1000;
+const MAX_EMPTY_SYNC_RETRIES = 3;
+const EMPTY_SYNC_RETRY_DELAY_MS = 2000;
 
 // =============================================================================
 // Initial State
@@ -372,9 +374,13 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
   const lastEventCountRef = useRef(0);
   const pollDelayRef = useRef(POLL_INTERVAL_MS);
   const isMountedRef = useRef(true);
+  const emptySyncRetriesRef = useRef(0);
+  const emptySyncRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Ref for triggering polling fallback from handleMessage
   const triggerPollingFallbackRef = useRef<(() => void) | null>(null);
+  // Ref for requesting re-sync via WS reconnect
+  const requestResyncRef = useRef<(() => void) | null>(null);
 
   // Handle incoming WebSocket messages
   const handleMessage = useCallback((msg: WsMessage) => {
@@ -383,14 +389,33 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
     if (msg.type === 'SYNC') {
       const eventCount = msg.events?.length || 0;
       
-      // CRITICAL FIX: If DO returns empty SYNC for a running game, the DO
-      // likely woke up from hibernation without state. Fall back to polling
-      // which queries KV directly and should have the actual game state.
+      // If DO returns empty SYNC for a running game, the DO may have woken
+      // from hibernation without state. Retry a few times before falling back
+      // to polling - KV state might take a moment to be available.
       if (eventCount === 0 && msg.status === 'running') {
-        console.warn('Empty SYNC for running game - falling back to polling');
-        triggerPollingFallbackRef.current?.();
+        emptySyncRetriesRef.current++;
+        console.warn(`Empty SYNC for running game (attempt ${emptySyncRetriesRef.current}/${MAX_EMPTY_SYNC_RETRIES})`);
+        
+        if (emptySyncRetriesRef.current >= MAX_EMPTY_SYNC_RETRIES) {
+          console.warn('Max empty SYNC retries reached - falling back to polling');
+          triggerPollingFallbackRef.current?.();
+          return;
+        }
+        
+        // Schedule a WS reconnect to request fresh state
+        if (emptySyncRetryTimeoutRef.current) {
+          clearTimeout(emptySyncRetryTimeoutRef.current);
+        }
+        emptySyncRetryTimeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            requestResyncRef.current?.();
+          }
+        }, EMPTY_SYNC_RETRY_DELAY_MS);
         return;
       }
+      
+      // Got valid SYNC - reset retry counter
+      emptySyncRetriesRef.current = 0;
       
       dispatch({
         type: 'SYNC',
@@ -468,6 +493,15 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         setWsConnecting(false);
         setWsConnected(false);
         dispatch({ type: 'SET_CONNECTION_STATUS', connectionStatus: 'polling' });
+      };
+      
+      // Set up resync callback for empty SYNC retry
+      requestResyncRef.current = () => {
+        // Close and reconnect to get a fresh SYNC from DO
+        ws.close(1000);
+        wsRef.current = null;
+        setWsConnected(false);
+        setTimeout(connect, 500);
       };
 
       ws.onopen = () => {
@@ -608,6 +642,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
   // Initialize connection
   useEffect(() => {
     isMountedRef.current = true;
+    emptySyncRetriesRef.current = 0;
     connect();
     
     return () => {
@@ -619,6 +654,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
       if (pollIntervalRef.current) clearTimeout(pollIntervalRef.current);
       if (healthCheckRef.current) clearTimeout(healthCheckRef.current);
       if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
+      if (emptySyncRetryTimeoutRef.current) clearTimeout(emptySyncRetryTimeoutRef.current);
     };
   }, [connect]);
 
