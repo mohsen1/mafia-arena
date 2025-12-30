@@ -37,9 +37,9 @@ interface Batch {
   status: string;
   completedGames: number;
   totalGames: number;
-  progress: number;
+  progress: string;
   actualCostUsd: number;
-  createdAt: number;
+  createdAt: string;
 }
 
 interface RunningGames {
@@ -105,7 +105,7 @@ export default function AdminDashboard() {
 
       const [statsRes, batchesRes] = await Promise.all([
         fetch(`${apiUrl}/api/admin/stats/live`, { headers, credentials: "include" }),
-        fetch(`${apiUrl}/api/admin/batches?limit=5`, { headers, credentials: "include" }),
+        fetch(`${apiUrl}/api/batches?limit=5`, { headers, credentials: "include" }),
       ]);
 
       if (statsRes.status === 401 || batchesRes.status === 401) {
@@ -527,7 +527,7 @@ export default function AdminDashboard() {
                         ${batch.actualCostUsd.toFixed(4)}
                       </td>
                       <td className="py-3 px-4 text-right tabular-nums text-muted-foreground">
-                        {new Date(batch.createdAt * 1000).toLocaleDateString()}
+                        {new Date(batch.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   );

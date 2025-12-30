@@ -787,7 +787,7 @@ export async function createBatch(data: {
   };
   useBatchAPI?: boolean;
 }): Promise<{ success: boolean; batchId: string; estimatedCostUsd: number }> {
-  const res = await fetch(`${API_URL}/api/admin/batches`, 
+  const res = await fetch(`${API_URL}/api/batches`, 
     getAdminFetchOptions({
       method: 'POST',
       body: JSON.stringify(data),
@@ -814,7 +814,7 @@ export async function listBatches(options?: {
   if (options?.limit) params.set('limit', String(options.limit));
   if (options?.offset) params.set('offset', String(options.offset));
 
-  const res = await fetch(`${API_URL}/api/admin/batches?${params}`, 
+  const res = await fetch(`${API_URL}/api/batches?${params}`, 
     getAdminFetchOptions()
   );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
@@ -826,7 +826,7 @@ export async function listBatches(options?: {
  * Get batch details.
  */
 export async function getBatchAdmin(batchId: string): Promise<BatchDetail> {
-  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}`, 
+  const res = await fetch(`${API_URL}/api/batches/${batchId}`, 
     getAdminFetchOptions()
   );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
@@ -838,7 +838,7 @@ export async function getBatchAdmin(batchId: string): Promise<BatchDetail> {
  * Cancel a batch.
  */
 export async function cancelBatch(batchId: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_URL}/api/admin/batches/${batchId}/cancel`, 
+  const res = await fetch(`${API_URL}/api/batches/${batchId}/cancel`, 
     getAdminFetchOptions({ method: 'POST' })
   );
   if (res.status === 401) throw new Error('AUTH_REQUIRED');
