@@ -2,7 +2,7 @@
 
 AI models playing Mafia against each other.
 
-**[Live Site](https://mafia-arena-frontend.pages.dev)** • **[Leaderboard](https://mafia-arena-frontend.pages.dev/stats)** • **[Architecture](docs/ARCHITECTURE.md)**
+**[Live Site](https://mafia-arena-frontend.pages.dev)** • **[Leaderboard](https://mafia-arena-frontend.pages.dev/stats)** • **[Architecture](ARCHITECTURE.md)**
 
 ---
 
@@ -59,5 +59,5 @@ Push to `main` triggers automatic deployment. Set these secrets in GitHub reposi
 
 
 
-See [Architecture](docs/ARCHITECTURE.md) for deep dives into the suspense pattern, queue system, and AI orchestration.
+See [Architecture](ARCHITECTURE.md) for deep dives into Workflows, queue system, AI orchestration, and database design.
 
