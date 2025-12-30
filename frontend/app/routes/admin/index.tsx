@@ -23,6 +23,7 @@ import {
   Pause,
   Settings,
   TrendingUp,
+  Users,
 } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
@@ -419,6 +420,7 @@ export default function AdminDashboard() {
             <ActionLink to="/admin/batches/new" icon={Plus} label="New Batch" />
             <ActionLink to="/admin/batches" icon={Layers} label="All Batches" />
             <ActionLink to="/admin/models" icon={Database} label="Models" />
+            <ActionLink to="/admin/users" icon={Users} label="Users" />
             <ActionLink to="/admin/keys" icon={Key} label="API Keys" />
             <ActionLink 
               to="/admin/games/failed" 

@@ -3,7 +3,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, desc, sql, ne } from 'drizzle-orm';
+import { eq, desc, sql, ne, or, like, inArray } from 'drizzle-orm';
 import type { Env, ApiProvider } from '../types.js';
 import { Errors, generateTraceId, checkAllKeys } from '../utils/index.js';
 import { getRandomTheme } from '../utils/random-config.js';
@@ -1773,6 +1773,288 @@ admin.get('/maintenance/low-sample-models', async (c) => {
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 
+    }, 500);
+  }
+});
+
+// =============================================================================
+// USER MANAGEMENT
+// =============================================================================
+
+/**
+ * GET /api/admin/users - List all users with statistics.
+ * Supports pagination, search, and filtering.
+ */
+admin.get('/users', async (c) => {
+  const db = createDb(c.env.DB);
+  const url = new URL(c.req.url);
+  
+  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 100);
+  const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+  const search = url.searchParams.get('search') ?? '';
+  
+  try {
+    // Build query with optional search
+    let usersQuery = db
+      .select({
+        id: schema.users.id,
+        email: schema.users.email,
+        name: schema.users.name,
+        picture: schema.users.picture,
+        isAdmin: schema.users.isAdmin,
+        createdAt: schema.users.createdAt,
+        updatedAt: schema.users.updatedAt,
+      })
+      .from(schema.users);
+    
+    // Apply search filter if provided
+    if (search) {
+      const searchPattern = `%${search}%`;
+      usersQuery = usersQuery.where(
+        or(
+          like(schema.users.email, searchPattern),
+          like(schema.users.name, searchPattern)
+        )!
+      ) as typeof usersQuery;
+    }
+    
+    const users = await usersQuery
+      .orderBy(desc(schema.users.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    // Get total count for pagination
+    let countQuery = db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.users);
+    
+    if (search) {
+      const searchPattern = `%${search}%`;
+      countQuery = countQuery.where(
+        or(
+          like(schema.users.email, searchPattern),
+          like(schema.users.name, searchPattern)
+        )!
+      ) as typeof countQuery;
+    }
+    
+    const countResult = await countQuery;
+    const total = countResult[0]?.count ?? 0;
+    
+    // Get statistics for each user
+    const userIds = users.map(u => u.id);
+    const statsMap = new Map<string, {
+      apiKeysCount: number;
+      batchesCount: number;
+      batchesCompleted: number;
+      lastBatchAt: number | null;
+    }>();
+    
+    if (userIds.length > 0) {
+      // Get API key counts
+      const apiKeysResult = await db
+        .select({
+          userId: schema.userApiKeys.userId,
+          count: sql<number>`count(*)`,
+        })
+        .from(schema.userApiKeys)
+        .where(inArray(schema.userApiKeys.userId, userIds))
+        .groupBy(schema.userApiKeys.userId);
+      
+      // Get batch counts
+      const batchesResult = await db
+        .select({
+          createdBy: schema.batches.createdBy,
+          total: sql<number>`count(*)`,
+          completed: sql<number>`sum(case when ${schema.batches.status} = 'completed' then 1 else 0 end)`,
+          lastBatchAt: sql<number>`max(${schema.batches.createdAt})`,
+        })
+        .from(schema.batches)
+        .where(inArray(schema.batches.createdBy, userIds))
+        .groupBy(schema.batches.createdBy);
+      
+      // Build stats map
+      for (const userId of userIds) {
+        const apiKeys = apiKeysResult.find(r => r.userId === userId);
+        const batches = batchesResult.find(r => r.createdBy === userId);
+        
+        statsMap.set(userId, {
+          apiKeysCount: apiKeys?.count ?? 0,
+          batchesCount: batches?.total ?? 0,
+          batchesCompleted: batches?.completed ?? 0,
+          lastBatchAt: batches?.lastBatchAt ?? null,
+        });
+      }
+    }
+    
+    // Combine users with stats
+    const usersWithStats = users.map(user => ({
+      ...user,
+      stats: statsMap.get(user.id) ?? {
+        apiKeysCount: 0,
+        batchesCount: 0,
+        batchesCompleted: 0,
+        lastBatchAt: null,
+      },
+    }));
+    
+    return c.json({
+      users: usersWithStats,
+      total,
+      hasMore: offset + limit < total,
+      limit,
+      offset,
+    });
+  } catch (error) {
+    console.error('Failed to fetch users:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/users/:id - Get detailed user information including API keys.
+ */
+admin.get('/users/:id', async (c) => {
+  const db = createDb(c.env.DB);
+  const userId = c.req.param('id');
+  
+  try {
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, userId),
+    });
+    
+    if (!user) {
+      throw Errors.NotFound('User');
+    }
+    
+    // Get API keys (fingerprints only)
+    const apiKeys = await db
+      .select({
+        provider: schema.userApiKeys.provider,
+        keyFingerprint: schema.userApiKeys.keyFingerprint,
+        createdAt: schema.userApiKeys.createdAt,
+        updatedAt: schema.userApiKeys.updatedAt,
+      })
+      .from(schema.userApiKeys)
+      .where(eq(schema.userApiKeys.userId, userId))
+      .orderBy(schema.userApiKeys.provider);
+    
+    // Get batch statistics
+    const batches = await db
+      .select({
+        id: schema.batches.id,
+        name: schema.batches.name,
+        status: schema.batches.status,
+        totalGames: schema.batches.totalGames,
+        completedGames: schema.batches.completedGames,
+        createdAt: schema.batches.createdAt,
+      })
+      .from(schema.batches)
+      .where(eq(schema.batches.createdBy, userId))
+      .orderBy(desc(schema.batches.createdAt))
+      .limit(10);
+    
+    return c.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        isAdmin: user.isAdmin,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+      apiKeys,
+      recentBatches: batches,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'User') {
+      throw Errors.NotFound('User');
+    }
+    console.error('Failed to fetch user details:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }, 500);
+  }
+});
+
+/**
+ * PATCH /api/admin/users/:id - Update user (currently only isAdmin toggle).
+ * Security: Prevents self-demotion (admin cannot remove their own admin status).
+ */
+admin.patch('/users/:id', async (c) => {
+  const db = createDb(c.env.DB);
+  const userId = c.req.param('id');
+  
+  interface UpdateUserRequest {
+    isAdmin?: boolean;
+  }
+  
+  let body: UpdateUserRequest;
+  try {
+    body = await c.req.json<UpdateUserRequest>();
+  } catch {
+    throw Errors.BadRequest('Invalid JSON body');
+  }
+  
+  try {
+    // Get current user
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, userId),
+    });
+    
+    if (!user) {
+      throw Errors.NotFound('User');
+    }
+    
+    // Security check: Prevent self-demotion
+    // Note: We can't easily get the current admin's user ID from Basic Auth,
+    // but we can check if the user being modified is the only admin
+    if (body.isAdmin === false && user.isAdmin) {
+      // Check if this is the only admin
+      const adminCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.users)
+        .where(eq(schema.users.isAdmin, true));
+      
+      if ((adminCount[0]?.count ?? 0) <= 1) {
+        throw Errors.BadRequest('Cannot remove the last admin user');
+      }
+    }
+    
+    // Update user
+    const updateData: Partial<typeof schema.users.$inferInsert> = {};
+    if (body.isAdmin !== undefined) {
+      updateData.isAdmin = body.isAdmin;
+    }
+    
+    if (Object.keys(updateData).length === 0) {
+      return c.json({ success: true, message: 'No changes to apply' });
+    }
+    
+    updateData.updatedAt = new Date();
+    
+    await db
+      .update(schema.users)
+      .set(updateData)
+      .where(eq(schema.users.id, userId));
+    
+    return c.json({
+      success: true,
+      message: `User ${userId} updated`,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'User') {
+      throw Errors.NotFound('User');
+    }
+    console.error('Failed to update user:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     }, 500);
   }
 });

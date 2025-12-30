@@ -39,6 +39,7 @@ export default [
   route("admin/batches/new", "routes/admin/batches/new.tsx"),
   route("admin/batches/:id", "routes/admin/batches/$id.tsx"),
   route("admin/models", "routes/admin/models/index.tsx"),
+  route("admin/users", "routes/admin/users/index.tsx"),
   route("admin/games/new", "routes/admin/games/new.tsx"),
   route("admin/games/failed", "routes/admin/games/failed.tsx"),
 ] satisfies RouteConfig;
