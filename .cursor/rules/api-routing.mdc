@@ -107,6 +107,14 @@ export function createRouter(): Router {
 
 ### POST /api/games/run
 
+## ⚠️ CRITICAL: Standard Game Configuration
+
+**ALL production games MUST use:**
+- **playerCount: 11** (9 town + 2 mafia)
+- **mafiaCount: 2**
+
+Games with different player counts are **excluded from rankings** and should only be used for local debugging.
+
 ```typescript
 // src/worker/api/games.ts
 
@@ -114,10 +122,17 @@ import { z } from 'zod';
 import { DatabaseService } from '../db/service';
 import { APIError, Errors } from '../utils/errors';
 
+// Standard configuration constants
+const STANDARD_PLAYER_COUNT = 11;
+const STANDARD_MAFIA_COUNT = 2;
+const STANDARD_TOWN_COUNT = 9;
+
 const RunGamesSchema = z.object({
   count: z.number().int().min(1).max(100),
   config: z.object({
+    // ⚠️ Production games MUST use playerCount: 11
     playerCount: z.number().int().min(3).max(15),
+    // ⚠️ Production games MUST use mafiaCount: 2
     mafiaCount: z.number().int().min(1),
     teams: z.array(z.object({
       modelId: z.string(),

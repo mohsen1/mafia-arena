@@ -8,6 +8,41 @@ alwaysApply: false
 
 You are building a pure TypeScript game engine for Mafia. This engine MUST be framework-agnostic with NO Cloudflare dependencies.
 
+## ⚠️ CRITICAL: Standard Game Configuration
+
+**ALL production games MUST use the standard configuration:**
+- **Total Players: 11**
+- **Town Players: 9**
+- **Mafia Players: 2**
+
+```typescript
+// ✅ Standard game configuration - ALWAYS USE THIS
+const STANDARD_CONFIG = {
+  playerCount: 11,
+  mafiaCount: 2,
+  // Teams: 9 town + 2 mafia = 11 total
+};
+
+// ❌ NEVER use smaller player counts except for debugging
+// Games with playerCount != 11 will be excluded from rankings
+const debugConfig = {
+  playerCount: 7,  // ❌ ONLY for local debugging!
+  mafiaCount: 2,
+};
+```
+
+**Why this matters:**
+- Leaderboard rankings require fair comparison between games
+- Games with different player counts have different difficulty levels
+- All production games must be comparable for ELO calculations
+
+When starting games via API or UI, ALWAYS verify:
+```typescript
+if (config.playerCount !== 11 || config.mafiaCount !== 2) {
+  console.warn('⚠️ Non-standard game config! This game will not count in rankings.');
+}
+```
+
 ## Core Principle: Purity
 
 The game engine in `/src/engine/` must:
