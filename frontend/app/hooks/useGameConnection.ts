@@ -426,6 +426,7 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         error: msg.error,
         players: msg.players,
         currentPhase: msg.currentPhase,
+        batchStatus: msg.batchStatus,
       });
       lastEventCountRef.current = eventCount;
     } else if (msg.type === 'EVENT' && msg.event) {

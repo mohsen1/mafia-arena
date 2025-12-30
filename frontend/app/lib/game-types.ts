@@ -170,6 +170,8 @@ export interface WsMessage {
   progress?: GameProgress;
   /** What game is actively waiting for */
   waitingFor?: WaitingFor | null;
+  /** Batch API status for discount pricing games */
+  batchStatus?: BatchStatus | null;
 }
 
 // =============================================================================
