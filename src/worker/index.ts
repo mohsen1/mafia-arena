@@ -398,6 +398,20 @@ async function handleBatchMessage(message: Message<BatchQueueMessage>, env: Env)
       } catch (dlqError) {
         console.error('Failed to log batch to DLQ table:', dlqError);
       }
+
+      // CRITICAL FIX: Mark batch as failed in DB so UI shows correct status
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      try {
+        await env.DB.prepare(`
+          UPDATE batches 
+          SET status = 'failed', error_message = ? 
+          WHERE id = ?
+        `).bind(`Queue processing failed after ${message.attempts} attempts: ${errorMessage}`, batchId).run();
+        console.log(`[${traceId || 'no-trace'}] Batch ${batchId} marked as failed in DB`);
+      } catch (dbError) {
+        console.error('Failed to update batch status to failed:', dbError);
+      }
+
       message.ack();
     } else {
       message.retry();

@@ -266,7 +266,7 @@ export const personaNamePatterns = sqliteTable('persona_name_patterns', {
 export const batches = sqliteTable('batches', {
   id: text('id').primaryKey(),
   name: text('name'),
-  status: text('status').$type<'queued' | 'processing' | 'completed' | 'cancelled' | 'paused'>().default('queued'),
+  status: text('status').$type<'queued' | 'processing' | 'completed' | 'cancelled' | 'paused' | 'failed'>().default('queued'),
   totalGames: integer('total_games').notNull(),
   completedGames: integer('completed_games').default(0),
   failedGames: integer('failed_games').default(0),

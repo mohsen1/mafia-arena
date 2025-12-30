@@ -100,11 +100,61 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
         },
       });
 
+    // Update batch statistics for affected batches
+    // Group games by batch_id and update each batch's failed_games count
+    const batchCounts = new Map<string, number>();
+    for (const game of staleGames) {
+      if (game.batch_id) {
+        batchCounts.set(game.batch_id, (batchCounts.get(game.batch_id) || 0) + 1);
+      }
+    }
+
+    const batchesUpdated: string[] = [];
+    const batchesCompleted: string[] = [];
+
+    for (const [batchId, failedCount] of batchCounts) {
+      // Increment failed_games for this batch
+      await c.env.DB.prepare(`
+        UPDATE batches 
+        SET failed_games = failed_games + ?
+        WHERE id = ?
+      `).bind(failedCount, batchId).run();
+
+      // Check if batch is now complete
+      const batchResult = await c.env.DB.prepare(`
+        SELECT total_games, completed_games, failed_games, status 
+        FROM batches WHERE id = ?
+      `).bind(batchId).first<{
+        total_games: number;
+        completed_games: number;
+        failed_games: number;
+        status: string;
+      }>();
+
+      if (batchResult && batchResult.status === 'processing') {
+        const totalFinished = batchResult.completed_games + batchResult.failed_games;
+        if (totalFinished >= batchResult.total_games) {
+          // Batch is complete - mark as failed since we killed games
+          await c.env.DB.prepare(`
+            UPDATE batches 
+            SET status = 'failed', 
+                completed_at = ?,
+                error_message = 'Batch completed with admin-killed games'
+            WHERE id = ?
+          `).bind(now, batchId).run();
+          batchesCompleted.push(batchId);
+        }
+      }
+      batchesUpdated.push(batchId);
+    }
+
     log.info('Killed hanging games', { 
       count: gameIds.length,
       neverStarted: neverStarted.length,
       hung: hung.length,
       gameIds: gameIds.slice(0, 5).join(', '), // Log first 5
+      batchesUpdated: batchesUpdated.length,
+      batchesCompleted: batchesCompleted.length,
     });
 
     return c.json({
@@ -115,7 +165,9 @@ export async function killHangingGames(c: Context<{ Bindings: Env }>): Promise<R
         hungAfterStart: hung.length,
       },
       gameIds: gameIds,
-      message: `Killed ${gameIds.length} game(s): ${neverStarted.length} never started, ${hung.length} hung after starting`,
+      batchesUpdated: batchesUpdated,
+      batchesCompleted: batchesCompleted,
+      message: `Killed ${gameIds.length} game(s): ${neverStarted.length} never started, ${hung.length} hung after starting. Updated ${batchesUpdated.length} batch(es), completed ${batchesCompleted.length} batch(es).`,
     });
 
   } catch (error) {

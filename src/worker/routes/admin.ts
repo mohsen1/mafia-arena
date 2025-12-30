@@ -3,22 +3,17 @@
  */
 
 import { Hono } from 'hono';
-import { eq, desc, like, or, sql, ne } from 'drizzle-orm';
-import type { Env, BatchConfig, ApiProvider } from '../types.js';
+import { eq, desc, sql, ne } from 'drizzle-orm';
+import type { Env, ApiProvider } from '../types.js';
 import { Errors, generateTraceId, checkAllKeys } from '../utils/index.js';
 import { getRandomTheme } from '../utils/random-config.js';
 import {
-  createBatch,
-  getBatch,
-  listBatches,
-  cancelBatch,
   estimateCost,
   pauseProcessing,
   resumeProcessing,
   getAdminStats,
-  MAX_BATCH_SIZE,
 } from '../batch/index.js';
-import { adminAuthMiddleware, batchRateLimitMiddleware } from '../middleware/index.js';
+import { adminAuthMiddleware } from '../middleware/index.js';
 import { killHangingGames, getRunningGamesCount } from './admin-cleanup.js';
 import { createDb } from '../db/drizzle.js';
 import * as schema from '../db/schema.js';
@@ -108,207 +103,58 @@ const admin = new Hono<{ Bindings: Env }>();
 // Apply admin auth to all routes in this router
 admin.use('*', adminAuthMiddleware);
 
+// =============================================================================
+// BATCH ROUTES (DEPRECATED - Use /api/batches instead)
+// =============================================================================
+// These admin batch routes are deprecated. Use /api/batches which handles
+// both regular users and admins with unified logic. Admin users can:
+// - Set useSystemKeys: true to use platform API keys
+// - Set useBatchAPI: true for 50% discount pricing
+// - Create up to 10,000 games per batch (no limits)
+// =============================================================================
+
 /**
- * POST /api/admin/batches - Create a new batch job.
+ * @deprecated Use POST /api/batches instead
+ * Admin batch creation redirects to unified endpoint
  */
-admin.post('/batches', batchRateLimitMiddleware, async (c) => {
-  const env = c.env;
-
-  interface CreateBatchRequest {
-    name?: string;
-    totalGames: number;
-    config: {
-      playerCount: number;
-      mafiaCount: number;
-      teams: Array<{
-        modelId: string;
-        team: 'mafia' | 'town';
-        count: number;
-      }>;
-      maxRounds?: number;
-      discussionEnabled?: boolean;
-      personaConstraints?: 'strict' | 'moderate' | 'free';
-      contextLevel?: 'full' | 'windowed' | 'summary';
-      contextWindowSize?: number;
-      personaTheme?: 'noir' | 'victorian' | 'modern' | 'fantasy';
-    };
-    useBatchAPI?: boolean;
-  }
-
-  let body: CreateBatchRequest;
-  try {
-    body = await c.req.json<CreateBatchRequest>();
-  } catch {
-    throw Errors.BadRequest('Invalid JSON body');
-  }
-
-  // Validate
-  if (!body.totalGames || body.totalGames < 1 || body.totalGames > MAX_BATCH_SIZE) {
-    throw Errors.BadRequest(`Total games must be between 1 and ${MAX_BATCH_SIZE}`);
-  }
-
-  if (!body.config || !body.config.teams || body.config.teams.length === 0) {
-    throw Errors.BadRequest('Invalid game configuration: teams required');
-  }
-
-  const batchConfig: BatchConfig = {
-    ...(body.name && { name: body.name }),
-    totalGames: body.totalGames,
-    gameConfig: {
-      playerCount: body.config.playerCount,
-      mafiaCount: body.config.mafiaCount,
-      teams: body.config.teams,
-      maxRounds: 10,
-      discussionEnabled: true,
-      personaConstraints: 'moderate',
-      contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
-      contextWindowSize: 3,
-      // If personaTheme is undefined, batch service will randomize per game
-      ...(body.config.personaTheme && { personaTheme: body.config.personaTheme }),
-    },
-    useBatchAPI: body.useBatchAPI ?? false,
-  };
-
-  const result = await createBatch(env, batchConfig);
-
+admin.post('/batches', async (c) => {
   return c.json({
-    success: true,
-    batchId: result.batchId,
-    estimatedCostUsd: result.estimatedCost,
-    totalGames: body.totalGames,
-  });
+    error: 'This endpoint is deprecated. Use POST /api/batches instead.',
+    hint: 'Sign in via Google and use /api/batches with useSystemKeys: true for system API keys.',
+  }, 410);
 });
 
 /**
- * GET /api/admin/batches - List all batches.
+ * @deprecated Use GET /api/batches instead  
+ * Admin can access all batches via unified endpoint
  */
 admin.get('/batches', async (c) => {
-  const env = c.env;
-  const url = new URL(c.req.url);
-  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 100);
-  const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
-  const statusParam = url.searchParams.get('status');
-
-  // Build options object conditionally to avoid undefined values
-  const options: { status?: 'queued' | 'processing' | 'completed' | 'cancelled' | 'paused'; limit: number; offset: number } = { limit, offset };
-  if (statusParam && ['queued', 'processing', 'completed', 'cancelled', 'paused'].includes(statusParam)) {
-    options.status = statusParam as 'queued' | 'processing' | 'completed' | 'cancelled' | 'paused';
-  }
-
-  const result = await listBatches(env, options);
-
   return c.json({
-    batches: result.batches.map(b => ({
-      id: b.id,
-      name: b.name,
-      status: b.status,
-      totalGames: b.total_games,
-      completedGames: b.completed_games,
-      failedGames: b.failed_games,
-      estimatedCostUsd: b.estimated_cost_usd,
-      actualCostUsd: b.actual_cost_usd,
-      createdBy: b.created_by,
-      createdAt: b.created_at,
-      startedAt: b.started_at,
-      completedAt: b.completed_at,
-      progress: b.total_games > 0
-        ? ((b.completed_games + b.failed_games) / b.total_games * 100).toFixed(1)
-        : '0',
-    })),
-    total: result.total,
-    hasMore: offset + limit < result.total,
-  });
+    error: 'This endpoint is deprecated. Use GET /api/batches instead.',
+    hint: 'Sign in via Google to view all batches. Admin users see all batches by default.',
+  }, 410);
 });
 
 /**
- * GET /api/admin/batches/:id - Get batch details.
+ * @deprecated Use GET /api/batches/:id instead
  */
 admin.get('/batches/:id', async (c) => {
-  const env = c.env;
-  const db = createDb(env.DB);
   const batchId = c.req.param('id');
-
-  const batch = await getBatch(env, batchId);
-
-  if (!batch) {
-    throw Errors.NotFound('Batch');
-  }
-
-  // Get recent games from this batch (include error_message for debugging)
-  const recentGames = await db
-    .select({
-      id: schema.games.id,
-      status: schema.games.status,
-      winner: schema.games.winner,
-      rounds: schema.games.rounds,
-      duration_ms: schema.games.durationMs,
-      created_at: schema.games.createdAt,
-      error_message: schema.games.errorMessage,
-    })
-    .from(schema.games)
-    .where(eq(schema.games.batchId, batchId))
-    .orderBy(desc(schema.games.createdAt))
-    .limit(50);
-
-  // Get recent error logs that might be related to this batch
-  const errorLogs = await db
-    .select()
-    .from(schema.errorLog)
-    .where(
-      or(
-        like(schema.errorLog.context, `%${batchId}%`),
-        like(schema.errorLog.context, `%batch_id%${batchId}%`)
-      )
-    )
-    .orderBy(desc(schema.errorLog.createdAt))
-    .limit(20);
-
   return c.json({
-    id: batch.id,
-    name: batch.name,
-    status: batch.status,
-    totalGames: batch.total_games,
-    completedGames: batch.completed_games,
-    failedGames: batch.failed_games,
-    estimatedCostUsd: batch.estimated_cost_usd,
-    actualCostUsd: batch.actual_cost_usd,
-    createdBy: batch.created_by,
-    createdAt: batch.created_at,
-    startedAt: batch.started_at,
-    completedAt: batch.completed_at,
-    errorMessage: batch.error_message,
-    config: JSON.parse(batch.config_json),
-    progress: batch.total_games > 0
-      ? ((batch.completed_games + batch.failed_games) / batch.total_games * 100).toFixed(1)
-      : '0',
-    recentGames,
-    errorLogs,
-  });
+    error: 'This endpoint is deprecated. Use GET /api/batches/:id instead.',
+    hint: `Sign in via Google and access /api/batches/${batchId}`,
+  }, 410);
 });
 
 /**
- * POST /api/admin/batches/:id/cancel - Cancel a batch.
+ * @deprecated Use POST /api/batches/:id/cancel instead
  */
 admin.post('/batches/:id/cancel', async (c) => {
-  const env = c.env;
   const batchId = c.req.param('id');
-
-  const batch = await getBatch(env, batchId);
-
-  if (!batch) {
-    throw Errors.NotFound('Batch');
-  }
-
-  if (batch.status === 'completed' || batch.status === 'cancelled') {
-    throw Errors.BadRequest(`Batch is already ${batch.status}`);
-  }
-
-  await cancelBatch(env, batchId);
-
   return c.json({
-    success: true,
-    message: `Batch ${batchId} cancelled`,
-  });
+    error: 'This endpoint is deprecated. Use POST /api/batches/:id/cancel instead.',
+    hint: `Sign in via Google and use /api/batches/${batchId}/cancel`,
+  }, 410);
 });
 
 /**

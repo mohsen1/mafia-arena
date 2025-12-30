@@ -3,12 +3,12 @@ import { Link } from "react-router";
 import { useAuth } from "~/contexts/auth";
 import { getApiUrl } from "~/lib/utils";
 import ProviderModelSelector from "~/components/ui/ProviderModelSelector";
-import { Shuffle, Loader2, KeyRound, AlertCircle, Info } from "lucide-react";
+import { Shuffle, Loader2, KeyRound, AlertCircle, Info, Clock, Server } from "lucide-react";
 
 export function meta() {
   return [
     { title: "New Batch | Mafia Arena" },
-    { name: "description", content: "Create a new batch of Mafia games using your API keys" },
+    { name: "description", content: "Create a new batch of Mafia games" },
   ];
 }
 
@@ -17,7 +17,7 @@ interface Estimate {
   totalTokens: number;
   timeEstimateMinutes: number;
   estimatedCostUsd: number;
-  userLimit: number;
+  maxGames: number;
 }
 
 interface UserKey {
@@ -25,10 +25,14 @@ interface UserKey {
   fingerprint: string;
 }
 
-const MAX_GAMES = 50;
+const USER_MAX_GAMES = 50;
+const ADMIN_MAX_GAMES = 10000;
 
 export default function NewUserBatch() {
   const { authenticated, loading: authLoading, user } = useAuth();
+  const isAdmin = user?.isAdmin ?? false;
+  const maxGames = isAdmin ? ADMIN_MAX_GAMES : USER_MAX_GAMES;
+
   const [name, setName] = useState("");
   const [totalGames, setTotalGames] = useState(10);
   const [modelA, setModelA] = useState("");
@@ -41,6 +45,11 @@ export default function NewUserBatch() {
   const [userKeys, setUserKeys] = useState<UserKey[]>([]);
   const [loadingKeys, setLoadingKeys] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Admin-only options
+  const [useSystemKeys, setUseSystemKeys] = useState(false);
+  const [useBatchAPI, setUseBatchAPI] = useState(false);
+  const [batchAPIEnabled, setBatchAPIEnabled] = useState(false);
 
   const apiUrl = getApiUrl();
 
@@ -71,18 +80,20 @@ export default function NewUserBatch() {
     if (authenticated) {
       updateEstimate();
     }
-  }, [totalGames, authenticated]);
+  }, [totalGames, authenticated, useBatchAPI]);
 
   // Listen for model changes
   useEffect(() => {
     const handleModelChange = (e: CustomEvent) => {
-      const { inputId, modelId, displayName } = e.detail;
+      const { inputId, modelId, displayName, supportsBatchPricing } = e.detail;
       if (inputId === "modelA") {
         setModelA(modelId);
         setModelAName(displayName || modelId.split("/").pop() || modelId);
+        if (supportsBatchPricing) setBatchAPIEnabled(true);
       } else if (inputId === "modelB") {
         setModelB(modelId);
         setModelBName(displayName || modelId.split("/").pop() || modelId);
+        if (supportsBatchPricing) setBatchAPIEnabled(true);
       }
     };
 
@@ -97,7 +108,7 @@ export default function NewUserBatch() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          totalGames: Math.min(totalGames, MAX_GAMES),
+          totalGames: Math.min(totalGames, maxGames),
           config: {
             playerCount: 11,
             mafiaCount: 2,
@@ -108,6 +119,7 @@ export default function NewUserBatch() {
             discussionEnabled: true,
             contextLevel: "windowed",
           },
+          useBatchAPI,
         }),
       });
 
@@ -184,6 +196,14 @@ export default function NewUserBatch() {
       return;
     }
 
+    // Skip key check if admin using system keys
+    if (!isAdmin || !useSystemKeys) {
+      if (userKeys.length === 0) {
+        setSubmitError("You must add API keys before creating batches. Go to Account → API Keys.");
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     const batchName = name.trim() || `${modelAName} vs ${modelBName}`;
@@ -195,7 +215,7 @@ export default function NewUserBatch() {
         credentials: "include",
         body: JSON.stringify({
           name: batchName,
-          totalGames: Math.min(totalGames, MAX_GAMES),
+          totalGames: Math.min(totalGames, maxGames),
           config: {
             playerCount: 11,
             mafiaCount: 2,
@@ -208,6 +228,8 @@ export default function NewUserBatch() {
             maxRounds: 10,
             personaConstraints: "moderate",
           },
+          useBatchAPI: isAdmin && useBatchAPI,
+          useSystemKeys: isAdmin && useSystemKeys,
         }),
       });
 
@@ -250,8 +272,8 @@ export default function NewUserBatch() {
     );
   }
 
-  // No API keys
-  if (!authLoading && !loadingKeys && userKeys.length === 0) {
+  // No API keys (but admins can use system keys)
+  if (!authLoading && !loadingKeys && userKeys.length === 0 && !isAdmin) {
     return (
       <div className="max-w-lg mx-auto py-16 text-center space-y-6">
         <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
@@ -302,28 +324,89 @@ export default function NewUserBatch() {
         </div>
         <h1 className="text-2xl font-bold tracking-tight">Create Batch</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Run up to {MAX_GAMES} games using your API keys
+          Run up to {maxGames.toLocaleString()} games {isAdmin && useSystemKeys ? "using system API keys" : "using your API keys"}
         </p>
       </div>
 
-      {/* API Keys Info */}
-      <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/30 border">
-        <Info className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-        <div className="text-sm">
-          <p className="text-muted-foreground">
-            You have API keys for:{" "}
-            <span className="text-foreground font-medium">
-              {userKeys.map((k) => k.provider).join(", ")}
-            </span>
-          </p>
-          <p className="text-muted-foreground mt-1">
-            Games will use your credits. Select models from providers you have keys for.{" "}
-            <Link to="/account" className="text-foreground hover:underline">
-              Manage keys →
-            </Link>
-          </p>
+      {/* Admin Options */}
+      {isAdmin && (
+        <div className="space-y-3 p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
+          <h3 className="text-sm font-medium flex items-center gap-2">
+            <Server className="w-4 h-4" />
+            Admin Options
+          </h3>
+          
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useSystemKeys}
+              onChange={(e) => setUseSystemKeys(e.target.checked)}
+              className="mt-1 rounded border-muted-foreground/50"
+            />
+            <div>
+              <span className="text-sm font-medium">Use System API Keys</span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Run games using the platform's configured keys instead of your own.
+              </p>
+            </div>
+          </label>
+
+          <label className={`flex items-start gap-3 ${!batchAPIEnabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
+            <input
+              type="checkbox"
+              checked={useBatchAPI}
+              onChange={(e) => setUseBatchAPI(e.target.checked)}
+              disabled={!batchAPIEnabled}
+              className="mt-1 rounded border-muted-foreground/50 disabled:opacity-50"
+            />
+            <div>
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5" />
+                Batch API (50% cheaper, ~24h delay)
+              </span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {batchAPIEnabled 
+                  ? "Use provider batch APIs for significant cost savings. Results may take up to 24 hours."
+                  : "Select models that support batch pricing to enable this option."}
+              </p>
+            </div>
+          </label>
         </div>
-      </div>
+      )}
+
+      {/* API Keys Info */}
+      {(!isAdmin || !useSystemKeys) && userKeys.length > 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/30 border">
+          <Info className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="text-muted-foreground">
+              You have API keys for:{" "}
+              <span className="text-foreground font-medium">
+                {userKeys.map((k) => k.provider).join(", ")}
+              </span>
+            </p>
+            <p className="text-muted-foreground mt-1">
+              Games will use your credits. Select models from providers you have keys for.{" "}
+              <Link to="/account" className="text-foreground hover:underline">
+                Manage keys →
+              </Link>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* System Keys Info */}
+      {isAdmin && useSystemKeys && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+          <Server className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="text-muted-foreground">
+              Using <span className="text-foreground font-medium">system API keys</span>.
+              Games will be charged to the platform's API accounts.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Submit Error */}
       {submitError && (
@@ -361,15 +444,15 @@ export default function NewUserBatch() {
               htmlFor="totalGames"
               className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
             >
-              Number of Games (max {MAX_GAMES})
+              Number of Games (max {maxGames.toLocaleString()})
             </label>
             <input
               type="number"
               id="totalGames"
               min={1}
-              max={MAX_GAMES}
+              max={maxGames}
               value={totalGames}
-              onChange={(e) => setTotalGames(Math.min(parseInt(e.target.value) || 1, MAX_GAMES))}
+              onChange={(e) => setTotalGames(Math.min(parseInt(e.target.value) || 1, maxGames))}
               className="w-full px-3 py-2.5 border rounded-md bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground focus:border-foreground transition-colors tabular-nums"
             />
           </div>
@@ -432,7 +515,7 @@ export default function NewUserBatch() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Games</span>
                   <span className="font-medium tabular-nums">
-                    {Math.min(totalGames, MAX_GAMES)}
+                    {Math.min(totalGames, maxGames).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -463,7 +546,9 @@ export default function NewUserBatch() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Cost depends on models selected. This uses your API keys.
+                Cost depends on models selected.
+                {useBatchAPI && " (50% discount applied)"}
+                {useSystemKeys ? " Uses system API keys." : " Uses your API keys."}
               </p>
             </div>
 

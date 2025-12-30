@@ -10,3 +10,4 @@ ALTER TABLE batch_api_requests ADD COLUMN claim_expires_at INTEGER;
 CREATE INDEX IF NOT EXISTS idx_batch_requests_claim 
   ON batch_api_requests(status, claim_id, claim_expires_at);
 
+

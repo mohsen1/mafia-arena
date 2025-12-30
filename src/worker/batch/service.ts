@@ -233,6 +233,12 @@ export async function processBatchMessage(
     return;
   }
 
+  // Check if batch was cancelled or failed while in queue (race condition protection)
+  if (batch.status === 'cancelled' || batch.status === 'failed') {
+    console.log(`[${traceId || 'no-trace'}] Batch ${batchId} is ${batch.status}, skipping processing`);
+    return;
+  }
+
   const startIndex = batch.games_queued;
   const totalGames = config.totalGames;
 

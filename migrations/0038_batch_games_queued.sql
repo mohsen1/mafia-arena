@@ -8,3 +8,4 @@ ALTER TABLE batches ADD COLUMN games_queued INTEGER NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_batches_status_games 
   ON batches(status, games_queued, total_games);
 
+

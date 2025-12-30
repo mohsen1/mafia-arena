@@ -145,3 +145,4 @@ export function PlayerModal({ player, onClose }: PlayerModalProps) {
   );
 }
 
+

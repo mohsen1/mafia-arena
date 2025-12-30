@@ -12,3 +12,4 @@ CREATE INDEX IF NOT EXISTS idx_games_running_activity
 
 
 
+

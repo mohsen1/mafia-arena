@@ -12,3 +12,4 @@ CREATE INDEX IF NOT EXISTS idx_models_elo ON models(elo_rating DESC);
 
 
 
+

@@ -185,6 +185,7 @@ export default function UserBatchDetail() {
 
   const statusColor = STATUS_COLORS[batch.status] || STATUS_COLORS.cancelled;
   const isActive = batch.status === "queued" || batch.status === "processing";
+  const isFailed = batch.status === "failed";
   const progressNum = parseFloat(batch.progress);
 
   return (
@@ -219,7 +220,11 @@ export default function UserBatchDetail() {
       {/* Status Banner */}
       <div
         className={`flex items-center justify-between p-4 rounded-lg border ${
-          isActive ? "bg-blue-500/5 border-blue-500/30" : "bg-muted/30"
+          isActive 
+            ? "bg-blue-500/5 border-blue-500/30" 
+            : isFailed 
+            ? "bg-red-500/5 border-red-500/30"
+            : "bg-muted/30"
         }`}
       >
         <div className="flex items-center gap-4">
@@ -250,6 +255,8 @@ export default function UserBatchDetail() {
                 ? "bg-emerald-500"
                 : batch.status === "cancelled"
                 ? "bg-muted-foreground"
+                : batch.status === "failed"
+                ? "bg-red-500"
                 : "bg-blue-500"
             }`}
             style={{ width: `${progressNum}%` }}

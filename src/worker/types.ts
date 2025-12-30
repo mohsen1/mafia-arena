@@ -198,7 +198,7 @@ export interface BatchConfig {
 /**
  * Batch status in the database.
  */
-export type BatchStatus = 'queued' | 'processing' | 'completed' | 'cancelled' | 'paused';
+export type BatchStatus = 'queued' | 'processing' | 'completed' | 'cancelled' | 'paused' | 'failed';
 
 /**
  * Batch record from the database.

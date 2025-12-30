@@ -28,11 +28,11 @@ interface Batch {
 
 interface BatchLimits {
   maxBatchSize: number;
-  maxActiveBatches: number;
-  rateLimitMinutes: number;
+  maxActiveBatches: number | null;
+  rateLimitMinutes: number | null;
 }
 
-const STATUSES = ["", "queued", "processing", "completed", "cancelled"];
+const STATUSES = ["", "queued", "processing", "completed", "cancelled", "failed"];
 
 const STATUS_COLORS: Record<string, { light: string; dark: string }> = {
   queued: { light: "text-amber-600", dark: "dark:text-amber-400" },
@@ -40,6 +40,7 @@ const STATUS_COLORS: Record<string, { light: string; dark: string }> = {
   completed: { light: "text-emerald-600", dark: "dark:text-emerald-400" },
   cancelled: { light: "text-muted-foreground", dark: "" },
   paused: { light: "text-amber-600", dark: "dark:text-amber-400" },
+  failed: { light: "text-red-600", dark: "dark:text-red-400" },
 };
 
 export default function UserBatches() {
@@ -166,16 +167,30 @@ export default function UserBatches() {
       {limits && (
         <div className="flex items-center gap-4 text-xs text-muted-foreground border-b pb-4">
           <span>
-            <strong className="text-foreground">{limits.maxBatchSize}</strong> games/batch
+            <strong className="text-foreground">{limits.maxBatchSize.toLocaleString()}</strong> games/batch
           </span>
-          <span>•</span>
-          <span>
-            <strong className="text-foreground">{limits.maxActiveBatches}</strong> active batches max
-          </span>
-          <span>•</span>
-          <span>
-            <strong className="text-foreground">{limits.rateLimitMinutes}</strong> min between batches
-          </span>
+          {limits.maxActiveBatches !== null && (
+            <>
+              <span>•</span>
+              <span>
+                <strong className="text-foreground">{limits.maxActiveBatches}</strong> active batches max
+              </span>
+            </>
+          )}
+          {limits.rateLimitMinutes !== null && (
+            <>
+              <span>•</span>
+              <span>
+                <strong className="text-foreground">{limits.rateLimitMinutes}</strong> min between batches
+              </span>
+            </>
+          )}
+          {limits.maxActiveBatches === null && limits.rateLimitMinutes === null && (
+            <>
+              <span>•</span>
+              <span className="text-blue-500">Admin mode (no limits)</span>
+            </>
+          )}
         </div>
       )}
 

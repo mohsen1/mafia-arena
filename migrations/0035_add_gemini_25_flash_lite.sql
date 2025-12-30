@@ -9,3 +9,4 @@ VALUES
   ('google/gemini-2.5-flash-lite', 'Gemini 2.5 Flash-Lite', 'google', 'google', 'gemini-2.5-flash-lite-preview-09-2025', 
    '{"pricing":{"inputPer1K":"0.000075","outputPer1K":"0.0003"},"context_length":1000000,"max_output_tokens":65000}', 0);
 
+
