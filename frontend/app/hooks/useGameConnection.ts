@@ -621,11 +621,43 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
 
   // Health check
   const checkHealth = useCallback(async () => {
+    // GUARD: Don't check health if component unmounted OR game is finished
     if (!isMountedRef.current) return;
+    if (state.status === 'completed' || state.status === 'failed') return;
+
     try {
       const res = await fetch(`${apiUrl}/api/games/${gameId}/health`);
+      
+      // Gracefully handle 503s without throwing to console
+      if (res.status === 503) {
+        // Only dispatch if we are genuinely running
+        // If we just finished, this might be a race condition
+        if (state.status === 'running') {
+          const data = await res.json() as HealthCheckResponse;
+          dispatch({ type: 'SET_HEALTH', healthStatus: 'critical' });
+          // Update suspense reason if provided to explain WHY it's stuck
+          if (data.suspenseReason) {
+            dispatch({ 
+              type: 'SET_AI_PROGRESS', 
+              aiProgress: data.aiProgress || null, 
+              suspenseReason: data.suspenseReason 
+            });
+          }
+        }
+        return;
+      }
+
+      if (!res.ok) return; // Ignore other non-200s silently
+
       const data = await res.json() as HealthCheckResponse;
       if (!isMountedRef.current) return;
+
+      // If backend says completed, force update local state
+      if (data.healthStatus === 'completed') {
+        dispatch({ type: 'SET_STATUS', status: 'completed' });
+        return;
+      }
+
       dispatch({ type: 'SET_HEALTH', healthStatus: data.healthStatus });
       
       if (data.aiProgress) {
@@ -636,9 +668,10 @@ export function useGameConnection({ gameId, apiUrl }: UseGameConnectionOptions):
         });
       }
     } catch (e) {
-      console.warn('Health check error:', e);
+      // Suppress network errors during page transitions/unmounts
+      // Don't log to console to avoid spam
     }
-  }, [apiUrl, gameId]);
+  }, [apiUrl, gameId, state.status]);
 
   // Initialize connection
   useEffect(() => {

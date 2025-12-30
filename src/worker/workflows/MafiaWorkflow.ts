@@ -72,48 +72,73 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
     const startTime = Date.now();
     this.log.info('Starting workflow', { gameId, traceId, batchId });
 
-    // Generate seed if not provided
-    const seed = config.seed ?? generateSeed();
+    // Initialize state variable for error handling
+    let state: GameState | undefined;
 
-    // Convert GameQueueConfig to GameConfig
-    const gameConfig: GameConfig = {
-      playerCount: config.playerCount,
-      mafiaCount: config.mafiaCount,
-      teams: config.teams,
-      maxRounds: config.maxRounds,
-      discussionEnabled: config.discussionEnabled,
-      personaConstraints: config.personaConstraints,
-      seed,
-      contextLevel: config.contextLevel,
-      contextWindowSize: config.contextWindowSize,
-      personaTheme: config.personaTheme,
-    };
-
-    // Initialize game state
-    let state = GameState.create(gameId, gameConfig);
-
-    // Hydrate model contexts at workflow start for pricing lookups
-    // This single batch fetch prevents repeated D1 queries during the game
-    const modelIds = config.teams.map(t => t.modelId);
-    this.modelContexts = await step.do('hydrate-models', async () => {
-      const contexts = await this.modelRegistry.getMany(modelIds);
-      // Convert to serializable format for workflow checkpointing
-      return Object.fromEntries(contexts);
-    }).then(entries => new Map(Object.entries(entries) as [string, ModelContext][]));
-
-    this.log.debug('Hydrated model contexts', { 
-      modelCount: this.modelContexts.size,
-      models: modelIds.join(', '),
-    });
-
-    // Create AI provider with pre-loaded contexts (avoids redundant D1 queries)
-    const aiProvider = new WorkflowAIProvider(step, this.env, gameId, {
-      discountPricing: discountPricing ?? false,
-      preloadedContexts: this.modelContexts,
-      ...(traceId && { traceId }),
-    });
-
+    // Move try/catch to wrap everything, including hydration
+    // This ensures errors during initialization are properly handled
     try {
+      // Immediate KV sync to prevent "Waiting for events..." hanging
+      // This updates the state from "Booting game engine..." to "Initializing AI models..."
+      await step.do('initial-sync', async () => {
+        await this.env.RATE_LIMIT.put(
+          `game-state:${gameId}`,
+          JSON.stringify({
+            state: { events: [], players: [] },
+            status: 'running',
+            currentRound: 0,
+            progress: {
+              current: 0,
+              total: 100,
+              label: 'Initializing AI models and generating personas...',
+              pendingPlayers: [],
+            },
+            updatedAt: Date.now(),
+          }),
+          { expirationTtl: 86400 }
+        );
+      });
+
+      // Generate seed if not provided
+      const seed = config.seed ?? generateSeed();
+
+      // Convert GameQueueConfig to GameConfig
+      const gameConfig: GameConfig = {
+        playerCount: config.playerCount,
+        mafiaCount: config.mafiaCount,
+        teams: config.teams,
+        maxRounds: config.maxRounds,
+        discussionEnabled: config.discussionEnabled,
+        personaConstraints: config.personaConstraints,
+        seed,
+        contextLevel: config.contextLevel,
+        contextWindowSize: config.contextWindowSize,
+        personaTheme: config.personaTheme,
+      };
+
+      // Initialize game state
+      state = GameState.create(gameId, gameConfig);
+
+      // Hydrate model contexts at workflow start for pricing lookups
+      // This single batch fetch prevents repeated D1 queries during the game
+      const modelIds = config.teams.map(t => t.modelId);
+      this.modelContexts = await step.do('hydrate-models', async () => {
+        const contexts = await this.modelRegistry.getMany(modelIds);
+        // Convert to serializable format for workflow checkpointing
+        return Object.fromEntries(contexts);
+      }).then(entries => new Map(Object.entries(entries) as [string, ModelContext][]));
+
+      this.log.debug('Hydrated model contexts', { 
+        modelCount: this.modelContexts.size,
+        models: modelIds.join(', '),
+      });
+
+      // Create AI provider with pre-loaded contexts (avoids redundant D1 queries)
+      const aiProvider = new WorkflowAIProvider(step, this.env, gameId, {
+        discountPricing: discountPricing ?? false,
+        preloadedContexts: this.modelContexts,
+        ...(traceId && { traceId }),
+      });
       // Step 1: Ensure game record exists in D1 and update with seed
       // The API route creates the record before starting the workflow, but we use
       // ON CONFLICT to handle edge cases and update the seed (which is generated here).
@@ -243,12 +268,27 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
       await step.do('handle-error', async () => {
         const durationMs = Date.now() - startTime;
         
+        // Handle case where 'state' might be undefined if error happened during initialization
+        // Create a minimal state object for error saving compatibility
+        const safeState = state ?? GameState.create(gameId, {
+          playerCount: config.playerCount,
+          mafiaCount: config.mafiaCount,
+          teams: config.teams,
+          maxRounds: config.maxRounds ?? 10,
+          discussionEnabled: config.discussionEnabled ?? true,
+          personaConstraints: config.personaConstraints ?? 'moderate',
+          seed: config.seed ?? generateSeed(),
+          contextLevel: config.contextLevel ?? 'full',
+          contextWindowSize: config.contextWindowSize ?? 3,
+          personaTheme: config.personaTheme ?? 'noir',
+        });
+        
         // 1. Save error state to KV for real-time visibility
         await saveErrorStateToKV(
           this.env,
           gameId,
           userFriendlyError,
-          state
+          safeState
         );
 
         // 2. Update game status to failed in D1
@@ -265,8 +305,8 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         const partialTranscript = {
           gameId,
           winner: null,
-          rounds: state.round,
-          events: state.events,
+          rounds: safeState.round,
+          events: safeState.events,
           durationMs,
           timestamp: Date.now(),
           status: 'failed' as const,
@@ -279,7 +319,7 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
             customMetadata: { 
               gameId, 
               status: 'failed',
-              rounds: String(state.round),
+              rounds: String(safeState.round),
               error: userFriendlyError.slice(0, 100), // Truncate for metadata
             } 
           }
@@ -325,8 +365,10 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         `).bind(today).run();
       });
 
-      // Broadcast error
-      await this.broadcastToViewLayer(state, 'failed', userFriendlyError);
+      // Broadcast error (only if state exists)
+      if (state) {
+        await this.broadcastToViewLayer(state, 'failed', userFriendlyError);
+      }
 
       throw err;
     }

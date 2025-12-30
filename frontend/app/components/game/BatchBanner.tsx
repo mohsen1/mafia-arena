@@ -15,6 +15,11 @@ interface BatchBannerProps {
 }
 
 export function BatchBanner({ status, aiProgress, suspenseReason, healthStatus }: BatchBannerProps) {
+  // Defensive check: Never show warnings if game is finished
+  if (status === 'completed' || status === 'failed') {
+    return null;
+  }
+
   // Show nothing if game is running normally
   if (status !== 'waiting_for_batch' && healthStatus !== 'warning' && healthStatus !== 'critical') {
     return null;

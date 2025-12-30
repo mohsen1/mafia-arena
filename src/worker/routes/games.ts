@@ -364,6 +364,30 @@ games.post('/run-direct', async (c) => {
     Date.now()
   ).run();
 
+  // Write initial state to KV immediately so frontend shows "Booting game engine..."
+  // instead of "Waiting for events..." while workflow spins up
+  try {
+    await env.RATE_LIMIT.put(
+      `game-state:${gameId}`,
+      JSON.stringify({
+        state: { events: [], players: [] },
+        status: 'running',
+        currentRound: 0,
+        progress: {
+          current: 0,
+          total: 1,
+          label: 'Booting game engine...',
+          pendingPlayers: [],
+        },
+        updatedAt: Date.now(),
+      }),
+      { expirationTtl: 86400 }
+    );
+  } catch (error) {
+    // Non-fatal - log but don't fail game creation
+    console.warn(`Failed to write initial KV state for ${gameId}:`, error);
+  }
+
   // Start the workflow
   await env.MAFIA_WORKFLOW.create({
     id: gameId,
@@ -793,17 +817,54 @@ games.get('/:id/events', async (c) => {
 games.get('/:id/health', async (c) => {
   const env = c.env;
   const gameId = c.req.param('id');
+  const db = createDb(env.DB);
 
-  // Get the Durable Object instance for this game
-  const doId = env.GAME_RUNNER.idFromName(gameId);
-  const stub = env.GAME_RUNNER.get(doId);
+  // Check D1 first to avoid waking up DO for finished games
+  // This prevents 503 errors for completed games where DO may be evicted
+  const game = await db.query.games.findFirst({
+    where: eq(schema.games.id, gameId),
+    columns: { status: true, winner: true },
+  });
 
-  // Forward the request to the Durable Object
-  const response = await stub.fetch(new Request('http://internal/health'));
-  const data = await response.json();
+  // If game is already finished in DB, return healthy completed status immediately
+  if (game && (game.status === 'completed' || game.status === 'failed')) {
+    return c.json({
+      healthStatus: 'completed',
+      healthMessage: `Game finished (${game.status})`,
+      status: game.status,
+      winner: game.winner ?? undefined,
+      gameId,
+    }, 200);
+  }
 
-  // Preserve HTTP status from DO (503 for critical health)
-  return c.json(data, response.status as 200 | 503);
+  // Only contact Durable Object if game is running or not found in D1 (yet)
+  try {
+    const doId = env.GAME_RUNNER.idFromName(gameId);
+    const stub = env.GAME_RUNNER.get(doId);
+
+    const response = await stub.fetch(new Request('http://internal/health'));
+    
+    // Handle case where DO might throw or return 500
+    if (!response.ok && response.status !== 503) {
+      return c.json({ 
+        healthStatus: 'warning', 
+        healthMessage: 'Game runner unreachable',
+        gameId,
+      }, 200); // Return 200 to frontend so it doesn't throw network errors
+    }
+
+    const data = await response.json();
+    // Preserve HTTP status from DO (503 for critical health)
+    return c.json(data, response.status as 200 | 503);
+  } catch (err) {
+    // Fallback if DO fetch fails entirely (e.g., DO evicted)
+    // Return warning instead of error to avoid console spam
+    return c.json({
+      healthStatus: 'warning',
+      healthMessage: 'Unable to contact game runner',
+      gameId,
+    }, 200);
+  }
 });
 
 /**

@@ -215,30 +215,42 @@ export async function saveErrorStateToKV(
   state?: GameState | SerializedGameState
 ): Promise<void> {
   // Serialize if state is a GameState, otherwise use directly if already serialized
+  // If state is undefined, create minimal serialized state for error reporting
   const serializedState = state
     ? ('serialize' in state ? state.serialize() : state)
-    : undefined;
+    : {
+        events: [],
+        players: [],
+        round: 0,
+        phase: 'introduction' as const,
+        conversationHistory: [],
+        gameId,
+        config: {
+          playerCount: 0,
+          mafiaCount: 0,
+          teams: [],
+          maxRounds: 10,
+          discussionEnabled: true,
+        },
+        seed: 0,
+      } as SerializedGameState;
   
   // Truncate state to fit KV limits (same as running state)
-  const truncatedState = serializedState 
-    ? truncateStateForKV(serializedState) 
-    : undefined;
+  const truncatedState = truncateStateForKV(serializedState);
   
   const workflowState: WorkflowGameState = {
-    state: truncatedState!,
+    state: truncatedState,
     status: 'failed',
     error,
     updatedAt: Date.now(),
   };
 
-  // Only save if we have state, otherwise just log the error
-  if (truncatedState) {
-    await env.RATE_LIMIT.put(
-      `${KV_PREFIX}${gameId}`,
-      JSON.stringify(workflowState),
-      { expirationTtl: STATE_TTL_SECONDS }
-    );
-  }
+  // Always save error state to KV so frontend can display the error
+  await env.RATE_LIMIT.put(
+    `${KV_PREFIX}${gameId}`,
+    JSON.stringify(workflowState),
+    { expirationTtl: STATE_TTL_SECONDS }
+  );
 }
 
 /**

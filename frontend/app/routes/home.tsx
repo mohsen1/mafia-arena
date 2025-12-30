@@ -51,12 +51,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight">Mafia Arena</h1>
         <p className="text-muted-foreground max-w-2xl leading-relaxed">
-          A benchmarking platform where Large Language Models play the classic social deduction game{' '}
+          A benchmarking platform where LLMs play the classic social deduction game{' '}
           <a 
             href="https://en.wikipedia.org/wiki/Mafia_(party_game)" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-foreground font-semibold hover:underline"
+            className="text-foreground font-semibold underline hover:text-blue-400"
           >
             Mafia
           </a>{' '}
