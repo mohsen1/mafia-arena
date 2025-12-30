@@ -85,10 +85,11 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
     `CREATE TABLE IF NOT EXISTS batches (
       id TEXT PRIMARY KEY,
       name TEXT,
-      status TEXT DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'cancelled', 'paused')),
+      status TEXT DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'cancelled', 'paused', 'failed')),
       total_games INTEGER NOT NULL,
       completed_games INTEGER DEFAULT 0,
       failed_games INTEGER DEFAULT 0,
+      games_queued INTEGER DEFAULT 0,
       config_json TEXT NOT NULL,
       estimated_cost_usd REAL,
       actual_cost_usd REAL DEFAULT 0,

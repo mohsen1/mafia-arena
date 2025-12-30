@@ -34,6 +34,8 @@ export default defineWorkersConfig({
 
           // Durable Objects are automatically configured from wrangler.toml
         },
+        // Disable isolated storage for Workflows compatibility
+        isolatedStorage: false,
       },
     },
     // Longer timeout for E2E game tests
