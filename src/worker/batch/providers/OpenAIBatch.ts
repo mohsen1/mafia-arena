@@ -343,7 +343,7 @@ export class OpenAIBatch extends BaseBatchProvider {
 
     const body: Record<string, unknown> = {
       model,
-      max_tokens: request.maxTokens ?? 4096,
+      max_completion_tokens: request.maxTokens ?? 4096,
       messages: [
         { role: 'system', content: request.systemPrompt },
         { role: 'user', content: request.userPrompt },

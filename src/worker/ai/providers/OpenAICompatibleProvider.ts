@@ -66,9 +66,15 @@ export class OpenAICompatibleProvider implements AIProviderInterface {
     const body: Record<string, unknown> = {
       model: this.modelId,
       messages,
-      max_tokens: request.maxTokens ?? 4000,
       temperature: request.temperature ?? 0.7,
     };
+
+    // OpenAI direct API uses max_completion_tokens, others use max_tokens
+    if (this.baseUrl === 'https://api.openai.com/v1') {
+      body.max_completion_tokens = request.maxTokens ?? 4000;
+    } else {
+      body.max_tokens = request.maxTokens ?? 4000;
+    }
 
     let useStructuredOutput = false;
     if (request.structuredOutput) {
