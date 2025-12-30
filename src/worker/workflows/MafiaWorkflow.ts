@@ -19,7 +19,7 @@ import { WorkflowEntrypoint, type WorkflowStep, type WorkflowEvent } from 'cloud
 import type { Env } from '../types.js';
 import type { WorkflowParams, WorkflowResult, BroadcastMessage } from './types.js';
 import type { GameConfig, GameEvent, Team } from '../../engine/types.js';
-import type { ModelContext, ModelPricing } from '../ai/types.js';
+import type { ModelContext } from '../ai/types.js';
 import { 
   GameState,
   executeIntroductionPhase,
@@ -52,6 +52,8 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
   private modelRegistry: ModelRegistry;
   /** Cached model contexts, hydrated at workflow start */
   private modelContexts: Map<string, ModelContext> = new Map();
+  /** Whether this game uses batch API pricing (for cost calculation) */
+  private discountPricing = false;
 
   constructor(ctx: ExecutionContext, env: Env) {
     super(ctx, env);
@@ -65,6 +67,7 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
   async run(event: WorkflowEvent<WorkflowParams>, step: WorkflowStep): Promise<WorkflowResult> {
     const { gameId, config, traceId, batchId, discountPricing } = event.payload;
     this.gameId = gameId;
+    this.discountPricing = discountPricing ?? false;
     
     const startTime = Date.now();
     this.log.info('Starting workflow', { gameId, traceId, batchId });
@@ -717,8 +720,24 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         total: value.inputTokens + value.outputTokens,
       };
 
-      // Calculate cost (simplified - would need model pricing lookup)
-      const pricing = this.getModelPricing(value.modelId);
+      // Get model context for pricing and batch support info
+      const modelContext = this.modelContexts.get(value.modelId);
+      let pricing = modelContext?.pricing ?? DEFAULT_PRICING;
+      
+      // Apply batch discount only if:
+      // 1. This game used batch API pricing (discountPricing flag)
+      // 2. This specific model supports batch pricing
+      const useBatchRate = this.discountPricing && modelContext?.batchPricing?.supported;
+      
+      if (useBatchRate && modelContext?.batchPricing) {
+        // Apply provider-specific discount (50% for most, 40% for Fireworks)
+        const discountMultiplier = 1 - (modelContext.batchPricing.discountPercent / 100);
+        pricing = {
+          input: pricing.input * discountMultiplier,
+          output: pricing.output * discountMultiplier,
+        };
+      }
+      
       const costUsd = calculateExactCost(tokensUsed.input, tokensUsed.output, pricing);
 
       results.push({
@@ -732,19 +751,6 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
     }
 
     return results;
-  }
-
-  /**
-   * Get pricing for a model from cached model contexts.
-   * Falls back to DEFAULT_PRICING if model was not hydrated.
-   */
-  private getModelPricing(modelId: string): ModelPricing {
-    const context = this.modelContexts.get(modelId);
-    if (context) {
-      return context.pricing;
-    }
-    this.log.warn('Model pricing not found in hydrated contexts, using defaults', { modelId });
-    return DEFAULT_PRICING;
   }
 
   /**
