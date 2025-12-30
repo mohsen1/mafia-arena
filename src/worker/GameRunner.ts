@@ -285,6 +285,8 @@ interface WsMessage {
     isWaitingForBatch: boolean;
     batchPending?: boolean;
     pollCount?: number;
+    pendingRequests?: number;
+    estimatedWaitHours?: number;
   } | undefined;
 }
 
@@ -1270,12 +1272,28 @@ export class GameRunner extends DurableObject<Env> {
         // For new workflow games, events may be empty (game just started, no KV sync yet)
         
         // Check if game is waiting for batch API (discount pricing games)
-        let batchStatus: { isWaitingForBatch: boolean; batchPending?: boolean; pollCount?: number } | undefined;
+        let batchStatus: { isWaitingForBatch: boolean; batchPending?: boolean; pollCount?: number; pendingRequests?: number; estimatedWaitHours?: number } | undefined;
         if (effectiveGameId) {
+          // First try KV (updated during polling)
           const batchStatusKey = `game-state:${effectiveGameId}:batch-status`;
           const batchStatusRaw = await this.env.RATE_LIMIT.get(batchStatusKey);
           if (batchStatusRaw) {
             batchStatus = { isWaitingForBatch: true, ...JSON.parse(batchStatusRaw) };
+          } else {
+            // No KV status - check D1 for pending batch requests (early game stage)
+            const pendingBatchRequests = await this.env.DB.prepare(`
+              SELECT COUNT(*) as count FROM batch_api_requests 
+              WHERE game_id = ? AND status IN ('pending', 'bundled')
+            `).bind(effectiveGameId).first<{ count: number }>();
+            
+            if (pendingBatchRequests && pendingBatchRequests.count > 0) {
+              batchStatus = {
+                isWaitingForBatch: true,
+                batchPending: true,
+                pendingRequests: pendingBatchRequests.count,
+                estimatedWaitHours: 5, // Default estimate
+              };
+            }
           }
         }
         

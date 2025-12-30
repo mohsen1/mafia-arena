@@ -742,6 +742,28 @@ games.get('/:id/events', async (c) => {
         },
       });
     }
+    
+    // No KV batch status yet - check D1 for pending batch requests (early game stage)
+    const pendingBatchRequests = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM batch_api_requests 
+      WHERE game_id = ? AND status IN ('pending', 'bundled')
+    `).bind(gameId).first<{ count: number }>();
+    
+    if (pendingBatchRequests && pendingBatchRequests.count > 0) {
+      // Game is waiting for batch API to process initial requests
+      return c.json({
+        status: 'running',
+        gameId,
+        eventCount: 0,
+        events: [],
+        batchStatus: {
+          isWaitingForBatch: true,
+          batchPending: true,
+          pendingRequests: pendingBatchRequests.count,
+          estimatedWaitHours: 5, // Default estimate for batch API
+        },
+      });
+    }
   }
 
   // Fallback to Durable Object (legacy mode)
