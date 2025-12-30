@@ -55,7 +55,7 @@ export async function createBatch(
   const batchId = `batch_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
   // Estimate cost
-  const estimate = estimateCost(config);
+  const estimate = await estimateCost(env, config);
 
   // Insert batch record
   await env.DB.prepare(`
@@ -334,22 +334,105 @@ async function updateGamesQueued(env: Env, batchId: string, count: number): Prom
 // =============================================================================
 
 /**
+ * Get average tokens per game from actual completed games matching the configuration.
+ * Falls back to constant if insufficient historical data.
+ * 
+ * Note: This query benefits from indexes on:
+ * - idx_games_status (status)
+ * - idx_games_created (created_at DESC)
+ * Consider adding composite index: (status, player_count, mafia_count, discount_pricing, created_at)
+ * for optimal performance if this becomes a bottleneck.
+ */
+async function getAverageTokensPerGame(
+  env: Env,
+  playerCount: number,
+  mafiaCount: number,
+  useBatchAPI: boolean
+): Promise<number> {
+  // Query recent completed games with matching player/mafia counts
+  // Match discount_pricing if using batch API (to compare similar pricing models)
+  const MIN_SAMPLE_SIZE = 10;
+  const MAX_SAMPLE_SIZE = 100; // Limit to recent games for accuracy
+  
+  try {
+    const result = await env.DB.prepare(`
+      SELECT total_tokens 
+      FROM games 
+      WHERE status = 'completed' 
+        AND player_count = ? 
+        AND mafia_count = ?
+        AND total_tokens > 0
+        AND discount_pricing = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).bind(playerCount, mafiaCount, useBatchAPI ? 1 : 0, MAX_SAMPLE_SIZE)
+      .all<{ total_tokens: number }>();
+
+    const tokens = (result.results ?? []).map(r => r.total_tokens);
+    
+    // Need at least MIN_SAMPLE_SIZE games for reliable average
+    if (tokens.length < MIN_SAMPLE_SIZE) {
+      return TOKENS_PER_GAME;
+    }
+
+    // Calculate median for outlier detection
+    const sorted = [...tokens].sort((a, b) => a - b);
+    const median = sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1]! + sorted[sorted.length / 2]!) / 2
+      : sorted[Math.floor(sorted.length / 2)]!;
+    
+    // Filter outliers (games with >3x median are likely anomalies)
+    // Use original unsorted array to preserve order (though order doesn't matter for average)
+    const filtered = tokens.filter(t => t <= median * 3);
+    
+    // Safety check: if all games filtered out, use original tokens
+    if (filtered.length === 0) {
+      // This shouldn't happen (median is from tokens, so at least median itself should pass)
+      // But handle gracefully to prevent division by zero
+      const avg = tokens.reduce((sum, t) => sum + t, 0) / tokens.length;
+      return Math.round(avg);
+    }
+    
+    const avg = filtered.reduce((sum, t) => sum + t, 0) / filtered.length;
+    return Math.round(avg);
+  } catch (error) {
+    // If database query fails, fall back to conservative constant
+    // Log error for monitoring but don't fail the estimate
+    console.error('Failed to query game token data for estimate:', error);
+    return TOKENS_PER_GAME;
+  }
+}
+
+/**
  * Estimate the cost of a batch.
+ * 
+ * Uses actual game token data when available, falling back to conservative estimates.
  * 
  * NOTE: Uses conservative 40% batch discount (Fireworks rate) to avoid under-estimating costs.
  * Most providers (Anthropic, OpenAI, Google) offer 50% off, so actual costs may be lower.
  * See BATCH_PROVIDER_MAP in ModelRegistry for provider-specific discounts.
  */
-export function estimateCost(config: BatchConfig): CostEstimate {
+export async function estimateCost(
+  env: Env,
+  config: BatchConfig
+): Promise<CostEstimate> {
   const { totalGames, gameConfig, useBatchAPI = false } = config;
 
-  // Estimate tokens per game based on player count and settings
+  // Get base tokens per game from actual data
+  const baseTokensPerGame = await getAverageTokensPerGame(
+    env,
+    gameConfig.playerCount,
+    gameConfig.mafiaCount,
+    useBatchAPI
+  );
+
+  // Apply multipliers for settings not stored in DB
   // Personas are always enabled (1.2x base multiplier)
   let tokensMultiplier = 1.2;
   if (gameConfig.discussionEnabled) tokensMultiplier *= 1.5;
   if (gameConfig.contextLevel === 'full') tokensMultiplier *= 2;
 
-  const tokensPerGame = Math.round(TOKENS_PER_GAME * tokensMultiplier);
+  const tokensPerGame = Math.round(baseTokensPerGame * tokensMultiplier);
   const totalTokens = tokensPerGame * totalGames;
 
   // Use default pricing - model-specific pricing is in DB

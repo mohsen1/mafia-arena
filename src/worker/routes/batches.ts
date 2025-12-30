@@ -628,7 +628,7 @@ batches.post('/estimate', async (c) => {
   const maxGames = isAdmin ? ADMIN_MAX_BATCH_SIZE : USER_MAX_BATCH_SIZE;
   const totalGames = Math.min(body.totalGames, maxGames);
 
-  const estimate = estimateCost({
+  const estimate = await estimateCost(c.env, {
     totalGames,
     gameConfig: {
       playerCount: body.config.playerCount,

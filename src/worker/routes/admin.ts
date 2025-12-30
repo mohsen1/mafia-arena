@@ -220,7 +220,7 @@ admin.post('/estimate', async (c) => {
     throw Errors.BadRequest('Invalid JSON body');
   }
 
-  const estimate = estimateCost({
+  const estimate = await estimateCost(c.env, {
     totalGames: body.totalGames,
     gameConfig: {
       playerCount: body.config.playerCount,

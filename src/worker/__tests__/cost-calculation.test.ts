@@ -142,23 +142,44 @@ describe('Cost Calculation', () => {
       ...overrides,
     });
 
-    it('should return higher cost for non-batch games', () => {
+    // Mock DB that returns sample game data (falls back to constant)
+    const createMockEnv = () => {
+      const mockGames = Array.from({ length: 15 }, (_, i) => ({
+        total_tokens: 500_000 + (i * 10_000), // Varying token counts
+      }));
+
+      return {
+        DB: {
+          prepare: (query: string) => ({
+            bind: (...args: unknown[]) => ({
+              all: async () => ({
+                results: mockGames,
+              }),
+            }),
+          }),
+        },
+      } as any;
+    };
+
+    it('should return higher cost for non-batch games', async () => {
       const configNoBatch = createMockConfig({ useBatchAPI: false });
       const configBatch = createMockConfig({ useBatchAPI: true });
+      const env = createMockEnv();
       
-      const estimateNoBatch = estimateCost(configNoBatch);
-      const estimateBatch = estimateCost(configBatch);
+      const estimateNoBatch = await estimateCost(env, configNoBatch);
+      const estimateBatch = await estimateCost(env, configBatch);
       
       // Batch should be cheaper (40% discount = 60% of original)
       expect(estimateBatch.estimatedCostUsd).toBeLessThan(estimateNoBatch.estimatedCostUsd);
     });
 
-    it('should apply conservative 40% discount for batch games', () => {
+    it('should apply conservative 40% discount for batch games', async () => {
       const configNoBatch = createMockConfig({ useBatchAPI: false });
       const configBatch = createMockConfig({ useBatchAPI: true });
+      const env = createMockEnv();
       
-      const estimateNoBatch = estimateCost(configNoBatch);
-      const estimateBatch = estimateCost(configBatch);
+      const estimateNoBatch = await estimateCost(env, configNoBatch);
+      const estimateBatch = await estimateCost(env, configBatch);
       
       // With 40% discount, batch cost should be 60% of non-batch
       const expectedRatio = 1 - (CONSERVATIVE_BATCH_DISCOUNT / 100);
@@ -167,26 +188,28 @@ describe('Cost Calculation', () => {
       expect(actualRatio).toBeCloseTo(expectedRatio);
     });
 
-    it('should track useBatchAPI flag in returned estimate', () => {
+    it('should track useBatchAPI flag in returned estimate', async () => {
       const configNoBatch = createMockConfig({ useBatchAPI: false });
       const configBatch = createMockConfig({ useBatchAPI: true });
+      const env = createMockEnv();
       
-      expect(estimateCost(configNoBatch).useBatchAPI).toBe(false);
-      expect(estimateCost(configBatch).useBatchAPI).toBe(true);
+      expect((await estimateCost(env, configNoBatch)).useBatchAPI).toBe(false);
+      expect((await estimateCost(env, configBatch)).useBatchAPI).toBe(true);
     });
 
-    it('should scale cost with total games', () => {
+    it('should scale cost with total games', async () => {
       const config10 = createMockConfig({ totalGames: 10 });
       const config100 = createMockConfig({ totalGames: 100 });
+      const env = createMockEnv();
       
-      const estimate10 = estimateCost(config10);
-      const estimate100 = estimateCost(config100);
+      const estimate10 = await estimateCost(env, config10);
+      const estimate100 = await estimateCost(env, config100);
       
       // 100 games should be ~10x the cost of 10 games
       expect(estimate100.estimatedCostUsd / estimate10.estimatedCostUsd).toBeCloseTo(10);
     });
 
-    it('should increase estimate for discussion-enabled games', () => {
+    it('should increase estimate for discussion-enabled games', async () => {
       const configNoDiscussion = createMockConfig({
         gameConfig: {
           ...createMockConfig().gameConfig,
@@ -199,9 +222,10 @@ describe('Cost Calculation', () => {
           discussionEnabled: true,
         },
       });
+      const env = createMockEnv();
       
-      const estimateNoDiscussion = estimateCost(configNoDiscussion);
-      const estimateWithDiscussion = estimateCost(configWithDiscussion);
+      const estimateNoDiscussion = await estimateCost(env, configNoDiscussion);
+      const estimateWithDiscussion = await estimateCost(env, configWithDiscussion);
       
       // Discussion enabled should cost more
       expect(estimateWithDiscussion.estimatedCostUsd).toBeGreaterThan(
