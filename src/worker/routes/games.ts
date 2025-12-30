@@ -463,6 +463,7 @@ games.get('/', async (c) => {
           status: schema.games.status,
           created_at: schema.games.createdAt,
           cost_usd: schema.games.costUsd,
+          config_hash: schema.games.configHash,
         })
         .from(schema.games)
         .where(and(...conditions, modelCondition))
@@ -489,6 +490,7 @@ games.get('/', async (c) => {
           status: schema.games.status,
           created_at: schema.games.createdAt,
           cost_usd: schema.games.costUsd,
+          config_hash: schema.games.configHash,
         })
         .from(schema.games)
         .where(and(...conditions))

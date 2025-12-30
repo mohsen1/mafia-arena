@@ -125,12 +125,54 @@ function formatDisplayModelName(name: string): string {
   }).join(' ');
 }
 
+/**
+ * Parse config_hash to extract model IDs for running games.
+ * Format: {playerCount}-{mafiaCount}-{model1:count1},{model2:count2}
+ * Example: 11-2-google/gemini-2.5-flash-lite:9,fireworks/glm-4p7:2
+ */
+function parseConfigHash(configHash: string | undefined, mafiaCount?: number) {
+  if (!configHash) return { mafia: null, town: null };
+  
+  const parts = configHash.split('-');
+  if (parts.length < 3) return { mafia: null, town: null };
+  
+  const mafiaCountFromHash = parseInt(parts[1], 10);
+  const teamsStr = parts.slice(2).join('-'); // Rejoin in case model IDs contain dashes
+  const teams = teamsStr.split(',').map(t => {
+    const lastColon = t.lastIndexOf(':');
+    if (lastColon === -1) return { modelId: t, count: 0 };
+    return {
+      modelId: t.slice(0, lastColon),
+      count: parseInt(t.slice(lastColon + 1), 10),
+    };
+  });
+  
+  // The team with count matching mafiaCount is mafia, the larger one is town
+  const actualMafiaCount = mafiaCount ?? mafiaCountFromHash;
+  const mafiaTeam = teams.find(t => t.count === actualMafiaCount);
+  const townTeam = teams.find(t => t.count !== actualMafiaCount);
+  
+  return {
+    mafia: mafiaTeam?.modelId || null,
+    town: townTeam?.modelId || null,
+  };
+}
+
 function getMatchup(game: any) {
   const participants = game.participants || [];
   const mafia = participants.find((p: any) => p.team === 'mafia');
   const town = participants.find((p: any) => p.team === 'town');
-  const mafiaModel = mafia?.model_name || mafia?.model_id || '?';
-  const townModel = town?.model_name || town?.model_id || '?';
+  
+  // Fall back to parsing config_hash for running games without participants yet
+  let mafiaModel = mafia?.model_name || mafia?.model_id;
+  let townModel = town?.model_name || town?.model_id;
+  
+  if (!mafiaModel || !townModel) {
+    const fromConfig = parseConfigHash(game.config_hash, game.mafia_count);
+    mafiaModel = mafiaModel || fromConfig.mafia || '?';
+    townModel = townModel || fromConfig.town || '?';
+  }
+  
   const mafiaWon = game.winner === 'mafia';
   const shortMafia = getShortModelName(mafiaModel);
   const shortTown = getShortModelName(townModel);
