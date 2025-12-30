@@ -17,22 +17,47 @@ const FIREWORKS_API_URL = 'https://api.fireworks.ai/inference/v1';
 
 /** 
  * Mapping from internal model IDs to Fireworks API model IDs.
- * Fireworks requires the full account path format.
+ * Fireworks requires the full account path format: accounts/fireworks/models/<model>
+ * 
+ * IMPORTANT: Only models with SERVERLESS support work via API!
+ * Check https://fireworks.ai/models?modelTypes=Serverless for supported models.
+ * 
+ * Model names verified 2025-01-01:
+ * - GLM-4.5/4.6/4.7 have serverless
+ * - DeepSeek R1 05/28, V3 03-24, V3.1, V3.2 have serverless (not the original deepseek-r1/deepseek-v3!)
+ * - Llama 3.3 70B has serverless
+ * - Qwen3 8B, 235B, Coder 480B have serverless
  */
 const FIREWORKS_MODEL_MAP: Record<string, string> = {
+  // GLM models (serverless)
   'fireworks/glm-4p7': 'accounts/fireworks/models/glm-4p7',
-  'fireworks/deepseek-r1': 'accounts/fireworks/models/deepseek-r1',
-  'fireworks/deepseek-v3': 'accounts/fireworks/models/deepseek-v3',
+  'fireworks/glm-4p6': 'accounts/fireworks/models/glm-4p6',
+  'fireworks/glm-4p5': 'accounts/fireworks/models/glm-4p5',
+  
+  // DeepSeek SERVERLESS models (note: original deepseek-r1/v3 do NOT have serverless!)
+  'fireworks/deepseek-r1': 'accounts/fireworks/models/deepseek-r1-0528',      // Redirect to serverless version
+  'fireworks/deepseek-r1-0528': 'accounts/fireworks/models/deepseek-r1-0528',
+  'fireworks/deepseek-v3': 'accounts/fireworks/models/deepseek-v3p1',         // Redirect to serverless V3.1
+  'fireworks/deepseek-v3-0324': 'accounts/fireworks/models/deepseek-v3-0324',
+  'fireworks/deepseek-v3p1': 'accounts/fireworks/models/deepseek-v3p1',
+  'fireworks/deepseek-v3p2': 'accounts/fireworks/models/deepseek-v3p2',
+  
+  // Qwen models (serverless)
   'fireworks/qwen3-coder-480b': 'accounts/fireworks/models/qwen3-coder-480b-a35b-instruct',
+  'fireworks/qwen3-235b': 'accounts/fireworks/models/qwen3-235b-a22b',
+  'fireworks/qwen3-8b': 'accounts/fireworks/models/qwen3-8b',
+  
+  // Llama models (serverless)
   'fireworks/llama-3.3-70b': 'accounts/fireworks/models/llama-v3p3-70b-instruct',
-  'fireworks/llama-3.1-8b': 'accounts/fireworks/models/llama-v3p1-8b-instruct',
-  // Fallback short names (without fireworks/ prefix)
-  'glm-4p7': 'accounts/fireworks/models/glm-4p7',
-  'deepseek-r1': 'accounts/fireworks/models/deepseek-r1',
-  'deepseek-v3': 'accounts/fireworks/models/deepseek-v3',
-  'qwen3-coder-480b': 'accounts/fireworks/models/qwen3-coder-480b-a35b-instruct',
-  'llama-3.3-70b': 'accounts/fireworks/models/llama-v3p3-70b-instruct',
-  'llama-3.1-8b': 'accounts/fireworks/models/llama-v3p1-8b-instruct',
+  'fireworks/llama-v3p3-70b-instruct': 'accounts/fireworks/models/llama-v3p3-70b-instruct',
+  
+  // MiniMax models (serverless)
+  'fireworks/minimax-m2': 'accounts/fireworks/models/minimax-m2',
+  'fireworks/minimax-m2p1': 'accounts/fireworks/models/minimax-m2p1',
+  
+  // Kimi K2 models (serverless)
+  'fireworks/kimi-k2-instruct': 'accounts/fireworks/models/kimi-k2-instruct-0905',
+  'fireworks/kimi-k2-thinking': 'accounts/fireworks/models/kimi-k2-thinking',
 };
 
 /**
