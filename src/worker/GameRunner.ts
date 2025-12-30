@@ -280,6 +280,12 @@ interface WsMessage {
     modelId: string;
     actionType: string;
   } | null | undefined;
+  /** Batch API status for discount pricing games */
+  batchStatus?: {
+    isWaitingForBatch: boolean;
+    batchPending?: boolean;
+    pollCount?: number;
+  } | undefined;
 }
 
 export class GameRunner extends DurableObject<Env> {
@@ -1262,6 +1268,17 @@ export class GameRunner extends DurableObject<Env> {
       } else {
         // Legacy DO mode or no KV state yet - use eventLog and local state
         // For new workflow games, events may be empty (game just started, no KV sync yet)
+        
+        // Check if game is waiting for batch API (discount pricing games)
+        let batchStatus: { isWaitingForBatch: boolean; batchPending?: boolean; pollCount?: number } | undefined;
+        if (effectiveGameId) {
+          const batchStatusKey = `game-state:${effectiveGameId}:batch-status`;
+          const batchStatusRaw = await this.env.RATE_LIMIT.get(batchStatusKey);
+          if (batchStatusRaw) {
+            batchStatus = { isWaitingForBatch: true, ...JSON.parse(batchStatusRaw) };
+          }
+        }
+        
         const syncMessage: WsMessage = {
           type: 'SYNC',
           events: this.eventLog,
@@ -1272,6 +1289,7 @@ export class GameRunner extends DurableObject<Env> {
           durationMs: state.startedAt && state.completedAt 
             ? state.completedAt - state.startedAt 
             : undefined,
+          batchStatus,
         };
         server.send(JSON.stringify(syncMessage));
         this.log.info('Sent SYNC message', { 
@@ -1279,6 +1297,7 @@ export class GameRunner extends DurableObject<Env> {
           status: syncMessage.status,
           gameId: effectiveGameId ?? 'unknown',
           hasError: !!state.error,
+          hasBatchStatus: !!batchStatus,
           source: 'legacy/empty',
         });
       }

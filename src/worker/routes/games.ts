@@ -685,6 +685,11 @@ games.get('/:id/events', async (c) => {
 
   // For running games, check KV for workflow state first (avoid deserializing)
   if (game && game.status === 'running') {
+    // Always check for batch status (games using discount pricing may have no KV state yet)
+    const batchStatusKey = `game-state:${gameId}:batch-status`;
+    const batchStatusRaw = await env.RATE_LIMIT.get(batchStatusKey);
+    const batchStatus = batchStatusRaw ? JSON.parse(batchStatusRaw) : undefined;
+    
     const kvState = await getGameStateFromKV(env, gameId);
     if (kvState) {
       // Work directly with serialized state - no need to instantiate GameState class
@@ -706,11 +711,6 @@ games.get('/:id/events', async (c) => {
       // Combine: all persona events + last 50 game events
       const events = [...personaEvents, ...gameEvents.slice(-50)];
       
-      // Check for batch status (for games using discount pricing)
-      const batchStatusKey = `game-state:${gameId}:batch-status`;
-      const batchStatusRaw = await env.RATE_LIMIT.get(batchStatusKey);
-      const batchStatus = batchStatusRaw ? JSON.parse(batchStatusRaw) : undefined;
-      
       return c.json({
         status: kvState.status,
         gameId,
@@ -726,6 +726,20 @@ games.get('/:id/events', async (c) => {
         progress: kvState.progress,
         waitingFor: kvState.waitingFor,
         batchStatus: batchStatus ?? kvState.batchStatus,
+      });
+    }
+    
+    // No KV state yet, but game is running - check if waiting for batch API
+    if (batchStatus) {
+      return c.json({
+        status: 'running',
+        gameId,
+        eventCount: 0,
+        events: [],
+        batchStatus: {
+          isWaitingForBatch: true,
+          ...batchStatus,
+        },
       });
     }
   }
