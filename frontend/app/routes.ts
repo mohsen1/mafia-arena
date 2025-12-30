@@ -9,6 +9,7 @@ export default [
   route("privacy-policy", "routes/privacy-policy.tsx"),
   route("tos", "routes/tos.tsx"),
   route("blog", "routes/blog/index.tsx"),
+  route("blog/:id", "routes/blog/$id.tsx"),
   route("account", "routes/account.tsx"),
   
   // Games routes

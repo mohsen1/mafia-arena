@@ -96,11 +96,11 @@ export function MarkdownText({ content, className, variant = 'compact' }: Markdo
               );
             },
 
-            // Strong - used as sub-headings in FAQ answers
+            // Inline text formatting
             strong: ({ children }) => (
-              <strong className="block text-foreground font-semibold mt-4 mb-1 first:mt-0">{children}</strong>
+              <strong className="font-semibold text-foreground">{children}</strong>
             ),
-            em: ({ children }) => <em className="italic text-foreground/70">{children}</em>,
+            em: ({ children }) => <em className="italic">{children}</em>,
           }}
         >
           {content}

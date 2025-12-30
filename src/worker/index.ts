@@ -19,6 +19,7 @@ import {
   authRoutes,
   keysRoutes,
   batchesRoutes,
+  blogRoutes,
 } from './routes/index.js';
 import {
   processBatchMessage,
@@ -104,6 +105,7 @@ app.route('/api/admin', adminRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api/auth/keys', keysRoutes);
 app.route('/api/batches', batchesRoutes);
+app.route('/api/blog', blogRoutes);
 
 // Global error handler
 app.onError(async (error, c) => {

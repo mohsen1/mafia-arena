@@ -11,4 +11,5 @@ export { default as adminRoutes } from './admin.js';
 export { default as authRoutes } from './auth.js';
 export { default as keysRoutes } from './keys.js';
 export { default as batchesRoutes } from './batches.js';
+export { default as blogRoutes } from './blog.js';
 

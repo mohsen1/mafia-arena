@@ -34,6 +34,10 @@ export function Header() {
 
   const navLinks = [
     { href: '/games', label: 'Games', match: (p: string) => p.startsWith('/games') },
+  ];
+
+  const rightNavLinks = [
+    { href: '/blog', label: 'Blog', match: (p: string) => p.startsWith('/blog') },
     { href: '/faq', label: 'FAQ', match: (p: string) => p === '/faq' },
   ];
 
@@ -104,6 +108,24 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Right-side Navigation Links (Desktop) */}
+          <nav className="hidden md:flex items-center gap-4 text-sm mr-2">
+            {rightNavLinks.map((link) => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className={cn(
+                  'transition-colors hover:text-foreground',
+                  link.match(pathname)
+                    ? 'text-foreground font-medium'
+                    : 'text-muted-foreground'
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
           {/* Mobile Menu Button */}
           <div className="relative md:hidden" ref={mobileMenuRef}>
             <button
@@ -120,7 +142,7 @@ export function Header() {
             {/* Mobile Navigation Overlay */}
             {mobileMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-48 py-2 bg-background border rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                {navLinks.map((link) => (
+                {[...navLinks, ...rightNavLinks].map((link) => (
                   <Link
                     key={link.href}
                     to={link.href}
