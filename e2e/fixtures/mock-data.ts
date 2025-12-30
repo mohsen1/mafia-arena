@@ -318,5 +318,170 @@ export const MOCK_MODELS = {
   ],
 };
 
+// =============================================================================
+// RUNNING GAME WITH PROGRESS
+// =============================================================================
 
+/**
+ * Mock running game events endpoint response with progress tracking.
+ * Used to test the new progress UI features.
+ */
+export const MOCK_RUNNING_GAME_EVENTS = {
+  status: 'running' as const,
+  gameId: 'game-running-progress',
+  eventCount: 3,
+  events: [
+    {
+      type: 'persona_generation',
+      playerId: 'p1',
+      playerName: 'Alice',
+      persona: { name: 'Alice', background: 'Detective', personality: 'Analytical' },
+    },
+    {
+      type: 'persona_generation',
+      playerId: 'p2',
+      playerName: 'Bob',
+      persona: { name: 'Bob', background: 'Merchant', personality: 'Charming' },
+    },
+    {
+      type: 'ai_call',
+      phase: 'day_discussion',
+      round: 1,
+      playerId: 'p1',
+      playerName: 'Alice',
+      team: 'town',
+      modelId: 'openai/gpt-4o',
+      response: { raw: '{"message": "I think we should focus on the evidence."}' },
+    },
+  ],
+  players: [
+    { id: 'p1', name: 'Alice', team: 'town' as const, isAlive: true, modelId: 'openai/gpt-4o', persona: { name: 'Alice', background: 'Detective' } },
+    { id: 'p2', name: 'Bob', team: 'mafia' as const, isAlive: true, modelId: 'anthropic/claude-3.5-sonnet', persona: { name: 'Bob', background: 'Merchant' } },
+    { id: 'p3', name: 'Charlie', team: 'town' as const, isAlive: true, modelId: 'google/gemini-2.5-pro', persona: { name: 'Charlie', background: 'Teacher' } },
+  ],
+  currentPhase: 'day_discussion',
+  currentRound: 1,
+  progress: {
+    current: 1,
+    total: 3,
+    label: 'Waiting for 2 players',
+    pendingPlayers: ['Bob', 'Charlie'],
+  },
+  waitingFor: {
+    playerName: 'Bob',
+    modelId: 'anthropic/claude-3.5-sonnet',
+    actionType: 'discussion' as const,
+  },
+};
+
+/**
+ * Mock running game with batch API status (for discount pricing).
+ */
+export const MOCK_BATCH_GAME_EVENTS = {
+  status: 'running' as const,
+  gameId: 'game-batch-waiting',
+  eventCount: 2,
+  events: [
+    {
+      type: 'persona_generation',
+      playerId: 'p1',
+      playerName: 'Diana',
+      persona: { name: 'Diana', background: 'Scientist', personality: 'Curious' },
+    },
+  ],
+  players: [
+    { id: 'p1', name: 'Diana', team: 'town' as const, isAlive: true, modelId: 'openai/gpt-4o', persona: { name: 'Diana' } },
+    { id: 'p2', name: 'Eve', team: 'mafia' as const, isAlive: true, modelId: 'anthropic/claude-3.5-sonnet', persona: { name: 'Eve' } },
+  ],
+  currentPhase: 'day_discussion',
+  currentRound: 1,
+  batchStatus: {
+    isWaitingForBatch: true,
+    provider: 'openai',
+    submittedAt: Date.now() - 3600000, // 1 hour ago
+    pollCount: 6,
+    estimatedWaitHours: 4,
+  },
+};
+
+/**
+ * Mock failed game with timeout error.
+ */
+export const MOCK_FAILED_GAME_TIMEOUT = {
+  status: 'failed' as const,
+  gameId: 'game-failed-timeout',
+  eventCount: 5,
+  events: [
+    {
+      type: 'persona_generation',
+      playerId: 'p1',
+      playerName: 'Frank',
+      persona: { name: 'Frank' },
+    },
+  ],
+  players: [
+    { id: 'p1', name: 'Frank', team: 'town' as const, isAlive: true },
+  ],
+  currentPhase: 'day_discussion',
+  error: 'AI Provider timed out repeatedly. The model may be experiencing high load or network issues. Error: AI call timed out after 120000ms for model openai/gpt-4o',
+};
+
+/**
+ * Mock progress complete state.
+ */
+export const MOCK_PROGRESS_COMPLETE = {
+  status: 'running' as const,
+  gameId: 'game-progress-complete',
+  eventCount: 10,
+  events: [],
+  players: [
+    { id: 'p1', name: 'Alice', team: 'town' as const, isAlive: true },
+    { id: 'p2', name: 'Bob', team: 'mafia' as const, isAlive: true },
+  ],
+  currentPhase: 'day_vote',
+  currentRound: 2,
+  progress: {
+    current: 2,
+    total: 2,
+    label: 'All actions complete',
+    pendingPlayers: [],
+  },
+  waitingFor: null,
+};
+
+// =============================================================================
+// ADMIN BATCHES
+// =============================================================================
+
+export const MOCK_ADMIN_BATCHES = {
+  batches: [
+    {
+      id: 'batch-001',
+      name: 'Daily Tournament',
+      status: 'processing' as const,
+      totalGames: 100,
+      completedGames: 45,
+      failedGames: 5,
+      runningGames: 10,
+      queuedGames: 40,
+      progress: '50.0',
+      createdAt: Date.now() - 86400000,
+      updatedAt: Date.now() - 60000,
+    },
+    {
+      id: 'batch-002',
+      name: 'Model Comparison',
+      status: 'completed' as const,
+      totalGames: 50,
+      completedGames: 50,
+      failedGames: 2,
+      runningGames: 0,
+      queuedGames: 0,
+      progress: '100.0',
+      createdAt: Date.now() - 172800000,
+      updatedAt: Date.now() - 86400000,
+    },
+  ],
+  total: 2,
+};
 
