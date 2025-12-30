@@ -470,6 +470,69 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         winner === 'town' ? 1 : 0
       ).run();
 
+      // Update ELO ratings (only for non-self-play games)
+      const mafiaParticipant = participants.find(p => p.team === 'mafia');
+      const townParticipant = participants.find(p => p.team === 'town');
+      
+      if (mafiaParticipant && townParticipant && mafiaParticipant.modelId !== townParticipant.modelId) {
+        // Fetch current ELO ratings
+        const [mafiaModel, townModel] = await Promise.all([
+          this.env.DB.prepare('SELECT elo_rating, elo_games_played FROM models WHERE id = ?')
+            .bind(mafiaParticipant.modelId)
+            .first<{ elo_rating: number | null; elo_games_played: number | null }>(),
+          this.env.DB.prepare('SELECT elo_rating, elo_games_played FROM models WHERE id = ?')
+            .bind(townParticipant.modelId)
+            .first<{ elo_rating: number | null; elo_games_played: number | null }>(),
+        ]);
+
+        const INITIAL_RATING = 1500;
+        const mafiaElo = mafiaModel?.elo_rating ?? INITIAL_RATING;
+        const townElo = townModel?.elo_rating ?? INITIAL_RATING;
+        const mafiaGames = mafiaModel?.elo_games_played ?? 0;
+        const townGames = townModel?.elo_games_played ?? 0;
+
+        // K-factor: higher for newer players (more volatile ratings)
+        const getKFactor = (games: number): number => {
+          if (games < 30) return 32;
+          if (games < 100) return 24;
+          return 16;
+        };
+
+        const mafiaK = getKFactor(mafiaGames);
+        const townK = getKFactor(townGames);
+
+        // Expected scores based on current ELO
+        const mafiaExpected = 1 / (1 + Math.pow(10, (townElo - mafiaElo) / 400));
+        const townExpected = 1 - mafiaExpected;
+
+        // Actual scores (1 for win, 0 for loss)
+        const mafiaActual = winner === 'mafia' ? 1 : 0;
+        const townActual = winner === 'town' ? 1 : 0;
+
+        // Calculate new ELO ratings
+        const newMafiaElo = Math.round(mafiaElo + mafiaK * (mafiaActual - mafiaExpected));
+        const newTownElo = Math.round(townElo + townK * (townActual - townExpected));
+
+        // Update models table with new ELO ratings
+        await this.env.DB.prepare(`
+          UPDATE models SET 
+            elo_rating = ?,
+            elo_games_played = ?,
+            elo_peak = MAX(COALESCE(elo_peak, ?), ?),
+            elo_updated_at = ?
+          WHERE id = ?
+        `).bind(newMafiaElo, mafiaGames + 1, newMafiaElo, newMafiaElo, Date.now(), mafiaParticipant.modelId).run();
+
+        await this.env.DB.prepare(`
+          UPDATE models SET 
+            elo_rating = ?,
+            elo_games_played = ?,
+            elo_peak = MAX(COALESCE(elo_peak, ?), ?),
+            elo_updated_at = ?
+          WHERE id = ?
+        `).bind(newTownElo, townGames + 1, newTownElo, newTownElo, Date.now(), townParticipant.modelId).run();
+      }
+
       // Final KV sync
       await saveGameStateToKV(this.env, this.gameId, state, 'completed');
     });

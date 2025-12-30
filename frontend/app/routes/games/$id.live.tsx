@@ -8,7 +8,7 @@ import { useParams, Link } from 'react-router';
 import type { Route } from './+types/$id.live';
 import { getGame } from '~/lib/api';
 import { getApiUrl } from '~/lib/utils';
-import { ArrowLeft, Trophy, Moon, Sun, Swords, Vote, MessageCircle, Loader2, Clock, User } from 'lucide-react';
+import { ArrowLeft, Trophy, Moon, Sun, Swords, Vote, MessageCircle, Clock } from 'lucide-react';
 import { useGameConnection } from '~/hooks/useGameConnection';
 import {
   LiveTranscript,
@@ -121,11 +121,13 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
   const effectiveStatus = state.status === 'idle' && game?.status ? game.status : state.status;
   const effectiveError = state.error || game?.errorMessage || null;
 
-  // Status badge
+  // Status badge - consistent styling across all states
   const statusBadge = useMemo(() => {
+    const baseClasses = "flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold tracking-widest uppercase";
+    
     if (effectiveStatus === 'running') {
       return (
-        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[8px] font-bold tracking-wider uppercase">
+        <div className={`${baseClasses} bg-rose-500/10 text-rose-600 dark:text-rose-400`}>
           <span className="relative flex h-1.5 w-1.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
@@ -136,22 +138,22 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
     }
     if (effectiveStatus === 'completed') {
       return (
-        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] font-bold tracking-wider uppercase">
+        <div className={`${baseClasses} bg-emerald-500/10 text-emerald-600 dark:text-emerald-400`}>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          COMPLETED
+          DONE
         </div>
       );
     }
     if (effectiveStatus === 'failed') {
       return (
-        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[8px] font-bold tracking-wider uppercase">
+        <div className={`${baseClasses} bg-rose-500/10 text-rose-600 dark:text-rose-400`}>
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
           FAILED
         </div>
       );
     }
     return (
-      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[8px] font-bold tracking-wider uppercase">
+      <div className={`${baseClasses} bg-amber-500/10 text-amber-600 dark:text-amber-400`}>
         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
         STARTING
       </div>
@@ -172,36 +174,40 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
     );
   }
 
+  // Check if we're in character generation phase (progress bar only shows then)
+  const isCharacterGeneration = state.progress?.label?.toLowerCase().includes('generat') || 
+    (!state.currentPhase || state.currentPhase === 'introduction' && state.events.length === 0);
+
   return (
     <div className="fixed inset-0 top-14 flex flex-col overflow-hidden bg-background">
       <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full overflow-hidden">
         {/* Header */}
-        <div className="shrink-0 px-4 pt-2 pb-1">
-          {/* Status bar + Matchup */}
-          <div className="flex items-center gap-3 text-[10px]">
+        <div className="shrink-0 px-4 pt-2 pb-1.5 space-y-1.5">
+          {/* Row 1: Status + Theme + Matchup */}
+          <div className="flex items-center gap-2 text-[10px]">
             {statusBadge}
 
             <button
               onClick={() => setShowThemeDialog(true)}
-              className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-medium cursor-pointer hover:opacity-80 transition-opacity ${theme.classes}`}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium cursor-pointer hover:opacity-80 transition-opacity ${theme.classes}`}
             >
               <ThemeIcon type={theme.iconType} />
               {theme.label}
             </button>
 
-            <div className="h-3 w-px bg-border/50" />
+            <div className="h-3 w-px bg-border/40" />
 
             {/* Matchup */}
             <div className="flex items-center gap-1.5">
               {state.winner === 'mafia' && <Trophy size={10} className="text-amber-500" />}
-              <span className={`font-bold ${state.winner === 'town' ? 'opacity-50' : ''} text-rose-500`}>MAFIA</span>
-              <span className={`font-mono text-foreground/60 truncate max-w-[120px] ${state.winner === 'town' ? 'opacity-50' : ''}`}>
+              <span className={`font-bold text-[10px] tracking-wide ${state.winner === 'town' ? 'opacity-40' : ''} text-rose-500`}>MAFIA</span>
+              <span className={`font-mono text-[9px] text-foreground/70 truncate max-w-[120px] ${state.winner === 'town' ? 'opacity-40' : ''}`}>
                 {mafiaModels}
               </span>
-              <span className="text-muted-foreground/40 text-[8px]">vs</span>
+              <span className="text-muted-foreground/50 text-[9px]">vs</span>
               {state.winner === 'town' && <Trophy size={10} className="text-amber-500" />}
-              <span className={`font-bold ${state.winner === 'mafia' ? 'opacity-50' : ''} text-indigo-500`}>TOWN</span>
-              <span className={`font-mono text-foreground/60 truncate max-w-[120px] ${state.winner === 'mafia' ? 'opacity-50' : ''}`}>
+              <span className={`font-bold text-[10px] tracking-wide ${state.winner === 'mafia' ? 'opacity-40' : ''} text-indigo-500`}>TOWN</span>
+              <span className={`font-mono text-[9px] text-foreground/70 truncate max-w-[120px] ${state.winner === 'mafia' ? 'opacity-40' : ''}`}>
                 {townModels}
               </span>
             </div>
@@ -209,93 +215,61 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
             <div className="flex-1" />
 
             {/* Stats */}
-            <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
-              <span>Round <span className="font-mono font-bold text-foreground">{state.currentRound || '-'}</span></span>
+            <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground">
+              <span>Round <span className="font-mono font-semibold text-foreground">{state.currentRound || '-'}</span></span>
               <div className={`inline-flex items-center gap-1 font-medium ${phaseConfig.color}`}>
                 <PhaseIcon icon={phaseConfig.icon} />
                 {phaseConfig.label}
               </div>
               <span className="font-mono tabular-nums">{formatDuration(state.durationMs || 0)}</span>
-              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                {state.totalTokens.toLocaleString()} <span className="font-normal">tokens</span>
+              <span className="font-mono tabular-nums">
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{state.totalTokens.toLocaleString()}</span>
+                <span className="text-muted-foreground/70 ml-0.5">tok</span>
               </span>
-              {state.aiProgress && (
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  · {state.aiProgress.cachedResponses} AI cached
-                </span>
-              )}
             </div>
           </div>
 
-          {/* Players Grid */}
+          {/* Row 2: Players */}
           {sortedPlayers.length > 0 && (
-            <div className="pt-1.5">
-              <div className="flex flex-wrap gap-1">
-                {sortedPlayers.map(player => (
-                  <PlayerPill
-                    key={player.playerId}
-                    player={player}
-                    onClick={() => setSelectedPlayer(player)}
-                  />
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1">
+              {sortedPlayers.map(player => (
+                <PlayerPill
+                  key={player.playerId}
+                  player={player}
+                  onClick={() => setSelectedPlayer(player)}
+                />
+              ))}
             </div>
           )}
 
-
-          {/* Progress Indicator */}
-          {effectiveStatus === 'running' && (state.progress || state.waitingFor || state.batchStatus) && (
-            <div className="pt-2">
+          {/* Progress Indicator - Only during character generation */}
+          {effectiveStatus === 'running' && isCharacterGeneration && (state.progress || state.batchStatus) && (
+            <div className="pt-0.5">
               {/* Batch Status (for discount pricing games) */}
               {state.batchStatus?.isWaitingForBatch && (
-                <div className="flex items-center gap-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1.5 rounded-md">
+                <div className="flex items-center gap-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1.5 rounded">
                   <Clock size={12} className="shrink-0" />
-                  <span className="font-semibold">Waiting for batch API</span>
+                  <span className="font-medium">Waiting for batch API</span>
                   {state.batchStatus.estimatedWaitHours !== undefined && (
-                    <span className="text-amber-600/70 dark:text-amber-400/70">
+                    <span className="text-amber-600/60 dark:text-amber-400/60">
                       ~{state.batchStatus.estimatedWaitHours}h remaining
                     </span>
                   )}
                 </div>
               )}
               
-              {/* Progress bar and waiting status (for direct games) */}
+              {/* Progress bar (only during character generation) */}
               {!state.batchStatus?.isWaitingForBatch && state.progress && (
-                <div className="space-y-1">
-                  {/* Progress bar */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300 ease-out"
-                        style={{ width: `${Math.min(100, (state.progress.current / state.progress.total) * 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-[9px] font-mono text-muted-foreground tabular-nums">
-                      {state.progress.current}/{state.progress.total}
-                    </span>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-300 ease-out"
+                      style={{ width: `${Math.min(100, (state.progress.current / state.progress.total) * 100)}%` }}
+                    />
                   </div>
-                  
-                  {/* Waiting for player indicator */}
-                  {state.waitingFor && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                      <Loader2 size={10} className="animate-spin text-blue-500" />
-                      <span>Waiting for</span>
-                      <span className="font-semibold text-foreground">{state.waitingFor.playerName}</span>
-                      <span className="text-muted-foreground/60">({state.waitingFor.actionType})</span>
-                    </div>
-                  )}
-                  
-                  {/* Pending players list (when not showing specific player) */}
-                  {!state.waitingFor && state.progress.pendingPlayers.length > 0 && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                      <User size={10} className="text-muted-foreground/60" />
-                      <span>Pending:</span>
-                      <span className="text-foreground/80 truncate max-w-[200px]">
-                        {state.progress.pendingPlayers.slice(0, 3).join(', ')}
-                        {state.progress.pendingPlayers.length > 3 && ` +${state.progress.pendingPlayers.length - 3}`}
-                      </span>
-                    </div>
-                  )}
+                  <span className="text-[9px] font-mono text-muted-foreground/70 tabular-nums w-10 text-right">
+                    {state.progress.current}/{state.progress.total}
+                  </span>
                 </div>
               )}
             </div>

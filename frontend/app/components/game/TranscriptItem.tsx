@@ -36,9 +36,9 @@ export function TranscriptItem({ event, players, getPersonaName }: TranscriptIte
       const targetTeam = players[parsed.content.vote]?.team || 'town';
       const targetClass = targetTeam === 'mafia' ? 'text-rose-500' : 'text-indigo-500';
       content = (
-        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-          <Vote size={10} />
-          <span className={`font-medium ${targetClass}`}>{getPersonaName(parsed.content.vote)}</span>
+        <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <Vote size={10} className="text-muted-foreground/50" />
+          <span className={`font-semibold ${targetClass}`}>{getPersonaName(parsed.content.vote)}</span>
         </span>
       );
     } else if (parsed.type === 'action') {

@@ -100,38 +100,36 @@ function RoundSection({ roundGroup, isLast, players, getPersonaName }: RoundSect
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full px-2 py-1.5 bg-muted cursor-pointer hover:bg-muted/80 transition-colors sticky top-0 z-10"
+        className="flex items-center justify-between w-full px-2.5 py-2 bg-muted cursor-pointer hover:bg-muted/80 transition-colors sticky top-0 z-10"
       >
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <span className="font-semibold text-xs">Round {roundGroup.round}</span>
-          <div className="flex items-center gap-0.5 text-muted-foreground">
+          <div className="flex items-center gap-1 text-muted-foreground/60">
             {roundGroup.phases.map(({ phase }) => (
-              <span key={phase} className="inline-flex items-center" title={getPhaseConfig(phase).label}>
+              <span key={phase} className="inline-flex items-center opacity-70" title={getPhaseConfig(phase).label}>
                 <PhaseIcon icon={getPhaseConfig(phase).icon} />
               </span>
             ))}
           </div>
         </div>
-        <span className={`transition-transform duration-200 text-muted-foreground ${isOpen ? 'rotate-180' : ''}`}>
-          <ChevronDown size={14} />
-        </span>
+        <ChevronDown size={14} className={`text-muted-foreground/50 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="divide-y divide-border/50">
+        <div>
           {roundGroup.phases.map(({ phase, events }) => {
             const config = getPhaseConfig(phase);
             const isNight = phase === 'night' || phase === 'mafia_chat';
 
             return (
-              <div key={phase} className={`px-2 py-1.5 space-y-1 ${isNight ? 'bg-rose-500/5' : ''}`}>
-                <div className="inline-flex items-center gap-1 text-[9px] text-muted-foreground">
+              <div key={phase} className={`px-2.5 py-2 space-y-1.5 ${isNight ? 'bg-rose-500/5' : ''}`}>
+                <div className="inline-flex items-center gap-1.5 text-[9px] text-muted-foreground/70">
                   <span className={`inline-flex items-center ${config.color}`}>
                     <PhaseIcon icon={config.icon} />
                   </span>
-                  <span className="font-medium uppercase tracking-wide">{config.label}</span>
-                  <span className="opacity-40">·</span>
-                  <span className="opacity-40">{events.length}</span>
+                  <span className="font-semibold uppercase tracking-widest">{config.label}</span>
+                  <span className="opacity-50">·</span>
+                  <span className="font-mono opacity-60">{events.length}</span>
                 </div>
                 <div className="space-y-0.5">
                   {events.map((event, idx) => (

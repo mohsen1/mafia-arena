@@ -343,37 +343,37 @@ export default function GameDetail() {
   return (
     <GameLayout>
       {/* Header */}
-      <div className="shrink-0 px-4 pt-3 pb-2">
-        {/* Status bar + Matchup */}
-        <div className="flex items-center gap-3 text-[11px]">
+      <div className="shrink-0 px-4 pt-2 pb-1.5 space-y-1.5">
+        {/* Row 1: Status + Theme + Matchup */}
+        <div className="flex items-center gap-2 text-[10px]">
           {/* Status badge */}
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold tracking-widest uppercase font-display">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            COMPLETED
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold tracking-widest uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            DONE
           </div>
 
           {/* Clickable Theme Badge */}
           <button
             onClick={() => setShowThemeDialog(true)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold cursor-pointer hover:opacity-80 transition-opacity ${theme.classes}`}
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium cursor-pointer hover:opacity-80 transition-opacity ${theme.classes}`}
           >
             <ThemeIcon type={theme.iconType} />
             {theme.label}
           </button>
 
-          <div className="h-4 w-px bg-border/30" />
+          <div className="h-3 w-px bg-border/40" />
 
           {/* Matchup */}
-          <div className="flex items-center gap-2">
-            {game.winner === 'mafia' && <Trophy size={12} className="text-amber-500" />}
-            <span className={`font-bold font-display tracking-wide ${game.winner === 'town' ? 'opacity-50' : ''} text-rose-500`}>MAFIA</span>
-            <span className={`font-mono text-[10px] text-foreground/80 truncate max-w-[140px] ${game.winner === 'town' ? 'opacity-50' : ''}`}>
+          <div className="flex items-center gap-1.5">
+            {game.winner === 'mafia' && <Trophy size={10} className="text-amber-500" />}
+            <span className={`font-bold text-[10px] tracking-wide ${game.winner === 'town' ? 'opacity-40' : ''} text-rose-500`}>MAFIA</span>
+            <span className={`font-mono text-[9px] text-foreground/70 truncate max-w-[120px] ${game.winner === 'town' ? 'opacity-40' : ''}`}>
               {mafiaDisplayName}
             </span>
-            <span className="text-muted-foreground/50 text-[9px] font-display">vs</span>
-            {game.winner === 'town' && <Trophy size={12} className="text-amber-500" />}
-            <span className={`font-bold font-display tracking-wide ${game.winner === 'mafia' ? 'opacity-50' : ''} text-indigo-500`}>TOWN</span>
-            <span className={`font-mono text-[10px] text-foreground/80 truncate max-w-[140px] ${game.winner === 'mafia' ? 'opacity-50' : ''}`}>
+            <span className="text-muted-foreground/50 text-[9px]">vs</span>
+            {game.winner === 'town' && <Trophy size={10} className="text-amber-500" />}
+            <span className={`font-bold text-[10px] tracking-wide ${game.winner === 'mafia' ? 'opacity-40' : ''} text-indigo-500`}>TOWN</span>
+            <span className={`font-mono text-[9px] text-foreground/70 truncate max-w-[120px] ${game.winner === 'mafia' ? 'opacity-40' : ''}`}>
               {townDisplayName}
             </span>
           </div>
@@ -381,31 +381,30 @@ export default function GameDetail() {
           <div className="flex-1" />
 
           {/* Stats */}
-          <div className="flex items-center gap-3 text-[10px] text-foreground/70">
-            <span className="font-display">Round <span className="font-mono font-bold text-foreground">{game.rounds || '-'}</span></span>
-            <div className="inline-flex items-center gap-1 font-semibold text-foreground font-display">
+          <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground">
+            <span>Round <span className="font-mono font-semibold text-foreground">{game.rounds || '-'}</span></span>
+            <div className="inline-flex items-center gap-1 font-medium text-foreground">
               <PhaseIcon type={phaseConfig.iconType} />
               {phaseConfig.label}
             </div>
             <span className="font-mono tabular-nums">{formatDuration(game.durationMs || 0)}</span>
-            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-              {(game.totalTokens || 0).toLocaleString()} <span className="font-normal text-muted-foreground">tokens</span>
+            <span className="font-mono tabular-nums">
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{(game.totalTokens || 0).toLocaleString()}</span>
+              <span className="text-muted-foreground/70 ml-0.5">tok</span>
             </span>
           </div>
         </div>
 
-        {/* Players Grid */}
+        {/* Row 2: Players */}
         {sortedPlayers.length > 0 && (
-          <div className="pt-1.5">
-            <div className="flex flex-wrap gap-1">
-              {sortedPlayers.map(player => (
-                <PlayerPill
-                  key={player.playerId}
-                  player={player}
-                  onClick={() => setSelectedPlayer(player)}
-                />
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-1">
+            {sortedPlayers.map(player => (
+              <PlayerPill
+                key={player.playerId}
+                player={player}
+                onClick={() => setSelectedPlayer(player)}
+              />
+            ))}
           </div>
         )}
       </div>
