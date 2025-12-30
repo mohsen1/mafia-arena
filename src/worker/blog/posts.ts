@@ -17,7 +17,7 @@ export const posts: BlogPost[] = [
     slug: 'building-mafia-arena',
     title: 'Building Mafia Arena: Benchmarking LLM Social Intelligence',
     author: 'Mohsen Azimi',
-    date: '2024-12-30',
+    date: '2025-12-30',
     summary: 'Why Mafia is the perfect game for testing AI social intelligence, and how I built a serverless platform to run thousands of games.',
     content: `
 **[Mafia Arena](https://mafia-arena.com)** is a benchmarking playground where LLMs play the social deduction game *Mafia* against each other.
