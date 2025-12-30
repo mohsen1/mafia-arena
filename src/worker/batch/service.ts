@@ -335,6 +335,10 @@ async function updateGamesQueued(env: Env, batchId: string, count: number): Prom
 
 /**
  * Estimate the cost of a batch.
+ * 
+ * NOTE: Uses conservative 40% batch discount (Fireworks rate) to avoid under-estimating costs.
+ * Most providers (Anthropic, OpenAI, Google) offer 50% off, so actual costs may be lower.
+ * See BATCH_PROVIDER_MAP in ModelRegistry for provider-specific discounts.
  */
 export function estimateCost(config: BatchConfig): CostEstimate {
   const { totalGames, gameConfig, useBatchAPI = false } = config;
@@ -352,8 +356,13 @@ export function estimateCost(config: BatchConfig): CostEstimate {
   // For accurate estimates, pricing could be fetched from DB at runtime
   const baseCostPer1k = (DEFAULT_PRICING.input * 0.7 + DEFAULT_PRICING.output * 0.3);
   
-  // Apply batch discount if requested (50% off)
-  const avgCostPer1k = useBatchAPI ? baseCostPer1k * 0.5 : baseCostPer1k;
+  // Apply conservative batch discount (40% = Fireworks, the lowest)
+  // This ensures we don't under-estimate costs for users
+  // Actual costs will be lower for providers with 50% discount (Anthropic, OpenAI, Google)
+  const CONSERVATIVE_BATCH_DISCOUNT = 40;
+  const avgCostPer1k = useBatchAPI 
+    ? baseCostPer1k * (1 - CONSERVATIVE_BATCH_DISCOUNT / 100) 
+    : baseCostPer1k;
 
   const estimatedCostUsd = (totalTokens / 1000) * avgCostPer1k;
 

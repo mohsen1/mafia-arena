@@ -69,7 +69,8 @@ class GameAIAdapter {
   }
 }
 import { calculateExactCost, type ModelPricing } from './utils/budget.js';
-import { parsePricingFromConfig, DEFAULT_PRICING } from './ai/models.js';
+import { DEFAULT_PRICING } from './ai/models.js';
+import { ModelRegistry } from './services/ModelRegistry.js';
 import { createLogger, logErrorWithStack, type Logger } from './utils/logger.js';
 import { decryptKey, validateEncryptionSecret } from './utils/crypto.js';
 import { PROVIDER_TO_ENV_KEY } from './routes/keys.js';
@@ -2618,33 +2619,39 @@ export class GameRunner extends DurableObject<Env> {
     const db = this.env.DB;
     const transcripts = this.env.TRANSCRIPTS;
     
-    // Get current state to retrieve traceId
+    // Get current state to retrieve traceId and discountPricing flag
     const state = await this.loadState();
     const traceId = state.traceId;
+    const discountPricing = state.discountPricing ?? false;
 
-    // Fetch model pricing from DB for accurate cost calculation
+    // Use ModelRegistry for consistent pricing and batch discount info
     const modelIds = [...new Set(result.participants.map(p => p.modelId))];
-    const pricingMap = new Map<string, ModelPricing>();
-    
-    // Batch fetch model configs for all unique models
-    for (const modelId of modelIds) {
-      try {
-        const modelRow = await db.prepare('SELECT config FROM models WHERE id = ?')
-          .bind(modelId)
-          .first<{ config: string | null }>();
-        pricingMap.set(modelId, parsePricingFromConfig(modelRow?.config ?? null));
-      } catch {
-        // Model not found in DB - use default pricing
-        pricingMap.set(modelId, DEFAULT_PRICING);
-      }
-    }
+    const registry = new ModelRegistry(db);
+    const modelContexts = await registry.getMany(modelIds);
     
     // Calculate per-participant costs using exact input/output tokens and model-specific pricing
+    // Apply batch discount per-participant based on their model's batch support
     let totalCostUsd = 0;
     const participantCosts = new Map<string, number>();
     
     for (const participant of result.participants) {
-      const pricing = pricingMap.get(participant.modelId) ?? DEFAULT_PRICING;
+      const modelContext = modelContexts.get(participant.modelId);
+      let pricing: ModelPricing = modelContext?.pricing ?? DEFAULT_PRICING;
+      
+      // Apply batch discount only if:
+      // 1. This game used batch API pricing (discountPricing flag)
+      // 2. This specific model supports batch pricing
+      const useBatchRate = discountPricing && modelContext?.batchPricing?.supported;
+      
+      if (useBatchRate && modelContext?.batchPricing) {
+        // Apply provider-specific discount (50% for most, 40% for Fireworks)
+        const discountMultiplier = 1 - (modelContext.batchPricing.discountPercent / 100);
+        pricing = {
+          input: pricing.input * discountMultiplier,
+          output: pricing.output * discountMultiplier,
+        };
+      }
+      
       const cost = calculateExactCost(
         participant.tokensUsed.input,
         participant.tokensUsed.output,

@@ -27,14 +27,20 @@ const DEFAULT_CONTEXT_LENGTH = 8192;
 /**
  * Providers that support batch APIs and their discount percentages.
  * Used when deriving batch pricing from apiProvider.
+ * 
+ * Exported for use in cost calculation (GameRunner.persistResults)
+ * and cost estimation (batch/service.ts).
  */
-const BATCH_PROVIDER_MAP: Record<string, { provider: BatchProvider; discount: number }> = {
+export const BATCH_PROVIDER_MAP: Record<string, { provider: BatchProvider; discount: number }> = {
   anthropic: { provider: 'anthropic', discount: 50 },
   openai: { provider: 'openai', discount: 50 },
   google: { provider: 'google', discount: 50 },
   cerebras: { provider: 'cerebras', discount: 50 },
   fireworks: { provider: 'fireworks', discount: 40 },
 };
+
+/** Conservative discount for cost estimation when provider is unknown (use lowest = Fireworks 40%) */
+export const CONSERVATIVE_BATCH_DISCOUNT = 40;
 
 /**
  * Known direct API providers that can be inferred from model ID prefix.

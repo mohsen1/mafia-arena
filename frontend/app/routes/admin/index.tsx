@@ -17,6 +17,7 @@ import {
   Key,
   Loader2,
   XCircle,
+  BarChart3,
 } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
@@ -71,6 +72,7 @@ export default function AdminDashboard() {
   const [syncing, setSyncing] = useState(false);
   const [killing, setKilling] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [rebuildingLeaderboard, setRebuildingLeaderboard] = useState(false);
 
   const apiUrl = authApiUrl || getApiUrl();
 
@@ -196,6 +198,25 @@ export default function AdminDashboard() {
       alert(`Failed to sync: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleRebuildLeaderboard() {
+    setRebuildingLeaderboard(true);
+    try {
+      const headers = await getHeaders();
+      const res = await fetch(`${apiUrl}/api/admin/maintenance/rebuild-leaderboard`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to rebuild leaderboard");
+      const result = (await res.json()) as { success: boolean; rowsInserted: number };
+      alert(`Leaderboard rebuilt!\n\n${result.rowsInserted} entries updated`);
+    } catch (err) {
+      alert(`Failed to rebuild: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setRebuildingLeaderboard(false);
     }
   }
 
@@ -396,7 +417,17 @@ export default function AdminDashboard() {
           title="Sync models from OpenRouter"
         >
           <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
-          <span>{syncing ? "..." : "Sync"}</span>
+          <span>{syncing ? "..." : "Sync Models"}</span>
+        </button>
+
+        <button
+          onClick={handleRebuildLeaderboard}
+          disabled={rebuildingLeaderboard}
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
+          title="Rebuild leaderboard from game data"
+        >
+          <BarChart3 size={14} className={rebuildingLeaderboard ? "animate-pulse" : ""} />
+          <span>{rebuildingLeaderboard ? "..." : "Rebuild Stats"}</span>
         </button>
 
         <button
