@@ -315,6 +315,7 @@ export default function LiveGame({ loaderData }: Route.ComponentProps) {
               players={state.players}
               thinkingState={state.thinkingState}
               currentPhase={state.currentPhase}
+              batchStatus={state.batchStatus}
             />
           )}
         </div>

@@ -250,14 +250,21 @@ function CharacterGeneration({ events, players, totalPlayers, currentPhase }: Ch
 // Main LiveTranscript Component
 // =============================================================================
 
+interface BatchStatusInfo {
+  isWaitingForBatch?: boolean;
+  estimatedWaitHours?: number;
+  pendingRequests?: number;
+}
+
 interface LiveTranscriptProps {
   events: GameEvent[];
   players: PlayersMap;
   thinkingState: ThinkingState | null;
   currentPhase?: string | null;
+  batchStatus?: BatchStatusInfo | null;
 }
 
-export function LiveTranscript({ events, players, thinkingState, currentPhase }: LiveTranscriptProps) {
+export function LiveTranscript({ events, players, thinkingState, currentPhase, batchStatus }: LiveTranscriptProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [newMessageCount, setNewMessageCount] = useState(0);
@@ -337,6 +344,33 @@ export function LiveTranscript({ events, players, thinkingState, currentPhase }:
               <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
               <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
             </span>
+          </div>
+        </div>
+      );
+    }
+
+    // Show batch API waiting message if applicable
+    if (batchStatus?.isWaitingForBatch) {
+      return (
+        <div className="h-full relative rounded-lg bg-amber-500/5 border border-amber-500/20 overflow-hidden">
+          <SnakeGame />
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
+            <div className="text-amber-600 dark:text-amber-400 text-sm font-medium">
+              ⏳ Waiting for Batch API
+            </div>
+            <div className="text-xs text-amber-600/70 dark:text-amber-400/70">
+              {batchStatus.estimatedWaitHours !== undefined 
+                ? `~${batchStatus.estimatedWaitHours}h estimated wait`
+                : 'Processing in background...'}
+            </div>
+            {batchStatus.pendingRequests !== undefined && (
+              <div className="text-[10px] text-muted-foreground/60">
+                {batchStatus.pendingRequests} requests pending
+              </div>
+            )}
+            <div className="text-[10px] text-muted-foreground/50 mt-2">
+              Batch API saves 50% on costs but takes 24-48h
+            </div>
           </div>
         </div>
       );
