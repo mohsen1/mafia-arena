@@ -34,6 +34,12 @@ VALUES
   ('anthropic/claude-haiku-3.5', 'Claude 3.5 Haiku', 'anthropic', 'anthropic', 'claude-3-5-haiku-20241022', 
    '{"pricing":{"inputPer1K":0.0008,"outputPer1K":0.004},"context_length":200000}', 1);
 
+-- Claude 3 family (older naming convention used in production)
+INSERT OR REPLACE INTO models (id, display_name, family, api_provider, api_model_id, config, supports_batch_pricing)
+VALUES 
+  ('anthropic/claude-3-haiku', 'Claude 3 Haiku', 'anthropic', 'anthropic', 'claude-3-haiku-20240307', 
+   '{"pricing":{"inputPer1K":0.00025,"outputPer1K":0.00125},"context_length":200000}', 1);
+
 -- ============================================================================
 -- GOOGLE MODELS (Direct API) - Missing from DB
 -- ============================================================================
