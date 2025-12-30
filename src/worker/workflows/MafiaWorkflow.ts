@@ -234,10 +234,13 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         ? `AI Provider timed out repeatedly. The model may be experiencing high load or network issues. Error: ${errorMessage}`
         : errorMessage;
 
-      this.log.error('Workflow failed', { gameId, error: errorMessage, isTimeout });
+      this.log.error('Workflow failed', { gameId, error: errorMessage, isTimeout, batchId });
 
-      // Save error state
+      // Save error state, update batch progress, and save partial transcript
       await step.do('handle-error', async () => {
+        const durationMs = Date.now() - startTime;
+        
+        // 1. Save error state to KV for real-time visibility
         await saveErrorStateToKV(
           this.env,
           gameId,
@@ -245,6 +248,7 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
           state
         );
 
+        // 2. Update game status to failed in D1
         await this.env.DB.prepare(`
           UPDATE games SET status = 'failed', error_message = ?, updated_at = ?
           WHERE id = ?
@@ -253,6 +257,69 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
           Date.now(),
           gameId
         ).run();
+
+        // 3. Save partial transcript to R2 so frontend can show progress up to failure
+        const partialTranscript = {
+          gameId,
+          winner: null,
+          rounds: state.round,
+          events: state.events,
+          durationMs,
+          timestamp: Date.now(),
+          status: 'failed' as const,
+          error: userFriendlyError,
+        };
+        await this.env.TRANSCRIPTS.put(
+          `games/${gameId}/transcript.json`,
+          JSON.stringify(partialTranscript, null, 2),
+          { 
+            customMetadata: { 
+              gameId, 
+              status: 'failed',
+              rounds: String(state.round),
+              error: userFriendlyError.slice(0, 100), // Truncate for metadata
+            } 
+          }
+        );
+
+        // 4. Update batch progress if part of a batch
+        if (batchId) {
+          // Increment failed_games counter
+          await this.env.DB.prepare(`
+            UPDATE batches SET failed_games = failed_games + 1 WHERE id = ?
+          `).bind(batchId).run();
+
+          // Check if batch is now complete
+          const batch = await this.env.DB.prepare(`
+            SELECT total_games, completed_games, failed_games, status 
+            FROM batches WHERE id = ?
+          `).bind(batchId).first<{
+            total_games: number;
+            completed_games: number;
+            failed_games: number;
+            status: string;
+          }>();
+
+          if (batch && batch.status === 'processing') {
+            const totalProcessed = batch.completed_games + batch.failed_games;
+            if (totalProcessed >= batch.total_games) {
+              await this.env.DB.prepare(`
+                UPDATE batches SET status = 'completed', completed_at = ? WHERE id = ?
+              `).bind(Math.floor(Date.now() / 1000), batchId).run();
+              this.log.info('Batch completed (after game failure)', { batchId, totalProcessed });
+            }
+          }
+        }
+
+        // 5. Update daily stats for failed game
+        const today = new Date().toISOString().split('T')[0]!;
+        await this.env.DB.prepare(`
+          INSERT INTO daily_stats (date, games_failed)
+          VALUES (?, 1)
+          ON CONFLICT(date) DO UPDATE SET
+            games_failed = games_failed + 1,
+            updated_at = unixepoch()
+        `).bind(today).run();
       });
 
       // Broadcast error

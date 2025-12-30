@@ -636,8 +636,8 @@ games.get('/:id/live', async (c) => {
 
   // Forward the WebSocket upgrade request to the Durable Object
   // Use internal URL - DO's fetch handles this internally
-  // Clone the original request to preserve all WebSocket-related headers
-  const wsRequest = new Request('http://internal/websocket', {
+  // Include gameId in URL so DO can fetch KV state even before workflow broadcasts
+  const wsRequest = new Request(`http://internal/websocket?gameId=${encodeURIComponent(gameId)}`, {
     method: 'GET',
     headers: c.req.raw.headers,
   });

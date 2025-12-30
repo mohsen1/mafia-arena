@@ -80,6 +80,7 @@ interface GameDetail {
   personaTheme?: string;
   costUsd?: number;
   status?: string;
+  errorMessage?: string | null;
   participants?: Participant[];
 }
 
@@ -101,6 +102,8 @@ interface TranscriptEvent {
 
 interface TranscriptData {
   events: TranscriptEvent[];
+  status?: 'completed' | 'failed';
+  error?: string;
 }
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -340,17 +343,45 @@ export default function GameDetail() {
   const currentPhase = lastPhaseEvent?.phase || 'completed';
   const phaseConfig = PHASE_CONFIG[currentPhase] || { label: 'Completed', iconType: 'message' };
 
+  // Determine game status - check both game record and transcript
+  const isFailed = game.status === 'failed' || transcript?.status === 'failed';
+  const gameError = game.errorMessage || transcript?.error;
+
   return (
     <GameLayout>
+      {/* Error Banner for Failed Games */}
+      {isFailed && gameError && (
+        <div className="shrink-0 px-4 pt-2">
+          <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
+            <Skull size={16} className="text-rose-500 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-0.5">
+                Game Failed
+              </div>
+              <div className="text-[11px] text-rose-600/80 dark:text-rose-400/80 break-words">
+                {gameError}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="shrink-0 px-4 pt-2 pb-1.5 space-y-1.5">
         {/* Row 1: Status + Theme + Matchup */}
         <div className="flex items-center gap-2 text-[10px]">
           {/* Status badge */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold tracking-widest uppercase">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            DONE
-          </div>
+          {isFailed ? (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[9px] font-bold tracking-widest uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              FAILED
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold tracking-widest uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              DONE
+            </div>
+          )}
 
           {/* Clickable Theme Badge */}
           <button

@@ -1186,9 +1186,14 @@ export class GameRunner extends DurableObject<Env> {
    */
   private async handleWebSocket(request: Request): Promise<Response> {
     const upgradeHeader = request.headers.get('Upgrade');
+    const url = new URL(request.url);
+    // gameId is passed in query string for workflow-based games (where DO might not have state yet)
+    const gameIdFromUrl = url.searchParams.get('gameId');
+    
     this.log.info('WebSocket upgrade request', { 
       upgradeHeader, 
-      sessionCount: this.sessions.length 
+      sessionCount: this.sessions.length,
+      gameIdFromUrl,
     });
 
     if (!upgradeHeader || upgradeHeader !== 'websocket') {
@@ -1204,16 +1209,18 @@ export class GameRunner extends DurableObject<Env> {
     this.sessions.push(server);
     this.log.info('WebSocket connected', { sessionCount: this.sessions.length });
 
+    // Load stored state to check gameId (may be null for fresh workflow games)
+    const state = await this.loadState();
+    // Prefer stored gameId, fall back to URL param (needed for workflow games before first broadcast)
+    const effectiveGameId = state.gameId || gameIdFromUrl;
+
     // Load event log from R2 stream if not already loaded (for DO hibernation recovery)
-    if (this.eventLog.length === 0) {
-      const state = await this.loadState();
-      if (state.gameId && state.status === 'running') {
-        const streamedEvents = await this.loadEventsFromR2Stream(state.gameId);
-        if (streamedEvents.length > 0) {
-          this.eventLog = streamedEvents;
-          this.lastR2StreamIndex = streamedEvents.length;
-          this.log.debug('Loaded events from R2 stream', { eventCount: this.eventLog.length });
-        }
+    if (this.eventLog.length === 0 && effectiveGameId && state.status === 'running') {
+      const streamedEvents = await this.loadEventsFromR2Stream(effectiveGameId);
+      if (streamedEvents.length > 0) {
+        this.eventLog = streamedEvents;
+        this.lastR2StreamIndex = streamedEvents.length;
+        this.log.debug('Loaded events from R2 stream', { eventCount: this.eventLog.length });
       }
     }
 
@@ -1227,9 +1234,9 @@ export class GameRunner extends DurableObject<Env> {
         eventCount: this.lastSyncMessage.events?.length ?? 0,
       });
     } else {
-      // Try to get workflow state from KV (for workflow-based games after DO hibernation)
-      const state = await this.loadState();
-      const kvState = state.gameId ? await getGameStateFromKV(this.env, state.gameId) : null;
+      // Try to get workflow state from KV (for workflow-based games)
+      // Use effectiveGameId to support games before DO has received any broadcast
+      const kvState = effectiveGameId ? await getGameStateFromKV(this.env, effectiveGameId) : null;
       
       if (kvState && kvState.status !== 'completed' && kvState.status !== 'failed') {
         // Workflow mode - work directly with serialized state (avoid deserializing)
@@ -1238,7 +1245,7 @@ export class GameRunner extends DurableObject<Env> {
           type: 'SYNC',
           events: events.slice(-50), // Last 50 events
           status: kvState.status,
-          gameId: state.gameId ?? undefined,
+          gameId: effectiveGameId ?? undefined,
           startedAt: events.length > 0 
             ? events[0]?.timestamp 
             : undefined,
@@ -1249,16 +1256,17 @@ export class GameRunner extends DurableObject<Env> {
         this.log.info('Sent SYNC from KV state', { 
           eventCount: events.length, 
           status: kvState.status,
-          gameId: state.gameId,
+          gameId: effectiveGameId ?? 'unknown',
           phase: kvState.currentPhase,
         });
       } else {
-        // Legacy DO mode - use eventLog and local state
+        // Legacy DO mode or no KV state yet - use eventLog and local state
+        // For new workflow games, events may be empty (game just started, no KV sync yet)
         const syncMessage: WsMessage = {
           type: 'SYNC',
           events: this.eventLog,
-          status: state.status,
-          gameId: state.gameId ?? undefined,
+          status: kvState?.status || state.status || 'running',
+          gameId: effectiveGameId ?? undefined,
           startedAt: state.startedAt ?? undefined,
           error: state.error ?? undefined,
           durationMs: state.startedAt && state.completedAt 
@@ -1268,9 +1276,10 @@ export class GameRunner extends DurableObject<Env> {
         server.send(JSON.stringify(syncMessage));
         this.log.info('Sent SYNC message', { 
           eventCount: this.eventLog.length, 
-          status: state.status,
-          gameId: state.gameId,
+          status: syncMessage.status,
+          gameId: effectiveGameId ?? 'unknown',
           hasError: !!state.error,
+          source: 'legacy/empty',
         });
       }
     }
