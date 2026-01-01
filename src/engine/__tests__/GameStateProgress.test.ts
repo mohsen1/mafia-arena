@@ -273,7 +273,7 @@ describe('GameState Progress Tracking', () => {
 
     it('should calculate progress for night phase with only mafia', () => {
       const config = createConfig(5, 2); // 2 mafia, 3 town
-      let state = GameState.create('test', config).withNextRound(); // Round 2 night
+      const state = GameState.create('test', config).withNextRound(); // Round 2 night
 
       const progress = state.getProgress();
       

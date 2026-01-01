@@ -90,7 +90,7 @@ describe('Error Handling', () => {
       const config = createTestConfig();
       const state = GameState.create('test-game', config);
 
-      const brokenProvider = createMockProvider((context, prompt) => {
+      const brokenProvider = createMockProvider((_context, _prompt) => {
         return {
           action: undefined as unknown as PlayerAction, // Simulate missing action
           rawResponse: '{"invalid": true}',
@@ -120,10 +120,7 @@ describe('Error Handling', () => {
     it('should handle response with wrong action type', async () => {
       const config = createTestConfig();
       const state = GameState.create('test-game', config);
-      let callCount = 0;
-
-      const wrongTypeProvider = createMockProvider((context, prompt) => {
-        callCount++;
+      const wrongTypeProvider = createMockProvider((_context, prompt) => {
         // Return discussion action when kill_vote is expected
         if (prompt.type === 'kill_vote') {
           return {
@@ -191,11 +188,11 @@ describe('Error Handling', () => {
   describe('Vote Validation', () => {
     it('should ignore votes for dead players', async () => {
       const config = createTestConfig();
-      let state = GameState.create('test-game', config);
+      const initialState = GameState.create('test-game', config);
 
       // Kill one player manually to create a dead player
-      const deadPlayer = state.aliveTown[0]!;
-      state = state.withPlayerEliminated(deadPlayer.id);
+      const deadPlayer = initialState.aliveTown[0]!;
+      const state = initialState.withPlayerEliminated(deadPlayer.id);
 
       const deadVoterProvider = createMockProvider((context, prompt) => {
         if (prompt.type === 'elimination_vote') {
@@ -221,7 +218,7 @@ describe('Error Handling', () => {
 
     it('should ignore self-votes during elimination', async () => {
       const config = createTestConfig();
-      let state = GameState.create('test-game', config).withPhase('day_vote');
+      const state = GameState.create('test-game', config).withPhase('day_vote');
 
       const selfVoteProvider = createMockProvider((context, prompt) => {
         if (prompt.type === 'elimination_vote') {
@@ -244,7 +241,7 @@ describe('Error Handling', () => {
 
     it('should ignore votes for non-existent players', async () => {
       const config = createTestConfig();
-      let state = GameState.create('test-game', config);
+      const state = GameState.create('test-game', config);
 
       const fakeIdProvider = createMockProvider((context, prompt) => {
         if (prompt.type === 'kill_vote') {
@@ -278,9 +275,9 @@ describe('Error Handling', () => {
         nightDiscussionRounds: 0,
         dayDiscussionRounds: 1,
       };
-      let state = GameState.create('test-game', config).withPhase('day_vote');
+      const state = GameState.create('test-game', config).withPhase('day_vote');
 
-      const abstainProvider = createMockProvider((context, prompt) => {
+      const abstainProvider = createMockProvider((_context, prompt) => {
         if (prompt.type === 'elimination_vote') {
           return {
             action: { type: 'elimination_vote', target: null },
@@ -338,12 +335,12 @@ describe('Error Handling', () => {
   describe('Token Tracking Accuracy', () => {
     it('should correctly sum tokens across all AI calls', async () => {
       const config = createTestConfig();
-      let state = GameState.create('test-game', config).withPhase('day_discussion');
+      const state = GameState.create('test-game', config).withPhase('day_discussion');
 
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
 
-      const tokenTrackingProvider = createMockProvider((context, prompt) => {
+      const tokenTrackingProvider = createMockProvider((_context, _prompt) => {
         const inputTokens = Math.floor(Math.random() * 100) + 50;
         const outputTokens = Math.floor(Math.random() * 50) + 20;
         totalInputTokens += inputTokens;

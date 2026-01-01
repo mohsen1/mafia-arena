@@ -32,11 +32,15 @@ export function Header() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  const navLinks = [
+  type NavLink = 
+    | { href: string; label: string; match: (p: string) => boolean; external?: false }
+    | { href: string; label: string; external: true; match?: never };
+
+  const navLinks: NavLink[] = [
     { href: '/games', label: 'Games', match: (p: string) => p.startsWith('/games') },
   ];
 
-  const rightNavLinks = [
+  const rightNavLinks: NavLink[] = [
     { href: '/blog', label: 'Blog', match: (p: string) => p.startsWith('/blog') },
     { href: '/faq', label: 'FAQ', match: (p: string) => p === '/faq' },
     { href: 'https://github.com/mohsen1/mafia-arena', label: 'GitHub', external: true },
@@ -59,7 +63,7 @@ export function Header() {
                 to={link.href}
                 className={cn(
                   'transition-colors hover:text-foreground',
-                  link.match(pathname)
+                  link.match?.(pathname)
                     ? 'text-foreground font-medium'
                     : 'text-muted-foreground'
                 )}
@@ -112,7 +116,7 @@ export function Header() {
           {/* Right-side Navigation Links (Desktop) */}
           <nav className="hidden md:flex items-center gap-4 text-sm mr-2">
             {rightNavLinks.map((link) => (
-              link.external ? (
+              link.external === true ? (
                 <a
                   key={link.href}
                   href={link.href}
@@ -304,7 +308,7 @@ export function Header() {
 
                 {/* Navigation Links */}
                 {[...navLinks, ...rightNavLinks].map((link) => (
-                  link.external ? (
+                  link.external === true ? (
                     <a
                       key={link.href}
                       href={link.href}
