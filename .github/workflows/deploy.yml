@@ -13,6 +13,9 @@ jobs:
   deploy-worker:
     name: Deploy Worker
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.mafia-arena.com
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +43,9 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://mafia-arena.com
     steps:
       - uses: actions/checkout@v4
 
