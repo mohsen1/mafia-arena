@@ -18,8 +18,8 @@ export async function loader({ params }: Route.LoaderArgs) {
     throw new Response("Blog post not found", { status: 404 });
   }
 
-  const data = await res.json();
-  return { post: data.post as BlogPost };
+  const data = await res.json() as { post: BlogPost };
+  return { post: data.post };
 }
 
 export function meta({ data }: Route.MetaArgs) {

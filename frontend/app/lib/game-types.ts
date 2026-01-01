@@ -131,6 +131,7 @@ export interface BatchStatus {
   submittedAt?: number;
   pollCount?: number;
   estimatedWaitHours?: number;
+  pendingRequests?: number;
 }
 
 /** Player data from API (matches engine Player type) */

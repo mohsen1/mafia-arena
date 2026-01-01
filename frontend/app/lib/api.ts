@@ -170,6 +170,7 @@ export interface GameDetail extends GameSummary {
   player_count: number;
   mafia_count: number;
   errorMessage?: string | null;
+  discountPricing?: boolean;
   participants: Array<{
     model_id: string;
     model_name: string;

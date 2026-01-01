@@ -11,6 +11,8 @@ export default defineWorkersConfig({
   test: {
     globals: true,
     include: ['src/worker/__tests__/**/*.test.ts'],
+    // Run tests sequentially to avoid queue consumer conflicts
+    fileParallelism: false,
     poolOptions: {
       workers: {
         wrangler: {

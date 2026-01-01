@@ -15,8 +15,8 @@ export async function loader() {
   if (!res.ok) {
     throw new Response("Failed to load blog posts", { status: res.status });
   }
-  const data = await res.json();
-  return { posts: data.posts as BlogPostPreview[] };
+  const data = await res.json() as { posts: BlogPostPreview[] };
+  return { posts: data.posts };
 }
 
 export function meta({}: Route.MetaArgs) {
