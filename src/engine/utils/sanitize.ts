@@ -88,6 +88,7 @@ export function containsDangerousPatterns(text: string): boolean {
  */
 export function sanitizeText(text: string, maxLength: number): string {
   // Remove control characters and unusual whitespace
+  // eslint-disable-next-line no-control-regex
   let sanitized = text.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
   
   // Remove zero-width and directional unicode characters (used for obfuscation)
@@ -198,7 +199,7 @@ export function sanitizePersona(persona: {
   };
   
   if (persona.occupation) {
-    result.occupation = sanitizeText(persona.occupation, 50).replace(/[^a-zA-Z0-9\s\-]/g, '');
+    result.occupation = sanitizeText(persona.occupation, 50).replace(/[^a-zA-Z0-9\s-]/g, '');
   }
   
   return result;

@@ -38,6 +38,7 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.0",
     "@cloudflare/workers-types": "^4.20241205.0",
+    "@eslint/js": "^9.39.2",
     "@libsql/client": "^0.15.15",
     "@playwright/test": "^1.57.0",
     "@resvg/resvg-js": "^2.6.2",
@@ -50,6 +51,7 @@
     "puppeteer": "^24.34.0",
     "sharp": "^0.34.5",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.51.0",
     "vitest": "^2.1.8",
     "wrangler": "^3.99.0"
   },
