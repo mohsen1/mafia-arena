@@ -34,6 +34,15 @@ export default defineWorkersConfig({
           // KV Namespace - use in-memory for tests
           kvNamespaces: ['RATE_LIMIT'],
 
+          // Test API keys (AI calls are mocked, but routes validate key presence)
+          bindings: {
+            OPENROUTER_API_KEY: 'test-key-for-validation',
+            OPENAI_API_KEY: 'test-key-for-validation',
+            ANTHROPIC_API_KEY: 'test-key-for-validation',
+            GOOGLE_API_KEY: 'test-key-for-validation',
+            ENCRYPTION_SECRET: 'test-encryption-secret-32chars!',
+          },
+
           // Durable Objects are automatically configured from wrangler.toml
         },
         // Disable isolated storage for Workflows compatibility
