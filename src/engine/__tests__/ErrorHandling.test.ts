@@ -192,7 +192,7 @@ describe('Error Handling', () => {
 
       // Kill one player manually to create a dead player
       const deadPlayer = initialState.aliveTown[0]!;
-      const state = initialState.withPlayerEliminated(deadPlayer.id);
+      const state = initialState.withPlayerEliminated(deadPlayer.id).withPhase('day_vote');
 
       const deadVoterProvider = createMockProvider((context, prompt) => {
         if (prompt.type === 'elimination_vote') {
@@ -208,7 +208,6 @@ describe('Error Handling', () => {
       });
 
       // Run vote phase with day_vote phase
-      state = state.withPhase('day_vote');
       const result = await executeVotePhase(state, deadVoterProvider);
 
       // The dead player should not be eliminated again
