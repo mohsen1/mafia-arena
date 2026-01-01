@@ -1,63 +1,43 @@
-# Mafia Arena
+<h1><img width="20" src="frontend/public/logo.jpeg" alt="Mafia Arena" width="200"> Mafia Arena</h1>
 
-AI models playing Mafia against each other.
 
-**[Live Site](https://mafia-arena-frontend.pages.dev)** • **[Leaderboard](https://mafia-arena-frontend.pages.dev/stats)** • **[Architecture](ARCHITECTURE.md)**
+An AI benchmark that tests social intelligence by having LLMs play Mafia against each other.
 
----
+**[Live Site](https://mafia-arena.com)** | **[Leaderboard](https://mafia-arena.com/stats)** | **[Architecture](ARCHITECTURE.md)**
 
-## What is this?
+## Overview
 
-An AI benchmark that tests social intelligence by having LLMs play the deduction game Mafia. Models deceive, deduce, and outmaneuver each other across night kills and day votes.
+Mafia Arena evaluates Large Language Models' social reasoning through the classic deduction game Mafia (Werewolf). Models deceive, deduce, and persuade each other across day votes and night kills.
+
+Built entirely on Cloudflare's edge infrastructure: Workers, Workflows, D1, R2, and Queues.
 
 ## Quick Start
 
 ```bash
+git clone https://github.com/mohsen1/mafia-arena.git
+cd mafia-arena
+
 pnpm install
-pnpm test
+pnpm --dir frontend install
+
+cp .env.example .dev.vars
+# Add your OPENROUTER_API_KEY to .dev.vars
+
+pnpm exec wrangler types
 pnpm dev
 ```
 
-## Deployment
-
-### Manual Deployment
-
-```bash
-# Set secrets (one-time setup)
-wrangler secret put OPENROUTER_API_KEY
-wrangler secret put GOOGLE_API_KEY
-wrangler secret put ENCRYPTION_SECRET
-
-# Deploy
-pnpm run deploy
-```
-
-### Automatic Deployment (GitHub Actions)
-
-Push to `main` triggers automatic deployment. Set these secrets in GitHub repository settings:
-
-| Secret | Required | Description |
-|--------|----------|-------------|
-| `CLOUDFLARE_API_TOKEN` | ✅ | [Create API token](https://dash.cloudflare.com/profile/api-tokens) with "Edit Cloudflare Workers" template |
-| `CLOUDFLARE_ACCOUNT_ID` | ✅ | Your Cloudflare account ID |
-| `OPENROUTER_API_KEY` | ✅ | OpenRouter API key for AI models |
-| `GOOGLE_API_KEY` | | Direct Google Gemini access |
-| `ANTHROPIC_API_KEY` | | Direct Anthropic access |
-| `OPENAI_API_KEY` | | Direct OpenAI access |
-| `GOOGLE_CLIENT_ID` | | OAuth 2.0 Client ID (for admin auth) |
-| `GOOGLE_CLIENT_SECRET` | | OAuth 2.0 Client Secret |
-| `ADMIN_EMAIL` | | Admin user email |
-| `ENCRYPTION_SECRET` | ✅ | 32+ char secret for user API key encryption |
-
-**Create Cloudflare API Token:**
-1. Go to [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens)
-2. Click "Create Token"
-3. Use "Edit Cloudflare Workers" template
-4. Optionally add: D1 Edit, R2 Edit, Queues Edit permissions
-5. Copy the token to GitHub secrets
+Worker runs at `http://localhost:8787`, frontend at `http://localhost:5173`.
 
 
+## Contributing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
-See [Architecture](ARCHITECTURE.md) for deep dives into Workflows, queue system, AI orchestration, and database design.
+## Security
 
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
+## License
+
+MIT - see [LICENSE](LICENSE)
