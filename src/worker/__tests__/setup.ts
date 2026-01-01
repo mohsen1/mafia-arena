@@ -25,6 +25,7 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       elo_games_played INTEGER DEFAULT 0,
       elo_peak INTEGER DEFAULT 1500,
       elo_updated_at INTEGER,
+      supports_batch_pricing INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     )`,
     `CREATE TABLE IF NOT EXISTS providers (
@@ -177,6 +178,48 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       town_avg_consistency REAL NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     )`,
+    `CREATE TABLE IF NOT EXISTS batch_api_jobs (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      provider_job_id TEXT,
+      model_id TEXT NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'uploading', 'submitted', 'processing', 'completed', 'failed', 'cancelled', 'expired')),
+      request_count INTEGER NOT NULL DEFAULT 0,
+      completed_count INTEGER DEFAULT 0,
+      failed_count INTEGER DEFAULT 0,
+      input_resource_id TEXT,
+      output_resource_id TEXT,
+      metadata TEXT,
+      error_message TEXT,
+      created_at INTEGER DEFAULT (unixepoch() * 1000),
+      submitted_at INTEGER,
+      completed_at INTEGER,
+      expires_at INTEGER
+    )`,
+    `CREATE TABLE IF NOT EXISTS batch_api_requests (
+      id TEXT PRIMARY KEY,
+      request_id TEXT NOT NULL,
+      custom_id TEXT NOT NULL,
+      batch_job_id TEXT,
+      game_id TEXT NOT NULL,
+      model_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      request_body TEXT NOT NULL,
+      context_json TEXT NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'claiming', 'bundled', 'completed', 'failed')),
+      response_body TEXT,
+      input_tokens INTEGER,
+      output_tokens INTEGER,
+      cost_usd REAL,
+      error_message TEXT,
+      retry_count INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (unixepoch() * 1000),
+      updated_at INTEGER,
+      claim_id TEXT,
+      claim_expires_at INTEGER,
+      trace_id TEXT,
+      FOREIGN KEY (batch_job_id) REFERENCES batch_api_jobs(id)
+    )`,
     `CREATE TABLE IF NOT EXISTS persona_patterns (
       model_id TEXT NOT NULL,
       team TEXT NOT NULL CHECK (team IN ('mafia', 'town')),
@@ -205,12 +248,20 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_participants_game ON game_participants(game_id)`,
     `CREATE INDEX IF NOT EXISTS idx_participants_model ON game_participants(model_id)`,
     `CREATE INDEX IF NOT EXISTS idx_batches_status ON batches(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_batch_jobs_status ON batch_api_jobs(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_batch_jobs_provider_status ON batch_api_jobs(provider, status)`,
+    `CREATE INDEX IF NOT EXISTS idx_batch_req_status_provider ON batch_api_requests(status, provider)`,
+    `CREATE INDEX IF NOT EXISTS idx_batch_req_game ON batch_api_requests(game_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_batch_req_job ON batch_api_requests(batch_job_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_batch_requests_claim ON batch_api_requests(status, claim_id, claim_expires_at)`,
   ];
 
   const insertStatements = [
     `INSERT OR IGNORE INTO system_state (key, value) VALUES ('processing_paused', 'false')`,
     `INSERT OR IGNORE INTO system_state (key, value) VALUES ('max_concurrent_games', '50')`,
     `INSERT OR IGNORE INTO models (id, family, display_name, api_provider, api_model_id) VALUES ('test/model', 'test', 'Test Model', 'openrouter', 'test/model')`,
+    `INSERT OR IGNORE INTO models (id, family, display_name, api_provider, api_model_id, supports_batch_pricing) VALUES ('test/batch-model', 'test', 'Test Batch Model', 'anthropic', 'test/batch-model', 1)`,
+    `INSERT OR IGNORE INTO models (id, family, display_name, api_provider, api_model_id, supports_batch_pricing) VALUES ('anthropic/claude-test', 'anthropic', 'Claude Test', 'anthropic', 'claude-test', 1)`,
     `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('openrouter', 'OpenRouter', 'openai_compatible', 'https://openrouter.ai/api/v1', 1)`,
     `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('openai', 'OpenAI', 'openai_compatible', 'https://api.openai.com/v1', 0)`,
     `INSERT OR IGNORE INTO providers (id, display_name, api_type, base_url, is_aggregator) VALUES ('anthropic', 'Anthropic', 'anthropic', 'https://api.anthropic.com/v1', 0)`,
@@ -240,6 +291,8 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
  */
 export async function cleanupTestData(db: D1Database): Promise<void> {
   const tables = [
+    'batch_api_requests',
+    'batch_api_jobs',
     'game_participants',
     'game_personas',
     'game_persona_analysis',
