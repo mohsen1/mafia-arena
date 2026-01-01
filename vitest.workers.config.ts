@@ -38,6 +38,8 @@ export default defineWorkersConfig({
         },
         // Disable isolated storage for Workflows compatibility
         isolatedStorage: false,
+        // Use single worker to avoid queue consumer conflicts
+        singleWorker: true,
       },
     },
     // Longer timeout for E2E game tests
