@@ -97,4 +97,4 @@ Mafia Arena benchmarks LLMs through the social deduction game Mafia, testing per
 Built by Mohsen Azimi — GitHub: [mohsen1](https://github.com/mohsen1), Twitter: [@mohsen____](https://twitter.com/mohsen____)
 
 ### How can I contribute to Mafia Arena?
-Run games with your API keys to grow the dataset (batch APIs keep costs lower), and share feedback or issues on [GitHub](https://github.com/mohsen1/mafia-arena-issues).
+Run games with your API keys to grow the dataset (batch APIs keep costs lower), and share feedback or issues on [GitHub](https://github.com/mohsen1/mafia-arena).

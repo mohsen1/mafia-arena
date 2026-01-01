@@ -13,7 +13,7 @@ export function Footer() {
             Terms
           </Link>
           <a
-            href="https://github.com/mohsen1/mafia-arena-issues/issues"
+            href="https://github.com/mohsen1/mafia-arena/issues"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-foreground transition-colors"
