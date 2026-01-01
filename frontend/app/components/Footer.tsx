@@ -6,6 +6,14 @@ export function Footer() {
       <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
         <p>© 2025 Mohsen Azimi</p>
         <nav className="flex items-center gap-4">
+          <a
+            href="https://github.com/mohsen1/mafia-arena"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground transition-colors"
+          >
+            Open Source
+          </a>
           <Link to="/privacy-policy" className="hover:text-foreground transition-colors">
             Privacy
           </Link>

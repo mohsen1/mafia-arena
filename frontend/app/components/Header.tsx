@@ -39,6 +39,7 @@ export function Header() {
   const rightNavLinks = [
     { href: '/blog', label: 'Blog', match: (p: string) => p.startsWith('/blog') },
     { href: '/faq', label: 'FAQ', match: (p: string) => p === '/faq' },
+    { href: 'https://github.com/mohsen1/mafia-arena', label: 'GitHub', external: true },
   ];
 
   return (
@@ -111,95 +112,35 @@ export function Header() {
           {/* Right-side Navigation Links (Desktop) */}
           <nav className="hidden md:flex items-center gap-4 text-sm mr-2">
             {rightNavLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className={cn(
-                  'transition-colors hover:text-foreground',
-                  link.match(pathname)
-                    ? 'text-foreground font-medium'
-                    : 'text-muted-foreground'
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Mobile Menu Button */}
-          <div className="relative md:hidden" ref={mobileMenuRef}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setMobileMenuOpen(!mobileMenuOpen);
-              }}
-              className="p-2 -ml-2 hover:bg-accent rounded-md transition-colors"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-
-            {/* Mobile Navigation Overlay */}
-            {mobileMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-48 py-2 bg-background border rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                {[...navLinks, ...rightNavLinks].map((link) => (
-                  <Link
-                    key={link.href}
-                    to={link.href}
-                    className={cn(
-                      'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
-                      link.match(pathname)
-                        ? 'text-foreground font-medium bg-muted/50'
-                        : 'text-muted-foreground'
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+              link.external ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground text-muted-foreground"
+                >
+                  {link.label}
+                </a>
+              ) : (
                 <Link
-                  to="/games/new"
+                  key={link.href}
+                  to={link.href}
                   className={cn(
-                    'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
-                    pathname === '/games/new'
-                      ? 'text-foreground font-medium bg-muted/50'
+                    'transition-colors hover:text-foreground',
+                    link.match(pathname)
+                      ? 'text-foreground font-medium'
                       : 'text-muted-foreground'
                   )}
                 >
-                  Start a New Game
+                  {link.label}
                 </Link>
-                {authenticated && (
-                  <Link
-                    to="/batches"
-                    className={cn(
-                      'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
-                      pathname.startsWith('/batches')
-                        ? 'text-foreground font-medium bg-muted/50'
-                        : 'text-muted-foreground'
-                    )}
-                  >
-                    Batch Games
-                  </Link>
-                )}
-                {user?.isAdmin && (
-                  <Link
-                    to="/admin"
-                    className={cn(
-                      'flex items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-muted',
-                      pathname.startsWith('/admin')
-                        ? 'text-foreground font-medium bg-muted/50'
-                        : 'text-muted-foreground'
-                    )}
-                  >
-                    <Shield className="h-4 w-4" />
-                    Admin
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+              )
+            ))}
+          </nav>
 
-          {/* Auth Button */}
-          <div className="relative" ref={dropdownRef}>
+          {/* Auth Button (Desktop only) */}
+          <div className="relative hidden md:block" ref={dropdownRef}>
             {loading ? (
               <div className="w-8 h-8 flex items-center justify-center">
                 <div className="w-4 h-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
@@ -295,7 +236,154 @@ export function Header() {
             )}
           </div>
 
-          <ThemeToggle />
+          {/* Theme Toggle (Desktop only) */}
+          <div className="hidden md:block">
+            <ThemeToggle />
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="relative md:hidden" ref={mobileMenuRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMobileMenuOpen(!mobileMenuOpen);
+              }}
+              className="p-2 hover:bg-accent rounded-md transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+
+            {/* Mobile Navigation Overlay */}
+            {mobileMenuOpen && (
+              <div className="absolute top-full right-0 mt-2 w-56 py-2 bg-background border rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                {/* Theme Toggle in Mobile Menu */}
+                <div className="flex items-center justify-between px-4 py-2.5 border-b mb-2">
+                  <span className="text-sm text-muted-foreground">Theme</span>
+                  <ThemeToggle />
+                </div>
+
+                {/* Auth in Mobile Menu */}
+                {!loading && (
+                  authenticated && user ? (
+                    <div className="border-b mb-2 pb-2">
+                      <div className="flex items-center gap-2 px-4 py-2">
+                        {user.picture ? (
+                          <img
+                            src={user.picture}
+                            alt={user.name}
+                            className="w-6 h-6 rounded-full bg-muted object-cover"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                            <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <span className="text-sm font-medium truncate">
+                          {user.name?.split(' ')[0] || 'User'}
+                        </span>
+                      </div>
+                      <Link
+                        to="/account"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-muted text-muted-foreground"
+                      >
+                        <User className="h-4 w-4" />
+                        Account
+                      </Link>
+                    </div>
+                  ) : (
+                    <a
+                      href={getLoginUrl(pathname)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted border-b mb-2"
+                    >
+                      <User className="h-4 w-4" />
+                      Sign in
+                    </a>
+                  )
+                )}
+
+                {/* Navigation Links */}
+                {[...navLinks, ...rightNavLinks].map((link) => (
+                  link.external ? (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block px-4 py-2.5 text-sm transition-colors hover:bg-muted text-muted-foreground"
+                    >
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link
+                      key={link.href}
+                      to={link.href}
+                      className={cn(
+                        'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
+                        link.match(pathname)
+                          ? 'text-foreground font-medium bg-muted/50'
+                          : 'text-muted-foreground'
+                      )}
+                    >
+                      {link.label}
+                    </Link>
+                  )
+                ))}
+                <Link
+                  to="/games/new"
+                  className={cn(
+                    'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
+                    pathname === '/games/new'
+                      ? 'text-foreground font-medium bg-muted/50'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  Start a New Game
+                </Link>
+                {authenticated && (
+                  <Link
+                    to="/batches"
+                    className={cn(
+                      'block px-4 py-2.5 text-sm transition-colors hover:bg-muted',
+                      pathname.startsWith('/batches')
+                        ? 'text-foreground font-medium bg-muted/50'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    Batch Games
+                  </Link>
+                )}
+                {user?.isAdmin && (
+                  <Link
+                    to="/admin"
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-muted',
+                      pathname.startsWith('/admin')
+                        ? 'text-foreground font-medium bg-muted/50'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    <Shield className="h-4 w-4" />
+                    Admin
+                  </Link>
+                )}
+
+                {/* Sign Out in Mobile Menu */}
+                {authenticated && user && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-muted transition-colors border-t mt-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>
