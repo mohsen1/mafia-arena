@@ -1,20 +1,31 @@
 /**
  * Google/Gemini Batch API provider.
  * 
- * 50% discount on Gemini models
+ * ⚠️  WARNING: THIS IMPLEMENTATION IS NOT FUNCTIONAL ⚠️
  * 
- * API Documentation: https://ai.google.dev/gemini-api/docs/batch
+ * Google's Gemini API does NOT have a proper batch API endpoint like 
+ * Anthropic or OpenAI. The batchGenerateContent endpoint either doesn't 
+ * exist or requires Vertex AI + Google Cloud Storage integration.
  * 
- * Key details:
- * - Uses File API for large batch inputs
- * - BatchGenerateContent endpoint for batch processing
- * - Results in 24 hours or less
+ * DO NOT enable batch pricing for Google models until this is properly
+ * implemented using Vertex AI's Batch Prediction API.
+ * 
+ * The models table should have supports_batch_pricing = 0 for all 
+ * Google models. See migration 0044_disable_google_batch.sql.
+ * 
+ * Original (non-functional) implementation notes:
+ * - Attempted to use batchGenerateContent endpoint
+ * - Returns error: "Unknown name 'requests': Cannot find field"
+ * 
+ * TODO: Implement using Vertex AI Batch Prediction API:
+ * https://cloud.google.com/vertex-ai/docs/generative-ai/batch-prediction
  */
 
 import type { Env } from '../../types.js';
 import type { CompletionRequest, CompletionResponse } from '../../ai/types.js';
 import type { BatchRequest, BatchRequestResult, BatchJobStatus } from '../types.js';
 import { BaseBatchProvider } from './BaseBatchProvider.js';
+import { ModelRegistry } from '../../services/ModelRegistry.js';
 
 /** Google AI API base URL */
 const GOOGLE_API_URL = 'https://generativelanguage.googleapis.com/v1beta';
@@ -70,6 +81,8 @@ interface GoogleBatchResultItem {
  * For Vertex AI batch processing, see the Vertex AI documentation.
  */
 export class GoogleBatch extends BaseBatchProvider {
+  private readonly modelRegistry: ModelRegistry;
+
   /**
    * Create a Google batch provider.
    * @param env - Worker environment bindings
@@ -77,20 +90,42 @@ export class GoogleBatch extends BaseBatchProvider {
    */
   constructor(env: Env, _defaultModelId: string) {
     super('google', env, 'GOOGLE_API_KEY');
+    this.modelRegistry = new ModelRegistry(env.DB);
   }
 
   /**
-   * Extract Google model name from our model ID format.
-   * @param modelId - Model ID like 'google/gemini-1.5-pro'
-   * @returns Google model name like 'gemini-1.5-pro'
+   * Get the actual Google API model name from our model ID.
+   * Uses ModelRegistry to look up the api_model_id from the database.
+   * Falls back to stripping prefix if not found.
+   * 
+   * @param modelId - Our model ID like 'google/gemini-3-pro'
+   * @returns Google API model name like 'gemini-3-pro-preview'
    */
-  private extractGoogleModelName(modelId: string): string {
-    // Remove provider prefix if present
-    let name = modelId;
-    if (name.startsWith('google/')) {
-      name = name.slice('google/'.length);
+  private async resolveGoogleModelName(modelId: string): Promise<string> {
+    try {
+      const context = await this.modelRegistry.get(modelId);
+      // apiModelId is the actual name Google expects (e.g., 'gemini-3-pro-preview')
+      let apiModelId = context.apiModelId;
+      
+      // Strip 'google/' prefix if present (some DB entries might have it)
+      if (apiModelId.startsWith('google/')) {
+        apiModelId = apiModelId.slice('google/'.length);
+      }
+      
+      return apiModelId;
+    } catch (error) {
+      this.log.warn('Failed to resolve Google model name from DB, falling back', {
+        modelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      
+      // Fallback: just strip the prefix
+      let name = modelId;
+      if (name.startsWith('google/')) {
+        name = name.slice('google/'.length);
+      }
+      return name;
     }
-    return name;
   }
 
   /**
@@ -124,6 +159,21 @@ export class GoogleBatch extends BaseBatchProvider {
       internalJobId: options?.internalJobId,
     });
 
+    // Use batchGenerateContent endpoint
+    // All requests in a batch have the same model, so use the first one
+    const firstRequest = requests[0];
+    if (!firstRequest) {
+      throw new Error('Cannot create batch with empty requests');
+    }
+    
+    // Resolve the actual Google API model name from our internal ID
+    const googleModelName = await this.resolveGoogleModelName(firstRequest.modelId);
+    
+    this.log.info('Resolved Google model name', {
+      internalModelId: firstRequest.modelId,
+      googleModelName,
+    });
+
     // Build inline batch requests (for smaller batches)
     // For larger batches, would need to use File API
     const batchRequests = requests.map(req => ({
@@ -131,13 +181,6 @@ export class GoogleBatch extends BaseBatchProvider {
       request: this.formatRequest(req.request, req.customId, req.modelId),
     }));
 
-    // Use batchGenerateContent endpoint
-    // All requests in a batch have the same model, so use the first one
-    const firstRequest = requests[0];
-    if (!firstRequest) {
-      throw new Error('Cannot create batch with empty requests');
-    }
-    const googleModelName = this.extractGoogleModelName(firstRequest.modelId);
     const response = await fetch(
       this.buildUrl(`/models/${googleModelName}:batchGenerateContent`),
       {
