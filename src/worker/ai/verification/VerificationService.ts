@@ -76,8 +76,12 @@ const SUSPICIOUSLY_FAST_MS = 50;
 /** Token prefix for easy identification */
 const VERIFICATION_TOKEN_PREFIX = 'VTKN_';
 
-/** Current expected template version */
-const EXPECTED_TEMPLATE_VERSION = '1.0.0';
+/**
+ * Default expected template version.
+ * The actual version is returned by the worker itself in the challenge response,
+ * so this is only used as a fallback when the worker doesn't return a version.
+ */
+const DEFAULT_TEMPLATE_VERSION = '1.0.0';
 
 // =============================================================================
 // TOKEN GENERATION
@@ -176,7 +180,7 @@ export async function verifyChallengeResponse(
   }
 
   // Verify the response matches expected computation
-  const templateVersion = result.templateVersion ?? EXPECTED_TEMPLATE_VERSION;
+  const templateVersion = result.templateVersion ?? DEFAULT_TEMPLATE_VERSION;
   const expectedResponse = await computeExpectedChallengeResponse(
     nonce,
     templateVersion

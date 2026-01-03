@@ -40,6 +40,29 @@ const externalWorkers = new Hono<ExternalWorkersBindings>();
 const ALLOWED_DOMAINS = ['.workers.dev', '.pages.dev', '.cloudflare.dev'] as const;
 
 /**
+ * Check whether a hostname is allowed for use as an external worker.
+ *
+ * This enforces that the hostname either exactly matches the apex domain
+ * (e.g. "workers.dev") or ends with one of the allowed suffixes
+ * (e.g. "*.workers.dev"), preventing matches on hostnames like
+ * "badsite.com.workers.dev.malicious.com".
+ */
+function isAllowedExternalWorkerHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+
+  return ALLOWED_DOMAINS.some((domain) => {
+    const suffix = domain.toLowerCase(); // e.g. ".workers.dev"
+    const apex = suffix.slice(1); // "workers.dev"
+
+    if (normalized === apex) {
+      return true;
+    }
+
+    return normalized.endsWith(suffix);
+  });
+}
+
+/**
  * Blocked URL patterns (RFC1918, localhost, etc.)
  */
 const BLOCKED_PATTERNS = [
@@ -117,19 +140,14 @@ function validateWorkerUrl(url: string): URL {
     }
   }
 
-  // Verify domain is in allowlist
-  const hostname = parsed.hostname.toLowerCase();
-  const isAllowed = ALLOWED_DOMAINS.some(
-    (domain) => hostname === domain.slice(1) || hostname.endsWith(domain)
-  );
-
-  if (!isAllowed) {
+  // Verify domain is in allowlist using secure hostname check
+  if (!isAllowedExternalWorkerHostname(parsed.hostname)) {
     throw Errors.BadRequest(
       `Worker must be hosted on Cloudflare (${ALLOWED_DOMAINS.join(', ')})`
     );
   }
 
-  // Normalize URL - remove trailing slash and path extras
+  // Normalize URL - use origin + pathname only (exclude query params and hash)
   return parsed;
 }
 

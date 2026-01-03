@@ -101,9 +101,6 @@ function parseModelId(modelId: string): { provider: ProviderType; apiModelId: st
   const firstPart = parts[0] as ProviderType;
 
   if (firstPart in PROVIDER_CONFIG) {
-    if (firstPart === 'openrouter') {
-      return { provider: 'openrouter', apiModelId: parts.slice(1).join('/') };
-    }
     return { provider: firstPart, apiModelId: parts.slice(1).join('/') };
   }
 
@@ -183,12 +180,18 @@ async function callOpenAICompatible(
     };
 
     // Extract content from either regular response or tool call
+    const choice = data.choices?.[0];
+    if (!choice || !choice.message) {
+      throw new Error('No response from API');
+    }
+
     let content: string;
-    const choice = data.choices[0];
-    if (choice.message.tool_calls?.[0]) {
+    if (choice.message.tool_calls?.[0]?.function?.arguments) {
       content = choice.message.tool_calls[0].function.arguments;
+    } else if (typeof choice.message.content === 'string') {
+      content = choice.message.content;
     } else {
-      content = choice.message.content ?? '';
+      content = '';
     }
 
     return {
@@ -264,8 +267,12 @@ async function callAnthropic(
     };
 
     // Extract content from either text or tool use
+    const contentBlock = data.content?.[0];
+    if (!contentBlock) {
+      throw new Error('No content in Anthropic response');
+    }
+
     let content: string;
-    const contentBlock = data.content[0];
     if (contentBlock.type === 'tool_use' && contentBlock.input) {
       content = JSON.stringify(contentBlock.input);
     } else {
