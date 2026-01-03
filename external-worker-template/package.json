@@ -1,0 +1,19 @@
+{
+  "name": "mafia-arena-external-worker",
+  "version": "1.0.0",
+  "description": "External worker template for Mafia Arena API key isolation",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.99.0"
+  },
+  "dependencies": {
+    "hono": "^4.6.16"
+  }
+}

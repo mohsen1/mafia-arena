@@ -42,3 +42,5 @@ export { AnthropicProvider } from './AnthropicProvider.js';
 export { MinimaxProvider } from './MinimaxProvider.js';
 export { CohereProvider } from './CohereProvider.js';
 export { AI21Provider } from './AI21Provider.js';
+export { ExternalWorkerProvider } from './ExternalWorkerProvider.js';
+export type { ExternalWorkerConfig, ExternalWorkerRequest, ExternalWorkerResponse } from './ExternalWorkerProvider.js';
