@@ -24,9 +24,9 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader() {
+export async function loader({ request }: Route.LoaderArgs) {
   try {
-    const stats = await getStatsOverview();
+    const stats = await getStatsOverview(request);
     return { stats, error: null };
   } catch (error) {
     return { stats: null, error: 'Failed to load stats' };

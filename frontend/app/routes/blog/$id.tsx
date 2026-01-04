@@ -12,8 +12,8 @@ interface BlogPost {
   content: string;
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
-  const res = await fetch(`${getApiUrl()}/api/blog/${params.id}`);
+export async function loader({ params, request }: Route.LoaderArgs) {
+  const res = await fetch(`${getApiUrl(request)}/api/blog/${params.id}`);
   if (!res.ok) {
     throw new Response("Blog post not found", { status: 404 });
   }

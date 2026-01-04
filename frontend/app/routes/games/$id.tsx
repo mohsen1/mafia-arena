@@ -71,8 +71,8 @@ interface Participant {
   won: boolean;
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
-  const apiUrl = getApiUrl();
+export async function loader({ params, request }: Route.LoaderArgs) {
+  const apiUrl = getApiUrl(request);
   const id = params.id;
 
   try {

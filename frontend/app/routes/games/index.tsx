@@ -45,9 +45,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   try {
     const [liveGamesResult, completedGamesResult, matchupsData] = await Promise.all([
-      getLiveGames(),
-      getGames(LIMIT, offset, 'completed', filters),
-      getMatchups(),
+      getLiveGames(request),
+      getGames(LIMIT, offset, 'completed', filters, request),
+      getMatchups(undefined, request),
     ]);
 
     return {
