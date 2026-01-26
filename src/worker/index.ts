@@ -27,11 +27,7 @@ import {
   incrementBatchProgress,
   updateDailyStats,
   BatchService,
-  AnthropicBatch,
-  OpenAIBatch,
-  GoogleBatch,
-  CerebrasBatch,
-  FireworksBatch,
+  registerAvailableProviders,
 } from './batch/index.js';
 
 // Re-export the Durable Object
@@ -224,33 +220,9 @@ export default {
  * Called once per scheduled invocation.
  */
 function registerBatchProviders(batchService: BatchService, env: Env): void {
-  // Register providers that have API keys configured
-  // Each provider checks its own env var in the constructor
   try {
-    // Anthropic - 50% discount
-    if ((env as unknown as Record<string, unknown>).ANTHROPIC_API_KEY) {
-      batchService.registerProvider(new AnthropicBatch(env, 'anthropic/claude-3-5-sonnet'));
-    }
-    
-    // OpenAI - 50% discount
-    if ((env as unknown as Record<string, unknown>).OPENAI_API_KEY) {
-      batchService.registerProvider(new OpenAIBatch(env, 'openai/gpt-4o'));
-    }
-    
-    // Google - 50% discount
-    if ((env as unknown as Record<string, unknown>).GOOGLE_API_KEY) {
-      batchService.registerProvider(new GoogleBatch(env, 'google/gemini-1.5-pro'));
-    }
-    
-    // Cerebras - 50% discount
-    if ((env as unknown as Record<string, unknown>).CEREBRAS_API_KEY) {
-      batchService.registerProvider(new CerebrasBatch(env, 'cerebras/llama3.1-70b'));
-    }
-    
-    // Fireworks - 40% discount (less than others)
-    if ((env as unknown as Record<string, unknown>).FIREWORKS_API_KEY) {
-      batchService.registerProvider(new FireworksBatch(env, 'fireworks/llama-v3p1-70b-instruct'));
-    }
+    const count = registerAvailableProviders(batchService, env);
+    console.log(`Registered ${count} batch provider(s) for scheduled tasks`);
   } catch (error) {
     console.error('Failed to register batch providers:', error);
   }

@@ -5,6 +5,7 @@
 import type { Context, Next } from 'hono';
 import type { Env } from '../types.js';
 import { checkRateLimit, getRateLimitKey, getRateLimitConfig } from '../utils/rateLimit.js';
+import { RATE_LIMITS } from '../config/constants.js';
 
 export async function rateLimitMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
   // Skip rate limiting if KV not configured
@@ -56,15 +57,15 @@ export async function batchRateLimitMiddleware(c: Context<{ Bindings: Env }>, ne
   
   const result = await checkRateLimit(c.env.RATE_LIMIT, key, {
     maxRequests: 1,
-    windowMs: 300_000, // 5 minutes in milliseconds
+    windowMs: RATE_LIMITS.BATCH_CREATION_WINDOW_MS,
   });
 
   if (!result.allowed) {
     const retryAfter = Math.ceil((result.resetAt - Date.now()) / 1000);
     return c.json(
-      { 
+      {
         error: 'Batch creation rate limit exceeded',
-        message: 'You can only create one batch every 5 minutes',
+        message: `You can only create one batch every ${RATE_LIMITS.BATCH_CREATION_WINDOW_MS / 60_000} minutes`,
         retryAfter,
       },
       { status: 429 }

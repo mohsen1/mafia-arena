@@ -26,6 +26,7 @@ import type { Env, ApiProvider } from '../types.js';
 import type { AIProviderInterface, CompletionRequest, CompletionResponse, ModelRoutingConfig, ModelContext } from './types.js';
 import { getDefaultModelConfig } from './models.js';
 import { RetryingProvider } from './RetryingProvider.js';
+import { AI_TIMEOUT, RETRY } from '../config/constants.js';
 import { 
   OpenRouterProvider, 
   GoogleAIProvider, 
@@ -119,16 +120,16 @@ export interface CreateProviderOptions {
  */
 const PRICING_MODE_DEFAULTS = {
   STANDARD: {
-    timeoutMs: 60000,       // 60 seconds
+    timeoutMs: AI_TIMEOUT.STANDARD,
     maxRetries: 8,
-    baseDelayMs: 3000,      // 3 seconds
-    maxDelayMs: 60000,      // 60 seconds
+    baseDelayMs: RETRY.BASE_DELAY_MS,
+    maxDelayMs: RETRY.MAX_DELAY_MS,
   },
   DISCOUNT: {
-    timeoutMs: 300000,      // 5 minutes (longer individual request timeout)
+    timeoutMs: AI_TIMEOUT.BATCH_POLL,
     maxRetries: 20,         // More retries for long-running requests
     baseDelayMs: 10000,     // 10 seconds base delay
-    maxDelayMs: 300000,     // 5 minutes max delay between retries
+    maxDelayMs: AI_TIMEOUT.BATCH_POLL,     // 5 minutes max delay between retries
   },
 } as const;
 

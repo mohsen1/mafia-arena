@@ -33,6 +33,7 @@ import { checkRateLimit } from '../utils/rateLimit.js';
 import { createDb } from '../db/drizzle.js';
 import * as schema from '../db/schema.js';
 import { inferProviderFromModelId } from '../ai/factory.js';
+import { GAME } from '../config/constants.js';
 
 // =============================================================================
 // LIMITS
@@ -373,11 +374,11 @@ batches.post('/', async (c, next) => {
       playerCount: body.config.playerCount,
       mafiaCount: body.config.mafiaCount,
       teams: body.config.teams,
-      maxRounds: body.config.maxRounds ?? 10,
+      maxRounds: body.config.maxRounds ?? GAME.DEFAULT_MAX_ROUNDS,
       discussionEnabled: body.config.discussionEnabled ?? true,
       personaConstraints: body.config.personaConstraints ?? 'moderate',
       contextLevel: body.config.contextLevel ?? 'windowed',
-      contextWindowSize: body.config.contextWindowSize ?? 3,
+      contextWindowSize: body.config.contextWindowSize ?? GAME.CONTEXT_WINDOW_SIZE,
       personaTheme: body.config.personaTheme ?? getRandomTheme(),
       discountPricing: body.useBatchAPI ?? false,
     },
@@ -634,11 +635,11 @@ batches.post('/estimate', async (c) => {
       playerCount: body.config.playerCount,
       mafiaCount: body.config.mafiaCount,
       teams: body.config.teams,
-      maxRounds: 10,
+      maxRounds: GAME.DEFAULT_MAX_ROUNDS,
       discussionEnabled: body.config.discussionEnabled ?? true,
       personaConstraints: 'moderate',
       contextLevel: body.config.contextLevel ?? 'windowed',
-      contextWindowSize: 3,
+      contextWindowSize: GAME.CONTEXT_WINDOW_SIZE,
     },
     useBatchAPI: body.useBatchAPI ?? false,
   });

@@ -7,7 +7,7 @@ export { default as leaderboardRoutes } from './leaderboard.js';
 export { default as modelsRoutes } from './models.js';
 export { default as statsRoutes } from './stats.js';
 export { default as analysisRoutes } from './analysis.js';
-export { default as adminRoutes } from './admin.js';
+export { default as adminRoutes } from './admin/index.js';
 export { default as authRoutes } from './auth.js';
 export { default as keysRoutes } from './keys.js';
 export { default as batchesRoutes } from './batches.js';

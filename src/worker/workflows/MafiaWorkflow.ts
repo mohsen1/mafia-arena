@@ -20,7 +20,7 @@ import type { Env } from '../types.js';
 import type { WorkflowParams, WorkflowResult, BroadcastMessage } from './types.js';
 import type { GameConfig, GameEvent, Team } from '../../engine/types.js';
 import type { ModelContext } from '../ai/types.js';
-import { 
+import {
   GameState,
   executeIntroductionPhase,
   executeDiscussionPhase,
@@ -30,18 +30,20 @@ import {
   generateSeed,
 } from '../../engine/index.js';
 import { WorkflowAIProvider } from '../providers/WorkflowAIProvider.js';
-import { 
-  saveGameStateToKV, 
-  saveErrorStateToKV,
+import {
+  saveGameStateToKV,
   getRecentEvents,
   saveCheckpointToR2,
   loadCheckpointFromR2,
   cleanupCheckpoints,
+  appendEventsToR2,
+  updateTranscriptProgress,
+  finalizeTranscript,
 } from '../utils/workflow-sync.js';
 import { calculateExactCost } from '../utils/budget.js';
 import { DEFAULT_PRICING } from '../ai/models.js';
 import { ModelRegistry } from '../services/ModelRegistry.js';
-import { createLogger, type Logger } from '../utils/logger.js';
+import { createLogger, type Logger, errorHandler } from '../utils/index.js';
 
 /**
  * MafiaWorkflow - Main game orchestration workflow.
@@ -182,12 +184,13 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
       });
       state = await loadCheckpointFromR2(this.env, introCheckpoint);
 
-      await this.syncAndBroadcast(step, state, 'introduction');
+      await this.syncAndBroadcast(step, state, 'introduction', 0, startTime);
 
       // Step 3: Main game loop
       while (state.round <= gameConfig.maxRounds) {
         const currentRound = state.round; // Capture for step names
-        
+        const eventsBeforePhase = state.events.length;
+
         // Discussion Phase (if enabled)
         // IMPORTANT: Do NOT wrap phase execution in step.do() - nested step.do() is not supported
         if (gameConfig.discussionEnabled) {
@@ -201,10 +204,11 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
           });
           state = await loadCheckpointFromR2(this.env, discussionCheckpoint);
 
-          await this.syncAndBroadcast(step, state, 'day_discussion');
+          await this.syncAndBroadcast(step, state, 'day_discussion', eventsBeforePhase, startTime);
         }
 
         // Vote Phase
+        const eventsBeforeVote = state.events.length;
         const voteResult = await executeVotePhase(
           state,
           aiProvider,
@@ -215,7 +219,7 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         });
         state = await loadCheckpointFromR2(this.env, voteCheckpoint);
 
-        await this.syncAndBroadcast(step, state, 'day_vote');
+        await this.syncAndBroadcast(step, state, 'day_vote', eventsBeforeVote, startTime);
 
         // Check win condition after vote
         const winnerAfterVote = checkWinCondition(state);
@@ -224,6 +228,7 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         }
 
         // Night Phase
+        const eventsBeforeNight = state.events.length;
         const nightResult = await executeNightPhase(
           state,
           aiProvider,
@@ -234,7 +239,7 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
         });
         state = await loadCheckpointFromR2(this.env, nightCheckpoint);
 
-        await this.syncAndBroadcast(step, state, 'night');
+        await this.syncAndBroadcast(step, state, 'night', eventsBeforeNight, startTime);
 
         // Check win condition after night
         const winnerAfterNight = checkWinCondition(state);
@@ -252,24 +257,13 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      
-      // Detect timeout errors for better UI feedback
-      const isTimeout = errorMessage.includes('timed out') || 
-                        errorMessage.includes('AbortError') ||
-                        errorMessage.includes('Durable Object reset');
-      
-      const userFriendlyError = isTimeout 
-        ? `AI Provider timed out repeatedly. The model may be experiencing high load or network issues. Error: ${errorMessage}`
-        : errorMessage;
 
-      this.log.error('Workflow failed', { gameId, error: errorMessage, isTimeout, batchId });
+      // Use centralized error handler for KV, D1, and batch updates
+      await errorHandler.handleWorkflowError(err, gameId, this.env, state, batchId);
 
-      // Save error state, update batch progress, and save partial transcript
-      await step.do('handle-error', async () => {
+      // Save partial transcript to R2 (still done here for historical record)
+      await step.do('save-partial-transcript', async () => {
         const durationMs = Date.now() - startTime;
-        
-        // Handle case where 'state' might be undefined if error happened during initialization
-        // Create a minimal state object for error saving compatibility
         const safeState = state ?? GameState.create(gameId, {
           playerCount: config.playerCount,
           mafiaCount: config.mafiaCount,
@@ -282,26 +276,7 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
           contextWindowSize: config.contextWindowSize ?? 3,
           personaTheme: config.personaTheme ?? 'noir',
         });
-        
-        // 1. Save error state to KV for real-time visibility
-        await saveErrorStateToKV(
-          this.env,
-          gameId,
-          userFriendlyError,
-          safeState
-        );
 
-        // 2. Update game status to failed in D1
-        await this.env.DB.prepare(`
-          UPDATE games SET status = 'failed', error_message = ?, updated_at = ?
-          WHERE id = ?
-        `).bind(
-          userFriendlyError,
-          Date.now(),
-          gameId
-        ).run();
-
-        // 3. Save partial transcript to R2 so frontend can show progress up to failure
         const partialTranscript = {
           gameId,
           winner: null,
@@ -310,64 +285,25 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
           durationMs,
           timestamp: Date.now(),
           status: 'failed' as const,
-          error: userFriendlyError,
+          error: errorMessage,
         };
         await this.env.TRANSCRIPTS.put(
           `games/${gameId}/transcript.json`,
           JSON.stringify(partialTranscript, null, 2),
-          { 
-            customMetadata: { 
-              gameId, 
+          {
+            customMetadata: {
+              gameId,
               status: 'failed',
               rounds: String(safeState.round),
-              error: userFriendlyError.slice(0, 100), // Truncate for metadata
-            } 
-          }
-        );
-
-        // 4. Update batch progress if part of a batch
-        if (batchId) {
-          // Increment failed_games counter
-          await this.env.DB.prepare(`
-            UPDATE batches SET failed_games = failed_games + 1 WHERE id = ?
-          `).bind(batchId).run();
-
-          // Check if batch is now complete
-          const batch = await this.env.DB.prepare(`
-            SELECT total_games, completed_games, failed_games, status 
-            FROM batches WHERE id = ?
-          `).bind(batchId).first<{
-            total_games: number;
-            completed_games: number;
-            failed_games: number;
-            status: string;
-          }>();
-
-          if (batch && batch.status === 'processing') {
-            const totalProcessed = batch.completed_games + batch.failed_games;
-            if (totalProcessed >= batch.total_games) {
-              await this.env.DB.prepare(`
-                UPDATE batches SET status = 'completed', completed_at = ? WHERE id = ?
-              `).bind(Math.floor(Date.now() / 1000), batchId).run();
-              this.log.info('Batch completed (after game failure)', { batchId, totalProcessed });
+              error: errorMessage.slice(0, 100),
             }
           }
-        }
-
-        // 5. Update daily stats for failed game
-        const today = new Date().toISOString().split('T')[0]!;
-        await this.env.DB.prepare(`
-          INSERT INTO daily_stats (date, games_failed)
-          VALUES (?, 1)
-          ON CONFLICT(date) DO UPDATE SET
-            games_failed = games_failed + 1,
-            updated_at = unixepoch()
-        `).bind(today).run();
+        );
       });
 
       // Broadcast error (only if state exists)
       if (state) {
-        await this.broadcastToViewLayer(state, 'failed', userFriendlyError);
+        await this.broadcastToViewLayer(state, 'failed', errorMessage);
       }
 
       throw err;
@@ -391,10 +327,48 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
   private async syncAndBroadcast(
     step: WorkflowStep,
     state: GameState,
-    phase: string
+    phase: string,
+    previousEventCount: number = 0,
+    startTime: number = 0
   ): Promise<void> {
     await step.do(`sync-${phase}-r${state.round}`, async () => {
       await saveGameStateToKV(this.env, this.gameId, state, 'running', phase);
+
+      // Stream new events to R2 for live game transcript access
+      const newEvents = state.events.slice(previousEventCount);
+      if (newEvents.length > 0) {
+        const result = await appendEventsToR2(this.env, this.gameId, newEvents);
+
+        if (!result.success) {
+          // Log failure but don't crash the workflow
+          console.error(`[MafiaWorkflow] Failed to append events to R2: ${result.error}`);
+
+          // Record failed write in KV for monitoring
+          await this.env.RATE_LIMIT.put(
+            `event-stream-failures:${this.gameId}`,
+            JSON.stringify({
+              timestamp: Date.now(),
+              phase,
+              eventCount: newEvents.length,
+              error: result.error,
+            }),
+            { expirationTtl: 7 * 24 * 60 * 60 } // 7 days
+          );
+        }
+
+        if (result.truncated) {
+          this.log.warn('Event stream was truncated due to size limits', {
+            gameId: this.gameId,
+            phase,
+            eventsWritten: result.eventsWritten,
+          });
+        }
+      }
+
+      // Update in-progress transcript if startTime is provided
+      if (startTime > 0) {
+        await updateTranscriptProgress(this.env, this.gameId, state, startTime);
+      }
     });
 
     await this.broadcastToViewLayer(state, 'running');
@@ -466,20 +440,8 @@ export class MafiaWorkflow extends WorkflowEntrypoint<Env, WorkflowParams> {
     state = state.withEvent(gameEndEvent);
 
     await step.do('persist-results', async () => {
-      // Save transcript to R2 (wrapped in object for frontend compatibility)
-      const transcript = {
-        gameId: this.gameId,
-        winner,
-        rounds: state.round,
-        events: state.events,
-        durationMs,
-        timestamp: Date.now(),
-      };
-      await this.env.TRANSCRIPTS.put(
-        `games/${this.gameId}/transcript.json`,
-        JSON.stringify(transcript, null, 2),
-        { customMetadata: { gameId: this.gameId, winner, rounds: String(state.round) } }
-      );
+      // Finalize transcript (renames from transcript-in-progress.json to transcript.json)
+      await finalizeTranscript(this.env, this.gameId, state, winner, startTime);
 
       // Calculate token usage and costs
       const tokenUsage = this.calculateTokenUsage(state);

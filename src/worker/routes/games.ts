@@ -5,7 +5,7 @@
 import { Hono } from 'hono';
 import { eq, desc, inArray, sql, and, isNull } from 'drizzle-orm';
 import type { Env, GameQueueMessage, ApiProvider } from '../types.js';
-import { Errors } from '../utils/errors.js';
+import { Errors, createLogger } from '../utils/index.js';
 import { getRandomTheme } from '../utils/random-config.js';
 import { generateTraceId } from '../utils/trace.js';
 import { createDb } from '../db/drizzle.js';
@@ -13,9 +13,12 @@ import * as schema from '../db/schema.js';
 import { getSession } from './auth.js';
 import { validateEncryptionSecret } from '../utils/crypto.js';
 import { inferProviderFromModelId } from '../ai/factory.js';
-import { getGameStateFromKV } from '../utils/workflow-sync.js';
+import { getGameStateFromKV, readEventsFromR2 } from '../utils/workflow-sync.js';
 import { getSystemState } from '../batch/service.js';
+import type { GameEvent } from '../../engine/index.js';
+import { PAGINATION, GAME, KV_TTL } from '../config/constants.js';
 
+const log = createLogger('games');
 const games = new Hono<{ Bindings: Env }>();
 
 /**
@@ -42,25 +45,99 @@ const PROVIDER_ENV_KEYS: Record<ApiProvider, string> = {
 };
 
 /**
+ * Generate a unique key for an event to detect duplicates.
+ * Uses type + timestamp + identifying fields.
+ */
+function getEventKey(event: GameEvent): string {
+  const base = `${event.type}:${event.timestamp}`;
+
+  // Add type-specific identifying fields for better deduplication
+  switch (event.type) {
+    case 'ai_call':
+    case 'discussion':
+    case 'introduction':
+      return `${base}:${event.round}:${event.playerId}`;
+    case 'vote':
+      return `${base}:${event.round}:${event.voterId}`;
+    case 'elimination':
+      return `${base}:${event.round}:${event.playerId}`;
+    case 'persona_generation':
+      return `${base}:${event.playerId}`;
+    case 'phase_start':
+    case 'phase_end':
+      return `${base}:${event.round}:${event.phase}`;
+    case 'game_start':
+    case 'game_end':
+    case 'persona_generation_start':
+    case 'persona_generation_progress':
+    case 'ai_parse_error':
+    case 'summarization':
+      return base;
+    default:
+      return base;
+  }
+}
+
+/**
+ * Merge and deduplicate events from R2 stream and KV.
+ *
+ * Strategy:
+ * - R2 contains full historical event stream
+ * - KV contains last 20-50 events (most recent)
+ * - Events in KV are newer and should be preferred over R2
+ * - Deduplicate by event key (type + timestamp + identifying fields)
+ *
+ * @param historicalEvents - Events from R2 stream (full history)
+ * @param latestEvents - Events from KV (last 20-50, newer)
+ * @returns Deduplicated merged events
+ */
+function mergeAndDeduplicateEvents(
+  historicalEvents: GameEvent[],
+  latestEvents: GameEvent[]
+): GameEvent[] {
+  // Create a map of event keys to events from KV (prefer these)
+  const latestEventMap = new Map<string, GameEvent>();
+  for (const event of latestEvents) {
+    const key = getEventKey(event);
+    latestEventMap.set(key, event);
+  }
+
+  // Filter historical events to remove duplicates found in KV
+  // (events in KV are newer and more accurate)
+  const filteredHistorical = historicalEvents.filter(event => {
+    const key = getEventKey(event);
+    return !latestEventMap.has(key);
+  });
+
+  // Merge: filtered historical + latest from KV
+  const merged = [...filteredHistorical, ...latestEvents];
+
+  // Sort by timestamp to maintain chronological order
+  merged.sort((a, b) => a.timestamp - b.timestamp);
+
+  return merged;
+}
+
+/**
  * Validate that system API keys are configured for all required providers.
  * Throws Errors.BadRequest if any required keys are missing.
  */
 function validateSystemKeys(requiredProviders: Set<string>, env: Env): void {
   const missingKeys: string[] = [];
-  
+
   for (const provider of requiredProviders) {
     const envKey = PROVIDER_ENV_KEYS[provider as ApiProvider];
     if (!envKey) {
       // Unknown provider - skip validation (will fail at runtime with clear error)
       continue;
     }
-    
+
     const keyValue = (env as unknown as Record<string, string | undefined>)[envKey];
     if (!keyValue) {
       missingKeys.push(`${provider} (${envKey})`);
     }
   }
-  
+
   if (missingKeys.length > 0) {
     throw Errors.BadRequest(
       `System API keys not configured for: ${missingKeys.join(', ')}. ` +
@@ -104,8 +181,8 @@ games.post('/run', async (c) => {
   }
 
   // Validate request
-  if (!body.count || body.count < 1 || body.count > 100) {
-    throw Errors.BadRequest('Count must be between 1 and 100');
+  if (!body.count || body.count < 1 || body.count > PAGINATION.MAX_PAGE_SIZE) {
+    throw Errors.BadRequest(`Count must be between 1 and ${PAGINATION.MAX_PAGE_SIZE}`);
   }
 
   if (!body.config || !body.config.teams || body.config.teams.length === 0) {
@@ -127,7 +204,7 @@ games.post('/run', async (c) => {
   const gameIds: string[] = [];
   const messages: MessageSendRequest<GameQueueMessage>[] = [];
 
-  console.log(`[${traceId}] Creating batch ${batchId} with ${body.count} games (discountPricing: ${discountPricing})`);
+  log.info('Creating batch', { traceId, batchId, count: body.count, discountPricing });
 
   for (let i = 0; i < body.count; i++) {
     const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}_${i}`;
@@ -144,11 +221,11 @@ games.post('/run', async (c) => {
           playerCount: body.config.playerCount,
           mafiaCount: body.config.mafiaCount,
           teams: body.config.teams,
-          maxRounds: 10,
+          maxRounds: GAME.DEFAULT_MAX_ROUNDS,
           discussionEnabled: true,
           personaConstraints: 'moderate',
           contextLevel: 'windowed', // Optimized default: reduces token usage vs 'full'
-          contextWindowSize: 3,
+          contextWindowSize: GAME.CONTEXT_WINDOW_SIZE,
           personaTheme,
           discountPricing,
         },
@@ -316,14 +393,21 @@ games.post('/run-direct', async (c) => {
       };
     }
     keySource = 'user';
-    
-    console.log(`User ${session.email} running game with their own API keys for: ${[...requiredProviders].join(', ')}`);
+
+    log.info('User running game with own API keys', {
+      email: session.email,
+      providers: [...requiredProviders].join(', '),
+    });
   } else if (session?.isAdmin) {
     // Admin user: use system keys - validate they are configured
     const modelIds = body.config.teams.map(t => t.modelId);
     const requiredProviders = await getRequiredProviders(modelIds, env);
     validateSystemKeys(requiredProviders, env);
-    console.log(`Admin ${session.email} running game with system API keys for: ${[...requiredProviders].join(', ')}`);
+
+    log.info('Admin running game with system API keys', {
+      email: session.email,
+      providers: [...requiredProviders].join(', '),
+    });
   } else {
     // No session: use system keys (for backwards compatibility with queue/admin routes)
     // Still validate that required keys are configured
@@ -344,7 +428,12 @@ games.post('/run-direct', async (c) => {
   // Pick random theme if not specified
   const personaTheme = body.config.personaTheme ?? getRandomTheme();
 
-  console.log(`[${traceId}] Starting game ${gameId} via workflow (discountPricing: ${discountPricing}, keys: ${keySource})`);
+  log.info('Starting game via workflow', {
+    traceId,
+    gameId,
+    discountPricing,
+    keySource,
+  });
 
   // Create game record in D1 BEFORE starting the workflow.
   // This prevents a race condition where the frontend redirects to the live page
@@ -382,11 +471,14 @@ games.post('/run-direct', async (c) => {
         },
         updatedAt: Date.now(),
       }),
-      { expirationTtl: 86400 }
+      { expirationTtl: KV_TTL.GAME_STATE }
     );
   } catch (error) {
     // Non-fatal - log but don't fail game creation
-    console.warn(`Failed to write initial KV state for ${gameId}:`, error);
+    log.warn('Failed to write initial KV state', {
+      gameId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   // Start the workflow
@@ -398,11 +490,11 @@ games.post('/run-direct', async (c) => {
         playerCount: body.config.playerCount,
         mafiaCount: body.config.mafiaCount,
         teams: body.config.teams,
-        maxRounds: body.config.maxRounds ?? 10,
+        maxRounds: body.config.maxRounds ?? GAME.DEFAULT_MAX_ROUNDS,
         discussionEnabled: body.config.discussionEnabled ?? true,
         personaConstraints: body.config.personaConstraints ?? 'moderate',
         contextLevel: body.config.contextLevel ?? 'full',
-        contextWindowSize: body.config.contextWindowSize ?? 3,
+        contextWindowSize: body.config.contextWindowSize ?? GAME.CONTEXT_WINDOW_SIZE,
         personaTheme,
         discountPricing,
       },
@@ -444,7 +536,7 @@ games.get('/', async (c) => {
   const env = c.env;
   const db = createDb(env.DB);
   const url = new URL(c.req.url);
-  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 100);
+  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? String(PAGINATION.DEFAULT_PAGE_SIZE), 10), PAGINATION.MAX_PAGE_SIZE);
   const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
   const status = (url.searchParams.get('status') ?? 'completed') as 'running' | 'completed' | 'failed';
   
@@ -708,7 +800,10 @@ games.get('/:id/events', async (c) => {
         });
       }
     } catch (error) {
-      console.warn(`[events] Failed to read transcript for completed game ${gameId}:`, error);
+      log.warn('Failed to read transcript for completed game', {
+        gameId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -718,38 +813,30 @@ games.get('/:id/events', async (c) => {
     const batchStatusKey = `game-state:${gameId}:batch-status`;
     const batchStatusRaw = await env.RATE_LIMIT.get(batchStatusKey);
     const batchStatus = batchStatusRaw ? JSON.parse(batchStatusRaw) : undefined;
-    
+
     const kvState = await getGameStateFromKV(env, gameId);
     if (kvState) {
-      // Work directly with serialized state - no need to instantiate GameState class
-      const allEvents = kvState.state.events;
+      // Read full history from R2 stream
+      const historicalEvents = await readEventsFromR2(env, gameId);
+
+      // Get latest events from KV (last 20)
+      const latestEvents: GameEvent[] = [...(kvState.state.events ?? [])];
+
+      // Merge and deduplicate (prefer KV events as they're newer)
+      const mergedEvents = mergeAndDeduplicateEvents(historicalEvents, latestEvents);
+
       const players = kvState.state.players;
-      
-      // Separate persona events (always include) from game events (last 50)
-      const personaEvents = allEvents.filter(e => 
-        e.type === 'persona_generation' || 
-        e.type === 'persona_generation_start' || 
-        e.type === 'persona_generation_progress'
-      );
-      const gameEvents = allEvents.filter(e => 
-        e.type !== 'persona_generation' && 
-        e.type !== 'persona_generation_start' && 
-        e.type !== 'persona_generation_progress'
-      );
-      
-      // Combine: all persona events + last 50 game events
-      const events = [...personaEvents, ...gameEvents.slice(-50)];
-      
+
       return c.json({
         status: kvState.status,
         gameId,
-        eventCount: allEvents.length,
-        events,
+        eventCount: mergedEvents.length,
+        events: mergedEvents,
         players, // Include full player data with personas
         currentPhase: kvState.currentPhase,
         currentRound: kvState.currentRound,
-        startedAt: allEvents.length > 0 
-          ? allEvents[0]?.timestamp 
+        startedAt: mergedEvents.length > 0
+          ? mergedEvents[0]?.timestamp
           : undefined,
         // NEW: Progress fields for UI
         progress: kvState.progress,
@@ -991,7 +1078,7 @@ games.post('/test-workflow', async (c) => {
   const gameId = `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const personaTheme = body.personaTheme ?? getRandomTheme();
 
-  console.log(`[${traceId}] Starting test workflow for game ${gameId}`);
+  log.info('Starting test workflow', { traceId, gameId });
 
   // Start the workflow
   await c.env.MAFIA_WORKFLOW.create({
@@ -1002,7 +1089,7 @@ games.post('/test-workflow', async (c) => {
         playerCount: body.playerCount,
         mafiaCount: body.mafiaCount,
         teams: body.teams,
-        maxRounds: body.maxRounds ?? 10,
+        maxRounds: body.maxRounds ?? GAME.DEFAULT_MAX_ROUNDS,
         discussionEnabled: body.discussionEnabled ?? true,
         personaConstraints: body.personaConstraints ?? 'moderate',
         personaTheme,

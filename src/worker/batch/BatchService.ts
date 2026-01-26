@@ -72,8 +72,8 @@ export class BatchService {
   async storeRequest(message: AIRequestMessage): Promise<void> {
     // Use ModelRegistry to get batch pricing info from database
     const modelContext = await this.modelRegistry.get(message.modelId);
-    const { batchPricing } = modelContext;
-    
+    const { batchPricing, pricing } = modelContext;
+
     if (!batchPricing.supported || !batchPricing.batchProvider) {
       this.log.warn('Model does not support batch pricing, will process immediately', {
         modelId: message.modelId,
@@ -89,11 +89,27 @@ export class BatchService {
     const customId = message.requestId;
     const now = Date.now();
 
+    // Estimate costs for savings tracking
+    // Use conservative token estimates (will be updated with actual tokens when completed)
+    const estimatedInputTokens = message.request.maxTokens ?? 4096;
+    const estimatedOutputTokens = message.request.maxTokens ?? 1024;
+    const discountMultiplier = 1 - (batchPricing.discountPercent / 100);
+
+    // Individual API cost (standard pricing)
+    const individualCostUsd = (
+      (estimatedInputTokens / 1000) * pricing.input +
+      (estimatedOutputTokens / 1000) * pricing.output
+    );
+
+    // Batch API cost (discounted pricing)
+    const batchCostUsd = individualCostUsd * discountMultiplier;
+
     await this.env.DB.prepare(`
       INSERT INTO batch_api_requests (
         id, request_id, custom_id, game_id, model_id, provider,
-        request_body, context_json, status, retry_count, created_at, trace_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?)
+        request_body, context_json, status, retry_count, created_at, trace_id,
+        individual_cost_usd, batch_cost_usd
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?, ?)
     `).bind(
       id,
       message.requestId,
@@ -104,7 +120,9 @@ export class BatchService {
       JSON.stringify(message.request),
       JSON.stringify(message.context),
       now,
-      message.traceId ?? null
+      message.traceId ?? null,
+      individualCostUsd,
+      batchCostUsd
     ).run();
 
     this.log.debug('Stored batch request', {
@@ -114,6 +132,7 @@ export class BatchService {
       provider,
       modelId: message.modelId,
       batchDiscount: batchPricing.discountPercent,
+      estimatedCostUsd: batchCostUsd,
       traceId: message.traceId,
     });
   }
@@ -344,7 +363,7 @@ export class BatchService {
     // Get completed/failed in last 24h
     const last24h = Date.now() - 24 * 60 * 60 * 1000;
     const statsResult = await this.env.DB.prepare(`
-      SELECT 
+      SELECT
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
         AVG(CASE WHEN completed_at IS NOT NULL THEN completed_at - created_at ELSE NULL END) as avg_time
@@ -352,13 +371,16 @@ export class BatchService {
       WHERE created_at > ?
     `).bind(last24h).first<{ completed: number; failed: number; avg_time: number }>();
 
+    // Calculate total savings from completed batch requests
+    const totalSavingsUsd = await this.calculateTotalSavings(last24h);
+
     return {
       pendingByProvider,
       activeJobsByProvider,
       completedLast24h: statsResult?.completed ?? 0,
       failedLast24h: statsResult?.failed ?? 0,
       avgCompletionTimeMs: statsResult?.avg_time ?? 0,
-      totalSavingsUsd: 0, // TODO: Calculate actual savings
+      totalSavingsUsd,
     };
   }
 
@@ -662,18 +684,55 @@ export class BatchService {
     const now = Date.now();
 
     if (result.success && result.response) {
+      // Get request data to recalculate costs with actual token counts
+      const requestData = await this.env.DB.prepare(`
+        SELECT model_id, individual_cost_usd, batch_cost_usd
+        FROM batch_api_requests
+        WHERE id = ?
+      `).bind(request.id).first<{
+        model_id: string;
+        individual_cost_usd: number | null;
+        batch_cost_usd: number | null;
+      }>();
+
+      let actualIndividualCost = requestData?.individual_cost_usd ?? 0;
+      let actualBatchCost = requestData?.batch_cost_usd ?? 0;
+
+      // Recalculate costs with actual token counts if available
+      const inputTokens = result.inputTokens ?? result.response.tokensUsed.input;
+      const outputTokens = result.outputTokens ?? result.response.tokensUsed.output;
+
+      if (requestData && inputTokens > 0 && outputTokens > 0) {
+        try {
+          const modelContext = await this.modelRegistry.get(requestData.model_id);
+          const { pricing, batchPricing } = modelContext;
+          const discountMultiplier = 1 - (batchPricing.discountPercent / 100);
+
+          actualIndividualCost = (inputTokens / 1000) * pricing.input + (outputTokens / 1000) * pricing.output;
+          actualBatchCost = actualIndividualCost * discountMultiplier;
+        } catch (error) {
+          this.log.warn('Failed to recalculate costs with actual tokens, using estimates', {
+            requestId: request.request_id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
       // Update request as completed in D1 - with idempotency guard
       // Workflow will poll D1 for completion using step.sleep()
       const updateResult = await this.env.DB.prepare(`
         UPDATE batch_api_requests
         SET status = 'completed', response_body = ?,
-            input_tokens = ?, output_tokens = ?, updated_at = ?
+            input_tokens = ?, output_tokens = ?, updated_at = ?,
+            individual_cost_usd = ?, batch_cost_usd = ?
         WHERE id = ? AND status = 'bundled'
       `).bind(
         JSON.stringify(result.response),
-        result.inputTokens ?? result.response.tokensUsed.input,
-        result.outputTokens ?? result.response.tokensUsed.output,
+        inputTokens,
+        outputTokens,
         now,
+        actualIndividualCost,
+        actualBatchCost,
         request.id
       ).run();
 
@@ -757,8 +816,8 @@ export class BatchService {
   }
 
   private async updateJobProgress(
-    jobId: string, 
-    completedCount: number, 
+    jobId: string,
+    completedCount: number,
     failedCount: number
   ): Promise<void> {
     await this.env.DB.prepare(`
@@ -766,6 +825,44 @@ export class BatchService {
       SET status = 'processing', completed_count = ?, failed_count = ?
       WHERE id = ?
     `).bind(completedCount, failedCount, jobId).run();
+  }
+
+  /**
+   * Calculate total savings from batch API pricing.
+   * @param since - Timestamp to calculate savings since (e.g., last 24h)
+   * @returns Total savings in USD
+   */
+  private async calculateTotalSavings(since: number): Promise<number> {
+    const completedRequests = await this.env.DB.prepare(`
+      SELECT individual_cost_usd, batch_cost_usd
+      FROM batch_api_requests
+      WHERE status = 'completed' AND created_at > ?
+    `).bind(since).all<{
+      individual_cost_usd: number | null;
+      batch_cost_usd: number | null;
+    }>();
+
+    if (!completedRequests.results || completedRequests.results.length === 0) {
+      return 0;
+    }
+
+    const totalSavings = completedRequests.results.reduce((sum, req) => {
+      const individualCost = req.individual_cost_usd ?? 0;
+      const batchCost = req.batch_cost_usd ?? 0;
+      return sum + this.calculateSavings(individualCost, batchCost);
+    }, 0);
+
+    return totalSavings;
+  }
+
+  /**
+   * Calculate savings for a single request.
+   * @param individualCost - Cost at standard API pricing
+   * @param batchCost - Cost at batch discount pricing
+   * @returns Savings amount (never negative)
+   */
+  private calculateSavings(individualCost: number, batchCost: number): number {
+    return Math.max(0, individualCost - batchCost);
   }
 }
 

@@ -65,3 +65,12 @@ export { OpenAIBatch } from './providers/OpenAIBatch.js';
 export { GoogleBatch } from './providers/GoogleBatch.js';
 export { CerebrasBatch } from './providers/CerebrasBatch.js';
 export { FireworksBatch } from './providers/FireworksBatch.js';
+
+// Provider registry
+export {
+  PROVIDER_REGISTRY,
+  registerAvailableProviders,
+  getRegisteredProviderNames,
+  getProviderConfigByKey,
+  getProviderConfigByModel,
+} from './provider-registry.js';

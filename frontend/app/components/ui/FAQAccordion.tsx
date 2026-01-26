@@ -1,4 +1,5 @@
 import * as React from "react"
+import DOMPurify from "dompurify"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./accordion"
 import { Target, Users, Sparkles, Code2, type LucideIcon } from "lucide-react"
 
@@ -40,14 +41,16 @@ function FAQAccordion({ faqs }: FAQAccordionProps) {
                 <AccordionItem key={idx} value={`item-${idx}`}>
                   <AccordionTrigger>{faq.q}</AccordionTrigger>
                   <AccordionContent>
-                    <div 
+                    <div
                       className="prose prose-sm dark:prose-invert max-w-none [&_strong]:text-foreground [&_strong]:font-semibold [&_p]:mb-3 [&_p:last-child]:mb-0"
-                      dangerouslySetInnerHTML={{ 
-                        __html: faq.a
-                          .replace(/\n\n/g, '</p><p>')
-                          .replace(/^/, '<p>')
-                          .replace(/$/, '</p>')
-                      }} 
+                      dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(
+                          faq.a
+                            .replace(/\n\n/g, '</p><p>')
+                            .replace(/^/, '<p>')
+                            .replace(/$/, '</p>')
+                        )
+                      }}
                     />
                   </AccordionContent>
                 </AccordionItem>

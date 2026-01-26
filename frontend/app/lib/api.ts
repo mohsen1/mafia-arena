@@ -242,6 +242,21 @@ export interface WinRateByPersonality {
   winRate: number;
 }
 
+// Model pattern types
+export interface ModelPersonaPattern {
+  personality: string;
+  count: number;
+  winRate: number;
+  avgConsistency: number | null;
+  games: number;
+}
+
+export interface DominantPersonality {
+  personality: string;
+  count: number;
+  percentage: string;
+}
+
 // Stats types
 export interface StatsOverview {
   totals: {
@@ -557,14 +572,14 @@ export async function getTeamPatterns(): Promise<{
  */
 export async function getModelPatterns(modelId: string): Promise<{
   model: Model;
-  mafia: any[];
-  town: any[];
+  mafia: ModelPersonaPattern[];
+  town: ModelPersonaPattern[];
   summary: {
     totalGames: number;
     overallWinRate: string;
     avgConsistency: string | null;
-    dominantMafiaPersonality: any;
-    dominantTownPersonality: any;
+    dominantMafiaPersonality: DominantPersonality | null;
+    dominantTownPersonality: DominantPersonality | null;
   };
 }> {
   const res = await fetch(`${API_URL}/api/analysis/model-patterns/${modelId}`);

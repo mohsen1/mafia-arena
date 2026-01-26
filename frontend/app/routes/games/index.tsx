@@ -3,6 +3,7 @@ import type { Route } from "./+types/index";
 import { getGames, getLiveGames, getMatchups, formatDuration, type GameFilters } from '~/lib/api';
 import { getDisplayCost, formatCost } from '~/lib/costs';
 import { ChevronLeft, ChevronRight, ChevronDown, Radio, X } from 'lucide-react';
+import type { GameSummary, MatchupData } from '~/types/games';
 
 const SITE_URL = "https://mafia-arena.com";
 
@@ -158,21 +159,21 @@ function parseConfigHash(configHash: string | undefined, mafiaCount?: number) {
   };
 }
 
-function getMatchup(game: any) {
+function getMatchup(game: GameSummary): MatchupData {
   const participants = game.participants || [];
-  const mafia = participants.find((p: any) => p.team === 'mafia');
-  const town = participants.find((p: any) => p.team === 'town');
-  
+  const mafia = participants.find((p) => p.team === 'mafia');
+  const town = participants.find((p) => p.team === 'town');
+
   // Fall back to parsing config_hash for running games without participants yet
   let mafiaModel = mafia?.model_name || mafia?.model_id;
   let townModel = town?.model_name || town?.model_id;
-  
+
   if (!mafiaModel || !townModel) {
     const fromConfig = parseConfigHash(game.config_hash, game.mafia_count);
     mafiaModel = mafiaModel || fromConfig.mafia || '?';
     townModel = townModel || fromConfig.town || '?';
   }
-  
+
   const mafiaWon = game.winner === 'mafia';
   const shortMafia = getShortModelName(mafiaModel);
   const shortTown = getShortModelName(townModel);
@@ -184,7 +185,7 @@ function getMatchup(game: any) {
   };
 }
 
-function getGameCost(game: any): number {
+function getGameCost(game: GameSummary): number {
   return getDisplayCost(game.cost_usd, game.total_tokens || 0);
 }
 

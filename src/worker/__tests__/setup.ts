@@ -211,6 +211,8 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       input_tokens INTEGER,
       output_tokens INTEGER,
       cost_usd REAL,
+      individual_cost_usd REAL,
+      batch_cost_usd REAL,
       error_message TEXT,
       retry_count INTEGER DEFAULT 0,
       created_at INTEGER DEFAULT (unixepoch() * 1000),

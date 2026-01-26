@@ -2,6 +2,8 @@
  * Rate limiting utilities using KV-based token bucket.
  */
 
+import { RATE_LIMITS } from '../config/constants.js';
+
 interface RateLimitConfig {
   maxRequests: number;
   windowMs: number;
@@ -45,12 +47,12 @@ export async function checkRateLimit(
 /**
  * Rate limit configurations for different endpoints.
  */
-export const RATE_LIMITS: Record<string, RateLimitConfig> = {
+export const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
   'POST:/api/games/run': { maxRequests: 10, windowMs: 60_000 }, // 10 per minute
-  'GET:/api/games': { maxRequests: 100, windowMs: 60_000 }, // 100 per minute
-  'GET:/api/leaderboard': { maxRequests: 100, windowMs: 60_000 },
-  'GET:/api/models': { maxRequests: 100, windowMs: 60_000 },
-  default: { maxRequests: 60, windowMs: 60_000 }, // 60 per minute fallback
+  'GET:/api/games': { maxRequests: RATE_LIMITS.ADMIN_REQUESTS_PER_MINUTE, windowMs: 60_000 }, // 100 per minute
+  'GET:/api/leaderboard': { maxRequests: RATE_LIMITS.ADMIN_REQUESTS_PER_MINUTE, windowMs: 60_000 },
+  'GET:/api/models': { maxRequests: RATE_LIMITS.ADMIN_REQUESTS_PER_MINUTE, windowMs: 60_000 },
+  default: { maxRequests: RATE_LIMITS.DEFAULT_REQUESTS_PER_MINUTE, windowMs: 60_000 }, // 60 per minute fallback
 };
 
 /**
@@ -78,6 +80,6 @@ export function getRateLimitConfig(method: string, path: string): RateLimitConfi
     .replace(/\/api\/games\/[a-zA-Z0-9_-]+$/, '/api/games/:id');
 
   const key = `${method}:${normalizedPath}`;
-  return RATE_LIMITS[key] ?? RATE_LIMITS.default!;
+  return RATE_LIMIT_CONFIGS[key] ?? RATE_LIMIT_CONFIGS.default!;
 }
 

@@ -19,10 +19,11 @@ import {
 import { GameLayout } from "~/components/GameHeader";
 import { ThemeIcon } from "~/components/ThemeIcon";
 import { PlayerPill, PlayerModal, ThemeDialog } from "~/components/game";
-import type { PlayerInfo as GamePlayerInfo } from "~/lib/game-types";
+import type { PlayerInfo as GamePlayerInfo, ParsedResponse } from "~/lib/game-types";
 import { getTheme } from "~/lib/themes";
 import { sortPlayers } from "~/lib/game-utils";
 import { MarkdownText } from "~/components/ui/MarkdownText";
+import type { GameDetail, TranscriptData } from "~/types/games";
 
 const SITE_URL = "https://mafia-arena.com";
 
@@ -68,42 +69,6 @@ interface Participant {
   team: 'mafia' | 'town';
   player_count: number;
   won: boolean;
-}
-
-interface GameDetail {
-  id: string;
-  winner: string | null;
-  rounds: number;
-  durationMs: number;
-  totalTokens: number;
-  createdAt: number;
-  personaTheme?: string;
-  costUsd?: number;
-  status?: string;
-  errorMessage?: string | null;
-  participants?: Participant[];
-}
-
-interface TranscriptEvent {
-  type: string;
-  phase?: string;
-  round?: number;
-  playerId?: string;
-  playerName?: string;
-  team?: string;
-  modelId?: string;
-  response?: { raw?: string };
-  persona?: { name: string; background: string; personality: string };
-  winner?: string;
-  roundRangeSummarized?: [number, number];
-  tokensSaved?: number;
-}
-
-
-interface TranscriptData {
-  events: TranscriptEvent[];
-  status?: 'completed' | 'failed';
-  error?: string;
 }
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -168,7 +133,7 @@ function formatDisplayModelName(name: string): string {
     .join(" ");
 }
 
-function parseResponse(raw: string): { type: string; content: any } {
+function parseResponse(raw: string): ParsedResponse {
   if (!raw) return { type: "raw", content: "" };
   try {
     const parsed = JSON.parse(raw);
