@@ -91,8 +91,8 @@ export class BatchService {
 
     // Estimate costs for savings tracking
     // Use conservative token estimates (will be updated with actual tokens when completed)
-    const estimatedInputTokens = message.request.maxTokens ?? 4096;
-    const estimatedOutputTokens = message.request.maxTokens ?? 1024;
+    const estimatedInputTokens = message.request?.maxTokens ?? 4096;
+    const estimatedOutputTokens = message.request?.maxTokens ?? 1024;
     const discountMultiplier = 1 - (batchPricing.discountPercent / 100);
 
     // Individual API cost (standard pricing)

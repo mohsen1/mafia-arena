@@ -508,6 +508,7 @@ export class ErrorHandler {
   private createMinimalState(gameId: string, _env: Env): GameState {
     // This is a fallback - in practice, state should always be available
     // We import GameState lazily to avoid circular dependencies
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { GameState: GS } = require('../../engine/index.js');
     return GS.create(gameId, {
       playerCount: 5,
