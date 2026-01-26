@@ -142,14 +142,14 @@ function getAdminFetchOptions(options: RequestInit = {}): RequestInit {
 }
 
 export interface LeaderboardEntry {
-  model_id: string;
-  display_name: string;
+  modelId: string;
+  displayName: string;
   provider: string;
   team: 'mafia' | 'town';
-  games_played: number;
-  games_won: number;
-  win_rate: number;
-  total_tokens: number;
+  gamesPlayed: number;
+  gamesWon: number;
+  winRate: number;
+  totalTokens: number;
 }
 
 export interface GameSummary {
@@ -361,8 +361,8 @@ export async function getLeaderboard(team?: 'mafia' | 'town'): Promise<Leaderboa
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch leaderboard');
 
-  const data = await res.json() as { rankings: LeaderboardEntry[] };
-  return data.rankings;
+  const data = await res.json() as { data: LeaderboardEntry[]; pagination: { total: number } };
+  return data.data;
 }
 
 export interface GameFilters {
