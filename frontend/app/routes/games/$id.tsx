@@ -23,7 +23,7 @@ import type { PlayerInfo as GamePlayerInfo, ParsedResponse } from "~/lib/game-ty
 import { getTheme } from "~/lib/themes";
 import { sortPlayers } from "~/lib/game-utils";
 import { MarkdownText } from "~/components/ui/MarkdownText";
-import type { GameDetail, TranscriptData } from "~/types/games";
+import type { GameDetail, TranscriptData, TranscriptEvent } from "~/types/games";
 
 const SITE_URL = "https://mafia-arena.com";
 
@@ -456,8 +456,8 @@ export default function GameDetail() {
 
                               <div className="space-y-1.5">
                                 {phaseEvents.map((event, idx) => {
-                                  const player = playerMap[event.playerId || ""];
-                                  const team = event.team || player?.team || "town";
+                                  const player = playerMap[(event as any).playerId || ""];
+                                  const team = (event as any).team || player?.team || "town";
                                   const isMafia = team === "mafia";
 
                                   if (event.type === "ai_call") {
