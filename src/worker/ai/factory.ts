@@ -27,10 +27,10 @@ import type { AIProviderInterface, CompletionRequest, CompletionResponse, ModelR
 import { getDefaultModelConfig } from './models.js';
 import { RetryingProvider } from './RetryingProvider.js';
 import { AI_TIMEOUT, RETRY } from '../config/constants.js';
-import { 
-  OpenRouterProvider, 
-  GoogleAIProvider, 
-  OpenAIProvider, 
+import {
+  OpenRouterProvider,
+  GoogleAIProvider,
+  OpenAIProvider,
   AnthropicProvider,
   CerebrasProvider,
   FireworksProvider,
@@ -44,6 +44,7 @@ import {
   MistralProvider,
   CohereProvider,
   AI21Provider,
+  ExternalWorkerProvider,
 } from './providers/index.js';
 import { MockE2EProvider, isTestModel } from './providers/MockE2EProvider.js';
 
@@ -590,6 +591,20 @@ export function createProvidersWithRouting(
 // =============================================================================
 
 /**
+ * External worker configuration for user-hosted API key isolation.
+ */
+export interface ExternalWorkerConfig {
+  /** URL of the user's external worker (e.g., https://my-worker.user.workers.dev) */
+  workerUrl: string;
+  /** Authentication token for the external worker */
+  authToken: string;
+  /** User ID for audit logging */
+  userId?: string;
+  /** Game ID for verification tracking */
+  gameId?: string;
+}
+
+/**
  * Options for context-based provider creation.
  */
 export interface CreateProviderFromContextOptions {
@@ -598,12 +613,24 @@ export interface CreateProviderFromContextOptions {
   timeoutMs?: number;
   discountPricing?: boolean;
   userKeys?: RuntimeAPIKeys;
+  /**
+   * External worker configuration for user-hosted API key isolation.
+   * When provided, all AI requests are proxied through the user's external worker.
+   * This takes priority over userKeys and system keys.
+   */
+  externalWorker?: ExternalWorkerConfig;
 }
 
 /**
  * Create an AI provider from a ModelContext.
  * This is the preferred method - uses structured data instead of string parsing.
- * 
+ *
+ * Priority order:
+ * 1. External Worker (if configured) - user-hosted API key isolation
+ * 2. Test models - mock provider for zero-cost testing
+ * 3. User-provided keys - encrypted keys from D1
+ * 4. System keys - environment variables
+ *
  * @param context - Rich model context from ModelRegistry
  * @param env - Worker environment with API keys
  * @param options - Provider creation options
@@ -613,28 +640,61 @@ export function createProviderFromContext(
   env: Env,
   options: CreateProviderFromContextOptions = {}
 ): AIProviderInterface {
-  // Test models use mock provider
+  const { id: modelId, displayName } = context;
+
+  // Select defaults based on pricing mode
+  const defaults = options.discountPricing
+    ? PRICING_MODE_DEFAULTS.DISCOUNT
+    : PRICING_MODE_DEFAULTS.STANDARD;
+
+  const {
+    enableRetry = true,
+    maxRetries = defaults.maxRetries,
+    timeoutMs = defaults.timeoutMs,
+    externalWorker,
+  } = options;
+
+  // PRIORITY 1: External Worker (user-hosted API key isolation)
+  // This takes precedence over all other methods to ensure cryptographic isolation
+  if (externalWorker) {
+    console.log(
+      `Creating EXTERNAL WORKER provider for model: ${modelId} (${displayName}) via ${externalWorker.workerUrl}`
+    );
+
+    const baseProvider = new ExternalWorkerProvider({
+      workerUrl: externalWorker.workerUrl,
+      authToken: externalWorker.authToken,
+      modelId,
+      timeoutMs,
+      userId: externalWorker.userId,
+      gameId: externalWorker.gameId,
+    });
+
+    // Wrap with retry if enabled
+    if (enableRetry) {
+      return new RetryingProvider(baseProvider, {
+        maxRetries,
+        baseDelayMs: defaults.baseDelayMs,
+        maxDelayMs: defaults.maxDelayMs,
+      });
+    }
+
+    return baseProvider;
+  }
+
+  // PRIORITY 2: Test models use mock provider
   if (context.isTest) {
     console.log(`Creating MOCK provider for test model: ${context.id}`);
     return new MockE2EProvider(context.id);
   }
 
-  const { apiProvider, apiModelId, id: modelId, displayName } = context;
-  
-  const keySource = options.userKeys ? 'user-provided' : 'system';
-  console.log(`Creating provider for model: ${modelId} (${displayName}) via ${apiProvider} as ${apiModelId} [keys: ${keySource}]`);
+  const { apiProvider, apiModelId } = context;
+  const { userKeys } = options;
 
-  // Select defaults based on pricing mode
-  const defaults = options.discountPricing 
-    ? PRICING_MODE_DEFAULTS.DISCOUNT 
-    : PRICING_MODE_DEFAULTS.STANDARD;
-
-  const { 
-    enableRetry = true, 
-    maxRetries = defaults.maxRetries, 
-    timeoutMs = defaults.timeoutMs,
-    userKeys,
-  } = options;
+  const keySource = userKeys ? 'user-provided' : 'system';
+  console.log(
+    `Creating provider for model: ${modelId} (${displayName}) via ${apiProvider} as ${apiModelId} [keys: ${keySource}]`
+  );
 
   // Create the base provider
   const baseProvider = createBaseProvider(apiProvider, apiModelId, modelId, env, timeoutMs, userKeys);

@@ -26,18 +26,18 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader() {
+export async function loader({ request }: Route.LoaderArgs) {
   try {
     const [matchupsData, eloData] = await Promise.all([
-      getMatchups(),
-      getEloRatings(),
+      getMatchups(undefined, request),
+      getEloRatings(request),
     ]);
     return { matchupsData, eloData, error: null };
   } catch (error) {
-    return { 
-      matchupsData: { models: [], matchups: [], selfPlay: [], filter: { team: null } }, 
+    return {
+      matchupsData: { models: [], matchups: [], selfPlay: [], filter: { team: null } },
       eloData: { rankings: [], metadata: { initial_rating: 1000, games_processed: 0, models_ranked: 0 } },
-      error: 'Failed to load data' 
+      error: 'Failed to load data'
     };
   }
 }

@@ -20,6 +20,7 @@ import {
   keysRoutes,
   batchesRoutes,
   blogRoutes,
+  externalWorkersRoutes,
 } from './routes/index.js';
 import {
   processBatchMessage,
@@ -100,6 +101,7 @@ app.route('/api/analysis', analysisRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api/auth/keys', keysRoutes);
+app.route('/api/auth/external-workers', externalWorkersRoutes);
 app.route('/api/batches', batchesRoutes);
 app.route('/api/blog', blogRoutes);
 

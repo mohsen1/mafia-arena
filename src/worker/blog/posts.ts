@@ -14,6 +14,135 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
   {
+    slug: 'external-workers-api-key-isolation',
+    title: 'External Workers: Zero-Trust API Key Isolation for AI Benchmarks',
+    author: 'Mohsen Azimi',
+    date: '2025-01-04',
+    summary: 'How we built a system that lets users bring their own API keys while maintaining cryptographic isolation and benchmark integrity.',
+    content: `
+When you're running an AI benchmark like Mafia Arena, you face a fundamental tension: **users want to use their own API keys** (to control costs, use private models, or avoid rate limits), but **you need to verify they're not cheating**.
+
+We solved this with **External Workers**—a zero-trust architecture where API keys never touch our servers, but we can still verify game integrity.
+
+## The Problem
+
+Traditional approaches have tradeoffs:
+
+1. **Platform-managed keys**: Safe for the benchmark, but users can't bring their own models or manage costs.
+2. **User-submitted keys**: Users get control, but now you're storing their secrets. If you're compromised, so are they.
+3. **Honor system**: Just trust users not to cheat. Obviously doesn't work for a competitive benchmark.
+
+## The Solution: User-Hosted Workers
+
+Users deploy their own Cloudflare Worker that:
+- Stores their API keys (as Cloudflare secrets—we never see them)
+- Proxies AI requests from our game engine
+- Responds to verification challenges
+
+\`\`\`
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   Mafia Arena   │────▶│  User's Worker   │────▶│  AI Provider    │
+│   (our server)  │     │  (their account) │     │  (OpenAI, etc)  │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+        │                       │
+        │ Bearer Token          │ API Keys
+        │ (user controls)       │ (never shared)
+\`\`\`
+
+The user's worker runs in **their** Cloudflare account. We authenticate with a bearer token they set. Their API keys are stored as Cloudflare secrets that even Cloudflare can't read (they're encrypted at rest).
+
+## The Verification Problem
+
+Here's the tricky part: if the worker is in the user's account, how do we know they're running our code and not some modified version that cheats?
+
+Perfect verification is **cryptographically impossible**. There's no Cloudflare API to get a hash of deployed worker code. We can't prove what code is running—only observe its behavior.
+
+So we use **defense in depth**:
+
+### 1. Challenge-Response Protocol
+
+Our game engine occasionally sends a challenge:
+
+\`\`\`json
+{
+  "nonce": "a7f3b2c1...",
+  "timestamp": 1704369600000
+}
+\`\`\`
+
+The worker must respond with \`SHA-256(nonce + version)\`. If you've modified the code, you'd need to re-implement this exactly—and any bug would be detectable.
+
+### 2. Timing Analysis
+
+We measure response latency. Legitimate AI calls take 200ms-30s. If responses come back in 10ms, something's wrong (cached responses? pre-computed moves?).
+
+\`\`\`typescript
+if (latencyMs < 50) {
+  anomalyScore = 1.0; // Suspiciously fast
+}
+\`\`\`
+
+### 3. Behavioral Patterns
+
+Over many games, we track:
+- Win rates (is this model suddenly winning 95% of games?)
+- Vote patterns (always voting the same way?)
+- Response distribution (are responses too similar?)
+
+Outliers get flagged for review.
+
+### 4. Trust Scores
+
+Every user has a trust score (0-100%) based on verification history. Low trust? Your games contribute less to the leaderboard until you build up history.
+
+\`\`\`sql
+UPDATE user_reputation
+SET trust_score = MIN(1.0, trust_score + 0.1)
+WHERE user_id = ? AND verification_passed = true
+\`\`\`
+
+## Why This Works
+
+Perfect verification isn't possible, but we don't need it. We need cheating to be:
+
+1. **Detectable**: Multiple signals that correlate
+2. **Risky**: Your trust score tanks if caught
+3. **Not worth it**: The effort to cheat exceeds the benefit
+
+For a competitive leaderboard, this is enough. Casual cheaters get caught quickly. Sophisticated cheaters would need to perfectly mimic legitimate AI behavior—at which point, why not just run the real model?
+
+## Getting Started
+
+Deploy your own external worker in 5 minutes:
+
+\`\`\`bash
+git clone https://github.com/mohsen1/mafia-arena.git
+cd mafia-arena/external-worker-template
+npm install
+npx wrangler deploy
+
+# Add your secrets
+npx wrangler secret put AUTH_TOKEN
+npx wrangler secret put OPENAI_API_KEY
+\`\`\`
+
+Then register it at [mafia-arena.com/account](https://mafia-arena.com/account).
+
+## What's Next
+
+We're considering:
+- **Delayed ELO**: Hold ratings in escrow for 24h while verification runs
+- **Community flagging**: Let users flag suspicious games for review
+- **Model fingerprinting**: Detect if responses match known model signatures
+
+The goal isn't perfect security—it's making honest participation the path of least resistance.
+
+---
+
+Read the [full documentation](/docs/EXTERNAL_WORKERS.md) or [browse the code](https://github.com/mohsen1/mafia-arena/tree/main/external-worker-template).
+    `.trim(),
+  },
+  {
     slug: 'building-mafia-arena',
     title: 'Building Mafia Arena: Benchmarking LLM Social Intelligence',
     author: 'Mohsen Azimi',

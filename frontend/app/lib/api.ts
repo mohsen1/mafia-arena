@@ -4,7 +4,16 @@
 
 import { getApiUrl } from './utils';
 
-const API_URL = getApiUrl();
+/**
+ * Get the API URL. For server-side rendering, pass the request to detect
+ * preview deployments. Client-side calls can omit the request.
+ */
+function getApiUrlForRequest(request?: Request): string {
+  return getApiUrl(request);
+}
+
+// For backwards compatibility with client-side only code
+const API_URL = typeof window !== 'undefined' ? getApiUrl() : '';
 
 // =============================================================================
 // AUTH TYPES
@@ -386,24 +395,27 @@ export interface GamesResponse {
 
 /**
  * Fetch list of games with optional filters.
+ * @param request - Optional request for SSR to detect preview deployments
  */
 export async function getGames(
   limit = 20,
   offset = 0,
   status: 'completed' | 'running' | 'failed' = 'completed',
-  filters?: GameFilters
+  filters?: GameFilters,
+  request?: Request
 ): Promise<GamesResponse> {
+  const apiUrl = getApiUrlForRequest(request);
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
     status,
   });
-  
+
   if (filters?.model) params.set('model', filters.model);
   if (filters?.winner) params.set('winner', filters.winner);
   if (filters?.theme) params.set('theme', filters.theme);
 
-  const res = await fetch(`${API_URL}/api/games?${params}`);
+  const res = await fetch(`${apiUrl}/api/games?${params}`);
   if (!res.ok) throw new Error('Failed to fetch games');
 
   return res.json();
@@ -411,9 +423,11 @@ export async function getGames(
 
 /**
  * Fetch running/live games.
+ * @param request - Optional request for SSR to detect preview deployments
  */
-export async function getLiveGames(): Promise<{ games: GameSummary[]; total: number }> {
-  const res = await fetch(`${API_URL}/api/games?status=running&limit=50`);
+export async function getLiveGames(request?: Request): Promise<{ games: GameSummary[]; total: number }> {
+  const apiUrl = getApiUrlForRequest(request);
+  const res = await fetch(`${apiUrl}/api/games?status=running&limit=50`);
   if (!res.ok) throw new Error('Failed to fetch live games');
 
   return res.json();
@@ -421,9 +435,11 @@ export async function getLiveGames(): Promise<{ games: GameSummary[]; total: num
 
 /**
  * Fetch a single game's details.
+ * @param request - Optional request for SSR to detect preview deployments
  */
-export async function getGame(id: string): Promise<GameDetail> {
-  const res = await fetch(`${API_URL}/api/games/${id}`);
+export async function getGame(id: string, request?: Request): Promise<GameDetail> {
+  const apiUrl = getApiUrlForRequest(request);
+  const res = await fetch(`${apiUrl}/api/games/${id}`);
   if (!res.ok) throw new Error('Failed to fetch game');
 
   return res.json();
@@ -606,20 +622,24 @@ export async function getWinRateByPersonality(team?: 'mafia' | 'town'): Promise<
 
 /**
  * Fetch stats overview.
+ * @param request - Optional request for SSR to detect preview deployments
  */
-export async function getStatsOverview(): Promise<StatsOverview> {
-  const res = await fetch(`${API_URL}/api/stats/overview`);
+export async function getStatsOverview(request?: Request): Promise<StatsOverview> {
+  const apiUrl = getApiUrlForRequest(request);
+  const res = await fetch(`${apiUrl}/api/stats/overview`);
   if (!res.ok) throw new Error('Failed to fetch stats overview');
   return res.json();
 }
 
 /**
  * Fetch model matchups.
+ * @param request - Optional request for SSR to detect preview deployments
  */
-export async function getMatchups(team?: 'mafia' | 'town'): Promise<MatchupsResponse> {
+export async function getMatchups(team?: 'mafia' | 'town', request?: Request): Promise<MatchupsResponse> {
+  const apiUrl = getApiUrlForRequest(request);
   const url = team
-    ? `${API_URL}/api/stats/matchups?team=${team}`
-    : `${API_URL}/api/stats/matchups`;
+    ? `${apiUrl}/api/stats/matchups?team=${team}`
+    : `${apiUrl}/api/stats/matchups`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch matchups');
   return res.json();
@@ -671,9 +691,11 @@ export interface EloResponse {
 
 /**
  * Fetch ELO ratings.
+ * @param request - Optional request for SSR to detect preview deployments
  */
-export async function getEloRatings(): Promise<EloResponse> {
-  const res = await fetch(`${API_URL}/api/stats/elo`);
+export async function getEloRatings(request?: Request): Promise<EloResponse> {
+  const apiUrl = getApiUrlForRequest(request);
+  const res = await fetch(`${apiUrl}/api/stats/elo`);
   if (!res.ok) throw new Error('Failed to fetch ELO ratings');
   return res.json();
 }

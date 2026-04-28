@@ -47,10 +47,10 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ params, request }: Route.LoaderArgs) {
   const gameId = params.id!;
   try {
-    const game = await getGame(gameId);
+    const game = await getGame(gameId, request);
     return { game, error: null };
   } catch {
     return { game: null, error: 'Game not found' };

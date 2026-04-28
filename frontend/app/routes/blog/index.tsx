@@ -10,8 +10,8 @@ interface BlogPostPreview {
   summary: string;
 }
 
-export async function loader() {
-  const res = await fetch(`${getApiUrl()}/api/blog`);
+export async function loader({ request }: Route.LoaderArgs) {
+  const res = await fetch(`${getApiUrl(request)}/api/blog`);
   if (!res.ok) {
     throw new Response("Failed to load blog posts", { status: res.status });
   }

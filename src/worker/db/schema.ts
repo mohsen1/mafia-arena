@@ -342,6 +342,62 @@ export const userApiKeys = sqliteTable('user_api_keys', {
   index('idx_user_api_keys_provider').on(table.provider),
 ]);
 
+/**
+ * User external workers for API key isolation.
+ * Users deploy their own Cloudflare Workers to hold API keys.
+ */
+export const userExternalWorkers = sqliteTable('user_external_workers', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull().default('My Worker'),
+  workerUrl: text('worker_url').notNull(),
+  authTokenHash: text('auth_token_hash').notNull(), // SHA-256 hash (never store plaintext)
+  authTokenFingerprint: text('auth_token_fingerprint').notNull(), // Last 4 chars for UI
+  status: text('status').$type<'pending' | 'verified' | 'failed'>().notNull().default('pending'),
+  supportedProviders: text('supported_providers', { mode: 'json' }).$type<string[]>(), // e.g., ["openai", "anthropic"]
+  lastHealthCheck: integer('last_health_check', { mode: 'timestamp_ms' }),
+  lastError: text('last_error'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+}, (table) => [
+  index('idx_user_external_workers_user').on(table.userId),
+  index('idx_user_external_workers_status').on(table.status),
+]);
+
+/**
+ * User reputation/trust tracking for integrity verification.
+ */
+export const userReputation = sqliteTable('user_reputation', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  trustScore: real('trust_score').notNull().default(0.5), // 0-1 scale
+  totalGamesPlayed: integer('total_games_played').notNull().default(0),
+  flaggedGames: integer('flagged_games').notNull().default(0),
+  verificationPasses: integer('verification_passes').notNull().default(0),
+  verificationFailures: integer('verification_failures').notNull().default(0),
+  lastVerificationAt: integer('last_verification_at', { mode: 'timestamp_ms' }),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).default(sql`(unixepoch() * 1000)`).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+});
+
+/**
+ * Verification audit log for tracking all verification attempts.
+ */
+export const verificationLog = sqliteTable('verification_log', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  gameId: text('game_id').notNull(),
+  userId: text('user_id').notNull(),
+  verificationType: text('verification_type').$type<'token' | 'challenge' | 'timing' | 'behavioral'>().notNull(),
+  passed: integer('passed', { mode: 'boolean' }).notNull(),
+  details: text('details', { mode: 'json' }).$type<Record<string, unknown>>(), // Verification specifics
+  latencyMs: integer('latency_ms'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).default(sql`(unixepoch() * 1000)`).notNull(),
+}, (table) => [
+  index('idx_verification_log_game').on(table.gameId),
+  index('idx_verification_log_user').on(table.userId),
+  index('idx_verification_log_created').on(table.createdAt),
+  index('idx_verification_log_type_passed').on(table.verificationType, table.passed),
+]);
+
 // =============================================================================
 // SYSTEM
 // =============================================================================
@@ -402,6 +458,9 @@ export type ErrorLogEntry = typeof errorLog.$inferSelect;
 export type SystemStateEntry = typeof systemState.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type UserApiKey = typeof userApiKeys.$inferSelect;
+export type UserExternalWorker = typeof userExternalWorkers.$inferSelect;
+export type UserReputationEntry = typeof userReputation.$inferSelect;
+export type VerificationLogEntry = typeof verificationLog.$inferSelect;
 
 // Inferred types for inserts (writing to DB)
 export type NewModel = typeof models.$inferInsert;
@@ -422,4 +481,7 @@ export type NewErrorLogEntry = typeof errorLog.$inferInsert;
 export type NewSystemStateEntry = typeof systemState.$inferInsert;
 export type NewUser = typeof users.$inferInsert;
 export type NewUserApiKey = typeof userApiKeys.$inferInsert;
+export type NewUserExternalWorker = typeof userExternalWorkers.$inferInsert;
+export type NewUserReputation = typeof userReputation.$inferInsert;
+export type NewVerificationLog = typeof verificationLog.$inferInsert;
 

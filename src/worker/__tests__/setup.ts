@@ -241,6 +241,51 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
       updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
       PRIMARY KEY (model_id, team, name_pattern)
     )`,
+    `CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT,
+      picture TEXT,
+      is_admin INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      updated_at INTEGER
+    )`,
+    `CREATE TABLE IF NOT EXISTS user_external_workers (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT 'My Worker',
+      worker_url TEXT NOT NULL,
+      auth_token_hash TEXT NOT NULL,
+      auth_token_fingerprint TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'failed')),
+      supported_providers TEXT,
+      last_health_check INTEGER,
+      last_error TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      updated_at INTEGER,
+      UNIQUE(user_id, worker_url)
+    )`,
+    `CREATE TABLE IF NOT EXISTS user_reputation (
+      user_id TEXT PRIMARY KEY,
+      trust_score REAL NOT NULL DEFAULT 0.5,
+      total_games_played INTEGER NOT NULL DEFAULT 0,
+      flagged_games INTEGER NOT NULL DEFAULT 0,
+      verification_passes INTEGER NOT NULL DEFAULT 0,
+      verification_failures INTEGER NOT NULL DEFAULT 0,
+      last_verification_at INTEGER,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      updated_at INTEGER
+    )`,
+    `CREATE TABLE IF NOT EXISTS verification_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      verification_type TEXT NOT NULL CHECK (verification_type IN ('token', 'challenge', 'timing', 'behavioral')),
+      passed INTEGER NOT NULL,
+      details TEXT,
+      latency_ms INTEGER,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    )`,
   ];
 
   const indexStatements = [
@@ -256,6 +301,10 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_batch_req_game ON batch_api_requests(game_id)`,
     `CREATE INDEX IF NOT EXISTS idx_batch_req_job ON batch_api_requests(batch_job_id)`,
     `CREATE INDEX IF NOT EXISTS idx_batch_requests_claim ON batch_api_requests(status, claim_id, claim_expires_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_user_external_workers_user ON user_external_workers(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_user_external_workers_status ON user_external_workers(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_verification_log_game ON verification_log(game_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_verification_log_user ON verification_log(user_id)`,
   ];
 
   const insertStatements = [
@@ -293,6 +342,9 @@ export async function initializeTestDatabase(db: D1Database): Promise<void> {
  */
 export async function cleanupTestData(db: D1Database): Promise<void> {
   const tables = [
+    'verification_log',
+    'user_reputation',
+    'user_external_workers',
     'batch_api_requests',
     'batch_api_jobs',
     'game_participants',
@@ -308,6 +360,7 @@ export async function cleanupTestData(db: D1Database): Promise<void> {
     'daily_stats',
     'error_log',
     'dlq_entries',
+    'users',
   ];
 
   for (const table of tables) {

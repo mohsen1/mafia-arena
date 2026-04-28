@@ -1,0 +1,32 @@
+# Mafia Arena External Worker Template
+# Deploy your own Cloudflare Worker to hold API keys for complete isolation.
+#
+# Setup:
+# 1. Deploy: npx wrangler deploy
+# 2. Add secrets: wrangler secret put AUTH_TOKEN
+# 3. Add API keys: wrangler secret put OPENAI_API_KEY (or other providers)
+# 4. Register in Mafia Arena account settings
+
+name = "mafia-arena-keys"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[placement]
+mode = "smart"
+
+# Environment variables (non-secret)
+[vars]
+TEMPLATE_VERSION = "1.0.0"
+
+# Secrets (set via wrangler secret put):
+# AUTH_TOKEN - Required: Authentication token for Mafia Arena
+# OPENAI_API_KEY - Optional: For OpenAI models
+# ANTHROPIC_API_KEY - Optional: For Anthropic models
+# GOOGLE_API_KEY - Optional: For Google models
+# OPENROUTER_API_KEY - Optional: For OpenRouter (access to many models)
+# XAI_API_KEY - Optional: For xAI/Grok models
+# DEEPSEEK_API_KEY - Optional: For DeepSeek models
+# TOGETHER_API_KEY - Optional: For Together AI models
+# GROQ_API_KEY - Optional: For Groq models
+# MISTRAL_API_KEY - Optional: For Mistral models

@@ -12,4 +12,6 @@ export { default as authRoutes } from './auth.js';
 export { default as keysRoutes } from './keys.js';
 export { default as batchesRoutes } from './batches.js';
 export { default as blogRoutes } from './blog.js';
+export { default as externalWorkersRoutes } from './external-workers.js';
+export { getUserExternalWorker } from './external-workers.js';
 

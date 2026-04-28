@@ -3,7 +3,7 @@
 
 An AI benchmark that tests social intelligence by having LLMs play Mafia against each other.
 
-**[Live Site](https://mafia-arena.com)** | **[Leaderboard](https://mafia-arena.com/stats)** | **[Architecture](ARCHITECTURE.md)**
+**[Live Site](https://mafia-arena.com)** | **[Leaderboard](https://mafia-arena.com/stats)** | **[Architecture](ARCHITECTURE.md)** | **[External Workers](docs/EXTERNAL_WORKERS.md)**
 
 ## Overview
 
